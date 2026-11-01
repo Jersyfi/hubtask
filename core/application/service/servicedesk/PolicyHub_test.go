@@ -79,7 +79,7 @@ func askedAtHub(auth *gate, hub shared.ID) bool {
 	return len(path) == 2 && path[1] == identity.HubScope(hub)
 }
 
-// UC-SVC-02 check 11: a hub's own policy is defined with STRUCTURE on that hub, keeps its hub,
+// UC-SVC-02 check 13: a hub's own policy is defined with STRUCTURE on that hub, keeps its hub,
 // is listed only to who may read the hub, and measures the hub's entries before the workspace's.
 func TestAHubDefinesItsOwnSlaPolicy(t *testing.T) {
 	ctx := context.Background()
@@ -131,7 +131,7 @@ func TestAHubDefinesItsOwnSlaPolicy(t *testing.T) {
 	}
 }
 
-// UC-SVC-02 check 11: Make a copy here gives the hub its own policy, naming its source; another
+// UC-SVC-02 check 13: Make a copy here gives the hub its own policy, naming its source; another
 // hub's policy is no source.
 func TestAHubCopiesASharedSlaPolicyHere(t *testing.T) {
 	ctx := context.Background()

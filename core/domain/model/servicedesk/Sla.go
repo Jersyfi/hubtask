@@ -369,7 +369,7 @@ func (p SLAPolicy) Goal(kind GoalKind) (SLAGoal, bool) {
 
 // Choose answers the policy an entry of the type, raised by a requester of the organisation, is
 // measured against: the first enabled one that covers both - a hub's own before the workspace's
-// (UC-SVC-02 check 11), then by position and key - one policy per entry, so its clocks never
+// (UC-SVC-02 check 13), then by position and key - one policy per entry, so its clocks never
 // disagree. The caller narrows the policies to the entry's hub (PoliciesWithin).
 func Choose(policies []SLAPolicy, entryType, organisation string) (SLAPolicy, bool) {
 	ordered := slices.Clone(policies)

@@ -1034,6 +1034,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `sla_policy.defined` | CopySlaPolicyHere | `sla_policy` | INFO | Every time |
 | `sla_policy.defined` | DefineSlaPolicy | `sla_policy` | INFO | Every time |
 | `sla_policy.deleted` | DeleteSlaPolicy | `sla_policy` | INFO | Every time |
 | `sla_policy.read` | ListSlaPolicies | `sla_policy` | INFO | When refused |

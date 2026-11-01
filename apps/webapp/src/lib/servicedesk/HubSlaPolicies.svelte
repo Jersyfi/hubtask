@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A hub's SLA policies in its settings, beside its working hours (UC-SVC-02 check 11): the
+  // A hub's SLA policies in its settings, beside its working hours (UC-SVC-02 check 13): the
   // workspace's shared policies read-only with *Make a copy here*, and the hub's own, which
   // measure the hub's entries before the workspace's. Copying needs STRUCTURE on the hub.
 

@@ -87,7 +87,7 @@ type Desk struct {
 	HubCalendars repository.HubCalendars
 	Containers   workrepo.Containers
 	// Visibility narrows the policies listed to the hubs the caller may read (UC-SVC-02 check
-	// 11). Nil lists the workspace's alone, so a build without it never shows a private hub's.
+	// 13). Nil lists the workspace's alone, so a build without it never shows a private hub's.
 	Visibility Visibility
 	Authorizer Authorizer
 	Audit      audit.Sink

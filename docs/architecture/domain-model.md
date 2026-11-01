@@ -805,7 +805,13 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   of each goal - target, standing (`RUNNING`, `PAUSED`, `MET`, `BREACHED`), due, at risk, met,
   breached -, the record the archive carries and a report counts; the timer is only its clock. A
   warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
-  an escalation is a rule on them.
+  an escalation is a rule on them. A policy may be **a hub's own** (`hub_id`, migration 0324;
+  UC-SVC-02 check 13): defined there with STRUCTURE on the hub, or copied there from a shared one
+  (`CopySlaPolicyHere`, under a key of its own, `copied_from` naming the source's). It measures
+  only the hub's entries and is tried there before the workspace's, whatever its position
+  (`PoliciesWithin`, `Choose`); its hub never changes (`sla_policies.hub_fixed`), it is listed only
+  to who reads the hub, and it goes with the hub. Keys stay unique in the workspace, so a goal's
+  record names one policy.
 * **OLA** (UC-SVC-02 checks 10 to 12): an `SlaPolicy` naming an **assignee group** is that group's
   internal promise - a first response and a resolution, no organisations. It is never chosen as
   the requester's promise; every enabled OLA covering the type runs beside it, armed when the

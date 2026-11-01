@@ -15,7 +15,7 @@ var (
 	salesHub = shared.MustParseID("0192f000-0000-7000-8000-0000000005b2")
 )
 
-// UC-SVC-02 check 11: a hub's own policy measures only the entries inside that hub and is tried
+// UC-SVC-02 check 13: a hub's own policy measures only the entries inside that hub and is tried
 // there before the workspace's, whatever its position; another hub's is never a choice.
 func TestAHubsOwnPolicyIsTriedFirstInsideItsHub(t *testing.T) {
 	common, err := NewSLAPolicy(policyInput())

@@ -172,7 +172,7 @@ func (d Desk) visiblePolicies(ctx context.Context, actor appshared.ActorContext,
 }
 
 // authorizePolicyAt asks STRUCTURE where the policy is defined: the workspace, or a living hub
-// for a hub's own (UC-SVC-02 check 11). Before any transaction, so that a refusal's audit entry
+// for a hub's own (UC-SVC-02 check 13). Before any transaction, so that a refusal's audit entry
 // is not rolled back with it (audit.md §7).
 func (d Desk) authorizePolicyAt(ctx context.Context, actor appshared.ActorContext, action audit.Action, hubID shared.ID) error {
 	if hubID.IsZero() {

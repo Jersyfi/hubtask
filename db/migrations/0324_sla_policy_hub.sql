@@ -1,4 +1,4 @@
--- An SLA policy defined at a hub (configuration model §1, §2; UC-SVC-02 check 11): a hub's own
+-- An SLA policy defined at a hub (configuration model §1, §2; UC-SVC-02 check 13): a hub's own
 -- policy measures only the entries inside that hub and is tried there before the workspace's, and
 -- a copy of a shared one records the key it was made from. Keys stay unique in the workspace, as
 -- 0317 chose for entry types, so an entry's goal record (`entry_sla.policy_key`) names one policy.

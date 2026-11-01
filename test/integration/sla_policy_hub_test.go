@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A hub's own SLA policy against the real boundary (UC-SVC-02 check 11, gate SG-3): it is stored
+// A hub's own SLA policy against the real boundary (UC-SVC-02 check 13, gate SG-3): it is stored
 // with its hub and the key it was copied from, the workspace next door reads none of it, and the
 // hub takes its policies with it when it goes.
 

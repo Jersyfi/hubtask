@@ -28,7 +28,7 @@ type CopySLAPolicyHereCommand struct {
 	Name *string
 }
 
-// CopySlaPolicyHere makes a hub's own copy of a policy shared with it (UC-SVC-02 check 11): a
+// CopySlaPolicyHere makes a hub's own copy of a policy shared with it (UC-SVC-02 check 13): a
 // shared policy is read-only at the hub, and a hub that needs it different copies it.
 //
 //nolint:revive // var-naming: a use case type is named as the catalogue names it
@@ -109,7 +109,7 @@ func (h CopySlaPolicyHere) Descriptor() usecase.Descriptor {
 }
 
 // policiesFor narrows the policies to those that may measure the entry: the workspace's and its
-// hub's own (UC-SVC-02 check 11). Without the containers, the workspace's alone.
+// hub's own (UC-SVC-02 check 13). Without the containers, the workspace's alone.
 func policiesFor(ctx context.Context, containers workrepo.Containers, item work.WorkItem, policies []domain.SLAPolicy) ([]domain.SLAPolicy, error) {
 	var hub shared.ID
 	if containers != nil {

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/OlaClocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
+checked_by: [core/domain/model/servicedesk/Sla_test.go, core/application/service/servicedesk/Clocks_test.go, core/application/service/servicedesk/OlaClocks_test.go, core/application/service/servicedesk/Organisations_test.go, test/integration/service_desk_repository_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, core/domain/model/servicedesk/SlaHub_test.go, core/application/service/servicedesk/PolicyHub_test.go, test/integration/sla_policy_hub_test.go]
 ---
 
 # Promise response times and see which promise is about to break
@@ -34,10 +34,12 @@ Lena's policy *incidents* measures entries of the type *incident*: a first respo
 10. A policy may name an assignee group: it is then that group's OLA, a first response and a resolution only, never the requester's promise. Every enabled OLA covering an entry's type is armed, beside the requester's promise and without moving it, when the entry is on a member of the group; its first response is met by a comment - public or internal - of a member. A group the workspace does not hold is refused with `sla_policies.group_unknown`, a next response with `sla_policies.ola_goal_unsupported`, organisations with `sla_policies.ola_organisations`.
 11. An OLA's goals stand still in their pause statuses, and are met by the completion or when the entry is handed on to somebody outside the group; handed back later, the entry is not measured by that OLA again.
 12. An OLA's goal at risk or breached is announced as the requester's is, with the group (`assignee_group_id`), so a rule escalates it; the entry's goals and the report carry the OLAs' beside the requester's, each marked `SLA` or `OLA`, and the portal shows the requester's alone.
+13. A person who may shape a hub defines SLA policies of the hub's own, and makes a copy of a policy shared from the workspace there under a key of its own, which names the policy it was copied from; a hub's own policy measures only the hub's entries and is tried there before the workspace's, is listed only to who may read the hub, and stays at its hub (`sla_policies.hub_fixed`).
 
 ## Where it ends
 
 * One policy measures an entry for its requester, and each OLA once for its group; a policy changed or deleted later moves no clock already running.
+* A policy's key is unique in the workspace, a hub's own included; a shared policy is never changed from a hub (configuration model §2). An entry that leaves the hub keeps the clocks its hub's policy armed; what it takes after is measured where it then sits.
 * A policy takes effect for entries that appear, or take its type, after it is defined; nothing re-measures older entries.
 * The goals are a first response, a next response and a resolution; an OLA promises a first response and a resolution. Contracts with suppliers (underpinning contracts) on the same entry are the next release's.
 * A queue's order by the next breach, the `sla_standing` condition and the offline copy read the requester's promise; the teams' are read online, on the entry and in the report.

@@ -82,7 +82,7 @@ export interface HubCalendarRow {
 
 /**
  * A hub's settings: the SLA policies shared with it, read-only there, and its own (UC-SVC-02
- * check 11) - never another hub's, which measures none of this hub's entries.
+ * check 13) - never another hub's, which measures none of this hub's entries.
  */
 export function policiesAtHub<P extends { readonly hub_id?: string | null }>(policies: readonly P[], hub: string): { readonly shared: readonly P[]; readonly own: readonly P[] } {
   return { shared: policies.filter((p) => !p.hub_id), own: policies.filter((p) => p.hub_id === hub) };

@@ -5758,7 +5758,7 @@ CREATE TABLE sla_policy (
   -- the group whose internal promise (an OLA) the policy is; NULL is the requester's (0303)
   assignee_group_id uuid,
   -- the hub it is defined at, whose entries alone it measures; null is the whole workspace. A copy
-  -- names the key it was copied from (0324, UC-SVC-02 check 11)
+  -- names the key it was copied from (0324, UC-SVC-02 check 13)
   hub_id         uuid,
   copied_from    text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),

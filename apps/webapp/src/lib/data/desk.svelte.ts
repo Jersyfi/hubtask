@@ -44,7 +44,7 @@ class Desk {
     return engine.mutate<SlaPolicy>('PUT', `${policiesPath}/${key}`, body, { invalidates: [policiesPath] });
   }
 
-  /** A hub's own copy of a shared SLA policy under a new key (UC-SVC-02 check 11). */
+  /** A hub's own copy of a shared SLA policy under a new key (UC-SVC-02 check 13). */
   copyPolicyHere(source: string, hubId: string, key: string): Promise<SlaPolicy> {
     return engine.mutate<SlaPolicy>('POST', `${policiesPath}/${source}:copy-here`, { hub_id: hubId, key }, {
       idempotencyKey: crypto.randomUUID(), invalidates: [policiesPath],

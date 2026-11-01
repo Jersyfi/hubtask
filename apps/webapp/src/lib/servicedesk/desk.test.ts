@@ -76,7 +76,7 @@ test('a policy keeps the group that makes it an OLA, and an OLA names no organis
   assert.deepEqual(ola.organisations, []);
 });
 
-test('a hub’s settings show the shared SLA policies apart from its own, never another hub’s (UC-SVC-02 check 11)', () => {
+test('a hub’s settings show the shared SLA policies apart from its own, never another hub’s (UC-SVC-02 check 13)', () => {
   const policies = [
     { key: 'incidents' }, { key: 'desk', hub_id: 'hub-1', copied_from: 'incidents' }, { key: 'sales', hub_id: 'hub-2' },
   ] as never[];
