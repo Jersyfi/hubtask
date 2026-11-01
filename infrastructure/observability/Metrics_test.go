@@ -269,6 +269,7 @@ func exerciseEveryInstrument(m *Metrics) {
 	m.WebhookDelivery(ctx, "retry", "5xx")
 	m.WebhookRetryBacklog(ctx, 3)
 	m.MediaScanHeldWorkspaces(ctx, 1)
+	m.OldestTransaction(ctx, 12.5)
 }
 
 // The gate for label cardinality: no label may appear that the catalogue does not list. A test

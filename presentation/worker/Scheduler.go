@@ -50,6 +50,14 @@ type SchedulerSignals interface {
 	// AuditDefaultAgedRows is how many entries in the trail's default partition are past their
 	// period: rows no partition drop can reach, which an operator moves out (data-retention.md §3).
 	AuditDefaultAgedRows(ctx context.Context, rows int64)
+	// OldestTransaction is the age of the database's oldest open transaction - alert A-25's
+	// number: vacuum cannot reclaim what changed after it began.
+	OldestTransaction(ctx context.Context, seconds float64)
+}
+
+// OldestTransactions answers the age of the database's oldest open transaction, in seconds.
+type OldestTransactions interface {
+	OldestTransactionSeconds(ctx context.Context) (float64, error)
 }
 
 // FinishedJobs removes the jobs whose catalogue period has run out. The queue's own table, read
@@ -160,6 +168,8 @@ type Scheduler struct {
 	Backlog RetryBacklog
 	// Open is where the workspaces with held uploads are counted. Optional, like Backlog.
 	Open OpenJobs
+	// Transactions answers the oldest open transaction's age. Optional, like Backlog.
+	Transactions OldestTransactions
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -295,6 +305,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleQueueDepth(ctx)
 	s.sampleRetryBacklog(ctx)
 	s.sampleHeldScans(ctx)
+	s.sampleOldestTransaction(ctx)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -743,6 +754,31 @@ func (s Scheduler) sampleQueueDepth(ctx context.Context) {
 			s.Signals.QueueDepth(ctx, kind.String(), 0)
 		}
 	}
+}
+
+// sampleOldestTransaction publishes how long the oldest open transaction has run (A-25). A backup's
+// or an export's snapshot held for hours is the usual one, and the cost is invisible until the
+// tables have bloated: vacuum keeps every row version that snapshot might still read.
+func (s Scheduler) sampleOldestTransaction(ctx context.Context) {
+	if s.Signals == nil || s.Transactions == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var seconds float64
+	// On the primary, never a replica: a replica's sessions are not the ones that pin its vacuum.
+	err := s.UnitOfWork.Within(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		seconds, err = s.Transactions.OldestTransactionSeconds(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the oldest transaction failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.OldestTransaction(ctx, seconds)
 }
 
 // sampleRetryBacklog publishes the webhook retries waiting out their backoff. The queue depth

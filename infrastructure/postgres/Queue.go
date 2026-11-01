@@ -494,6 +494,22 @@ func (q Queue) ReviveDeadDuties(ctx context.Context, kinds []queue.Kind, batch i
 	return counts, nil
 }
 
+// OldestTransactionSeconds answers how long the database's oldest open transaction has run, the
+// caller's own left out (migration 0331).
+func (q Queue) OldestTransactionSeconds(ctx context.Context) (float64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	seconds, err := queries.OldestTransactionSeconds(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the oldest transaction: %w", err))
+	}
+	return seconds, nil
+}
+
 // jobFrom rebuilds a claimed job. A row that cannot be read is a defect rather than a bad job:
 // everything in it was written by this adapter.
 func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {

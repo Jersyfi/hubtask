@@ -325,3 +325,7 @@ WHERE id IN (
   LIMIT sqlc.arg('batch')::int
 )
 RETURNING state;
+
+-- The oldest open transaction's age in seconds (migration 0331, alert A-25).
+-- name: OldestTransactionSeconds :one
+SELECT oldest_transaction_seconds()::float8 AS seconds;

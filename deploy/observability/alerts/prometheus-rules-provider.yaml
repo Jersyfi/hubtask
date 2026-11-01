@@ -327,3 +327,22 @@ groups:
             refused at its ceiling. Opening the document gets slower; past the ceiling its writers
             wait for a snapshot before their words are stored.
           runbook: RB-A24-document-log-not-compacted.md
+
+      # A-25. A transaction has stayed open for two hours: vacuum keeps every row version it might
+      # still read, so the busy tables and their indexes grow until it ends. Usually a backup's or a
+      # workspace export's snapshot of a large workspace (backup-restore.md §5), sometimes a session
+      # left open by hand. Nothing is lost; queries slow down as the tables bloat. max() reads the
+      # one leader's series.
+      - alert: HubtaskLongTransaction
+        expr: max(hubtask_db_oldest_transaction_seconds) > 7200
+        for: 10m
+        labels:
+          severity: ticket
+          alert_id: A-25
+        annotations:
+          summary: "A database transaction has been open for over two hours"
+          description: >
+            Vacuum cannot reclaim rows changed since the oldest open transaction began, so tables
+            and indexes grow while it stays open. Find it in pg_stat_activity; a backup or export
+            of a large workspace is the usual one.
+          runbook: RB-A25-long-transaction.md

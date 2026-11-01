@@ -516,6 +516,18 @@ func (q *Queries) JobQueueDepth(ctx context.Context, now pgtype.Timestamptz) ([]
 	return items, nil
 }
 
+const oldestTransactionSeconds = `-- name: OldestTransactionSeconds :one
+SELECT oldest_transaction_seconds()::float8 AS seconds
+`
+
+// The oldest open transaction's age in seconds (migration 0331, alert A-25).
+func (q *Queries) OldestTransactionSeconds(ctx context.Context) (float64, error) {
+	row := q.db.QueryRow(ctx, oldestTransactionSeconds)
+	var seconds float64
+	err := row.Scan(&seconds)
+	return seconds, err
+}
+
 const openJobCount = `-- name: OpenJobCount :one
 SELECT count(*) FROM job
 WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')

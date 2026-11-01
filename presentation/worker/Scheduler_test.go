@@ -75,6 +75,11 @@ type schedulerSignals struct {
 
 	auditHeld        []int64
 	auditDefaultAged []int64
+	oldest           []float64
+}
+
+func (s *schedulerSignals) OldestTransaction(_ context.Context, seconds float64) {
+	s.oldest = append(s.oldest, seconds)
 }
 
 func newSchedulerSignals() *schedulerSignals {
@@ -603,5 +608,25 @@ func TestTheLeaderSamplesThePlatformsDeadLetters(t *testing.T) {
 	leader.tick(t.Context(), true, now.Add(time.Second))
 	if len(signals.platformDeadLetters) != 1 {
 		t.Errorf("an installation without the feed sampled %v", signals.platformDeadLetters)
+	}
+}
+
+// oldestTransaction is the database's answer, as the leader sees it.
+type oldestTransaction struct{ seconds float64 }
+
+func (o oldestTransaction) OldestTransactionSeconds(context.Context) (float64, error) {
+	return o.seconds, nil
+}
+
+// Alert A-25's number: the age of the oldest open transaction, published by the leader on every
+// tick, so a snapshot pinning vacuum for hours is seen before the tables bloat.
+func TestTheLeaderPublishesTheOldestTransaction(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Transactions = oldestTransaction{seconds: 7300}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.oldest) != 1 || signals.oldest[0] != 7300 {
+		t.Errorf("published %v, want [7300]", signals.oldest)
 	}
 }

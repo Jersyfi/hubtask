@@ -5213,6 +5213,8 @@ func run() error {
 			Backlog:            jobs,
 			// Alert A-23's number: the workspaces whose uploads wait for a scan (UC-MED-01).
 			Open: jobs,
+			// Alert A-25's number: a snapshot or a session pinning vacuum.
+			Transactions: jobs,
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,

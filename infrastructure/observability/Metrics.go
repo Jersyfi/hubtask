@@ -97,6 +97,7 @@ type Metrics struct {
 	secretReseals     metric.Int64Counter
 	webhookBacklog    metric.Int64Gauge
 	mediaScanHeld     metric.Int64Gauge
+	oldestTransaction metric.Float64Gauge
 	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
 	// dead letters waiting - alert A-21's number.
 	platformDeliveries  metric.Int64Counter
@@ -504,6 +505,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"download them until it does. Reported by the scheduler leader only, like the queue depth."),
 	); err != nil {
 		return fmt.Errorf("media scan held gauge: %w", err)
+	}
+	if m.oldestTransaction, err = meter.Float64Gauge(
+		namespace+"_db_oldest_transaction_seconds",
+		metric.WithDescription("How long the database's oldest open transaction has run: vacuum cannot "+
+			"reclaim rows changed after it began. Reported by the scheduler leader only, like the queue depth."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("oldest transaction gauge: %w", err)
 	}
 	if m.platformDeliveries, err = meter.Int64Counter(
 		namespace+"_platform_deliveries_total",
@@ -1226,6 +1235,11 @@ func (m *Metrics) PlatformDeadLetters(ctx context.Context, waiting int64) {
 // WebhookRetryBacklog publishes how many deliveries wait for their next rung of the ladder.
 func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
 	m.webhookBacklog.Record(ctx, waiting)
+}
+
+// OldestTransaction publishes the age of the database's oldest open transaction.
+func (m *Metrics) OldestTransaction(ctx context.Context, seconds float64) {
+	m.oldestTransaction.Record(ctx, seconds)
 }
 
 // MediaScanHeldWorkspaces publishes how many workspaces hold uploads waiting for a scan.

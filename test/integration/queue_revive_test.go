@@ -87,3 +87,33 @@ func TestADeadDutyIsRevivedAfterItsWait(t *testing.T) {
 		t.Errorf("revived %v, want two of the duty kind", counts)
 	}
 }
+
+// Alert A-25's reading: a transaction the application holds open is seen with its age, the
+// asking one left out.
+func TestTheOldestTransactionIsMeasured(t *testing.T) {
+	ctx := context.Background()
+	pool := appPool(ctx, t)
+	held, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = held.Rollback(ctx) }()
+	if _, err := held.Exec(ctx, `SELECT 1`); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1100 * time.Millisecond)
+
+	jobs := postgres.NewQueue(clockadapter.NewUUIDv7(clockadapter.System{}), clockadapter.System{})
+	var seconds float64
+	if err := postgres.NewUnitOfWork(pool).Within(ctx, persistence.SystemScope(),
+		func(ctx context.Context) error {
+			var err error
+			seconds, err = jobs.OldestTransactionSeconds(ctx)
+			return err
+		}); err != nil {
+		t.Fatalf("measuring: %v", err)
+	}
+	if seconds < 1 {
+		t.Errorf("a transaction held for a second measured %.2f s", seconds)
+	}
+}
