@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-owner, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-08]
-state: built
+state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/archive/Record_test.go, core/domain/model/knowledge/Render_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/archive/Carried_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/archive/Record_test.go, core/domain/model/knowledge/Render_test.go, apps/webapp/src/lib/data/pages.test.ts, core/application/archive/Carried_test.go, core/application/service/knowledge/Find_test.go]
 ---
 
 # Take a wiki out again

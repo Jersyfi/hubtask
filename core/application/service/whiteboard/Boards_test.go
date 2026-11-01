@@ -339,12 +339,17 @@ func TestABoardIsExportedAndReadBack(t *testing.T) {
 	if err != nil || whole["format"] != ExportFormat || whole["version"] != ExportVersion {
 		t.Fatalf("export %+v, %v", whole, err)
 	}
+	// UC-CNV-03 check 3: every export is in the trail, the whole board's and a frame's.
 	if sink.entries[len(sink.entries)-1].Action != BoardExportedAction {
 		t.Fatal("the export is not in the trail")
 	}
+	before := len(sink.entries)
 	framed, err := export.Invoke(context.Background(), actor(anna), usecase.Input{"whiteboard_id": board.ID.String(), "frame": "f1"})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(sink.entries) != before+1 || sink.entries[len(sink.entries)-1].Action != BoardExportedAction {
+		t.Fatal("the frame's export is not in the trail")
 	}
 	if n := len(framed["elements"].([]usecase.Output)); n != 4 {
 		t.Fatalf("the frame exported %d objects, want the frame, the sticky note, the shape and their connector", n)

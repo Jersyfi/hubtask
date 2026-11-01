@@ -5,10 +5,13 @@ package knowledge
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -42,5 +45,34 @@ func TestAPagesSummaryReachesTheReadableSpaces(t *testing.T) {
 	}
 	if _, err := reach.Readable(context.Background(), as(bert), []shared.ID{private}, true); err == nil {
 		t.Fatal("Bert counted the pages of Anna's private hub")
+	}
+}
+
+// UC-DOC-09 checks 1 and 2: a page with every page under it leaves as Markdown files with front
+// matter, each under its parent's folder, a reference kept as its address; the export is in the
+// trail with how many pages left.
+func TestAPageTreeIsExportedAndRecorded(t *testing.T) {
+	f := newFixture()
+	root := f.create(t, anna, hub, "", "Handbook", "See hubtask:item/0193a000-0000-7000-8000-000000000001")
+	child := f.create(t, anna, hub, root.ID, "Travel", "Book early")
+	files, err := ExportPage{Space: f.space}.Execute(context.Background(), as(anna), root.ID, true, domain.FormatMarkdown)
+	if err != nil || len(files) != 2 {
+		t.Fatalf("exported %+v %v", files, err)
+	}
+	if files[0].Path != "Handbook.md" || files[1].Path != "Handbook/Travel.md" {
+		t.Errorf("paths %s and %s", files[0].Path, files[1].Path)
+	}
+	for _, want := range []string{"id: " + child.ID.String(), `title: "Travel"`, "parent: " + root.ID.String()} {
+		if !strings.Contains(files[1].Content, want) {
+			t.Errorf("the child's front matter lacks %q: %q", want, files[1].Content)
+		}
+	}
+	if !strings.Contains(files[0].Content, "hubtask:item/0193a000-0000-7000-8000-000000000001") {
+		t.Errorf("the reference did not stay an address: %q", files[0].Content)
+	}
+	last := f.trail.entries[len(f.trail.entries)-1]
+	pages, _ := last.Changes["pages"].(map[string]any)
+	if last.Action != PageExportedAction || fmt.Sprint(pages["to"]) != "2" {
+		t.Errorf("the trail recorded %s with %v", last.Action, last.Changes)
 	}
 }
