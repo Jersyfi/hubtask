@@ -14645,6 +14645,9 @@ type ConfigReach struct {
 		Status string `json:"status"`
 	} `json:"removed,omitempty"`
 
+	// Rules Switched-on rules at the plan's place that use the module and go quiet while it is off: an action of it is skipped, a trigger of it never fires. The rules stay on.
+	Rules *int `json:"rules,omitempty"`
+
 	// Withheld True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.
 	Withheld *bool `json:"withheld,omitempty"`
 }
@@ -18932,6 +18935,9 @@ type ModuleReach struct {
 
 	// People People who reach the place while the module is on there; 0 where it is off.
 	People int `json:"people"`
+
+	// Rules Switched-on rules acting at the place that use the module - an action of it, which is skipped while it is off, or a trigger of it, which never fires; 0 where it is off. The rules stay on and work again when the module is switched on.
+	Rules *int `json:"rules,omitempty"`
 }
 
 // ModuleState defines model for ModuleState.

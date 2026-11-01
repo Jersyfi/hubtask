@@ -14651,6 +14651,9 @@ type ConfigReach struct {
 		Status string `json:"status"`
 	} `json:"removed,omitempty"`
 
+	// Rules Switched-on rules at the plan's place that use the module and go quiet while it is off: an action of it is skipped, a trigger of it never fires. The rules stay on.
+	Rules *int `json:"rules,omitempty"`
+
 	// Withheld True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.
 	Withheld *bool `json:"withheld,omitempty"`
 }
@@ -18938,6 +18941,9 @@ type ModuleReach struct {
 
 	// People People who reach the place while the module is on there; 0 where it is off.
 	People int `json:"people"`
+
+	// Rules Switched-on rules acting at the place that use the module - an action of it, which is skipped while it is off, or a trigger of it, which never fires; 0 where it is off. The rules stay on and work again when the module is switched on.
+	Rules *int `json:"rules,omitempty"`
 }
 
 // ModuleState defines model for ModuleState.
@@ -40039,7 +40045,7 @@ type ClientInterface interface {
 
 	// PreviewModuleReach How many people switching a module off would leave without it
 	//
-	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
+	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. It also counts the switched-on rules there that use the module and go quiet. Counts, never who. Needs what the switch needs.
 	//
 	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 	PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -61991,7 +61997,7 @@ func (c *Client) SetModule(ctx context.Context, module Module, body SetModuleJSO
 
 // PreviewModuleReach How many people switching a module off would leave without it
 //
-// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
+// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. It also counts the switched-on rules there that use the module and go quiet. Counts, never who. Needs what the switch needs.
 //
 // Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 func (c *Client) PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -113669,7 +113675,7 @@ type ClientWithResponsesInterface interface {
 
 	// PreviewModuleReachWithResponse How many people switching a module off would leave without it
 	//
-	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
+	// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. It also counts the switched-on rules there that use the module and go quiet. Counts, never who. Needs what the switch needs.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -172150,7 +172156,7 @@ func (c *ClientWithResponses) SetModuleWithResponse(ctx context.Context, module 
 
 // PreviewModuleReachWithResponse How many people switching a module off would leave without it
 //
-// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.
+// How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. It also counts the switched-on rules there that use the module and go quiet. Counts, never who. Needs what the switch needs.
 //
 // Returns a wrapper object for the known response body format(s).
 //

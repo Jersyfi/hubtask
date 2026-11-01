@@ -30,6 +30,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -121,6 +122,15 @@ const (
 	// the step's own change rather than after it.
 	TriggerStepTaken TriggerKind = "STEP_TAKEN"
 )
+
+// Module is the module a kind of trigger depends on, and empty for the kinds of the base
+// product: a STEP_TAKEN rule never fires while workflows are off where it acts (UC-INS-21).
+func (k TriggerKind) Module() module.Key {
+	if k == TriggerStepTaken {
+		return module.Workflows
+	}
+	return ""
+}
 
 // TriggerKinds is the seven, in the order automation.md §1.1 lists them: what the manifest answers
 // and a rule editor offers. Read from here rather than restated, so that the kind a client may pick

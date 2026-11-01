@@ -18400,8 +18400,8 @@ paths:
         for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the
         hub is private - directly or through a group, while the module is on there; 0 where it is
         off already. With `switch=INHERIT`, leaving the module to the level above: the same count
-        when the level above has it off, 0 when it stays on. A count, never who. Needs what the
-        switch needs.
+        when the level above has it off, 0 when it stays on. It also counts the switched-on rules
+        there that use the module and go quiet. Counts, never who. Needs what the switch needs.
       parameters:
         - name: module
           in: path
@@ -30992,6 +30992,11 @@ components:
         people:
           type: integer
           description: People a module switched off at the plan's place would leave without it.
+        rules:
+          type: integer
+          description: >
+            Switched-on rules at the plan's place that use the module and go quiet while it is
+            off: an action of it is skipped, a trigger of it never fires. The rules stay on.
         withheld:
           type: boolean
           description: >
@@ -31011,6 +31016,12 @@ components:
         people:
           type: integer
           description: People who reach the place while the module is on there; 0 where it is off.
+        rules:
+          type: integer
+          description: >
+            Switched-on rules acting at the place that use the module - an action of it, which is
+            skipped while it is off, or a trigger of it, which never fires; 0 where it is off. The
+            rules stay on and work again when the module is switched on.
 
     CustomFieldReach:
       type: object

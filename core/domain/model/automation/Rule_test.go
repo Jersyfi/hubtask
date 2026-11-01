@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -790,4 +791,17 @@ func hasFieldCode(err error, path, code string) bool {
 		}
 	}
 	return false
+}
+
+// A STEP_TAKEN rule depends on workflows; every other trigger belongs to the base product.
+func TestATriggerNamesTheModuleItDependsOn(t *testing.T) {
+	for _, kind := range automation.TriggerKinds() {
+		want := module.Key("")
+		if kind == automation.TriggerStepTaken {
+			want = module.Workflows
+		}
+		if got := kind.Module(); got != want {
+			t.Errorf("%s depends on %q, want %q", kind, got, want)
+		}
+	}
 }

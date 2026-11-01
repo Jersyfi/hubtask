@@ -26970,7 +26970,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "module reach",
         "summary": "How many people switching a module off would leave without it",
-        "description": "How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. A count, never who. Needs what the switch needs.\n",
+        "description": "How many people switching the module off at the workspace, or at one hub with `hub_id`, would leave without it, before the switch: everyone who holds a role in the workspace - for a hub, at the hub, at a collection or an entry in it, or at the workspace unless the hub is private - directly or through a group, while the module is on there; 0 where it is off already. With `switch=INHERIT`, leaving the module to the level above: the same count when the level above has it off, 0 when it stays on. It also counts the switched-on rules there that use the module and go quiet. Counts, never who. Needs what the switch needs.\n",
         "parameters": [
           {
             "name": "module",
@@ -50097,6 +50097,10 @@
             "type": "integer",
             "description": "People a module switched off at the plan's place would leave without it."
           },
+          "rules": {
+            "type": "integer",
+            "description": "Switched-on rules at the plan's place that use the module and go quiet while it is off: an action of it is skipped, a trigger of it never fires. The rules stay on.\n"
+          },
           "withheld": {
             "type": "boolean",
             "description": "True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.\n"
@@ -50125,6 +50129,10 @@
           "people": {
             "type": "integer",
             "description": "People who reach the place while the module is on there; 0 where it is off."
+          },
+          "rules": {
+            "type": "integer",
+            "description": "Switched-on rules acting at the place that use the module - an action of it, which is skipped while it is off, or a trigger of it, which never fires; 0 where it is off. The rules stay on and work again when the module is switched on.\n"
           }
         }
       },

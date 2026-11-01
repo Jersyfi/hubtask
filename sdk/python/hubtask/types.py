@@ -2737,6 +2737,7 @@ class ConfigReach(TypedDict, total=False):
     gained: list[str]
     lost: list[str]
     people: int
+    rules: int
     withheld: bool
 
 class ModuleReach(TypedDict, total=False):
@@ -2744,6 +2745,7 @@ class ModuleReach(TypedDict, total=False):
     hub_id: str
     on: Required[bool]
     people: Required[int]
+    rules: int
 
 class CustomFieldReach(TypedDict, total=False):
     field_id: Required[str]

@@ -6,10 +6,13 @@ package setting_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 
+	automationrepo "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -31,7 +34,7 @@ func TestAModuleSwitchedOffCountsThePeopleItLeavesWithoutIt(t *testing.T) {
 	ctx := context.Background()
 	modules, _, sink := fixture()
 	counted := &people{}
-	preview := settingservice.PreviewModuleReach{Modules: modules, People: counted}
+	preview := settingservice.PreviewModuleReach{Modules: modules, People: counted, Rules: rules{}, Actions: actions{}}
 	registry, err := usecase.NewRegistry(nil, preview.Descriptor())
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +81,7 @@ func TestAModuleSwitchedOffCountsThePeopleItLeavesWithoutIt(t *testing.T) {
 func TestAModuleReachIsRefusedAsTheSwitchWouldBe(t *testing.T) {
 	modules, _, _ := fixture()
 	modules.Authorizer = authorizer{refuse: true}
-	_, err := settingservice.PreviewModuleReach{Modules: modules, People: &people{}}.
+	_, err := settingservice.PreviewModuleReach{Modules: modules, People: &people{}, Rules: rules{}, Actions: actions{}}.
 		Execute(context.Background(), actor(), module.Planning, "", settingservice.SwitchOff)
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("err = %v", err)
@@ -90,7 +93,7 @@ func TestAModuleReachIsRefusedAsTheSwitchWouldBe(t *testing.T) {
 func TestAModuleLeftToTheLevelAboveCountsOnlyWhenItTurnsOff(t *testing.T) {
 	ctx := context.Background()
 	modules, _, _ := fixture()
-	preview := settingservice.PreviewModuleReach{Modules: modules, People: &people{}}
+	preview := settingservice.PreviewModuleReach{Modules: modules, People: &people{}, Rules: rules{}, Actions: actions{}}
 	registry, err := usecase.NewRegistry(nil, preview.Descriptor())
 	if err != nil {
 		t.Fatal(err)
@@ -119,5 +122,80 @@ func TestAModuleLeftToTheLevelAboveCountsOnlyWhenItTurnsOff(t *testing.T) {
 		usecase.Input{"module": "PLANNING", "switch": "ON"})
 	if err == nil {
 		t.Error("a switch on was counted")
+	}
+}
+
+// rules holds the workspace's switched-on rules, answered two per page.
+type rules struct{ enabled []automation.Rule }
+
+func (r rules) List(_ context.Context, query automationrepo.Query) (automationrepo.Page, error) {
+	if query.Enabled == nil || !*query.Enabled {
+		return automationrepo.Page{}, errors.New("asked for the rules that are off")
+	}
+	start := 0
+	if query.Cursor != "" {
+		start, _ = strconv.Atoi(query.Cursor)
+	}
+	end := min(start+2, len(r.enabled))
+	page := automationrepo.Page{Rules: r.enabled[start:end], HasMore: end < len(r.enabled)}
+	if page.HasMore {
+		page.NextCursor = strconv.Itoa(end)
+	}
+	return page, nil
+}
+
+// actions says TAKE_STEP is the workflows module's and ADD_LABEL the base product's.
+type actions struct{}
+
+func (actions) ByAutomationAction(kind string) (usecase.Descriptor, bool) {
+	switch kind {
+	case "TAKE_STEP":
+		return usecase.Descriptor{Name: "TakeStep", Module: module.Workflows}, true
+	case "ADD_LABEL":
+		return usecase.Descriptor{Name: "AddLabel"}, true
+	}
+	return usecase.Descriptor{}, false
+}
+
+func ruleAt(scope automation.Scope, trigger automation.TriggerKind, kinds ...string) automation.Rule {
+	rule := automation.Rule{Enabled: true, Scope: scope, Trigger: automation.Trigger{Kind: trigger}}
+	for _, kind := range kinds {
+		rule.Actions = append(rule.Actions, automation.Action{Kind: kind})
+	}
+	return rule
+}
+
+// UC-INS-21 check 4: switching a module off also says how many switched-on rules go quiet - an
+// action of the module is skipped, a trigger of it never fires - where the switch reaches: every
+// rule for the workspace, and for a hub the workspace's rules and those of the hub and its
+// collections.
+func TestAModuleSwitchedOffCountsTheRulesItQuiets(t *testing.T) {
+	ctx := context.Background()
+	modules, _, _ := fixture()
+	other := shared.MustParseID("018f0000-0000-7000-8000-000000000009")
+	preview := settingservice.PreviewModuleReach{Modules: modules, People: &people{}, Actions: actions{}, Rules: rules{enabled: []automation.Rule{
+		ruleAt(automation.Scope{Type: automation.ScopeTenant}, automation.TriggerManual, "ADD_LABEL", "TAKE_STEP"),
+		ruleAt(automation.Scope{Type: automation.ScopeHub, ID: hub}, automation.TriggerStepTaken, "ADD_LABEL"),
+		ruleAt(automation.Scope{Type: automation.ScopeCollection, ID: list}, automation.TriggerManual, "TAKE_STEP"),
+		ruleAt(automation.Scope{Type: automation.ScopeHub, ID: other}, automation.TriggerManual, "TAKE_STEP"),
+		ruleAt(automation.Scope{Type: automation.ScopeTenant}, automation.TriggerManual, "ADD_LABEL"),
+	}}}
+	if _, err := (settingservice.SetModule{Modules: modules}).Execute(ctx, actor(), settingservice.SetModuleCommand{
+		Module: module.Workflows, Switch: settingservice.SwitchOn,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	reach, err := preview.Execute(ctx, actor(), module.Workflows, "", settingservice.SwitchOff)
+	if err != nil || reach.Rules != 4 {
+		t.Errorf("the workspace counted %d rules, %v", reach.Rules, err)
+	}
+	reach, err = preview.Execute(ctx, actor(), module.Workflows, hub, settingservice.SwitchOff)
+	if err != nil || reach.Rules != 3 {
+		t.Errorf("the hub counted %d rules, %v", reach.Rules, err)
+	}
+	reach, err = preview.Execute(ctx, actor(), module.Planning, "", settingservice.SwitchOff)
+	if err != nil || reach.Rules != 0 {
+		t.Errorf("a module off already counted %d rules, %v", reach.Rules, err)
 	}
 }

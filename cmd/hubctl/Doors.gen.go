@@ -1737,7 +1737,7 @@ var generatedCommands = []door{
 			{Name: "hub_id", Kind: "uuid", Help: "", Required: false},
 			{Name: "switch", Kind: "string", Help: "OFF, the default, or INHERIT to leave the module to the level above", Required: false},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"hub_id", "module", "on", "people", "rules"}},
 	{Group: "oauth", Verb: "client ls", OperationID: "listOauthClients", Method: "GET", Path: "/oauth/clients", Summary: "The workspace's registered third-party apps",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name"}},
 	{Group: "oauth", Verb: "client rm", OperationID: "deleteOauthClient", Method: "DELETE", Path: "/oauth/clients/{clientId}", Summary: "Remove a third-party app",

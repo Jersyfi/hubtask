@@ -5,10 +5,13 @@ package setting
 
 import (
 	"context"
+	"errors"
 
+	automationrepo "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -29,14 +32,30 @@ type People interface {
 	PeopleReaching(ctx context.Context, hubID shared.ID) (int, error)
 }
 
+// Rules pages through the workspace's rules; only the switched-on ones are asked for.
+type Rules interface {
+	List(ctx context.Context, query automationrepo.Query) (automationrepo.Page, error)
+}
+
+// Actions says which module the use case behind an action kind belongs to.
+type Actions interface {
+	ByAutomationAction(kind string) (usecase.Descriptor, bool)
+}
+
+// rulePage is how many rules one read of the walk takes.
+const rulePage = 200
+
 // PreviewModuleReach answers how many people switching a module off at the workspace or one hub
 // would leave without it, before the switch: everyone who reaches the place while the module is
 // on there, and nobody where it is off already. Leaving it to the level above (INHERIT) counts
 // the same people when the level above has it off, and nobody when the module stays on. A count,
-// never who (rule 10).
+// never who (rule 10). It also counts the switched-on rules the switch quiets: one with an action
+// of the module, which is skipped while it is off, or a trigger of it, which never fires.
 type PreviewModuleReach struct {
 	Modules Modules
 	People  People
+	Rules   Rules
+	Actions Actions
 }
 
 // ModuleReach is the answer.
@@ -45,6 +64,7 @@ type ModuleReach struct {
 	HubID  shared.ID
 	On     bool
 	People int
+	Rules  int
 }
 
 // Execute counts in a read-only transaction, asked as the switch itself is.
@@ -70,7 +90,7 @@ func (h PreviewModuleReach) Execute(
 	}); err != nil {
 		return ModuleReach{}, err
 	}
-	if h.People == nil {
+	if h.People == nil || h.Rules == nil || h.Actions == nil {
 		return ModuleReach{}, shared.ErrInternal.WithDetail("module.reach_unwired")
 	}
 	reach := ModuleReach{Module: key, HubID: hubID}
@@ -92,9 +112,86 @@ func (h PreviewModuleReach) Execute(
 			}
 		}
 		reach.People, err = h.People.PeopleReaching(ctx, hubID)
+		if err != nil {
+			return err
+		}
+		reach.Rules, err = h.quieted(ctx, key, hubID)
 		return err
 	})
 	return reach, err
+}
+
+// quieted counts the switched-on rules that depend on the module where the switch reaches: every
+// one for the workspace; for a hub, the workspace's and a person's, the hub's and its collections'.
+func (h PreviewModuleReach) quieted(ctx context.Context, key module.Key, hubID shared.ID) (int, error) {
+	enabled := true
+	query := automationrepo.Query{Enabled: &enabled, Size: rulePage}
+	hubs := map[shared.ID]shared.ID{}
+	count := 0
+	for {
+		page, err := h.Rules.List(ctx, query)
+		if err != nil {
+			return 0, err
+		}
+		for _, rule := range page.Rules {
+			if !h.dependsOn(rule, key) {
+				continue
+			}
+			reaches, err := h.reaches(ctx, rule.Scope, hubID, hubs)
+			if err != nil {
+				return 0, err
+			}
+			if reaches {
+				count++
+			}
+		}
+		if !page.HasMore || page.NextCursor == "" {
+			return count, nil
+		}
+		query.Cursor = page.NextCursor
+	}
+}
+
+func (h PreviewModuleReach) dependsOn(rule automation.Rule, key module.Key) bool {
+	if rule.Trigger.Kind.Module() == key {
+		return true
+	}
+	for _, action := range rule.Actions {
+		if descriptor, ok := h.Actions.ByAutomationAction(action.Kind); ok && descriptor.Module == key {
+			return true
+		}
+	}
+	return false
+}
+
+// reaches answers whether a rule of the scope acts at the hub; a collection's hub is read once.
+func (h PreviewModuleReach) reaches(
+	ctx context.Context, scope automation.Scope, hubID shared.ID, hubs map[shared.ID]shared.ID,
+) (bool, error) {
+	if hubID.IsZero() {
+		return true, nil
+	}
+	switch scope.Type {
+	case automation.ScopeHub:
+		return scope.ID == hubID, nil
+	case automation.ScopeCollection:
+		parent, read := hubs[scope.ID]
+		if !read {
+			collection, err := h.Modules.Containers.Find(ctx, scope.ID)
+			if errors.Is(err, shared.ErrNotFound) {
+				// A rule of a collection gone since acts nowhere.
+				return false, nil
+			}
+			if err != nil {
+				return false, err
+			}
+			parent = collection.ParentID
+			hubs[scope.ID] = parent
+		}
+		return parent == hubID, nil
+	default:
+		return true, nil
+	}
 }
 
 // Descriptor is the catalogue entry.
@@ -109,7 +206,8 @@ func (h PreviewModuleReach) Descriptor() usecase.Descriptor {
 		Summary: "Answers how many people switching a module off at the workspace or one hub would " +
 			"leave without it, before the switch: everyone who holds a role there - for a hub, at " +
 			"it, a collection or an entry in it, or at the workspace unless the hub is private - " +
-			"while the module is on, and nobody where it is off already. A count, never who.",
+			"while the module is on, and nobody where it is off already, and the switched-on rules " +
+			"there that use the module and go quiet. Counts, never who.",
 		SideEffects: "None.",
 		ReadOnly:    true,
 		TokenScope:  workspaceWriteScope,
@@ -141,7 +239,9 @@ func (h PreviewModuleReach) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			out := usecase.Output{"module": string(reach.Module), "on": reach.On, "people": reach.People}
+			out := usecase.Output{
+				"module": string(reach.Module), "on": reach.On, "people": reach.People, "rules": reach.Rules,
+			}
 			if !reach.HubID.IsZero() {
 				out["hub_id"] = reach.HubID.String()
 			}

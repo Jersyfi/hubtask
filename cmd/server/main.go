@@ -2530,7 +2530,10 @@ func run() error {
 		settingservice.ListModules{Modules: modules}.Descriptor(),
 		settingservice.ListContainerModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
-		settingservice.PreviewModuleReach{Modules: modules, People: postgres.NewMembershipRepository()}.Descriptor(),
+		settingservice.PreviewModuleReach{
+			Modules: modules, People: postgres.NewMembershipRepository(),
+			Rules: postgres.NewAutomationRuleRepository(cursors), Actions: ruleCatalogue,
+		}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
 		configservice.ReadConfigSchema{Desk: configDesk}.Descriptor(),
 		configservice.ExportConfig{Desk: configDesk}.Descriptor(),
