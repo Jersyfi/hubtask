@@ -269,3 +269,54 @@ func TestWhatAHoldKeptIsRecordedAndMovesWithTheRemainder(t *testing.T) {
 		}
 	}
 }
+
+// What the person wrote outside entries is removed only in their own workspace, and only what is
+// named.
+func TestTheErasureRemovesWritingsOnlyInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	subject := seedSubject(ctx, t, "writer@example.test")
+	seedContainerTenants(ctx, t)
+	period, goal, named, other := freshID(t), freshID(t), freshID(t), freshID(t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO goal_period (id, tenant_id, name, start_on, end_on, state, created_at, updated_at)
+		  VALUES ($1, $2, 'Q1', '2026-01-01', '2026-03-31', 'OPEN', now(), now())`,
+			[]any{period.String(), subject.tenant.String()}},
+		{`INSERT INTO goal (id, tenant_id, period_id, title, status, created_at, updated_at)
+		  VALUES ($1, $2, $3, 'Ship it', 'ON_TRACK', now(), now())`,
+			[]any{goal.String(), subject.tenant.String(), period.String()}},
+		{`INSERT INTO goal_check_in (id, tenant_id, goal_id, author_id, status, confidence, created_at)
+		  VALUES ($1, $3, $4, $5, 'ON_TRACK', 5, now()), ($2, $3, $4, $5, 'ON_TRACK', 5, now())`,
+			[]any{named.String(), other.String(), subject.tenant.String(), goal.String(), subject.account.String()}},
+	} {
+		if _, err := adminPool(ctx, t).Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		gone, _, err := privacyRepo().DeleteWritings(ctx, subject.account, repository.ContributedCheckIn,
+			[]shared.ID{named}, created)
+		if len(gone) != 0 {
+			t.Errorf("another workspace removed %v", gone)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("from another workspace: %v", err)
+	}
+	if err := write(ctx, t, subject.tenant, func(ctx context.Context) error {
+		gone, blanked, err := privacyRepo().DeleteWritings(ctx, subject.account, repository.ContributedCheckIn,
+			[]shared.ID{named}, created)
+		if len(gone) != 1 || gone[0] != named || blanked != 0 {
+			t.Errorf("removed %v and blanked %d, want the one named", gone, blanked)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("the scoped delete: %v", err)
+	}
+	if countIn(ctx, t, `SELECT count(*) FROM goal_check_in WHERE id = $1`, other.String()) != 1 {
+		t.Error("a check-in that was not named was removed")
+	}
+}
