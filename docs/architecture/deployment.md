@@ -258,8 +258,10 @@ Every variable, its default and its validation are in
 `core/port/environment/Port.go`. `deploy/docker/.env.example` is the self-hosting starting point.
 Compose reads `.env` only to fill `compose.yaml`, which hands the application the variables it
 names and no others; every variable the example offers is passed through and read by the
-configuration, which `test/architecture` holds. A variable outside the example reaches the
-application only once it is added to `compose.yaml` too.
+configuration, and every variable the table below names is passed through or listed in
+`test/architecture` as one the reference stack leaves at its default (tuning, mostly). Such a
+variable reaches the application only once it is added to `compose.yaml` too. The instance file
+needs its mount as well: the commented `instance.json` line under the application's volumes.
 
 Required, with no default: `HUBTASK_DB_DSN` (the connection as `hubtask_app`) and
 `HUBTASK_SECRET_KEY` — the installation secret, at least 32 characters. It peppers stored

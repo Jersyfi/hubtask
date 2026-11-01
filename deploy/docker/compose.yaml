@@ -195,10 +195,34 @@ services:
       HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE: ${HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE:-}
       HUBTASK_RATE_LIMIT_BURST: ${HUBTASK_RATE_LIMIT_BURST:-}
       HUBTASK_RATE_LIMIT_TENANT_BURST: ${HUBTASK_RATE_LIMIT_TENANT_BURST:-}
+      # The rest of deployment.md §6.1's operator settings, for the same reason; what that table
+      # names and this file leaves at its default is listed in test/architecture.
+      HUBTASK_UI_ENABLED: ${HUBTASK_UI_ENABLED:-}
+      HUBTASK_UI_FRAME_ANCESTORS: ${HUBTASK_UI_FRAME_ANCESTORS:-}
+      HUBTASK_UI_FRAME_SOURCES: ${HUBTASK_UI_FRAME_SOURCES:-}
+      HUBTASK_CORS_ALLOWED_ORIGINS: ${HUBTASK_CORS_ALLOWED_ORIGINS:-}
+      HUBTASK_HTTP_ALLOWED_HOSTS: ${HUBTASK_HTTP_ALLOWED_HOSTS:-}
+      HUBTASK_DEFAULT_LOCALE: ${HUBTASK_DEFAULT_LOCALE:-}
+      HUBTASK_DEFAULT_TIMEZONE: ${HUBTASK_DEFAULT_TIMEZONE:-}
+      HUBTASK_MAX_UPLOAD_BYTES: ${HUBTASK_MAX_UPLOAD_BYTES:-}
+      HUBTASK_MAX_MAIL_BYTES: ${HUBTASK_MAX_MAIL_BYTES:-}
+      HUBTASK_REQUEST_TIMEOUT: ${HUBTASK_REQUEST_TIMEOUT:-}
+      HUBTASK_NATS_URL: ${HUBTASK_NATS_URL:-}
+      HUBTASK_NATS_SUBJECT_PREFIX: ${HUBTASK_NATS_SUBJECT_PREFIX:-}
+      HUBTASK_TRACING_ENABLED: ${HUBTASK_TRACING_ENABLED:-}
+      HUBTASK_TRACING_ENDPOINT: ${HUBTASK_TRACING_ENDPOINT:-}
+      HUBTASK_TRACING_SAMPLE_RATIO: ${HUBTASK_TRACING_SAMPLE_RATIO:-}
+      # The instance file (business calendars, the upload scanner, presets, plans) is read inside
+      # the container, so it needs the mount below as well: a path nothing is mounted at is read
+      # as a file not written yet, logged, and applies nothing.
+      HUBTASK_INSTANCE_FILE: ${HUBTASK_INSTANCE_FILE:-}
+      HUBTASK_INSTANCE_FILE_MODE: ${HUBTASK_INSTANCE_FILE_MODE:-}
     volumes:
       - media:/var/lib/hubtask/media
       - backups:/var/lib/hubtask/backups
       - restore-drill:/var/lib/hubtask/restore-drill
+      # With HUBTASK_INSTANCE_FILE=/etc/hubtask/instance.json in .env:
+      # - ./instance.json:/etc/hubtask/instance.json:ro
     ports:
       - "${HUBTASK_PORT:-8080}:8080"
       # The operations port on loopback only. It carries the metrics and the health report, which
