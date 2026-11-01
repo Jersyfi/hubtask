@@ -505,3 +505,40 @@ test('a document carries the step-up proof it is asked with', async () => {
   assert.equal(new Headers(calls[0]?.init.headers).get('X-Hubtask-Step-Up'), 'proof');
   assert.equal(new Headers(calls[1]?.init.headers).get('X-Hubtask-Step-Up'), null);
 });
+
+const buildMismatch = () =>
+  new Response(JSON.stringify({ code: 'dependency_unavailable', detail_code: 'route.build_mismatch' }), {
+    status: 503, headers: { 'Retry-After': '0' },
+  });
+
+test('a client names its build, and a route unknown to a server of another build is tried again', async () => {
+  const answers = [buildMismatch(), ok({ id: 'i1' }, { headers: { 'X-Hubtask-Build': '/assets/index-NEW.js' } })];
+  const { fetch, calls } = recordingFetch(() => answers.shift() ?? ok({}));
+  const seen: string[] = [];
+  const transport = new FetchTransport({
+    baseUrl: '/api/v1', fetch, clientBuild: '/assets/index-NEW.js', onServerBuild: (build) => seen.push(build),
+  });
+
+  const answer = await transport.send('POST', '/new-thing', { title: 'x' }, { timeoutMs: 1000 });
+
+  assert.equal(answer.status, 200);
+  assert.equal(calls.length, 2, 'nothing ran on the first server, so the write is sent again');
+  assert.equal(new Headers(calls[0]?.init.headers).get('X-Hubtask-Client-Build'), '/assets/index-NEW.js');
+  assert.deepEqual(seen, ['/assets/index-NEW.js']);
+});
+
+test('a build mismatch is tried a bounded number of times, then surfaces', async () => {
+  const { fetch, calls } = recordingFetch(buildMismatch);
+  const transport = new FetchTransport({ baseUrl: '/api/v1', fetch, clientBuild: '/assets/index-NEW.js' });
+
+  await assert.rejects(transport.get('/new-thing', { timeoutMs: 1000 }), (error: unknown) =>
+    error instanceof TransportError && error.detailCode === 'route.build_mismatch');
+  assert.equal(calls.length, 3);
+});
+
+test('without a build of its own the client sends none, and another 503 is not retried', async () => {
+  const { fetch, calls } = recordingFetch(() => new Response('{}', { status: 503 }));
+  await assert.rejects(new FetchTransport({ baseUrl: '/api/v1', fetch }).get('/x', { timeoutMs: 1000 }));
+  assert.equal(calls.length, 1);
+  assert.equal(new Headers(calls[0]?.init.headers).get('X-Hubtask-Client-Build'), null);
+});

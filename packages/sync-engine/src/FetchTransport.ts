@@ -27,7 +27,17 @@ export interface FetchTransportOptions {
   readonly baseUrl: string;
   /** Injected so a test can supply its own, and so no module-level global is captured. */
   readonly fetch?: typeof globalThis.fetch;
+  /**
+   * The build this client was loaded from, sent as `X-Hubtask-Client-Build`. With it, a route a
+   * server of another build does not know is a retry rather than a 404 (api-guidelines.md §8).
+   */
+  readonly clientBuild?: string;
+  /** Told the `X-Hubtask-Build` of every answer that names one. */
+  readonly onServerBuild?: (build: string) => void;
 }
+
+/** How often a route unknown to a server of another build is tried again before it surfaces. */
+const BUILD_MISMATCH_RETRIES = 2;
 
 /**
  * What a request body is sent as. `PATCH` is a merge patch throughout this contract; everything
@@ -51,11 +61,15 @@ interface ProblemBody {
 export class FetchTransport implements Transport {
   readonly #baseUrl: string;
   readonly #fetch: typeof globalThis.fetch;
+  readonly #clientBuild?: string;
+  readonly #onServerBuild?: (build: string) => void;
 
   constructor(options: FetchTransportOptions) {
     // Trailing slash removed once, here, so that every path below is written the same way.
     this.#baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+    this.#clientBuild = options.clientBuild;
+    this.#onServerBuild = options.onServerBuild;
   }
 
   get<T>(path: string, options: RequestOptions): Promise<Response<T>> {
@@ -358,7 +372,27 @@ export class FetchTransport implements Transport {
     // (`api-guidelines.md` §7). A per-call option would be the same rule written once per call
     // site, and the call site that got it wrong would be the one nobody reads.
     if (body !== undefined) headers.set('Content-Type', mediaTypeFor(method));
+    if (this.#clientBuild) headers.set('X-Hubtask-Client-Build', this.#clientBuild);
 
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.#attempt<T>(method, path, body, headers, signal);
+      } catch (error) {
+        // The server ran nothing for an unrouted request, so sending it again is safe for every
+        // method; the wait is the server's Retry-After, bounded by the deadline through `signal`.
+        if (!(error instanceof TransportError) || error.detailCode !== 'route.build_mismatch' || attempt >= BUILD_MISMATCH_RETRIES) throw error;
+        await pause(Math.min(error.retryAfterMs ?? 1000, 1000), signal);
+      }
+    }
+  }
+
+  async #attempt<T>(
+    method: string,
+    path: string,
+    body: unknown,
+    headers: Headers,
+    signal: AbortSignal,
+  ): Promise<Response<T>> {
     let answer: globalThis.Response;
     try {
       answer = await this.#fetch(`${this.#baseUrl}${path}`, {
@@ -383,6 +417,8 @@ export class FetchTransport implements Transport {
 
   async #read<T>(answer: globalThis.Response): Promise<Response<T>> {
     const etag = answer.headers.get('ETag') ?? undefined;
+    const build = answer.headers.get('X-Hubtask-Build');
+    if (build && this.#onServerBuild) this.#onServerBuild(build);
 
     // 204 and an empty body are the same thing to a caller: nothing came back, and that is not an
     // error. Parsing it as JSON would be.
@@ -408,12 +444,29 @@ export class FetchTransport implements Transport {
       code: problem.code,
       detailCode: problem.detail_code,
       params: problem.params,
+      retryAfterMs: retryAfterOf(answer.headers),
       // Passed on rather than interpreted: which field a message belongs under is the frame's
       // question, and it needs the server's `path` to answer it (ADR-0025).
       fieldErrors: Array.isArray(problem.field_errors) ? problem.field_errors : undefined,
       requestId: problem.request_id ?? answer.headers.get('X-Request-Id') ?? undefined,
     });
   }
+}
+
+/** Waits `ms`, or rejects as a timeout once `signal` aborts. */
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stop = () => {
+      clearTimeout(timer);
+      reject(new TransportError('timeout', { cause: signal.reason }));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', stop);
+      resolve();
+    }, ms);
+    if (signal.aborted) stop();
+    else signal.addEventListener('abort', stop, { once: true });
+  });
 }
 
 /**
