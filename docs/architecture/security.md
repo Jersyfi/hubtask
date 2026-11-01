@@ -164,7 +164,8 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   raise A-23 (`hubtask_media_scan_held_workspaces`). Without a daemon nothing is scanned. A file
   the daemon refuses for its size is not "cannot answer": a confirmation refuses it with
   `media.too_large_to_scan`, and a held one is settled `UNSCANNABLE` (never downloaded) so the
-  pass goes on to the next. With a daemon, uploads are capped to `HUBTASK_CLAMD_STREAM_MAX_BYTES`
+  pass goes on to the next. A daemon that answers an error for one file holds that file and the
+  pass goes on too; only a daemon that cannot be reached ends the pass. With a daemon, uploads are capped to `HUBTASK_CLAMD_STREAM_MAX_BYTES`
   (default 25 MiB, clamd's `StreamMaxLength`).
 * **CEL expressions** run under a time, depth and cost limit (`cel-go` cost budget), with no network
   or time functions beyond the ones provided.

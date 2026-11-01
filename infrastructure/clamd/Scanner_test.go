@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
@@ -103,8 +104,12 @@ func TestNoVerdictIsUnavailable(t *testing.T) {
 	if !errors.Is(err, shared.ErrUnavailable) || shared.AsError(err).DetailCode != "dependency.scanner_unavailable" {
 		t.Errorf("an error reply was answered %v", err)
 	}
+	if !errors.Is(err, storage.ErrNoVerdictForFile) {
+		t.Errorf("an error reply from a daemon that answered is not this file's: %v", err)
+	}
 	refused := func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("connection refused") }
-	if _, err := (Scanner{Dial: refused}).Scan(t.Context(), strings.NewReader("x")); !errors.Is(err, shared.ErrUnavailable) {
+	_, err = (Scanner{Dial: refused}).Scan(t.Context(), strings.NewReader("x"))
+	if !errors.Is(err, shared.ErrUnavailable) || errors.Is(err, storage.ErrNoVerdictForFile) {
 		t.Errorf("an unreachable daemon was answered %v", err)
 	}
 }

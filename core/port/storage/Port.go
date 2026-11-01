@@ -21,6 +21,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -146,3 +147,8 @@ type Scanner interface {
 	// Scan reads the content to its end, or until the scanner has its answer.
 	Scan(ctx context.Context, content io.Reader) (Verdict, error)
 }
+
+// ErrNoVerdictForFile is the cause under ErrUnavailable when the scanner was reached and answered
+// an error for this file: the file stays held, but a scan pass goes on to the files behind it
+// rather than reading the scanner as down for all of them.
+var ErrNoVerdictForFile = errors.New("the scanner answered an error for this file")

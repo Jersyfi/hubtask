@@ -63,8 +63,16 @@ func (h ScanHeldMedia) Execute(ctx context.Context, tenantID shared.ID) (ScanOut
 			// No bytes to scan, so none to serve: the reconciliation's business, not this pass's.
 			continue
 		}
+		if errors.Is(err, storage.ErrNoVerdictForFile) {
+			// The scanner is up and answered an error for this file: it stays held, and the files
+			// behind it are not stuck behind it.
+			slog.WarnContext(ctx, "the upload scanner answered an error for a held file; it stays held",
+				slog.String("media_id", object.ID.String()))
+			outcome.Held++
+			continue
+		}
 		if errors.Is(err, shared.ErrUnavailable) {
-			outcome.Held = len(held) - i
+			outcome.Held += len(held) - i
 			return outcome, nil
 		}
 		var settled media.Object

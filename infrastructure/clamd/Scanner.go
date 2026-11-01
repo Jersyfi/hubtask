@@ -176,8 +176,10 @@ func verdictOf(reply string) (storage.Verdict, error) {
 	case sizeRefusal(answer):
 		return storage.Verdict{}, media.TooLargeToScan()
 	default:
-		// Any other error line: no verdict, so the file is held.
-		return storage.Verdict{}, unavailable("the scanner answered without a verdict", errors.New(answer))
+		// Any other error line: no verdict, so the file is held - but the daemon answered, so it
+		// is this file's answer, not an outage.
+		return storage.Verdict{}, unavailable("the scanner answered without a verdict",
+			fmt.Errorf("%w: %s", storage.ErrNoVerdictForFile, answer))
 	}
 }
 

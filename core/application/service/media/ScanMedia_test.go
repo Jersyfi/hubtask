@@ -221,6 +221,49 @@ func TestTheScanJobSettlesAFileTooLargeToScanAndGoesOn(t *testing.T) {
 	}
 }
 
+// errorsOn answers the scanner's error reply for one file's bytes and passes the rest clean.
+type errorsOn struct{ body string }
+
+func (s errorsOn) Scan(_ context.Context, content io.Reader) (storage.Verdict, error) {
+	body, _ := io.ReadAll(content)
+	if string(body) == s.body {
+		return storage.Verdict{}, shared.ErrUnavailable.WithDetail("dependency.scanner_unavailable").
+			WithCause(storage.ErrNoVerdictForFile)
+	}
+	return storage.Verdict{}, nil
+}
+
+// A file the scanner answers an error for stays held, and the files behind it are still scanned:
+// the scanner answered, so it is not down for all of them.
+func TestTheScanJobGoesOnPastAFileTheScannerAnsweredAnErrorFor(t *testing.T) {
+	records, bytesOf := newObjects(), newStore()
+	odd, next := shared.ID("0192f000-0000-7000-8000-0000000000d1"), shared.ID("0192f000-0000-7000-8000-0000000000d2")
+	for i, held := range []struct {
+		id    shared.ID
+		bytes []byte
+	}{{odd, []byte("odd")}, {next, []byte("pdf")}} {
+		object := domain.Object{
+			ID: held.id, TenantID: tenantID, StorageKey: "media/" + tenantID.String() + "/" + held.id.String(),
+			ContentType: "application/pdf", ByteSize: int64(len(held.bytes)), Usage: domain.UsageAttachment,
+			Status: domain.StatusPendingScan, CreatedBy: accountID, CreatedAt: now.Add(time.Duration(i) * time.Minute),
+		}
+		records.stored[held.id] = object
+		bytesOf.content[object.StorageKey] = held.bytes
+	}
+	job := ScanHeldMedia{Objects: records, Store: bytesOf, Scanner: errorsOn{body: "odd"}, UnitOfWork: &unitOfWork{}}
+
+	outcome, err := job.Execute(t.Context(), tenantID)
+	if err != nil || outcome.Settled != 1 || outcome.Held != 1 {
+		t.Fatalf("one pass: %+v, %v", outcome, err)
+	}
+	if got := records.stored[odd].Status; got != domain.StatusPendingScan {
+		t.Errorf("the file the scanner answered an error for is %s, want still held", got)
+	}
+	if got := records.stored[next].Status; got != domain.StatusReady {
+		t.Errorf("the file behind it is %s, want READY in the same pass", got)
+	}
+}
+
 // A confirmation the scanner refuses for size is refused by name and its bytes removed.
 func TestAConfirmationRefusesAFileTooLargeToScan(t *testing.T) {
 	handler, records, bytesOf, _, _ := confirmHarness(1 << 20)
