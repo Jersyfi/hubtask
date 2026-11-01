@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { backupState, findingsIn, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines } from './overview.ts';
+import { backupState, findingsIn, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines } from './overview.ts';
 
 test('limits: fullest first, reached and near told apart, no line without a ceiling or a count', () => {
   const lines = limitLines([
@@ -111,4 +111,14 @@ test('waiting: the proposals waiting for a person and the templates with an upda
   assert.deepEqual(waiting.updates.map((update) => update.key), ['itil_service_desk']);
   assert.equal(waiting.needs, true);
   assert.equal(waitingLines([], []).needs, false);
+});
+
+test('mailboxes: a switched-on mailbox refusing for over an hour is a line, a quiet or switched-off one is not', () => {
+  const lines = mailboxLines([
+    { id: 'b', address: 'support@b.example', enabled: true, failing: true, failure: 'mail.mailbox_refused' },
+    { id: 'a', address: 'help@a.example', enabled: true, failing: true },
+    { id: 'c', address: 'quiet@c.example', enabled: true, failing: false },
+    { id: 'd', address: 'off@d.example', enabled: false, failing: true },
+  ]);
+  assert.deepEqual(lines.map((line) => line.id), ['a', 'b']);
 });

@@ -19,8 +19,9 @@
 
   import type { ConfigCheck, ConfigProposalList, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
 
-  import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import { backupState, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
   import { config } from '../lib/data/config.svelte.ts';
+  import { readMailboxes, type Mailbox } from '../lib/data/mailintake.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -39,6 +40,7 @@
   const mayReadRules = $derived(holdsHere('AUTOMATION') === true || mayReadConfiguration);
   const mayReadBackup = $derived(holdsHere('STRUCTURE') === true || mayReadConfiguration);
   const mayReadRequests = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  const mayReadMail = $derived(holdsHere('AUTOMATION') === true);
 
   $effect(() => untrack(() => quotas.open()));
 
@@ -83,6 +85,20 @@
   $effect(() => {
     if (mayReadBackup) return untrack(() => backup.open());
   });
+
+  // The connected mailboxes (ADR-0094): one refusing for over an hour is mail that stops reaching
+  // the desk, said here rather than only on the mail page nobody opens while it works.
+  let mail = $state<{ status: string; boxes: readonly Mailbox[] }>({ status: 'idle', boxes: [] });
+  $effect(() => {
+    if (!mayReadMail) return;
+    untrack(() => {
+      mail = { status: 'loading', boxes: [] };
+      void readMailboxes()
+        .then((read) => (mail = { status: 'ready', boxes: read.mailboxes }))
+        .catch(() => (mail = { status: 'failed', boxes: [] }));
+    });
+  });
+  const mailFailing = $derived(mailboxLines(mail.boxes));
 
   // The archives of every enabled target, read once each, and the newest one's run - the half that
   // says whether it was opened since. Not every run: the overview asks about one backup.
@@ -140,6 +156,7 @@
     [
       { id: 'limits', shown: true, needs: limits.some((line) => line.state !== 'room') },
       { id: 'rules', shown: mayReadRules, needs: failing.length > 0 },
+      { id: 'mail', shown: mayReadMail && (mail.boxes.length > 0 || mail.status !== 'ready'), needs: mailFailing.length > 0 },
       { id: 'backup', shown: mayReadBackup, needs: lastBackup === undefined ? targets.length > 0 : lastBackup.state !== 'opened' },
       { id: 'requests', shown: mayReadRequests, needs: owed.length > 0 },
       { id: 'health', shown: true, needs: degraded.length > 0 },
@@ -205,6 +222,25 @@
             </ul>
           {/if}
           <a class="go" href="/administration/rules">{t('app.admin_overview.open_rules')}</a>
+        {:else if card.id === 'mail'}
+          <h2 id="card-mail">{t('app.admin_overview.mail')}</h2>
+          {#if reading(mail.status)}
+            <p class="quiet"><Spinner label={t('app.admin_overview.reading')} /></p>
+          {:else if mail.status === 'failed'}
+            <p class="quiet">{t('app.admin_overview.mail_unread')}</p>
+          {:else if mailFailing.length === 0}
+            <p class="quiet">{t('app.admin_overview.mail_none')}</p>
+          {:else}
+            <ul class="lines">
+              {#each mailFailing.slice(0, 5) as box (box.id)}
+                <li>
+                  <span>{box.address}</span>
+                  <Badge tone="danger">{t('app.admin_overview.mail_failing')}</Badge>
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          <a class="go" href="/administration/mail">{t('app.admin_overview.open_mail')}</a>
         {:else if card.id === 'backup'}
           <h2 id="card-backup">{t('app.admin_overview.backup')}</h2>
           {#if reading(backup.targets.status) || !archivesSettled}

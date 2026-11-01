@@ -4,7 +4,7 @@
 /**
  * What the administration's overview says needs attention (UC-ID-24 check 2), decided from reads
  * the screens behind it already make — the limits, the rules, the backup archives and their runs,
- * the privacy register — so the overview and the page a card links to never disagree.
+ * the connected mailboxes, the privacy register — so the overview and the page a card links to never disagree.
  *
  * Pure: the screen holds the reads, this decides what of them is said. Each answer is ordered so
  * the first line is the one that most needs somebody.
@@ -103,6 +103,22 @@ export function newestArchive(
     }
   }
   return newest;
+}
+
+/** A mailbox as `/mail/mailboxes` answers it, the part the overview reads. */
+export interface MailboxReading {
+  readonly id: string;
+  readonly address: string;
+  readonly enabled: boolean;
+  readonly failing: boolean;
+}
+
+/**
+ * The switched-on mailboxes the server calls failing - refusing for over an hour: mail sent to the
+ * desk through them is not arriving, and no ticket starts until somebody fixes the sign-in.
+ */
+export function mailboxLines<M extends MailboxReading>(boxes: readonly M[]): M[] {
+  return boxes.filter((box) => box.enabled && box.failing).sort((a, b) => a.address.localeCompare(b.address));
 }
 
 /** Whether the last backup opened: checked and read back, checked and broken, not checked, unfinished. */
