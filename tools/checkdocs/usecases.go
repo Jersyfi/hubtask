@@ -468,9 +468,9 @@ func setOf(matches [][]string) map[string]bool {
 }
 
 // uncitedVerifiedAtMost bounds the checks of verified use cases that no file in their checked_by
-// cites as `UC-XX-nn check n`, `UC-XX-nn/n` or in a list of checks. Each one cited
-// lowers the bound, and it only falls - a use case made verified now cites every check.
-const uncitedVerifiedAtMost = 5
+// cites as `UC-XX-nn check n`, `UC-XX-nn/n` or in a list of checks. Zero: verified means every
+// check is cited.
+const uncitedVerifiedAtMost = 0
 
 // checkVerifiedCitations holds `verified` to its meaning: every check proven, by a test that says
 // which check it proves (docs/usecases/README.md).
