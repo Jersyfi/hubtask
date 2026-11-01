@@ -48,6 +48,7 @@
   import { focusFirst } from '../lib/forms/missing.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -339,9 +340,7 @@
       <p class="prose">{t('app.instance.workspaces_intro')}</p>
 
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       {#if provisioned}
@@ -368,9 +367,7 @@
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else}
         {#if isMulti}
           <div>

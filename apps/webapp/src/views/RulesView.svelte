@@ -57,6 +57,7 @@
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     /** The reader's own rules, under Your settings, rather than the workspace's. */
@@ -215,9 +216,7 @@
           <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rules_body', { count: rules.isComplete ? shown.length : 0 })} />
         {/if}
         {#if failure}
-          <Banner tone="danger" title={failure.message}>
-            {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-          </Banner>
+          <FailureNote problem={failure} />
         {/if}
         {#if broken + attention > 0}
           <Banner tone={broken > 0 ? 'danger' : 'warning'} title={broken + attention === 1 ? t('app.flow.check_banner_one') : t('app.flow.check_banner_title', { count: broken + attention })}>
@@ -245,9 +244,7 @@
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.rules.reading')} /> <span>{t('app.rules.reading')}</span></p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       <Stack gap="150">
         {#each shown as rule (rule.id)}

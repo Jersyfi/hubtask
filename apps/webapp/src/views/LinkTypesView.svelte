@@ -14,7 +14,7 @@
 
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Spinner, Stack, Switch,
+    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Spinner, Stack, Switch,
   } from '@hubtask/design-system/components';
   import type { LinkType } from '@hubtask/sync-engine';
 
@@ -27,6 +27,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { renderProblem } from '../lib/problem.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   $effect(() => page.entitle(t('app.link_types.title')));
   $effect(() => untrack(() => linkTypes.open()));
@@ -208,9 +209,7 @@
       <span>{t('app.link_types.reading')}</span>
     </p>
   {:else if readRefusal}
-    <Banner tone="danger" title={readRefusal.message}>
-      {#if readRefusal.reference}{t('app.error_reference', { request_id: readRefusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={readRefusal} />
   {:else}
     <section class="panel">
       <Stack gap="200">

@@ -54,6 +54,7 @@
   import { focusFirst } from '../lib/forms/missing.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -211,9 +212,7 @@
       <p class="prose">{t('app.instance.providers_intro')}</p>
 
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -222,9 +221,7 @@
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else}
         <div>
           <Button tone="primary" onclick={() => open('add')}>{t('app.instance.provider_add')}</Button>
@@ -369,9 +366,7 @@
     <!-- A refusal inside the dialog, where it is read: the page behind a modal is not. One that
          names the count lands at the count's field instead. -->
     {#if failure && !failure.fields.has('/confirm_count')}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
     <!-- The number first: it is what the withdrawal costs, and the reason to choose the day well. -->
     <Banner tone="info" title={t('app.instance.provider_in_use', { count: String(usedBy(acting?.provider)) })}>

@@ -31,6 +31,7 @@
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
   import WorkflowLists from '../lib/workflows/WorkflowLists.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -205,9 +206,7 @@
   {:else if !reading || reading.status === 'loading' || reading.status === 'idle'}
     <p class="waiting"><Spinner label={t('app.workflow_designer.reading')} /><span>{t('app.workflow_designer.reading')}</span></p>
   {:else if readRefusal}
-    <Banner tone="danger" title={readRefusal.message}>
-      {#if readRefusal.reference}{t('app.error_reference', { request_id: readRefusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={readRefusal} />
   {:else}
     <div class="layout">
       <nav class="chooser" aria-label={t('app.workflow_designer.list')}>

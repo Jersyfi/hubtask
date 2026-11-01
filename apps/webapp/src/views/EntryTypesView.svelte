@@ -18,7 +18,7 @@
   import { untrack } from 'svelte';
   import { labelTokens } from '@hubtask/design-system';
   import {
-    Banner, Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
+    Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
     Textarea,
   } from '@hubtask/design-system/components';
   import type { EntryType } from '@hubtask/sync-engine';
@@ -41,6 +41,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   $effect(() => page.entitle(t('app.entry_types.title')));
   $effect(() => untrack(() => entryTypes.open()));
@@ -254,9 +255,7 @@
       <span>{t('app.entry_types.reading')}</span>
     </p>
   {:else if readRefusal}
-    <Banner tone="danger" title={readRefusal.message}>
-      {#if readRefusal.reference}{t('app.error_reference', { request_id: readRefusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={readRefusal} />
   {:else}
     {#each TYPE_LEVELS as level (level)}
       {@const types = levelTypes(entryTypes.all, level)}

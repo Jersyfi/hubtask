@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { Preset, TransportError } from '@hubtask/sync-engine';
 
   import { presetChoice, presetName, presets, presetValue } from '../lib/data/presets.svelte.ts';
@@ -34,6 +34,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   $effect(() => untrack(() => workspace.open()));
   $effect(() => untrack(() => presets.open()));
@@ -138,14 +139,10 @@
       <span>{t('app.presets.reading')}</span>
     </p>
   {:else if refusal}
-    <Banner tone="danger" title={refusal.message}>
-      {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={refusal} />
   {:else if structure}
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     <WorkspaceGate permission="STRUCTURE">

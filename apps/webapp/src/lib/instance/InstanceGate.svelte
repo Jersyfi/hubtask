@@ -29,12 +29,13 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { Banner, Button, ReadOnlyNotice } from '@hubtask/design-system/components';
+  import { Button, ReadOnlyNotice } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { instance } from '../data/instance.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
 
   interface Props {
     /** The screen, drawn only while the session is raised. */
@@ -144,9 +145,7 @@
     {#if failure}
       <!-- The server's own sentence: not an operator, no proof, a proof that did not hold.
            Something that happened, so a banner, under the notice it is about. -->
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
     <p class="prose quiet">{t('app.instance.locked_cost')}</p>
   </div>

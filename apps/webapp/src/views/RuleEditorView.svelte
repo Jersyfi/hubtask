@@ -69,6 +69,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     /** The rule's identifier, or `new`. */
@@ -895,9 +896,7 @@
         </Banner>
       {/if}
       {#if failure && !failure.fields.size}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {:else if failure}
         <Banner tone="danger" title={failure.message} />
       {/if}

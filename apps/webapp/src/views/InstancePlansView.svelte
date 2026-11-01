@@ -33,6 +33,7 @@
   let missing = $state<Missing>({});
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -134,9 +135,7 @@
         {#if reading.status === 'loading' || reading.status === 'idle'}
           <p class="quiet"><Spinner label={t('app.instance.reading')} /> <span>{t('app.instance.reading')}</span></p>
         {:else if unreadable}
-          <Banner tone="danger" title={unreadable.message}>
-            {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-          </Banner>
+          <FailureNote problem={unreadable} />
         {:else}
           {#if plans.all.length === 0}
             <Banner tone="info">{t('app.instance.plans_none')}</Banner>

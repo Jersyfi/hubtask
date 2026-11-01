@@ -18,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, CheckboxGroup, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { InstallationPreset } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -28,6 +28,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { SETTINGS } from '../workspace/structureDraft.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
 
   interface Props {
     /** A file enforces the installation's level: the presets are shown, not offered for change. */
@@ -130,9 +131,7 @@
   <p class="quiet">{t('app.instance.presets_about')}</p>
 
   {#if failure}
-    <Banner tone="danger" title={failure.message}>
-      {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-    </Banner>
+    <FailureNote problem={failure} />
   {/if}
 
   {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -141,9 +140,7 @@
       <span>{t('app.instance.reading')}</span>
     </p>
   {:else if unreadable}
-    <Banner tone="danger" title={unreadable.message}>
-      {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-    </Banner>
+    <FailureNote problem={unreadable} />
   {:else if isEnforced}
     {#if all.length === 0}
       <p class="quiet" data-presets-empty>{t('app.instance.presets_none')}</p>

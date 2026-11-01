@@ -47,6 +47,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** §7's five per cent: above this on a first run and the rule is stored as an announcement. */
   const BROAD_SHARE = 0.05;
@@ -292,9 +293,7 @@
           <Spinner label={t('app.retention.reading')} /> <span>{t('app.retention.reading')}</span>
         </p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each listed as policy (policy.id)}
           {@const preview = policies.previewOf(policy.id)}

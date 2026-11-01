@@ -56,6 +56,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** The outcomes the contract lets a caller narrow to. `DEAD_LETTER` is the one operators want. */
   const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'FILTER_FAILED'];
@@ -310,9 +311,7 @@
         <Spinner label={t('app.webhooks.reading')} /> <span>{t('app.webhooks.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       {#each listed as subscription (subscription.id)}
         <section class="panel">

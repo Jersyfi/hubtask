@@ -50,6 +50,7 @@
   import ValueSource from '../lib/workspace/ValueSource.svelte';
   import { focusFirst } from '../lib/forms/missing.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
   let editing = $state<string | undefined>(undefined);
@@ -233,9 +234,7 @@
         <span>{t('app.identity_provider.reading')}</span>
       </p>
     {:else if unreadable}
-      <Banner tone="danger" title={unreadable.message}>
-        {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-      </Banner>
+      <FailureNote problem={unreadable} />
     {:else if unavailable}
       <ReadOnlyNotice icon="info" text={t('app.identity_provider.not_served')} />
     {:else}
@@ -243,9 +242,7 @@
         <!-- The server's own sentence: an issuer that could not be reached, a mark on an issuer it
              does not belong to, a mode the provider may not use, a caller who may read and not
              write. -->
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {:else if saved}
         <Banner tone="success">{t('app.identity_provider.saved')}</Banner>
       {/if}

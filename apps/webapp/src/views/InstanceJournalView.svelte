@@ -32,6 +32,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -164,9 +165,7 @@
           <span>{t('app.instance.reading')}</span>
         </p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else if entries.length === 0}
         <Banner tone="info">{t(isNarrowed ? 'app.instance.journal_none_narrowed' : 'app.instance.journal_empty')}</Banner>
       {:else}

@@ -35,6 +35,7 @@
   import { sorting } from '../lib/sorting.svelte.ts';
   import AccountLink from '../lib/workspace/AccountLink.svelte';
   import LimitSource from '../lib/workspace/LimitSource.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   $effect(() => untrack(() => quotas.open()));
   // The plan's name rides on the workspace read the sign-in rule already answers (UC-INS-10
@@ -171,9 +172,7 @@
         <span>{t('app.quotas.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       <!-- The whole page is read here and changed elsewhere: said once, at the top, with whom to ask
            (UC-WRK-32 check 4). -->

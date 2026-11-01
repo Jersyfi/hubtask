@@ -15,7 +15,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Dialog, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Button, Dialog, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import type { ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
@@ -26,6 +26,7 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
 
   interface Props {
     /** The hub to switch for; absent is the workspace. */
@@ -114,9 +115,7 @@
       <span>{t('app.modules.reading')}</span>
     </p>
   {:else if readRefusal}
-    <Banner tone="danger" title={readRefusal.message}>
-      {#if readRefusal.reference}{t('app.error_reference', { request_id: readRefusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={readRefusal} />
   {:else}
     <ul class="modules">
       {#each all as state (state.module)}

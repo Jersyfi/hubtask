@@ -33,6 +33,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     name: string;
@@ -206,9 +207,7 @@
       {:else if reading.status === 'loading' || reading.status === 'idle'}
         <p class="quiet"><Spinner label={t('app.instance.reading')} /> <span>{t('app.instance.reading')}</span></p>
       {:else if unreadable}
-        <Banner tone="danger" title={unreadable.message}>
-          {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-        </Banner>
+        <FailureNote problem={unreadable} />
       {:else if gone || !plan}
         <Banner tone="warning" title={t('app.instance.plan_gone')}>
           <a href="/instance/plans">{t('app.instance.plan_back')}</a>
@@ -251,9 +250,7 @@
               </Callout>
             </div>
           {:else if failure && !failure.fields.size}
-            <Banner tone="danger" title={failure.message}>
-              {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-            </Banner>
+            <FailureNote problem={failure} />
           {:else if saved}
             <Banner tone="success">{t('app.instance.plan_saved')}</Banner>
           {/if}

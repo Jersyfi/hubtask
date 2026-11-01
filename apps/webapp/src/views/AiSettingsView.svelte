@@ -51,6 +51,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the source where it names none or one not drawn. */
@@ -318,14 +319,10 @@
         <span>{t('app.ai.reading')}</span>
       </p>
     {:else if unreadable}
-      <Banner tone="danger" title={unreadable.message}>
-        {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
-      </Banner>
+      <FailureNote problem={unreadable} />
     {:else}
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       <!-- The tabs outside the gate: a reader who may not change anything still reads every tab. -->

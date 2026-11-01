@@ -26,7 +26,6 @@
 
   import {
     Badge,
-    Banner,
     Button,
     CheckboxGroup,
     Input,
@@ -47,6 +46,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { check, focusFirst, isComplete, without, type Missing } from '../lib/forms/missing.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
     /** A service account's tokens, where the caller may mint for one. Absent means their own. */
@@ -256,17 +256,13 @@
   {/if}
 
   {#if failure}
-    <Banner tone="danger" title={failure.message}>
-      {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-    </Banner>
+    <FailureNote problem={failure} />
   {/if}
 
   {#if reading.status === 'loading' || reading.status === 'idle'}
     <p class="waiting"><Spinner label={readingLabel} /> <span>{readingLabel}</span></p>
   {:else if refusal}
-    <Banner tone="danger" title={refusal.message}>
-      {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-    </Banner>
+    <FailureNote problem={refusal} />
   {:else if held.length === 0}
     <p class="quiet">{accountId ? t('app.tokens.none_service') : t('app.tokens.none')}</p>
   {:else}

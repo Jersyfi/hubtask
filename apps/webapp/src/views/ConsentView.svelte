@@ -30,6 +30,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   /** The request, read once. `undefined` means there is no request in this address at all. */
   const request = $state(readRequest(location.search));
@@ -125,9 +126,7 @@
       {#if failure}
         <!-- The server's own words: a redirect URI the app did not register, a challenge that is
              not S256, a scope this installation does not declare. -->
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       <p class="lead">

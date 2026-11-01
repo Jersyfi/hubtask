@@ -38,6 +38,7 @@
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { mayHere } from '../lib/data/capability.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   let name = $state('');
   /** What *Register* found missing when pressed, marked at the fields (UC-WRK-32 check 3). */
@@ -129,9 +130,7 @@
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.apps.reading')} /> <span>{t('app.apps.reading')}</span></p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       {#each apps.all as app (app.id)}
         <section class="app">

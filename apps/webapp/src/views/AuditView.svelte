@@ -39,6 +39,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   const OUTCOMES = ['SUCCESS', 'DENIED', 'FAILED'];
   const FORMATS = ['JSONL', 'CSV'];
@@ -320,9 +321,7 @@
         <Spinner label={t('app.audit.reading')} /> <span>{t('app.audit.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       <ul class="entries">
         {#each entries as entry (entry.id)}

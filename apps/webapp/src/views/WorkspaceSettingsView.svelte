@@ -19,7 +19,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Input, PageHeader, SaveBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Input, PageHeader, SaveBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -41,6 +41,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   let displayName = $state('');
   let locale = $state('');
@@ -165,14 +166,10 @@
         <span>{t('app.workspace.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else if current}
       {#if failure}
-        <Banner tone="danger" title={failure.message}>
-          {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-        </Banner>
+        <FailureNote problem={failure} />
       {/if}
 
       <WorkspaceGate permission="STRUCTURE">

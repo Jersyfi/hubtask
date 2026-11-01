@@ -32,6 +32,7 @@
   import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
@@ -97,9 +98,7 @@
         <span>{t('app.service_accounts.reading')}</span>
       </p>
     {:else if refusal}
-      <Banner tone="danger" title={refusal.message}>
-        {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-      </Banner>
+      <FailureNote problem={refusal} />
     {:else}
       {#each all as account (account.id)}
         <section class="account">

@@ -74,6 +74,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   const MODES: readonly ErasureMode[] = ['ANONYMIZE', 'FULL_DELETE'];
 
@@ -326,9 +327,7 @@
           <Spinner label={t('app.privacy.reading')} /> <span>{t('app.privacy.reading')}</span>
         </p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each listed as request (request.id)}
           {@const standing = standingOf(request, now)}

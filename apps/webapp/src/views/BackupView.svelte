@@ -23,7 +23,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
 
   import { backup, type Archive, type Schedule } from '../lib/data/backup.svelte.ts';
   import { generations, readRule } from '../lib/data/backup.ts';
@@ -44,6 +44,7 @@
   import { platform } from '../lib/platform/index.ts';
   import { assertZipComplete, zipComplete } from '../lib/data/zipComplete.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
@@ -285,9 +286,7 @@
     <WorkspaceRefusal permission="STRUCTURE" />
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     {#if watched}
@@ -374,9 +373,7 @@
           <Spinner label={t('app.backup.reading')} /> <span>{t('app.backup.reading')}</span>
         </p>
       {:else if refusal}
-        <Banner tone="danger" title={refusal.message}>
-          {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
-        </Banner>
+        <FailureNote problem={refusal} />
       {:else}
         {#each targets as target (target.id)}
           {@const probe = backup.probeOf(target.id)}
