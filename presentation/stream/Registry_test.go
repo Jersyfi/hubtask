@@ -239,3 +239,56 @@ func TestARevocationAsksTheAccountsStreamsAgain(t *testing.T) {
 	anna.Release()
 	r.Recheck("workspace", "anna") // a released slot is not rung, and nothing blocks
 }
+
+// Side connections - snapshots, live documents - hold at most half of the workspace's and the
+// process's slots, so a sign-in wave leaves room for the streams; a credential's side connections
+// are counted apart from its streams, so a tab with boards open still gets its stream.
+func TestSideConnectionsCannotStarveTheStreams(t *testing.T) {
+	r := registry(Limits{PerCredential: 2, PerTenant: 4, PerProcess: 100})
+	for _, who := range []string{"anna", "bert"} {
+		if _, refusal := r.AdmitSide(who, "workspace"); refusal != RefusedNone {
+			t.Fatalf("a side connection of %s was refused with %q", who, refusal)
+		}
+	}
+	if _, refusal := r.AdmitSide("carla", "workspace"); refusal != RefusedTenant {
+		t.Errorf("a third side connection was refused with %q, want the side share of the tenant cap", refusal)
+	}
+	admit(t, r, "anna", "workspace")
+	admit(t, r, "carla", "workspace")
+	if _, refusal := r.Admit("dora", "workspace"); refusal != RefusedTenant {
+		t.Errorf("past the workspace's cap a stream was answered %q", refusal)
+	}
+
+	// Per credential: two side connections and two streams for one client.
+	own := registry(Limits{PerCredential: 2, PerTenant: 100, PerProcess: 100})
+	for range 2 {
+		if _, refusal := own.AdmitSide("anna", "workspace"); refusal != RefusedNone {
+			t.Fatalf("a side connection was refused with %q", refusal)
+		}
+	}
+	if _, refusal := own.AdmitSide("anna", "workspace"); refusal != RefusedCredential {
+		t.Errorf("a third side connection of one client was answered %q", refusal)
+	}
+	admit(t, own, "anna", "workspace")
+}
+
+// A refusal at the workspace's or the process's cap raises the health report's warning; a client
+// over its own cap does not - that is the client's loop, not the installation's capacity.
+func TestACapacityRefusalWarns(t *testing.T) {
+	r := registry(Limits{PerCredential: 1, PerTenant: 2, PerProcess: 100})
+	admit(t, r, "anna", "workspace")
+	if _, refusal := r.Admit("anna", "workspace"); refusal != RefusedCredential {
+		t.Fatalf("answered %q", refusal)
+	}
+	if warnings := r.Warnings(context.Background()); len(warnings) != 0 {
+		t.Errorf("a credential refusal warned: %+v", warnings)
+	}
+	admit(t, r, "bert", "workspace")
+	if _, refusal := r.Admit("carla", "workspace"); refusal != RefusedTenant {
+		t.Fatalf("answered %q", refusal)
+	}
+	warnings := r.Warnings(context.Background())
+	if len(warnings) != 1 || warnings[0].Code != "stream.capacity_reached" || warnings[0].Params["per_tenant"] != "2" {
+		t.Errorf("the warning %+v", warnings)
+	}
+}

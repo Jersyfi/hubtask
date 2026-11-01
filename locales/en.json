@@ -203,6 +203,7 @@
   "config.cors_origin_invalid": "{variable} takes complete origins such as https://app.example.com. {value} is not one.",
   "config.trusted_proxy_invalid": "{variable} takes networks such as 10.42.0.0/16 or single addresses. {value} is neither.",
   "config.trusted_proxies_missing": "Requests arrive with X-Forwarded-For, but {variable} names no proxy, so every sign-in and every public form behind it shares one rate limit. Set {variable} to the network of the reverse proxy in front.",
+  "stream.capacity_reached": "Live connections were refused in the last ten minutes because the workspace ({per_tenant}) or this process ({per_process}) held as many as allowed; those clients wait without live updates. Raise {tenant_variable} or {process_variable}, or add a replica.",
   "config.frame_ancestor_invalid": "{variable} takes complete origins such as https://portal.example.org, without a wildcard. {value} is not one.",
   "config.frame_source_invalid": "{variable} takes complete https origins such as https://dashboards.example.org, without a wildcard or a path. {value} is not one.",
   "config.backup_not_configured": "No schedule writes to a backup target, so nothing is being backed up.",

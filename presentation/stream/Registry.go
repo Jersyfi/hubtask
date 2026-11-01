@@ -12,8 +12,13 @@
 package stream
 
 import (
+	"context"
 	"slices"
+	"strconv"
 	"sync"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/port/health"
 )
 
 // Limits is how many streams may be open at once, at each of the three levels a long-lived
@@ -26,11 +31,21 @@ import (
 // above the threshold, new connections are refused with `503` and a `Retry-After` before latency
 // tips over for everyone - the connections already open are never dropped to make room, because
 // shedding is about not accepting more work, not about abandoning work in hand.
+//
+// A side connection - a sign-in snapshot, a live document - counts towards the workspace's and the
+// process's limits like a stream, and on top may hold at most half of each: without that share a
+// sign-in wave or a room full of boards would leave no slot for the change stream every tab needs.
+// A credential's side connections are counted apart from its streams, so a tab with a board and a
+// page open still gets its stream.
 type Limits struct {
 	PerCredential int
 	PerTenant     int
 	PerProcess    int
 }
+
+// capacityWarningWindow is how long a refusal at the workspace's or the process's limit keeps
+// the health report's warning up after the last one.
+const capacityWarningWindow = 10 * time.Minute
 
 // Registry counts what is open and hands out the right to open one more.
 //
@@ -47,7 +62,13 @@ type Registry struct {
 	perCredential map[string]int
 	perTenant     map[string]int
 	open          map[int64]*openStream
-	nextID        int64
+	// The side connections' own counts (Limits).
+	sideCredential map[string]int
+	sideTenant     map[string]int
+	sideOpen       int
+	// capacityRefused is the last refusal at the workspace's or the process's limit.
+	capacityRefused time.Time
+	nextID          int64
 	// draining is set once the process has begun shutting down. A stream that asked to open after
 	// that is refused rather than accepted and closed a moment later, which would look to a client
 	// like a flapping server rather than one going away.
@@ -56,10 +77,12 @@ type Registry struct {
 
 func NewRegistry(limits Limits) *Registry {
 	return &Registry{
-		limits:        limits,
-		perCredential: map[string]int{},
-		perTenant:     map[string]int{},
-		open:          map[int64]*openStream{},
+		limits:         limits,
+		perCredential:  map[string]int{},
+		perTenant:      map[string]int{},
+		open:           map[int64]*openStream{},
+		sideCredential: map[string]int{},
+		sideTenant:     map[string]int{},
 	}
 }
 
@@ -124,19 +147,24 @@ func (r Refusal) String() string { return string(r) }
 // limiter's bucket key a hash (security.md §9, rule 10). The accounts are those whose revocation
 // must reach the stream: the actor's, and a viewer's where somebody views as the actor.
 func (r *Registry) Admit(credential, tenant string, accounts ...string) (Slot, Refusal) {
+	return r.admit(false, credential, tenant, accounts)
+}
+
+// AdmitSide grants the right to hold one side connection - a snapshot, a live document - within
+// the share Limits leaves them.
+func (r *Registry) AdmitSide(credential, tenant string, accounts ...string) (Slot, Refusal) {
+	return r.admit(true, credential, tenant, accounts)
+}
+
+func (r *Registry) admit(side bool, credential, tenant string, accounts []string) (Slot, Refusal) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	switch {
-	case r.draining:
-		return Slot{}, RefusedDraining
-	case r.limits.PerProcess > 0 && len(r.open) >= r.limits.PerProcess:
-		return Slot{}, RefusedProcess
-	case r.limits.PerTenant > 0 && tenant != "" && r.perTenant[tenant] >= r.limits.PerTenant:
-		return Slot{}, RefusedTenant
-	case r.limits.PerCredential > 0 && credential != "" &&
-		r.perCredential[credential] >= r.limits.PerCredential:
-		return Slot{}, RefusedCredential
+	if refusal := r.refusal(side, credential, tenant); refusal != RefusedNone {
+		if refusal == RefusedTenant || refusal == RefusedProcess {
+			r.capacityRefused = time.Now()
+		}
+		return Slot{}, refusal
 	}
 
 	r.nextID++
@@ -148,8 +176,16 @@ func (r *Registry) Admit(credential, tenant string, accounts ...string) (Slot, R
 	if tenant != "" {
 		r.perTenant[tenant]++
 	}
+	byCredential := r.perCredential
+	if side {
+		byCredential = r.sideCredential
+		r.sideOpen++
+		if tenant != "" {
+			r.sideTenant[tenant]++
+		}
+	}
 	if credential != "" {
-		r.perCredential[credential]++
+		byCredential[credential]++
 	}
 
 	var once sync.Once
@@ -165,10 +201,56 @@ func (r *Registry) Admit(credential, tenant string, accounts ...string) (Slot, R
 				// stream for every tenant it has ever seen would otherwise keep a map entry per
 				// tenant for the life of the pod.
 				decrement(r.perTenant, tenant)
-				decrement(r.perCredential, credential)
+				decrement(byCredential, credential)
+				if side {
+					r.sideOpen--
+					decrement(r.sideTenant, tenant)
+				}
 			})
 		},
 	}, RefusedNone
+}
+
+// refusal answers which limit a new connection would pass, RefusedNone when none.
+func (r *Registry) refusal(side bool, credential, tenant string) Refusal {
+	l := r.limits
+	byCredential := r.perCredential
+	if side {
+		byCredential = r.sideCredential
+	}
+	switch {
+	case r.draining:
+		return RefusedDraining
+	case l.PerProcess > 0 && len(r.open) >= l.PerProcess,
+		side && l.PerProcess > 0 && r.sideOpen >= half(l.PerProcess):
+		return RefusedProcess
+	case l.PerTenant > 0 && tenant != "" && r.perTenant[tenant] >= l.PerTenant,
+		side && l.PerTenant > 0 && tenant != "" && r.sideTenant[tenant] >= half(l.PerTenant):
+		return RefusedTenant
+	case l.PerCredential > 0 && credential != "" && byCredential[credential] >= l.PerCredential:
+		return RefusedCredential
+	}
+	return RefusedNone
+}
+
+func half(limit int) int { return max(1, limit/2) }
+
+// Warnings is the health report's hint that connections were refused at the workspace's or the
+// process's limit in the last ten minutes: the server is fine, and clients wait without live
+// updates until a slot frees.
+func (r *Registry) Warnings(context.Context) []health.Warning {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.capacityRefused.IsZero() || time.Since(r.capacityRefused) > capacityWarningWindow {
+		return nil
+	}
+	return []health.Warning{{
+		Code: "stream.capacity_reached", Severity: "warn",
+		Params: map[string]string{
+			"per_tenant": strconv.Itoa(r.limits.PerTenant), "per_process": strconv.Itoa(r.limits.PerProcess),
+			"tenant_variable": "HUBTASK_STREAM_PER_TENANT", "process_variable": "HUBTASK_STREAM_PER_PROCESS",
+		},
+	}}
 }
 
 // Open is how many streams this process is holding. The gauge (§3.2), and what the health report

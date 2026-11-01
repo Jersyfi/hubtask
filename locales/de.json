@@ -1993,6 +1993,7 @@
   "config.cors_origin_invalid": "{variable} nimmt vollständige Origins wie https://app.example.com. {value} ist keiner.",
   "config.trusted_proxy_invalid": "{variable} nimmt Netze wie 10.42.0.0/16 oder einzelne Adressen. {value} ist keins von beiden.",
   "config.trusted_proxies_missing": "Anfragen kommen mit X-Forwarded-For, aber {variable} nennt keinen Proxy, daher teilen sich alle Anmeldungen und öffentlichen Formulare dahinter ein Ratenlimit. Setze {variable} auf das Netz des vorgeschalteten Reverse Proxys.",
+  "stream.capacity_reached": "In den letzten zehn Minuten wurden Live-Verbindungen abgelehnt, weil der Arbeitsbereich ({per_tenant}) oder dieser Prozess ({per_process}) so viele hielt wie erlaubt; diese Clients warten ohne Live-Aktualisierungen. Erhöhe {tenant_variable} oder {process_variable} oder füge ein Replikat hinzu.",
   "config.frame_ancestor_invalid": "{variable} nimmt vollständige Origins wie https://portal.example.org, ohne Platzhalter. {value} ist keiner.",
   "config.frame_source_invalid": "{variable} nimmt vollständige https-Origins wie https://dashboards.example.org, ohne Platzhalter und ohne Pfad. {value} ist keiner.",
   "config.backup_not_configured": "Kein Zeitplan schreibt in ein Sicherungsziel, darum wird nichts gesichert.",

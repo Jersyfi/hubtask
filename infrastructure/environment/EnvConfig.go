@@ -124,6 +124,13 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// latency starts to tip (observability-reliability.md §6).
 			Inflight:   getInt("HUBTASK_LOAD_SHED_INFLIGHT", 64),
 			RetryAfter: getDuration("HUBTASK_LOAD_SHED_RETRY_AFTER", 5*time.Second),
+			// Eight per client: tabs, boards and pages open at once, each a stream or a side
+			// connection with a share of its own. 512 per workspace and 1024 per pod: a company of
+			// a few hundred on one pod is never refused, and a full complement of goroutines and
+			// sockets stays far inside a container's default memory and file limits.
+			StreamsPerCredential: getInt("HUBTASK_STREAM_PER_CREDENTIAL", 8),
+			StreamsPerTenant:     getInt("HUBTASK_STREAM_PER_TENANT", 512),
+			StreamsPerProcess:    getInt("HUBTASK_STREAM_PER_PROCESS", 1024),
 		},
 		Request: env.RequestConfig{
 			MaxBodyBytes:   int64(getInt("HUBTASK_MAX_BODY_BYTES", 1<<20)),   // 1 MiB
@@ -579,6 +586,18 @@ func validateLoadShed(l env.LoadShedConfig) []error {
 	}
 	if l.RetryAfter <= 0 {
 		errs = append(errs, configError("config.duration_invalid", "HUBTASK_LOAD_SHED_RETRY_AFTER"))
+	}
+	for _, limit := range []struct {
+		variable string
+		value    int
+	}{
+		{"HUBTASK_STREAM_PER_CREDENTIAL", l.StreamsPerCredential},
+		{"HUBTASK_STREAM_PER_TENANT", l.StreamsPerTenant},
+		{"HUBTASK_STREAM_PER_PROCESS", l.StreamsPerProcess},
+	} {
+		if limit.value < 0 {
+			errs = append(errs, configError("config.limit_invalid", limit.variable))
+		}
 	}
 	return errs
 }

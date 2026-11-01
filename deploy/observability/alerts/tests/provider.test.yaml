@@ -400,3 +400,30 @@ tests:
       - eval_time: 80m
         alertname: HubtaskLongTransaction
         exp_alerts: []
+
+  # A-26: workspaces refused at their cap for ten minutes.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_stream_refused_total{reason="tenant"}'
+        values: '0+3x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskStreamCapacityReached
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-26
+            exp_annotations:
+              summary: "Live connections are refused at the stream cap"
+              description: "A workspace or a pod holds as many live connections as allowed, so new ones are refused and those clients work without live updates. Raise HUBTASK_STREAM_PER_TENANT or HUBTASK_STREAM_PER_PROCESS, or add a replica.\n"
+              runbook: RB-A26-stream-capacity-reached.md
+
+  # A-26 stays quiet for a client over its own cap.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_stream_refused_total{reason="credential"}'
+        values: '0+3x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskStreamCapacityReached
+        exp_alerts: []

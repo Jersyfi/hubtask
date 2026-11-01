@@ -338,14 +338,9 @@ func run() error {
 	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
 	// but CloseAll tells it there is one.
 	streams := stream.NewRegistry(stream.Limits{
-		// Four per client, so an ordinary application with a couple of tabs open is never refused
-		// and a client reconnecting in a loop is. Sixty-four per workspace and two hundred and
-		// fifty-six per pod: a bound on the resource rather than a tuning knob, sized so that the
-		// file descriptors and the goroutine stacks of a full complement stay well inside what a
-		// container with the default limits has.
-		PerCredential: 4,
-		PerTenant:     64,
-		PerProcess:    256,
+		PerCredential: cfg.LoadShed.StreamsPerCredential,
+		PerTenant:     cfg.LoadShed.StreamsPerTenant,
+		PerProcess:    cfg.LoadShed.StreamsPerProcess,
 	})
 	// A credential ended on any process asks this process's streams of that account again at once
 	// (migration 0332); without the listener they still ask every 30 seconds.
@@ -1619,6 +1614,8 @@ func run() error {
 	// (HUBTASK_TRUSTED_PROXIES); it warns when an ingress forwards addresses nobody trusts.
 	proxyTrust := rest.NewProxyTrust(cfg.Request.TrustedProxies)
 	registry.AddWarningSource(proxyTrust.Warnings)
+	// Connections refused at the workspace's or the process's stream cap (HUBTASK_STREAM_PER_*).
+	registry.AddWarningSource(streams.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses

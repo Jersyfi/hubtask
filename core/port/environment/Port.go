@@ -488,6 +488,11 @@ type LoadShedConfig struct {
 	// RetryAfter is what a refused caller is told to wait. It reaches the client as the header
 	// of the same name, and it is the only thing that makes a refusal actionable.
 	RetryAfter time.Duration
+	// StreamsPerCredential, StreamsPerTenant and StreamsPerProcess cap the long-lived connections
+	// one process holds (presentation/stream.Limits); zero is no cap at that level.
+	StreamsPerCredential int
+	StreamsPerTenant     int
+	StreamsPerProcess    int
 }
 
 // RequestConfig bounds a single request (security.md §9, threat T-17).
