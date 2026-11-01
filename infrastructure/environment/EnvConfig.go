@@ -147,6 +147,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		Queue: env.QueueConfig{
 			PollInterval:      getDuration("HUBTASK_QUEUE_POLL_INTERVAL", 2*time.Second),
 			BatchSize:         getInt("HUBTASK_QUEUE_BATCH_SIZE", 10),
+			Concurrency:       getInt("HUBTASK_QUEUE_CONCURRENCY", 4),
 			JobTimeout:        getDuration("HUBTASK_JOB_TIMEOUT", 60*time.Second),
 			MaxAttempts:       getInt("HUBTASK_JOB_MAX_ATTEMPTS", 8),
 			RetryBase:         getDuration("HUBTASK_JOB_RETRY_BASE", 5*time.Second),
@@ -435,6 +436,7 @@ func validateQueue(q env.QueueConfig) []error {
 	var errs []error
 	for variable, count := range map[string]int{
 		"HUBTASK_QUEUE_BATCH_SIZE":  q.BatchSize,
+		"HUBTASK_QUEUE_CONCURRENCY": q.Concurrency,
 		"HUBTASK_JOB_MAX_ATTEMPTS":  q.MaxAttempts,
 		"HUBTASK_OUTBOX_BATCH_SIZE": q.OutboxBatch,
 	} {
@@ -455,6 +457,9 @@ func validateQueue(q env.QueueConfig) []error {
 		if d <= 0 {
 			errs = append(errs, configError("config.duration_invalid", variable))
 		}
+	}
+	if q.Concurrency > env.MaxPoolConns {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_QUEUE_CONCURRENCY"))
 	}
 	// A maximum below the base would make the backoff shrink with every attempt, which is the
 	// opposite of what a backoff is for.

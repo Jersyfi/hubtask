@@ -5150,6 +5150,7 @@ func run() error {
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
 			Batch:        cfg.Queue.BatchSize,
+			Concurrency:  jobConcurrency(ctx, cfg),
 			PollInterval: cfg.Queue.PollInterval,
 			JobTimeout:   cfg.Queue.JobTimeout,
 			Lease:        cfg.Queue.Lease(),
@@ -6277,4 +6278,21 @@ func mailOAuthApps(configured map[string]envport.OAuthApp) map[string]mailservic
 		apps[provider] = mailservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
 	}
 	return apps
+}
+
+// heldBackgroundConns is what the background pool keeps beside the jobs: the job listener, the
+// scheduler's and the mailbox watch's leader locks.
+const heldBackgroundConns = 3
+
+// jobConcurrency is HUBTASK_QUEUE_CONCURRENCY within what the background pool can serve: a job
+// waiting for a connection holds its slot and its lease for nothing, so a pool too small for
+// the setting runs fewer jobs at once rather than refusing to start.
+func jobConcurrency(ctx context.Context, cfg envport.Config) int {
+	fits := max(1, cfg.Database.MaxConns-heldBackgroundConns)
+	if cfg.Queue.Concurrency <= fits {
+		return cfg.Queue.Concurrency
+	}
+	slog.WarnContext(ctx, "fewer jobs run at once than configured: the database pool is smaller",
+		slog.Int("configured", cfg.Queue.Concurrency), slog.Int("running", fits))
+	return fits
 }

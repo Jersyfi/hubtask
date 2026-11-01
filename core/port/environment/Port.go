@@ -306,8 +306,12 @@ type QueueConfig struct {
 	// was scheduled without a wake-up has to wait, so it is also the floor under a reminder's
 	// punctuality (SLO-5).
 	PollInterval time.Duration
-	// BatchSize is how many jobs one round claims.
+	// BatchSize is how many jobs one round claims at most.
 	BatchSize int
+	// Concurrency is how many jobs one worker process runs at once. Each running job holds a
+	// connection of the background pool, so the composition root keeps it three below the pool's
+	// size, for the connections the listener and the leaders hold.
+	Concurrency int
 	// JobTimeout bounds one job. Every handler inherits it as a context deadline - no call
 	// without one (ADR-0016).
 	JobTimeout time.Duration

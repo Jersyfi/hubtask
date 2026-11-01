@@ -55,8 +55,12 @@ type Runner struct {
 	Clock    clock.Clock
 	Signals  Signals
 
-	// Batch is how many jobs one round claims.
+	// Batch is how many jobs one round claims at most.
 	Batch int
+	// Concurrency is how many jobs run at once. A round claims no more than there are free
+	// slots, so a long job holds one slot rather than every job behind it; each running job holds
+	// one connection of the background pool. Below one runs one at a time.
+	Concurrency int
 	// PollInterval is the wait after a round that found nothing. A full batch is followed by the
 	// next round at once - a backlog is not a reason to wait.
 	PollInterval time.Duration
@@ -114,18 +118,28 @@ func (r Runner) Run(ctx context.Context) {
 		return
 	}
 
+	slots := newSlots(max(r.Concurrency, 1))
+	// A shutdown ends the claiming; the jobs already running finish under their own deadlines
+	// before Run returns, as one job did when they ran one after another.
+	defer slots.drain()
+
 	slog.InfoContext(ctx, "worker ready",
 		slog.Int("batch", r.Batch),
+		slog.Int("concurrency", slots.size()),
 		slog.Duration("poll_interval", r.PollInterval),
 		slog.Duration("job_timeout", r.JobTimeout),
 		slog.Bool("woken_by_notification", r.Woken != nil))
 
 	for {
-		claimed := r.round(ctx)
+		if !slots.awaitFree(ctx) {
+			return
+		}
+		want := min(r.Batch, slots.free())
+		claimed := r.claimAndRun(ctx, want, slots)
 
-		// A full batch means there is probably more. Anything less means the queue is drained,
-		// and asking again immediately would only be polling faster.
-		if claimed >= r.Batch {
+		// As many as asked for means there is probably more. Anything less means the queue is
+		// drained, and asking again immediately would only be polling faster.
+		if claimed >= want {
 			if ctx.Err() != nil {
 				return
 			}
@@ -170,9 +184,15 @@ func (r Runner) idle(ctx context.Context) bool {
 	}
 }
 
-// round claims a batch and runs it. Every failure is logged rather than returned: a loop that
-// stopped on the first failed claim would stop for a database that was restarting.
+// round claims a batch and runs it, one job after another.
 func (r Runner) round(ctx context.Context) int {
+	return r.claimAndRun(ctx, r.Batch, nil)
+}
+
+// claimAndRun claims up to want jobs and runs them: each in a slot of its own, or, without
+// slots, one after another before it returns. Every failure is logged rather than returned: a
+// loop that stopped on the first failed claim would stop for a database that was restarting.
+func (r Runner) claimAndRun(ctx context.Context, want int, slots *slots) int {
 	claimCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 
@@ -187,7 +207,7 @@ func (r Runner) round(ctx context.Context) int {
 		claimed, err := r.Queue.Claim(txCtx, queue.Lease{
 			Now:   now,
 			Until: now.Add(r.Lease),
-			Batch: r.Batch,
+			Batch: want,
 		})
 		jobs = claimed
 		return err
@@ -200,13 +220,22 @@ func (r Runner) round(ctx context.Context) int {
 	}
 
 	for _, job := range jobs {
-		held, ok := r.leased(ctx, job)
-		if !ok {
+		if slots == nil {
+			r.start(ctx, job)
 			continue
 		}
-		r.execute(ctx, held)
+		slots.run(ctx, "worker.job", func(ctx context.Context) { r.start(ctx, job) })
 	}
 	return len(jobs)
+}
+
+// start runs one claimed job, unless its lease could not be made to cover it.
+func (r Runner) start(ctx context.Context, job queue.Job) {
+	held, ok := r.leased(ctx, job)
+	if !ok {
+		return
+	}
+	r.execute(ctx, held)
 }
 
 // leased makes sure a job of the batch starts with at least its own timeout of lease left.

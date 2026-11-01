@@ -29,11 +29,14 @@ var (
 // unitOfWork records the scope every transaction was opened under, because that is where the
 // tenant boundary of a job lives: the job names a tenant, and the work happens inside it.
 type unitOfWork struct {
+	mu     sync.Mutex
 	scopes []persistence.Scope
 }
 
 func (u *unitOfWork) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	u.mu.Lock()
 	u.scopes = append(u.scopes, scope)
+	u.mu.Unlock()
 	return fn(ctx)
 }
 
@@ -52,9 +55,9 @@ type queueDouble struct {
 	// taken marks jobs another worker claimed after their lease ran out.
 	taken map[shared.ID]bool
 
-	// mu and claimed exist for the two loop tests, which read the double from the test goroutine
-	// while the runner writes it from its own. Every other test here is single-goroutine and pays
-	// only an uncontended lock for it.
+	// mu exists for the loop tests, which read the double from the test goroutine while the
+	// runner's jobs write it from theirs. Every other test here is single-goroutine and pays only
+	// an uncontended lock for it.
 	mu      sync.Mutex
 	claimed int
 }
@@ -73,14 +76,14 @@ func (q *queueDouble) claims() int {
 
 func (q *queueDouble) Claim(_ context.Context, lease queue.Lease) ([]queue.Job, error) {
 	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.claimed++
-	q.mu.Unlock()
 
 	claimed := q.claimable
 	if len(claimed) > lease.Batch {
 		claimed = claimed[:lease.Batch]
 	}
-	q.claimable = nil
+	q.claimable = q.claimable[len(claimed):]
 	return claimed, nil
 }
 
@@ -90,6 +93,8 @@ func (q *queueDouble) Hold(_ context.Context, job queue.Job) error {
 }
 
 func (q *queueDouble) Extend(_ context.Context, job queue.Job, until time.Time) (queue.Job, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	if q.taken[job.ID] {
 		return job, shared.ErrConflict.WithDetail(leaseLost)
 	}
@@ -99,17 +104,23 @@ func (q *queueDouble) Extend(_ context.Context, job queue.Job, until time.Time) 
 }
 
 func (q *queueDouble) Complete(_ context.Context, job queue.Job, outcome string) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.completed = append(q.completed, job.ID)
 	q.outcomes = append(q.outcomes, outcome)
 	return nil
 }
 
 func (q *queueDouble) Repeat(_ context.Context, job queue.Job, runAt time.Time) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.repeated[job.ID] = runAt
 	return nil
 }
 
 func (q *queueDouble) Fail(_ context.Context, failure queue.Failure) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.failures = append(q.failures, failure)
 	return nil
 }
@@ -858,4 +869,100 @@ func TestNoJobOfABatchStartsAfterItsLeaseRanOut(t *testing.T) {
 			t.Errorf("extended = %v, want the second and the third job", jobs.extended)
 		}
 	}
+}
+
+func (q *queueDouble) completedIDs() []shared.ID {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return append([]shared.ID(nil), q.completed...)
+}
+
+// A long job holds one slot, not the jobs behind it: with two slots, the second job claimed is
+// finished while the first is still running, and the loop waits for the first before it returns.
+func TestALongJobDoesNotHoldTheJobsBehindIt(t *testing.T) {
+	long, short := job(1), job(1)
+	short.ID = shared.ID("018f3a1c-0000-7000-8000-000000000002")
+	jobs := newQueue(long, short)
+
+	release := make(chan struct{})
+	handler := handlerFunc(func(_ context.Context, j queue.Job) (queue.Result, error) {
+		if j.ID == long.ID {
+			<-release
+		}
+		return queue.Result{}, nil
+	})
+	loop := runner(jobs, &unitOfWork{}, handler, nil)
+	loop.Concurrency = 2
+
+	ctx, cancel := context.WithCancel(t.Context())
+	stopped := make(chan struct{})
+	concurrency.Go(ctx, "test.worker.slots", func(context.Context) {
+		loop.Run(ctx)
+		close(stopped)
+	})
+
+	deadline := time.After(2 * time.Second)
+	for len(jobs.completedIDs()) == 0 {
+		select {
+		case <-deadline:
+			close(release)
+			cancel()
+			t.Fatal("the short job waited for the long one")
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+	if done := jobs.completedIDs(); len(done) != 1 || done[0] != short.ID {
+		t.Fatalf("completed %v while the long job runs, want only the short one", done)
+	}
+
+	cancel()
+	select {
+	case <-stopped:
+		t.Fatal("the loop returned while a job was still running")
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case <-stopped:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the loop did not return after its last job")
+	}
+	if done := jobs.completedIDs(); len(done) != 2 {
+		t.Errorf("completed %v, want both", done)
+	}
+}
+
+// A round asks for no more jobs than there are free slots, so no claimed job waits on its lease.
+func TestARoundClaimsNoMoreThanTheFreeSlots(t *testing.T) {
+	var batches []int
+	var mu sync.Mutex
+	jobs := &batchRecorder{queueDouble: newQueue(), record: func(n int) {
+		mu.Lock()
+		batches = append(batches, n)
+		mu.Unlock()
+	}}
+	held := make(chan struct{})
+	slots := newSlots(3)
+	slots.run(t.Context(), "test.worker.slot", func(context.Context) { <-held })
+	defer func() { close(held); slots.drain() }()
+
+	loop := runner(jobs.queueDouble, &unitOfWork{}, handlerFunc(nil), nil)
+	loop.Queue = jobs
+	loop.claimAndRun(t.Context(), min(loop.Batch, slots.free()), slots)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(batches) != 1 || batches[0] != 2 {
+		t.Errorf("claimed batches %v, want one of 2 with one of 3 slots taken", batches)
+	}
+}
+
+type batchRecorder struct {
+	*queueDouble
+	record func(int)
+}
+
+func (b *batchRecorder) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error) {
+	b.record(lease.Batch)
+	return b.queueDouble.Claim(ctx, lease)
 }

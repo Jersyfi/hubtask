@@ -423,6 +423,10 @@ in PostgreSQL, and nothing else is required to run it.
 * **The queue** is the `job` table. Workers claim batches with `SELECT … FOR UPDATE SKIP LOCKED`,
   so any number of `worker` processes claim disjoint work; a job can be written in the same
   transaction as the business change that causes it.
+* **A worker runs up to `HUBTASK_QUEUE_CONCURRENCY` jobs at once** (4), each in a slot of its own:
+  a round claims no more jobs than there are free slots, so a job that runs to its timeout delays
+  no other, and a shutdown claims nothing more and waits for the running jobs' own deadlines.
+  The composition root keeps it three below the background pool's size.
 * **A claim is a lease**: `HUBTASK_JOB_TIMEOUT` plus 30 seconds. A job outliving its lease is
   claimed again, so every job is **idempotent** and effects are guarded by `dedupe_key`.
 * **Failures** retry with exponential backoff and full jitter, up to `HUBTASK_JOB_MAX_ATTEMPTS`;
