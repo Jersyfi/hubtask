@@ -248,23 +248,40 @@ func TestACustomRoleIsGrantedUnderTheCeilingAtItsPlace(t *testing.T) {
 	}
 }
 
-func TestDeletingARoleTellsItsHoldersDevices(t *testing.T) {
+// A role in use is refused with its counts and keeps every grant: a rollback recreates a role,
+// never who held it where (configuration.md §2).
+func TestARoleInUseIsNotDeleted(t *testing.T) {
 	store := newRoleStore(serviceLead(t))
 	store.grants[membershipID] = repository.CustomGrantRow{RoleKey: "service_lead", Grant: domain.CustomGrant{
 		ID: membershipID, TenantID: tenant, AccountID: invitedID, Scope: domain.HubScope(hubID), RoleID: customRoleID,
 	}}
 	roles := rolesWith(store, &authorizer{}, &auditSink{}, &heldBy{})
-	told := roles.Revocations.(*revoker)
+	err := (DeleteRole{Roles: roles}).Execute(t.Context(), admin(), "service_lead")
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "roles.in_use" || refusal.Params["grants"] != "1" {
+		t.Fatalf("deleting a held role: %v", err)
+	}
+	if len(store.roles) != 1 || len(store.grants) != 1 {
+		t.Fatal("the refused deletion took the role or its grant")
+	}
+
+	delete(store.grants, membershipID)
+	roles.Rules = namingRules{"service_lead": 3}
+	if err := (DeleteRole{Roles: roles}).Execute(t.Context(), admin(), "service_lead"); shared.AsError(err).Params["rules"] != "3" {
+		t.Fatalf("deleting a role three rules address: %v", err)
+	}
+	roles.Rules = namingRules{}
 	if err := (DeleteRole{Roles: roles}).Execute(t.Context(), admin(), "service_lead"); err != nil {
-		t.Fatalf("deleting: %v", err)
+		t.Fatalf("deleting a role nobody holds: %v", err)
 	}
-	if len(store.roles) != 0 || len(store.grants) != 0 {
-		t.Fatal("the role or its grant stayed")
-	}
-	if len(told.announced) != 1 {
-		t.Fatalf("announced %v", told.announced)
+	if len(store.roles) != 0 {
+		t.Fatal("the role stayed")
 	}
 }
+
+type namingRules map[string]int
+
+func (n namingRules) Role(_ context.Context, key string) (int, error) { return n[key], nil }
 
 // A6, A11: a person may ask about themselves without any permission; about somebody else it takes
 // MANAGE_MEMBERS or READ_CONFIGURATION, and the answer names the role that carries the asked one.

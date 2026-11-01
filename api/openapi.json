@@ -6354,7 +6354,7 @@
         },
         "x-hubtask-cli": "business-calendar rm",
         "summary": "Delete an unused business calendar",
-        "description": "Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.\n",
+        "description": "Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. One a switched-on rule's trigger counts working days on is refused with `calendars.named_by_rules` and the count `rules`. Needs STRUCTURE at the workspace.\n",
         "responses": {
           "204": {
             "description": "Deleted"
@@ -23740,7 +23740,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role rm",
         "summary": "Delete a role of the workspace's own",
-        "description": "Removes the role and every grant of it; whoever held it loses what it carried on the next\nrequest, and their devices are told. Nothing anybody wrote is touched. Needs what defining\nthe role needed.\n",
+        "description": "Removes a role nobody holds and no switched-on rule addresses; one still granted, or named\nby a rule's NOTIFY_ROLE step, is refused with `roles.in_use` and the counts `grants` and\n`rules`, so that the grants are revoked deliberately rather than lost. Needs what defining\nthe role needed.\n",
         "responses": {
           "204": {
             "description": "Deleted"

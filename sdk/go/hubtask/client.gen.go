@@ -33316,7 +33316,7 @@ type ClientInterface interface {
 
 	// DeleteBusinessCalendar Delete an unused business calendar
 	//
-	// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
+	// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. One a switched-on rule's trigger counts working days on is refused with `calendars.named_by_rules` and the count `rules`. Needs STRUCTURE at the workspace.
 	//
 	// Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
 	DeleteBusinessCalendar(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39212,8 +39212,9 @@ type ClientInterface interface {
 
 	// DeleteRole Delete a role of the workspace's own
 	//
-	// Removes the role and every grant of it; whoever held it loses what it carried on the next
-	// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+	// Removes a role nobody holds and no switched-on rule addresses; one still granted, or named
+	// by a rule's NOTIFY_ROLE step, is refused with `roles.in_use` and the counts `grants` and
+	// `rules`, so that the grants are revoked deliberately rather than lost. Needs what defining
 	// the role needed.
 	//
 	// Corresponds with DELETE /roles/{key} (the `DeleteRole` operationId).
@@ -47446,7 +47447,7 @@ func (c *Client) ListBusinessCalendars(ctx context.Context, reqEditors ...Reques
 
 // DeleteBusinessCalendar Delete an unused business calendar
 //
-// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
+// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. One a switched-on rule's trigger counts working days on is refused with `calendars.named_by_rules` and the count `rules`. Needs STRUCTURE at the workspace.
 //
 // Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
 func (c *Client) DeleteBusinessCalendar(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -60342,8 +60343,9 @@ func (c *Client) CreateRole(ctx context.Context, params *CreateRoleParams, body 
 
 // DeleteRole Delete a role of the workspace's own
 //
-// Removes the role and every grant of it; whoever held it loses what it carried on the next
-// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+// Removes a role nobody holds and no switched-on rule addresses; one still granted, or named
+// by a rule's NOTIFY_ROLE step, is refused with `roles.in_use` and the counts `grants` and
+// `rules`, so that the grants are revoked deliberately rather than lost. Needs what defining
 // the role needed.
 //
 // Corresponds with DELETE /roles/{key} (the `DeleteRole` operationId).
@@ -106388,7 +106390,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteBusinessCalendarWithResponse Delete an unused business calendar
 	//
-	// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
+	// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. One a switched-on rule's trigger counts working days on is refused with `calendars.named_by_rules` and the count `rules`. Needs STRUCTURE at the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -112890,8 +112892,9 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteRoleWithResponse Delete a role of the workspace's own
 	//
-	// Removes the role and every grant of it; whoever held it loses what it carried on the next
-	// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+	// Removes a role nobody holds and no switched-on rule addresses; one still granted, or named
+	// by a rule's NOTIFY_ROLE step, is refused with `roles.in_use` and the counts `grants` and
+	// `rules`, so that the grants are revoked deliberately rather than lost. Needs what defining
 	// the role needed.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -160239,7 +160242,7 @@ func (c *ClientWithResponses) ListBusinessCalendarsWithResponse(ctx context.Cont
 
 // DeleteBusinessCalendarWithResponse Delete an unused business calendar
 //
-// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
+// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. One a switched-on rule's trigger counts working days on is refused with `calendars.named_by_rules` and the count `rules`. Needs STRUCTURE at the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170941,8 +170944,9 @@ func (c *ClientWithResponses) CreateRoleWithResponse(ctx context.Context, params
 
 // DeleteRoleWithResponse Delete a role of the workspace's own
 //
-// Removes the role and every grant of it; whoever held it loses what it carried on the next
-// request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+// Removes a role nobody holds and no switched-on rule addresses; one still granted, or named
+// by a rule's NOTIFY_ROLE step, is refused with `roles.in_use` and the counts `grants` and
+// `rules`, so that the grants are revoked deliberately rather than lost. Needs what defining
 // the role needed.
 //
 // Returns a wrapper object for the known response body format(s).

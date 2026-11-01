@@ -8560,6 +8560,7 @@
   "roles.key_taken": "The workspace already has a role {key}.",
   "roles.too_many_grants": "The workspace holds more than {limit} role grants, more than one listing shows. Remove grants that are no longer needed, or grant roles to groups instead of people.",
   "roles.version_conflict": "Someone changed the role {key} meanwhile. Load it again and repeat your change.",
+  "roles.in_use": "The role {key} is still held {grants} times and addressed by {rules} switched-on rules. Revoke it and change those rules first; a deletion would not bring its holders back.",
   "fields.restricted": "Only people whose role carries the field's permission may change {key}.",
   "app.people.tab_roles": "Roles",
   "app.people.view_as": "View as",

@@ -3488,8 +3488,9 @@ paths:
       summary: Delete an unused business calendar
       description: >
         Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is
-        refused with `calendars.in_use` unless the installation offers a calendar of the key.
-        Needs STRUCTURE at the workspace.
+        refused with `calendars.in_use` unless the installation offers a calendar of the key. One
+        a switched-on rule's trigger counts working days on is refused with
+        `calendars.named_by_rules` and the count `rules`. Needs STRUCTURE at the workspace.
       responses:
         "204":
           description: Deleted
@@ -16195,8 +16196,9 @@ paths:
       x-hubtask-cli: "role rm"
       summary: Delete a role of the workspace's own
       description: |
-        Removes the role and every grant of it; whoever held it loses what it carried on the next
-        request, and their devices are told. Nothing anybody wrote is touched. Needs what defining
+        Removes a role nobody holds and no switched-on rule addresses; one still granted, or named
+        by a rule's NOTIFY_ROLE step, is refused with `roles.in_use` and the counts `grants` and
+        `rules`, so that the grants are revoked deliberately rather than lost. Needs what defining
         the role needed.
       responses:
         "204":

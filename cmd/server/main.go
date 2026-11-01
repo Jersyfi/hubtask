@@ -955,6 +955,7 @@ func run() error {
 		Store: postgres.NewCustomRoleRepository(), Authorizer: authorizer, Reach: authorizer, Held: authorizer,
 		Revocations: revocations, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
+		Rules: automationservice.RulesNaming{Rules: postgres.NewAutomationRuleRepository(cursors)},
 	}
 
 	// What every writer of an entry needs in order to leave a step in its history. Held as one

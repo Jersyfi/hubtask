@@ -71,6 +71,9 @@ type Roles struct {
 	// records nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// Rules counts the switched-on rules whose NOTIFY_ROLE step addresses a role, so that its
+	// deletion is refused rather than leaving the rule failing at run time; nil counts none.
+	Rules RuleNames
 }
 
 // announce files a role for offline devices: workspace-wide, as the walk hands it out.
@@ -191,6 +194,11 @@ type HeldReader interface {
 type ShippedRole struct {
 	Role        domain.Role
 	Permissions []service.Permission
+}
+
+// RuleNames counts the switched-on automation rules that address a custom role by its key.
+type RuleNames interface {
+	Role(ctx context.Context, key string) (int, error)
 }
 
 // RoleCatalogue is what the *Roles* screen and *who may do what* read (A11): the catalogue, the
@@ -490,8 +498,9 @@ func (h ChangeRole) Descriptor() usecase.Descriptor {
 	}
 }
 
-// DeleteRole removes a role and every grant of it; whoever held it loses it on the next request,
-// and their devices are told.
+// DeleteRole removes a role nobody holds and no switched-on rule addresses. One in use is refused
+// with its counts rather than taking its grants along: a rollback recreates a role, never who held
+// it where, so a deletion of a block in use is refused (configuration.md §2).
 type DeleteRole struct{ Roles Roles }
 
 func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
@@ -508,19 +517,16 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 		if err != nil {
 			return err
 		}
-		var losses []access.Loss
-		for _, grant := range grants {
-			if err := h.Roles.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
+		rules := 0
+		if h.Roles.Rules != nil {
+			if rules, err = h.Roles.Rules.Role(ctx, key); err != nil {
 				return err
 			}
-			if h.Roles.Revocations == nil {
-				continue
-			}
-			loss, err := h.Roles.Revocations.AfterGrantRevoked(ctx, asGrant(grant.Grant))
-			if err != nil {
-				return err
-			}
-			losses = append(losses, loss)
+		}
+		if len(grants) > 0 || rules > 0 {
+			return shared.ErrConflict.WithDetail("roles.in_use").WithParams(map[string]string{
+				"key": key, "grants": strconv.Itoa(len(grants)), "rules": strconv.Itoa(rules),
+			})
 		}
 		removed, err := h.Roles.Store.Delete(ctx, current.Role.ID)
 		if err != nil {
@@ -528,11 +534,6 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 		}
 		if !removed {
 			return shared.ErrNotFound.WithDetail("roles.not_found").WithParams(map[string]string{"key": key})
-		}
-		if h.Roles.Revocations != nil && len(losses) > 0 {
-			if err := h.Roles.Revocations.Announce(ctx, actor.TenantID, losses...); err != nil {
-				return err
-			}
 		}
 		if err := h.Roles.announce(ctx, actor, current, changelog.Delete); err != nil {
 			return err
@@ -544,9 +545,9 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 func (h DeleteRole) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: DeleteRoleName,
-		Summary: "Removes one of the workspace's own roles and every grant of it. Whoever held it loses " +
-			"what it carried on the next request; nothing they wrote is touched.",
-		SideEffects: "Removes the role and its grants, tells the holders' devices, and writes an audit entry.",
+		Summary: "Removes one of the workspace's own roles that nobody holds and no switched-on rule " +
+			"addresses; one in use is refused with roles.in_use and the counts of its grants and rules.",
+		SideEffects: "Removes the role, tells the devices, and writes an audit entry.",
 		TokenScope:  membersWrite,
 		Destructive: true,
 		Permission:  service.PermissionManageMembers,
