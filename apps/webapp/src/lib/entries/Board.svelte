@@ -5,10 +5,9 @@
   // The collection as a board: one grouped query, one column per bucket.
   //
   // It is not a list fetched and then sorted in the browser. `group_by` is what turns the read into
-  // columns — "one group per distinct value, each with its own rows and its own cursor" — and that
-  // is also why a column with two hundred cards pages **on its own**: a grouped result has no
-  // single walk, so continuing a column is a different question rather than a later page of the
-  // same one.
+  // columns — "one group per distinct value, each with its own rows and its own cursor". A column
+  // is continued by asking for that group again with its cursor; the board does not ask yet, so it
+  // draws the first 50 cards of a column while its header counts them all.
   //
   // **`BUCKET` is a `TASK` capability only.** Buckets apply to the entries directly in the
   // collection, so a board shows tasks; what a work package or an activity does on a board is

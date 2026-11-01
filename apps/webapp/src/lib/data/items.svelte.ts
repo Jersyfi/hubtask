@@ -16,6 +16,7 @@
  * assembles. The engine knows that a `POST` can be a read.
  */
 
+import { reachOf, type PageReach } from './paging.ts';
 import type {
   Assignment,
   AutoAssignOutcome,
@@ -237,7 +238,28 @@ class Items {
     return state?.status === 'ready' ? (state.data.groups ?? []) : [];
   }
 
+  /**
+   * How far a collection's list has been read: the rows held, the total where the answer counted
+   * them, and whether a next page exists. A list that stopped at its first page without saying so
+   * hid every entry after it (`page.size` is 200), so the list says how many it shows and offers
+   * the rest.
+   */
+  collectionPage(containerId: string): PageReach {
+    const state = this.#levels[`container:${containerId}`];
+    return reachOf(state?.status === 'ready' ? state.data : undefined);
+  }
+
+  /** Reads the collection's next page and appends it; nothing when there is none. */
+  async loadMoreCollection(containerId: string): Promise<void> {
+    const request = this.#requests[`container:${containerId}`];
+    if (request) await engine.loadMore<ItemQueryResult>(request);
+  }
+
+  /** The request each level was opened with, which its next page continues. */
+  #requests: Record<string, { path: string; body: unknown }> = {};
+
   #open(key: string, request: { path: string; body: unknown }): () => void {
+    this.#requests[key] = request;
     return engine.subscribe<ItemQueryResult>(request, (next) => {
       this.#levels = { ...this.#levels, [key]: next };
     });

@@ -30,6 +30,7 @@
     Input,
     LabelChip,
     LabelPicker,
+    LoadMore,
     Popover,
     provideReasonGroup,
     rankIntent,
@@ -671,6 +672,21 @@
   // Not called `state`: a variable of that name collides with the `$state` rune in what the
   // compiler generates, and the error it produces names a line that looks unrelated.
   const levelState = $derived(items.stateOf(root ? `subtree:${root.id}` : `container:${collectionId}`));
+  const listPage = $derived(items.collectionPage(collectionId));
+  let isLoadingMore = $state(false);
+  let moreFailed = $state<string | undefined>(undefined);
+  async function loadMore() {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+    moreFailed = undefined;
+    try {
+      await items.loadMoreCollection(collectionId);
+    } catch {
+      moreFailed = t('app.entries.load_more_failed');
+    } finally {
+      isLoadingMore = false;
+    }
+  }
   const failure = $derived(
     levelState?.status === 'failed' ? renderProblem(levelState.error, messages) : undefined,
   );
@@ -1343,6 +1359,21 @@
           {/each}
         {/if}
       </div>
+
+      <!-- The collection's list is read a page at a time: what is not on the first page is said
+           and offered, never silently left out. -->
+      {#if !root && listPage.hasMore}
+        <LoadMore
+          label={listPage.total === undefined
+            ? t('app.entries.load_more', { shown: String(listPage.shown) })
+            : t('app.entries.load_more_of', { shown: String(listPage.shown), total: String(listPage.total) })}
+          busyLabel={t('app.entries.loading_more')}
+          hasMore
+          isBusy={isLoadingMore}
+          {...(moreFailed ? { failedLabel: moreFailed } : {})}
+          onLoadMore={() => void loadMore()}
+        />
+      {/if}
 
       {#if !isReadOnly && mayCreate && topTypes().length > 0}
         {#if !(viewport.isCompact && !root)}
