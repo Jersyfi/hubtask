@@ -20,6 +20,6 @@ func freeSpace(path string) (free, total uint64, err error) {
 	if stat.Bsize <= 0 {
 		return 0, 0, errors.New("the filesystem reported no block size")
 	}
-	size := uint64(stat.Bsize) //nolint:gosec // G115: positive, checked on the line above
+	size := uint64(stat.Bsize)
 	return stat.Bavail * size, stat.Blocks * size, nil
 }
