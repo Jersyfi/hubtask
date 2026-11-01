@@ -48,7 +48,7 @@ func (c RealtimeController) OpenRealtimeDocument(
 		return
 	}
 	defer slot.Release()
-	credential := realtime.Credential{Still: credentialStill(r.Context(), actor), Until: actor.ViewingAsUntil}
+	credential := realtime.Credential{Still: stream.CredentialStill(r.Context(), actor), Until: actor.ViewingAsUntil}
 	if err := c.Handler.Serve(w, r, actor, ref, slot.Closing, credential); err != nil {
 		WriteProblem(w, err, requestID)
 	}

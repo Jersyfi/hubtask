@@ -51,6 +51,9 @@ type Server struct {
 	// sent because something happened rather than because a timer fired.
 	Wakeups Wakeups
 	Signals StreamSignals
+	// CredentialRecheck is how often a held stream asks its credential again; zero is thirty
+	// seconds, the change stream's.
+	CredentialRecheck time.Duration
 	// Clock is injectable so the tests do not have to wait. Nil means the system clock.
 	Clock func() time.Time
 	// Name and Version identify the server on initialize.

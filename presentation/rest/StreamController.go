@@ -176,7 +176,7 @@ func (c StreamController) serve(
 
 	// The actor is fixed when the stream opens, the credential is not: a session revoked, signed out
 	// or expired since, or a view as somebody that lapsed, ends the stream within a recheck.
-	still := credentialStill(r.Context(), actor)
+	still := stream.CredentialStill(r.Context(), actor)
 	checked := c.now()
 	cursor := from
 	for {

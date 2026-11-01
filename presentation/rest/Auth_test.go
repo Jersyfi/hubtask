@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
+	"github.com/Jersyfi/hubtask/presentation/stream"
 )
 
 const (
@@ -506,7 +507,7 @@ func TestAHeldConnectionAsksItsCredentialAgain(t *testing.T) {
 	var still func(context.Context) error
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(_ http.ResponseWriter, r *http.Request) {
 		actor, _ := appshared.ActorFrom(r.Context())
-		still = credentialStill(r.Context(), actor)
+		still = stream.CredentialStill(r.Context(), actor)
 	})
 	r := request(t, "/containers")
 	r.Header.Set("Authorization", "Bearer "+credential)

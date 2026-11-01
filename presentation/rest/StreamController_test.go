@@ -373,10 +373,10 @@ func parseEvents(t *testing.T, body string) []sseEvent {
 func TestARevokedCredentialEndsTheStream(t *testing.T) {
 	for name, prepare := range map[string]func(*http.Request) *http.Request{
 		"revoked": func(r *http.Request) *http.Request {
-			return r.WithContext(context.WithValue(r.Context(), reauthenticateKey{}, reauthenticate(
+			return r.WithContext(stream.WithReauthentication(r.Context(),
 				func(context.Context) (appshared.ActorContext, error) {
 					return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
-				})))
+				}))
 		},
 		"view lapsed": func(r *http.Request) *http.Request {
 			return r.WithContext(appshared.ContextWithActor(r.Context(), appshared.ActorContext{
