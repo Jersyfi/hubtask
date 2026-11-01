@@ -52,21 +52,22 @@ UPDATE realtime_snapshot SET superseded_at = sqlc.arg('at')
 WHERE tenant_id = current_tenant_id() AND kind = sqlc.arg('kind') AND document_id = sqlc.arg('document_id')
   AND up_to_seq < sqlc.arg('up_to_seq') AND superseded_at IS NULL;
 
--- name: CompactRealtimeUpdates :exec
-UPDATE realtime_update SET compacted_at = sqlc.arg('at')
-WHERE tenant_id = current_tenant_id() AND kind = sqlc.arg('kind') AND document_id = sqlc.arg('document_id')
-  AND seq <= sqlc.arg('up_to_seq') AND compacted_at IS NULL;
-
 -- name: EraseRealtimeDocument :exec
 -- The log and the snapshots go with the head (ON DELETE CASCADE).
 DELETE FROM realtime_document
 WHERE tenant_id = current_tenant_id() AND kind = sqlc.arg('kind') AND document_id = sqlc.arg('document_id');
 
 -- name: CountExpiredRealtimeUpdates :one
--- What retention may remove: compacted updates older than the cutoff, counted up to a ceiling.
+-- What retention may remove: the updates a snapshot older than the cutoff covers, counted up to a
+-- ceiling (migration 0354: compacted by range, never marked).
 SELECT count(*)::int FROM (
-  SELECT 1 FROM realtime_update
-  WHERE tenant_id = current_tenant_id() AND compacted_at < sqlc.arg('cutoff')
+  SELECT 1 FROM realtime_update u
+  JOIN (
+    SELECT s.kind, s.document_id, max(s.up_to_seq) AS up_to_seq FROM realtime_snapshot s
+    WHERE s.tenant_id = current_tenant_id() AND s.created_at < sqlc.arg('cutoff')
+    GROUP BY s.kind, s.document_id
+  ) covered ON u.kind = covered.kind AND u.document_id = covered.document_id AND u.seq <= covered.up_to_seq
+  WHERE u.tenant_id = current_tenant_id()
   LIMIT sqlc.arg('ceiling')
 ) expired;
 
@@ -81,7 +82,12 @@ SELECT count(*)::int FROM (
 DELETE FROM realtime_update u
 WHERE u.tenant_id = current_tenant_id() AND (u.kind, u.document_id, u.seq) IN (
   SELECT e.kind, e.document_id, e.seq FROM realtime_update e
-  WHERE e.tenant_id = current_tenant_id() AND e.compacted_at < sqlc.arg('cutoff')
+  JOIN (
+    SELECT s.kind, s.document_id, max(s.up_to_seq) AS up_to_seq FROM realtime_snapshot s
+    WHERE s.tenant_id = current_tenant_id() AND s.created_at < sqlc.arg('cutoff')
+    GROUP BY s.kind, s.document_id
+  ) covered ON e.kind = covered.kind AND e.document_id = covered.document_id AND e.seq <= covered.up_to_seq
+  WHERE e.tenant_id = current_tenant_id()
   LIMIT sqlc.arg('batch'));
 
 -- name: DeleteExpiredRealtimeSnapshots :execrows

@@ -59,29 +59,6 @@ func (q *Queries) AdvanceRealtimeSnapshot(ctx context.Context, arg AdvanceRealti
 	return result.RowsAffected(), nil
 }
 
-const compactRealtimeUpdates = `-- name: CompactRealtimeUpdates :exec
-UPDATE realtime_update SET compacted_at = $1
-WHERE tenant_id = current_tenant_id() AND kind = $2 AND document_id = $3
-  AND seq <= $4 AND compacted_at IS NULL
-`
-
-type CompactRealtimeUpdatesParams struct {
-	At         pgtype.Timestamptz
-	Kind       string
-	DocumentID pgtype.UUID
-	UpToSeq    int64
-}
-
-func (q *Queries) CompactRealtimeUpdates(ctx context.Context, arg CompactRealtimeUpdatesParams) error {
-	_, err := q.db.Exec(ctx, compactRealtimeUpdates,
-		arg.At,
-		arg.Kind,
-		arg.DocumentID,
-		arg.UpToSeq,
-	)
-	return err
-}
-
 const countExpiredRealtimeSnapshots = `-- name: CountExpiredRealtimeSnapshots :one
 SELECT count(*)::int FROM (
   SELECT 1 FROM realtime_snapshot
@@ -104,8 +81,13 @@ func (q *Queries) CountExpiredRealtimeSnapshots(ctx context.Context, arg CountEx
 
 const countExpiredRealtimeUpdates = `-- name: CountExpiredRealtimeUpdates :one
 SELECT count(*)::int FROM (
-  SELECT 1 FROM realtime_update
-  WHERE tenant_id = current_tenant_id() AND compacted_at < $1
+  SELECT 1 FROM realtime_update u
+  JOIN (
+    SELECT s.kind, s.document_id, max(s.up_to_seq) AS up_to_seq FROM realtime_snapshot s
+    WHERE s.tenant_id = current_tenant_id() AND s.created_at < $1
+    GROUP BY s.kind, s.document_id
+  ) covered ON u.kind = covered.kind AND u.document_id = covered.document_id AND u.seq <= covered.up_to_seq
+  WHERE u.tenant_id = current_tenant_id()
   LIMIT $2
 ) expired
 `
@@ -115,7 +97,8 @@ type CountExpiredRealtimeUpdatesParams struct {
 	Ceiling int32
 }
 
-// What retention may remove: compacted updates older than the cutoff, counted up to a ceiling.
+// What retention may remove: the updates a snapshot older than the cutoff covers, counted up to a
+// ceiling (migration 0354: compacted by range, never marked).
 func (q *Queries) CountExpiredRealtimeUpdates(ctx context.Context, arg CountExpiredRealtimeUpdatesParams) (int32, error) {
 	row := q.db.QueryRow(ctx, countExpiredRealtimeUpdates, arg.Cutoff, arg.Ceiling)
 	var column_1 int32
@@ -148,7 +131,12 @@ const deleteExpiredRealtimeUpdates = `-- name: DeleteExpiredRealtimeUpdates :exe
 DELETE FROM realtime_update u
 WHERE u.tenant_id = current_tenant_id() AND (u.kind, u.document_id, u.seq) IN (
   SELECT e.kind, e.document_id, e.seq FROM realtime_update e
-  WHERE e.tenant_id = current_tenant_id() AND e.compacted_at < $1
+  JOIN (
+    SELECT s.kind, s.document_id, max(s.up_to_seq) AS up_to_seq FROM realtime_snapshot s
+    WHERE s.tenant_id = current_tenant_id() AND s.created_at < $1
+    GROUP BY s.kind, s.document_id
+  ) covered ON e.kind = covered.kind AND e.document_id = covered.document_id AND e.seq <= covered.up_to_seq
+  WHERE e.tenant_id = current_tenant_id()
   LIMIT $2)
 `
 

@@ -581,8 +581,9 @@ it, order it and decide who may touch it.
   A page restricted to fewer of its hub's readers, or under one, is not every reader's: the walk
   leaves it out and every record of it is a `DELETE`, so devices drop it and read it from the
   server (domain-model.md §3.8).
-* **Retention and erasure.** A snapshot marks the updates it covers and the snapshot it replaces;
-  `DOCUMENT_HISTORY` removes them after thirty days ([data-retention.md](./data-retention.md) §3),
+* **Retention and erasure.** A snapshot covers the updates at or below its place - by range, no
+  update row is rewritten - and marks the snapshot it replaces; `DOCUMENT_HISTORY` removes both
+  thirty days after the covering snapshot was written ([data-retention.md](./data-retention.md) §3),
   held by a workspace hold. The document itself - the newest snapshot and the updates after it - is
   never aged out. An erased author leaves the update without a name (`ON DELETE SET NULL`); the
   owning kind erases its documents with itself: a page or a board removed - by its hub's purge, a

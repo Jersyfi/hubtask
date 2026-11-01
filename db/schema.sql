@@ -1557,8 +1557,9 @@ CREATE INDEX durable_timer_due_idx ON durable_timer (tenant_id, due_at) WHERE st
 GRANT SELECT, INSERT, UPDATE, DELETE ON durable_timer TO hubtask_app;
 
 -- Live documents (migration 0230, F-8): a document's CRDT update log, its snapshots and its head.
--- The updates are the editor's bytes and never read here; what a snapshot covers is marked, and
--- removed by the DOCUMENT_HISTORY retention kind.
+-- The updates are the editor's bytes and never read here; what a snapshot covers (seq <= its
+-- up_to_seq) is removed by the DOCUMENT_HISTORY retention kind (migration 0354). compacted_at is no
+-- longer written; it stays until a contract step drops it.
 CREATE TABLE realtime_document (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   kind         text NOT NULL CHECK (kind ~ '^[a-z][a-z_]{1,31}$'),
@@ -1568,7 +1569,7 @@ CREATE TABLE realtime_document (
   created_at   timestamptz NOT NULL,
   updated_at   timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, kind, document_id)
-);
+) WITH (fillfactor = 70);
 GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_document TO hubtask_app;
 
 CREATE TABLE realtime_update (
@@ -1585,7 +1586,7 @@ CREATE TABLE realtime_update (
     REFERENCES realtime_document (tenant_id, kind, document_id) ON DELETE CASCADE,
   CONSTRAINT realtime_update_author_fkey FOREIGN KEY (tenant_id, author_id)
     REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
-);
+) WITH (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.05);
 CREATE INDEX realtime_update_compacted_idx ON realtime_update (tenant_id, compacted_at)
   WHERE compacted_at IS NOT NULL;
 GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_update TO hubtask_app;
@@ -6578,7 +6579,7 @@ CREATE TABLE collection_figure_touch (
   collection_id uuid NOT NULL,   -- the collection, or the workspace's id for what all of them read
   token         bigint NOT NULL,
   PRIMARY KEY (tenant_id, collection_id, token)
-);
+) WITH (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.05);
 CREATE TABLE collection_figure_stamp (
   tenant_id     uuid NOT NULL,
   collection_id uuid NOT NULL,

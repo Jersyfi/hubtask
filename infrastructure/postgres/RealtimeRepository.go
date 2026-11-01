@@ -111,7 +111,8 @@ func (RealtimeRepository) Since(ctx context.Context, ref realtime.Ref, after int
 	})
 }
 
-// StoreSnapshot writes the snapshot and marks what it covers and what it replaces.
+// StoreSnapshot writes the snapshot and marks the one it replaces. The updates it covers are not
+// touched: an update at or below a snapshot's place is compacted by that (migration 0354).
 func (RealtimeRepository) StoreSnapshot(ctx context.Context, ref realtime.Ref, snapshot realtime.Snapshot) (bool, error) {
 	queries, id, err := realtimeOpen(ctx, ref)
 	if err != nil {
@@ -137,11 +138,6 @@ func (RealtimeRepository) StoreSnapshot(ctx context.Context, ref realtime.Ref, s
 	}); err != nil {
 		return false, realtimeFailed("superseding the older snapshot", err)
 	}
-	if err := queries.CompactRealtimeUpdates(ctx, sqlc.CompactRealtimeUpdatesParams{
-		At: stamp, Kind: string(ref.Kind), DocumentID: id, UpToSeq: snapshot.UpToSeq,
-	}); err != nil {
-		return false, realtimeFailed("marking the compacted updates", err)
-	}
 	return true, nil
 }
 
@@ -157,7 +153,8 @@ func (RealtimeRepository) Erase(ctx context.Context, ref realtime.Ref) error {
 	return nil
 }
 
-// CountExpired counts the compacted updates and superseded snapshots older than the cutoff.
+// CountExpired counts the updates a snapshot older than the cutoff covers, and the snapshots
+// superseded before it.
 func (RealtimeRepository) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

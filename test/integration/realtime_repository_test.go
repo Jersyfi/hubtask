@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -45,6 +46,25 @@ func TestADocumentLogIsOrderedCompactedAndPrunedByRetention(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+
+	// A snapshot rewrites no update: what it covers is its range, so the log's rows are written
+	// once and deleted once (migration 0354).
+	admin := adminPool(ctx, t)
+	var marked int
+	if err := admin.QueryRow(ctx, `SELECT count(*) FROM realtime_update WHERE document_id = $1 AND compacted_at IS NOT NULL`,
+		ref.ID.String()).Scan(&marked); err != nil || marked != 0 {
+		t.Errorf("%d updates rewritten by the snapshot, %v; want none", marked, err)
+	}
+	for table, option := range map[string]string{
+		"realtime_document": "fillfactor=70", "realtime_update": "autovacuum_vacuum_scale_factor=0.02",
+		"collection_figure_touch": "autovacuum_vacuum_scale_factor=0.02",
+	} {
+		var options []string
+		if err := admin.QueryRow(ctx, `SELECT coalesce(reloptions, '{}') FROM pg_class WHERE relname = $1`, table).
+			Scan(&options); err != nil || !slices.Contains(options, option) {
+			t.Errorf("%s has storage options %v, %v; want %s", table, options, err, option)
+		}
 	}
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
