@@ -294,11 +294,11 @@ func TestExplainAccessAnswersWhoHoldsWhatAndThroughWhichRole(t *testing.T) {
 	auth := &authorizer{}
 	explain := ExplainAccess{Roles: rolesWith(newRoleStore(), auth, &auditSink{}, held)}
 
-	self, err := explain.Execute(t.Context(), admin(), shared.ID(""), domain.HubScope(hubID), "WRITE_ITEMS")
+	self, err := explain.Execute(t.Context(), admin(), shared.ID(""), domain.HubScope(hubID), "WRITE_ITEMS", "")
 	if err != nil || !self.Holds || len(self.HeldThrough) != 1 || len(auth.requests) != 0 {
 		t.Fatalf("about oneself: %+v %v %d", self, err, len(auth.requests))
 	}
-	other, err := explain.Execute(t.Context(), admin(), invitedID, domain.HubScope(hubID), "STRUCTURE")
+	other, err := explain.Execute(t.Context(), admin(), invitedID, domain.HubScope(hubID), "STRUCTURE", "")
 	if err != nil || other.Holds {
 		t.Fatalf("about somebody else: %+v %v", other, err)
 	}
@@ -306,7 +306,7 @@ func TestExplainAccessAnswersWhoHoldsWhatAndThroughWhichRole(t *testing.T) {
 		t.Fatalf("asked %+v", auth.requests)
 	}
 	auth.refuse = shared.ErrForbidden
-	if _, err := explain.Execute(t.Context(), admin(), invitedID, domain.TenantScope(), ""); !errors.Is(err, shared.ErrForbidden) {
+	if _, err := explain.Execute(t.Context(), admin(), invitedID, domain.TenantScope(), "", ""); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("refused: %v", err)
 	}
 }
@@ -353,7 +353,7 @@ func TestExplainAccessDoesNotLookIntoAPrivateHubTheCallerCannotReach(t *testing.
 	roles := rolesWith(newRoleStore(), &authorizer{}, &auditSink{}, held)
 	roles.Reach = reach{hidden: map[shared.ID]bool{otherHubID: true}}
 
-	_, err := ExplainAccess{Roles: roles}.Execute(t.Context(), reader(), invitedID, domain.HubScope(otherHubID), "")
+	_, err := ExplainAccess{Roles: roles}.Execute(t.Context(), reader(), invitedID, domain.HubScope(otherHubID), "", "")
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("about somebody else in a hidden private hub: %v, want not found", err)
 	}

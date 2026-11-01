@@ -58,10 +58,62 @@ func (e AcceptedSuggestionSource) Valid() bool {
 	}
 }
 
+// Defines values for AccessExplanationEntryAction.
+const (
+	AccessExplanationEntryActionCHANGE  AccessExplanationEntryAction = "CHANGE"
+	AccessExplanationEntryActionCOMMENT AccessExplanationEntryAction = "COMMENT"
+	AccessExplanationEntryActionREAD    AccessExplanationEntryAction = "READ"
+)
+
+// Valid indicates whether the value is a known member of the AccessExplanationEntryAction enum.
+func (e AccessExplanationEntryAction) Valid() bool {
+	switch e {
+	case AccessExplanationEntryActionCHANGE:
+		return true
+	case AccessExplanationEntryActionCOMMENT:
+		return true
+	case AccessExplanationEntryActionREAD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccessExplanationEntryReason.
+const (
+	ASASSIGNEE   AccessExplanationEntryReason = "AS_ASSIGNEE"
+	NOTASSIGNEE  AccessExplanationEntryReason = "NOT_ASSIGNEE"
+	NOTHINGHELD  AccessExplanationEntryReason = "NOTHING_HELD"
+	ROLEREFUSES  AccessExplanationEntryReason = "ROLE_REFUSES"
+	THROUGHROLE  AccessExplanationEntryReason = "THROUGH_ROLE"
+	THROUGHSHARE AccessExplanationEntryReason = "THROUGH_SHARE"
+)
+
+// Valid indicates whether the value is a known member of the AccessExplanationEntryReason enum.
+func (e AccessExplanationEntryReason) Valid() bool {
+	switch e {
+	case ASASSIGNEE:
+		return true
+	case NOTASSIGNEE:
+		return true
+	case NOTHINGHELD:
+		return true
+	case ROLEREFUSES:
+		return true
+	case THROUGHROLE:
+		return true
+	case THROUGHSHARE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccessExplanationScopeType.
 const (
 	AccessExplanationScopeTypeCOLLECTION AccessExplanationScopeType = "COLLECTION"
 	AccessExplanationScopeTypeHUB        AccessExplanationScopeType = "HUB"
+	AccessExplanationScopeTypeITEM       AccessExplanationScopeType = "ITEM"
 	AccessExplanationScopeTypeTENANT     AccessExplanationScopeType = "TENANT"
 )
 
@@ -71,6 +123,8 @@ func (e AccessExplanationScopeType) Valid() bool {
 	case AccessExplanationScopeTypeCOLLECTION:
 		return true
 	case AccessExplanationScopeTypeHUB:
+		return true
+	case AccessExplanationScopeTypeITEM:
 		return true
 	case AccessExplanationScopeTypeTENANT:
 		return true
@@ -3237,19 +3291,19 @@ func (e ConfigApplyResultState) Valid() bool {
 
 // Defines values for ConfigChangeOp.
 const (
-	ADD    ConfigChangeOp = "ADD"
-	CHANGE ConfigChangeOp = "CHANGE"
-	REMOVE ConfigChangeOp = "REMOVE"
+	ConfigChangeOpADD    ConfigChangeOp = "ADD"
+	ConfigChangeOpCHANGE ConfigChangeOp = "CHANGE"
+	ConfigChangeOpREMOVE ConfigChangeOp = "REMOVE"
 )
 
 // Valid indicates whether the value is a known member of the ConfigChangeOp enum.
 func (e ConfigChangeOp) Valid() bool {
 	switch e {
-	case ADD:
+	case ConfigChangeOpADD:
 		return true
-	case CHANGE:
+	case ConfigChangeOpCHANGE:
 		return true
-	case REMOVE:
+	case ConfigChangeOpREMOVE:
 		return true
 	default:
 		return false
@@ -10436,6 +10490,7 @@ func (e WorkspaceStructureChangePreset) Valid() bool {
 const (
 	ExplainAccessParamsScopeTypeCOLLECTION ExplainAccessParamsScopeType = "COLLECTION"
 	ExplainAccessParamsScopeTypeHUB        ExplainAccessParamsScopeType = "HUB"
+	ExplainAccessParamsScopeTypeITEM       ExplainAccessParamsScopeType = "ITEM"
 	ExplainAccessParamsScopeTypeTENANT     ExplainAccessParamsScopeType = "TENANT"
 )
 
@@ -10446,7 +10501,30 @@ func (e ExplainAccessParamsScopeType) Valid() bool {
 		return true
 	case ExplainAccessParamsScopeTypeHUB:
 		return true
+	case ExplainAccessParamsScopeTypeITEM:
+		return true
 	case ExplainAccessParamsScopeTypeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ExplainAccessParamsAction.
+const (
+	ExplainAccessParamsActionCHANGE  ExplainAccessParamsAction = "CHANGE"
+	ExplainAccessParamsActionCOMMENT ExplainAccessParamsAction = "COMMENT"
+	ExplainAccessParamsActionREAD    ExplainAccessParamsAction = "READ"
+)
+
+// Valid indicates whether the value is a known member of the ExplainAccessParamsAction enum.
+func (e ExplainAccessParamsAction) Valid() bool {
+	switch e {
+	case ExplainAccessParamsActionCHANGE:
+		return true
+	case ExplainAccessParamsActionCOMMENT:
+		return true
+	case ExplainAccessParamsActionREAD:
 		return true
 	default:
 		return false
@@ -11262,6 +11340,15 @@ type AccessExplanation struct {
 	// Asked The permission asked about, when one was.
 	Asked *string `json:"asked,omitempty"`
 
+	// Entry At an entry, the decision a request to do `action` to it meets.
+	Entry *struct {
+		Action    AccessExplanationEntryAction `json:"action"`
+		Permitted bool                         `json:"permitted"`
+
+		// Reason THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path.
+		Reason AccessExplanationEntryReason `json:"reason"`
+	} `json:"entry,omitempty"`
+
 	// HeldThrough The roles that carry the permission asked about.
 	HeldThrough *[]AccessSource `json:"held_through,omitempty"`
 
@@ -11278,6 +11365,12 @@ type AccessExplanation struct {
 	ScopeType AccessExplanationScopeType `json:"scope_type"`
 	Sources   []AccessSource             `json:"sources"`
 }
+
+// AccessExplanationEntryAction defines model for AccessExplanation.Entry.Action.
+type AccessExplanationEntryAction string
+
+// AccessExplanationEntryReason THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path.
+type AccessExplanationEntryReason string
 
 // AccessExplanationScopeType defines model for AccessExplanation.ScopeType.
 type AccessExplanationScopeType string
@@ -25580,15 +25673,21 @@ type ExplainAccessParams struct {
 	AccountId *openapi_types.UUID          `form:"account_id,omitempty" json:"account_id,omitempty"`
 	ScopeType ExplainAccessParamsScopeType `form:"scope_type" json:"scope_type"`
 
-	// ScopeId The hub or collection. Omitted for the workspace, and only then.
+	// ScopeId The hub, collection or entry. Omitted for the workspace, and only then.
 	ScopeId *openapi_types.UUID `form:"scope_id,omitempty" json:"scope_id,omitempty"`
 
 	// Permission A permission of the catalogue to ask about.
 	Permission *string `form:"permission,omitempty" json:"permission,omitempty"`
+
+	// Action At an entry, what to do to it. READ when omitted.
+	Action *ExplainAccessParamsAction `form:"action,omitempty" json:"action,omitempty"`
 }
 
 // ExplainAccessParamsScopeType defines parameters for ExplainAccess.
 type ExplainAccessParamsScopeType string
+
+// ExplainAccessParamsAction defines parameters for ExplainAccess.
+type ExplainAccessParamsAction string
 
 // StartProviderConnectParams defines parameters for StartProviderConnect.
 type StartProviderConnectParams struct {
@@ -30057,12 +30156,14 @@ type ClientInterface interface {
 
 	// ExplainAccess What a person holds at a place, and why
 	//
-	// The roles that count for the person at the workspace, a hub or a collection, where each is
-	// held, and every permission they carry. Given `permission`, also whether the person holds
-	// it and through which role - the answer behind "view as" and "why may this person do
-	// that". A person may always ask about themselves; about somebody else it takes
-	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
-	// `READ` at that place - a place the caller does not reach answers not found.
+	// The roles that count for the person at the workspace, a hub, a collection or an entry, where
+	// each is held, and every permission they carry. Given `permission`, also whether the person
+	// holds it and through which role - the answer behind "view as" and "why may this person do
+	// that". At an entry, `entry` also answers whether the person may do `action` to it, by the
+	// decision a request meets there: through a role, through a share, as its assignee, or why
+	// not. A person may always ask about themselves; about somebody else it takes
+	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub, a collection or an
+	// entry, `READ` at that place - a place the caller does not reach answers not found.
 	//
 	// Corresponds with GET /access/explain (the `ExplainAccess` operationId).
 	ExplainAccess(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -41025,12 +41126,14 @@ type ClientInterface interface {
 
 // ExplainAccess What a person holds at a place, and why
 //
-// The roles that count for the person at the workspace, a hub or a collection, where each is
-// held, and every permission they carry. Given `permission`, also whether the person holds
-// it and through which role - the answer behind "view as" and "why may this person do
-// that". A person may always ask about themselves; about somebody else it takes
-// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
-// `READ` at that place - a place the caller does not reach answers not found.
+// The roles that count for the person at the workspace, a hub, a collection or an entry, where
+// each is held, and every permission they carry. Given `permission`, also whether the person
+// holds it and through which role - the answer behind "view as" and "why may this person do
+// that". At an entry, `entry` also answers whether the person may do `action` to it, by the
+// decision a request meets there: through a role, through a share, as its assignee, or why
+// not. A person may always ask about themselves; about somebody else it takes
+// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub, a collection or an
+// entry, `READ` at that place - a place the caller does not reach answers not found.
 //
 // Corresponds with GET /access/explain (the `ExplainAccess` operationId).
 func (c *Client) ExplainAccess(ctx context.Context, params *ExplainAccessParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -64193,6 +64296,18 @@ func NewExplainAccessRequest(server string, params *ExplainAccessParams) (*http.
 		if params.Permission != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "permission", *params.Permission, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Action != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "action", *params.Action, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -102968,12 +103083,14 @@ type ClientWithResponsesInterface interface {
 
 	// ExplainAccessWithResponse What a person holds at a place, and why
 	//
-	// The roles that count for the person at the workspace, a hub or a collection, where each is
-	// held, and every permission they carry. Given `permission`, also whether the person holds
-	// it and through which role - the answer behind "view as" and "why may this person do
-	// that". A person may always ask about themselves; about somebody else it takes
-	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
-	// `READ` at that place - a place the caller does not reach answers not found.
+	// The roles that count for the person at the workspace, a hub, a collection or an entry, where
+	// each is held, and every permission they carry. Given `permission`, also whether the person
+	// holds it and through which role - the answer behind "view as" and "why may this person do
+	// that". At an entry, `entry` also answers whether the person may do `action` to it, by the
+	// decision a request meets there: through a role, through a share, as its assignee, or why
+	// not. A person may always ask about themselves; about somebody else it takes
+	// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub, a collection or an
+	// entry, `READ` at that place - a place the caller does not reach answers not found.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -154979,12 +155096,14 @@ func (r CopyWorkflowHereResult) ContentType() string {
 
 // ExplainAccessWithResponse What a person holds at a place, and why
 //
-// The roles that count for the person at the workspace, a hub or a collection, where each is
-// held, and every permission they carry. Given `permission`, also whether the person holds
-// it and through which role - the answer behind "view as" and "why may this person do
-// that". A person may always ask about themselves; about somebody else it takes
-// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
-// `READ` at that place - a place the caller does not reach answers not found.
+// The roles that count for the person at the workspace, a hub, a collection or an entry, where
+// each is held, and every permission they carry. Given `permission`, also whether the person
+// holds it and through which role - the answer behind "view as" and "why may this person do
+// that". At an entry, `entry` also answers whether the person may do `action` to it, by the
+// decision a request meets there: through a role, through a share, as its assignee, or why
+// not. A person may always ask about themselves; about somebody else it takes
+// `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub, a collection or an
+// entry, `READ` at that place - a place the caller does not reach answers not found.
 //
 // Returns a wrapper object for the known response body format(s).
 //

@@ -585,6 +585,11 @@ The two qualifiers are decided in one place in the application layer
 * **"Shared items only"** is where the membership was granted: one at `ITEM` scope reaches that entry
   and nothing else, so a share needs no mechanism of its own. Any role can be granted there; `GUEST`
   is the usual one.
+* **Explaining it.** `GET /access/explain?scope_type=ITEM` answers this same decision for a person
+  at an entry and an act (`access.Service.ExplainEntry`, the resolution and `AllowsItemActionAlong`
+  that decide a request): through a role, a share, as the assignee, or why not. The caller must
+  reach the entry, so the explanation discloses none (T-04). An agent's owner and *view as* narrow a
+  request further and are not explained there.
 
 An entry nothing on its path grants the actor anything on is **not found**, like a missing one
 ([security.md](./security.md) T-04); a creation is refused like any other write. **A list is

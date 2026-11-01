@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -769,22 +770,45 @@ type AccessExplained struct {
 	Asked       service.Permission
 	Holds       bool
 	HeldThrough []access.Source
+	// Entry is the per-entry decision, where the scope is an entry.
+	Entry *access.EntryExplained
 }
 
 // ExplainAccess answers what a person holds at a place and why (A6, A11). A person may always ask
 // about themselves; about somebody else, it takes MANAGE_MEMBERS or READ_CONFIGURATION on the
 // workspace, as reading who holds what does, and READ at the place itself.
-type ExplainAccess struct{ Roles Roles }
+//
+// At an entry it answers the decision Authorize makes there - through a share, as the assignee, or
+// refused because the person is not - from the authoriser's own resolution (EntryExplainer), so the
+// explanation is the refusal the person meets.
+type ExplainAccess struct {
+	Roles Roles
+	// Containers, Items and Entries answer an entry; nil refuses the entry scope as invalid.
+	Containers ContainerFinder
+	Items      ItemFinder
+	Entries    EntryExplainer
+}
+
+// EntryExplainer is the authoriser's per-entry decision for an account, recorded nowhere
+// (access.Service.ExplainEntry).
+type EntryExplainer interface {
+	ExplainEntry(ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []domain.Scope,
+		on access.ItemSubject) (access.EntryExplained, error)
+}
 
 func (h ExplainAccess) Execute(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope, asked string,
+	does service.ItemAction,
 ) (AccessExplained, error) {
 	if accountID.IsZero() {
 		accountID = actor.AccountID
 	}
-	if !scope.Valid() {
+	if !scope.Valid() || (scope.Type == domain.ScopeItem && h.Entries == nil) {
 		return AccessExplained{}, shared.ErrValidation.WithDetail("memberships.scope_invalid").
 			WithParams(map[string]string{"value": string(scope.Type)})
+	}
+	if does == "" {
+		does = service.ItemRead
 	}
 	var permission service.Permission
 	if asked != "" {
@@ -807,7 +831,7 @@ func (h ExplainAccess) Execute(
 		}
 		// What somebody else holds at a place the caller does not reach is not theirs to read: a
 		// private hub they hold nothing in is not found, in the words a missing one produces (T-04).
-		if scope.Type != domain.ScopeTenant {
+		if scope.Type != domain.ScopeTenant && scope.Type != domain.ScopeItem {
 			reached, err := h.Roles.reaches(ctx, actor, scope)
 			if err != nil {
 				return AccessExplained{}, err
@@ -820,15 +844,21 @@ func (h ExplainAccess) Execute(
 		return AccessExplained{}, shared.ErrUnauthenticated.WithDetail("access.credential_required")
 	}
 	var held access.Held
-	err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	var entry *access.EntryExplained
+	if scope.Type == domain.ScopeItem {
+		explained, err := h.explainEntry(ctx, actor, accountID, scope, does)
+		if err != nil {
+			return AccessExplained{}, err
+		}
+		held, entry = explained.Held, &explained
+	} else if err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		held, err = h.Roles.Held.HeldBy(ctx, actor, accountID, pathTo(scope))
 		return err
-	})
-	if err != nil {
+	}); err != nil {
 		return AccessExplained{}, err
 	}
-	out := AccessExplained{AccountID: accountID, Scope: scope, Held: held, Asked: permission}
+	out := AccessExplained{AccountID: accountID, Scope: scope, Held: held, Asked: permission, Entry: entry}
 	if permission != "" {
 		for _, source := range held.Sources {
 			if source.Carries(permission) {
@@ -840,12 +870,54 @@ func (h ExplainAccess) Execute(
 	return out, nil
 }
 
+// explainEntry reads the entry's path and assignee and asks the authoriser's decision there. The
+// caller has to reach the entry - asking about oneself included -, or it is not found, so the
+// explanation discloses no entry a guessed identifier names (T-04).
+func (h ExplainAccess) explainEntry(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope, does service.ItemAction,
+) (access.EntryExplained, error) {
+	var item work.WorkItem
+	var path []domain.Scope
+	if err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := h.Items.Find(ctx, scope.ID)
+		if err != nil {
+			return notReachableOr(err, scope)
+		}
+		collection, err := h.Containers.Find(ctx, found.CollectionID)
+		if err != nil {
+			return notReachableOr(err, scope)
+		}
+		item, path = found, service.ContainerScopes(collection)
+		return nil
+	}); err != nil {
+		return access.EntryExplained{}, err
+	}
+	if item.DeletedAt != nil {
+		return access.EntryExplained{}, notReachable(scope)
+	}
+	reached, err := h.Roles.Reach.Permits(ctx, actor, access.Request{
+		Permission: service.PermissionRead, Path: append(slices.Clone(path), domain.ItemScope(item.ID)),
+		Action: RoleReadAction, TokenScope: membersRead, TargetType: "item", TargetID: item.ID,
+		On: access.ItemSubject{Does: service.ItemRead, ID: item.ID, Assignee: item.AssigneeID},
+	})
+	if err != nil {
+		return access.EntryExplained{}, err
+	}
+	if !reached {
+		return access.EntryExplained{}, notReachable(scope)
+	}
+	return h.Entries.ExplainEntry(ctx, actor, accountID, path,
+		access.ItemSubject{Does: does, ID: item.ID, Assignee: item.AssigneeID})
+}
+
 func (h ExplainAccess) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ExplainAccessName,
-		Summary: "Answers what a person holds at the workspace, a hub or a collection: the roles that " +
-			"count there and where each is held, and every permission they carry. Given a permission, " +
-			"also whether the person holds it and through which role. A person may ask about " +
+		Summary: "Answers what a person holds at the workspace, a hub, a collection or an entry: the roles " +
+			"that count there and where each is held, and every permission they carry. Given a permission, " +
+			"also whether the person holds it and through which role. At an entry, also whether the person " +
+			"may do the action asked about to it - through a role, a share or as its assignee - or why not, " +
+			"by the decision a request meets there. A person may ask about " +
 			"themselves; about somebody else it takes MANAGE_MEMBERS or READ_CONFIGURATION at the " +
 			"workspace and, for a hub or a collection, READ at that place.",
 		SideEffects: "None. Reads only.",
@@ -856,11 +928,17 @@ func (h ExplainAccess) Descriptor() usecase.Descriptor {
 			{Name: "account_id", Kind: usecase.KindID, Description: "The person; omitted for the caller."},
 			{
 				Name: "scope_type", Kind: usecase.KindString, Required: true,
-				Enum:        []string{string(domain.ScopeTenant), string(domain.ScopeHub), string(domain.ScopeCollection)},
+				Enum: []string{string(domain.ScopeTenant), string(domain.ScopeHub), string(domain.ScopeCollection),
+					string(domain.ScopeItem)},
 				Description: "TENANT for the workspace; otherwise the level the scope identifier names.",
 			},
-			{Name: "scope_id", Kind: usecase.KindID, Description: "The hub or collection. Omitted for the workspace."},
+			{Name: "scope_id", Kind: usecase.KindID, Description: "The hub, collection or entry. Omitted for the workspace."},
 			{Name: "permission", Kind: usecase.KindString, Description: "A permission of the catalogue to ask about."},
+			{
+				Name: "action", Kind: usecase.KindString,
+				Enum: []string{string(service.ItemRead), string(service.ItemChange), string(service.ItemComment)},
+				Description: "At an entry, what to do to it: READ (the default), CHANGE or COMMENT.",
+			},
 		},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			accountID, err := in.ID("account_id")
@@ -872,7 +950,8 @@ func (h ExplainAccess) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			scope := domain.Scope{Type: domain.ScopeType(in.String("scope_type")), ID: scopeID}
-			explained, err := h.Execute(ctx, actor, accountID, scope, in.String("permission"))
+			explained, err := h.Execute(ctx, actor, accountID, scope, in.String("permission"),
+				service.ItemAction(in.String("action")))
 			if err != nil {
 				return nil, err
 			}
@@ -909,6 +988,11 @@ func AccessExplainedOutput(e AccessExplained) usecase.Output {
 		out["asked"] = string(e.Asked)
 		out["holds"] = e.Holds
 		out["held_through"] = sources(e.HeldThrough)
+	}
+	if e.Entry != nil {
+		out["entry"] = map[string]any{
+			"action": string(e.Entry.Does), "permitted": e.Entry.Permitted, "reason": string(e.Entry.Reason),
+		}
 	}
 	return out
 }

@@ -23888,7 +23888,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "role explain",
         "summary": "What a person holds at a place, and why",
-        "description": "The roles that count for the person at the workspace, a hub or a collection, where each is\nheld, and every permission they carry. Given `permission`, also whether the person holds\nit and through which role - the answer behind \"view as\" and \"why may this person do\nthat\". A person may always ask about themselves; about somebody else it takes\n`MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,\n`READ` at that place - a place the caller does not reach answers not found.\n",
+        "description": "The roles that count for the person at the workspace, a hub, a collection or an entry, where\neach is held, and every permission they carry. Given `permission`, also whether the person\nholds it and through which role - the answer behind \"view as\" and \"why may this person do\nthat\". At an entry, `entry` also answers whether the person may do `action` to it, by the\ndecision a request meets there: through a role, through a share, as its assignee, or why\nnot. A person may always ask about themselves; about somebody else it takes\n`MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub, a collection or an\nentry, `READ` at that place - a place the caller does not reach answers not found.\n",
         "parameters": [
           {
             "name": "account_id",
@@ -23909,7 +23909,8 @@
               "enum": [
                 "TENANT",
                 "HUB",
-                "COLLECTION"
+                "COLLECTION",
+                "ITEM"
               ]
             }
           },
@@ -23917,7 +23918,7 @@
             "name": "scope_id",
             "in": "query",
             "required": false,
-            "description": "The hub or collection. Omitted for the workspace, and only then.",
+            "description": "The hub, collection or entry. Omitted for the workspace, and only then.",
             "schema": {
               "type": "string",
               "format": "uuid"
@@ -23931,6 +23932,20 @@
             "schema": {
               "type": "string",
               "maxLength": 120
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "description": "At an entry, what to do to it. READ when omitted.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "READ",
+                "CHANGE",
+                "COMMENT"
+              ]
             }
           }
         ],
@@ -41193,7 +41208,8 @@
             "enum": [
               "TENANT",
               "HUB",
-              "COLLECTION"
+              "COLLECTION",
+              "ITEM"
             ]
           },
           "scope_id": {
@@ -41236,6 +41252,40 @@
             "description": "The roles that carry the permission asked about.",
             "items": {
               "$ref": "#/components/schemas/AccessSource"
+            }
+          },
+          "entry": {
+            "type": "object",
+            "description": "At an entry, the decision a request to do `action` to it meets.",
+            "required": [
+              "action",
+              "permitted",
+              "reason"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "READ",
+                  "CHANGE",
+                  "COMMENT"
+                ]
+              },
+              "permitted": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string",
+                "description": "THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path.\n",
+                "enum": [
+                  "THROUGH_ROLE",
+                  "THROUGH_SHARE",
+                  "AS_ASSIGNEE",
+                  "NOT_ASSIGNEE",
+                  "ROLE_REFUSES",
+                  "NOTHING_HELD"
+                ]
+              }
             }
           }
         }

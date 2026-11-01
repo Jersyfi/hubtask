@@ -1277,7 +1277,7 @@ class AccessSource(TypedDict, total=False):
 
 class AccessExplanation(TypedDict, total=False):
     account_id: Required[str]
-    scope_type: Required[Literal["TENANT", "HUB", "COLLECTION"]]
+    scope_type: Required[Literal["TENANT", "HUB", "COLLECTION", "ITEM"]]
     scope_id: str
     roles: Required[list[str]]
     permissions: Required[list[str]]
@@ -1286,6 +1286,7 @@ class AccessExplanation(TypedDict, total=False):
     asked: str
     holds: bool
     held_through: list["AccessSource"]
+    entry: dict[str, Any]
 
 BusinessHours = TypedDict("BusinessHours", {
     "day": Required[Literal["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]],

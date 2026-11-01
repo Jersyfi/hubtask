@@ -2753,7 +2753,7 @@ func run() error {
 			Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
 		}}.Descriptor(),
 		identity.RevokeRoleGrant{Roles: customRoles}.Descriptor(),
-		identity.ExplainAccess{Roles: customRoles}.Descriptor(),
+		identity.ExplainAccess{Roles: customRoles, Containers: containers, Items: items, Entries: authorizer}.Descriptor(),
 		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{

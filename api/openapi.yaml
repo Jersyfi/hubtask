@@ -16295,12 +16295,14 @@ paths:
       x-hubtask-cli: "role explain"
       summary: What a person holds at a place, and why
       description: |
-        The roles that count for the person at the workspace, a hub or a collection, where each is
-        held, and every permission they carry. Given `permission`, also whether the person holds
-        it and through which role - the answer behind "view as" and "why may this person do
-        that". A person may always ask about themselves; about somebody else it takes
-        `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub or a collection,
-        `READ` at that place - a place the caller does not reach answers not found.
+        The roles that count for the person at the workspace, a hub, a collection or an entry, where
+        each is held, and every permission they carry. Given `permission`, also whether the person
+        holds it and through which role - the answer behind "view as" and "why may this person do
+        that". At an entry, `entry` also answers whether the person may do `action` to it, by the
+        decision a request meets there: through a role, through a share, as its assignee, or why
+        not. A person may always ask about themselves; about somebody else it takes
+        `MANAGE_MEMBERS` or `READ_CONFIGURATION` at the workspace and, for a hub, a collection or an
+        entry, `READ` at that place - a place the caller does not reach answers not found.
       parameters:
         - name: account_id
           in: query
@@ -16310,17 +16312,22 @@ paths:
         - name: scope_type
           in: query
           required: true
-          schema: { type: string, enum: [TENANT, HUB, COLLECTION] }
+          schema: { type: string, enum: [TENANT, HUB, COLLECTION, ITEM] }
         - name: scope_id
           in: query
           required: false
-          description: The hub or collection. Omitted for the workspace, and only then.
+          description: The hub, collection or entry. Omitted for the workspace, and only then.
           schema: { type: string, format: uuid }
         - name: permission
           in: query
           required: false
           description: A permission of the catalogue to ask about.
           schema: { type: string, maxLength: 120 }
+        - name: action
+          in: query
+          required: false
+          description: At an entry, what to do to it. READ when omitted.
+          schema: { type: string, enum: [READ, CHANGE, COMMENT] }
       responses:
         "200":
           description: What the person holds there
@@ -28176,7 +28183,7 @@ components:
       required: [account_id, scope_type, roles, permissions, sources]
       properties:
         account_id: { type: string, format: uuid }
-        scope_type: { type: string, enum: [TENANT, HUB, COLLECTION] }
+        scope_type: { type: string, enum: [TENANT, HUB, COLLECTION, ITEM] }
         scope_id: { type: string, format: uuid }
         roles:
           type: array
@@ -28200,6 +28207,21 @@ components:
           type: array
           description: The roles that carry the permission asked about.
           items: { $ref: "#/components/schemas/AccessSource" }
+        entry:
+          type: object
+          description: At an entry, the decision a request to do `action` to it meets.
+          required: [action, permitted, reason]
+          properties:
+            action: { type: string, enum: [READ, CHANGE, COMMENT] }
+            permitted: { type: boolean }
+            reason:
+              type: string
+              description: >
+                THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with
+                the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this
+                is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles
+                held there do not do this; NOTHING_HELD, nothing held on the path.
+              enum: [THROUGH_ROLE, THROUGH_SHARE, AS_ASSIGNEE, NOT_ASSIGNEE, ROLE_REFUSES, NOTHING_HELD]
 
     BusinessHours:
       type: object

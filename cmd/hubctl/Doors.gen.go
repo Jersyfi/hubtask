@@ -2513,8 +2513,9 @@ var generatedCommands = []door{
 	{Group: "role", Verb: "explain", OperationID: "explainAccess", Method: "GET", Path: "/access/explain", Summary: "What a person holds at a place, and why",
 		Query: []doorParam{
 			{Name: "account_id", Kind: "uuid", Help: "The person; omitted for the caller", Required: false},
+			{Name: "action", Kind: "string", Help: "At an entry, what to do to it", Required: false},
 			{Name: "permission", Kind: "string", Help: "A permission of the catalogue to ask about", Required: false},
-			{Name: "scope_id", Kind: "uuid", Help: "The hub or collection", Required: false},
+			{Name: "scope_id", Kind: "uuid", Help: "The hub, collection or entry", Required: false},
 			{Name: "scope_type", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"account_id", "asked", "holds", "requester", "scope_id"}},
