@@ -311,11 +311,21 @@ test('chromium: 375 × 812 — the menu of the last row on screen stays on scree
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-28 check 4: Ctrl or ⌘-click selects in the list and on the board; on touch, the still
+// hold's Select does (the 390 px test above).
 test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it picks a row in the list', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
+  const row = page.locator(`[data-row="${DATED.id}"] .title`).first();
+  await row.waitFor({ timeout: 15_000 });
+  await row.click({ modifiers: ['ControlOrMeta'] });
+  const picked = page.getByRole('checkbox', { name: `Select ${DATED.title}` });
+  await picked.waitFor({ timeout: 5_000 });
+  assert.equal(await picked.isChecked(), true);
+  assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the click also followed the row');
+  await picked.click();
   await page.getByRole('radio', { name: 'Board' }).click();
   const card = page.locator(`[data-card="${ITEMS[2].id}"] a`).first();
   await card.waitFor({ timeout: 15_000 });
