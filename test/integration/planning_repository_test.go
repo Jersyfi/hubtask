@@ -50,7 +50,8 @@ func seedPlan(ctx context.Context, t *testing.T, tenant shared.ID) (shared.ID, s
 	return hub, collection, tasks
 }
 
-// A plan's entries, their modes and its baselines stay in their workspace (migration 0244, M2).
+// A plan's entries, their modes and its baselines stay in their workspace (migration 0244, M2,
+// UC-PLN-04 check 4).
 func TestAPlanStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/servicedesk/Satisfaction_test.go, core/domain/model/servicedesk/SatisfactionLink_test.go, core/domain/model/integration/SatisfactionLinkToken_test.go, core/application/service/servicedesk/SatisfactionLinks_test.go, presentation/rest/SatisfactionLinkController_test.go, core/application/service/servicedesk/Satisfaction_test.go, infrastructure/postgres/query/Satisfaction_test.go, test/integration/service_desk_rating_test.go]
+checked_by: [core/domain/model/servicedesk/Satisfaction_test.go, core/domain/model/servicedesk/SatisfactionLink_test.go, core/domain/model/integration/SatisfactionLinkToken_test.go, core/application/service/servicedesk/SatisfactionLinks_test.go, presentation/rest/SatisfactionLinkController_test.go, core/application/service/servicedesk/Satisfaction_test.go, infrastructure/postgres/query/Satisfaction_test.go, test/integration/service_desk_rating_test.go, core/application/service/privacy/Carried_test.go]
 ---
 
 # Learn whether the requester was satisfied

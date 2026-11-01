@@ -20,7 +20,7 @@ import (
 
 // An approval, its decisions and a delegation are read as written, one approval waits on an
 // entry at a time, and the workspace next door reads, decides and delegates none of them
-// (migration 0268, UC-SVC-08 to 03).
+// (migration 0268, UC-SVC-08 check 4, UC-SVC-10).
 func TestAnApprovalStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
