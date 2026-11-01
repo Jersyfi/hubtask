@@ -55,8 +55,8 @@ func reader() appshared.ActorContext {
 	return appshared.ActorContext{TenantID: tenantID, AccountID: handlerID, Kind: appshared.ActorUser, Scopes: []string{deskRead, deskWrite}}
 }
 
-// UC-SVC-02 check 6: whoever may read the entry reads its goals; anybody else is told it does
-// not exist.
+// UC-SVC-02 check 6: whoever may read the entry reads how its goals stand - the target, running,
+// when it falls due; anybody else is told it does not exist.
 func TestAnEntrysGoalsAreReadByItsReaders(t *testing.T) {
 	f := newFixture(t)
 	f.deliver(t, "de.hubtask.work.item.created.v1", monday, nil)
@@ -68,6 +68,11 @@ func TestAnEntrysGoalsAreReadByItsReaders(t *testing.T) {
 	records, err := read.Execute(context.Background(), reader(), itemID)
 	if err != nil || len(records) != 2 {
 		t.Fatalf("a reader got %d goals: %v", len(records), err)
+	}
+	for _, r := range records {
+		if r.Target <= 0 || r.Standing != domain.StandingRunning || r.DueAt == nil || !r.DueAt.After(monday) {
+			t.Errorf("goal %s reads target %v, standing %s, due %v", r.Goal, r.Target, r.Standing, r.DueAt)
+		}
 	}
 	if asked := authorizer.asked[0]; asked.Permission != service.PermissionRead || asked.TargetID != itemID {
 		t.Errorf("asked %+v, want READ on the entry", asked)
