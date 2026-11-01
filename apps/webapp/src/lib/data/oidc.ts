@@ -146,8 +146,15 @@ export interface Here {
  * workspace's main row, never from the request, so the target is built from that answer alone and
  * nothing in the return's query can move it. Anything else - this very origin, the single-tenant
  * answer, another scheme, something that is no web address - is `undefined`: finish here.
+ *
+ * `path` is the page the return is finished on: the callback, or a connector's own return page.
  */
-export function forwardTo(base: string, here: Here, search: string): string | undefined {
+export function forwardTo(
+  base: string,
+  here: Here,
+  search: string,
+  path = '/auth/callback',
+): string | undefined {
   let parsed: URL;
   try {
     parsed = new URL(base);
@@ -158,8 +165,9 @@ export function forwardTo(base: string, here: Here, search: string): string | un
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
   if (parsed.username !== '' || parsed.password !== '') return undefined;
   if (parsed.origin === here.origin) return undefined;
-  const path = parsed.pathname.replace(/\/+$/, '');
-  return `${parsed.origin}${path}/auth/callback${search}`;
+  if (!isOwnPath(path)) return undefined;
+  const prefix = parsed.pathname.replace(/\/+$/, '');
+  return `${parsed.origin}${prefix}${path}${search}`;
 }
 
 /** A path on this origin, never another host: `/x`, not `//evil.example` or `https://…`. */

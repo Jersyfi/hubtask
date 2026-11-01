@@ -604,6 +604,8 @@ export type {
   CalendarPushAuthorization,
   FileStoreConnection,
   FileStoreConnectionList,
+  ConnectorLocate,
+  ConnectorLocated,
   FileStoreConnectionStart,
   FileStoreItem,
   FileStoreFolder,

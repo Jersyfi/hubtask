@@ -11,6 +11,8 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
   import { untrack } from 'svelte';
+  import { Spinner } from '@hubtask/design-system/components';
+  import type { ConnectorLocated } from '@hubtask/sync-engine';
 
   import AppFrame from './lib/frame/AppFrame.svelte';
   import LazyView from './lib/frame/LazyView.svelte';
@@ -25,6 +27,10 @@
   import { viewAs } from './lib/data/viewas.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
+  import { connectorReturnOf } from './lib/data/connectorreturn.ts';
+  import { engine } from './lib/data/engine.ts';
+  import { forwardTo } from './lib/data/oidc.ts';
+  import SignInCard from './lib/signin/SignInCard.svelte';
   import ContainerView from './views/ContainerView.svelte';
   import TodayView from './views/TodayView.svelte';
   import ItemView from './views/ItemView.svelte';
@@ -125,6 +131,25 @@
 
   const router = new Router(ROUTES);
   let route = $state<Resolution>(router.current);
+
+  /**
+   * A mailbox's, calendar push's or file store's provider return, which in multi-tenant operation
+   * lands on the installation's host while its session is on the workspace's (identity.md §10.1).
+   * Asked once, at load, before the sign-in card or the page's own completion is drawn: either
+   * would act on this host's session, or on none. Any failure finishes here, as before.
+   */
+  const connectorReturn = connectorReturnOf(location.pathname, location.search);
+  let locating = $state(connectorReturn !== undefined);
+  if (connectorReturn !== undefined) {
+    void engine
+      .mutate<ConnectorLocated>('POST', '/auth/connector:locate', connectorReturn)
+      .then((answer) => forwardTo(answer.base_url, location, location.search, location.pathname))
+      .catch(() => undefined)
+      .then((target) => {
+        if (target === undefined) locating = false;
+        else location.replace(target);
+      });
+  }
 
   $effect(() => {
     const unsubscribe = router.subscribe((resolution) => (route = resolution));
@@ -258,7 +283,11 @@
      The two link screens are here whether or not somebody is signed in: an invitation and a reset
      link are proof about an account that need not be the one in this tab, and a person who opened
      one from their mail while signed in would otherwise meet "there is nothing at this address". -->
-{#if route.name === 'oidc-callback'}
+{#if locating}
+  <SignInCard title={t('app.callback.connect_title')}>
+    <p><Spinner /> {t('app.callback.connect_working')}</p>
+  </SignInCard>
+{:else if route.name === 'oidc-callback'}
   <!-- The provider's return, on the card and never in the frame (UC-ID-08 check 5): this address
        is reached by a redirect into a fresh document, before there is a session, and the frame of
        an application nobody is signed into is furniture around one sentence. Whether or not a
