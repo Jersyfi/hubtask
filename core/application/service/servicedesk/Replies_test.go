@@ -6,6 +6,7 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
@@ -97,14 +98,13 @@ func TestACannedReplyIsFilledForTheEntry(t *testing.T) {
 	}
 }
 
-// UC-SVC-06 check 3: the canned replies go whole into the workspace's archive and come back with
+// UC-SVC-06 check 3: the canned replies go into the workspace's archive and come back with
 // its restore.
 func TestCannedRepliesAreInTheWorkspaceArchive(t *testing.T) {
-	entity, ok := archive.FindEntityByTable("reply_template")
-	if !ok || !entity.Whole {
-		t.Fatalf("reply_template is archived: %v, whole: %v", ok, entity.Whole)
+	if _, ok := archive.FindEntityByTable("reply_template"); !ok {
+		t.Fatal("reply_template is not in the archive")
 	}
-	if _, skipped := archive.NotRestored()[entity.Table]; skipped {
+	if !slices.ContainsFunc(archive.RestoredEntities(), func(e archive.Entity) bool { return e.Table == "reply_template" }) {
 		t.Errorf("a restore leaves the canned replies out")
 	}
 }

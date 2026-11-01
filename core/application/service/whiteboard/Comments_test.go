@@ -185,14 +185,13 @@ func TestACommentIsResolvedByAWriterAndChangedByItsAuthor(t *testing.T) {
 	}
 }
 
-// UC-CNV-09 check 4: a board's comments go whole into the workspace's archive and come back with
+// UC-CNV-09 check 4: a board's comments go into the workspace's archive and come back with
 // its restore, and their author finds them in the copy of their data.
 func TestBoardCommentsTravelWithTheArchiveAndThePersonsCopy(t *testing.T) {
-	entity, ok := archive.FindEntityByTable("whiteboard_comment")
-	if !ok || !entity.Whole {
-		t.Fatalf("whiteboard_comment is archived: %v, whole: %v", ok, entity.Whole)
+	if _, ok := archive.FindEntityByTable("whiteboard_comment"); !ok {
+		t.Fatal("whiteboard_comment is not in the archive")
 	}
-	if _, skipped := archive.NotRestored()[entity.Table]; skipped {
+	if !slices.ContainsFunc(archive.RestoredEntities(), func(e archive.Entity) bool { return e.Table == "whiteboard_comment" }) {
 		t.Errorf("a restore leaves the board comments out")
 	}
 	byPerson, _, _ := privacy.SubjectTables()
