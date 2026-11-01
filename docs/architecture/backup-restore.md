@@ -681,7 +681,7 @@ array; `config.backup_*` is about **the installation**.
 The `config.backup_*` codes are emitted for a **single-tenant installation** only: there its
 workspaces' targets are its backups. A target is a workspace's row behind row level security, so the
 count is taken per workspace in the background — at start, and again when a report finds it older
-than 15 minutes — and counts enabled targets; whether a target has a schedule is not asked. In
+than 15 minutes — and counts enabled targets an enabled schedule writes to. In
 provider operation the installation is backed up by its operator at the database level (§1, §8.6),
 one workspace's target says nothing about another's, and A-12 watches each target.
 
