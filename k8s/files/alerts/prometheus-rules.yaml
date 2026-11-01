@@ -100,24 +100,31 @@ groups:
 
       - alert: HubtaskBackupStale
         # A-12. The one alert that fires for something that has *not* happened, which is why it
-        # is written as an absence: no successful backup in 24 hours. Without a backup metric the
-        # series is missing entirely, and `absent()` is what turns "nobody configured a backup"
-        # into an alert rather than into silence.
+        # is written as an absence: no successful backup within a target's own schedule. Without a
+        # backup metric the series is missing entirely, and `absent()` is what turns "nobody
+        # configured a backup" into an alert rather than into silence.
         #
-        # Per target rather than over the maximum. The gauge is labelled by target, and a
-        # `max()` across them means one healthy target hides a broken one - which is exactly the
-        # 3-2-1 arrangement backup-restore.md §2 recommends, so it is the normal case rather than
-        # an edge one. Without the aggregation each series alerts for itself and the label says
-        # which target it is.
+        # Per target rather than over the maximum: one healthy target must not hide a broken one,
+        # which is the 3-2-1 arrangement backup-restore.md §2 recommends. Each target is held to its
+        # schedules' cadence (`hubtask_backup_cadence_seconds`) and six hours of grace - a weekly
+        # off-site copy is late after a week, not after a day; a target without a schedule that has
+        # run is held to a day.
         expr: |
           absent(hubtask_backup_last_success_timestamp_seconds)
-          or (time() - hubtask_backup_last_success_timestamp_seconds) > 86400
+          or (
+            (time() - hubtask_backup_last_success_timestamp_seconds)
+              > on(target_id) group_left() (max by (target_id) (hubtask_backup_cadence_seconds) + 21600)
+          )
+          or (
+            (time() - hubtask_backup_last_success_timestamp_seconds) > 86400
+              unless on(target_id) hubtask_backup_cadence_seconds
+          )
         for: 30m
         labels:
           severity: page
           alert_id: A-12
         annotations:
-          summary: "No successful backup in the last 24 hours"
+          summary: "No successful backup within the target's schedule"
           description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
           runbook: RB-A12-backup-stale.md
 

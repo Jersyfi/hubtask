@@ -494,3 +494,48 @@ groups:
           summary: "Audit entries past their period are stuck in the default partition"
           description: "No partition drop reaches them; move them into their monthly partitions so retention can remove them."
           runbook: RB-A34-audit-default-partition.md
+
+      # A-35. A durable timer's firing failed and was put back: the pass fires each timer under its
+      # own savepoint, so one bad row degrades only itself, but that SLA breach, OLA, approval
+      # reminder or page review is not happening while it keeps failing. Retried with a delay
+      # doubling up to six hours; a failure that stays is a defect or a row to repair.
+      - alert: HubtaskTimerFailing
+        expr: sum by (purpose) (increase(hubtask_timer_failures_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-35
+        annotations:
+          summary: "Durable timers of purpose {{ $labels.purpose }} fail to fire"
+          description: "Each failing timer is put back with a growing delay while the others fire. The worker's log names the timer and the failure's code."
+          runbook: RB-A35-timer-failing.md
+
+      # A-36. Half of PostgreSQL's NOTIFY queue is in use: a session that LISTENs stopped reading,
+      # and the queue keeps every notification until the slowest listener has read it. Once it is
+      # full, every transaction that notifies fails at commit - every write to an entry among them.
+      # Paged, because the step from half to full can take minutes under the live updates' traffic.
+      - alert: HubtaskNotifyQueueFilling
+        expr: max(hubtask_db_notify_queue_usage_ratio) > 0.5
+        for: 2m
+        labels:
+          severity: page
+          alert_id: A-36
+        annotations:
+          summary: "PostgreSQL's NOTIFY queue is more than half full"
+          description: "A listening session stopped reading. When the queue is full, every write that notifies fails. Find and end the stuck listener."
+          runbook: RB-A36-notify-queue-filling.md
+
+      # A-37. Vacuum has not frozen the database for more than a billion transaction IDs. At about
+      # two billion PostgreSQL stops accepting writes until a vacuum has run, which on a large
+      # database takes hours; half-way leaves the time to find what holds vacuum back.
+      - alert: HubtaskTransactionIdAgeHigh
+        expr: max(hubtask_db_frozen_xid_age) > 1000000000
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-37
+        annotations:
+          summary: "The database's transaction-ID age is past one billion"
+          description: "Vacuum is not freezing old rows. Near two billion PostgreSQL refuses writes; find what holds vacuum back before then."
+          runbook: RB-A37-transaction-id-age.md
+
