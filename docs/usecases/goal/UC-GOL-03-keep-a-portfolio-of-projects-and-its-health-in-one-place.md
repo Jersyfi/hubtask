@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, core/application/service/goal/Roadmap_test.go, apps/webapp/src/lib/data/roadmap.test.ts, apps/webapp/src/lib/data/replica.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, core/application/service/goal/Roadmap_test.go, core/application/service/goal/RoadmapLink_test.go, core/domain/model/integration/RoadmapLinkToken_test.go, presentation/rest/PublicRoadmapController_test.go, test/integration/portfolio_public_link_test.go, apps/webapp/src/lib/data/roadmap.test.ts, apps/webapp/src/lib/data/replica.test.ts]
 ---
 
 # Keep a portfolio of projects and its health in one place
@@ -58,6 +58,14 @@ Ana's update "late, at risk" makes the programme at risk.
     the copy.
 14. The web app draws the roadmap as a timeline and beside it as a table of the same rows, the
     keyboard and screen-reader path.
+15. Where the workspace allows public roadmaps (`goals.public_roadmaps`, off by default, lockable
+    by the installation and the plan), somebody who manages the workspace's members makes a
+    portfolio's public link; whoever holds it reads the roadmap read-only without an account
+    (`GET /public/roadmaps/{token}`), as the link's maker reads it at that moment. Only the
+    token's hash is kept; making, replacing and taking the link away are audited, and a replaced
+    or removed link, the switch or the goals module off, a deleted portfolio and a maker who may no
+    longer read the workspace all answer the same not found. By the owner's decision (accepted.md,
+    "The owner's fourth answers", item 9).
 
 ## Where it ends
 
