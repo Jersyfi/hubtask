@@ -44,6 +44,7 @@ async function open(browser, width, collection, options = {}) {
 const headText = (page) => page.locator('[data-figure] .text').first().textContent({ timeout: 5_000 }).catch(() => undefined);
 
 for (const width of [390, 700, 1280]) {
+  // UC-WRK-25 check 7: a list summing a field heads with its open count and the sum, no percentage.
   test(`chromium: ${width} px — every figure in the head, and no percentage but progress's`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
