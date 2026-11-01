@@ -1,6 +1,7 @@
 -- The index behind a board's columns and a publish's counts by status (UC-FLW-02 check 4,
 -- UC-FLW-05 check 2). CONCURRENTLY and without a transaction, so no write waits while it builds
--- (versioning-release.md §4); IF NOT EXISTS for a retry after an interrupted build.
+-- (versioning-release.md §4). An interrupted build leaves an invalid index that IF NOT EXISTS would
+-- keep; the migrator drops and builds it again on its next run (cmd/migrate/invalidindex.go).
 
 -- +goose NO TRANSACTION
 

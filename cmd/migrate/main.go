@@ -58,7 +58,8 @@ const migrationLock int64 = 8_010_002
 // milliseconds would hold the table for as long as some report runs. The file is retried instead,
 // lockRetries times with a growing pause. A NO TRANSACTION file - CREATE INDEX CONCURRENTLY, a
 // batched backfill - takes locks writes pass, and runs without the bound: interrupted, a
-// concurrent build leaves an invalid index its retry's IF NOT EXISTS would keep.
+// concurrent build leaves an invalid index, which the next run drops and builds again
+// (invalidindex.go) rather than let IF NOT EXISTS keep it.
 const (
 	lockTimeout       = 5 * time.Minute
 	defaultRunTimeout = 30 * time.Minute
@@ -208,6 +209,9 @@ func up(ctx context.Context, pool, guarded *sql.DB, files fs.FS, pause time.Dura
 	if err := dropLeftoverBackfillPolicies(ctx, pool); err != nil {
 		return err
 	}
+	if err := repairInvalidIndexes(ctx, pool, files); err != nil {
+		return err
+	}
 
 	// A migration merged after a higher-numbered one is applied rather than refused. Numbers are
 	// taken when a branch is cut and the branches merge in whatever order review finishes them, so
@@ -239,6 +243,9 @@ func up(ctx context.Context, pool, guarded *sql.DB, files fs.FS, pause time.Dura
 		if err := applyWithRetry(ctx, pool, provider, state.Source.Version, pause); err != nil {
 			return fmt.Errorf("applying %d: %w", state.Source.Version, err)
 		}
+	}
+	if err := refuseInvalidIndexes(ctx, pool, files); err != nil {
+		return err
 	}
 
 	after, err := goose.GetDBVersionContext(ctx, pool)
