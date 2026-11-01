@@ -3559,6 +3559,27 @@ func (e ConfigurationItemStatus) Valid() bool {
 	}
 }
 
+// Defines values for ConnectorLocateKind.
+const (
+	CALENDARPUSH ConnectorLocateKind = "CALENDAR_PUSH"
+	FILESTORE    ConnectorLocateKind = "FILE_STORE"
+	MAILBOX      ConnectorLocateKind = "MAILBOX"
+)
+
+// Valid indicates whether the value is a known member of the ConnectorLocateKind enum.
+func (e ConnectorLocateKind) Valid() bool {
+	switch e {
+	case CALENDARPUSH:
+		return true
+	case FILESTORE:
+		return true
+	case MAILBOX:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentRecordSource.
 const (
 	ConsentRecordSourceConfig      ConsentRecordSource = "config"
@@ -14910,6 +14931,24 @@ type ConnectedIdentity struct {
 
 	// ProviderName The provider's name, as the sign-in button shows it.
 	ProviderName string `json:"provider_name"`
+}
+
+// ConnectorLocate The state a connector's provider return carried, and which connection it is.
+type ConnectorLocate struct {
+	// Kind Which connection the return page is for - a mailbox's, a calendar push's or a file store's.
+	Kind ConnectorLocateKind `json:"kind"`
+
+	// State The state the provider carried back, as it carried it.
+	State string `json:"state"`
+}
+
+// ConnectorLocateKind Which connection the return page is for - a mailbox's, a calendar push's or a file store's.
+type ConnectorLocateKind string
+
+// ConnectorLocated defines model for ConnectorLocated.
+type ConnectorLocated struct {
+	// BaseUrl The workspace's main address in multi-tenant operation - a subdomain of this installation, a host the operator assigned or the workspace's own domain - where the return page is opened with the same path and query.
+	BaseUrl string `json:"base_url"`
 }
 
 // ConsentGrant defines model for ConsentGrant.
@@ -28493,6 +28532,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
 type ConfirmAddressJSONRequestBody = AddressConfirm
 
+// LocateConnectorReturnJSONRequestBody defines body for LocateConnectorReturn for application/json ContentType.
+type LocateConnectorReturnJSONRequestBody = ConnectorLocate
+
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
@@ -30271,6 +30313,9 @@ type ServerInterface interface {
 	// ConfirmAddress Confirm a mail address with the link that was sent to it
 	// (POST /auth/address:confirm)
 	ConfirmAddress(w http.ResponseWriter, r *http.Request)
+	// LocateConnectorReturn Where a connector's return belongs
+	// (POST /auth/connector:locate)
+	LocateConnectorReturn(w http.ResponseWriter, r *http.Request)
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
@@ -36478,6 +36523,20 @@ func (siw *ServerInterfaceWrapper) ConfirmAddress(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfirmAddress(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LocateConnectorReturn operation middleware
+func (siw *ServerInterfaceWrapper) LocateConnectorReturn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LocateConnectorReturn(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60338,6 +60397,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/saml:acs", wrapper.ReceiveSamlResponse)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/auth/saml:metadata", wrapper.GetSamlMetadata)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:locate", wrapper.LocateOidcFlow)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/connector:locate", wrapper.LocateConnectorReturn)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants/{tenantId}", wrapper.ReadTenant)

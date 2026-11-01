@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const calendarPushAuthorizationIsLive = `-- name: CalendarPushAuthorizationIsLive :one
+SELECT EXISTS (
+  SELECT 1 FROM calendar_push_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = $1 AND expires_at > $2
+)
+`
+
+type CalendarPushAuthorizationIsLiveParams struct {
+	StateHash []byte
+	Now       pgtype.Timestamptz
+}
+
+// Whether a provider's return is still awaited, read without spending it (locating the return).
+func (q *Queries) CalendarPushAuthorizationIsLive(ctx context.Context, arg CalendarPushAuthorizationIsLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, calendarPushAuthorizationIsLive, arg.StateHash, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const countCalendarPushes = `-- name: CountCalendarPushes :one
 SELECT count(*)::int AS pushes FROM calendar_push
 WHERE tenant_id = current_tenant_id() AND account_id = $1

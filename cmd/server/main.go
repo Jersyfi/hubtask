@@ -2914,6 +2914,15 @@ func run() error {
 			Flows:   postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 			Address: workspaceAddress(cfg), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		// And a mailbox's, a calendar push's or a file store's provider return, the same way.
+		identity.LocateConnectorReturn{
+			Awaited: map[string]identity.AwaitedReturns{
+				identity.ConnectorMailbox:      postgres.NewMailboxAuthorizationRepository(),
+				identity.ConnectorCalendarPush: postgres.NewCalendarPushRepository(),
+				identity.ConnectorFileStore:    postgres.NewFileStoreConnectionRepository(),
+			},
+			Address: workspaceAddress(cfg), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
 		identity.StartProviderConnect{

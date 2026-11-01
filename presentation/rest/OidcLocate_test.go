@@ -67,3 +67,25 @@ func TestTheLookupSpendsTheAuthBudget(t *testing.T) {
 		t.Errorf("bucket %+v, want the auth budget", bucket)
 	}
 }
+
+// A connector's return reaches its lookup with the state and the kind, and answers the address.
+func TestALocatedConnectorReturnAnswersItsAddress(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"base_url": "https://anna.hub.example"}}
+	controller := NewRestController()
+	controller.UseCases = registry
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+		APIBasePath+"/auth/connector:locate", strings.NewReader(`{"state":"s","kind":"MAILBOX"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "LocateConnectorReturn" || registry.in["state"] != "s" || registry.in["kind"] != "MAILBOX" {
+		t.Errorf("invoked %q with %v", registry.name, registry.in)
+	}
+	if !strings.Contains(recorder.Body.String(), `"base_url":"https://anna.hub.example"`) {
+		t.Errorf("body %s", recorder.Body)
+	}
+}

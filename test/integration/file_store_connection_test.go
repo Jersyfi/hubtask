@@ -58,6 +58,9 @@ func TestAFileStoreConnectionStaysInItsWorkspace(t *testing.T) {
 		if _, err := repo.Pending(ctx, state); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("the workspace next door found the waiting connection: %v", err)
 		}
+		if live, err := repo.Live(ctx, state, at); err != nil || live {
+			t.Errorf("the workspace next door saw the waiting connection: %v, %v", live, err)
+		}
 		if err := repo.Disconnect(ctx, conn.ID); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("the workspace next door disconnected it: %v", err)
 		}
@@ -76,6 +79,12 @@ func TestAFileStoreConnectionStaysInItsWorkspace(t *testing.T) {
 		}
 		if _, err := repo.Pending(ctx, state); err != nil {
 			t.Errorf("a waiting connection read twice: %v", err)
+		}
+		if live, err := repo.Live(ctx, state, at); err != nil || !live {
+			t.Errorf("the waiting connection is not live: %v, %v", live, err)
+		}
+		if live, err := repo.Live(ctx, state, at.Add(10*time.Minute)); err != nil || live {
+			t.Errorf("an expired connection is live: %v, %v", live, err)
 		}
 		if err := repo.Forget(ctx, pendingID); err != nil {
 			t.Error(err)

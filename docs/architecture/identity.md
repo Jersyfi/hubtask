@@ -311,6 +311,16 @@ hourly (T-13, [security.md](./security.md) §4).
   `404 auth.oidc_flow_not_found`, and it names no workspace. The browser forwards to exactly the
   host the answer names, by the same scheme, and to nothing that carries credentials in its
   address.
+* **A connector's return is located the same way.** A mailbox, a calendar push and a file store
+  connected through a provider's sign-in return to their own page on the installation's address
+  (`/administration/mail/oauth`, `/profile/calendars`, `/profile/files`), while the connection began
+  on the workspace's host, where the session that completes it lives. Their `state` is
+  `<workspace id>.<handle>` (`shared.ReturnState`); the workspace part proves nothing. Before
+  anything else, the web app asks `POST /auth/connector:locate` with the state and the kind; the
+  answer is the workspace's main address, given only while a connection of that kind waits under
+  the state's hash in that workspace, and the app opens the same path and query there. Anything
+  else is one `404 auth.connector_return_not_found`. Anonymous, in the auth bucket, spending
+  nothing; the connection is completed on the workspace's host as before.
 
 ### 10.2 Providers in the plural, at two levels
 

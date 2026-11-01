@@ -537,6 +537,26 @@ func (q *Queries) MailWorkspaceNameTaken(ctx context.Context, name string) (bool
 	return taken, err
 }
 
+const mailboxAuthorizationIsLive = `-- name: MailboxAuthorizationIsLive :one
+SELECT EXISTS (
+  SELECT 1 FROM mailbox_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = $1 AND expires_at > $2
+)
+`
+
+type MailboxAuthorizationIsLiveParams struct {
+	StateHash []byte
+	Now       pgtype.Timestamptz
+}
+
+// Whether a provider's return is still awaited, read without spending it (locating the return).
+func (q *Queries) MailboxAuthorizationIsLive(ctx context.Context, arg MailboxAuthorizationIsLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, mailboxAuthorizationIsLive, arg.StateHash, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const recentMailReceipts = `-- name: RecentMailReceipts :many
 SELECT id, message_id, received_at, sender, subject, outcome, reason, item_id, entry_id, door
 FROM mail_receipt

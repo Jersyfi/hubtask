@@ -68,5 +68,12 @@ DELETE FROM calendar_push_authorization
 WHERE tenant_id = current_tenant_id() AND state_hash = sqlc.arg('state_hash')
 RETURNING id, account_id, feed_id, provider, verifier_enc, verifier_key_id, expires_at;
 
+-- name: CalendarPushAuthorizationIsLive :one
+-- Whether a provider's return is still awaited, read without spending it (locating the return).
+SELECT EXISTS (
+  SELECT 1 FROM calendar_push_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = sqlc.arg('state_hash') AND expires_at > sqlc.arg('now')
+);
+
 -- name: DeleteExpiredCalendarPushAuthorizations :execrows
 DELETE FROM calendar_push_authorization WHERE tenant_id = current_tenant_id() AND expires_at <= sqlc.arg('now');

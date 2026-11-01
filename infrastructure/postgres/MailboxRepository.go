@@ -289,6 +289,20 @@ func (MailboxAuthorizationRepository) Take(ctx context.Context, stateHash []byte
 	return pending, crypto.Sealed{KeyID: row.VerifierKeyID, Ciphertext: row.VerifierEnc}, clientSecret, nil
 }
 
+// Live reports whether a provider's return is still awaited in the transaction's workspace,
+// spending nothing.
+func (MailboxAuthorizationRepository) Live(ctx context.Context, stateHash []byte, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	live, err := queries.MailboxAuthorizationIsLive(ctx, sqlc.MailboxAuthorizationIsLiveParams{StateHash: stateHash, Now: timestampOf(now)})
+	if err != nil {
+		return false, mailQueryFailed("reading a mailbox authorization", err)
+	}
+	return live, nil
+}
+
 func (MailboxAuthorizationRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

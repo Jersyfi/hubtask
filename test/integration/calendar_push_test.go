@@ -71,6 +71,9 @@ func TestACalendarPushStaysInItsWorkspace(t *testing.T) {
 		if events, err := repo.Events(ctx, push.ID); err != nil || len(events) != 0 {
 			t.Errorf("the workspace next door read the events %v, %v", events, err)
 		}
+		if live, err := repo.Live(ctx, state, at); err != nil || live {
+			t.Errorf("the workspace next door saw the waiting connection: %v, %v", live, err)
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -99,12 +102,21 @@ func TestACalendarPushStaysInItsWorkspace(t *testing.T) {
 		if err != nil || len(events) != 1 || events[0].RemoteID != "evt-1" {
 			t.Errorf("events %v, %v", events, err)
 		}
+		if live, err := repo.Live(ctx, state, at); err != nil || !live {
+			t.Errorf("the waiting connection is not live: %v, %v", live, err)
+		}
+		if live, err := repo.Live(ctx, state, at.Add(10*time.Minute)); err != nil || live {
+			t.Errorf("an expired connection is live: %v, %v", live, err)
+		}
 		pending, err := repo.Take(ctx, state)
 		if err != nil || pending.FeedID != feed.ID || pending.Provider != domain.PushGoogle {
 			t.Errorf("taken %+v, %v", pending, err)
 		}
 		if _, err := repo.Take(ctx, state); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("taken twice: %v", err)
+		}
+		if live, err := repo.Live(ctx, state, at); err != nil || live {
+			t.Errorf("a taken connection is live: %v, %v", live, err)
 		}
 		return nil
 	}); err != nil {

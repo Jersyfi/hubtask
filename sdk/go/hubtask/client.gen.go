@@ -3565,6 +3565,27 @@ func (e ConfigurationItemStatus) Valid() bool {
 	}
 }
 
+// Defines values for ConnectorLocateKind.
+const (
+	CALENDARPUSH ConnectorLocateKind = "CALENDAR_PUSH"
+	FILESTORE    ConnectorLocateKind = "FILE_STORE"
+	MAILBOX      ConnectorLocateKind = "MAILBOX"
+)
+
+// Valid indicates whether the value is a known member of the ConnectorLocateKind enum.
+func (e ConnectorLocateKind) Valid() bool {
+	switch e {
+	case CALENDARPUSH:
+		return true
+	case FILESTORE:
+		return true
+	case MAILBOX:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConsentRecordSource.
 const (
 	ConsentRecordSourceConfig      ConsentRecordSource = "config"
@@ -14916,6 +14937,24 @@ type ConnectedIdentity struct {
 
 	// ProviderName The provider's name, as the sign-in button shows it.
 	ProviderName string `json:"provider_name"`
+}
+
+// ConnectorLocate The state a connector's provider return carried, and which connection it is.
+type ConnectorLocate struct {
+	// Kind Which connection the return page is for - a mailbox's, a calendar push's or a file store's.
+	Kind ConnectorLocateKind `json:"kind"`
+
+	// State The state the provider carried back, as it carried it.
+	State string `json:"state"`
+}
+
+// ConnectorLocateKind Which connection the return page is for - a mailbox's, a calendar push's or a file store's.
+type ConnectorLocateKind string
+
+// ConnectorLocated defines model for ConnectorLocated.
+type ConnectorLocated struct {
+	// BaseUrl The workspace's main address in multi-tenant operation - a subdomain of this installation, a host the operator assigned or the workspace's own domain - where the return page is opened with the same path and query.
+	BaseUrl string `json:"base_url"`
 }
 
 // ConsentGrant defines model for ConsentGrant.
@@ -28499,6 +28538,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
 type ConfirmAddressJSONRequestBody = AddressConfirm
 
+// LocateConnectorReturnJSONRequestBody defines body for LocateConnectorReturn for application/json ContentType.
+type LocateConnectorReturnJSONRequestBody = ConnectorLocate
+
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
@@ -31974,6 +32016,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 	ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LocateConnectorReturnWithBody Where a connector's return belongs
+	//
+	// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+	LocateConnectorReturnWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LocateConnectorReturn Where a connector's return belongs
+	//
+	// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+	LocateConnectorReturn(ctx context.Context, body LocateConnectorReturnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
 	//
@@ -44849,6 +44909,44 @@ func (c *Client) ConfirmAddressWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 func (c *Client) ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfirmAddressRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LocateConnectorReturnWithBody Where a connector's return belongs
+//
+// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+func (c *Client) LocateConnectorReturnWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLocateConnectorReturnRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LocateConnectorReturn Where a connector's return belongs
+//
+// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+func (c *Client) LocateConnectorReturn(ctx context.Context, body LocateConnectorReturnJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLocateConnectorReturnRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -69938,6 +70036,46 @@ func NewConfirmAddressRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/auth/address:confirm")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewLocateConnectorReturnRequest calls the generic LocateConnectorReturn builder with application/json body
+func NewLocateConnectorReturnRequest(server string, body LocateConnectorReturnJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLocateConnectorReturnRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewLocateConnectorReturnRequestWithBody constructs an http.Request for the LocateConnectorReturn method, with any body, and a specified content type
+func NewLocateConnectorReturnRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/connector:locate")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -104759,6 +104897,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 	ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
 
+	// LocateConnectorReturnWithBodyWithResponse Where a connector's return belongs
+	//
+	// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+	LocateConnectorReturnWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LocateConnectorReturnResult, error)
+
+	// LocateConnectorReturnWithResponse Where a connector's return belongs
+	//
+	// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+	LocateConnectorReturnWithResponse(ctx context.Context, body LocateConnectorReturnJSONRequestBody, reqEditors ...RequestEditorFn) (*LocateConnectorReturnResult, error)
+
 	// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
 	//
 	// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
@@ -121031,6 +121187,54 @@ func (r ConfirmAddressResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfirmAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LocateConnectorReturnResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConnectorLocated
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r LocateConnectorReturnResult) GetJSON200() *ConnectorLocated {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LocateConnectorReturnResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LocateConnectorReturnResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LocateConnectorReturnResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LocateConnectorReturnResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LocateConnectorReturnResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -157744,6 +157948,36 @@ func (c *ClientWithResponses) ConfirmAddressWithResponse(ctx context.Context, bo
 	return ParseConfirmAddressResult(rsp)
 }
 
+// LocateConnectorReturnWithBodyWithResponse Where a connector's return belongs
+//
+// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+func (c *ClientWithResponses) LocateConnectorReturnWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LocateConnectorReturnResult, error) {
+	rsp, err := c.LocateConnectorReturnWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLocateConnectorReturnResult(rsp)
+}
+
+// LocateConnectorReturnWithResponse Where a connector's return belongs
+//
+// Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/connector:locate (the `LocateConnectorReturn` operationId).
+func (c *ClientWithResponses) LocateConnectorReturnWithResponse(ctx context.Context, body LocateConnectorReturnJSONRequestBody, reqEditors ...RequestEditorFn) (*LocateConnectorReturnResult, error) {
+	rsp, err := c.LocateConnectorReturn(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLocateConnectorReturnResult(rsp)
+}
+
 // SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
 //
 // The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
@@ -178101,6 +178335,39 @@ func ParseConfirmAddressResult(rsp *http.Response) (*ConfirmAddressResult, error
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLocateConnectorReturnResult parses an HTTP response from a LocateConnectorReturnWithResponse call
+func ParseLocateConnectorReturnResult(rsp *http.Response) (*LocateConnectorReturnResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LocateConnectorReturnResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConnectorLocated
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

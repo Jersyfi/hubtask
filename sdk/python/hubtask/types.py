@@ -301,6 +301,14 @@ class OidcLocate(TypedDict, total=False):
 class OidcLocated(TypedDict, total=False):
     base_url: Required[str]
 
+class ConnectorLocate(TypedDict, total=False):
+    """The state a connector's provider return carried, and which connection it is."""
+    state: Required[str]
+    kind: Required[Literal["MAILBOX", "CALENDAR_PUSH", "FILE_STORE"]]
+
+class ConnectorLocated(TypedDict, total=False):
+    base_url: Required[str]
+
 class Suggestion(TypedDict, total=False):
     """One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record."""
     id: Required[str]

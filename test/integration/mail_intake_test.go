@@ -393,6 +393,25 @@ func TestAnOAuthMailboxKeepsItsAppAndAWaitingConnectionIsTakenOnce(t *testing.T)
 	}); err != nil {
 		t.Fatalf("storing a waiting connection: %v", err)
 	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if live, err := waiting.Live(ctx, hash, now); err != nil || live {
+			t.Errorf("tenant B saw A's waiting connection: %v, %v", live, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		if live, err := waiting.Live(ctx, hash, now); err != nil || !live {
+			t.Errorf("the waiting connection is not live: %v, %v", live, err)
+		}
+		if live, err := waiting.Live(ctx, hash, pending.ExpiresAt); err != nil || live {
+			t.Errorf("an expired connection is live: %v, %v", live, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		_, _, _, err := waiting.Take(ctx, hash)
 		return err

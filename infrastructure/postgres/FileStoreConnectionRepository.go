@@ -231,6 +231,20 @@ func (FileStoreConnectionRepository) Forget(ctx context.Context, id shared.ID) e
 	return nil
 }
 
+// Live reports whether a provider's return is still awaited in the transaction's workspace,
+// spending nothing.
+func (FileStoreConnectionRepository) Live(ctx context.Context, stateHash []byte, now time.Time) (bool, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	live, err := q.FileStoreAuthorizationIsLive(ctx, sqlc.FileStoreAuthorizationIsLiveParams{StateHash: stateHash, Now: timestampOf(now)})
+	if err != nil {
+		return false, fileStoreFailed("reading the waiting connection", err)
+	}
+	return live, nil
+}
+
 func (FileStoreConnectionRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil {

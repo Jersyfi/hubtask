@@ -56,6 +56,26 @@ func (q *Queries) DeleteFileStoreConnection(ctx context.Context, id pgtype.UUID)
 	return result.RowsAffected(), nil
 }
 
+const fileStoreAuthorizationIsLive = `-- name: FileStoreAuthorizationIsLive :one
+SELECT EXISTS (
+  SELECT 1 FROM file_store_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = $1 AND expires_at > $2
+)
+`
+
+type FileStoreAuthorizationIsLiveParams struct {
+	StateHash []byte
+	Now       pgtype.Timestamptz
+}
+
+// Whether a provider's return is still awaited, read without spending it (locating the return).
+func (q *Queries) FileStoreAuthorizationIsLive(ctx context.Context, arg FileStoreAuthorizationIsLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, fileStoreAuthorizationIsLive, arg.StateHash, arg.Now)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const findFileStoreAuthorization = `-- name: FindFileStoreAuthorization :one
 SELECT id, account_id, kind, server, poll_endpoint, secret_enc, secret_key_id, expires_at
 FROM file_store_authorization

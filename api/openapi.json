@@ -18435,6 +18435,43 @@
         }
       }
     },
+    "/auth/connector:locate": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "locateConnectorReturn",
+        "x-hubtask-rest": "generated",
+        "security": [],
+        "summary": "Where a connector's return belongs",
+        "description": "Connecting a mailbox, a calendar push or a file store through its provider's sign-in returns the browser to this installation's one registered page for it. In multi-tenant operation that page is on the installation's own host, while the connection began on a workspace's host, where its session lives. Given the state the provider carried back and which connection it is, this answers the address of the workspace the connection belongs to, and the browser finishes there - the path, the code and the state unchanged. Nothing is spent: the connection is completed on the workspace's host. Only a connection still waiting for its provider is located: an unknown, expired, completed or malformed state is refused indistinguishably with `auth.connector_return_not_found`. In single-tenant operation the answer is the installation's own address.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectorLocate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The address to finish at",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorLocated"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/tenants": {
       "get": {
         "tags": [
@@ -36333,6 +36370,43 @@
             "type": "string",
             "format": "uri",
             "description": "The workspace's main address in multi-tenant operation - a subdomain of this installation, a host the operator assigned or the workspace's own domain - where the return is finished at `/auth/callback`.\n"
+          }
+        }
+      },
+      "ConnectorLocate": {
+        "type": "object",
+        "description": "The state a connector's provider return carried, and which connection it is.",
+        "required": [
+          "state",
+          "kind"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "The state the provider carried back, as it carried it."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "MAILBOX",
+              "CALENDAR_PUSH",
+              "FILE_STORE"
+            ],
+            "description": "Which connection the return page is for - a mailbox's, a calendar push's or a file store's.\n"
+          }
+        }
+      },
+      "ConnectorLocated": {
+        "type": "object",
+        "required": [
+          "base_url"
+        ],
+        "properties": {
+          "base_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The workspace's main address in multi-tenant operation - a subdomain of this installation, a host the operator assigned or the workspace's own domain - where the return page is opened with the same path and query.\n"
           }
         }
       },

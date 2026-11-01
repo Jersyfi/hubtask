@@ -88,6 +88,9 @@ var PublicRoutes = map[string]bool{
 	// Where the return belongs is asked by the same signed-out browser, before :callback, with the
 	// same handle; it reads and spends nothing (multi-tenancy.md §3).
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:locate": true,
+	// A connector's return (mailbox, calendar push, file store) lands signed out on the
+	// installation's host in multi-tenant operation, and is located the same way.
+	http.MethodPost + " " + APIBasePath + "/auth/connector:locate": true,
 	// A SAML provider posts the browser to the assertion consumer service, signed out; the flow's
 	// state in RelayState is what it is checked against, and nothing is verified or opened there.
 	// The metadata is this installation's, public as a provider's own is (identity.md §26).

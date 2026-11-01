@@ -726,6 +726,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.LocateOidcFlow{}.Descriptor(),
+		identity.LocateConnectorReturn{}.Descriptor(),
 		identity.CompleteLink{}.Descriptor(),
 		identity.StartProviderConnect{}.Descriptor(),
 		identity.CompleteProviderConnect{}.Descriptor(),

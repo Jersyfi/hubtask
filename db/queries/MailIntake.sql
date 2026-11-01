@@ -150,6 +150,13 @@ DELETE FROM mailbox_authorization WHERE state_hash = sqlc.arg('state_hash')
 RETURNING id, account_id, provider, authorize_url, token_url, scopes, client_id, installation, host,
           port, login_hint, verifier_enc, verifier_key_id, client_secret_enc, client_secret_key_id, expires_at;
 
+-- name: MailboxAuthorizationIsLive :one
+-- Whether a provider's return is still awaited, read without spending it (locating the return).
+SELECT EXISTS (
+  SELECT 1 FROM mailbox_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = sqlc.arg('state_hash') AND expires_at > sqlc.arg('now')
+);
+
 -- name: DeleteExpiredMailboxAuthorizations :execrows
 DELETE FROM mailbox_authorization WHERE expires_at <= sqlc.arg('now');
 

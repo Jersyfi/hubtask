@@ -742,7 +742,9 @@ secret is sealed (`mailbox.secret:<id>`) and opened only by that job and *Check 
 Google and Microsoft as presets) is started by `AuthorizeMailbox`, which stores a
 `mailbox_authorization` - the state as its hash, the verifier and an own app's client secret
 sealed, ten minutes, the administrator who asked - and answers the provider's URL. The provider
-sends the browser to `/administration/mail/oauth`; the page hands state and code to
+sends the browser to `/administration/mail/oauth` - in multi-tenant operation on the installation's
+host, from where the page forwards the return to the workspace's host ([identity.md](./identity.md)
+§10.1, `POST /auth/connector:locate`) - and there the page hands state and code to
 `CompleteMailboxAuthorization`, which takes the row (once), trades the code at the token endpoint
 through the guarded client, signs in to IMAP with SASL XOAUTH2 and only then stores the mailbox
 with the refresh token sealed. Each read draws an access token first; a rotated refresh token is

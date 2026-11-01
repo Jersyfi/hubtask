@@ -2295,6 +2295,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/oidc:locate", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Where a connector's return belongs
+   * Public: sent without a bearer where the client holds none. */
+  locateConnectorReturn(body: NonNullable<operations["locateConnectorReturn"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["locateConnectorReturn"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/connector:locate", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The installation's workspaces */
   listTenants(options: CallOptions = {}): Promise<operations["listTenants"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/tenants", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

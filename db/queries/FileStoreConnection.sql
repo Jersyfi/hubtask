@@ -47,5 +47,12 @@ WHERE tenant_id = current_tenant_id() AND state_hash = sqlc.arg('state_hash');
 -- name: DeleteFileStoreAuthorization :exec
 DELETE FROM file_store_authorization WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
+-- name: FileStoreAuthorizationIsLive :one
+-- Whether a provider's return is still awaited, read without spending it (locating the return).
+SELECT EXISTS (
+  SELECT 1 FROM file_store_authorization
+  WHERE tenant_id = current_tenant_id() AND state_hash = sqlc.arg('state_hash') AND expires_at > sqlc.arg('now')
+);
+
 -- name: DeleteExpiredFileStoreAuthorizations :execrows
 DELETE FROM file_store_authorization WHERE tenant_id = current_tenant_id() AND expires_at <= sqlc.arg('now');

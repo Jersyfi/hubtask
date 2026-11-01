@@ -1819,6 +1819,10 @@ class Client:
         """Where a provider's return belongs"""
         return self._call("POST", "/auth/oidc:locate", {}, None, {}, body, "json", "application/json", "json")
 
+    def locate_connector_return(self, body: "ConnectorLocate") -> "ConnectorLocated":
+        """Where a connector's return belongs"""
+        return self._call("POST", "/auth/connector:locate", {}, None, {}, body, "json", "application/json", "json")
+
     def list_tenants(self) -> dict[str, Any]:
         """The installation's workspaces"""
         return self._call("GET", "/admin/tenants", {}, None, {}, None, "none", None, "json")

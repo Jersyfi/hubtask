@@ -288,6 +288,20 @@ func (CalendarPushRepository) Take(ctx context.Context, stateHash []byte) (repos
 	}, nil
 }
 
+// Live reports whether a provider's return is still awaited in the transaction's workspace,
+// spending nothing.
+func (CalendarPushRepository) Live(ctx context.Context, stateHash []byte, now time.Time) (bool, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	live, err := q.CalendarPushAuthorizationIsLive(ctx, sqlc.CalendarPushAuthorizationIsLiveParams{StateHash: stateHash, Now: timestampOf(now)})
+	if err != nil {
+		return false, calendarPushFailed("reading", err)
+	}
+	return live, nil
+}
+
 func (CalendarPushRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil {
