@@ -14,7 +14,7 @@
   import { Spinner } from '@hubtask/design-system/components';
   import type { ConnectorLocated } from '@hubtask/sync-engine';
 
-  import AppFrame from './lib/frame/AppFrame.svelte';
+  import LazyFrame from './lib/frame/LazyFrame.svelte';
   import LazyView from './lib/frame/LazyView.svelte';
   import ViewFailed from './lib/frame/ViewFailed.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
@@ -30,14 +30,11 @@
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import { precacheWhenIdle } from './lib/frame/precache.ts';
-  import { partLoaders } from './lib/frame/parts.ts';
+  import { loadFrame, partLoaders, workViews } from './lib/frame/parts.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
   import { engine } from './lib/data/engine.ts';
   import { forwardTo } from './lib/data/oidc.ts';
   import SignInCard from './lib/signin/SignInCard.svelte';
-  import ContainerView from './views/ContainerView.svelte';
-  import TodayView from './views/TodayView.svelte';
-  import ItemView from './views/ItemView.svelte';
   import ConsentView from './views/ConsentView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
@@ -52,9 +49,11 @@
   // The table lives in `lib/routes.ts` so that ADR-0032's areas can be asserted as a set:
   // a rule about which routes belong to the administration area can only be tested where the
   // set can be imported, and a table declared here could only be checked by mounting this.
-  // Route-level code splitting (F-10): every screen but the work's own - today, a place, an entry -
-  // and the doors before the frame is its own chunk, loaded when its route is first reached.
+  // Route-level code splitting (F-10): every screen but the doors before the frame is its own
+  // chunk, loaded when its route is first reached; the frame and the work's own screens - today, a
+  // place, an entry - are fetched together as soon as somebody is signed in.
   const views = {
+    ...workViews,
     AdministrationOverviewView: () => import('./views/AdministrationOverviewView.svelte'),
     AgentsView: () => import('./views/AgentsView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
@@ -274,6 +273,13 @@
   });
   // Every screen's and part's chunk once the signed-in session is idle, so one never opened before
   // going offline still opens from the copy (precache.ts).
+  // Signed in: the frame and the work's screens are fetched at once and together, not one after
+  // the other as each is drawn.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    void loadFrame().catch(() => {});
+    for (const load of Object.values(workViews)) void load().catch(() => {});
+  });
   let precached = false;
   $effect(() => {
     if (!session.isSignedIn || precached) return;
@@ -354,7 +360,7 @@
     <SignInView />
   {/if}
 {:else}
-<AppFrame {route} onnavigate={(path) => router.navigate(path)}>
+<LazyFrame {route} onnavigate={(path) => router.navigate(path)}>
   <svelte:boundary onerror={(_, reset) => (resetView = reset)}>
   {#if reach === undefined}
     <!-- Not yet known whether this reader is inside the level: nothing, rather than a guess. -->
@@ -365,7 +371,7 @@
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
     <ConsentView />
   {:else if route.name === 'home'}
-    <TodayView onnavigate={(path) => router.navigate(path)} />
+    <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
     <LazyView load={views.InstallationView} />
   {:else if route.name === 'profile'}
@@ -503,7 +509,7 @@
     <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
+      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'service-desk'}
     <LazyView load={views.ServiceDeskView} />
@@ -602,12 +608,12 @@
          that navigating from one collection to another rebuilds rather than reusing the state of
          the one before — a draft rename would otherwise follow the reader to a different name. -->
     {#key route.params.id}
-      <ContainerView
-        id={route.params.id ?? ''}
-        openItemId={pane.kind === 'pane' ? pane.itemId : undefined}
-        section={isSettingsRoute(route.name) ? (route.params.section ?? '') : undefined}
-        onnavigate={(path) => router.navigate(path)}
-      />
+      <LazyView load={views.ContainerView} props={{
+        id: route.params.id ?? '',
+        openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
+        section: isSettingsRoute(route.name) ? (route.params.section ?? '') : undefined,
+        onnavigate: (path: string) => router.navigate(path),
+      }} />
     {/key}
   {:else}
     {@render nothingHere()}
@@ -616,7 +622,7 @@
     <ViewFailed {error} {reset} />
   {/snippet}
   </svelte:boundary>
-</AppFrame>
+</LazyFrame>
 {/if}
 {#snippet failed(error)}
   <main><ViewFailed {error} /></main>

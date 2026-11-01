@@ -180,6 +180,12 @@ root because the Go binary embeds it. The lint allows exactly `locales/<name>.js
 module, so anything else — `locales/Embed.go` included — is still refused, and its selftest plants
 both.
 
+The web app's first screen is held to a budget: the entry and the chunks `index.html` preloads cost
+at most 200,000 gzip bytes, the source catalogue apart, and carry no part of the editor (yjs, the
+block editor) - `apps/webapp/build/budget.test.js`, run after the build in CI. The doors draw from
+the entry alone; the frame and the work's screens (`lib/frame/parts.ts`) load once somebody is
+signed in, the editor when a document is opened.
+
 Tooling: `build/lint-workspace-map.mjs` (`pnpm lint:workspace`), the pnpm counterpart of
 `gate-architecture`. It reads manifests and imports — a manifest cannot see a deep or relative
 import across a member boundary — and fails on any edge outside the map. CI runs it in every Node

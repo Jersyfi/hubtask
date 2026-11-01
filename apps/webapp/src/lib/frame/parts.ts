@@ -30,6 +30,14 @@ export const entryParts = {
   CoverPanel: () => import('../media/CoverPanel.svelte'),
 };
 
+/** The frame and the work's own screens: the doors before sign-in draw none of them. */
+export const loadFrame = () => import('./AppFrame.svelte');
+export const workViews = {
+  TodayView: () => import('../../views/TodayView.svelte'),
+  ItemView: () => import('../../views/ItemView.svelte'),
+  ContainerView: () => import('../../views/ContainerView.svelte'),
+};
+
 /** Every part's loader, for the precache. */
 export function partLoaders(): (() => Promise<unknown>)[] {
   return [...Object.values(settingsParts), ...Object.values(entryParts)];

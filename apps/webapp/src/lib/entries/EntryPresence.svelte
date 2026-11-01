@@ -7,7 +7,9 @@
   // the stream's: offline, nobody is shown rather than somebody stale.
 
   import { untrack } from 'svelte';
-  import { Doc, LiveDocument, type LiveSocket } from '@hubtask/editor';
+  // The editor package (yjs and the block editor) is loaded when an entry is opened, not with the
+  // first screen: the sign-in door would otherwise wait for it.
+  import type { LiveDocument, LiveSocket } from '@hubtask/editor';
 
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -23,20 +25,29 @@
   $effect(() => {
     const id = itemId;
     return untrack(() => {
-      const doc = new Doc();
-      const connection = new LiveDocument(doc, {
-        open: () => engine.liveSocket<WebSocket>(presencePath(id)) as unknown as LiveSocket,
-        writable: false,
-        onStatus: (status) => { if (status !== 'connected') others = []; },
-      });
-      live = connection;
-      const changed = () => { others = othersHere(connection.awareness.getStates(), doc.clientID, actor.account?.id); };
-      connection.awareness.setLocalState({ account_id: actor.account?.id, name: actor.account?.display_name ?? '', replying });
-      connection.awareness.on('change', changed);
+      let ended = false;
+      let end = () => {};
+      void import('@hubtask/editor').then(({ Doc, LiveDocument }) => {
+        if (ended) return;
+        const doc = new Doc();
+        const connection = new LiveDocument(doc, {
+          open: () => engine.liveSocket<WebSocket>(presencePath(id)) as unknown as LiveSocket,
+          writable: false,
+          onStatus: (status) => { if (status !== 'connected') others = []; },
+        });
+        live = connection;
+        const changed = () => { others = othersHere(connection.awareness.getStates(), doc.clientID, actor.account?.id); };
+        connection.awareness.setLocalState({ account_id: actor.account?.id, name: actor.account?.display_name ?? '', replying });
+        connection.awareness.on('change', changed);
+        end = () => {
+          connection.awareness.off('change', changed);
+          connection.destroy();
+          doc.destroy();
+        };
+      }, () => {});
       return () => {
-        connection.awareness.off('change', changed);
-        connection.destroy();
-        doc.destroy();
+        ended = true;
+        end();
         live = undefined;
         others = [];
       };
