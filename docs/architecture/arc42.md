@@ -163,7 +163,7 @@ The architecture's roles; the people who use the product are
 | AI agents | Both | MCP (tools = use cases), or REST with a service account |
 | Identity provider | Outbound | OIDC ([identity.md](./identity.md) §10); local accounts beside it |
 | Object storage | Outbound | S3 with presigned URLs; fallback: a local volume |
-| Email | Both | SMTP out; intake into the jumble **webhook-only**, to a token-protected URL per tenant, no IMAP ([ADR-0040](../adr/ADR-0040-no-imap-intake.md)) |
+| Email | Both | SMTP out. In: the operator's inbound service posts each raw message to `POST /mail/inbound`, and connected mailboxes are read every minute (IMAP with TLS through the egress guard, or JMAP through the guarded HTTP client), signing in by password or by OAuth 2.0 with PKCE, the secrets and refresh tokens sealed; one worker holds IMAP mailboxes in IDLE so mail lands in seconds. No SMTP receiver; the jumble's token-protected webhook doors stay ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md), [automation.md](./automation.md) §5) |
 | Calendar | Both | An ICS feed per view; CalDAV with a personal access token, writing through the use cases ([security.md](./security.md) T-22) |
 | LLM provider | Outbound | `core/port/ai`, OpenAI-compatible and Ollama; off by default |
 | Operator/SRE | Inbound | Health, metrics, traces (§3.2) |

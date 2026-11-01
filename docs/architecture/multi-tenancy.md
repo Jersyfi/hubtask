@@ -86,7 +86,6 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `resolve_tenant(slug)` | One tenant identifier or none — never a list | Single mode's sign-in before a credential exists (§3), with no slug |
 | `resolve_tenant_host(host)` | One tenant identifier or none — only a serving row of a live workspace, never a list | Multi mode: every door before a credential exists, and the host check of an authenticated request (§3) |
 | `ensure_main_hosts(base)` | The number of main rows it wrote — never a row or a name | A multi-mode server's start, for every live workspace without a main address (§3.1) |
-| `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
 | `resolve_mail_workspace(name)`, `mail_workspace_name_taken(name, self)` | One tenant identifier or none; whether another workspace holds a name - never a list | An address on the operator's mail domain before it has a tenant, and choosing that name ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
 | `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
