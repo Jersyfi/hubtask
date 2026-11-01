@@ -44,8 +44,9 @@ import (
 )
 
 // migrationLock is the advisory lock every migrator competes for. A constant, and a different one
-// from the scheduler's (infrastructure/postgres/Leader.go): two locks that shared a number would
-// make a migration wait for a scheduler.
+// from the scheduler's and the mailbox watch's (infrastructure/postgres/Leader.go): two locks that
+// shared a number would make a migration wait for a leader. The installation events' numbering
+// shares it (PlatformEvent.sql), released so; test/architecture holds every other key to one use.
 const migrationLock int64 = 8_010_002
 
 // timeouts. The wait for the advisory lock is long because waiting is the correct behaviour during
