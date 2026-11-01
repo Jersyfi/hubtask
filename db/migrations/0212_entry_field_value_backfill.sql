@@ -6,13 +6,26 @@
 -- +goose NO TRANSACTION
 
 -- +goose Up
+-- The backfills' ledger (versioning-release.md §4): where a walk stopped, one row per migration
+-- while it runs, so that a run killed between batches resumes after the last batch it committed
+-- rather than from the start. Created by the first backfill that needs it, and owned by the
+-- migrator: the application has no grant.
+CREATE TABLE IF NOT EXISTS migration_cursor (
+  name       text PRIMARY KEY CHECK (name ~ '^[0-9]{4}_[a-z0-9_]{1,80}$'),
+  position   text NOT NULL CHECK (char_length(position) <= 200),
+  updated_at timestamptz NOT NULL
+);
+REVOKE ALL ON migration_cursor FROM hubtask_app;
+
 -- +goose StatementBegin
 DO $backfill$
 DECLARE
   unrestricted boolean;
   batch        uuid[];
-  cursor_id    uuid := '00000000-0000-0000-0000-000000000000';
+  cursor_id    uuid;
 BEGIN
+  SELECT position::uuid INTO cursor_id FROM migration_cursor WHERE name = '0212_entry_field_value_backfill';
+  cursor_id := coalesce(cursor_id, '00000000-0000-0000-0000-000000000000');
   SELECT rolsuper OR rolbypassrls INTO unrestricted FROM pg_roles WHERE rolname = current_user;
   IF NOT unrestricted THEN
     EXECUTE 'CREATE POLICY field_value_backfill ON work_item TO CURRENT_USER USING (true) WITH CHECK (true)';
@@ -34,8 +47,12 @@ BEGIN
     ON CONFLICT DO NOTHING;
 
     cursor_id := batch[array_upper(batch, 1)];
+    INSERT INTO migration_cursor (name, position, updated_at)
+    VALUES ('0212_entry_field_value_backfill', cursor_id::text, clock_timestamp())
+    ON CONFLICT (name) DO UPDATE SET position = EXCLUDED.position, updated_at = EXCLUDED.updated_at;
     COMMIT;
   END LOOP;
+  DELETE FROM migration_cursor WHERE name = '0212_entry_field_value_backfill';
 
   IF NOT unrestricted THEN
     EXECUTE 'DROP POLICY field_value_backfill ON work_item';

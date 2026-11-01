@@ -141,6 +141,8 @@ var rlsExceptions = map[string]string{
 		"applies in full to every role that is not the owner, hubtask_app among them",
 	"restore_drill_marker": "the restore drill's two marker rows per run (migration 0071): " +
 		"installation-scoped, no tenant column, and the application role has no access at all",
+	"migration_cursor": "where a migration's backfill stopped, one row while it runs " +
+		"(versioning-release.md §4): no tenant column, and the application role has no access at all",
 	"operator": "the installation's operator register (ADR-0070 §1): reachable only through " +
 		"SECURITY DEFINER functions, and the application role has no direct grant on it",
 	"instance_setup_code": "the first start's one-time setup code (UC-INS-01): it exists before " +

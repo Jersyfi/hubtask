@@ -80,6 +80,8 @@ var rlsExceptions = map[string]string{
 		"applies in full to every role that is not the owner, hubtask_app among them",
 	"restore_drill_marker": "the restore drill's two marker rows per run (migration 0071): " +
 		"installation-scoped, no tenant column, and the application role has no access at all",
+	"migration_cursor": "where a migration's backfill stopped, one row while it runs " +
+		"(versioning-release.md §4): no tenant column, and the application role has no access at all",
 	"operator": "the installation's operator register (ADR-0070 §1, migration 0101): the rows " +
 		"name accounts across workspaces, so a policy comparing current_tenant_id() would make " +
 		"the check impossible, while a policy-free table the application role could read would " +

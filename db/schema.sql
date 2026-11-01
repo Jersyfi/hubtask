@@ -5185,6 +5185,17 @@ CREATE TABLE restore_drill_marker (
 );
 REVOKE ALL ON restore_drill_marker FROM hubtask_app;
 
+-- ============================ Backfill ledger =========================
+-- Where a migration's backfill stopped, one row per migration while it runs, so that a run killed
+-- between batches resumes after the last batch it committed (versioning-release.md §4). Created by
+-- the first backfill that needs it (migration 0212); the application role has no access at all.
+CREATE TABLE migration_cursor (
+  name       text PRIMARY KEY CHECK (name ~ '^[0-9]{4}_[a-z0-9_]{1,80}$'),
+  position   text NOT NULL CHECK (char_length(position) <= 200),
+  updated_at timestamptz NOT NULL
+);
+REVOKE ALL ON migration_cursor FROM hubtask_app;
+
 -- ============ Use the platform can bill by (multi-tenancy.md §4.3, migration 0183) ============
 -- Each workspace's entries, stored bytes and people per UTC day, the day's highest and closing count,
 -- kept by statement-level triggers where the count changes; the purged workspaces' counts in the

@@ -112,6 +112,11 @@ expand/contract:
 Rules:
 
 * No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. `test/architecture` holds every migration after the last release to it on the tables that release created.
+* A backfill in a migration walks in batches, one transaction each, in a `NO TRANSACTION` file,
+  and records where it stopped in `migration_cursor` in the transaction of each batch, deleting its
+  row at the end: a run killed between batches resumes after the last batch it committed
+  (0212, 0228; `TestAnInterruptedBackfillResumesWhereItStopped`). The first backfill that needs the
+  ledger creates it (`CREATE TABLE IF NOT EXISTS`).
 * No destructive step in the same release as the code change that stops using the object.
 * The schema stays backwards compatible with the previous minor, which makes a rollback possible
   ([deployment.md](./deployment.md) §5).
