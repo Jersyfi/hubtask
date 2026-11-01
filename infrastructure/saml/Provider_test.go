@@ -220,3 +220,16 @@ func TestTheRequestCarriesTheStateAndTheService(t *testing.T) {
 		}
 	}
 }
+
+// Once every certificate the provider is configured with has ended, the refusal says so - the
+// administrator has a cause to act on, and the person signing in is not told to merely start again.
+func TestAnAnswerAfterTheCertificatesEndedIsRefusedForThatReason(t *testing.T) {
+	ks := dsig.RandomKeyStoreForTest()
+	cfg := config(t, ks)
+	later := time.Now().UTC().Add(20 * 365 * 24 * time.Hour).Truncate(time.Second)
+	_, err := saml.New(fixedClock{later}).Exchange(context.Background(), cfg,
+		port.Exchange{Code: signed(t, ks, good(later), later, "", nil), Nonce: nonce})
+	if err == nil || !strings.Contains(err.Error(), "auth.saml_certificate_expired") {
+		t.Fatalf("want the certificate's own refusal, got %v", err)
+	}
+}

@@ -19,6 +19,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"encoding/pem"
 	"fmt"
 	"net/url"
@@ -130,8 +131,13 @@ func (p *Provider) AuthorizationURL(_ context.Context, cfg port.Config, auth por
 }
 
 // Exchange verifies the provider's answer (the exchange's Code) and reads the identity out of the
-// signed assertion. Every failure is the one refusal.
+// signed assertion. Every failure is the one refusal, but one: every configured certificate has
+// ended, which no answer can get past and only an administrator can mend - so it is named.
 func (p *Provider) Exchange(_ context.Context, cfg port.Config, exchange port.Exchange) (port.Identity, error) {
+	if ended(cfg.Certificate, p.clock.Now()) {
+		return port.Identity{}, shared.ErrValidation.WithDetail("auth.saml_certificate_expired").
+			WithCause(errors.New("every signing certificate of the SAML provider has ended"))
+	}
 	identity, err := p.verify(cfg, exchange)
 	if err != nil {
 		return port.Identity{}, shared.ErrValidation.WithDetail("auth.identity_token_invalid").
@@ -381,6 +387,21 @@ func directChildren(parent *etree.Element, namespace, tag string) []*etree.Eleme
 		}
 	}
 	return out
+}
+
+// ended reports whether the provider has certificates and none is valid at now. A configuration
+// that cannot be read is verify's to refuse.
+func ended(raw string, now time.Time) bool {
+	certs, err := certificates(raw)
+	if err != nil {
+		return false
+	}
+	for _, cert := range certs {
+		if !now.Before(cert.NotBefore) && !now.After(cert.NotAfter) {
+			return false
+		}
+	}
+	return true
 }
 
 func certificates(raw string) ([]*x509.Certificate, error) {

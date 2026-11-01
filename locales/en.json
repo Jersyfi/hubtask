@@ -407,6 +407,7 @@
   "auth.provider_exchange_failed": "Your organisation's sign-in provider did not complete the sign-in. Start again.",
   "auth.identity_token_missing": "Your organisation's provider answered without an identity token. Ask an administrator to check the configuration.",
   "auth.identity_token_invalid": "That sign-in could not be verified. Start again.",
+  "auth.saml_certificate_expired": "Your organisation's sign-in certificate has run out, so this sign-in cannot be verified. Ask an administrator of this workspace to add the provider's current certificate.",
   "auth.session_incomplete": "This installation could not open a session.",
   "auth.session_unmintable": "This installation could not draw a token. Try again.",
   "auth.password_too_short": "A password needs at least {minimum} characters.",

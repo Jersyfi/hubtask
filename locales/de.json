@@ -452,6 +452,7 @@
   "auth.provider_exchange_failed": "Der Anmeldedienst deiner Organisation hat die Anmeldung nicht abgeschlossen. Beginne von vorn.",
   "auth.identity_token_missing": "Der Anmeldedienst deiner Organisation hat ohne Identitätstoken geantwortet. Bitte eine Administratorin oder einen Administrator, die Konfiguration zu prüfen.",
   "auth.identity_token_invalid": "Diese Anmeldung konnte nicht überprüft werden. Beginne von vorn.",
+  "auth.saml_certificate_expired": "Das Anmeldezertifikat deiner Organisation ist abgelaufen, daher lässt sich diese Anmeldung nicht prüfen. Bitte eine Administratorin oder einen Administrator dieses Arbeitsbereichs, das aktuelle Zertifikat des Anbieters einzutragen.",
   "auth.session_incomplete": "Diese Installation konnte keine Sitzung öffnen.",
   "auth.session_unmintable": "Diese Installation konnte kein Token ausstellen. Versuche es noch einmal.",
   "auth.password_too_short": "Ein Passwort braucht mindestens {minimum} Zeichen.",
