@@ -33,3 +33,13 @@ func TestTheScanJobRepeatsWhileFilesAreHeld(t *testing.T) {
 		t.Error("a scan without a tenant ran")
 	}
 }
+
+// A pass that fails for a reason other than the scanner - a storage or database error - must not
+// end the scan for good: the job is a duty, its transient failure its next round and its dead
+// letter revived hourly, so held files are never left with nothing to retry them (RB-A23).
+func TestTheScanJobIsADutyThatIsNeverDropped(t *testing.T) {
+	var handler queue.Handler = MediaScan{}
+	if _, ok := handler.(queue.Perpetual); !ok {
+		t.Error("media.scan is not a perpetual duty")
+	}
+}

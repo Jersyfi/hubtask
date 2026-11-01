@@ -408,6 +408,23 @@ func (q Queue) OpenJobs(ctx context.Context, kind queue.Kind) (int, error) {
 	return int(count), nil
 }
 
+// UnsettledDuties counts the keys of one duty kind with work left, a dead letter not yet settled
+// by a later success included - what hubtask_media_scan_held_workspaces reads
+// (observability-reliability.md §4).
+func (q Queue) UnsettledDuties(ctx context.Context, kind queue.Kind) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.UnsettledDutyCount(ctx, string(kind))
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the unsettled duties: %w", err))
+	}
+	return int(count), nil
+}
+
 // maxOpenKeys bounds one listing of open jobs' keys.
 const maxOpenKeys = 10_000
 

@@ -5320,7 +5320,7 @@ func run() error {
 			Queue:              jobs,
 			Backlog:            jobs,
 			// Alert A-23's number: the workspaces whose uploads wait for a scan (UC-MED-01).
-			Open: jobs,
+			Unsettled: jobs,
 			// Alert A-25's number: a snapshot or a session pinning vacuum.
 			Transactions: jobs, Horizon: jobs,
 			Indexes: jobs,

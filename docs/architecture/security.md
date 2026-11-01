@@ -160,7 +160,9 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   a mail's attachment is scanned before it is stored. A malicious file is refused with
   `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an
   error reply - is held `PENDING_SCAN`: it may be attached, is never downloaded, and the
-  `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). A scanner
+  `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). The job
+  is a duty (`queue.Perpetual`): a pass failing for a storage or database error is its next round,
+  and a dead letter is revived hourly, counted as held until a later pass succeeds. A scanner
   that is down never stops an upload and never lets an unscanned file out; files held for an hour
   raise A-23 (`hubtask_media_scan_held_workspaces`). Without a daemon nothing is scanned. A file
   the daemon refuses for its size is not "cannot answer": a confirmation refuses it with

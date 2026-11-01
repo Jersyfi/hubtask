@@ -204,6 +204,18 @@ SELECT count(*) FROM job WHERE state = 'DEAD_LETTER';
 SELECT count(*) FROM job
 WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING');
 
+-- The keys of one duty kind with work left: an open job, or a dead letter no later success of its
+-- key settled - which the hourly revival takes up again. For media.scan, one key per workspace,
+-- the workspaces whose uploads stay held, a dead-lettered pass included (alert A-23).
+-- name: UnsettledDutyCount :one
+SELECT count(DISTINCT dedupe_key) FROM job AS duty
+WHERE duty.kind = sqlc.arg('kind')
+  AND (duty.state IN ('PENDING', 'RUNNING')
+    OR (duty.state = 'DEAD_LETTER' AND NOT EXISTS (
+      SELECT 1 FROM job AS later
+      WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
+        AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)));
+
 -- The workspace and key of each open job of one kind, oldest first: for a kind with one job per
 -- thing while it lives (mail.mailbox_poll, keyed by the mailbox), the things that live now. No
 -- payload: the caller loads each under its own workspace.

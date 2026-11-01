@@ -14,7 +14,8 @@ import (
 
 // MediaScan is the queue's way into the scan of uploads held while the scanner could not answer
 // (queue.KindMediaScan). It repeats while anything stays held and ends once nothing does - the next
-// held confirmation seeds it again.
+// held confirmation seeds it again. A duty (queue.Perpetual): a pass failing for a storage or
+// database error must not leave held files with nothing to retry them.
 //
 // Detached (queue.Detached): the pass reads each file through the scanner between its writes, and
 // a transaction held across that is what observability-reliability.md §8 forbids. Running a pass
@@ -26,12 +27,16 @@ type MediaScan struct {
 }
 
 var (
-	_ queue.Handler  = MediaScan{}
-	_ queue.Detached = MediaScan{}
+	_ queue.Handler   = MediaScan{}
+	_ queue.Detached  = MediaScan{}
+	_ queue.Perpetual = MediaScan{}
 )
 
 // OwnsItsTransactions is the assertion queue.Detached asks for.
 func (s MediaScan) OwnsItsTransactions() {}
+
+// RepeatsForever is the declaration queue.Perpetual asks for.
+func (MediaScan) RepeatsForever() {}
 
 // Run does one pass for the tenant the job names.
 func (s MediaScan) Run(ctx context.Context, job queue.Job) (queue.Result, error) {

@@ -1079,3 +1079,23 @@ func (q *Queries) SetJobProgress(ctx context.Context, arg SetJobProgressParams) 
 	_, err := q.db.Exec(ctx, setJobProgress, arg.Progress, arg.ID, arg.Lease)
 	return err
 }
+
+const unsettledDutyCount = `-- name: UnsettledDutyCount :one
+SELECT count(DISTINCT dedupe_key) FROM job AS duty
+WHERE duty.kind = $1
+  AND (duty.state IN ('PENDING', 'RUNNING')
+    OR (duty.state = 'DEAD_LETTER' AND NOT EXISTS (
+      SELECT 1 FROM job AS later
+      WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
+        AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)))
+`
+
+// The keys of one duty kind with work left: an open job, or a dead letter no later success of its
+// key settled - which the hourly revival takes up again. For media.scan, one key per workspace,
+// the workspaces whose uploads stay held, a dead-lettered pass included (alert A-23).
+func (q *Queries) UnsettledDutyCount(ctx context.Context, kind string) (int64, error) {
+	row := q.db.QueryRow(ctx, unsettledDutyCount, kind)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}

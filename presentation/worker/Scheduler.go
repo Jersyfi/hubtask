@@ -145,11 +145,12 @@ type RetryBacklog interface {
 	ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, error)
 }
 
-// OpenJobs answers how many jobs of one kind are not finished, due, parked or running. A
-// media.scan job is one per workspace and lives exactly while that workspace holds unscanned
-// uploads, so its open count is the held backlog without crossing a tenant-bounded table.
-type OpenJobs interface {
-	OpenJobs(ctx context.Context, kind queue.Kind) (int, error)
+// UnsettledDuties answers how many keys of one duty kind have work left: an open job, or a dead
+// letter no later success of its key settled. A media.scan duty is one per workspace and lives
+// exactly while that workspace holds unscanned uploads, so this is the held backlog without
+// crossing a tenant-bounded table - and a dead letter waiting for its revival still counts.
+type UnsettledDuties interface {
+	UnsettledDuties(ctx context.Context, kind queue.Kind) (int, error)
 }
 
 // InstanceBackups is the slice of the schedule pass the leader runs: the instance-wide schedules,
@@ -204,8 +205,8 @@ type Scheduler struct {
 	// Backlog is where the webhook retry ladder is counted. Optional, like everything
 	// below: a build without it publishes no backlog series rather than a wrong one.
 	Backlog RetryBacklog
-	// Open is where the workspaces with held uploads are counted. Optional, like Backlog.
-	Open OpenJobs
+	// Unsettled is where the workspaces with held uploads are counted. Optional, like Backlog.
+	Unsettled UnsettledDuties
 	// Transactions answers the oldest open transaction's age. Optional, like Backlog.
 	Transactions OldestTransactions
 	// Horizon answers the NOTIFY queue's use and the unfrozen transaction-ID age. Optional.
@@ -965,11 +966,12 @@ func (s Scheduler) sampleRetryBacklog(ctx context.Context) {
 	s.Signals.WebhookRetryBacklog(ctx, int64(waiting))
 }
 
-// sampleHeldScans publishes the workspaces whose uploads wait for a scan. Open jobs rather than
-// parked ones: the job is due for a moment every five minutes, and a gauge falling to zero then
-// would reset A-23's waiting period each time.
+// sampleHeldScans publishes the workspaces whose uploads wait for a scan. Unsettled duties rather
+// than due jobs: the job is due for a moment every five minutes, and a gauge falling to zero then
+// would reset A-23's waiting period each time; a dead letter counts until its revival settles it,
+// or A-23 would resolve while the files stay held.
 func (s Scheduler) sampleHeldScans(ctx context.Context) {
-	if s.Signals == nil || s.Open == nil {
+	if s.Signals == nil || s.Unsettled == nil {
 		return
 	}
 	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
@@ -978,7 +980,7 @@ func (s Scheduler) sampleHeldScans(ctx context.Context) {
 	var open int
 	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
 		var err error
-		open, err = s.Open.OpenJobs(txCtx, queue.KindMediaScan)
+		open, err = s.Unsettled.UnsettledDuties(txCtx, queue.KindMediaScan)
 		return err
 	})
 	if err != nil {

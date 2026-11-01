@@ -22,6 +22,12 @@ echo PING | nc -U /run/clamav/clamd.ctl      # or: echo PING | nc clamav 3310
 kubectl logs deploy/hubtask | grep 'the upload scanner did not answer'
 ```
 
+* **The log line `the upload scanner did not answer; the file is held` carries
+  `dependency.target_not_allowed` or `dependency.target_blocked` in its `error`** → the guard refused the scanner's address, and a `PONG` from a shell proves nothing
+  about it. The host named in `HUBTASK_CLAMD_ADDRESS` is allowed beside
+  `HUBTASK_HTTP_ALLOWED_HOSTS` by being named, so a refusal means the name resolves to a metadata
+  address (`169.254.169.254` and its kin, refused always). Name the daemon by an address on your
+  own network, or use a `unix:` socket.
 * **No `PONG`** → the daemon is down, still loading its signatures, or out of memory. Restart it;
   the held files settle on the job's next pass, and the alert resolves on the scheduler's next
   tick after that.
@@ -43,9 +49,12 @@ increase(hubtask_job_dead_letter_total{job_type="media.scan"}[1h])
 
 ## Escalation
 
-A dead-lettered `media.scan` job (A-07) means a pass failed for a reason other than the scanner
-not answering - look at its last error code. Held files with no open job then wait for the next
-confirmation in that workspace to seed the job again.
+A dead-lettered `media.scan` job (A-07) means a pass failed for a reason that is not transient -
+look at its last error code. A transient one (storage or database away) never dead-letters it: the
+job is a duty, and its failure is its next round. A dead letter is revived by the scheduler after an
+hour, doubling to a day for each revival, and the gauge keeps counting its workspace until a later
+pass succeeds, so this alert stays firing while the files stay held. If the same error comes back
+on every revival, fix its cause; the files settle on the next revival after that.
 
 ## Follow-up
 

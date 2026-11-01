@@ -498,20 +498,21 @@ func TestTheLeaderSamplesTheRetryBacklog(t *testing.T) {
 	}
 }
 
-// openJobs is an OpenJobs with a fixed answer per kind.
-type openJobs map[queue.Kind]int
+// unsettledDuties is an UnsettledDuties with a fixed answer per kind.
+type unsettledDuties map[queue.Kind]int
 
-func (o openJobs) OpenJobs(_ context.Context, kind queue.Kind) (int, error) {
+func (o unsettledDuties) UnsettledDuties(_ context.Context, kind queue.Kind) (int, error) {
 	return o[kind], nil
 }
 
-// A workspace with uploads held for a scan has exactly one open media.scan job, due or parked
-// between passes; the gauge counts it either way, so alert A-23 does not reset each time the
-// job runs (§4, hubtask_media_scan_held_workspaces).
+// A workspace with uploads held for a scan has exactly one media.scan duty, due, parked between
+// passes or dead-lettered until its revival; the gauge counts it in each of those, so alert A-23
+// neither resets each time the job runs nor clears while a dead letter leaves the files held
+// (§4, hubtask_media_scan_held_workspaces).
 func TestTheLeaderSamplesTheWorkspacesWithHeldUploads(t *testing.T) {
 	signals := newSchedulerSignals()
 	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
-	leader.Open = openJobs{queue.KindMediaScan: 2, queue.KindWebhookDeliver: 9}
+	leader.Unsettled = unsettledDuties{queue.KindMediaScan: 2, queue.KindWebhookDeliver: 9}
 
 	leader.tick(t.Context(), false, now)
 

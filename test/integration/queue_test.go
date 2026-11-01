@@ -552,6 +552,51 @@ func TestOpenJobsCountsEveryUnfinishedJobOfTheKind(t *testing.T) {
 	}
 }
 
+// The held-upload gauge counts a duty's keys with work left: an open job, and a dead letter no
+// later success settled - so a dead-lettered scan pass keeps A-23 firing until its revival scans the
+// files - but neither a key whose newer job succeeded nor a finished one (RB-A23).
+func TestUnsettledDutiesCountADeadLetterUntilALaterSuccess(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.unsettled." + freshID(t).String())
+	now := queueClock.Now()
+	admin := adminPool(ctx, t)
+	add := func(key, state string, finished time.Time) {
+		t.Helper()
+		var id shared.ID
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			var err error
+			id, err = jobQueue(t).Enqueue(ctx, queue.Request{Kind: kind, DedupeKey: key, RunAt: now})
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+		if state == "PENDING" {
+			return
+		}
+		if _, err := admin.Exec(ctx, `UPDATE job SET state = $2, finished_at = $3 WHERE id = $1`,
+			id.String(), state, finished); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add("open", "PENDING", time.Time{})
+	add("dead", "DEAD_LETTER", now.Add(-time.Hour))
+	add("settled", "DEAD_LETTER", now.Add(-2*time.Hour))
+	add("settled", "SUCCEEDED", now.Add(-time.Hour))
+	add("done", "SUCCEEDED", now)
+
+	var unsettled int
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		unsettled, err = jobQueue(t).UnsettledDuties(ctx, kind)
+		return err
+	}); err != nil {
+		t.Fatalf("counting: %v", err)
+	}
+	if unsettled != 2 {
+		t.Errorf("unsettled duties = %d, want 2 (the open one and the dead letter nothing settled)", unsettled)
+	}
+}
+
 // TestOpenKeysNameEachLivingJobsWorkspaceAndKey: a mailbox's read lives as one job keyed by the
 // mailbox, so the open jobs' keys are the mailboxes a watcher holds; a finished job and a job of
 // no workspace are not among them, and another kind's never are.
