@@ -13,7 +13,7 @@ import (
 )
 
 // An erasure removes the arrangements in the person's name alone - their digests, the dashboards
-// only they see, the delegations by and to them - and nothing of a colleague's or of another
+// only they see, the delegations by and to them, their own settings - and nothing of a colleague's or of another
 // workspace's (PG-2, data-protection.md §4.1).
 func TestAnErasureTakesThePersonsArrangementsAndNoOneElses(t *testing.T) {
 	ctx := context.Background()
@@ -42,6 +42,16 @@ func TestAnErasureTakesThePersonsArrangementsAndNoOneElses(t *testing.T) {
 		         ($1, $3, $2, now(), now() + interval '7 days'),
 		         ($1, $4, $3, now(), now() + interval '7 days')`,
 			[]any{tenantB.String(), subject.String(), colleague.String(), other.String()}},
+		// The person's own setting goes; a colleague's, and a place's, stay.
+		{`INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, set_by, updated_at)
+		  VALUES ($1, $4, 'PERSON', $5, 'notifications.digest', '"DAILY"', $5, now()),
+		         ($2, $4, 'PERSON', $6, 'notifications.digest', '"DAILY"', $6, now()),
+		         ($3, $4, 'HUB', $7, 'notifications.digest', '"DAILY"', $5, now())`,
+			[]any{freshID(t).String(), freshID(t).String(), freshID(t).String(), tenantB.String(),
+				subject.String(), colleague.String(), freshID(t).String()}},
+		{`INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, updated_at)
+		  VALUES ($1, $2, 'PERSON', $3, 'notifications.digest', '"DAILY"', now())`,
+			[]any{freshID(t).String(), tenantA.String(), subject.String()}},
 		// Another workspace naming the same identifier: never reached from tenant B.
 		{`INSERT INTO approval_delegation (tenant_id, account_id, delegate_id, starts_at, ends_at)
 		  VALUES ($1, $2, $3, now(), now() + interval '7 days')`,
@@ -60,9 +70,9 @@ func TestAnErasureTakesThePersonsArrangementsAndNoOneElses(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("discarding: %v", err)
 	}
-	// One private dashboard, one digest, two delegations.
-	if removed != 4 {
-		t.Errorf("%d arrangements removed, want 4", removed)
+	// One private dashboard, one digest, two delegations, one own setting.
+	if removed != 5 {
+		t.Errorf("%d arrangements removed, want 5", removed)
 	}
 
 	count := func(sql string, args ...any) int {
@@ -89,5 +99,17 @@ func TestAnErasureTakesThePersonsArrangementsAndNoOneElses(t *testing.T) {
 	if n := count(`SELECT count(*) FROM approval_delegation WHERE tenant_id = $1 AND account_id = $2`,
 		tenantA.String(), subject.String()); n != 1 {
 		t.Error("an erasure in tenant B reached tenant A's delegation")
+	}
+	if n := count(`SELECT count(*) FROM setting_value WHERE tenant_id = $1 AND level = 'PERSON' AND scope_id = $2`,
+		tenantB.String(), subject.String()); n != 0 {
+		t.Error("the person's own setting is still there")
+	}
+	if n := count(`SELECT count(*) FROM setting_value WHERE tenant_id = $1 AND set_by = $2`,
+		tenantB.String(), subject.String()); n != 1 {
+		t.Error("the hub's setting the person made went too")
+	}
+	if n := count(`SELECT count(*) FROM setting_value WHERE tenant_id = $1 AND scope_id = $2`,
+		tenantA.String(), subject.String()); n != 1 {
+		t.Error("an erasure in tenant B reached tenant A's setting")
 	}
 }

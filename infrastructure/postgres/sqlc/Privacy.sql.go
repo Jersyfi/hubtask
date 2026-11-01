@@ -593,6 +593,21 @@ func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.
 	return result.RowsAffected(), nil
 }
 
+const deletePersonSettingsOfAccount = `-- name: DeletePersonSettingsOfAccount :execrows
+DELETE FROM setting_value
+WHERE tenant_id = current_tenant_id() AND level = 'PERSON' AND scope_id = $1
+`
+
+// The person's own settings (level PERSON, scope_id the account): their configuration, which no
+// foreign key takes with the account.
+func (q *Queries) DeletePersonSettingsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePersonSettingsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deletePersonalRulesOfAccount = `-- name: DeletePersonalRulesOfAccount :execrows
 DELETE FROM automation_rule
 WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = $1
