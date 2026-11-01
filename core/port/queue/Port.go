@@ -606,6 +606,10 @@ type Job struct {
 	// differently on a retry - a gentler timeout, a smaller batch - reads it here.
 	Attempts    int
 	MaxAttempts int
+	// Reclaimed is a claim that took the job over from an attempt nobody ended: its lease ran out
+	// while it was RUNNING, so its worker most likely died mid-run. Attempts already counts that
+	// attempt, so a reclaimed job past MaxAttempts has used its budget on crashes.
+	Reclaimed bool
 	// Lease is when this claim expires, and it is also the token that proves the claim. Every
 	// statement that ends the attempt names it, so a worker that fell so far behind that somebody
 	// else took the job over changes nothing and rolls back instead of applying its work twice.

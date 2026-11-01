@@ -134,9 +134,14 @@ func (h handlerFunc) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 }
 
 type signalsDouble struct {
-	finished    []string
-	failed      []string
-	deadLetters []string
+	finished     []string
+	failed       []string
+	deadLetters  []string
+	leaseExpired []string
+}
+
+func (s *signalsDouble) JobLeaseExpired(_ context.Context, kind string) {
+	s.leaseExpired = append(s.leaseExpired, kind)
 }
 
 func (s *signalsDouble) JobFinished(_ context.Context, kind string, _ float64) {
@@ -311,6 +316,62 @@ func TestADeadLetteredJobReleasesWhatItHolds(t *testing.T) {
 
 		if len(handler.released) != 0 {
 			t.Errorf("released %d times on an attempt that will be retried", len(handler.released))
+		}
+	})
+}
+
+// A job whose worker died mid-run - killed for its memory, say - comes back once its lease runs out.
+// Each time is counted, so the first crash is visible; and once the crashes have used up its
+// attempts it goes to the dead letter without its handler running again, rather than killing
+// worker after worker for ever.
+func TestAJobThatKeepsKillingItsWorkerEndsInTheDeadLetter(t *testing.T) {
+	t.Run("attempts left: it runs again, and the expiry is counted", func(t *testing.T) {
+		ran := 0
+		handler := &releasingHandler{handlerFunc: func(context.Context, queue.Job) (queue.Result, error) {
+			ran++
+			return queue.Result{}, nil
+		}}
+		signals := &signalsDouble{}
+		reclaimed := job(3)
+		reclaimed.Reclaimed = true
+
+		runner(newQueue(), &unitOfWork{}, handler, signals).start(t.Context(), reclaimed)
+
+		if ran != 1 {
+			t.Errorf("the handler ran %d times, want once", ran)
+		}
+		if len(signals.leaseExpired) != 1 {
+			t.Errorf("lease expiries counted = %v, want one", signals.leaseExpired)
+		}
+	})
+
+	t.Run("attempts used up: the dead letter, without running", func(t *testing.T) {
+		ran := 0
+		handler := &releasingHandler{handlerFunc: func(context.Context, queue.Job) (queue.Result, error) {
+			ran++
+			return queue.Result{}, nil
+		}}
+		signals := &signalsDouble{}
+		jobs := newQueue()
+		exhausted := job(4)
+		exhausted.Reclaimed = true
+
+		runner(jobs, &unitOfWork{}, handler, signals).start(t.Context(), exhausted)
+
+		if ran != 0 {
+			t.Errorf("the handler ran %d times on a job whose crashes used up its attempts", ran)
+		}
+		if len(jobs.failures) != 1 || !jobs.failures[0].RetryAt.IsZero() {
+			t.Fatalf("failures = %+v, want one dead letter", jobs.failures)
+		}
+		if jobs.failures[0].Code != "queue.lease_expired_exhausted" {
+			t.Errorf("code = %q, want queue.lease_expired_exhausted", jobs.failures[0].Code)
+		}
+		if len(signals.deadLetters) != 1 || len(signals.leaseExpired) != 1 {
+			t.Errorf("dead letters %v, lease expiries %v, want one each", signals.deadLetters, signals.leaseExpired)
+		}
+		if len(handler.released) != 1 {
+			t.Errorf("released %d times, want once", len(handler.released))
 		}
 	})
 }

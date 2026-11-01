@@ -116,7 +116,7 @@ WITH due AS (
   FROM due
   LEFT JOIN busy ON busy.busy_tenant IS NOT DISTINCT FROM due.due_tenant
 ), picked AS (
-  SELECT j.id FROM job AS j
+  SELECT j.id AS picked_id, j.state = 'RUNNING' AS was_running FROM job AS j
   JOIN ranked ON ranked.due_id = j.id
   WHERE (j.state = 'PENDING' AND j.run_at <= $2)
      OR (j.state = 'RUNNING' AND j.locked_until < $2)
@@ -128,8 +128,10 @@ UPDATE job SET
   state        = 'RUNNING',
   attempts     = attempts + 1,
   locked_until = $1
-WHERE id IN (SELECT id FROM picked)
-RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until
+FROM picked
+WHERE job.id = picked.picked_id
+RETURNING job.id, job.tenant_id, job.kind, job.payload, job.attempts, job.max_attempts,
+          job.locked_until, picked.was_running::boolean AS reclaimed
 `
 
 type ClaimJobsParams struct {
@@ -148,6 +150,7 @@ type ClaimJobsRow struct {
 	Attempts    int32
 	MaxAttempts int32
 	LockedUntil pgtype.Timestamptz
+	Reclaimed   bool
 }
 
 // The claim. Two kinds of row are claimable: one that is due, and one whose lease has run out -
@@ -172,6 +175,10 @@ type ClaimJobsRow struct {
 // A role claims only its kinds (deployment.md §2.2): only_kinds empty is every kind, and
 // except_kinds keeps the automation role's kinds off a worker that runs beside one, so a rule
 // storm drains on its own pods. Both arrays are never NULL - `<> ALL(NULL)` would match nothing.
+//
+// reclaimed marks a row taken over from a RUNNING attempt whose lease ran out - a worker that died
+// mid-run. The runner counts it and, once such attempts are past max_attempts, dead-letters the job
+// without running it: only a runner that survives records a failure.
 func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]ClaimJobsRow, error) {
 	rows, err := q.db.Query(ctx, claimJobs,
 		arg.LockedUntil,
@@ -195,6 +202,7 @@ func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]ClaimJo
 			&i.Attempts,
 			&i.MaxAttempts,
 			&i.LockedUntil,
+			&i.Reclaimed,
 		); err != nil {
 			return nil, err
 		}

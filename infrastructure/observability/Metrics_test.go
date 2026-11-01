@@ -418,6 +418,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 	m.JobFailed(ctx, "outbox.dispatch", "retry")
 	m.JobFailed(ctx, "reminder.fire", "final")
 	m.JobDeadLettered(ctx, "reminder.fire")
+	m.JobLeaseExpired(ctx, "backup.run")
 	m.QueueDepth(ctx, "outbox.dispatch", 12)
 	m.OutboxLag(ctx, 1.5)
 	m.SchedulerTickLag(ctx, 4)
@@ -427,6 +428,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 		`hubtask_job_failures_total{attempt_class="retry",job_type="outbox.dispatch"} 1`,
 		`hubtask_job_failures_total{attempt_class="final",job_type="reminder.fire"} 1`,
 		`hubtask_job_dead_letter_total{job_type="reminder.fire"} 1`,
+		`hubtask_job_lease_expired_total{job_type="backup.run"} 1`,
 		`hubtask_job_queue_depth{job_type="outbox.dispatch"} 12`,
 		`hubtask_scheduler_tick_lag_seconds 4`,
 		`hubtask_job_duration_seconds_sum{job_type="outbox.dispatch"} 0.25`,

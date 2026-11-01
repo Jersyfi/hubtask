@@ -64,6 +64,10 @@ LIMIT 1;
 -- A role claims only its kinds (deployment.md §2.2): only_kinds empty is every kind, and
 -- except_kinds keeps the automation role's kinds off a worker that runs beside one, so a rule
 -- storm drains on its own pods. Both arrays are never NULL - `<> ALL(NULL)` would match nothing.
+--
+-- reclaimed marks a row taken over from a RUNNING attempt whose lease ran out - a worker that died
+-- mid-run. The runner counts it and, once such attempts are past max_attempts, dead-letters the job
+-- without running it: only a runner that survives records a failure.
 -- name: ClaimJobs :many
 WITH due AS (
   SELECT d.id AS due_id, d.tenant_id AS due_tenant, d.priority AS due_priority,
@@ -85,7 +89,7 @@ WITH due AS (
   FROM due
   LEFT JOIN busy ON busy.busy_tenant IS NOT DISTINCT FROM due.due_tenant
 ), picked AS (
-  SELECT j.id FROM job AS j
+  SELECT j.id AS picked_id, j.state = 'RUNNING' AS was_running FROM job AS j
   JOIN ranked ON ranked.due_id = j.id
   WHERE (j.state = 'PENDING' AND j.run_at <= sqlc.arg('now'))
      OR (j.state = 'RUNNING' AND j.locked_until < sqlc.arg('now'))
@@ -97,8 +101,10 @@ UPDATE job SET
   state        = 'RUNNING',
   attempts     = attempts + 1,
   locked_until = sqlc.arg('locked_until')
-WHERE id IN (SELECT id FROM picked)
-RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until;
+FROM picked
+WHERE job.id = picked.picked_id
+RETURNING job.id, job.tenant_id, job.kind, job.payload, job.attempts, job.max_attempts,
+          job.locked_until, picked.was_running::boolean AS reclaimed;
 
 -- The row lock a pass takes on its own job, held until the caller's transaction ends.
 --

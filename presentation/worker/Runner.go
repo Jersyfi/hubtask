@@ -44,6 +44,7 @@ type Signals interface {
 	JobFinished(ctx context.Context, kind string, seconds float64)
 	JobFailed(ctx context.Context, kind, attemptClass string)
 	JobDeadLettered(ctx context.Context, kind string)
+	JobLeaseExpired(ctx context.Context, kind string)
 }
 
 // Runner claims jobs and runs them until its context ends.
@@ -240,11 +241,32 @@ func (r Runner) claimAndRun(ctx context.Context, want int, slots *slots) int {
 
 // start runs one claimed job, unless its lease could not be made to cover it.
 func (r Runner) start(ctx context.Context, job queue.Job) {
+	if job.Reclaimed && r.crashedOut(ctx, job) {
+		return
+	}
 	held, ok := r.leased(ctx, job)
 	if !ok {
 		return
 	}
 	r.execute(ctx, held)
+}
+
+// crashedOut counts a job taken over from an attempt whose worker never ended it, and reports
+// whether those attempts used up its budget. Only the runner that survives a failure records it, so
+// a job that kills its worker - out of memory, say - would otherwise be reclaimed and kill the next
+// one for ever; it goes to the dead letter instead, without its handler running again.
+func (r Runner) crashedOut(ctx context.Context, job queue.Job) bool {
+	if r.Signals != nil {
+		r.Signals.JobLeaseExpired(ctx, job.Kind.String())
+	}
+	slog.WarnContext(ctx, "a job's lease ran out while it was running; its worker likely died",
+		slog.String("job_kind", job.Kind.String()), slog.String("job_id", job.ID.String()),
+		slog.Int("attempt", job.Attempts))
+	if job.Attempts <= job.MaxAttempts {
+		return false
+	}
+	r.fail(ctx, job, "queue.lease_expired_exhausted", nil)
+	return true
 }
 
 // leased makes sure a job of the batch starts with at least its own timeout of lease left.

@@ -564,6 +564,7 @@ func jobFrom(row sqlc.ClaimJobsRow) (queue.Job, error) {
 		Payload:     payload,
 		Attempts:    int(row.Attempts),
 		MaxAttempts: int(row.MaxAttempts),
+		Reclaimed:   row.Reclaimed,
 		Lease:       timeFrom(row.LockedUntil),
 	}, nil
 }

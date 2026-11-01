@@ -140,6 +140,9 @@ func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 	if first[0].Attempts != 1 {
 		t.Errorf("attempts = %d on the first claim, want 1", first[0].Attempts)
 	}
+	if first[0].Reclaimed {
+		t.Error("a pending job's first claim says it was taken over from a dead worker")
+	}
 
 	// Still leased: another worker passing by leaves it alone.
 	if again := claim(ctx, t, now, time.Minute, 10); containsJob(again, first[0].ID) {
@@ -155,6 +158,10 @@ func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 	for _, job := range recovered {
 		if job.ID == first[0].ID && job.Attempts != 2 {
 			t.Errorf("attempts = %d on the second claim, want 2", job.Attempts)
+		}
+		// The runner counts it and, past the budget, dead-letters it without running it.
+		if job.ID == first[0].ID && !job.Reclaimed {
+			t.Error("a job taken over after its lease ran out does not say so")
 		}
 	}
 }

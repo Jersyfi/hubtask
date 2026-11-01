@@ -50,6 +50,7 @@ type Metrics struct {
 	jobDuration       metric.Float64Histogram
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
+	jobLeaseExpiries  metric.Int64Counter
 	jobsPurged        metric.Int64Counter
 	mailboxesHeld     metric.Int64Gauge
 	mailboxHolds      metric.Int64Counter
@@ -354,6 +355,12 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Jobs that used up their attempts. Every one of these needs a person."),
 	); err != nil {
 		return fmt.Errorf("dead letter counter: %w", err)
+	}
+	if m.jobLeaseExpiries, err = meter.Int64Counter(
+		namespace+"_job_lease_expired_total",
+		metric.WithDescription("Jobs taken over after their lease ran out while running: a worker died mid-job."),
+	); err != nil {
+		return fmt.Errorf("lease expiry counter: %w", err)
 	}
 	if m.jobsPurged, err = meter.Int64Counter(
 		namespace+"_job_purged_total",
@@ -1140,6 +1147,11 @@ func (m *Metrics) AuditDefaultAgedRows(ctx context.Context, rows int64) {
 // JobDeadLettered counts a job that used up its attempts (alert A-07).
 func (m *Metrics) JobDeadLettered(ctx context.Context, kind string) {
 	m.jobDeadLetters.Add(ctx, 1, metric.WithAttributes(attribute.String("job_type", kind)))
+}
+
+// JobLeaseExpired counts a job claimed again after its worker stopped renewing it mid-run.
+func (m *Metrics) JobLeaseExpired(ctx context.Context, kind string) {
+	m.jobLeaseExpiries.Add(ctx, 1, metric.WithAttributes(attribute.String("job_type", kind)))
 }
 
 // QueueDepth publishes the backlog of one kind. Only the scheduler leader reports it: the number
