@@ -5519,7 +5519,7 @@ func runsBackgroundWork(cfg envport.Config) bool {
 		cfg.HasRole(envport.RoleAutomation)
 }
 
-// moduleObjects finds the hub of a page or a board, so that an operation naming only one is
+// moduleObjects finds the hub of a page, a board, a configuration item or a goal, so that an operation naming only one is
 // judged where its hub narrowed the module (UC-INS-21 check 3).
 func moduleObjects() map[string]settingservice.GateObject {
 	pages, boards := postgres.NewPageRepository(), postgres.NewWhiteboardRepository()
@@ -5531,6 +5531,15 @@ func moduleObjects() map[string]settingservice.GateObject {
 		"page_id": page, "source_page_id": page,
 		"whiteboard_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
 			found, err := boards.Find(ctx, id)
+			return found.HubID, err
+		},
+		"ci_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
+			found, err := postgres.NewCmdbRepository().FindCI(ctx, id, false)
+			return found.HubID, err
+		},
+		// A workspace's goal has no hub, and is judged at the workspace.
+		"goal_id": func(ctx context.Context, id shared.ID) (shared.ID, error) {
+			found, err := postgres.NewGoalRepository().Goal(ctx, id)
 			return found.HubID, err
 		},
 	}
