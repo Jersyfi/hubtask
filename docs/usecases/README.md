@@ -106,7 +106,11 @@ names (those are in `checked_by:`). At `built` and `verified` the section is gon
 | `verified` | Every check is proven — `checked_by` names the tests that assert it. |
 | `retired` | No longer applies; a line says why. The ID is not reused. |
 
-The gate also refuses a `partial` or `specified` use case without a *Today* section, a use case
+A `verified` use case's checks are each cited - `UC-XX-nn check n` or `UC-XX-nn/n` - by a file its
+`checked_by` names; the gate counts the checks of verified use cases no such file cites and refuses
+more than it already holds (the bound in `tools/checkdocs/usecases.go` only falls), so a use case
+made verified now cites every check. The gate also refuses a `partial` or `specified` use case
+without a *Today* section, a use case
 without *Goal*, *How to check* or *Where it ends*, and a `UC-…` cited anywhere in the repository
 that does not exist.
 

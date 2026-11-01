@@ -4,6 +4,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -47,5 +49,18 @@ func TestToday(t *testing.T) {
 				t.Fatalf("want %q, got:\n%s", c.want, joined)
 			}
 		})
+	}
+}
+
+// A verified use case's checks are each cited by a file of its checked_by, in either spelling;
+// the one nobody cites is named.
+func TestUncitedChecksOfAVerifiedUseCase(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "a_test.go"), []byte("// UC-ID-16 check 1, and UC-ID-16/3\n// UC-ID-17 check 2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := uncitedChecks(root, "UC-ID-16", numberedChecks(sectionsOf(useCaseBody)["How to check"]), []string{"a_test.go"})
+	if len(got) != 1 || got[0] != 2 {
+		t.Fatalf("uncited %v, want [2] - check 2 is cited only for another use case", got)
 	}
 }

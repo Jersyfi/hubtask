@@ -114,6 +114,7 @@ func checkUseCases(root string) []string {
 		problems = append(problems, checkUseCase(root, uc, personas, deployments, principles)...)
 	}
 
+	problems = append(problems, checkVerifiedCitations(root, cases)...)
 	problems = append(problems, checkUseCaseIndex(root, cases)...)
 	problems = append(problems, checkUseCaseReferences(root, seen, useCaseChecks(cases))...)
 	problems = append(problems, checkMilestones(root, cases)...)
@@ -252,6 +253,7 @@ func checkUseCase(root string, uc useCase, personas, deployments, principles map
 	}
 
 	sections := sectionsOf(uc.body)
+
 	if state == "retired" {
 		return problems
 	}
@@ -434,4 +436,61 @@ func setOf(matches [][]string) map[string]bool {
 		set[match[1]] = true
 	}
 	return set
+}
+
+// uncitedVerifiedAtMost bounds the checks of verified use cases that no file in their checked_by
+// cites as `UC-XX-nn check n` or `UC-XX-nn/n`. Most are tested under another name; each one cited
+// lowers the bound, and it only falls - a use case made verified now cites every check.
+const uncitedVerifiedAtMost = 95
+
+// checkVerifiedCitations holds `verified` to its meaning: every check proven, by a test that says
+// which check it proves (docs/usecases/README.md).
+func checkVerifiedCitations(root string, cases []useCase) []string {
+	var uncited []string
+	for _, uc := range cases {
+		if uc.fields["state"] != "verified" {
+			continue
+		}
+		checks := numberedChecks(sectionsOf(uc.body)["How to check"])
+		for _, n := range uncitedChecks(root, uc.id, checks, uc.lists["checked_by"]) {
+			uncited = append(uncited, fmt.Sprintf("%s: verified, but check %d is cited (%s check %d, or %s/%d) by no file in checked_by", uc.path, n, uc.id, n, uc.id, n))
+		}
+	}
+	if len(uncited) <= uncitedVerifiedAtMost {
+		return nil
+	}
+	return append([]string{fmt.Sprintf("%d checks of verified use cases are cited by no test, at most %d may be", len(uncited), uncitedVerifiedAtMost)}, uncited...)
+}
+
+// uncitedChecks answers the checks of a use case that no file in checked_by cites, in order:
+// `verified` means every check is proven, and a check no test names is one nobody can find the
+// proof of (docs/usecases/README.md).
+func uncitedChecks(root, id string, checks map[int]bool, evidence []string) []int {
+	cited := map[int]bool{}
+	for _, file := range evidence {
+		content, err := os.ReadFile(filepath.Join(root, file))
+		if err != nil {
+			continue
+		}
+		for _, m := range ucCheckReference.FindAllStringSubmatch(string(content), -1) {
+			if m[1] != id {
+				continue
+			}
+			number := m[2]
+			if number == "" {
+				number = m[3]
+			}
+			if n, err := strconv.Atoi(number); err == nil {
+				cited[n] = true
+			}
+		}
+	}
+	var missing []int
+	for n := range checks {
+		if !cited[n] {
+			missing = append(missing, n)
+		}
+	}
+	sort.Ints(missing)
+	return missing
 }
