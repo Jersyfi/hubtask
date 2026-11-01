@@ -8494,7 +8494,7 @@
   "roles.permission_unknown": "{permission} ist keine Berechtigung, die Hubtask kennt.",
   "roles.not_found": "In diesem Arbeitsbereich gibt es keine Rolle {key}.",
   "roles.key_taken": "Der Arbeitsbereich hat schon eine Rolle {key}.",
-  "roles.too_many_grants": "Der Arbeitsbereich hat mehr als {limit} Rollenzuweisungen, mehr als eine Liste zeigt. Entfernen Sie nicht mehr benötigte Zuweisungen oder weisen Sie Rollen Gruppen statt Personen zu.",
+  "roles.too_many_grants": "Der Arbeitsbereich hat mehr als {limit} Rollenzuweisungen, mehr als eine Liste zeigt. Entferne nicht mehr benötigte Zuweisungen oder weise Rollen Gruppen statt Personen zu.",
   "roles.version_conflict": "Jemand hat die Rolle {key} inzwischen geändert. Lade sie neu und wiederhole deine Änderung.",
   "fields.restricted": "Nur wer eine Rolle mit der Berechtigung des Felds hat, darf {key} ändern.",
   "app.people.tab_roles": "Rollen",
