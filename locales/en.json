@@ -201,6 +201,8 @@
   "config.locale_dir_missing": "{variable} names {value}, which is not a directory this process can read. Unset it, or point it at the directory holding the catalogue files.",
   "config.locale_file_invalid": "{variable} holds a file this process cannot read as a catalogue: {file}. A catalogue is <tag>.json, a flat map of message codes to sentences.",
   "config.cors_origin_invalid": "{variable} takes complete origins such as https://app.example.com. {value} is not one.",
+  "config.trusted_proxy_invalid": "{variable} takes networks such as 10.42.0.0/16 or single addresses. {value} is neither.",
+  "config.trusted_proxies_missing": "Requests arrive with X-Forwarded-For, but {variable} names no proxy, so every sign-in and every public form behind it shares one rate limit. Set {variable} to the network of the reverse proxy in front.",
   "config.frame_ancestor_invalid": "{variable} takes complete origins such as https://portal.example.org, without a wildcard. {value} is not one.",
   "config.frame_source_invalid": "{variable} takes complete https origins such as https://dashboards.example.org, without a wildcard or a path. {value} is not one.",
   "config.backup_not_configured": "No schedule writes to a backup target, so nothing is being backed up.",

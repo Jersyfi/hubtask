@@ -76,6 +76,9 @@ services:
       HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
       # Operators named by the environment (UC-INS-02); empty names nobody.
       HUBTASK_OPERATORS: ${HUBTASK_OPERATORS:-}
+      # The reverse proxy in front, if one terminates TLS here (a CIDR or an address): only from
+      # it is X-Forwarded-For believed. Empty while the port is published directly.
+      HUBTASK_TRUSTED_PROXIES: ${HUBTASK_TRUSTED_PROXIES:-}
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
       # The master keyring for envelope encryption (security.md §8). Empty means this installation
       # encrypts nothing and says so when asked to seal something; `.env.example` shows how to fill

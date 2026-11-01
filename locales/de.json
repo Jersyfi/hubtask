@@ -1990,6 +1990,8 @@
   "config.locale_dir_missing": "{variable} nennt {value}, und das ist kein Verzeichnis, das dieser Prozess lesen kann. Entferne die Variable oder lass sie auf das Verzeichnis mit den Katalogdateien zeigen.",
   "config.locale_file_invalid": "{variable} enthält eine Datei, die dieser Prozess nicht als Katalog lesen kann: {file}. Ein Katalog ist <tag>.json, eine flache Zuordnung von Meldungscodes zu Sätzen.",
   "config.cors_origin_invalid": "{variable} nimmt vollständige Origins wie https://app.example.com. {value} ist keiner.",
+  "config.trusted_proxy_invalid": "{variable} nimmt Netze wie 10.42.0.0/16 oder einzelne Adressen. {value} ist keins von beiden.",
+  "config.trusted_proxies_missing": "Anfragen kommen mit X-Forwarded-For, aber {variable} nennt keinen Proxy, daher teilen sich alle Anmeldungen und öffentlichen Formulare dahinter ein Ratenlimit. Setze {variable} auf das Netz des vorgeschalteten Reverse Proxys.",
   "config.frame_ancestor_invalid": "{variable} nimmt vollständige Origins wie https://portal.example.org, ohne Platzhalter. {value} ist keiner.",
   "config.frame_source_invalid": "{variable} nimmt vollständige https-Origins wie https://dashboards.example.org, ohne Platzhalter und ohne Pfad. {value} ist keiner.",
   "config.backup_not_configured": "Kein Zeitplan schreibt in ein Sicherungsziel, darum wird nichts gesichert.",

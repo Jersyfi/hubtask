@@ -237,6 +237,7 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 | Security headers | `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-site`, a minimal `Permissions-Policy`; a `Content-Security-Policy` per origin (below) |
 | CORS | Empty by default; an explicit allowlist; never `*` with credentials |
 | Rate limits | Per IP (unauthenticated), per token, per tenant; stricter for login, password reset, invitation, search and bulk; `429` with `Retry-After` and `RateLimit-*` |
+| Client address | The peer of the connection; `X-Forwarded-For` (or `Forwarded`) only from a peer inside `HUBTASK_TRUSTED_PROXIES`, and then the right-most hop outside them. Resolved once at the edge, so every per-IP bucket, the sign-in ledger and a session's recorded network count the same address; a forwarded header with no proxy trusted warns in `/meta/health` |
 | Request sizes | A global body limit (1 MiB by default), a separate upload limit, a header limit |
 | Deadlines | A server-side request timeout; every handler receives a `context` with a deadline |
 | Methods | State changes never over `GET`; `OPTIONS` only for CORS |

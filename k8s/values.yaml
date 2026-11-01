@@ -60,6 +60,11 @@ config:
   # The egress allowlist for outbound calls - webhooks, AI, OIDC. Mandatory in provider
   # operation (T-07); empty raises a warning in /meta/health rather than failing the start.
   egressAllowedHosts: []
+  # The networks of the ingress or reverse proxy in front, as CIDRs: X-Forwarded-For is believed
+  # only from a peer inside them. Empty, and every request behind the ingress shares one rate
+  # limit and records the proxy as where it signed in from; /meta/health warns once a forwarded
+  # header arrives (security.md §9).
+  trustedProxies: []
   # Anything HUBTASK_* this chart does not model yet. A map, so that a new variable is a value
   # rather than a template change.
   extraEnv: {}

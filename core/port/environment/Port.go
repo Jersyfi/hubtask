@@ -13,6 +13,8 @@
 package environment
 
 import (
+	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -475,6 +477,11 @@ type RequestConfig struct {
 	// Timeout is the server-side deadline every handler inherits. No call without a deadline
 	// (ADR-0016).
 	Timeout time.Duration
+	// TrustedProxies are the networks (CIDR, or a bare address) whose X-Forwarded-For is
+	// believed: a request whose peer lies inside one is counted under the right-most forwarded
+	// hop outside them. Empty by default, because the header is written by the client and only a
+	// proxy that overwrites it makes it true (security.md §9).
+	TrustedProxies []string
 }
 
 // CORSConfig is the browser side of the API. Empty by default: a self-hosted installation serves
@@ -627,4 +634,23 @@ func (e OperatorEntry) String() string {
 		return e.Email
 	}
 	return e.Workspace + ":" + e.Email
+}
+
+// ParseTrustedProxy reads one HUBTASK_TRUSTED_PROXIES entry: a CIDR, or a bare address meaning
+// that address alone.
+func ParseTrustedProxy(raw string) (netip.Prefix, error) {
+	raw = strings.TrimSpace(raw)
+	if strings.Contains(raw, "/") {
+		prefix, err := netip.ParsePrefix(raw)
+		if err != nil {
+			return netip.Prefix{}, err
+		}
+		return prefix.Masked(), nil
+	}
+	address, err := netip.ParseAddr(raw)
+	if err != nil {
+		return netip.Prefix{}, err
+	}
+	address = address.Unmap()
+	return netip.PrefixFrom(address, address.BitLen()), nil
 }

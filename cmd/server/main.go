@@ -1609,6 +1609,10 @@ func run() error {
 	}
 	targetWarnings.Refresh(ctx)
 	registry.AddWarningSource(targetWarnings.Warnings)
+	// The client address, resolved once at the edge for every bucket and every session
+	// (HUBTASK_TRUSTED_PROXIES); it warns when an ingress forwards addresses nobody trusts.
+	proxyTrust := rest.NewProxyTrust(cfg.Request.TrustedProxies)
+	registry.AddWarningSource(proxyTrust.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
@@ -4128,7 +4132,7 @@ func run() error {
 		// that cannot read the `503` cannot act on its `Retry-After` either.
 		api = &http.Server{
 			Addr: cfg.HTTPAddr,
-			Handler: rest.Observed{
+			Handler: proxyTrust.Wrap(rest.Observed{
 				Router: rest.Fallback{
 					API:      apiRoutes,
 					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
@@ -4221,7 +4225,7 @@ func run() error {
 				Metrics: metrics,
 				Tracer:  tracing.Tracer("rest"),
 				Role:    string(envport.RoleAPI),
-			},
+			}),
 			ReadHeaderTimeout: 5 * time.Second,
 			IdleTimeout:       60 * time.Second,
 		}

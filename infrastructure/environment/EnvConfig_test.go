@@ -932,3 +932,28 @@ func TestTheFrameAncestorsAreCompleteOriginsOnly(t *testing.T) {
 		}
 	}
 }
+
+// HUBTASK_TRUSTED_PROXIES: empty by default, a network or an address accepted, anything else a
+// startup error rather than a proxy silently not trusted.
+func TestTrustedProxiesAreValidated(t *testing.T) {
+	withRequiredSecrets(t)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if len(cfg.Request.TrustedProxies) != 0 {
+		t.Errorf("trusted proxies by default = %v, want none", cfg.Request.TrustedProxies)
+	}
+
+	t.Setenv("HUBTASK_TRUSTED_PROXIES", "10.42.0.0/16, 192.0.2.1, fd00::/8")
+	if cfg, err = load(t); err != nil {
+		t.Fatalf("load failed: %v", err)
+	} else if len(cfg.Request.TrustedProxies) != 3 {
+		t.Errorf("trusted proxies = %v", cfg.Request.TrustedProxies)
+	}
+
+	t.Setenv("HUBTASK_TRUSTED_PROXIES", "10.42.0.0/16, traefik")
+	if _, err := load(t); err == nil || !strings.Contains(err.Error(), "config.trusted_proxy_invalid") {
+		t.Errorf("error = %v, want config.trusted_proxy_invalid", err)
+	}
+}

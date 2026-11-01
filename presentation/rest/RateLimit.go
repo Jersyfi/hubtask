@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math"
-	"net"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -382,19 +381,13 @@ func fingerprint(credential string) string {
 	return hex.EncodeToString(sum[:])[:fingerprintLength]
 }
 
-// ClientAddress is the peer of the connection, never X-Forwarded-For.
-//
-// That header is written by the client and can only be believed when a proxy that overwrites it
-// sits in front - and this process cannot know whether one does. Trusting it would turn the
-// anonymous limit into decoration, because every request could claim a fresh address. The cost is
-// that everything behind one ingress shares a bucket, which is the safe direction to be wrong in;
-// a trusted-proxy setting belongs with the deployment work that knows the topology.
+// ClientAddress is the address ProxyTrust resolved at the edge, and the peer of the connection
+// where nothing resolved one - a forwarded header is believed only from a trusted proxy.
 func ClientAddress(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
+	if address, ok := r.Context().Value(clientAddressKey{}).(string); ok && address != "" {
+		return address
 	}
-	return host
+	return peerAddress(r)
 }
 
 // OverrideBucket is the per-workspace request-rate ceiling (multi-tenancy.md §4), a

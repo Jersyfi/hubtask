@@ -128,8 +128,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxUploadBytes: int64(getInt("HUBTASK_MAX_UPLOAD_BYTES", 1<<26)), // 64 MiB
 			// 25 MiB, which is what the mail providers people actually use accept: a message
 			// bigger than that is one their sender could not have delivered either.
-			MaxMailBytes: int64(getInt("HUBTASK_MAX_MAIL_BYTES", 25<<20)),
-			Timeout:      getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
+			MaxMailBytes:   int64(getInt("HUBTASK_MAX_MAIL_BYTES", 25<<20)),
+			Timeout:        getDuration("HUBTASK_REQUEST_TIMEOUT", 30*time.Second),
+			TrustedProxies: getList("HUBTASK_TRUSTED_PROXIES"),
 		},
 		CORS: env.CORSConfig{
 			AllowedOrigins: getList("HUBTASK_CORS_ALLOWED_ORIGINS"),
@@ -581,6 +582,12 @@ func validateRequest(r env.RequestConfig) []error {
 	}
 	if r.Timeout <= 0 {
 		errs = append(errs, configError("config.duration_invalid", "HUBTASK_REQUEST_TIMEOUT"))
+	}
+	for _, proxy := range r.TrustedProxies {
+		if _, err := env.ParseTrustedProxy(proxy); err != nil {
+			errs = append(errs, configError("config.trusted_proxy_invalid", "HUBTASK_TRUSTED_PROXIES").
+				WithParams(map[string]string{"variable": "HUBTASK_TRUSTED_PROXIES", "value": proxy}))
+		}
 	}
 	return errs
 }

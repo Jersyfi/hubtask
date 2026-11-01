@@ -224,7 +224,7 @@ func (c *RestController) door(w http.ResponseWriter, r *http.Request, d restDoor
 		case "user_agent":
 			in[name] = r.UserAgent()
 		case "remote_addr":
-			in[name] = r.RemoteAddr
+			in[name] = ClientAddress(r)
 		}
 	}
 	if d.StepUp {

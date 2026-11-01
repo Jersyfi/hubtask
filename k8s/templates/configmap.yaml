@@ -50,6 +50,11 @@ data:
   # The egress allowlist is mandatory in provider operation (T-07); without it /meta/health warns.
   HUBTASK_HTTP_ALLOWED_HOSTS: {{ join "," .Values.config.egressAllowedHosts | quote }}
   {{- end }}
+  {{- if .Values.config.trustedProxies }}
+  # The ingress's network: only from a peer inside it is X-Forwarded-For believed, so each
+  # client keeps its own sign-in and anonymous budget (security.md §9).
+  HUBTASK_TRUSTED_PROXIES: {{ join "," .Values.config.trustedProxies | quote }}
+  {{- end }}
   {{- range $key, $value := .Values.config.extraEnv }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
