@@ -646,7 +646,9 @@ func TestApplyRunsThePlanByItsHashAndRefusesAConfigurationChangedSince(t *testin
 	if out["state"] != "APPLIED" || f.world.types["incident"] == nil {
 		t.Fatalf("not applied: %v", out)
 	}
-	if len(f.store.revisions) != 1 || f.store.revisions[0].Counts.Added != 1 || f.store.revisions[0].ActorKind != appshared.ActorUser {
+	// The first apply: the state before it is version one, the apply version two.
+	if len(f.store.revisions) != 2 || f.store.revisions[0].ActorKind != domain.ActorDirect ||
+		f.store.revisions[1].Counts.Added != 1 || f.store.revisions[1].ActorKind != appshared.ActorUser {
 		t.Errorf("version %+v", f.store.revisions)
 	}
 	if f.trail.actions[len(f.trail.actions)-1] != AppliedAction {
@@ -719,7 +721,7 @@ func TestAnAgentsPlanWaitsForAPerson(t *testing.T) {
 	if decided["state"] != "APPLIED" || f.world.types["incident"] == nil {
 		t.Fatalf("not applied: %v", decided)
 	}
-	if revision := f.store.revisions[0]; revision.ProposedBy != agent.AccountID || revision.ActorKind != appshared.ActorUser {
+	if revision := f.store.revisions[1]; revision.ProposedBy != agent.AccountID || revision.ActorKind != appshared.ActorUser {
 		t.Errorf("the version does not name proposer and approver: %+v", revision)
 	}
 	if _, err := (DecideConfigProposal{f.desk}).Descriptor().Handler.Invoke(t.Context(), person, (usecase.Input{"proposal_id": id.String(), "decision": "DECLINE"})); !isDetail(err, "config.proposal_decided") {
@@ -763,7 +765,7 @@ func TestATemplateIsTakenAndUpgradedThreeWay(t *testing.T) {
 	invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{
 		"document": take["document"], "plan_hash": take["plan_hash"], "template": take["template"],
 	})
-	if f.store.revisions[0].Template != "service_desk@1" || len(f.store.uses) != 1 {
+	if f.store.revisions[1].Template != "service_desk@1" || len(f.store.uses) != 1 {
 		t.Fatalf("the provenance was not recorded: %+v", f.store.revisions)
 	}
 

@@ -14843,7 +14843,7 @@ type ConfigValidation struct {
 type ConfigVersion struct {
 	ActorId *openapi_types.UUID `json:"actor_id,omitempty"`
 
-	// ActorKind The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply.
+	// ActorKind The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply - and, with no counts, for the state before a scope's first apply.
 	ActorKind string    `json:"actor_kind"`
 	Added     int       `json:"added"`
 	Changed   int       `json:"changed"`

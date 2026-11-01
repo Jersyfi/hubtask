@@ -105,7 +105,9 @@ outside a plan - on a screen, through REST or `hubctl` - since a scope's latest 
 version of its own before the next apply (actor kind `DIRECT`, its counts against that version, the
 sections the applier reads; who made each change is the audit trail's), so an apply's version holds
 only its own changes and applier, and the state the screens left can be compared and rolled back
-to. A scope never applied has no version yet: its first apply is version one. *Describe and draft*
+to. A scope's first apply keeps the state before it as version one (actor kind `DIRECT`, no
+counts), so even the first apply can be rolled back; the apply is version two. A scope never
+applied has no version yet. *Describe and draft*
 (today for rules, UC-AUT-10) becomes the same pipeline for any configuration: a description becomes
 a plan, a plan becomes a preview, a person applies it — AI optional (P-14).
 

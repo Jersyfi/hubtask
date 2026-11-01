@@ -725,25 +725,28 @@ func chainedInput(in usecase.Input, previous usecase.Output, field string) useca
 // version outside a plan, as a version of its own (ActorDirect): the apply's version then holds
 // only its own changes and applier, and the state left by the screens can be compared and rolled
 // back to. A section the reader does not read now is left out of the comparison, so what another
-// reader saw is not counted as changed.
+// reader saw is not counted as changed. Before a scope's first apply it records the state as found,
+// with no counts, so that even the first apply can be rolled back.
 func (d Desk) drifted(ctx context.Context, actor appshared.ActorContext, now current, at time.Time) error {
 	listed, err := d.Store.List(ctx, now.Hub, 0, 1)
-	if err != nil || len(listed) == 0 {
-		return err
-	}
-	latest, err := d.Store.Find(ctx, listed[0].Version)
 	if err != nil {
 		return err
 	}
-	before := domain.Document{}
-	for name, section := range latest.Document {
-		if _, read := now.Document[name]; read {
-			before[name] = section
+	var changes []domain.BlockChange
+	if len(listed) > 0 {
+		latest, err := d.Store.Find(ctx, listed[0].Version)
+		if err != nil {
+			return err
 		}
-	}
-	changes := domain.Diff(before, now.Document)
-	if len(changes) == 0 {
-		return nil
+		before := domain.Document{}
+		for name, section := range latest.Document {
+			if _, read := now.Document[name]; read {
+				before[name] = section
+			}
+		}
+		if changes = domain.Diff(before, now.Document); len(changes) == 0 {
+			return nil
+		}
 	}
 	overall, _, err := d.Store.Latest(ctx)
 	if err != nil {

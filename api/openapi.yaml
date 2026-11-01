@@ -31119,7 +31119,7 @@ components:
         version: { type: integer }
         hash: { type: string }
         plan_hash: { type: string }
-        actor_kind: { type: string, description: "The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply." }
+        actor_kind: { type: string, description: "The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply - and, with no counts, for the state before a scope's first apply." }
         actor_id: { type: [string, "null"], format: uuid }
         proposed_by: { type: [string, "null"], format: uuid }
         rolled_back_to: { type: [integer, "null"] }

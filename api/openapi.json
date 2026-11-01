@@ -50352,7 +50352,7 @@
           },
           "actor_kind": {
             "type": "string",
-            "description": "The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply."
+            "description": "The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply - and, with no counts, for the state before a scope's first apply."
           },
           "actor_id": {
             "type": [

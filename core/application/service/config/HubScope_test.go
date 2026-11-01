@@ -108,7 +108,8 @@ func TestAHubsDocumentIsAppliedThroughItsUseCasesAndVersionedApart(t *testing.T)
 	if len(schemes) != 1 || schemes[0].String("entry_type") != "" || schemes[0]["workflow"] != "service" || schemes[0]["container_id"] != supportHub {
 		t.Errorf("scheme writes %v", schemes)
 	}
-	if len(f.store.revisions) != 1 || f.store.revisions[0].HubID != shared.ID(supportHub) {
+	if len(f.store.revisions) != 2 || f.store.revisions[0].HubID != shared.ID(supportHub) ||
+		f.store.revisions[1].HubID != shared.ID(supportHub) {
 		t.Fatalf("the version does not name its hub: %+v", f.store.revisions)
 	}
 
@@ -117,7 +118,7 @@ func TestAHubsDocumentIsAppliedThroughItsUseCasesAndVersionedApart(t *testing.T)
 		t.Errorf("a hub's version is in the workspace's history: %v", workspace["data"])
 	}
 	hub := invoke(t, ListConfigVersions{f.desk}.Descriptor(), person, usecase.Input{"hub_id": supportHub})
-	if len(hub["data"].([]usecase.Output)) != 1 {
+	if len(hub["data"].([]usecase.Output)) != 2 {
 		t.Errorf("the hub's history %v", hub["data"])
 	}
 }
