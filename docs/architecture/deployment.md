@@ -100,6 +100,16 @@ recovery point (`HUBTASK_UPGRADE_DUMP=false` for a database backed up otherwise;
 ([versioning-release.md](./versioning-release.md) §4), the old version may still be running while
 it does.
 
+**Rolling back on Compose.** Write down the release you ran before raising `HUBTASK_VERSION` -
+the newest upgrade dump's name carries the release it was taken before. Within one minor (the
+schema stays compatible with the previous minor, versioning-release.md §4), set
+`HUBTASK_VERSION` back and run `docker compose up -d`: the migrator has nothing to apply, and the
+older application runs on the newer schema. Across a contract migration - more than one minor
+back, or a release whose notes name one - the older binary refuses to start
+(`config.binary_older_than_schema`, §5) and the way back is the dump taken before the upgrade:
+set `HUBTASK_VERSION` back, then `./restore.sh --upgrade-dump <file>` (backup-restore.md §8.6).
+Writes made on the newer release since are lost with it.
+
 ### 2.2 Kubernetes
 
 Four deployments from **one** image, distinguished by `HUBTASK_ROLES`:
