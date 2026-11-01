@@ -189,13 +189,24 @@ func (r CustomRoleRepository) Revoke(ctx context.Context, grantID shared.ID) (bo
 	return affected > 0, nil
 }
 
-func (r CustomRoleRepository) Grants(ctx context.Context, limit int) ([]repository.CustomGrantRow, error) {
+func (r CustomRoleRepository) Grants(
+	ctx context.Context, filter repository.GrantFilter, after shared.ID, limit int,
+) ([]repository.CustomGrantRow, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	//nolint:gosec // G115: the caller's limit is a page size
-	rows, err := queries.ListCustomRoleGrants(ctx, int32(limit))
+	params := sqlc.ListCustomRoleGrantsParams{MaxRows: int32(limit)}
+	for _, field := range []struct {
+		into *pgtype.UUID
+		id   shared.ID
+	}{{&params.RoleID, filter.RoleID}, {&params.GroupID, filter.GroupID}, {&params.After, after}} {
+		if *field.into, err = optionalUUID(field.id); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := queries.ListCustomRoleGrants(ctx, params)
 	if err != nil {
 		return nil, roleQueryError(err, "listing the custom role grants")
 	}

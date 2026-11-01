@@ -4,9 +4,11 @@
 package identity
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -41,9 +43,16 @@ const (
 	// RoleReadAction names the reads in a refusal's entry.
 	RoleReadAction audit.Action = "role.read"
 
-	// maxRoleGrants bounds the grants one listing answers; a workspace holds far fewer.
-	maxRoleGrants = 2000
+	// roleGrantsPage is how many grants one read of the store answers; the reads page to the end.
+	roleGrantsPage = 1000
+	// maxRoleGrants bounds the grants ListRoles holds in one answer. Past it the listing is refused
+	// rather than cut short: a partial list would let the people screen, the plan's reach and the
+	// configuration's role_groups section build on wrong rows.
+	maxRoleGrants = 100_000
 )
+
+// RoleGrantsTooManyCode refuses a listing of more grants than one answer holds.
+const RoleGrantsTooManyCode = "roles.too_many_grants"
 
 // Roles is what the role use cases share: the store, the decision point, the trail.
 type Roles struct {
@@ -148,17 +157,29 @@ func (r Roles) GroupDeleting(ctx context.Context, actor appshared.ActorContext, 
 }
 
 func (r Roles) groupGrants(ctx context.Context, groupID shared.ID) ([]repository.CustomGrantRow, error) {
-	grants, err := r.Store.Grants(ctx, maxRoleGrants)
-	if err != nil {
-		return nil, err
-	}
-	out := grants[:0]
-	for _, grant := range grants {
-		if grant.Grant.GroupID == groupID {
-			out = append(out, grant)
+	return r.allGrants(ctx, repository.GrantFilter{GroupID: groupID}, 0)
+}
+
+// allGrants pages through every grant the filter names, refusing past bound (0: no bound) rather
+// than answering part of them.
+func (r Roles) allGrants(ctx context.Context, filter repository.GrantFilter, bound int) ([]repository.CustomGrantRow, error) {
+	var out []repository.CustomGrantRow
+	var after shared.ID
+	for {
+		page, err := r.Store.Grants(ctx, filter, after, roleGrantsPage)
+		if err != nil {
+			return nil, err
 		}
+		out = append(out, page...)
+		if bound > 0 && len(out) > bound {
+			return nil, shared.ErrConflict.WithDetail(RoleGrantsTooManyCode).
+				WithParams(map[string]string{"limit": strconv.Itoa(bound)})
+		}
+		if len(page) < roleGrantsPage {
+			return out, nil
+		}
+		after = page[len(page)-1].Grant.ID
 	}
-	return out, nil
 }
 
 // HeldReader answers what an account holds along a path: the authorisation service's HeldBy.
@@ -204,8 +225,14 @@ func (h ListRoles) Execute(ctx context.Context, actor appshared.ActorContext) (R
 		if out.Custom, err = h.Roles.Store.List(ctx); err != nil {
 			return err
 		}
-		out.Grants, err = h.Roles.Store.Grants(ctx, maxRoleGrants)
-		return err
+		if out.Grants, err = h.Roles.allGrants(ctx, repository.GrantFilter{}, maxRoleGrants); err != nil {
+			return err
+		}
+		slices.SortFunc(out.Grants, func(a, b repository.CustomGrantRow) int {
+			return cmp.Or(cmp.Compare(a.RoleKey, b.RoleKey),
+				cmp.Compare(a.Grant.Scope.Type, b.Grant.Scope.Type), cmp.Compare(a.Grant.ID, b.Grant.ID))
+		})
+		return nil
 	})
 	if err != nil {
 		return RoleCatalogue{}, err
@@ -477,15 +504,12 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 	}
 	now := h.Roles.Clock.Now()
 	return h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		grants, err := h.Roles.Store.Grants(ctx, maxRoleGrants)
+		grants, err := h.Roles.allGrants(ctx, repository.GrantFilter{RoleID: current.Role.ID}, 0)
 		if err != nil {
 			return err
 		}
 		var losses []access.Loss
 		for _, grant := range grants {
-			if grant.Grant.RoleID != current.Role.ID {
-				continue
-			}
 			if err := h.Roles.announceGrant(ctx, actor, grant, changelog.Delete, ""); err != nil {
 				return err
 			}

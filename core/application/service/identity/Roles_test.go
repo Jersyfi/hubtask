@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,12 +112,17 @@ func (s *roleStore) Revoke(_ context.Context, id shared.ID) (bool, error) {
 	return found, nil
 }
 
-func (s *roleStore) Grants(context.Context, int) ([]repository.CustomGrantRow, error) {
+func (s *roleStore) Grants(_ context.Context, filter repository.GrantFilter, after shared.ID, limit int) ([]repository.CustomGrantRow, error) {
 	out := []repository.CustomGrantRow{}
 	for _, row := range s.grants {
+		if (filter.RoleID != "" && row.Grant.RoleID != filter.RoleID) ||
+			(filter.GroupID != "" && row.Grant.GroupID != filter.GroupID) || row.Grant.ID <= after {
+			continue
+		}
 		out = append(out, row)
 	}
-	return out, nil
+	slices.SortFunc(out, func(a, b repository.CustomGrantRow) int { return strings.Compare(string(a.Grant.ID), string(b.Grant.ID)) })
+	return out[:min(limit, len(out))], nil
 }
 
 var _ repository.CustomRoles = (*roleStore)(nil)

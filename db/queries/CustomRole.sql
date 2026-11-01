@@ -60,10 +60,14 @@ WHERE g.id = sqlc.arg('id');
 DELETE FROM custom_role_grant WHERE id = sqlc.arg('id');
 
 -- name: ListCustomRoleGrants :many
--- Every grant of custom roles in the workspace, for the people screen and *who may do what*.
--- Bounded by the caller's limit.
+-- One page of the workspace's grants of custom roles, by id after the cursor - of one role or one
+-- group where it is given -, for the people screen, *who may do what* and deleting a role or a
+-- group. The caller pages to the end: a grant left out would be missed silently.
 SELECT g.id, g.tenant_id, g.account_id, g.group_id, g.scope_type, g.scope_id, g.role_id, r.key AS role_key
 FROM custom_role_grant g
 JOIN custom_role r ON r.tenant_id = g.tenant_id AND r.id = g.role_id
-ORDER BY r.key, g.scope_type, g.id
+WHERE (sqlc.narg('role_id')::uuid IS NULL OR g.role_id = sqlc.narg('role_id')::uuid)
+  AND (sqlc.narg('group_id')::uuid IS NULL OR g.group_id = sqlc.narg('group_id')::uuid)
+  AND (sqlc.narg('after')::uuid IS NULL OR g.id > sqlc.narg('after')::uuid)
+ORDER BY g.id
 LIMIT sqlc.arg('max_rows');

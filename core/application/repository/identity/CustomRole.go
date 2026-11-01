@@ -44,6 +44,13 @@ type CustomRoles interface {
 	FindGrant(ctx context.Context, grantID shared.ID) (CustomGrantRow, error)
 	// Revoke removes one grant; false is nothing there.
 	Revoke(ctx context.Context, grantID shared.ID) (bool, error)
-	// Grants answers every grant in the workspace, at most limit of them.
-	Grants(ctx context.Context, limit int) ([]CustomGrantRow, error)
+	// Grants answers one page of the workspace's grants by id, after the cursor (zero from the
+	// start), at most limit of them, narrowed by the filter.
+	Grants(ctx context.Context, filter GrantFilter, after shared.ID, limit int) ([]CustomGrantRow, error)
+}
+
+// GrantFilter narrows Grants to one role, one group or both; the zero value reads every grant.
+type GrantFilter struct {
+	RoleID  shared.ID
+	GroupID shared.ID
 }

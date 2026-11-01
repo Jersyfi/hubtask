@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -77,6 +78,13 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 			!service.Allows(held, path, service.SharedPath, service.FieldWrite("cost")) {
 			t.Fatalf("the custom role does not reach the decision: %+v", held)
 		}
+		ofRole, err := roles.Grants(ctx, repository.GrantFilter{RoleID: role.ID}, "", 100)
+		if err != nil || len(ofRole) != 1 || ofRole[0].Grant.ID != grant.ID {
+			t.Fatalf("the role's grants read %v %v", ofRole, err)
+		}
+		if past, err := roles.Grants(ctx, repository.GrantFilter{}, grant.ID, 100); err != nil || len(past) != 0 {
+			t.Fatalf("the page after the last grant read %v %v", past, err)
+		}
 		return nil
 	})
 
@@ -99,7 +107,7 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 		if _, err := roles.FindGrant(ctx, grant.ID); err == nil {
 			t.Fatal("B finds A's grant")
 		}
-		grants, err := roles.Grants(ctx, 100)
+		grants, err := roles.Grants(ctx, repository.GrantFilter{RoleID: role.ID}, "", 100)
 		if err != nil || len(grants) != 0 {
 			t.Fatalf("B lists grants: %v %v", grants, err)
 		}
