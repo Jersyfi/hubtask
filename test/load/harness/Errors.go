@@ -54,20 +54,47 @@ func ServerErrors(r io.Reader) ([]LogError, error) {
 // before it exists: every run's stack starts that way, so the row says nothing about the product.
 const migrationProbe = `relation "goose_db_version" does not exist`
 
+// postgresStatement is the STATEMENT line PostgreSQL logs after an error, and the sqlc query name
+// it opens with. Only the name is kept: the rest is SQL, and a literal in it could be content.
+var postgresStatement = regexp.MustCompile(`\bSTATEMENT:\s+(?:-- name: (\w+))?`)
+
 // PostgresErrors reads PostgreSQL's log and answers its WARNING, ERROR, FATAL and PANIC lines, one
-// row per message with its values masked.
+// row per message with its values masked, and named by the query its STATEMENT line ran when that
+// is a named one.
 func PostgresErrors(r io.Reader) ([]LogError, error) {
 	counted := map[LogError]int{}
+	var pending *LogError
+	flush := func(query string) {
+		if pending == nil {
+			return
+		}
+		if query != "" {
+			pending.Message += " (in " + query + ")"
+		}
+		counted[*pending]++
+		pending = nil
+	}
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
-		match := postgresSeverity.FindStringSubmatch(scanner.Text())
+		line := scanner.Text()
+		if pending != nil {
+			if statement := postgresStatement.FindStringSubmatch(line); statement != nil {
+				flush(statement[1])
+				continue
+			}
+			if strings.HasPrefix(line, "\t") {
+				continue
+			}
+			flush("")
+		}
+		match := postgresSeverity.FindStringSubmatch(line)
 		if match == nil || strings.HasPrefix(match[2], migrationProbe) {
 			continue
 		}
-		message := varying.ReplaceAllString(match[2], "…")
-		counted[LogError{Source: "postgres", Level: match[1], Message: message}]++
+		pending = &LogError{Source: "postgres", Level: match[1], Message: varying.ReplaceAllString(match[2], "…")}
 	}
+	flush("")
 	return rows(counted), scanner.Err()
 }
 

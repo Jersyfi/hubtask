@@ -78,7 +78,14 @@ the built web app (`corepack pnpm --filter @hubtask/webapp build`, and Playwrigh
 walked per measured workspace - its start, its hub and its collection - by
 `apps/webapp/e2e/scalewalk.mjs`, and every console error and warning, uncaught error, failed
 request and 5xx answer is added to `errors-<items>.json` as a `browser` row, deduplicated the way
-the server's are.
+the server's are. The walk signs in with a token of its own that carries every scope a session
+carries; the load token's four would see only refusals.
+
+A slow path is read with `HUBTASK_LOAD_EXPLAIN=1`: PostgreSQL runs with `auto_explain` and logs the
+plan, row counts and buffers of every statement over 100 ms, without its parameters, and the run
+writes the slowest plan per sqlc query to `plans-<items>.json`. Such a run diagnoses rather than
+measures, since every statement is instrumented. A PostgreSQL error row is named by the query its
+statement ran, as `(in ListWorkItems)`.
 
 ## The release tier, step by step
 

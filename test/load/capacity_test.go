@@ -180,6 +180,30 @@ func TestCapacityAtScale(t *testing.T) {
 		}
 	}
 	writeEvidence(t, fmt.Sprintf("errors-%d.json", items), collected)
+	if os.Getenv(envExplain) != "" {
+		writeEvidence(t, fmt.Sprintf("plans-%d.json", items), slowPlans(t, stack))
+	}
+}
+
+// slowPlans is auto_explain's slowest plan per query over the run (envExplain).
+func slowPlans(t *testing.T, stack *stack) []harness.SlowPlan {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	logs, err := stack.database.Logs(ctx)
+	if err != nil {
+		t.Errorf("reading PostgreSQL's log: %v", err)
+		return nil
+	}
+	defer func() { _ = logs.Close() }()
+	plans, err := harness.SlowPlans(logs)
+	if err != nil {
+		t.Errorf("reading the plans: %v", err)
+	}
+	for _, plan := range plans {
+		t.Logf("slow %s ×%d, slowest %.0f ms:\n%s", plan.Query, plan.Count, plan.SlowestMS, plan.Plan)
+	}
+	return plans
 }
 
 // envWalk adds run R3 (test/load/PLAN.md): the built web app walked against the dataset per

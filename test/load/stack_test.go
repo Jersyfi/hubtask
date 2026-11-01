@@ -184,8 +184,34 @@ func postgresImage() string {
 	return "pgvector/pgvector:pg16"
 }
 
+// envExplain has PostgreSQL log the plan of every statement slower than explainAfter, which the
+// capacity run keeps per query beside its figures. Not on by default: ANALYZE instruments every
+// statement, so a run under it is a diagnosis, not a measurement.
+const (
+	envExplain   = "HUBTASK_LOAD_EXPLAIN"
+	explainAfter = "100ms"
+)
+
+// explainArgs are auto_explain's settings for a diagnosing run. No parameter is logged (rule 10:
+// a bound value could be content), and no timing per node: the buffers and row counts tell a plan
+// switch apart, and the clock calls would slow every statement under it.
+func explainArgs() []string {
+	if os.Getenv(envExplain) == "" {
+		return nil
+	}
+	return []string{
+		"-c", "shared_preload_libraries=auto_explain",
+		"-c", "auto_explain.log_min_duration=" + explainAfter,
+		"-c", "auto_explain.log_analyze=on",
+		"-c", "auto_explain.log_buffers=on",
+		"-c", "auto_explain.log_timing=off",
+		"-c", "auto_explain.log_parameter_max_length=0",
+	}
+}
+
 func startDatabase(ctx context.Context) (*tcpostgres.PostgresContainer, string, error) {
 	container, err := tcpostgres.Run(ctx, postgresImage(),
+		testcontainers.WithCmdArgs(explainArgs()...),
 		tcpostgres.WithDatabase("hubtask_load"),
 		tcpostgres.WithUsername("postgres"),
 		tcpostgres.WithPassword("postgres"),
