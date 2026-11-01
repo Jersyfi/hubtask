@@ -5558,8 +5558,6 @@ func start(ctx context.Context, name string, loop func(context.Context)) <-chan 
 	return done
 }
 
-// runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
-// requests.
 // teachTheRule hands the sign-in rule to the session writer and to the two copies of it that open
 // sessions themselves. Assigned rather than passed, because the two read each other: the password
 // writer holds a copy of the session writer for the hasher and the trail.
@@ -5578,10 +5576,6 @@ func teachTheRule(
 	oidc.Session.Rule = rule
 }
 
-// requirePasswordDoors refuses a set of session writers in which one holds a rule that cannot say
-// whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
-// password through at every door it guards and offers it as a step-up proof, silently - which is what
-// a test that wires no rule wants, and what a server must never do.
 // passkeyInstallationOf reads the installation's public address for the relying party a workspace's
 // passkeys belong to (identity.md §23.3). An address that does not parse, or none, binds nothing.
 func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallation {
@@ -5594,6 +5588,10 @@ func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallat
 	}
 }
 
+// requirePasswordDoors refuses a set of session writers in which one holds a rule that cannot say
+// whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
+// password through at every door it guards and offers it as a step-up proof, silently - which is what
+// a test that wires no rule wants, and what a server must never do.
 func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
 	names := make([]string, 0, len(writers))
 	for name := range writers {
@@ -5616,6 +5614,8 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 	return held.Writer
 }
 
+// runsBackgroundWork reports whether this process runs a loop of its own rather than only serving
+// requests.
 func runsBackgroundWork(cfg envport.Config) bool {
 	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
 		cfg.HasRole(envport.RoleAutomation)
@@ -5706,9 +5706,6 @@ func claimedKinds(cfg envport.Config) (only, except []queueport.Kind) {
 	}
 }
 
-// primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
-// so a process serving the API uses that budget for everything it does - being cut off early is
-// the safer mistake on a shared pool.
 // buildObjectStore composes the configured store. For S3 that is the whole
 // vocabulary: the adapter, a breaker the health probe reads, and a bulkhead so the storage pool
 // is this size and not the process (ADR-0016).
@@ -5817,6 +5814,9 @@ func buildMailSender(
 	return mailadapter.NewResilientSender(mailadapter.NewSMTP(cfg.Mail), breaker, bulkhead)
 }
 
+// primaryRole picks the role whose query budget the pool runs under. The API is the strictest,
+// so a process serving the API uses that budget for everything it does - being cut off early is
+// the safer mistake on a shared pool.
 func primaryRole(cfg envport.Config) envport.Role {
 	if cfg.HasRole(envport.RoleAPI) {
 		return envport.RoleAPI
