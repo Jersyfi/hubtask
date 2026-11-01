@@ -245,7 +245,8 @@ WITH wanted AS (
            SELECT 1 FROM custom_field_definition cfd
             WHERE cfd.deleted_at IS NULL AND cfd.kind = 'NUMBER' AND cfd.key = w.field_key
               AND 'TASK'::item_type = ANY (cfd.applies_to)
-              AND (cfd.collection_id = w.collection_id OR cfd.collection_id IS NULL)
+              AND (cfd.collection_id IS NULL OR cfd.collection_id = w.collection_id
+                   OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = w.collection_id))
          ) AS live
     FROM (
       SELECT ($1::uuid[])[i] AS collection_id,
@@ -265,7 +266,8 @@ SELECT w.collection_id::uuid AS collection_id,
              SELECT 1 FROM custom_field_definition cfd
               WHERE cfd.deleted_at IS NULL AND cfd.kind = 'NUMBER'
                 AND cfd.id = (wi.custom_field_refs ->> w.field_key)::uuid
-                AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+                AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+                     OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
            ) AS summable,
            CASE WHEN jsonb_typeof(wi.custom_fields -> w.field_key) = 'number'
                 THEN (wi.custom_fields ->> w.field_key)::numeric END AS amount

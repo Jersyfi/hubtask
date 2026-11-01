@@ -1223,8 +1223,8 @@ type Trash interface {
 	BatchMembers(ctx context.Context, batchIDs []shared.ID) ([]TrashMember, error)
 }
 
-// FieldHiding is one definition hidden from readers: its key, and the collection it is defined
-// for, zero for the whole workspace (UC-ID-27 check 3).
+// FieldHiding is one definition hidden from readers: its key, and the container it is defined
+// for - a collection or a hub -, zero for the whole workspace (UC-ID-27 check 3).
 type FieldHiding struct {
 	Key          string
 	CollectionID shared.ID
@@ -1248,7 +1248,8 @@ type FieldValueCounts interface {
 }
 
 // FieldFormula is one definition a formula concerns: a CALCULATED one with its formula, or one
-// whose kind a formula may read; the collection it is defined for, zero for the whole workspace.
+// whose kind a formula may read; the container it is defined for - a collection or a hub -, zero
+// for the whole workspace.
 type FieldFormula struct {
 	Key          string
 	CollectionID shared.ID
@@ -1256,7 +1257,7 @@ type FieldFormula struct {
 	Formula      string
 }
 
-// CustomFields stores the definitions a workspace or a collection adds to its entries.
+// CustomFields stores the definitions a workspace, a hub or a collection adds to its entries.
 //
 // Its own interface rather than methods on Items, because the two are not the same thing: this is
 // the vocabulary, and `work_item.custom_fields` is what an entry says in it. A repository that
@@ -1272,15 +1273,16 @@ type CustomFields interface {
 	Find(ctx context.Context, id shared.ID) (work.CustomFieldDefinition, error)
 
 	// FindInScope returns the live definition one collection sees under a key: the collection's
-	// own, or the workspace-wide one. The collection's own wins, so that a team can narrow a
-	// workspace-wide default rather than having to avoid its key.
+	// own, its hub's, or the workspace-wide one. The nearest wins, so that a hub or a team can
+	// narrow a workspace-wide default rather than having to avoid its key. A hub as the scope sees
+	// its own and the workspace's.
 	//
 	// A zero collection asks about the workspace-wide scope alone.
 	FindInScope(ctx context.Context, collectionID shared.ID, key string) (work.CustomFieldDefinition, error)
 
-	// ListInScope returns every live definition in force for one collection: its own and the
-	// workspace-wide ones above it, ordered by scope and then by key. A zero collection answers
-	// the workspace-wide ones alone.
+	// ListInScope returns every live definition in force for one collection: its own and those
+	// of its hub and the workspace above it - for a hub, its own and the workspace's -, the widest
+	// scope first and then by key. A zero collection answers the workspace-wide ones alone.
 	//
 	// Unpaged, deliberately. A workspace's vocabulary is small and bounded by what a person can
 	// fill in on one form; a client renders the whole of it or none of it, and a cursor over a

@@ -47,7 +47,13 @@ func (r CustomFieldRepository) Insert(
 	if err != nil {
 		return err
 	}
-	collectionID, err := optionalUUID(definition.CollectionID)
+	// A hub's definition is stored where a collection's is: the column references the container
+	// (migration 0325).
+	collectionID, err := optionalUUID(definition.ScopeID())
+	if err != nil {
+		return err
+	}
+	copiedFrom, err := optionalUUID(definition.CopiedFrom)
 	if err != nil {
 		return err
 	}
@@ -57,7 +63,7 @@ func (r CustomFieldRepository) Insert(
 	}
 
 	err = queries.InsertCustomField(ctx, sqlc.InsertCustomFieldParams{
-		ID: id, CollectionID: collectionID, Key: definition.Key,
+		ID: id, CollectionID: collectionID, CopiedFrom: copiedFrom, Key: definition.Key,
 		Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
 		Formula:    currencyOf(definition.Formula),
 		IsRequired: definition.IsRequired, Restricted: definition.Restricted,
@@ -275,6 +281,14 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	if err != nil {
 		return work.CustomFieldDefinition{}, err
 	}
+	var hubID shared.ID
+	if row.AtHub {
+		hubID, collectionID = collectionID, ""
+	}
+	copiedFrom, err := optionalID(row.CopiedFrom)
+	if err != nil {
+		return work.CustomFieldDefinition{}, err
+	}
 	options, err := optionsFrom(row.Options)
 	if err != nil {
 		return work.CustomFieldDefinition{}, err
@@ -286,7 +300,7 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	}
 
 	return work.CustomFieldDefinition{
-		ID: id, TenantID: tenantID, CollectionID: collectionID,
+		ID: id, TenantID: tenantID, CollectionID: collectionID, HubID: hubID, CopiedFrom: copiedFrom,
 		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
 		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, Restricted: row.Restricted,
 		ReadRestricted: row.ReadRestricted, AppliesTo: appliesTo,
@@ -412,7 +426,7 @@ func (r CustomFieldRepository) EntriesHolding(ctx context.Context, definition wo
 	if err != nil {
 		return 0, err
 	}
-	collection, err := optionalUUID(definition.CollectionID)
+	collection, err := optionalUUID(definition.ScopeID())
 	if err != nil {
 		return 0, err
 	}

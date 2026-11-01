@@ -327,7 +327,8 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
@@ -360,7 +361,8 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
@@ -373,13 +375,15 @@ LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id =
 WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
 -- name: EntryIDsAfter :many
--- One page of the live entries of a collection - of the whole workspace for no collection - in
+-- One page of the live entries of a collection, of a hub's collections, or of the whole workspace
+-- for neither, in
 -- identifier order after a cursor: the walk that fills a new CALCULATED field on the entries
 -- defined before it (domain-model.md §3.5). Another tenant's rows are absent (row level security).
 SELECT wi.id
 FROM work_item wi
 WHERE wi.deleted_at IS NULL
-  AND (sqlc.narg('collection_id')::uuid IS NULL OR wi.collection_id = sqlc.narg('collection_id')::uuid)
+  AND (sqlc.narg('collection_id')::uuid IS NULL OR wi.collection_id = sqlc.narg('collection_id')::uuid
+       OR wi.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.narg('collection_id')::uuid))
   AND wi.id > sqlc.arg('after')::uuid
 ORDER BY wi.id
 LIMIT sqlc.arg('page_size')::int;
@@ -534,7 +538,8 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
@@ -581,7 +586,8 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
@@ -675,7 +681,8 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,

@@ -1540,6 +1540,7 @@ type CustomFieldDefinition struct {
 	Formula        *string
 	Restricted     bool
 	ReadRestricted bool
+	CopiedFrom     pgtype.UUID
 }
 
 type CustomRole struct {

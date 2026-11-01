@@ -1419,7 +1419,7 @@ CREATE INDEX item_member_reverse_idx ON item_member (tenant_id, account_id, item
 CREATE TABLE custom_field_definition (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id uuid,   -- NULL = tenant-wide
+  collection_id uuid,   -- the collection or the hub (migration 0325); NULL = tenant-wide
   key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
   kind          text NOT NULL CONSTRAINT custom_field_definition_kind_check
                   CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
@@ -1447,7 +1447,9 @@ CREATE TABLE custom_field_definition (
     CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$')),
   CONSTRAINT custom_field_definition_formula_check
     CHECK ((kind = 'CALCULATED') = (formula IS NOT NULL) AND (formula IS NULL OR length(formula) <= 2000)),
-  CONSTRAINT cfd_read_restricted_ck CHECK (NOT read_restricted OR restricted)
+  CONSTRAINT cfd_read_restricted_ck CHECK (NOT read_restricted OR restricted),
+  -- The shared definition a hub's copy was made from; an identifier, not a reference (0325).
+  copied_from   uuid
 );
 CREATE UNIQUE INDEX custom_field_definition_tenant_id_uq ON custom_field_definition (tenant_id, id);
 CREATE INDEX cfd_scope_idx ON custom_field_definition (tenant_id, collection_id) WHERE deleted_at IS NULL;
@@ -6517,14 +6519,20 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON collection_figure_stamp, collection_figu
 
 -- A collection's number of changes: the folded ones and the rows not folded yet, its own and its
 -- workspace's. Monotonic, and unchanged by a fold, which moves rows into the stamp in one commit.
+-- Counts the collection's hub as well (migration 0325).
 CREATE OR REPLACE FUNCTION collection_figure_changes(collection uuid) RETURNS bigint
 LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  WITH scopes AS (
+    SELECT collection AS id
+    UNION ALL SELECT current_tenant_id()
+    UNION ALL SELECT c.parent_id FROM container c WHERE c.id = collection AND c.parent_id IS NOT NULL
+  )
   SELECT coalesce((SELECT sum(s.folded) FROM collection_figure_stamp s
                     WHERE s.tenant_id = current_tenant_id()
-                      AND s.collection_id IN (collection, current_tenant_id())), 0)::bigint
+                      AND s.collection_id IN (SELECT id FROM scopes)), 0)::bigint
        + (SELECT count(*) FROM collection_figure_touch t
            WHERE t.tenant_id = current_tenant_id()
-             AND t.collection_id IN (collection, current_tenant_id()))
+             AND t.collection_id IN (SELECT id FROM scopes))
 $$;
 GRANT EXECUTE ON FUNCTION collection_figure_changes(uuid) TO hubtask_app;
 

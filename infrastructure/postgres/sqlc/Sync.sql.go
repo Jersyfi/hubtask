@@ -1624,11 +1624,13 @@ func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainers
 }
 
 const snapshotCustomFields = `-- name: SnapshotCustomFields :many
-SELECT id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, applies_to,
-       created_at, updated_at, deleted_at, version, restricted, read_restricted
-FROM custom_field_definition
-WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL AND id > $1
-ORDER BY id
+SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.tenant_id = current_tenant_id() AND f.deleted_at IS NULL AND f.id > $1
+ORDER BY f.id
 LIMIT $2
 `
 
@@ -1654,6 +1656,8 @@ type SnapshotCustomFieldsRow struct {
 	Version        int32
 	Restricted     bool
 	ReadRestricted bool
+	CopiedFrom     pgtype.UUID
+	AtHub          bool
 }
 
 // The workspace's custom field definitions in force, each filed under its collection - none for a
@@ -1684,6 +1688,8 @@ func (q *Queries) SnapshotCustomFields(ctx context.Context, arg SnapshotCustomFi
 			&i.Version,
 			&i.Restricted,
 			&i.ReadRestricted,
+			&i.CopiedFrom,
+			&i.AtHub,
 		); err != nil {
 			return nil, err
 		}
@@ -3449,7 +3455,8 @@ SELECT
       SELECT 1 FROM custom_field_definition cfd
        WHERE cfd.deleted_at IS NULL
          AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
-         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+         AND (cfd.collection_id IS NULL OR cfd.collection_id = wi.collection_id
+              OR cfd.collection_id = (SELECT hub.parent_id FROM container hub WHERE hub.id = wi.collection_id))
     ))::jsonb AS custom_fields,
   wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
   wi.origin_jumble_id,
