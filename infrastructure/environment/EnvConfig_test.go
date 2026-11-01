@@ -957,3 +957,36 @@ func TestTrustedProxiesAreValidated(t *testing.T) {
 		t.Errorf("error = %v, want config.trusted_proxy_invalid", err)
 	}
 }
+
+// The per-workspace walls default by mode (multi-tenancy.md §4): single mode has no request wall
+// of its own and a stream cap equal to the process's, so the one company is never refused below
+// the process; multi mode keeps a wall per workspace.
+func TestTheWorkspaceWallsDefaultByMode(t *testing.T) {
+	for _, tc := range []struct {
+		mode                          string
+		token, tenant, streams, procs int
+	}{
+		{"single", 6000, 0, 1024, 1024},
+		{"multi", 600, 3000, 512, 1024},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv("HUBTASK_TENANCY_MODE", tc.mode)
+			cfg, err := load(t)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := []int{cfg.RateLimit.TokenPerMinute, cfg.RateLimit.TenantPerMinute,
+				cfg.LoadShed.StreamsPerTenant, cfg.LoadShed.StreamsPerProcess}
+			want := []int{tc.token, tc.tenant, tc.streams, tc.procs}
+			if !slices.Equal(got, want) {
+				t.Errorf("token, tenant, streams per tenant, per process = %v, want %v", got, want)
+			}
+		})
+	}
+	withRequiredSecrets(t)
+	t.Setenv("HUBTASK_STREAM_PER_PROCESS", "2000")
+	if cfg, err := load(t); err != nil || cfg.LoadShed.StreamsPerTenant != 2000 {
+		t.Errorf("single mode with a larger process cap: per tenant %d, %v", cfg.LoadShed.StreamsPerTenant, err)
+	}
+}

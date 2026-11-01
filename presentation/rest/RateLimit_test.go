@@ -261,6 +261,24 @@ func TestTheTenantLevelCountsPerTenant(t *testing.T) {
 	}
 }
 
+// A tenant rate of zero - single mode's default - is no workspace wall: the company is never
+// refused at the tenant level, however many requests its people make.
+func TestATenantRateOfZeroIsNoWorkspaceWall(t *testing.T) {
+	limited := Limited{
+		Limiter: NewRateLimiter(), Level: "tenant",
+		Bucket: TenantBucket(0, 0),
+		Clock:  func() time.Time { return start },
+	}
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/containers", nil)
+	actor := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: shared.ID("018f2a1b-0000-7000-8000-0000000000ab")}
+	r = r.WithContext(appshared.ContextWithActor(r.Context(), actor))
+	for i := range 5000 {
+		if _, reached := serveLimited(t, limited, r); !reached {
+			t.Fatalf("request %d was refused at the tenant level", i+1)
+		}
+	}
+}
+
 // X-Forwarded-For is written by the client. Believing it would let one caller claim a fresh
 // address per request and walk straight through the anonymous limit.
 func TestTheClientAddressIgnoresForwardedHeaders(t *testing.T) {

@@ -38,6 +38,17 @@ type EnvConfig struct {
 func New(version, commit string) *EnvConfig { return &EnvConfig{version: version, commit: commit} }
 
 func (e *EnvConfig) Load() (env.Config, error) {
+	tenancy := env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single"))
+	// The per-workspace walls default by mode (multi-tenancy.md §4): in single mode the workspace is
+	// the installation, so a wall of its own below the process's would only refuse the company.
+	tokenRate, tenantRate, streamsPerTenant := 600, 3000, 512
+	if tenancy != env.TenancyMulti {
+		tokenRate, tenantRate, streamsPerTenant = 6000, 0, 0
+	}
+	streamsPerProcess := getInt("HUBTASK_STREAM_PER_PROCESS", 1024)
+	if streamsPerTenant == 0 {
+		streamsPerTenant = streamsPerProcess
+	}
 	cfg := env.Config{
 		Version:              e.version,
 		Commit:               e.commit,
@@ -46,7 +57,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		BaseURL:              get("HUBTASK_BASE_URL", ""),
 		LogFormat:            get("HUBTASK_LOG_FORMAT", "json"),
 		LogLevel:             get("HUBTASK_LOG_LEVEL", "info"),
-		Tenancy:              env.TenancyMode(get("HUBTASK_TENANCY_MODE", "single")),
+		Tenancy:              tenancy,
 		InstanceFile:         get("HUBTASK_INSTANCE_FILE", ""),
 		InstanceFileMode:     get("HUBTASK_INSTANCE_FILE_MODE", "seed"),
 		StepUpWindow:         getDuration("HUBTASK_STEP_UP_WINDOW", 5*time.Minute),
@@ -95,9 +106,10 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		},
 		RateLimit: env.RateLimitConfig{
 			AnonymousPerMinute: getInt("HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE", 60),
-			TokenPerMinute:     getInt("HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE", 600),
-			TenantPerMinute:    getInt("HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE", 3000),
-			AuthPerMinute:      getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
+			TokenPerMinute:     getInt("HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE", tokenRate),
+			// Zero is no workspace wall, single mode's default.
+			TenantPerMinute: getInt("HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE", tenantRate),
+			AuthPerMinute:   getInt("HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE", 10),
 			// Sixty, because a browser opening a page *is* a burst: it does not pace itself, and
 			// the product's own first paint of a cold entry page is 24 requests (F9 brought it
 			// down from 38). At 20 two of them were answered 429 and retried, which works and is
@@ -125,12 +137,13 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Inflight:   getInt("HUBTASK_LOAD_SHED_INFLIGHT", 64),
 			RetryAfter: getDuration("HUBTASK_LOAD_SHED_RETRY_AFTER", 5*time.Second),
 			// Eight per client: tabs, boards and pages open at once, each a stream or a side
-			// connection with a share of its own. 512 per workspace and 1024 per pod: a company of
-			// a few hundred on one pod is never refused, and a full complement of goroutines and
-			// sockets stays far inside a container's default memory and file limits.
+			// connection with a share of its own. 512 per workspace (in multi mode; the process's
+			// in single) and 1024 per pod: a company of a few hundred on one pod is never refused,
+			// and a full complement of goroutines and sockets stays far inside a container's
+			// default memory and file limits.
 			StreamsPerCredential: getInt("HUBTASK_STREAM_PER_CREDENTIAL", 8),
-			StreamsPerTenant:     getInt("HUBTASK_STREAM_PER_TENANT", 512),
-			StreamsPerProcess:    getInt("HUBTASK_STREAM_PER_PROCESS", 1024),
+			StreamsPerTenant:     getInt("HUBTASK_STREAM_PER_TENANT", streamsPerTenant),
+			StreamsPerProcess:    streamsPerProcess,
 		},
 		Request: env.RequestConfig{
 			MaxBodyBytes:   int64(getInt("HUBTASK_MAX_BODY_BYTES", 1<<20)),   // 1 MiB
@@ -538,7 +551,6 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 	for variable, v := range map[string]int{
 		"HUBTASK_RATE_LIMIT_ANONYMOUS_PER_MINUTE": r.AnonymousPerMinute,
 		"HUBTASK_RATE_LIMIT_TOKEN_PER_MINUTE":     r.TokenPerMinute,
-		"HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE":    r.TenantPerMinute,
 		"HUBTASK_RATE_LIMIT_AUTH_PER_MINUTE":      r.AuthPerMinute,
 		"HUBTASK_RATE_LIMIT_BURST":                r.Burst,
 	} {
@@ -547,6 +559,9 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 			// a rate limit that is off by accident is exactly what T-17 is about.
 			errs = append(errs, configError("config.rate_limit_invalid", variable))
 		}
+	}
+	if r.TenantPerMinute < 0 {
+		errs = append(errs, configError("config.rate_limit_invalid", "HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE"))
 	}
 	if r.TenantBurst < 0 {
 		errs = append(errs, configError("config.rate_limit_invalid", "HUBTASK_RATE_LIMIT_TENANT_BURST"))

@@ -358,11 +358,12 @@ func isAuthRoute(r *http.Request) bool {
 }
 
 // TenantBucket counts per tenant, so that one busy token cannot spend a whole tenant's budget and
-// one busy tenant cannot spend the installation's. It applies only once authentication has run.
+// one busy tenant cannot spend the installation's. It applies only once authentication has run;
+// a perMinute of zero is no workspace wall (single mode's default).
 func TenantBucket(perMinute, burst int) func(*http.Request) Bucket {
 	return func(r *http.Request) Bucket {
 		actor, ok := appshared.ActorFrom(r.Context())
-		if !ok || !actor.IsAuthenticated() {
+		if perMinute <= 0 || !ok || !actor.IsAuthenticated() {
 			return Bucket{}
 		}
 		return Bucket{Key: actor.TenantID.String(), Limit: perMinute, Burst: burst}

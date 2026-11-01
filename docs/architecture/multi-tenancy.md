@@ -284,6 +284,8 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|
 | API requests/min per token | 600 | 6,000 |
+| API requests/min per workspace, per process (`HUBTASK_RATE_LIMIT_TENANT_PER_MINUTE`) | 3,000 | None |
+| Live connections per workspace, per process (`HUBTASK_STREAM_PER_TENANT`) | 512 | The process's cap (1,024) |
 | Items per tenant | Unlimited unless a plan or the operator sets it | Unlimited |
 | Media storage | Unlimited unless a plan or the operator sets it | Disk space |
 | Automation runs/hour | 1,000 | 100,000 |
@@ -295,6 +297,9 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | AI tokens per day, offered models | 200,000 | Unlimited |
 | AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 | Jumble arrivals asked about on arrival per day | 200 | 200 |
+
+The two per-process rows are each process's configuration, not quotas: no plan or exception moves
+them, and with N replicas a workspace may reach N times the number.
 
 **The AI budget** is counted per source in provider-reported tokens over the workspace's calendar
 day — midnight in `tenant.default_time_zone`, which is when it renews (UC-AI-07 check 2) — from the
