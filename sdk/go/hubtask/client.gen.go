@@ -16098,6 +16098,15 @@ type EntryOnCi struct {
 type EntryRequester struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
+	// Assets The configuration items the requester owns that the reader may read, by name, at most 20.
+	Assets []struct {
+		Class string             `json:"class"`
+		HubId openapi_types.UUID `json:"hub_id"`
+		Id    openapi_types.UUID `json:"id"`
+		Name  string             `json:"name"`
+		Stage string             `json:"stage"`
+	} `json:"assets"`
+
 	// Organisation The portal organisation of the requester's mail domain; null for none.
 	Organisation *struct {
 		Key  string `json:"key"`
@@ -36160,7 +36169,7 @@ type ClientInterface interface {
 
 	// ReadEntryRequester Who raised the entry, and their organisation
 	//
-	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 	//
 	// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
 	ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -54023,7 +54032,7 @@ func (c *Client) RenderReplyTemplate(ctx context.Context, itemId ItemId, templat
 
 // ReadEntryRequester Who raised the entry, and their organisation
 //
-// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 //
 // Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
 func (c *Client) ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -109130,7 +109139,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadEntryRequesterWithResponse Who raised the entry, and their organisation
 	//
-	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -164933,7 +164942,7 @@ func (c *ClientWithResponses) RenderReplyTemplateWithResponse(ctx context.Contex
 
 // ReadEntryRequesterWithResponse Who raised the entry, and their organisation
 //
-// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //

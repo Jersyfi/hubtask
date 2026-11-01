@@ -16092,6 +16092,15 @@ type EntryOnCi struct {
 type EntryRequester struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
+	// Assets The configuration items the requester owns that the reader may read, by name, at most 20.
+	Assets []struct {
+		Class string             `json:"class"`
+		HubId openapi_types.UUID `json:"hub_id"`
+		Id    openapi_types.UUID `json:"id"`
+		Name  string             `json:"name"`
+		Stage string             `json:"stage"`
+	} `json:"assets"`
+
 	// Organisation The portal organisation of the requester's mail domain; null for none.
 	Organisation *struct {
 		Key  string `json:"key"`

@@ -3707,7 +3707,9 @@ paths:
       description: >
         The person who raised the entry - its creator - and the portal organisation their mail
         domain belongs to, if any, for the side panel a handler reads beside a request; their other
-        requests are a query by `created_by`, which answers what the reader may see. The address
+        requests are a query by `created_by`, which answers what the reader may see. Also up to 20
+        configuration items the requester owns, by name, of the hubs where the reader may read
+        them and assets are switched on; merged and disposed ones are left out. The address
         itself is not answered. Needs READ on the entry and the service desk switched on.
       responses:
         "200":
@@ -29693,9 +29695,23 @@ components:
         shares_requests: { type: boolean }
     EntryRequester:
       type: object
-      required: [account_id, organisation]
+      required: [account_id, organisation, assets]
       properties:
         account_id: { type: string, format: uuid }
+        assets:
+          description: >
+            The configuration items the requester owns that the reader may read, by name, at most
+            20.
+          type: array
+          items:
+            type: object
+            required: [id, hub_id, class, name, stage]
+            properties:
+              id: { type: string, format: uuid }
+              hub_id: { type: string, format: uuid }
+              class: { type: string }
+              name: { type: string }
+              stage: { type: string }
         organisation:
           description: The portal organisation of the requester's mail domain; null for none.
           oneOf:

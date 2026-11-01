@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: built
 tasks: []
-checked_by: [infrastructure/postgres/query/Sla_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
+checked_by: [infrastructure/postgres/query/Sla_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts]
 ---
 
 # Work the queue by what breaks first
@@ -30,6 +30,7 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 6. A handler splits a part off a request (*Split a part off…*, `POST /items/{id}:split`): a new entry beside it with the title and notes given, whose creator is the request's requester, carrying neither the comments nor the history, and linked from the request by the link type chosen; a link type the workspace does not have is refused as `links.type_unknown` before anything is made.
 7. A handler reading a request sees, beside it, who raised it, the portal organisation of their mail domain and their other open requests the handler may see, newest first; the requester's address is not shown, and somebody who may not read the request is answered not found.
 8. After a merge, a public reply on the request merged into reaches the merged request's requester too: a requester by mail gets the reply's mail with the ticket key of the request merged into, each address once, and a portal requester is told under *The team answers a request I raised* on their own request; an internal note reaches neither.
+9. Beside a request the handler also sees up to twenty configuration items its requester owns, by name, only of the hubs where the handler may read them and assets are switched on; merged and disposed ones are left out, and another workspace's never appear.
 
 ## Where it ends
 
