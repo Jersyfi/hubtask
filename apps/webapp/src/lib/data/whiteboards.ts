@@ -9,7 +9,7 @@
  */
 
 import { values } from '@hubtask/design-system';
-import { box, type Colours, type Element } from '@hubtask/whiteboard';
+import { box, withinFrame, type Colours, type Element } from '@hubtask/whiteboard';
 
 export const liveBoardPath = (boardId: string) => `/realtime/documents/whiteboard/${encodeURIComponent(boardId)}`;
 
@@ -50,6 +50,35 @@ export function readNative(text: string): { title: string; elements: Element[] }
 /** The entries a board's cards draw, once each. */
 export function cardEntries(elements: readonly Element[]): string[] {
   return [...new Set(elements.flatMap((e) => (e.kind === 'CARD' && e.target ? [e.target.id] : [])))];
+}
+
+/**
+ * What a board says, in reading order (SC 1.1.1, 1.3.1): frame by frame, top to bottom and left
+ * to right, each with the words of the objects it holds in the same order, and then what lies in
+ * no frame. An object two frames hold is said in the first. Lines, connectors and empty objects
+ * say nothing and are left out; `wordsOf` gives a card or link the words its picture shows.
+ */
+export function boardInWords(
+  elements: readonly Element[],
+  wordsOf: (e: Element) => string,
+): { readonly frame?: string; readonly key: string; readonly words: readonly string[] }[] {
+  const reading = (a: Element, b: Element) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id);
+  const sayable = (e: Element) => e.kind !== 'FRAME' && e.kind !== 'CONNECTOR' && e.kind !== 'STROKE';
+  const said = new Set<string>();
+  const out: { frame?: string; key: string; words: string[] }[] = [];
+  const take = (held: readonly Element[]) =>
+    held.filter((e) => sayable(e) && !said.has(e.id)).sort(reading).flatMap((e) => {
+      said.add(e.id);
+      const words = wordsOf(e).trim();
+      return words ? [words] : [];
+    });
+  for (const frame of elements.filter((e) => e.kind === 'FRAME').sort(reading)) {
+    const words = take(withinFrame(elements, frame));
+    if (words.length > 0 || frame.text) out.push({ frame: frame.text ?? '', key: frame.id, words });
+  }
+  const loose = take(elements);
+  if (loose.length > 0) out.push({ key: '', words: loose });
+  return out;
 }
 
 /** The colour another person's cursor is drawn in: one of the label colours, the same on every device. */

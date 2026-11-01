@@ -9221,6 +9221,8 @@
   "app.whiteboards.card_undone": "Mark not done",
   "app.whiteboards.file_open_button": "Open the file",
   "app.whiteboards.canvas_live": "Whiteboard “{title}”, {count} objects, drawn as people draw on it.",
+  "app.whiteboards.board_in_words": "The board in words",
+  "app.whiteboards.outside_frames": "Outside any frame",
   "app.whiteboards.canvas_role": "whiteboard",
   "app.whiteboards.words": "Words",
   "app.whiteboards.side": "The chosen object",

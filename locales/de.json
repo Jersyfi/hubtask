@@ -9221,6 +9221,8 @@
   "app.whiteboards.card_undone": "Als nicht erledigt markieren",
   "app.whiteboards.file_open_button": "Datei öffnen",
   "app.whiteboards.canvas_live": "Whiteboard „{title}“, {count} Objekte, live gezeichnet.",
+  "app.whiteboards.board_in_words": "Das Board in Worten",
+  "app.whiteboards.outside_frames": "Außerhalb der Rahmen",
   "app.whiteboards.canvas_role": "Whiteboard",
   "app.whiteboards.words": "Text",
   "app.whiteboards.side": "Das gewählte Objekt",

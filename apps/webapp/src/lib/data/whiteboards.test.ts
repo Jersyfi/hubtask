@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  backlinkHref, boardFileName, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
+  backlinkHref, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
   threadsOf, voterKey,
 } from './whiteboards.ts';
 
@@ -92,4 +92,25 @@ test('a person is named by their address and drawn by their name (UC-CNV-09 chec
   assert.equal(body, `Ask [@Bert B](hubtask:person/${id}) today`);
   assert.deepEqual(commentParts(body), [{ text: 'Ask ' }, { person: id, name: 'Bert B' }, { text: ' today' }]);
   assert.deepEqual(commentParts('plain'), [{ text: 'plain' }]);
+});
+
+test('a board is said in reading order, frame by frame, and then what lies in no frame (SC 1.1.1)', () => {
+  const at = (id: string, kind: string, x: number, y: number, text?: string, size = 100) =>
+    ({ id, kind, x, y, width: size, height: size, ...(text === undefined ? {} : { text }) }) as never;
+  const elements = [
+    at('f2', 'FRAME', 0, 400, 'Stop', 300),
+    at('f1', 'FRAME', 0, 0, 'Start', 300),
+    at('b', 'STICKY', 150, 20, 'Pair more'),
+    at('a', 'STICKY', 20, 20, 'Demo weekly'),
+    at('c', 'STICKY', 20, 420, 'Late merges'),
+    at('empty', 'STICKY', 150, 420, '  '),
+    at('loose', 'TEXT', 900, 900, 'Parking lot'),
+    at('pen', 'STROKE', 30, 30),
+    { id: 'line', kind: 'CONNECTOR', from: 'a', to: 'b', x: 0, y: 0, width: 0, height: 0 } as never,
+  ];
+  assert.deepEqual(boardInWords(elements, (e) => e.text ?? ''), [
+    { frame: 'Start', key: 'f1', words: ['Demo weekly', 'Pair more'] },
+    { frame: 'Stop', key: 'f2', words: ['Late merges'] },
+    { key: '', words: ['Parking lot'] },
+  ]);
 });

@@ -18,7 +18,7 @@
   import { engine } from '../data/engine.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
-  import { BOARD_COLOURS, boardPath, cardEntries, whiteboards } from '../data/whiteboards.svelte.ts';
+  import { BOARD_COLOURS, boardInWords, boardPath, cardEntries, whiteboards } from '../data/whiteboards.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -78,6 +78,19 @@
   const colour = (e: Element, part: 'bg' | 'fg') =>
     e.color_token && (BOARD_COLOURS as readonly string[]).includes(e.color_token) ? tokens.label[e.color_token as (typeof BOARD_COLOURS)[number]][part] : undefined;
   const path = $derived(frameElement ? `/whiteboards/${boardId}#${frameElement.id}` : `/whiteboards/${boardId}`);
+
+  // The picture's words as text (SC 1.1.1, 1.3.1, 1.4.4): drawn at the board's scale they are
+  // unreadably small on a large board and hidden from a screen reader inside role="img".
+  const wordsOf = (e: Element) => {
+    if (e.kind === 'CARD') {
+      const target = e.target ? cards.get(e.target.id.toLowerCase()) : undefined;
+      return (target?.available ? target.title : undefined) ?? t('app.whiteboards.card_unavailable');
+    }
+    if (e.kind === 'LINK') return linkHost(e.url ?? '');
+    return e.text ?? '';
+  };
+  const said = $derived(boardInWords(elements, wordsOf));
+  const wordsId = $derived(`board-words-${boardId}${frameElement ? `-${frameElement.id}` : ''}`);
 </script>
 
 <figure class="view">
@@ -93,7 +106,7 @@
     {#if frame && !frameElement}
       <p class="quiet">{t('whiteboards.frame_not_found')}</p>
     {:else}
-      <svg class="picture" {viewBox} role="img" aria-label={t('app.whiteboards.canvas_live', { title: board.title, count: String(elements.length) })}>
+      <svg class="picture" {viewBox} role="img" aria-label={t('app.whiteboards.canvas_live', { title: board.title, count: String(elements.length) })} aria-describedby={said.length > 0 ? wordsId : undefined}>
         <defs>
           <marker id={`wbv-arrow-${boardId}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
             <path d="M 0 0 L 10 5 L 0 10 z" class="head-mark" />
@@ -121,6 +134,17 @@
           {/if}
         {/each}
       </svg>
+      {#if said.length > 0}
+        <details class="said" id={wordsId} data-board-words>
+          <summary>{t('app.whiteboards.board_in_words')}</summary>
+          {#each said as part (part.key)}
+            {#if part.frame !== undefined}<p class="part">{part.frame || t('app.whiteboards.kind_frame')}</p>{:else if said.length > 1}<p class="part">{t('app.whiteboards.outside_frames')}</p>{/if}
+            {#if part.words.length > 0}
+              <ul class="said-list">{#each part.words as words, i (i)}<li>{words}</li>{/each}</ul>
+            {/if}
+          {/each}
+        </details>
+      {/if}
     {/if}
   {/if}
 </figure>
@@ -141,4 +165,8 @@
   .object.shape { stroke: var(--text-primary); stroke-width: 1.5; }
   .card { fill: var(--bg-raised); stroke: var(--border-default); }
   .words { fill: var(--text-primary); font-size: var(--fs-100); }
+  .said { font-size: var(--fs-075); color: var(--text-secondary); }
+  .said summary { cursor: pointer; }
+  .part { margin: var(--sp-100) 0 0; font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-primary); }
+  .said-list { margin: var(--sp-025) 0 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-025); color: var(--text-primary); }
 </style>
