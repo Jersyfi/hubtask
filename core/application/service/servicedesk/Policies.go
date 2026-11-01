@@ -6,13 +6,17 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -101,6 +105,13 @@ func PolicyOutput(p domain.SLAPolicy) usecase.Output {
 	if p.IsOLA() {
 		out["assignee_group"] = p.AssigneeGroup.String()
 	}
+	// Left out for a workspace's policy, so its configuration document stays as it was.
+	if !p.HubID.IsZero() {
+		out["hub_id"] = p.HubID.String()
+	}
+	if p.CopiedFrom != "" {
+		out["copied_from"] = p.CopiedFrom
+	}
 	return out
 }
 
@@ -116,11 +127,92 @@ func (h ListSlaPolicies) Execute(ctx context.Context, actor appshared.ActorConte
 	}
 	var out []domain.SLAPolicy
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		out, err = h.Desk.Policies.List(ctx)
+		all, err := h.Desk.Policies.List(ctx)
+		if err != nil {
+			return err
+		}
+		out, err = h.Desk.visiblePolicies(ctx, actor, all)
 		return err
 	})
 	return out, err
+}
+
+// visiblePolicies leaves out the policies of hubs the caller may not read; nothing is audited, a
+// policy left out of a list is nobody refused (audit.md §4).
+func (d Desk) visiblePolicies(ctx context.Context, actor appshared.ActorContext, all []domain.SLAPolicy) ([]domain.SLAPolicy, error) {
+	var hubs []shared.ID
+	for _, p := range all {
+		if !p.HubID.IsZero() && !slices.Contains(hubs, p.HubID) {
+			hubs = append(hubs, p.HubID)
+		}
+	}
+	readable := map[shared.ID]bool{}
+	if len(hubs) > 0 && d.Visibility != nil {
+		paths := make([][]identity.Scope, 0, len(hubs))
+		for _, hub := range hubs {
+			paths = append(paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		allowed, err := d.Visibility.Permitted(ctx, actor, access.Request{
+			Permission: service.PermissionRead, Action: PoliciesReadAction, TokenScope: deskRead, TargetType: policyTarget,
+		}, paths)
+		if err != nil {
+			return nil, err
+		}
+		for i, hub := range hubs {
+			readable[hub] = i < len(allowed) && allowed[i]
+		}
+	}
+	out := make([]domain.SLAPolicy, 0, len(all))
+	for _, p := range all {
+		if p.HubID.IsZero() || readable[p.HubID] {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// authorizePolicyAt asks STRUCTURE where the policy is defined: the workspace, or a living hub
+// for a hub's own (UC-SVC-02 check 11). Before any transaction, so that a refusal's audit entry
+// is not rolled back with it (audit.md §7).
+func (d Desk) authorizePolicyAt(ctx context.Context, actor appshared.ActorContext, action audit.Action, hubID shared.ID) error {
+	if hubID.IsZero() {
+		return d.authorizeWrite(ctx, actor, action, policyTarget)
+	}
+	var hub work.Container
+	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		hub, err = d.Containers.Find(ctx, hubID)
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) || (err == nil && (hub.Type != work.ContainerHub || hub.DeletedAt != nil)) {
+		return appshared.ContainerNotFound(hubID)
+	}
+	if err != nil {
+		return err
+	}
+	return d.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionStructure, Path: service.ContainerScopes(hub),
+		Action: action, TokenScope: deskWrite, TargetType: policyTarget, TargetID: hubID,
+	})
+}
+
+// policyHub answers the hub an existing policy of the key is defined at; zero for none or the
+// workspace's. A policy's hub never changes, so reading it before the write decides nothing the
+// write could move.
+func (d Desk) policyHub(ctx context.Context, actor appshared.ActorContext, key string) (shared.ID, bool, error) {
+	var (
+		hub   shared.ID
+		found bool
+	)
+	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		current, err := d.Policies.Find(ctx, strings.TrimSpace(key))
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		hub, found = current.HubID, err == nil
+		return err
+	})
+	return hub, found, err
 }
 
 // Descriptor is the catalogue entry.
@@ -159,6 +251,9 @@ type DefineSLAPolicyCommand struct {
 	Position        int
 	Enabled         bool
 	ExpectedVersion int
+	// HubID defines the policy at that hub; zero is the whole workspace. A policy's hub never
+	// changes.
+	HubID shared.ID
 }
 
 // DefineSlaPolicy creates a policy under a key, or replaces the one there (UC-SVC-02). A change
@@ -169,18 +264,32 @@ type DefineSlaPolicy struct{ Desk Desk }
 
 // Execute defines the policy.
 func (h DefineSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineSLAPolicyCommand) (domain.SLAPolicy, error) {
-	if err := h.Desk.authorizeWrite(ctx, actor, PolicyDefinedAction, policyTarget); err != nil {
+	// A replacement is asked where the policy already is; a new one where it is to be.
+	existing, held, err := h.Desk.policyHub(ctx, actor, cmd.Key)
+	if err != nil {
 		return domain.SLAPolicy{}, err
 	}
+	at := cmd.HubID
+	if held {
+		at = existing
+	}
+	if err := h.Desk.authorizePolicyAt(ctx, actor, PolicyDefinedAction, at); err != nil {
+		return domain.SLAPolicy{}, err
+	}
+	if held && existing != cmd.HubID {
+		return domain.SLAPolicy{}, shared.ErrConflict.WithDetail("sla_policies.hub_fixed").
+			WithFields(shared.FieldError{Path: "/hub_id", Code: "sla_policies.hub_fixed"})
+	}
+
 	now := h.Desk.Clock.Now()
 	input := domain.NewSLAPolicyInput{
 		ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Name: cmd.Name,
 		CalendarKey: cmd.CalendarKey, EntryTypes: cmd.EntryTypes, Organisations: cmd.Organisations,
 		PriorityField: cmd.PriorityField, AssigneeGroup: cmd.AssigneeGroup, Goals: cmd.Goals, Position: cmd.Position,
-		Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text,
+		Enabled: cmd.Enabled, Now: now, Text: h.Desk.Text, HubID: cmd.HubID,
 	}
 	var out domain.SLAPolicy
-	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Desk.calendarHeld(ctx, strings.TrimSpace(cmd.CalendarKey)); err != nil {
 			return err
 		}
@@ -249,6 +358,7 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 			{Name: "goals", Kind: usecase.KindList, Required: true, Description: "{kind: FIRST_RESPONSE, NEXT_RESPONSE or RESOLUTION, minutes, by_priority, pause_statuses, warn_percent}, each kind once."},
 			{Name: "position", Kind: usecase.KindInt, Description: "The order in which policies are tried; lower first."},
 			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether the policy measures new entries; true when absent."},
+			{Name: "hub_id", Kind: usecase.KindID, Description: "Defines the policy at this hub, whose entries alone it measures; unset is the whole workspace."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a replacement of a newer one is refused."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PolicyDefinedAction},
@@ -275,10 +385,14 @@ func (h DefineSlaPolicy) Descriptor() usecase.Descriptor {
 					return nil, err
 				}
 			}
+			hub, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
 			defined, err := h.Execute(ctx, actor, DefineSLAPolicyCommand{
 				Key: in.String("key"), Name: in.String("name"), CalendarKey: in.String("calendar"),
 				EntryTypes: types, Organisations: organisations, PriorityField: in.String("priority_field"),
-				AssigneeGroup: group, Goals: goals,
+				AssigneeGroup: group, Goals: goals, HubID: hub,
 				Position: in.Int("position"), Enabled: enabled, ExpectedVersion: in.Int("expected_version"),
 			})
 			if err != nil {
@@ -297,7 +411,11 @@ type DeleteSlaPolicy struct{ Desk Desk }
 
 // Execute deletes the policy.
 func (h DeleteSlaPolicy) Execute(ctx context.Context, actor appshared.ActorContext, key string) error {
-	if err := h.Desk.authorizeWrite(ctx, actor, PolicyDeletedAction, policyTarget); err != nil {
+	hub, _, err := h.Desk.policyHub(ctx, actor, key)
+	if err != nil {
+		return err
+	}
+	if err := h.Desk.authorizePolicyAt(ctx, actor, PolicyDeletedAction, hub); err != nil {
 		return err
 	}
 	now := h.Desk.Clock.Now()

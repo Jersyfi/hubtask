@@ -170,7 +170,11 @@ func (s OLAClocks) arm(
 	if item.Completion.IsCompleted || item.DeletedAt != nil || item.AssigneeID.IsZero() {
 		return nil
 	}
-	for _, policy := range domain.OLAsFor(policies, item.EntryType) {
+	within, err := policiesFor(ctx, s.Containers, item, policies)
+	if err != nil {
+		return err
+	}
+	for _, policy := range domain.OLAsFor(within, item.EntryType) {
 		if slices.ContainsFunc(records, func(r domain.EntrySLA) bool { return r.PolicyKey == policy.Key }) {
 			continue
 		}

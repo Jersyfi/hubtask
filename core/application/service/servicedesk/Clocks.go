@@ -220,7 +220,11 @@ func (s SLAClocks) choose(ctx context.Context, item work.WorkItem, policies []do
 			}
 		}
 	}
-	policy, covered := domain.Choose(policies, item.EntryType, organisation)
+	within, err := policiesFor(ctx, s.Containers, item, policies)
+	if err != nil {
+		return domain.SLAPolicy{}, false, err
+	}
+	policy, covered := domain.Choose(within, item.EntryType, organisation)
 	return policy, covered, nil
 }
 

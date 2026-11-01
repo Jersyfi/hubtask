@@ -86,12 +86,20 @@ type Desk struct {
 	// HubCalendars and Containers serve a hub's own calendars: the hub is read to ask there.
 	HubCalendars repository.HubCalendars
 	Containers   workrepo.Containers
-	Authorizer   Authorizer
-	Audit        audit.Sink
-	UnitOfWork   persistence.UnitOfWork
-	Clock        clock.Clock
-	IDs          clock.IDGenerator
-	Text         text.Normalizer
+	// Visibility narrows the policies listed to the hubs the caller may read (UC-SVC-02 check
+	// 11). Nil lists the workspace's alone, so a build without it never shows a private hub's.
+	Visibility Visibility
+	Authorizer Authorizer
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
+	Text       text.Normalizer
+}
+
+// Visibility answers, per path, whether the caller may read it, without auditing a row left out.
+type Visibility interface {
+	Permitted(ctx context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error)
 }
 
 func (d Desk) authorizeWrite(ctx context.Context, actor appshared.ActorContext, action audit.Action, target string) error {

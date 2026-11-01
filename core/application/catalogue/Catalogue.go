@@ -177,6 +177,7 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.DeleteHubCalendar{}.Descriptor(),
 		servicedeskservice.ListSlaPolicies{}.Descriptor(),
 		servicedeskservice.DefineSlaPolicy{}.Descriptor(),
+		servicedeskservice.CopySlaPolicyHere{}.Descriptor(),
 		servicedeskservice.DeleteSlaPolicy{}.Descriptor(),
 		servicedeskservice.ReadEntrySla{}.Descriptor(),
 		servicedeskservice.ReadEntryRequester{}.Descriptor(),

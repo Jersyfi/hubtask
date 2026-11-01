@@ -1976,7 +1976,7 @@ func run() error {
 		Ratings:       deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
 		Organisations: serviceDeskStore.Organisations(),
 		HubCalendars:  serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms, Visibility: authorizer,
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the
 	// registry, on the PORTAL door.
@@ -2285,6 +2285,7 @@ func run() error {
 		servicedeskservice.DeleteHubCalendar{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListSlaPolicies{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineSlaPolicy{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.CopySlaPolicyHere{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
 		servicedeskservice.ReadEntryRequester{Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts}.Descriptor(),
