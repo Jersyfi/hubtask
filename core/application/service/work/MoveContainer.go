@@ -49,6 +49,9 @@ type MoveContainer struct {
 	// EntryTypes refuses a move out of a hub while an entry of the collection carries a type
 	// defined at that hub (UC-FLW-01 check 10). Nil asks nothing.
 	EntryTypes repository.EntryTypes
+	// Workflows refuses a move out of a hub while the collection's own scheme row runs a workflow
+	// defined at that hub (UC-FLW-02 check 9). Nil asks nothing.
+	Workflows repository.Workflows
 }
 
 // MoveRevoker is the slice of access.Revocations a move needs: who may have lost the collection,
@@ -135,6 +138,9 @@ func (h MoveContainer) Execute(
 			if bound {
 				return hubBound()
 			}
+		}
+		if err := keepsHubWorkflows(ctx, h.Workflows, fresh.ID, fresh.ParentID, destination.ID); err != nil {
+			return err
 		}
 		if len(changes) == 0 {
 			// It already sits where the caller asked for, at the rank it asked for. Nothing is

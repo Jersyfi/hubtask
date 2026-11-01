@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"slices"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -97,4 +98,37 @@ func keepsHubTypes(
 func hubBound() error {
 	return shared.ErrConflict.WithDetail("entry_types.hub_bound").
 		WithFields(shared.FieldError{Path: "/entry_type", Code: "entry_types.hub_bound"})
+}
+
+// keepsHubWorkflows refuses moving a collection out of its hub while the collection's own scheme
+// row runs a workflow defined at that hub (UC-FLW-02 check 9): outside the hub nothing may run it.
+// The row is changed first, which moves the entries' statuses with a preview.
+func keepsHubWorkflows(ctx context.Context, workflows repository.Workflows, collection, from, to shared.ID) error {
+	if workflows == nil || from == to || from.IsZero() {
+		return nil
+	}
+	schemes, err := workflows.Schemes(ctx)
+	if err != nil {
+		return err
+	}
+	var keys []string
+	for _, scheme := range schemes {
+		if scheme.ContainerID == collection {
+			keys = append(keys, scheme.WorkflowKey)
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	rows, err := workflows.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if row.HubID == from && slices.Contains(keys, row.Key) {
+			return shared.ErrConflict.WithDetail("workflows.hub_bound").
+				WithFields(shared.FieldError{Path: "/parent_id", Code: "workflows.hub_bound"})
+		}
+	}
+	return nil
 }
