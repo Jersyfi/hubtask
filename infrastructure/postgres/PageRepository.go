@@ -72,6 +72,35 @@ func (PageRepository) Find(ctx context.Context, id shared.ID) (knowledge.Page, e
 	return pageFrom(row)
 }
 
+// UnderReview answers the untrashed pages whose verification runs past now, after one id and in id
+// order - each with only its identity and verification date.
+func (PageRepository) UnderReview(ctx context.Context, now time.Time, after shared.ID, limit int) ([]knowledge.Page, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := cursorOf(after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListPagesUnderReview(ctx, sqlc.ListPagesUnderReviewParams{
+		Now: timestampOf(now), AfterID: cursor, MaxRows: int32(limit), //nolint:gosec // bounded by the use case
+	})
+	if err != nil {
+		return nil, pageFailed("listing the pages under review", err)
+	}
+	out := make([]knowledge.Page, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		until := row.VerifiedUntil.Time
+		out = append(out, knowledge.Page{ID: id, VerifiedUntil: &until})
+	}
+	return out, nil
+}
+
 // FindForUpdate answers a page and locks it.
 func (PageRepository) FindForUpdate(ctx context.Context, id shared.ID) (knowledge.Page, error) {
 	queries, err := queriesFrom(ctx)

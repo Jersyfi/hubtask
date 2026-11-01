@@ -1681,21 +1681,22 @@ type EntryLink struct {
 }
 
 type EntryOla struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	ItemID        pgtype.UUID
-	PolicyKey     string
-	GroupID       pgtype.UUID
-	Goal          string
-	TargetSeconds int64
-	Standing      string
-	ArmedAt       pgtype.Timestamptz
-	DueAt         pgtype.Timestamptz
-	AtRiskAt      pgtype.Timestamptz
-	MetAt         pgtype.Timestamptz
-	BreachedAt    pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Version       int32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	PolicyKey       string
+	GroupID         pgtype.UUID
+	Goal            string
+	TargetSeconds   int64
+	Standing        string
+	ArmedAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	AtRiskAt        pgtype.Timestamptz
+	MetAt           pgtype.Timestamptz
+	BreachedAt      pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	ConsumedSeconds *int64
 }
 
 type EntryReference struct {
@@ -1719,20 +1720,21 @@ type EntrySchedule struct {
 }
 
 type EntrySla struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	ItemID        pgtype.UUID
-	Goal          string
-	PolicyKey     string
-	TargetSeconds int64
-	Standing      string
-	ArmedAt       pgtype.Timestamptz
-	DueAt         pgtype.Timestamptz
-	AtRiskAt      pgtype.Timestamptz
-	MetAt         pgtype.Timestamptz
-	BreachedAt    pgtype.Timestamptz
-	UpdatedAt     pgtype.Timestamptz
-	Version       int32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	Goal            string
+	PolicyKey       string
+	TargetSeconds   int64
+	Standing        string
+	ArmedAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	AtRiskAt        pgtype.Timestamptz
+	MetAt           pgtype.Timestamptz
+	BreachedAt      pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	ConsumedSeconds *int64
 }
 
 type EntryStatusChange struct {

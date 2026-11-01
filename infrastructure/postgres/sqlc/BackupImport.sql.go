@@ -5327,8 +5327,8 @@ func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams
 }
 
 const importEntryOla = `-- name: ImportEntryOla :execrows
-INSERT INTO entry_ola (id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, updated_at, version)
-SELECT r.id, r.tenant_id, r.item_id, r.policy_key, r.group_id, r.goal, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.updated_at, r.version
+INSERT INTO entry_ola (id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, consumed_seconds, updated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.policy_key, r.group_id, r.goal, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.consumed_seconds, r.updated_at, r.version
 FROM jsonb_populate_record(
   NULL::entry_ola,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -5336,8 +5336,8 @@ FROM jsonb_populate_record(
 ON CONFLICT (id) DO UPDATE SET
   group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds, standing = EXCLUDED.standing,
   armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at, at_risk_at = EXCLUDED.at_risk_at,
-  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, consumed_seconds = EXCLUDED.consumed_seconds,
+  updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
 WHERE $2::boolean
 `
 
@@ -5381,8 +5381,8 @@ func (q *Queries) ImportEntrySchedule(ctx context.Context, arg ImportEntrySchedu
 }
 
 const importEntrySla = `-- name: ImportEntrySla :execrows
-INSERT INTO entry_sla (id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, updated_at, version)
-SELECT r.id, r.tenant_id, r.item_id, r.goal, r.policy_key, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.updated_at, r.version
+INSERT INTO entry_sla (id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at, at_risk_at, met_at, breached_at, consumed_seconds, updated_at, version)
+SELECT r.id, r.tenant_id, r.item_id, r.goal, r.policy_key, r.target_seconds, r.standing, r.armed_at, r.due_at, r.at_risk_at, r.met_at, r.breached_at, r.consumed_seconds, r.updated_at, r.version
 FROM jsonb_populate_record(
   NULL::entry_sla,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -5390,8 +5390,8 @@ FROM jsonb_populate_record(
 ON CONFLICT (id) DO UPDATE SET
   policy_key = EXCLUDED.policy_key, target_seconds = EXCLUDED.target_seconds, standing = EXCLUDED.standing,
   armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at, at_risk_at = EXCLUDED.at_risk_at,
-  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at, consumed_seconds = EXCLUDED.consumed_seconds,
+  updated_at = EXCLUDED.updated_at, version = EXCLUDED.version
 WHERE $2::boolean
 `
 

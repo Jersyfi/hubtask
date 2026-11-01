@@ -6,6 +6,7 @@ package calendar
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -178,4 +179,44 @@ type queuer struct {
 
 func (q queuer) Enqueue(ctx context.Context, request queue.Request) (shared.ID, error) {
 	return q.jobs.Enqueue(ctx, request)
+}
+
+type countedIDs struct{ next *int }
+
+func (c countedIDs) NewID() shared.ID {
+	*c.next++
+	return shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-%012d", *c.next))
+}
+
+// A rebuilt clock replaces what stood under its name and asks for the firing at its due moment -
+// at once, when its budget is spent.
+func TestRebuildReplacesTheLiveTimerAndSeedsItsFiring(t *testing.T) {
+	store, queued := &timerStore{rows: map[shared.ID]domain.Timer{}}, &jobs{}
+	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	clocks := Clocks{Timers: store, Jobs: queuer{jobs: queued}, Clock: clock.Fixed(now), IDs: countedIDs{next: new(0)}}
+	ctx := context.Background()
+
+	stale, err := clocks.Arm(ctx, tenant, domain.PurposeSLA, subject, "resolution", domain.Continuous(), time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuilt, err := clocks.Rebuild(ctx, tenant, domain.PurposeSLA, subject, "resolution", domain.Continuous(),
+		4*time.Hour, 4*time.Hour, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if store.rows[stale.ID].State != domain.TimerStopped {
+		t.Errorf("the timer standing before is %s, want STOPPED", store.rows[stale.ID].State)
+	}
+	if rebuilt.State != domain.TimerRunning || !rebuilt.DueAt.Equal(now) {
+		t.Fatalf("rebuilt %+v, want running and due now", rebuilt)
+	}
+	last := queued.requests[len(queued.requests)-1]
+	if last.Kind != queue.KindTimerFire || !last.RunAt.Equal(now) {
+		t.Errorf("seeded %+v, want a firing now", last)
+	}
+	pass := FireTimers{Timers: store, Clock: clock.Fixed(now)}
+	if outcome, err := pass.Execute(ctx, appshared.ActorContext{TenantID: tenant}); err != nil || outcome.Fired != 1 {
+		t.Errorf("the next pass fired %+v, %v; want the rebuilt clock", outcome, err)
+	}
 }

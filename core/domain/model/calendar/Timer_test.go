@@ -111,3 +111,45 @@ func TestArmRefusesWhatCannotRun(t *testing.T) {
 		}
 	}
 }
+
+// A clock rebuilt after a restore counts on from what was spent: running, its rest from now; spent
+// already, due at once; paused, holding what it had.
+func TestRebuildCountsOnFromWhatWasSpent(t *testing.T) {
+	now := time.Date(2026, 11, 2, 8, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name     string
+		consumed time.Duration
+		running  bool
+		state    TimerState
+		due      *time.Time
+	}{
+		{"running with time left", 3 * time.Hour, true, TimerRunning, new(now.Add(5 * time.Hour))},
+		{"running and spent", 9 * time.Hour, true, TimerRunning, new(now)},
+		{"paused", 2 * time.Hour, false, TimerPaused, nil},
+		{"spent below zero", -time.Hour, true, TimerRunning, new(now.Add(8 * time.Hour))},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			timer, err := Rebuild(timerID, timerTen, PurposeSLA, timerItem, "resolution", Continuous(), 8*time.Hour,
+				c.consumed, c.running, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if timer.State != c.state || !sameInstant(timer.DueAt, c.due) {
+				t.Fatalf("rebuilt %s due %v, want %s due %v", timer.State, timer.DueAt, c.state, c.due)
+			}
+			if c.state == TimerRunning && !timer.DueAt.After(now) {
+				if _, err := timer.Fire(now); err != nil {
+					t.Errorf("a spent clock did not fire at once: %v", err)
+				}
+			}
+		})
+	}
+	if _, err := Rebuild(timerID, timerTen, Purpose("NAP"), timerItem, "x", Continuous(), time.Hour, 0, true, now); err == nil {
+		t.Error("an unknown purpose was rebuilt")
+	}
+}
+
+func sameInstant(a, b *time.Time) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && a.Equal(*b))
+}

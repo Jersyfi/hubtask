@@ -972,6 +972,48 @@ func (q *Queries) ListPageVersions(ctx context.Context, arg ListPageVersionsPara
 	return items, nil
 }
 
+const listPagesUnderReview = `-- name: ListPagesUnderReview :many
+SELECT id, verified_until::timestamptz AS verified_until
+FROM page
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL
+  AND verified_until > $1 AND id > $2::uuid
+ORDER BY id LIMIT $3
+`
+
+type ListPagesUnderReviewParams struct {
+	Now     pgtype.Timestamptz
+	AfterID pgtype.UUID
+	MaxRows int32
+}
+
+type ListPagesUnderReviewRow struct {
+	ID            pgtype.UUID
+	VerifiedUntil pgtype.Timestamptz
+}
+
+// The pages whose verification still runs, after one id: the pass that re-arms their review
+// clocks after a restore. A date already past is left alone - a restore catches up no reminder
+// (backup-restore.md §8.4), and the page shows itself due for review.
+func (q *Queries) ListPagesUnderReview(ctx context.Context, arg ListPagesUnderReviewParams) ([]ListPagesUnderReviewRow, error) {
+	rows, err := q.db.Query(ctx, listPagesUnderReview, arg.Now, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPagesUnderReviewRow{}
+	for rows.Next() {
+		var i ListPagesUnderReviewRow
+		if err := rows.Scan(&i.ID, &i.VerifiedUntil); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTrashedHubPages = `-- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,

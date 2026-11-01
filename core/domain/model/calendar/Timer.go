@@ -101,6 +101,26 @@ func Arm(
 	return timer.run(now), nil
 }
 
+// Rebuild makes a timer again from what its purpose recorded of it, for a clock whose row was
+// lost - a restore carries no timers (backup-restore.md §8.4): consumed is the working time already
+// spent, and running says whether it counts from now. A running one with nothing left is due at
+// now, so the next pass fires it the way it would have fired.
+func Rebuild(
+	id, tenant shared.ID, purpose Purpose, subject shared.ID, name string, cal BusinessCalendar,
+	budget, consumed time.Duration, running bool, now time.Time,
+) (Timer, error) {
+	timer, err := Arm(id, tenant, purpose, subject, name, cal, budget, now)
+	if err != nil {
+		return Timer{}, err
+	}
+	timer.Consumed = min(max(consumed, 0), budget)
+	timer.RunningSince, timer.DueAt, timer.State = nil, nil, TimerPaused
+	if running {
+		return timer.run(now), nil
+	}
+	return timer, nil
+}
+
 func (t Timer) run(now time.Time) Timer {
 	since := now
 	due := t.Calendar.Add(now, t.Budget-t.Consumed)

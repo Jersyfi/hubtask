@@ -68,6 +68,9 @@ type Applier struct {
 	Epochs EpochAdvancer
 	Clock  clock.Clock
 	IDs    clock.IDGenerator
+	// Clocks re-arm the durable timers of what a restore wrote: the archive carries no timers
+	// (§8.4), so a goal, an approval or a page review it brought back would otherwise never fire.
+	Clocks []ClockRearmer
 	// SchemaVersion is the migration this build stands at. An archive from a newer one is refused
 	// rather than half-read: a restore migrates upwards and cannot go the other way.
 	SchemaVersion string
@@ -75,6 +78,12 @@ type Applier struct {
 	// transaction per batch size", which is what this is: a cancelled restore loses the batch in
 	// flight and keeps everything before it.
 	Batch int
+}
+
+// ClockRearmer arms again, from the records a restore wrote, the clocks of one purpose in the
+// workspace the transaction is in.
+type ClockRearmer interface {
+	Rearm(ctx context.Context, tenant shared.ID) error
 }
 
 // EpochAdvancer is the slice of the synchronisation epoch a restore moves.
@@ -237,7 +246,28 @@ func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.
 			return domain.Report{}, err
 		}
 	}
-	return a.apply(ctx, plan)
+	report, err := a.apply(ctx, plan)
+	if err != nil || plan.dry {
+		return report, err
+	}
+	return report, a.rearm(ctx, ready.into)
+}
+
+// rearm arms the clocks of what the restore wrote, in one transaction of the workspace the rows
+// landed in. Idempotent - each clock replaces what stands under its name - so a restore resumed
+// after a failure here re-arms the same clocks once.
+func (a Applier) rearm(ctx context.Context, into persistence.Scope) error {
+	if len(a.Clocks) == 0 {
+		return nil
+	}
+	return a.UnitOfWork.Within(ctx, into, func(ctx context.Context) error {
+		for _, clocks := range a.Clocks {
+			if err := clocks.Rearm(ctx, into.TenantID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // IngestInput is what an importer hands the applier (backup-restore.md §9).

@@ -61,48 +61,68 @@ DELETE FROM sla_policy WHERE key = sqlc.arg('key');
 -- name: UpsertEntrySla :exec
 INSERT INTO entry_sla (
   id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
-  at_risk_at, met_at, breached_at, updated_at, version
+  at_risk_at, met_at, breached_at, consumed_seconds, updated_at, version
 ) VALUES (
   sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('item_id'), sqlc.arg('goal'), sqlc.arg('policy_key'),
   sqlc.arg('target_seconds'), sqlc.arg('standing'), sqlc.arg('armed_at'), sqlc.narg('due_at'),
-  sqlc.narg('at_risk_at'), sqlc.narg('met_at'), sqlc.narg('breached_at'), sqlc.arg('now'), 1
+  sqlc.narg('at_risk_at'), sqlc.narg('met_at'), sqlc.narg('breached_at'), sqlc.arg('consumed_seconds'),
+  sqlc.arg('now'), 1
 )
 ON CONFLICT (tenant_id, item_id, goal) DO UPDATE SET
   policy_key = EXCLUDED.policy_key, target_seconds = EXCLUDED.target_seconds,
   standing = EXCLUDED.standing, armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at,
   at_risk_at = EXCLUDED.at_risk_at, met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at,
+  consumed_seconds = EXCLUDED.consumed_seconds,
   updated_at = EXCLUDED.updated_at, version = entry_sla.version + 1;
 
 -- name: ListEntrySla :many
 SELECT id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
-       at_risk_at, met_at, breached_at, updated_at, version
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
 FROM entry_sla WHERE item_id = sqlc.arg('item_id') ORDER BY goal;
+
+-- The workspace's live goals after one id, for the pass that re-arms their clocks after a restore.
+-- name: ListLiveEntrySla :many
+SELECT id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
+FROM entry_sla
+WHERE standing IN ('RUNNING', 'PAUSED') AND id > sqlc.arg('after_id')::uuid
+ORDER BY id LIMIT sqlc.arg('max_rows');
 
 -- One goal of one OLA on an entry (migration 0303), written whole like an SLA goal's.
 -- name: UpsertEntryOla :exec
 INSERT INTO entry_ola (
   id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
-  at_risk_at, met_at, breached_at, updated_at, version
+  at_risk_at, met_at, breached_at, consumed_seconds, updated_at, version
 ) VALUES (
   sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('item_id'), sqlc.arg('policy_key'), sqlc.arg('group_id'),
   sqlc.arg('goal'), sqlc.arg('target_seconds'), sqlc.arg('standing'), sqlc.arg('armed_at'), sqlc.narg('due_at'),
-  sqlc.narg('at_risk_at'), sqlc.narg('met_at'), sqlc.narg('breached_at'), sqlc.arg('now'), 1
+  sqlc.narg('at_risk_at'), sqlc.narg('met_at'), sqlc.narg('breached_at'), sqlc.arg('consumed_seconds'),
+  sqlc.arg('now'), 1
 )
 ON CONFLICT (tenant_id, item_id, policy_key, goal) DO UPDATE SET
   group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds,
   standing = EXCLUDED.standing, armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at,
   at_risk_at = EXCLUDED.at_risk_at, met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at,
+  consumed_seconds = EXCLUDED.consumed_seconds,
   updated_at = EXCLUDED.updated_at, version = entry_ola.version + 1;
 
 -- name: ListEntryOla :many
 SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
-       at_risk_at, met_at, breached_at, updated_at, version
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
 FROM entry_ola WHERE item_id = sqlc.arg('item_id') ORDER BY policy_key, goal;
 
 -- name: FindEntryOla :one
 SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
-       at_risk_at, met_at, breached_at, updated_at, version
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
 FROM entry_ola WHERE id = sqlc.arg('id');
+
+-- The workspace's live team goals after one id, beside ListLiveEntrySla.
+-- name: ListLiveEntryOla :many
+SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
+FROM entry_ola
+WHERE standing IN ('RUNNING', 'PAUSED') AND id > sqlc.arg('after_id')::uuid
+ORDER BY id LIMIT sqlc.arg('max_rows');
 
 -- How the OLA goals armed in a period stand, per policy and goal, beside ReportEntrySla.
 -- name: ReportEntryOla :many
@@ -195,6 +215,15 @@ FROM approval WHERE item_id = sqlc.arg('item_id') ORDER BY requested_at DESC, id
 SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
        current_level, state, requested_by, requested_at, level_since, decided_at, version
 FROM approval WHERE state = 'PENDING' ORDER BY requested_at, id LIMIT sqlc.arg('max_rows');
+
+-- The pending approvals whose levels count hours, after one id: the pass that re-arms their clocks
+-- after a restore.
+-- name: ListTimedPendingApprovals :many
+SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
+       current_level, state, requested_by, requested_at, level_since, decided_at, version
+FROM approval
+WHERE state = 'PENDING' AND due_hours > 0 AND id > sqlc.arg('after_id')::uuid
+ORDER BY id LIMIT sqlc.arg('max_rows');
 
 -- name: InsertApprovalDecision :exec
 INSERT INTO approval_decision (id, tenant_id, approval_id, level, approver_id, on_behalf_of, verdict, reason,

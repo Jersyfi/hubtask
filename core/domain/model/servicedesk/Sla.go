@@ -437,7 +437,10 @@ type EntrySLA struct {
 	AtRiskAt   *time.Time
 	MetAt      *time.Time
 	BreachedAt *time.Time
-	Version    int
+	// Consumed is the working time spent before the clock last paused, kept so that a goal whose
+	// timer is lost - a restore carries none - can be re-armed paused where it stood.
+	Consumed time.Duration
+	Version  int
 }
 
 // Follow brings the record in step with its timer at now: its due moment while it runs, met when
@@ -446,7 +449,7 @@ func (r EntrySLA) Follow(timer calendar.Timer, now time.Time) EntrySLA {
 	if r.Standing == StandingBreached {
 		return r
 	}
-	r.Standing, r.DueAt = StandingOf(timer), timer.DueAt
+	r.Standing, r.DueAt, r.Consumed = StandingOf(timer), timer.DueAt, timer.Consumed
 	switch r.Standing {
 	case StandingMet:
 		at := now

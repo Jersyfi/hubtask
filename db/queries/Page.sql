@@ -484,3 +484,13 @@ SELECT count(*)::int FROM page_draft d
 JOIN page p ON p.tenant_id = d.tenant_id AND p.id = d.page_id
 WHERE d.tenant_id = current_tenant_id() AND NOT d.unpublished
   AND p.hub_id = sqlc.arg('hub_id') AND p.deleted_at IS NULL;
+
+-- The pages whose verification still runs, after one id: the pass that re-arms their review
+-- clocks after a restore. A date already past is left alone - a restore catches up no reminder
+-- (backup-restore.md §8.4), and the page shows itself due for review.
+-- name: ListPagesUnderReview :many
+SELECT id, verified_until::timestamptz AS verified_until
+FROM page
+WHERE tenant_id = current_tenant_id() AND deleted_at IS NULL
+  AND verified_until > sqlc.arg('now') AND id > sqlc.arg('after_id')::uuid
+ORDER BY id LIMIT sqlc.arg('max_rows');

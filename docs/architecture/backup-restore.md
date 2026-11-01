@@ -346,6 +346,14 @@ read `restore_run` for the result instead.
 * **No automation rules fire.** Restored changes produce events with `replay: true`; the dispatcher
   withholds them from the rule engine, and a subscriber added later is never handed a replay.
 * **No past reminders are caught up**; they become `LAPSED` (nobody cancelled them).
+* **No timer is copied; the clocks are armed again** from what the archive carries, once the rows
+  are written and in the workspace they landed in (`durable_timer` names its subject per purpose,
+  which no remap follows). A running SLA or OLA goal runs to the due moment its record names, at
+  once when that has passed, so it breaches through the timer pass; a paused one keeps the working
+  time its record says it had spent (none, for a record paused before 0334 kept it); a pending
+  approval's level counts from when it began, and a page's review runs to its verification date.
+  A reminder whose moment has passed - an approval's halfway or due notice, a review date - is not
+  sent late. A goal whose policy, calendar or entry is gone stays as it stands.
 * **No webhooks are re-delivered**; the archive's outbox is not imported.
 * **No tokens, sessions or sign-in providers are restored** — `identity_provider`, `auth_pending`
   and the session and token tables are not in the archive. Users sign in again; PATs are recreated.

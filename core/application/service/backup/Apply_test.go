@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1754,5 +1755,44 @@ func TestADuplicateKeepsPointingAtWhatItWroteNew(t *testing.T) {
 		if h.imports.tables["work_item"]["w2"]["collection_id"] != domain.DuplicateID(restoreID, "containers", "c1").String() {
 			t.Errorf("resumed %v: the new entry is not in the collection's copy", resumed)
 		}
+	}
+}
+
+// rearmDouble records the workspaces whose clocks a restore re-armed.
+type rearmDouble struct{ tenants []shared.ID }
+
+func (r *rearmDouble) Rearm(_ context.Context, tenant shared.ID) error {
+	r.tenants = append(r.tenants, tenant)
+	return nil
+}
+
+// §8.4: the archive carries no timers, so a restore that wrote rows re-arms the clocks of what it
+// brought back, in the workspace the rows landed in; a dry run and an INSPECT re-arm nothing.
+func TestARestoreThatWroteReArmsTheClocksOfWhereItWrote(t *testing.T) {
+	cases := map[string]struct {
+		change func(*domain.Restore)
+		into   []shared.ID
+	}{
+		"MERGE":          {func(r *domain.Restore) { r.Mode = domain.RestoreMerge }, []shared.ID{tenantID}},
+		"REPLACE_TENANT": {func(r *domain.Restore) { r.Mode = domain.RestoreReplaceTenant }, []shared.ID{tenantID}},
+		"NEW_TENANT": {func(r *domain.Restore) { r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant },
+			[]shared.ID{mintedTenant}},
+		"a dry run": {func(r *domain.Restore) { r.Mode, r.DryRun = domain.RestoreMerge, true }, nil},
+		"INSPECT":   {func(r *domain.Restore) { r.Mode = domain.RestoreInspect }, nil},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newApplyHarness(t, containerRows)
+			in := h.accept(t, tc.change)
+			clocks := &rearmDouble{}
+			applier := h.applier()
+			applier.Clocks = []ClockRearmer{clocks}
+			if _, err := applier.Apply(context.Background(), in); err != nil {
+				t.Fatalf("restoring: %v", err)
+			}
+			if !slices.Equal(clocks.tenants, tc.into) {
+				t.Errorf("the clocks were re-armed in %v, want %v", clocks.tenants, tc.into)
+			}
+		})
 	}
 }

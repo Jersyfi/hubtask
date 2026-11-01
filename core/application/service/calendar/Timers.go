@@ -9,6 +9,7 @@ package calendar
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/calendar"
@@ -43,6 +44,28 @@ func (c Clocks) Arm(
 ) (domain.Timer, error) {
 	now := c.Clock.Now()
 	timer, err := domain.Arm(c.IDs.NewID(), tenant, purpose, subject, name, cal, budget, now)
+	if err != nil {
+		return domain.Timer{}, err
+	}
+	if err := c.Timers.Insert(ctx, timer, now); err != nil {
+		return domain.Timer{}, err
+	}
+	return timer, c.schedule(ctx, tenant, timer.DueAt)
+}
+
+// Rebuild replaces the live timer of a purpose, subject and name by one made from what its purpose
+// recorded (domain.Rebuild): what a restore re-arms from, since the archive carries no timers. A
+// timer still standing under the name is stopped first - after a replace it is the state the
+// restore discarded, not the one it brought back.
+func (c Clocks) Rebuild(
+	ctx context.Context, tenant shared.ID, purpose domain.Purpose, subject shared.ID, name string,
+	cal domain.BusinessCalendar, budget, consumed time.Duration, running bool,
+) (domain.Timer, error) {
+	if _, err := c.Stop(ctx, purpose, subject, name); err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return domain.Timer{}, err
+	}
+	now := c.Clock.Now()
+	timer, err := domain.Rebuild(c.IDs.NewID(), tenant, purpose, subject, name, cal, budget, consumed, running, now)
 	if err != nil {
 		return domain.Timer{}, err
 	}

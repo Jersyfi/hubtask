@@ -393,7 +393,8 @@ func (ServiceDeskRecords) Save(ctx context.Context, record servicedesk.EntrySLA,
 		TargetSeconds: int64(record.Target / time.Second), Standing: string(record.Standing),
 		ArmedAt: timestampOf(record.ArmedAt), DueAt: timestampOrNull(record.DueAt),
 		AtRiskAt: timestampOrNull(record.AtRiskAt), MetAt: timestampOrNull(record.MetAt),
-		BreachedAt: timestampOrNull(record.BreachedAt), Now: timestampOf(now),
+		BreachedAt: timestampOrNull(record.BreachedAt), ConsumedSeconds: new(int64(record.Consumed / time.Second)),
+		Now: timestampOf(now),
 	}); err != nil {
 		return queryFailed("writing an entry's SLA record", err)
 	}
@@ -441,8 +442,80 @@ func recordFrom(row sqlc.EntrySla) (servicedesk.EntrySLA, error) {
 		ID: id, TenantID: tenant, ItemID: item, Goal: servicedesk.GoalKind(row.Goal), PolicyKey: row.PolicyKey,
 		Target: time.Duration(row.TargetSeconds) * time.Second, Standing: servicedesk.Standing(row.Standing),
 		ArmedAt: row.ArmedAt.Time, DueAt: optionalTime(row.DueAt), AtRiskAt: optionalTime(row.AtRiskAt),
-		MetAt: optionalTime(row.MetAt), BreachedAt: optionalTime(row.BreachedAt), Version: int(row.Version),
+		MetAt: optionalTime(row.MetAt), BreachedAt: optionalTime(row.BreachedAt),
+		Consumed: secondsOrZero(row.ConsumedSeconds), Version: int(row.Version),
 	}, nil
+}
+
+// secondsOrZero reads a stored count of seconds; NULL, on a record written before it was kept,
+// counts as nothing spent.
+func secondsOrZero(seconds *int64) time.Duration {
+	if seconds == nil {
+		return 0
+	}
+	return time.Duration(*seconds) * time.Second
+}
+
+// LiveSLAs answers the workspace's running and paused goals after one id, in id order.
+func (ServiceDeskRecords) LiveSLAs(ctx context.Context, after shared.ID, limit int) ([]servicedesk.EntrySLA, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := cursorOf(after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListLiveEntrySla(ctx, sqlc.ListLiveEntrySlaParams{
+		AfterID: cursor, MaxRows: int32(limit), //nolint:gosec // bounded by the use case
+	})
+	if err != nil {
+		return nil, queryFailed("listing the live SLA records", err)
+	}
+	out := make([]servicedesk.EntrySLA, 0, len(rows))
+	for _, row := range rows {
+		record, err := recordFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+// LiveOLAs answers the workspace's running and paused team goals after one id, in id order.
+func (ServiceDeskRecords) LiveOLAs(ctx context.Context, after shared.ID, limit int) ([]servicedesk.EntrySLA, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := cursorOf(after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListLiveEntryOla(ctx, sqlc.ListLiveEntryOlaParams{
+		AfterID: cursor, MaxRows: int32(limit), //nolint:gosec // bounded by the use case
+	})
+	if err != nil {
+		return nil, queryFailed("listing the live OLA records", err)
+	}
+	out := make([]servicedesk.EntrySLA, 0, len(rows))
+	for _, row := range rows {
+		record, err := olaFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+// cursorOf is a keyset cursor: the zero id reads from the start.
+func cursorOf(after shared.ID) (pgtype.UUID, error) {
+	if after.IsZero() {
+		return pgtype.UUID{Bytes: [16]byte{}, Valid: true}, nil
+	}
+	return uuidOf(after)
 }
 
 func (ServiceDeskRecords) Report(ctx context.Context, from, to time.Time) ([]servicedesk.ReportRow, error) {
@@ -497,7 +570,8 @@ func (ServiceDeskRecords) SaveOLA(ctx context.Context, record servicedesk.EntryS
 		Goal: string(record.Goal), TargetSeconds: int64(record.Target / time.Second), Standing: string(record.Standing),
 		ArmedAt: timestampOf(record.ArmedAt), DueAt: timestampOrNull(record.DueAt),
 		AtRiskAt: timestampOrNull(record.AtRiskAt), MetAt: timestampOrNull(record.MetAt),
-		BreachedAt: timestampOrNull(record.BreachedAt), Now: timestampOf(now),
+		BreachedAt: timestampOrNull(record.BreachedAt), ConsumedSeconds: new(int64(record.Consumed / time.Second)),
+		Now: timestampOf(now),
 	}); err != nil {
 		return queryFailed("writing an entry's OLA record", err)
 	}
@@ -554,6 +628,7 @@ func olaFrom(row sqlc.EntryOla) (servicedesk.EntrySLA, error) {
 		ID: row.ID, TenantID: row.TenantID, ItemID: row.ItemID, Goal: row.Goal, PolicyKey: row.PolicyKey,
 		TargetSeconds: row.TargetSeconds, Standing: row.Standing, ArmedAt: row.ArmedAt, DueAt: row.DueAt,
 		AtRiskAt: row.AtRiskAt, MetAt: row.MetAt, BreachedAt: row.BreachedAt, Version: row.Version,
+		ConsumedSeconds: row.ConsumedSeconds,
 	})
 	if err != nil {
 		return servicedesk.EntrySLA{}, err

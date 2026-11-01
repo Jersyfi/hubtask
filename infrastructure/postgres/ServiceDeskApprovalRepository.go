@@ -215,6 +215,25 @@ func (ServiceDeskApprovals) Pending(ctx context.Context, limit int) ([]servicede
 	return approvalsFrom(rows)
 }
 
+// TimedPending answers the pending approvals whose levels count hours after one id, in id order.
+func (ServiceDeskApprovals) TimedPending(ctx context.Context, after shared.ID, limit int) ([]servicedesk.Approval, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cursor, err := cursorOf(after)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListTimedPendingApprovals(ctx, sqlc.ListTimedPendingApprovalsParams{
+		AfterID: cursor, MaxRows: int32(limit), //nolint:gosec // bounded by the use case
+	})
+	if err != nil {
+		return nil, queryFailed("listing the timed pending approvals", err)
+	}
+	return approvalsFrom(rows)
+}
+
 func (ServiceDeskApprovals) Record(ctx context.Context, d servicedesk.Decision) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

@@ -5869,6 +5869,8 @@ CREATE TABLE entry_sla (
   breached_at    timestamptz,
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
+  -- What a paused goal had spent, from which a restore re-arms it (0334).
+  consumed_seconds bigint,
   UNIQUE (tenant_id, id),
   CONSTRAINT entry_sla_goal_uq UNIQUE (tenant_id, item_id, goal),
   CONSTRAINT entry_sla_item_fkey
@@ -5902,6 +5904,8 @@ CREATE TABLE entry_ola (
   breached_at    timestamptz,
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
+  -- What a paused goal had spent, from which a restore re-arms it (0334).
+  consumed_seconds bigint,
   UNIQUE (tenant_id, id),
   CONSTRAINT entry_ola_goal_uq UNIQUE (tenant_id, item_id, policy_key, goal),
   CONSTRAINT entry_ola_item_fkey

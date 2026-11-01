@@ -228,7 +228,7 @@ func (q *Queries) FindDeskLogo(ctx context.Context, collectionID pgtype.UUID) (p
 
 const findEntryOla = `-- name: FindEntryOla :one
 SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
-       at_risk_at, met_at, breached_at, updated_at, version
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
 FROM entry_ola WHERE id = $1
 `
 
@@ -251,6 +251,7 @@ func (q *Queries) FindEntryOla(ctx context.Context, id pgtype.UUID) (EntryOla, e
 		&i.BreachedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.ConsumedSeconds,
 	)
 	return i, err
 }
@@ -782,7 +783,7 @@ func (q *Queries) ListBusinessCalendars(ctx context.Context) ([]BusinessCalendar
 
 const listEntryOla = `-- name: ListEntryOla :many
 SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
-       at_risk_at, met_at, breached_at, updated_at, version
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
 FROM entry_ola WHERE item_id = $1 ORDER BY policy_key, goal
 `
 
@@ -811,6 +812,7 @@ func (q *Queries) ListEntryOla(ctx context.Context, itemID pgtype.UUID) ([]Entry
 			&i.BreachedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.ConsumedSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -824,7 +826,7 @@ func (q *Queries) ListEntryOla(ctx context.Context, itemID pgtype.UUID) ([]Entry
 
 const listEntrySla = `-- name: ListEntrySla :many
 SELECT id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
-       at_risk_at, met_at, breached_at, updated_at, version
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
 FROM entry_sla WHERE item_id = $1 ORDER BY goal
 `
 
@@ -852,6 +854,7 @@ func (q *Queries) ListEntrySla(ctx context.Context, itemID pgtype.UUID) ([]Entry
 			&i.BreachedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.ConsumedSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -887,6 +890,107 @@ func (q *Queries) ListHubCalendars(ctx context.Context, hubID pgtype.UUID) ([]Hu
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLiveEntryOla = `-- name: ListLiveEntryOla :many
+SELECT id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
+FROM entry_ola
+WHERE standing IN ('RUNNING', 'PAUSED') AND id > $1::uuid
+ORDER BY id LIMIT $2
+`
+
+type ListLiveEntryOlaParams struct {
+	AfterID pgtype.UUID
+	MaxRows int32
+}
+
+// The workspace's live team goals after one id, beside ListLiveEntrySla.
+func (q *Queries) ListLiveEntryOla(ctx context.Context, arg ListLiveEntryOlaParams) ([]EntryOla, error) {
+	rows, err := q.db.Query(ctx, listLiveEntryOla, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EntryOla{}
+	for rows.Next() {
+		var i EntryOla
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.PolicyKey,
+			&i.GroupID,
+			&i.Goal,
+			&i.TargetSeconds,
+			&i.Standing,
+			&i.ArmedAt,
+			&i.DueAt,
+			&i.AtRiskAt,
+			&i.MetAt,
+			&i.BreachedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.ConsumedSeconds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLiveEntrySla = `-- name: ListLiveEntrySla :many
+SELECT id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
+       at_risk_at, met_at, breached_at, updated_at, version, consumed_seconds
+FROM entry_sla
+WHERE standing IN ('RUNNING', 'PAUSED') AND id > $1::uuid
+ORDER BY id LIMIT $2
+`
+
+type ListLiveEntrySlaParams struct {
+	AfterID pgtype.UUID
+	MaxRows int32
+}
+
+// The workspace's live goals after one id, for the pass that re-arms their clocks after a restore.
+func (q *Queries) ListLiveEntrySla(ctx context.Context, arg ListLiveEntrySlaParams) ([]EntrySla, error) {
+	rows, err := q.db.Query(ctx, listLiveEntrySla, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EntrySla{}
+	for rows.Next() {
+		var i EntrySla
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.Goal,
+			&i.PolicyKey,
+			&i.TargetSeconds,
+			&i.Standing,
+			&i.ArmedAt,
+			&i.DueAt,
+			&i.AtRiskAt,
+			&i.MetAt,
+			&i.BreachedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.ConsumedSeconds,
 		); err != nil {
 			return nil, err
 		}
@@ -1045,6 +1149,58 @@ func (q *Queries) ListSlaPolicies(ctx context.Context) ([]SlaPolicy, error) {
 			&i.AssigneeGroupID,
 			&i.HubID,
 			&i.CopiedFrom,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTimedPendingApprovals = `-- name: ListTimedPendingApprovals :many
+SELECT id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to, due_hours,
+       current_level, state, requested_by, requested_at, level_since, decided_at, version
+FROM approval
+WHERE state = 'PENDING' AND due_hours > 0 AND id > $1::uuid
+ORDER BY id LIMIT $2
+`
+
+type ListTimedPendingApprovalsParams struct {
+	AfterID pgtype.UUID
+	MaxRows int32
+}
+
+// The pending approvals whose levels count hours, after one id: the pass that re-arms their clocks
+// after a restore.
+func (q *Queries) ListTimedPendingApprovals(ctx context.Context, arg ListTimedPendingApprovalsParams) ([]Approval, error) {
+	rows, err := q.db.Query(ctx, listTimedPendingApprovals, arg.AfterID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Approval{}
+	for rows.Next() {
+		var i Approval
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.ItemID,
+			&i.WorkflowKey,
+			&i.StepKey,
+			&i.ItemVersion,
+			&i.Levels,
+			&i.DeclineTo,
+			&i.DueHours,
+			&i.CurrentLevel,
+			&i.State,
+			&i.RequestedBy,
+			&i.RequestedAt,
+			&i.LevelSince,
+			&i.DecidedAt,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
@@ -1542,34 +1698,37 @@ func (q *Queries) UpdateSlaPolicy(ctx context.Context, arg UpdateSlaPolicyParams
 const upsertEntryOla = `-- name: UpsertEntryOla :exec
 INSERT INTO entry_ola (
   id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
-  at_risk_at, met_at, breached_at, updated_at, version
+  at_risk_at, met_at, breached_at, consumed_seconds, updated_at, version
 ) VALUES (
   $1, $2, $3, $4, $5,
   $6, $7, $8, $9, $10,
-  $11, $12, $13, $14, 1
+  $11, $12, $13, $14,
+  $15, 1
 )
 ON CONFLICT (tenant_id, item_id, policy_key, goal) DO UPDATE SET
   group_id = EXCLUDED.group_id, target_seconds = EXCLUDED.target_seconds,
   standing = EXCLUDED.standing, armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at,
   at_risk_at = EXCLUDED.at_risk_at, met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at,
+  consumed_seconds = EXCLUDED.consumed_seconds,
   updated_at = EXCLUDED.updated_at, version = entry_ola.version + 1
 `
 
 type UpsertEntryOlaParams struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	ItemID        pgtype.UUID
-	PolicyKey     string
-	GroupID       pgtype.UUID
-	Goal          string
-	TargetSeconds int64
-	Standing      string
-	ArmedAt       pgtype.Timestamptz
-	DueAt         pgtype.Timestamptz
-	AtRiskAt      pgtype.Timestamptz
-	MetAt         pgtype.Timestamptz
-	BreachedAt    pgtype.Timestamptz
-	Now           pgtype.Timestamptz
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	PolicyKey       string
+	GroupID         pgtype.UUID
+	Goal            string
+	TargetSeconds   int64
+	Standing        string
+	ArmedAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	AtRiskAt        pgtype.Timestamptz
+	MetAt           pgtype.Timestamptz
+	BreachedAt      pgtype.Timestamptz
+	ConsumedSeconds *int64
+	Now             pgtype.Timestamptz
 }
 
 // One goal of one OLA on an entry (migration 0303), written whole like an SLA goal's.
@@ -1588,6 +1747,7 @@ func (q *Queries) UpsertEntryOla(ctx context.Context, arg UpsertEntryOlaParams) 
 		arg.AtRiskAt,
 		arg.MetAt,
 		arg.BreachedAt,
+		arg.ConsumedSeconds,
 		arg.Now,
 	)
 	return err
@@ -1596,33 +1756,36 @@ func (q *Queries) UpsertEntryOla(ctx context.Context, arg UpsertEntryOlaParams) 
 const upsertEntrySla = `-- name: UpsertEntrySla :exec
 INSERT INTO entry_sla (
   id, tenant_id, item_id, goal, policy_key, target_seconds, standing, armed_at, due_at,
-  at_risk_at, met_at, breached_at, updated_at, version
+  at_risk_at, met_at, breached_at, consumed_seconds, updated_at, version
 ) VALUES (
   $1, $2, $3, $4, $5,
   $6, $7, $8, $9,
-  $10, $11, $12, $13, 1
+  $10, $11, $12, $13,
+  $14, 1
 )
 ON CONFLICT (tenant_id, item_id, goal) DO UPDATE SET
   policy_key = EXCLUDED.policy_key, target_seconds = EXCLUDED.target_seconds,
   standing = EXCLUDED.standing, armed_at = EXCLUDED.armed_at, due_at = EXCLUDED.due_at,
   at_risk_at = EXCLUDED.at_risk_at, met_at = EXCLUDED.met_at, breached_at = EXCLUDED.breached_at,
+  consumed_seconds = EXCLUDED.consumed_seconds,
   updated_at = EXCLUDED.updated_at, version = entry_sla.version + 1
 `
 
 type UpsertEntrySlaParams struct {
-	ID            pgtype.UUID
-	TenantID      pgtype.UUID
-	ItemID        pgtype.UUID
-	Goal          string
-	PolicyKey     string
-	TargetSeconds int64
-	Standing      string
-	ArmedAt       pgtype.Timestamptz
-	DueAt         pgtype.Timestamptz
-	AtRiskAt      pgtype.Timestamptz
-	MetAt         pgtype.Timestamptz
-	BreachedAt    pgtype.Timestamptz
-	Now           pgtype.Timestamptz
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ItemID          pgtype.UUID
+	Goal            string
+	PolicyKey       string
+	TargetSeconds   int64
+	Standing        string
+	ArmedAt         pgtype.Timestamptz
+	DueAt           pgtype.Timestamptz
+	AtRiskAt        pgtype.Timestamptz
+	MetAt           pgtype.Timestamptz
+	BreachedAt      pgtype.Timestamptz
+	ConsumedSeconds *int64
+	Now             pgtype.Timestamptz
 }
 
 // One goal's record on an entry, written whole: armed, moved, met or breached.
@@ -1640,6 +1803,7 @@ func (q *Queries) UpsertEntrySla(ctx context.Context, arg UpsertEntrySlaParams) 
 		arg.AtRiskAt,
 		arg.MetAt,
 		arg.BreachedAt,
+		arg.ConsumedSeconds,
 		arg.Now,
 	)
 	return err

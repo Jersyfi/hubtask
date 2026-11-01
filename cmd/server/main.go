@@ -4618,6 +4618,21 @@ func run() error {
 		Epochs: postgres.NewEpochRepository(),
 		Clock:  clockadapter.System{}, IDs: ids,
 		SchemaVersion: schemaVersion(), Batch: backupservice.DefaultRestoreBatch,
+		// The archive carries no timers (§8.4): what a restore wrote gets its clocks back.
+		Clocks: []backupservice.ClockRearmer{
+			servicedeskservice.RestoredClocks{
+				Records: serviceDeskStore.Records(), Approvals: serviceDeskStore.Approvals(),
+				Policies:     serviceDeskStore.Policies(),
+				Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+				HubCalendars: serviceDeskStore.HubCalendars(), Containers: containers, Items: items,
+				Timers: calendarservice.Clocks{
+					Timers: postgres.NewTimerRepository(), Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+				},
+			},
+			knowledgeservice.RestoredReviews{
+				Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
+			},
+		},
 	}
 	// The trial restore (backup-restore.md §5): the run that wrote a FULL archive reads it back
 	// through the applier, in the same job. The applier's own safety copy keeps the performer as it was
