@@ -54,6 +54,7 @@ type Metrics struct {
 	jobLeaseExpiries  metric.Int64Counter
 	jobsPurged        metric.Int64Counter
 	mailboxesHeld     metric.Int64Gauge
+	mailboxesUnheld   metric.Int64Gauge
 	mailboxHolds      metric.Int64Counter
 	auditHeld         metric.Int64Gauge
 	auditDefaultAged  metric.Int64Gauge
@@ -384,6 +385,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Zero on every process but the one holding the watch's lock."),
 	); err != nil {
 		return fmt.Errorf("held mailboxes gauge: %w", err)
+	}
+	if m.mailboxesUnheld, err = meter.Int64Gauge(
+		namespace+"_mailbox_watches_unheld",
+		metric.WithDescription("Connected IMAP mailboxes the watch's limit leaves to the minute's read. "+
+			"Written by the process holding the watch's lock."),
+	); err != nil {
+		return fmt.Errorf("unheld mailboxes gauge: %w", err)
 	}
 	if m.mailboxHolds, err = meter.Int64Counter(
 		namespace+"_mailbox_watch_holds_total",
@@ -1203,6 +1211,11 @@ func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
 // MailboxWatchesHeld is how many mailboxes this process holds open now.
 func (m *Metrics) MailboxWatchesHeld(ctx context.Context, held int64) {
 	m.mailboxesHeld.Record(ctx, held)
+}
+
+// MailboxWatchesUnheld is how many mailboxes the watch's limit leaves to the minute's read (A-38).
+func (m *Metrics) MailboxWatchesUnheld(ctx context.Context, unheld int64) {
+	m.mailboxesUnheld.Record(ctx, unheld)
 }
 
 // MailboxWatchEnded counts one hold of a mailbox by what it came to, a closed set of five.

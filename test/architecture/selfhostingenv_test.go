@@ -199,6 +199,7 @@ func TestEveryVariableTheDeploymentTableNamesReachesTheComposeStack(t *testing.T
 		"HUBTASK_STREAM_PER_CREDENTIAL":           "tuning",
 		"HUBTASK_STREAM_PER_TENANT":               "tuning",
 		"HUBTASK_STREAM_PER_PROCESS":              "tuning",
+		"HUBTASK_MAILBOX_WATCH_LIMIT":             "tuning",
 		"HUBTASK_MAX_BODY_BYTES":                  "tuning",
 		"HUBTASK_HTTP_TIMEOUT":                    "tuning",
 		"HUBTASK_HTTP_CONNECT_TIMEOUT":            "tuning",

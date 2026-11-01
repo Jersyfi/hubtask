@@ -493,6 +493,33 @@ tests:
         alertname: HubtaskInvalidIndex
         exp_alerts: []
 
+  # A-38: three mailboxes left to the minute's read for over an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watches_unheld'
+        values: '3x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskMailboxWatchFull
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-38
+            exp_annotations:
+              summary: "3 connected mailboxes are read only every minute"
+              description: "The mailbox watch holds as many mailboxes as HUBTASK_MAILBOX_WATCH_LIMIT allows, one per workspace before a second; the rest arrive by the minute's read. Raise the limit if the watching worker has the connections to spare.\n"
+              runbook: RB-A38-mailbox-watch-full.md
+
+  # A-38 stays quiet while the watch holds every mailbox.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watches_unheld'
+        values: '0x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskMailboxWatchFull
+        exp_alerts: []
+
   # A-29: every mailbox on the installation's google app fails - its secret ran out.
   - interval: 1m
     input_series:

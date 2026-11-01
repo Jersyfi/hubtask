@@ -427,6 +427,23 @@ groups:
             the provider and in HUBTASK_MAIL_OAUTH_*.
           runbook: RB-A29-mail-app-failing.md
 
+      # A-38. The mailbox watch's limit (HUBTASK_MAILBOX_WATCH_LIMIT) leaves connected IMAP
+      # mailboxes to the minute's read: nothing is lost, but those workspaces no longer hear of
+      # mail within seconds, and nothing else says so. A ticket, for a decision on the limit.
+      - alert: HubtaskMailboxWatchFull
+        expr: max(hubtask_mailbox_watches_unheld) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-38
+        annotations:
+          summary: "{{ $value }} connected mailboxes are read only every minute"
+          description: >
+            The mailbox watch holds as many mailboxes as HUBTASK_MAILBOX_WATCH_LIMIT allows, one per
+            workspace before a second; the rest arrive by the minute's read. Raise the limit if the
+            watching worker has the connections to spare.
+          runbook: RB-A38-mailbox-watch-full.md
+
       # A-31. More than one in twenty notification sends failed over a quarter of an hour, with at
       # least five failures so that one bounced address on a quiet installation stays silent. A
       # failure the breaker does not see - a refusal per recipient, a template the channel rejects -

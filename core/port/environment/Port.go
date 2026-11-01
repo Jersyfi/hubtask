@@ -393,6 +393,10 @@ type MailConfig struct {
 	// InboundDomain is HUBTASK_MAIL_INBOUND_DOMAIN, the receiving domain places' addresses live on
 	// (ADR-0092). Empty: no place shows an address, and the inbound route takes nothing.
 	InboundDomain string
+	// WatchLimit is HUBTASK_MAILBOX_WATCH_LIMIT: how many connected IMAP mailboxes the watch holds
+	// open at once, one per workspace before any workspace's second; the rest are read every
+	// minute. Zero is the default of a thousand.
+	WatchLimit int
 	// InboundKey is HUBTASK_MAIL_INBOUND_KEY, what the inbound service presents on the route.
 	InboundKey secret.Secret
 	// OAuth are the installation's own OAuth apps for connected mailboxes (ADR-0094), by provider

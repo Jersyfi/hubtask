@@ -95,6 +95,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Timeout:  getDuration("HUBTASK_SMTP_TIMEOUT", 10*time.Second),
 			// Lowercase, as every address on it is compared.
 			InboundDomain: strings.ToLower(strings.TrimSpace(get("HUBTASK_MAIL_INBOUND_DOMAIN", ""))),
+			WatchLimit:    getInt("HUBTASK_MAILBOX_WATCH_LIMIT", 1000),
 		},
 		Voice: env.VoiceConfig{AlexaSkillIDs: listOf(get("HUBTASK_ALEXA_SKILL_IDS", ""))},
 		AI: env.AIConfig{
@@ -557,6 +558,9 @@ func validateStorage(s env.StorageConfig) []error {
 }
 
 func validateMail(m env.MailConfig) []error {
+	if m.WatchLimit < 0 {
+		return []error{configError("config.limit_invalid", "HUBTASK_MAILBOX_WATCH_LIMIT")}
+	}
 	var errs []error
 	if m.Host == "" {
 		// No SMTP at all is a warning, not an error: notifications degrade, nothing breaks.

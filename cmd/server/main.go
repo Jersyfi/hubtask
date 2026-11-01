@@ -5313,6 +5313,7 @@ func run() error {
 			Leadership:   postgres.NewLeader(backgroundPool, postgres.MailboxWatchLock),
 			Signals:      metrics,
 			SchemaBehind: schemaBehind,
+			Limit:        cfg.Mail.WatchLimit,
 		}
 		background = append(background, start(ctx, "worker.mailbox_watch", mailboxWatch.Run))
 

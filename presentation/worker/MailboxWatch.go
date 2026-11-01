@@ -17,6 +17,8 @@ import (
 // MailboxHolds is the application's side of the watch: which mailboxes live, and one hold of one.
 type MailboxHolds interface {
 	Targets(ctx context.Context, limit int) ([]mailservice.WatchTarget, error)
+	// Wanted is how many mailboxes' reads live, beyond the limit.
+	Wanted(ctx context.Context) (int64, error)
 	Hold(ctx context.Context, target mailservice.WatchTarget, hold time.Duration) (string, error)
 }
 
@@ -24,6 +26,9 @@ type MailboxHolds interface {
 type MailboxWatchSignals interface {
 	// MailboxWatchesHeld is how many mailboxes this process holds open now.
 	MailboxWatchesHeld(ctx context.Context, held int64)
+	// MailboxWatchesUnheld is how many mailboxes the limit leaves to the minute's read - A-38's
+	// number: those workspaces lose the arrival in seconds, and nothing else says so.
+	MailboxWatchesUnheld(ctx context.Context, unheld int64)
 	// MailboxWatchEnded counts one hold by what it came to (mailservice.Watch*).
 	MailboxWatchEnded(ctx context.Context, outcome string)
 }
@@ -122,6 +127,11 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 		// is no reason to drop mailboxes that are held fine.
 		slog.WarnContext(ctx, "listing the mailboxes to hold failed", slog.String("error", shared.AsError(err).Code))
 		return
+	}
+	if m.Signals != nil {
+		if total, err := m.Holds.Wanted(bounded); err == nil {
+			m.Signals.MailboxWatchesUnheld(ctx, max(total-int64(len(targets)), 0))
+		}
 	}
 	wanted := make(map[mailservice.WatchTarget]bool, len(targets))
 	for _, target := range targets {

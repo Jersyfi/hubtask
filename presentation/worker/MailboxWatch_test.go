@@ -26,6 +26,8 @@ type holds struct {
 	active   map[mailservice.WatchTarget]int
 	most     map[mailservice.WatchTarget]int
 	calls    map[mailservice.WatchTarget]int
+	// wanted is how many reads live; zero is as many as the targets.
+	wanted int64
 }
 
 func newHolds(targets ...mailservice.WatchTarget) *holds {
@@ -40,6 +42,12 @@ func (h *holds) Targets(context.Context, int) ([]mailservice.WatchTarget, error)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return append([]mailservice.WatchTarget(nil), h.targets...), nil
+}
+
+func (h *holds) Wanted(context.Context) (int64, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return max(h.wanted, int64(len(h.targets))), nil
 }
 
 func (h *holds) Hold(ctx context.Context, target mailservice.WatchTarget, _ time.Duration) (string, error) {
@@ -74,9 +82,16 @@ func (h *holds) count(target mailservice.WatchTarget) (calls, active, most int) 
 }
 
 type watchSignals struct {
-	mu    sync.Mutex
-	held  []int64
-	ended map[string]int
+	mu     sync.Mutex
+	held   []int64
+	unheld []int64
+	ended  map[string]int
+}
+
+func (s *watchSignals) MailboxWatchesUnheld(_ context.Context, unheld int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.unheld = append(s.unheld, unheld)
 }
 
 func (s *watchSignals) MailboxWatchesHeld(_ context.Context, held int64) {
@@ -217,5 +232,24 @@ func TestAHoldComesBackAfterAnArrivalAndBacksOffAfterAFailure(t *testing.T) {
 	watch.tick(ctx, held)
 	if _, active, _ := h.count(boxOne); active != 0 || held[boxOne] != nil {
 		t.Errorf("a removed mailbox is still held (%d)", active)
+	}
+}
+
+// The mailboxes the limit leaves to the minute's read are counted, so an operator hears that some
+// workspaces lost the arrival in seconds (A-38).
+func TestTheMailboxesBeyondTheLimitAreCounted(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h := newHolds(boxOne, boxTwo)
+	h.wanted = 5
+	signals := &watchSignals{}
+	watch := fastWatch(h, &leadership{lock: &lock{}, name: "a"}, signals)
+	holders := map[mailservice.WatchTarget]*mailboxHolder{}
+	watch.tick(ctx, holders)
+	defer watch.stopAll(holders)
+	signals.mu.Lock()
+	defer signals.mu.Unlock()
+	if len(signals.unheld) != 1 || signals.unheld[0] != 3 {
+		t.Fatalf("unheld %v, want 3", signals.unheld)
 	}
 }
