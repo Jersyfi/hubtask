@@ -36,4 +36,7 @@ reading. Follow RB-A36 - it also holds back the change stream's wake-ups.
 ## Follow-up
 
 The alert resolves ten minutes after the failures stop. `too_large` is not a failure: a state above
-about 5.8 KB stays on its own replica and is sent again by the editor.
+about 5.8 KB stays on its own replica and is sent again by the editor. `local` is not one either:
+it is a replica that has heard no other replica announce itself in fifteen seconds and so keeps
+awareness to itself. Only `local` on a replica that runs beside others means the announcements do
+not arrive - the same notification queue as above.
