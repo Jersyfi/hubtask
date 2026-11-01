@@ -79,6 +79,21 @@ test('a check message is read in the reader\'s language', () => {
   assert.equal(checkMessage({ key: 'amount' }, 'fr', t), 'amount');
 });
 
+test('the designer writes an approval\'s levels, its decline status and the hours each level has (UC-SVC-08 check 6)', () => {
+  let draft = toggleApproval(shape, 'finish', true);
+  draft = changeApprovalLevel(draft, 'finish', 0, { people: ['acc-1'], groups: ['grp-1'], person_fields: ['custom_fields.manager'] });
+  draft = addApprovalLevel(draft, 'finish');
+  draft = changeApprovalLevel(draft, 'finish', 1, { rule: 'N_OF', count: 2, roles: ['ADMIN'] });
+  draft = changeApproval(draft, 'finish', { decline_to: 'todo', due_hours: 24 });
+  assert.deepEqual(draft.steps[1]?.approval, {
+    levels: [
+      { rule: 'ANY', people: ['acc-1'], groups: ['grp-1'], person_fields: ['custom_fields.manager'] },
+      { rule: 'N_OF', count: 2, roles: ['ADMIN'] },
+    ],
+    decline_to: 'todo', due_hours: 24,
+  });
+});
+
 test('an approval step keeps what the server accepts of a level (UC-SVC-08 check 1)', () => {
   let draft = toggleApproval(shape, 'finish', true);
   assert.deepEqual(draft.steps[1]?.approval, { levels: [{ rule: 'ANY' }], decline_to: null, due_hours: 0 });
