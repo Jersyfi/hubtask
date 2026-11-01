@@ -6,6 +6,7 @@ package resilience
 import (
 	"context"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -37,6 +38,10 @@ type LoadShedderConfig struct {
 	RetryAfter time.Duration
 	// OnShed is called for each rejected call, for the metric.
 	OnShed func(class Class)
+	// TenantShare is the divisor of Limit that one workspace's deferrable calls may hold at once
+	// (AdmitTenant). Zero is four: one workspace takes at most a quarter of the threshold, so its
+	// flood cannot by itself push the process over it and shed everybody else.
+	TenantShare int
 }
 
 // LoadShedder rejects deferrable work while the process is busy, before latency tips over for
@@ -47,6 +52,9 @@ type LoadShedderConfig struct {
 type LoadShedder struct {
 	cfg      LoadShedderConfig
 	inflight atomic.Int64
+
+	mu     sync.Mutex
+	tenant map[string]int
 }
 
 // NewLoadShedder builds a shedder. A limit below one would shed every deferrable call, so it is
@@ -58,7 +66,10 @@ func NewLoadShedder(cfg LoadShedderConfig) *LoadShedder {
 	if cfg.RetryAfter <= 0 {
 		cfg.RetryAfter = 5 * time.Second
 	}
-	return &LoadShedder{cfg: cfg}
+	if cfg.TenantShare < 1 {
+		cfg.TenantShare = 4
+	}
+	return &LoadShedder{cfg: cfg, tenant: map[string]int{}}
 }
 
 // Admit registers a call and reports whether it may run. The returned release must be called
@@ -96,6 +107,38 @@ func (s *LoadShedder) Do(ctx context.Context, class Class, fn func(context.Conte
 	}
 	defer release()
 	return fn(ctx)
+}
+
+// AdmitTenant registers one deferrable call of a workspace and refuses it while that workspace
+// already holds its share of the threshold. It is the second stage, after authentication has
+// named the workspace: Admit protects the process, this protects the other workspaces on it from
+// one workspace's flood (observability-reliability.md §6).
+//
+// The map holds only workspaces with a call in flight, so it is bounded by the in-flight count
+// rather than by the number of workspaces.
+func (s *LoadShedder) AdmitTenant(tenant string) (release func(), err error) {
+	share := max(s.cfg.Limit/s.cfg.TenantShare, 1)
+	s.mu.Lock()
+	if s.tenant[tenant] >= share {
+		s.mu.Unlock()
+		return func() {}, ShedError(ClassDeferrable, s.cfg.RetryAfter)
+	}
+	s.tenant[tenant]++
+	s.mu.Unlock()
+
+	var released atomic.Bool
+	return func() {
+		if !released.CompareAndSwap(false, true) {
+			return
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.tenant[tenant] <= 1 {
+			delete(s.tenant, tenant)
+			return
+		}
+		s.tenant[tenant]--
+	}, nil
 }
 
 // InFlight is how many calls are currently admitted. The gauge reads it.

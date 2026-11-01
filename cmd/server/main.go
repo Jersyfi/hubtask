@@ -4140,6 +4140,9 @@ func run() error {
 		// an installation on one machine says its rate limits are the whole of its admission
 		// control.
 		var admit rest.Shedder
+		// The second stage, behind authentication: one workspace's deferrable calls hold at most a
+		// quarter of the threshold, so its flood cannot shed everybody else's.
+		var admitTenant rest.TenantShedder
 		if cfg.LoadShed.Inflight > 0 {
 			shedder := resilience.NewLoadShedder(resilience.LoadShedderConfig{
 				Limit:      cfg.LoadShed.Inflight,
@@ -4155,6 +4158,7 @@ func run() error {
 				}
 				return shedder.Admit(class)
 			}
+			admitTenant = shedder.AdmitTenant
 		}
 
 		// The web interface, when this installation serves one (ADR-0028). It is built from the
@@ -4281,10 +4285,13 @@ func run() error {
 																Level: "tenant",
 																Bucket: rest.TenantBucket(
 																	cfg.RateLimit.TenantPerMinute, cfg.RateLimit.TenantDepth()),
-																Next: rest.Idempotent{
-																	Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
-																	Routes: apiRoutes,
-																	Next:   apiRoutes,
+																Next: rest.TenantShedding{
+																	Routes: apiRoutes, Admit: admitTenant, Signals: metrics,
+																	Next: rest.Idempotent{
+																		Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
+																		Routes: apiRoutes,
+																		Next:   apiRoutes,
+																	},
 																},
 															},
 														},

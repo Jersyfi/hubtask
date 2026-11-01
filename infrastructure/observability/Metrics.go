@@ -1156,7 +1156,7 @@ func (m *Metrics) OutboundHTTP(ctx context.Context, targetClass string, seconds 
 }
 
 // RateLimited counts a call turned away by a limit. scope says which limit: ip, token, tenant
-// for the rate limiter, load_shed for the shedder, bulkhead:<compartment> for a full
+// for the rate limiter, load_shed for the shedder, load_shed_tenant for a workspace over its share, bulkhead:<compartment> for a full
 // compartment. The set is written by hand and stays small - that is what keeps it a label.
 func (m *Metrics) RateLimited(ctx context.Context, scope string) {
 	m.rateLimited.Add(ctx, 1, metric.WithAttributes(attribute.String("scope", scope)))

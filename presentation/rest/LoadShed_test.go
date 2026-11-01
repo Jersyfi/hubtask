@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -217,5 +218,50 @@ func TestALongLivedRouteIsNeitherCountedNorShed(t *testing.T) {
 	}
 	if shedder.admitted != 0 {
 		t.Errorf("%d streams were counted against the threshold", shedder.admitted)
+	}
+}
+
+func tenantRequest(t *testing.T, path, tenant string) *http.Request {
+	t.Helper()
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind:     appshared.ActorUser,
+		TenantID: shared.MustParseID(tenant),
+	})
+	return httptest.NewRequestWithContext(ctx, http.MethodPost, path, nil)
+}
+
+// The workspace over its share is refused under its own scope; another workspace's query and the
+// noisy one's interactive call pass.
+func TestAWorkspaceOverItsShareIsShedAlone(t *testing.T) {
+	const noisy = "0192f000-0000-7000-8000-00000000000a"
+	const quiet = "0192f000-0000-7000-8000-00000000000b"
+	served := 0
+	signals := &shedSignal{}
+	admit := func(tenant string) (func(), error) {
+		if tenant == noisy {
+			return func() {}, shared.ErrUnavailable.WithDetail("capacity.shed").
+				WithParams(map[string]string{"retry_after_seconds": "5"})
+		}
+		return func() {}, nil
+	}
+	middleware := TenantShedding{Next: shedRoutes(&served), Routes: shedRoutes(&served), Admit: admit, Signals: signals}
+
+	refused := httptest.NewRecorder()
+	middleware.ServeHTTP(refused, tenantRequest(t, APIBasePath+"/items:query", noisy))
+	if refused.Code != http.StatusServiceUnavailable || refused.Header().Get("Retry-After") != "5" {
+		t.Fatalf("the noisy workspace's query answered %d, Retry-After %q", refused.Code, refused.Header().Get("Retry-After"))
+	}
+	if len(signals.scopes) != 1 || signals.scopes[0] != "load_shed_tenant" {
+		t.Fatalf("scopes = %v, want [load_shed_tenant]", signals.scopes)
+	}
+	for _, request := range []*http.Request{
+		tenantRequest(t, APIBasePath+"/items:query", quiet),
+		tenantRequest(t, APIBasePath+"/items", noisy),
+	} {
+		response := httptest.NewRecorder()
+		middleware.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Errorf("%s answered %d, want 200", request.URL.Path, response.Code)
+		}
 	}
 }

@@ -167,7 +167,7 @@ installation is missing, each a code with a severity, never free text (`Warnings
 | **Retry with backoff + jitter** | Only for idempotent operations; exponential, capped, a maximum attempt count; never in the synchronous request path against third-party systems |
 | **Circuit breaker** | Per external dependency (object storage, SMTP, AI per endpoint, each webhook target): open → an immediate error; half-open with a probe. The state is a metric and in `/meta/health` |
 | **Bulkheads** | Separate connection and worker pools for API, worker and automation, so a runaway rule cannot starve the interactive path; under Kubernetes, separate deployments too |
-| **Load shedding** | Above `HUBTASK_LOAD_SHED_INFLIGHT` requests in flight (per role), new *deferrable* requests (`rest.DeferrableRoutes`) are refused with `503` + `Retry-After`. A parked stream is not load (`rest.LongLivedRoutes`) |
+| **Load shedding** | Above `HUBTASK_LOAD_SHED_INFLIGHT` requests in flight (per role), new *deferrable* requests (`rest.DeferrableRoutes`) are refused with `503` + `Retry-After`. A parked stream is not load (`rest.LongLivedRoutes`). Behind authentication, one workspace's deferrable calls in flight are capped at a quarter of the threshold (`rest.TenantShedding`, scope `load_shed_tenant`), so one workspace's flood cannot shed every other workspace's searches and exports |
 | **Rate limits** | Internally too: automation throttles per rule and per tenant |
 | **A queue instead of synchrony** | Everything external goes through the outbox or jobs; a hanging webhook recipient cannot delay an API response |
 | **Idempotency** | `Idempotency-Key` outside, `job.dedupe_key` inside, `delivery_id` for webhooks: at-least-once becomes effectively exactly-once |
