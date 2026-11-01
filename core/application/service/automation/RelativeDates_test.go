@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -542,5 +543,31 @@ func TestAGoneCalendarSeedsTheCheck(t *testing.T) {
 	}
 	if !seeded {
 		t.Fatalf("queued %+v, want the workspace's check", h.queued.queued)
+	}
+}
+
+type workspaceZone string
+
+func (z workspaceZone) Find(context.Context) (identity.Workspace, error) {
+	return identity.Workspace{DefaultTimeZone: string(z)}, nil
+}
+
+// A day before is a calendar day in the workspace's zone: a deadline the morning after the spring
+// change is reminded of at the same clock time the day before, not an hour off.
+func TestADayOffsetCountsTheWorkspacesCalendarDays(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skip("no zone database")
+	}
+	due := time.Date(2026, 3, 29, 9, 0, 0, 0, berlin).UTC()
+	h := newDates([]domain.Rule{relativeRule(domain.AnchorDueDate, "-P1D")}, dueItem(&due))
+	h.subscriber.Workspaces = workspaceZone("Europe/Berlin")
+
+	if err := h.subscriber.Deliver(context.Background(), dueChanged()); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	owed := h.owed.rows[owedKey(ruleID, itemID)]
+	if want := time.Date(2026, 3, 28, 9, 0, 0, 0, berlin); !owed.FireAt.Equal(want) {
+		t.Errorf("owes at %v, want %v", owed.FireAt.In(berlin), want)
 	}
 }

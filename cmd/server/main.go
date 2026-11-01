@@ -4380,6 +4380,7 @@ func run() error {
 		Rules: automationRuns, Occurrences: postgres.NewAutomationRuleRepository(cursors),
 		Entries: items, Containers: containers, Jobs: jobs,
 		Clock: clockadapter.System{}, IDs: ids,
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Calendars: servicedeskservice.RuleCalendars{
 			Calendars:    servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
 			HubCalendars: serviceDeskStore.HubCalendars(),

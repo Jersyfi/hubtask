@@ -610,7 +610,20 @@ func BusinessDays(offset string) (int, error) {
 // schedule something after everyone who wrote it has left.
 const MaxOffset = 365 * 24 * time.Hour
 
-// parseOffset reads a signed ISO 8601 duration of weeks down to seconds.
+// parseOffset reads a signed ISO 8601 duration of weeks down to seconds as a length of time, a day
+// counted as 24 hours: what a flow's wait is, and what the bound is checked against.
+func parseOffset(text string) (time.Duration, error) {
+	days, clock, err := parseNominalOffset(text)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(days)*24*time.Hour + clock, nil
+}
+
+// parseNominalOffset reads a signed ISO 8601 duration of weeks down to seconds: the weeks and days
+// as a count of calendar days, the hours, minutes and seconds as a length of time. Both carry the
+// sign. A RELATIVE_DATE trigger applies the days on the calendar, so "-P1D" keeps the anchor's
+// local clock time across a clock change (ISO 8601's nominal day).
 //
 // Written here rather than taken from a library, for the reason core/domain has no libraries at all
 // (ADR-0001, rule 1) - and here rather than borrowed from the reminders, because that one is bounded
@@ -620,8 +633,8 @@ const MaxOffset = 365 * 24 * time.Hour
 // Years and months are refused rather than converted. "One month before it is due" is a different
 // instant depending on which month, and a trigger that resolved it here would be deciding a calendar
 // question in a parser.
-func parseOffset(text string) (time.Duration, error) {
-	sign := time.Duration(1)
+func parseNominalOffset(text string) (days int, clock time.Duration, err error) {
+	sign := 1
 	switch {
 	case strings.HasPrefix(text, "-"):
 		sign, text = -1, text[1:]
@@ -629,12 +642,12 @@ func parseOffset(text string) (time.Duration, error) {
 		text = text[1:]
 	}
 	if !strings.HasPrefix(text, "P") {
-		return 0, errOffsetMalformed
+		return 0, 0, errOffsetMalformed
 	}
 
-	date, clock, timed := strings.Cut(text[1:], "T")
-	if timed && clock == "" {
-		return 0, errOffsetMalformed
+	date, clockText, timed := strings.Cut(text[1:], "T")
+	if timed && clockText == "" {
+		return 0, 0, errOffsetMalformed
 	}
 
 	var total time.Duration
@@ -642,34 +655,40 @@ func parseOffset(text string) (time.Duration, error) {
 	for _, part := range []struct {
 		text  string
 		units map[byte]time.Duration
+		date  bool
 	}{
-		{date, map[byte]time.Duration{'W': 7 * 24 * time.Hour, 'D': 24 * time.Hour}},
-		{clock, map[byte]time.Duration{'H': time.Hour, 'M': time.Minute, 'S': time.Second}},
+		{date, map[byte]time.Duration{'W': 7 * 24 * time.Hour, 'D': 24 * time.Hour}, true},
+		{clockText, map[byte]time.Duration{'H': time.Hour, 'M': time.Minute, 'S': time.Second}, false},
 	} {
 		rest := part.text
 		for rest != "" {
 			count, unit, remainder, err := cutComponent(rest)
 			if err != nil {
-				return 0, err
+				return 0, 0, err
 			}
 			scale, known := part.units[unit]
 			if !known {
 				// 'M' before the T is months and after it is minutes, which is why the two halves
 				// are read against two tables rather than one.
-				return 0, errOffsetMalformed
+				return 0, 0, errOffsetMalformed
 			}
 			total += time.Duration(count) * scale
 			if total > MaxOffset {
-				return 0, errOffsetMalformed
+				return 0, 0, errOffsetMalformed
+			}
+			if part.date {
+				days += count * int(scale/(24*time.Hour))
+			} else {
+				clock += time.Duration(count) * scale
 			}
 			components++
 			rest = remainder
 		}
 	}
 	if components == 0 {
-		return 0, errOffsetMalformed
+		return 0, 0, errOffsetMalformed
 	}
-	return sign * total, nil
+	return sign * days, time.Duration(sign) * clock, nil
 }
 
 // cutComponent takes one `<digits><unit>` off the front.

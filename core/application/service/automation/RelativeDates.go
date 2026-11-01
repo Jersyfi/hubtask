@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/eventbus"
@@ -65,6 +66,14 @@ type RelativeDates struct {
 	// Calendars finds the business calendar a trigger counts working days on. Nil, or a calendar
 	// that is gone, owes nothing for such a trigger: plain days would come earlier than promised.
 	Calendars BusinessCalendars
+	// Workspaces answers the workspace's own time zone, whose calendar days an offset's days are.
+	// Nil, or a zone this binary cannot load, counts in UTC.
+	Workspaces WorkspaceZones
+}
+
+// WorkspaceZones is the one thing the producer reads of its workspace: the zone its days are in.
+type WorkspaceZones interface {
+	Find(ctx context.Context) (identity.Workspace, error)
 }
 
 // BusinessCalendars answers the calendar of a key as the entry's hub reads it: the hub's own
@@ -121,6 +130,11 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 		return d.Occurrences.ForgetItem(ctx, itemID)
 	}
 
+	zone, err := d.zone(ctx)
+	if err != nil {
+		return err
+	}
+
 	at := location{CollectionID: item.CollectionID}
 	if at.HubID, err = d.hubOf(ctx, item.CollectionID); err != nil {
 		return err
@@ -132,7 +146,7 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 		if !covers(rule.Scope, at) {
 			continue
 		}
-		moment, owes, err := d.settle(ctx, rule, item, at.HubID)
+		moment, owes, err := d.settle(ctx, rule, item, at.HubID, zone)
 		if err != nil {
 			return err
 		}
@@ -149,7 +163,7 @@ func (d RelativeDates) Deliver(ctx context.Context, envelope event.Envelope) err
 // settle writes, moves or removes one rule's moment for this entry, and answers the moment when
 // there is one.
 func (d RelativeDates) settle(
-	ctx context.Context, rule domain.Rule, item anchoredItem, hubID shared.ID,
+	ctx context.Context, rule domain.Rule, item anchoredItem, hubID shared.ID, zone *time.Location,
 ) (time.Time, bool, error) {
 	var cal calendar.BusinessCalendar
 	if rule.Trigger.Calendar != "" {
@@ -170,7 +184,7 @@ func (d RelativeDates) settle(
 		}
 		cal = found
 	}
-	at, owes, err := domain.OccurrenceOn(rule.Trigger, item.anchor(rule.Trigger), cal)
+	at, owes, err := domain.OccurrenceOn(rule.Trigger, item.anchor(rule.Trigger), cal, zone)
 	if err != nil {
 		// An offset this build cannot read, on a rule that was written when it could. The rule
 		// stops owing rather than firing at the anchor itself, and it stays visible and editable.
@@ -186,6 +200,23 @@ func (d RelativeDates) settle(
 		ID: d.IDs.NewID(), TenantID: rule.TenantID, RuleID: rule.ID, ItemID: item.ID, FireAt: at,
 	})
 	return at, err == nil, err
+}
+
+// zone answers the workspace's own time zone, read in the dispatcher's transaction.
+func (d RelativeDates) zone(ctx context.Context) (*time.Location, error) {
+	if d.Workspaces == nil {
+		return time.UTC, nil
+	}
+	workspace, err := d.Workspaces.Find(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if workspace.DefaultTimeZone != "" {
+		if loaded, err := time.LoadLocation(workspace.DefaultTimeZone); err == nil {
+			return loaded, nil
+		}
+	}
+	return time.UTC, nil
 }
 
 // wake seeds or pulls forward this tenant's poller - the same one the schedules use, because the

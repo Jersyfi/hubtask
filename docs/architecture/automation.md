@@ -99,6 +99,11 @@ nothing**, nor does an entry in the trash or gone. The `SCHEDULE` poller serves 
 
 **A rule takes effect for what happens after it is switched on**; nothing walks earlier entries.
 
+**A day is a calendar day in the workspace's time zone.** The offset's weeks and days move the
+anchor by calendar days at its local clock time, so `-P1D` before 09:00 on the morning after a
+clock change is 09:00 the day before; only its hours, minutes and seconds are lengths of time
+(`-PT24H` is exactly 24 hours). A workspace without a loadable zone counts in UTC.
+
 **A business calendar counts working days.** A trigger naming one is read on the entry's hub's own
 version of the key, else the workspace's or the installation's, as an SLA policy's calendar is; a
 rule whose calendar no longer exists owes nothing, because plain days would come earlier than the
