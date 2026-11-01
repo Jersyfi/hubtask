@@ -68,6 +68,11 @@ type ChangeListener struct {
 	// heard is where another process's awareness goes.
 	origin string
 	heard  func(tenantID shared.ID, kind string, documentID shared.ID, message []byte)
+	// peers are the other processes that announced themselves on the awareness channel, by when
+	// they last did; newPeer rings when one is heard for the first time, so that it learns of this
+	// process at once instead of at the next announcement.
+	peers   map[string]time.Time
+	newPeer chan struct{}
 	// ended is where a credential's doorbell goes (migration 0332); the account is empty for a
 	// whole workspace.
 	ended func(tenantID, accountID shared.ID)
@@ -94,6 +99,7 @@ func NewChangeListener(pool *pgxpool.Pool) *ChangeListener {
 	return &ChangeListener{
 		pool: pool, waiters: map[shared.ID]map[int64]chan struct{}{},
 		documents: map[DocumentKey]map[int64]chan struct{}{}, origin: hex.EncodeToString(origin),
+		peers: map[string]time.Time{}, newPeer: make(chan struct{}, 1),
 	}
 }
 
@@ -291,29 +297,72 @@ func (l *ChangeListener) wakeDocument(key DocumentKey) {
 	}
 }
 
-// hear hands another process's awareness to this one's relay; its own, and a payload that is not
-// the bus's framing, are skipped.
+// awarenessHello is the announcement of a process that relays awareness (AwarenessBus.Run).
+const awarenessHello = "hello"
+
+// hear hands another process's awareness to this one's relay; its own, and an entry that is not
+// the bus's framing, are skipped. A payload is `origin/` and one or more entries, each
+// `tenant/kind/document|base64` and separated by a newline, or `origin/hello`.
 func (l *ChangeListener) hear(payload string) {
 	origin, rest, _ := strings.Cut(payload, "/")
-	if origin == l.origin {
+	if origin == l.origin || origin == "" {
 		return
 	}
-	keyText, encoded, found := strings.Cut(rest, "|")
-	key, ok := documentKeyOf(keyText)
-	if !found || !ok {
-		return
-	}
-	message, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil || len(message) == 0 {
+	if rest == awarenessHello {
+		l.greeted(origin)
 		return
 	}
 	l.mu.Lock()
 	heard := l.heard
 	l.mu.Unlock()
-	if heard != nil {
-		heard(key.TenantID, key.Kind, key.DocumentID, message)
+	for _, entry := range strings.Split(rest, "\n") {
+		keyText, encoded, found := strings.Cut(entry, "|")
+		key, ok := documentKeyOf(keyText)
+		if !found || !ok {
+			continue
+		}
+		message, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil || len(message) == 0 {
+			continue
+		}
+		if heard != nil {
+			heard(key.TenantID, key.Kind, key.DocumentID, message)
+		}
 	}
 }
+
+func (l *ChangeListener) greeted(origin string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.peers == nil {
+		l.peers = map[string]time.Time{}
+	}
+	if _, known := l.peers[origin]; !known && l.newPeer != nil {
+		select {
+		case l.newPeer <- struct{}{}:
+		default:
+		}
+	}
+	l.peers[origin] = time.Now()
+}
+
+// HasPeers says whether another relaying process announced itself within the window. A single
+// process has none, and its awareness then stays in its own relay without a transaction.
+func (l *ChangeListener) HasPeers(within time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	cutoff := time.Now().Add(-within)
+	for origin, seen := range l.peers {
+		if seen.After(cutoff) {
+			return true
+		}
+		delete(l.peers, origin)
+	}
+	return false
+}
+
+// NewPeer rings when a process is heard announcing itself for the first time.
+func (l *ChangeListener) NewPeer() <-chan struct{} { return l.newPeer }
 
 // credential hands `tenant` or `tenant/account`, as migration 0332 writes it, to OnCredential's
 // handler; another shape is skipped.

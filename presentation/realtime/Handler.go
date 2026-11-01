@@ -6,7 +6,6 @@ package realtime
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"math"
 	"net/http"
 	"strconv"
@@ -39,11 +38,8 @@ const (
 	pollInterval = 2 * time.Second
 	// With a document's own wake-up, a workspace's change only asks the reader's access again, at
 	// most every accessRecheck; refreshInterval catches up regardless, should a wake-up be lost.
-	// awarenessEvery bounds how often one connection's awareness goes to the other processes, the
-	// latest kept and sent at the end of the interval.
 	accessRecheck   = 5 * time.Second
 	refreshInterval = 30 * time.Second
-	awarenessEvery  = 100 * time.Millisecond
 )
 
 // The close codes a client is told why with: in the range RFC 6455 leaves to applications.
@@ -169,10 +165,6 @@ type connection struct {
 	// checked is when access was last asked (every catch-up asks it); recheck fires a deferred one.
 	checked time.Time
 	recheck <-chan time.Time
-	// pending is the newest awareness not yet sent to the other processes, flush when it goes.
-	pending []byte
-	sentAt  time.Time
-	flush   <-chan time.Time
 	// budget bounds the bytes this connection writes; h.Workspaces, its workspace's.
 	budget *Budget
 }
@@ -301,9 +293,6 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 			if err := c.catchUp(ctx); err != nil {
 				return c.ending(err)
 			}
-		case <-c.flush:
-			c.flush = nil
-			c.broadcast(ctx)
 		case <-poll:
 			if err := c.catchUp(ctx); err != nil {
 				return c.ending(err)
@@ -416,14 +405,7 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 		relayed := Awareness(message.Payload)
 		c.h.Relay.Publish(c.actor.TenantID, c.ref, relayID, relayed)
 		if c.h.Relay.Bus != nil {
-			c.pending = relayed
-			if wait := awarenessEvery - time.Since(c.sentAt); wait > 0 {
-				if c.flush == nil {
-					c.flush = time.After(wait)
-				}
-				return nil
-			}
-			c.broadcast(ctx)
+			c.h.Relay.Bus.Publish(c.actor.TenantID, string(c.ref.Kind), c.ref.ID, relayID, relayed)
 		}
 		return nil
 	case message.Type == messageCompact:
@@ -485,19 +467,6 @@ func (c *connection) write(ctx context.Context, message []byte) error {
 	writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	return c.conn.Write(writeCtx, websocket.MessageBinary, message)
-}
-
-// broadcast sends the newest awareness to the other processes. A failure is not the connection's:
-// awareness is best effort, and the next message replaces this one.
-func (c *connection) broadcast(ctx context.Context) {
-	if c.pending == nil {
-		return
-	}
-	message := c.pending
-	c.pending, c.sentAt = nil, time.Now()
-	if err := c.h.Relay.Bus.Publish(ctx, c.actor.TenantID, string(c.ref.Kind), c.ref.ID, message); err != nil {
-		slog.DebugContext(ctx, "awareness not relayed to the other processes", slog.String("error", err.Error()))
-	}
 }
 
 func (c *connection) subscribeDocument() (<-chan struct{}, func()) {

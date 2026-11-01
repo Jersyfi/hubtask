@@ -296,9 +296,8 @@ func TestAWorkspacesChangesDoNotReaskAccessEachTime(t *testing.T) {
 // relayBus hands what one process publishes to another process's relay, as the listener does.
 type relayBus struct{ to *Relay }
 
-func (b relayBus) Publish(_ context.Context, tenantID shared.ID, kind string, documentID shared.ID, message []byte) error {
+func (b relayBus) Publish(tenantID shared.ID, kind string, documentID shared.ID, _ int64, message []byte) {
 	b.to.Deliver(tenantID, kind, documentID, message)
-	return nil
 }
 
 // SY-E: two readers of one document on two processes see each other's awareness through the bus.

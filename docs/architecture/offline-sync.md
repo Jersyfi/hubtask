@@ -527,12 +527,17 @@ it, order it and decide who may touch it.
   connection; a ping every thirty seconds keeps a live one; the connections count against the
   change stream's caps.
 * **Awareness** - a cursor, a selection, a name - is relayed to the document's other connections in
-  the same process and, at most every 100 ms per connection with the latest kept, to those on the
-  other processes as a notification on `hubtask_awareness` (`AwarenessBus`, through the
-  transaction wrapper; a message whose notification would pass 7,900 bytes stays in its process).
-  It is never stored. No sticky routing is needed behind a load balancer. Each relay is counted
-  in `hubtask_realtime_awareness_relayed_total{outcome}` (`sent`, `too_large`, `failed`); A-22
-  tells the operator when failures persist.
+  the same process and, through `AwarenessBus`, to those on the other processes as notifications
+  on `hubtask_awareness`. The bus keeps the newest message of each connection and sends all of a
+  process's every 100 ms in one transaction (system scope, through the transaction wrapper),
+  packed several to a notification under 7,900 bytes; a message that would not fit alone stays in
+  its process. It relays only while another relaying process has announced itself
+  (`origin/hello` on the same channel, every five seconds, at start and on hearing a new peer;
+  forgotten after fifteen), so a single process opens no transaction for a cursor - at most ten
+  per second per process otherwise, whatever the number of connections. It is never stored. No
+  sticky routing is needed behind a load balancer. Each message is counted in
+  `hubtask_realtime_awareness_relayed_total{outcome}` (`sent`, `local` without a peer,
+  `too_large`, `failed`); A-22 tells the operator when failures persist.
 * **The browser client** is `packages/editor`: a Yjs document per page bound to the block editor,
   its connection in this framing (a reader sends no update; a writer answers `101` with a `100`)
   and a reconnect with a doubling wait up to thirty seconds. The socket comes from the sync engine

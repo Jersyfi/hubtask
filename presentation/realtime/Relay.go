@@ -4,7 +4,6 @@
 package realtime
 
 import (
-	"context"
 	"sync"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/realtime"
@@ -27,9 +26,10 @@ type Relay struct {
 }
 
 // AwarenessBus relays a document's awareness to its connections on the other processes, best
-// effort: a message lost is replaced by the next.
+// effort: a message lost is replaced by the next. Publish never blocks; the bus keeps the newest
+// message of each connection (from) and sends them together.
 type AwarenessBus interface {
-	Publish(ctx context.Context, tenantID shared.ID, kind string, documentID shared.ID, message []byte) error
+	Publish(tenantID shared.ID, kind string, documentID shared.ID, from int64, message []byte)
 }
 
 // Deliver hands a message another process relayed to every reader of the document here.

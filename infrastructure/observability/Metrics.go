@@ -845,7 +845,7 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 	}
 	if m.awarenessRelayed, err = meter.Int64Counter(
 		namespace+"_realtime_awareness_relayed_total",
-		metric.WithDescription("Live document awareness handed to the other replicas, by outcome: sent, too_large or failed."),
+		metric.WithDescription("Live document awareness handed to the other replicas, by outcome: sent, local, too_large or failed."),
 	); err != nil {
 		return fmt.Errorf("awareness relay counter: %w", err)
 	}

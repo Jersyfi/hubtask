@@ -51,8 +51,14 @@ func TestAwarenessAndADocumentsWakeCrossProcesses(t *testing.T) {
 	otherWake, stopOther := second.SubscribeDocument(tenantA, "page", other)
 	defer stopOther()
 
-	bus := postgres.AwarenessBus{Work: postgres.NewUnitOfWork(pool), Listener: first}
-	if err := bus.Publish(ctx, tenantA, "page", document, []byte("cursor")); err != nil {
+	// Each process announces itself; the first relays only once it has heard the second.
+	work := postgres.NewUnitOfWork(pool)
+	bus := &postgres.AwarenessBus{Work: work, Listener: first}
+	concurrency.Go(listening, "test.awareness_first", bus.Run)
+	concurrency.Go(listening, "test.awareness_second", (&postgres.AwarenessBus{Work: work, Listener: second}).Run)
+	waitFor(t, 5*time.Second, "the processes to hear each other", func() bool { return first.HasPeers(time.Minute) })
+	bus.Publish(tenantA, "page", document, 1, []byte("cursor"))
+	if err := bus.Flush(ctx); err != nil {
 		t.Fatalf("publishing: %v", err)
 	}
 	waitFor(t, 5*time.Second, "the other process to hear the awareness", func() bool {
