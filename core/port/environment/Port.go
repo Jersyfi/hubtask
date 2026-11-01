@@ -294,6 +294,9 @@ type MediaConfig struct {
 	ScannerAddress string
 	// ScannerTimeout bounds one scan; a scan past it holds the file.
 	ScannerTimeout time.Duration
+	// ScannerStreamMaxBytes is the daemon's StreamMaxLength. With a scanner, uploads are capped to
+	// it, so no accepted file is one the daemon refuses for its size.
+	ScannerStreamMaxBytes int64
 }
 
 // QueueConfig is the background work of the worker and scheduler roles (ADR-0008).

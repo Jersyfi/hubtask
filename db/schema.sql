@@ -2205,8 +2205,9 @@ CREATE TABLE media_object (
   deleted_at  timestamptz,
   -- The upload life (migration 0013): PENDING between staging and confirmation, READY once
   -- the bytes were read back, judged and sealed; PENDING_SCAN held for a scanner that could not
-  -- answer, INFECTED found malicious, its bytes gone (migration 0301). Fail-closed default.
-  status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY', 'PENDING_SCAN', 'INFECTED')),
+  -- answer, INFECTED found malicious, its bytes gone (migration 0301), UNSCANNABLE refused by the
+  -- scanner for its size (0336). Fail-closed default.
+  status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY', 'PENDING_SCAN', 'INFECTED', 'UNSCANNABLE')),
   file_name   text,
   -- Since when nothing has pointed at this object, NULL while something does (migration 0051).
   -- The recount maintains it, and the sweep waits it out before marking: an object is at

@@ -4,7 +4,8 @@
 // Package clamd is the upload scanner (core/port/storage.Scanner) against a ClamAV daemon, over
 // its INSTREAM command: the bytes stream in length-prefixed chunks, never a path the daemon reads
 // (security.md §4, T-11). A daemon that cannot be reached, times out or answers an error is
-// ErrUnavailable, which holds the file rather than passing it. A TCP daemon is dialled through
+// ErrUnavailable, which holds the file rather than passing it - except a refusal of the file for its
+// size (media.TooLargeToScan), which no later attempt would turn into a verdict. A TCP daemon is dialled through
 // the outbound guard (rule 6): the allowlist, resolution and the address at dial time.
 package clamd
 
@@ -20,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
@@ -45,6 +47,9 @@ type Scanner struct {
 	// Guard checks a TCP daemon's host and address; without it a TCP address is never dialled.
 	Guard *httpclient.Guard
 	Dial  Dial
+	// StreamMaxBytes is the daemon's StreamMaxLength; a longer file is refused for its size before
+	// it is sent. Zero sends everything and leaves the limit to the daemon's answer.
+	StreamMaxBytes int64
 }
 
 var _ storage.Scanner = Scanner{}
@@ -76,7 +81,11 @@ func (s Scanner) Scan(ctx context.Context, content io.Reader) (storage.Verdict, 
 	if _, err := io.WriteString(conn, "zINSTREAM\x00"); err != nil {
 		return storage.Verdict{}, unavailable("starting the scan", err)
 	}
-	if err := stream(conn, content); err != nil {
+	if err := stream(conn, content, s.StreamMaxBytes); err != nil {
+		if errors.Is(err, shared.ErrUnavailable) && refusedForSize(conn) {
+			// clamd answers a stream over its limit and closes, so the next write fails.
+			return storage.Verdict{}, media.TooLargeToScan()
+		}
 		return storage.Verdict{}, err
 	}
 	reply, err := bufio.NewReader(conn).ReadString(0)
@@ -123,11 +132,15 @@ func (s Scanner) dial(ctx context.Context, network, address string) (net.Conn, e
 }
 
 // stream writes the content in length-prefixed chunks and the zero-length chunk that ends it.
-func stream(conn net.Conn, content io.Reader) error {
+func stream(conn net.Conn, content io.Reader, limit int64) error {
 	buffer := make([]byte, chunkSize)
 	prefix := make([]byte, 4)
+	var sent int64
 	for {
 		n, readErr := content.Read(buffer)
+		if sent += int64(n); limit > 0 && sent > limit {
+			return media.TooLargeToScan()
+		}
 		if n > 0 {
 			binary.BigEndian.PutUint32(prefix, uint32(n)) //nolint:gosec // G115: n <= chunkSize
 			if _, err := conn.Write(prefix); err != nil {
@@ -160,10 +173,27 @@ func verdictOf(reply string) (storage.Verdict, error) {
 		return storage.Verdict{}, nil
 	case strings.HasSuffix(answer, " FOUND"):
 		return storage.Verdict{Malicious: true, Signature: strings.TrimSuffix(answer, " FOUND")}, nil
+	case sizeRefusal(answer):
+		return storage.Verdict{}, media.TooLargeToScan()
 	default:
-		// "INSTREAM size limit exceeded. ERROR" among others: no verdict, so the file is held.
+		// Any other error line: no verdict, so the file is held.
 		return storage.Verdict{}, unavailable("the scanner answered without a verdict", errors.New(answer))
 	}
+}
+
+// sizeRefusal recognises clamd's "INSTREAM size limit exceeded. ERROR".
+func sizeRefusal(answer string) bool {
+	return strings.Contains(answer, "size limit exceeded")
+}
+
+// refusedForSize reads what the daemon said before a write failed, briefly: an answer is already
+// sent or never comes.
+func refusedForSize(conn net.Conn) bool {
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		return false
+	}
+	reply, _ := bufio.NewReader(conn).ReadString(0)
+	return sizeRefusal(reply)
 }
 
 func unavailable(doing string, err error) error {

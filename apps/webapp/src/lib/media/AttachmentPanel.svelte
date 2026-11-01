@@ -96,6 +96,7 @@
     // Held for the installation's scanner, or found malicious since: neither is downloaded.
     if (object.status === 'PENDING_SCAN') return `${t('app.media.held')} · ${size}`;
     if (object.status === 'INFECTED') return t('app.media.infected');
+    if (object.status === 'UNSCANNABLE') return `${t('app.media.unscannable')} · ${size}`;
     return `${t('app.media.pending')} · ${size}`;
   }
 

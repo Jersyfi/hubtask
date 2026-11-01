@@ -58193,9 +58193,10 @@
               "PENDING",
               "READY",
               "PENDING_SCAN",
-              "INFECTED"
+              "INFECTED",
+              "UNSCANNABLE"
             ],
-            "description": "PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.\n"
+            "description": "PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. UNSCANNABLE is a held one the scanner refused for its size: it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.\n"
           },
           "ref_count": {
             "type": "integer",

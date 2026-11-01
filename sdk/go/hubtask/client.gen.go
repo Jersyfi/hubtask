@@ -6430,6 +6430,7 @@ const (
 	MediaObjectStatusPENDING     MediaObjectStatus = "PENDING"
 	MediaObjectStatusPENDINGSCAN MediaObjectStatus = "PENDING_SCAN"
 	MediaObjectStatusREADY       MediaObjectStatus = "READY"
+	MediaObjectStatusUNSCANNABLE MediaObjectStatus = "UNSCANNABLE"
 )
 
 // Valid indicates whether the value is a known member of the MediaObjectStatus enum.
@@ -6442,6 +6443,8 @@ func (e MediaObjectStatus) Valid() bool {
 	case MediaObjectStatusPENDINGSCAN:
 		return true
 	case MediaObjectStatusREADY:
+		return true
+	case MediaObjectStatusUNSCANNABLE:
 		return true
 	default:
 		return false
@@ -18724,7 +18727,7 @@ type MediaObject struct {
 	// Size Declared while PENDING, measured once READY.
 	Size int64 `json:"size"`
 
-	// Status PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.
+	// Status PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. UNSCANNABLE is a held one the scanner refused for its size: it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.
 	Status MediaObjectStatus `json:"status"`
 
 	// Upload Where to put the bytes, present in the answer that staged the upload and on a GET while the object is PENDING and the target has not expired.
@@ -18732,7 +18735,7 @@ type MediaObject struct {
 	Usage  MediaObjectUsage `json:"usage"`
 }
 
-// MediaObjectStatus PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.
+// MediaObjectStatus PENDING between staging and confirmation; READY once the bytes were read back, judged and sealed. Where the installation scans uploads, PENDING_SCAN is a confirmed object held while the scanner could not answer: it may cover or be attached, and is never downloaded until the scan clears it. INFECTED is one a later scan found malicious: its bytes are gone, and it is never downloaded. UNSCANNABLE is a held one the scanner refused for its size: it is never downloaded. Only READY and PENDING_SCAN objects can cover or be attached.
 type MediaObjectStatus string
 
 // MediaObjectUsage defines model for MediaObject.Usage.

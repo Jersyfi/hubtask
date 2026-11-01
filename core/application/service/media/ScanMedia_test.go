@@ -177,3 +177,58 @@ func TestAnIngestScansBeforeItStores(t *testing.T) {
 		})
 	}
 }
+
+// sizeLimited refuses every stream longer than limit, as clamd's StreamMaxLength does, and passes
+// the rest clean.
+type sizeLimited struct{ limit int }
+
+func (s sizeLimited) Scan(_ context.Context, content io.Reader) (storage.Verdict, error) {
+	body, _ := io.ReadAll(content)
+	if len(body) > s.limit {
+		return storage.Verdict{}, domain.TooLargeToScan()
+	}
+	return storage.Verdict{}, nil
+}
+
+// A file the scanner refuses for its size is settled UNSCANNABLE, and the files behind it in the
+// same pass are still scanned: the oldest oversized file never stops the workspace's scan.
+func TestTheScanJobSettlesAFileTooLargeToScanAndGoesOn(t *testing.T) {
+	records, bytesOf := newObjects(), newStore()
+	large, small := shared.ID("0192f000-0000-7000-8000-0000000000c1"), shared.ID("0192f000-0000-7000-8000-0000000000c2")
+	for i, held := range []struct {
+		id    shared.ID
+		bytes []byte
+	}{{large, make([]byte, 30)}, {small, []byte("pdf")}} {
+		object := domain.Object{
+			ID: held.id, TenantID: tenantID, StorageKey: "media/" + tenantID.String() + "/" + held.id.String(),
+			ContentType: "application/pdf", ByteSize: int64(len(held.bytes)), Usage: domain.UsageAttachment,
+			Status: domain.StatusPendingScan, CreatedBy: accountID, CreatedAt: now.Add(time.Duration(i) * time.Minute),
+		}
+		records.stored[held.id] = object
+		bytesOf.content[object.StorageKey] = held.bytes
+	}
+	job := ScanHeldMedia{Objects: records, Store: bytesOf, Scanner: sizeLimited{limit: 10}, UnitOfWork: &unitOfWork{}}
+
+	outcome, err := job.Execute(t.Context(), tenantID)
+	if err != nil || outcome.Settled != 2 || outcome.Held != 0 {
+		t.Fatalf("one pass: %+v, %v", outcome, err)
+	}
+	if got := records.stored[large].Status; got != domain.StatusUnscannable {
+		t.Errorf("the oversized file is %s, want UNSCANNABLE", got)
+	}
+	if got := records.stored[small].Status; got != domain.StatusReady {
+		t.Errorf("the file behind it is %s, want READY in the same pass", got)
+	}
+}
+
+// A confirmation the scanner refuses for size is refused by name and its bytes removed.
+func TestAConfirmationRefusesAFileTooLargeToScan(t *testing.T) {
+	handler, records, bytesOf, _, _ := confirmHarness(1 << 20)
+	handler.Scanner = sizeLimited{limit: 1}
+	staged(records, bytesOf, "image/png", int64(len(pngBytes)), pngBytes)
+
+	_, err := handler.Execute(t.Context(), actor(mediaWrite), ConfirmCommand{MediaID: mintedID})
+	if !domain.IsTooLargeToScan(err) || len(records.sealed) != 0 || len(bytesOf.deleted) != 1 {
+		t.Fatalf("answered %v, sealed %v, removed %v", err, records.sealed, bytesOf.deleted)
+	}
+}

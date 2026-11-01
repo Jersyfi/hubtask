@@ -99,6 +99,9 @@ const (
 	// StatusInfected is what a scan of a held object found malicious: the bytes are gone and the
 	// record stays for what pointed at it.
 	StatusInfected Status = "INFECTED"
+	// StatusUnscannable is a held object the scanner refused for itself - too large for its stream
+	// limit - rather than for being down: no later pass would answer, so it is settled, never served.
+	StatusUnscannable Status = "UNSCANNABLE"
 )
 
 // MaxFileNameLength counts code points, for the reason every length here does (I-W7).
@@ -225,6 +228,15 @@ func (o Object) Scanned(malicious bool) (Object, error) {
 	return o, nil
 }
 
+// Unscannable settles a held object the scanner refused for itself; its bytes stay, unserved.
+func (o Object) Unscannable() (Object, error) {
+	if o.Status != StatusPendingScan {
+		return Object{}, shared.ErrConflict.WithDetail("media.not_held")
+	}
+	o.Status = StatusUnscannable
+	return o, nil
+}
+
 // Attachable answers whether the object may join an item right now - as a cover or an
 // attachment, which is what its usage says it was staged for.
 func (o Object) Attachable(usage Usage) error {
@@ -282,6 +294,19 @@ func Infected() error {
 	return shared.ErrValidation.
 		WithDetail("media.infected").
 		WithFields(shared.FieldError{Path: "/media_id", Code: "media.infected"})
+}
+
+// TooLargeToScan is the scanner's refusal of one file for its size: the file, not the scanner, is
+// the cause, so it is neither held for a later pass nor passed unscanned.
+func TooLargeToScan() error {
+	return shared.ErrValidation.
+		WithDetail("media.too_large_to_scan").
+		WithFields(shared.FieldError{Path: "/media_id", Code: "media.too_large_to_scan"})
+}
+
+// IsTooLargeToScan reports whether err is TooLargeToScan.
+func IsTooLargeToScan(err error) bool {
+	return err != nil && shared.AsError(err).DetailCode == "media.too_large_to_scan"
 }
 
 func notReady() error {

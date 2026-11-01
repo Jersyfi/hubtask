@@ -26,9 +26,10 @@ kubectl logs deploy/hubtask | grep 'the upload scanner did not answer'
   the held files settle on the job's next pass, and the alert resolves on the scheduler's next
   tick after that.
 * **`PONG`, but files stay held** → the daemon answers too slowly for `HUBTASK_CLAMD_TIMEOUT`
-  (default 2m), or refuses the stream (`INSTREAM size limit exceeded`: the daemon's
-  `StreamMaxLength` below the upload limit). Raise the one
-  that is short.
+  (default 2m). Raise it. A file the daemon refuses for its size (`INSTREAM size limit exceeded`)
+  does not stay held: it is settled `UNSCANNABLE`, never served, and the pass goes on. Uploads are
+  capped to `HUBTASK_CLAMD_STREAM_MAX_BYTES` (default 25 MiB), which must match the daemon's
+  `StreamMaxLength`.
 * **`HUBTASK_CLAMD_ADDRESS` was emptied with files held** → they stay held, never served unscanned.
   Configure the scanner again; there is no switch that releases them unscanned.
 

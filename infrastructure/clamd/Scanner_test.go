@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
@@ -73,11 +74,32 @@ func TestAFileIsStreamedWholeAndItsVerdictRead(t *testing.T) {
 	}
 }
 
+// A file over the daemon's stream limit is refused for itself, not held as if the daemon were down:
+// by the daemon's answer, or before a byte is sent where the limit is configured.
+func TestAFileOverTheStreamLimitIsTooLargeToScan(t *testing.T) {
+	streamed := &bytes.Buffer{}
+	_, err := Scanner{Dial: daemon(t, "INSTREAM size limit exceeded. ERROR", streamed)}.Scan(t.Context(), strings.NewReader("x"))
+	if !media.IsTooLargeToScan(err) || errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("the daemon's size refusal was answered %v", err)
+	}
+	streamed.Reset()
+	limited := Scanner{Dial: daemon(t, "stream: OK", streamed), StreamMaxBytes: 10}
+	if _, err := limited.Scan(t.Context(), bytes.NewReader(make([]byte, 30))); !media.IsTooLargeToScan(err) {
+		t.Errorf("a file over StreamMaxBytes was answered %v", err)
+	}
+	if streamed.Len() != 0 {
+		t.Errorf("the daemon received %d bytes of a file over the limit", streamed.Len())
+	}
+	if _, err := limited.Scan(t.Context(), bytes.NewReader(make([]byte, 10))); err != nil {
+		t.Errorf("a file at the limit was answered %v", err)
+	}
+}
+
 // No verdict - a daemon that answers an error, or none that can be reached - is unavailable, which
 // holds the file.
 func TestNoVerdictIsUnavailable(t *testing.T) {
 	streamed := &bytes.Buffer{}
-	_, err := Scanner{Dial: daemon(t, "INSTREAM size limit exceeded. ERROR", streamed)}.Scan(t.Context(), strings.NewReader("x"))
+	_, err := Scanner{Dial: daemon(t, "UNKNOWN COMMAND", streamed)}.Scan(t.Context(), strings.NewReader("x"))
 	if !errors.Is(err, shared.ErrUnavailable) || shared.AsError(err).DetailCode != "dependency.scanner_unavailable" {
 		t.Errorf("an error reply was answered %v", err)
 	}

@@ -323,6 +323,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("upload scanner: %w", err)
 	}
+	cfg.Request.MaxUploadBytes = scannableUploadLimit(cfg, mediaScanner != nil)
 
 	// The stream's cursor codec and its wake-up. The codec is keyed on the installation secret
 	// like every other opaque value this server mints; the listener holds one connection of the
@@ -6198,8 +6199,21 @@ func uploadScanner(cfg envport.Config) (storageport.Scanner, error) {
 	}
 	return clamd.Scanner{
 		Address: address, Timeout: timeout, ConnectTimeout: cfg.Outbound.ConnectTimeout,
-		Guard: httpclient.NewGuard(cfg.Outbound).ForOperatorService(),
+		Guard: httpclient.NewGuard(cfg.Outbound).ForOperatorService(), StreamMaxBytes: cfg.Media.ScannerStreamMaxBytes,
 	}, nil
+}
+
+// scannableUploadLimit caps uploads to what the scanner accepts: above it every accepted file would
+// be refused by the daemon for its size, so it is refused at the upload, where the person sees the
+// limit, instead of after it.
+func scannableUploadLimit(cfg envport.Config, scanning bool) int64 {
+	limit, stream := cfg.Request.MaxUploadBytes, cfg.Media.ScannerStreamMaxBytes
+	if !scanning || stream <= 0 || limit <= stream {
+		return limit
+	}
+	slog.Warn("uploads are capped to the scanner's stream limit",
+		slog.Int64("max_upload_bytes", limit), slog.Int64("scanner_stream_max_bytes", stream))
+	return stream
 }
 
 // readInstallationCalendars reads the instance file's `business_calendars`; no file is none.

@@ -24,7 +24,9 @@ const scanBatch = 50
 // ReconcileMedia's reason - nobody asks for it; a held confirmation does.
 //
 // The scanner is called outside any transaction (observability-reliability.md §8), and a pass
-// stops at the first file it still cannot answer for: the scanner is down for all of them.
+// stops at the first file it still cannot answer for: the scanner is down for all of them. A file
+// the scanner refuses for itself (media.TooLargeToScan) is settled UNSCANNABLE and the pass goes
+// on - held, the oldest file would stop every pass behind it for good.
 type ScanHeldMedia struct {
 	Objects    repository.Objects
 	Store      storage.ObjectStore
@@ -65,10 +67,17 @@ func (h ScanHeldMedia) Execute(ctx context.Context, tenantID shared.ID) (ScanOut
 			outcome.Held = len(held) - i
 			return outcome, nil
 		}
-		if err != nil {
+		var settled media.Object
+		switch {
+		case media.IsTooLargeToScan(err):
+			slog.WarnContext(ctx, "the upload scanner refused a held file for its size; it is never served",
+				slog.String("media_id", object.ID.String()), slog.Int64("byte_size", object.ByteSize))
+			settled, err = object.Unscannable()
+		case err != nil:
 			return outcome, err
+		default:
+			settled, err = object.Scanned(verdict.Malicious)
 		}
-		settled, err := object.Scanned(verdict.Malicious)
 		if err != nil {
 			return outcome, err
 		}

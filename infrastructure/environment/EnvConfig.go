@@ -187,6 +187,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			Interval:          getDuration("HUBTASK_MEDIA_RECONCILE_INTERVAL", 6*time.Hour),
 			ScannerAddress:    get("HUBTASK_CLAMD_ADDRESS", ""),
 			ScannerTimeout:    getDuration("HUBTASK_CLAMD_TIMEOUT", 2*time.Minute),
+			// clamd's own default StreamMaxLength, 25 MiB.
+			ScannerStreamMaxBytes: int64(getInt("HUBTASK_CLAMD_STREAM_MAX_BYTES", 25<<20)),
 		},
 		Metrics: env.MetricsConfig{
 			TenantLabel: getBool("HUBTASK_METRICS_TENANT_LABEL", false),
