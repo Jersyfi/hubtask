@@ -805,6 +805,7 @@ export class SyncEngine {
         data: [...(held.data ?? []), ...(arrived?.data ?? [])],
       } as T;
       entry.etag = answer.etag;
+      entry.pages = (entry.pages ?? 1) + 1;
       this.#publish(entry, { status: 'ready', data: combined, at: this.#clock.now(), source: 'server', etag: answer.etag });
     } catch (cause) {
       // The page that failed does not take the pages that succeeded with it: the reader keeps what
@@ -1255,9 +1256,10 @@ export class SyncEngine {
           : this.#transport.send<T>('POST', request.path, request.body, options);
       });
       entry.etag = answer.etag;
+      const data = (entry.pages ?? 1) > 1 ? await this.#pagesAfter(request, entry, answer.body) : answer.body;
       this.#publish(entry, {
         status: 'ready',
-        data: answer.body,
+        data,
         at: this.#clock.now(),
         source: 'server',
         etag: answer.etag,
@@ -1282,6 +1284,33 @@ export class SyncEngine {
       // a 401 - here it only becomes a state a screen can render.
       this.#publish(entry, { status: 'failed', error: this.#needsConnection(error) });
     }
+  }
+
+  /**
+   * A reload of a list the reader had paged through reads as many pages again, following the
+   * fresh first page's cursor: re-reading the first alone dropped every row loadMore had appended
+   * at the next change anybody made. A page that does not arrive ends the walk there, with the
+   * rows that did - fewer rows rather than none.
+   */
+  async #pagesAfter<T>(request: ResourceRequest, entry: ResourceEntry<T>, first: T): Promise<T> {
+    let combined = first as Paged;
+    let read = 1;
+    for (; read < (entry.pages ?? 1); read += 1) {
+      const cursor = combined?.page?.next_cursor;
+      if (!cursor) break;
+      try {
+        const options = this.#options(request);
+        const answer = request.body === undefined
+          ? await this.#transport.get<T>(withCursor(request.path, cursor), options)
+          : await this.#transport.send<T>('POST', request.path, nextPage(request.body, cursor), options);
+        const arrived = answer.body as Paged;
+        combined = { ...arrived, data: [...(combined.data ?? []), ...(arrived?.data ?? [])] };
+      } catch {
+        break;
+      }
+    }
+    entry.pages = read;
+    return combined as T;
   }
 
   /** The replica's answer to a request, as a state, or nothing where it cannot answer. */
@@ -1505,4 +1534,6 @@ interface ResourceEntry<T> {
   next?: Promise<void>;
   /** The tag the last successful read carried, so a write can state the version it saw. */
   etag?: string;
+  /** How many pages the reader holds, loadMore's included, which a reload reads again. */
+  pages?: number;
 }

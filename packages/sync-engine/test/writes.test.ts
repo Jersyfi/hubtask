@@ -453,3 +453,22 @@ test('a write nobody stops carries no signal of its own', async () => {
 
   assert.equal(transport.calls.find((c) => c.method === 'PATCH')?.options.signal, undefined);
 });
+
+test('a reload of a paged list reads the pages the reader held, not the first alone', async () => {
+  const transport = new FakeTransport()
+    .answer('/containers', { data: [{ id: 'c1' }], page: { next_cursor: 'cur-2', has_more: true } })
+    .answer('/containers?cursor=cur-2', { data: [{ id: 'c2' }], page: { next_cursor: 'cur-3', has_more: true } });
+  const engine = engineWith(transport);
+  await loaded(engine, { path: '/containers' });
+  await engine.loadMore({ path: '/containers' });
+
+  // Somebody else's change: the list is read again, and the second page with it.
+  transport
+    .answer('/containers', { data: [{ id: 'c0' }], page: { next_cursor: 'cur-2b', has_more: true } })
+    .answer('/containers?cursor=cur-2b', { data: [{ id: 'c1' }], page: { next_cursor: 'cur-3', has_more: true } });
+  await engine.refresh({ path: '/containers' });
+
+  const state = engine.peek<{ data: { id: string }[] }>({ path: '/containers' });
+  assert.deepEqual(state.status === 'ready' ? state.data.data.map((c) => c.id) : [], ['c0', 'c1'],
+    'a change by anybody dropped the page the reader had asked for');
+});
