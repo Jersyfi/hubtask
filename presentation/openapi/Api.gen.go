@@ -16322,7 +16322,7 @@ type ErasureKept struct {
 		Params *map[string]string `json:"params,omitempty"`
 	} `json:"blocked,omitempty"`
 
-	// Comments The person's comments kept - ones a full deletion would remove, or that stay attributed to them by name.
+	// Comments The person's comments kept - ones a full deletion would remove, or that stay attributed to them by name. Counts what they wrote outside entries too: comments on pages and boards, goal check-ins, portfolio updates and page drafts.
 	Comments int `json:"comments"`
 
 	// Entries Entries the person created that stay attributed to them by name.
