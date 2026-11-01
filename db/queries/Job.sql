@@ -60,13 +60,19 @@ LIMIT 1;
 -- Fair across workers too (F-10): a tenant's ranks start after the jobs it already has running
 -- under a live lease, so a workspace that holds every other worker's slot ranks behind one that
 -- holds none, and one batch alone no longer decides who is served.
+--
+-- A role claims only its kinds (deployment.md §2.2): only_kinds empty is every kind, and
+-- except_kinds keeps the automation role's kinds off a worker that runs beside one, so a rule
+-- storm drains on its own pods. Both arrays are never NULL - `<> ALL(NULL)` would match nothing.
 -- name: ClaimJobs :many
 WITH due AS (
   SELECT d.id AS due_id, d.tenant_id AS due_tenant, d.priority AS due_priority,
          d.run_at AS due_run_at
   FROM job AS d
-  WHERE (d.state = 'PENDING' AND d.run_at <= sqlc.arg('now'))
-     OR (d.state = 'RUNNING' AND d.locked_until < sqlc.arg('now'))
+  WHERE ((d.state = 'PENDING' AND d.run_at <= sqlc.arg('now'))
+     OR (d.state = 'RUNNING' AND d.locked_until < sqlc.arg('now')))
+    AND (cardinality(sqlc.arg('only_kinds')::text[]) = 0 OR d.kind = ANY(sqlc.arg('only_kinds')::text[]))
+    AND d.kind <> ALL(sqlc.arg('except_kinds')::text[])
 ), busy AS (
   SELECT r.tenant_id AS busy_tenant, count(*) AS running
   FROM job AS r

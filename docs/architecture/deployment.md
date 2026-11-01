@@ -103,7 +103,7 @@ Four deployments from **one** image, distinguished by `HUBTASK_ROLES`:
 | `api` | `api` | Behind a service/ingress; HPA available (`roles.api.autoscaling`); its own load-shedding threshold |
 | `worker` | `worker` | Jobs, outbox delivery, backup runs |
 | `scheduler` | `scheduler` | Two replicas, one active (advisory lock leader, [observability-reliability.md](./observability-reliability.md) §15) |
-| `automation` | `automation` | Its own pool — a rule storm must not starve the interactive path |
+| `automation` | `automation` | Its own pool — a rule storm must not starve the interactive path. It alone claims the rule jobs (`automation.run`, `.http`, `.schedule`, `.check`); a `worker` without the role claims every other kind, a process holding both claims all. With `roles.automation.enabled: false` the chart gives the worker both roles |
 
 **Each role's memory limit sets its `GOMEMLIMIT`** to 90 % of it, in bytes
 (`roles.<role>.resources.limits.memory`), so the runtime collects harder before the kernel kills the

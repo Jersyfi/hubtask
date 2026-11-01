@@ -5180,7 +5180,7 @@ func run() error {
 		background = append(background, start(ctx, "api.change_listener", changeListener.Run))
 	}
 
-	if cfg.HasRole(envport.RoleWorker) {
+	if cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleAutomation) {
 		// The dispatcher's wake-up, and only where jobs are run: an API process holding a LISTEN
 		// for a queue it does not drain would be a connection occupied for notifications nobody
 		// in it is waiting for - the mirror of the change listener above.
@@ -5221,7 +5221,11 @@ func run() error {
 			// No job against a schema this build is ahead of; readiness gives the same answer.
 			SchemaBehind: schemaBehind,
 		}
+		runner.Only, runner.Except = claimedKinds(cfg)
 		background = append(background, start(ctx, "worker.runner", runner.Run))
+	}
+
+	if cfg.HasRole(envport.RoleWorker) {
 
 		// The connected IMAP mailboxes held open (IDLE) by one worker of the installation, so mail
 		// reaches the desk in seconds; the minute's read above stays whatever happens here. Its lock
@@ -5304,8 +5308,6 @@ func run() error {
 		}
 		background = append(background, start(ctx, "worker.scheduler", scheduler.Run))
 	}
-
-	// TODO(0.1.0): start the automation loop for the automation role.
 
 	// The third door, applied (ADR-0070 §5). It goes through `WriteInstanceSettings` exactly as the
 	// dashboard and `hubctl` do — "drei Türen, eine API" meant literally — so a value a file may
@@ -5513,7 +5515,22 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 }
 
 func runsBackgroundWork(cfg envport.Config) bool {
-	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler)
+	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
+		cfg.HasRole(envport.RoleAutomation)
+}
+
+// claimedKinds is the role's bulkhead (deployment.md §2.2): the automation role alone claims the
+// rule jobs, a worker alone every other kind, and a process holding both claims everything.
+func claimedKinds(cfg envport.Config) (only, except []queueport.Kind) {
+	worker, automation := cfg.HasRole(envport.RoleWorker), cfg.HasRole(envport.RoleAutomation)
+	switch {
+	case worker && automation:
+		return nil, nil
+	case automation:
+		return queueport.AutomationKinds(), nil
+	default:
+		return nil, queueport.AutomationKinds()
+	}
 }
 
 // primaryRole picks the role whose query budget the pool runs under. The API is the strictest,

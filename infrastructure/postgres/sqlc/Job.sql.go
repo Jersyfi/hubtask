@@ -100,8 +100,10 @@ WITH due AS (
   SELECT d.id AS due_id, d.tenant_id AS due_tenant, d.priority AS due_priority,
          d.run_at AS due_run_at
   FROM job AS d
-  WHERE (d.state = 'PENDING' AND d.run_at <= $2)
-     OR (d.state = 'RUNNING' AND d.locked_until < $2)
+  WHERE ((d.state = 'PENDING' AND d.run_at <= $2)
+     OR (d.state = 'RUNNING' AND d.locked_until < $2))
+    AND (cardinality($3::text[]) = 0 OR d.kind = ANY($3::text[]))
+    AND d.kind <> ALL($4::text[])
 ), busy AS (
   SELECT r.tenant_id AS busy_tenant, count(*) AS running
   FROM job AS r
@@ -119,7 +121,7 @@ WITH due AS (
   WHERE (j.state = 'PENDING' AND j.run_at <= $2)
      OR (j.state = 'RUNNING' AND j.locked_until < $2)
   ORDER BY ranked.place, ranked.due_priority, ranked.due_run_at, ranked.due_id
-  LIMIT $3
+  LIMIT $5
   FOR UPDATE OF j SKIP LOCKED
 )
 UPDATE job SET
@@ -133,6 +135,8 @@ RETURNING id, tenant_id, kind, payload, attempts, max_attempts, locked_until
 type ClaimJobsParams struct {
 	LockedUntil pgtype.Timestamptz
 	Now         pgtype.Timestamptz
+	OnlyKinds   []string
+	ExceptKinds []string
 	BatchSize   int32
 }
 
@@ -164,8 +168,18 @@ type ClaimJobsRow struct {
 // Fair across workers too (F-10): a tenant's ranks start after the jobs it already has running
 // under a live lease, so a workspace that holds every other worker's slot ranks behind one that
 // holds none, and one batch alone no longer decides who is served.
+//
+// A role claims only its kinds (deployment.md §2.2): only_kinds empty is every kind, and
+// except_kinds keeps the automation role's kinds off a worker that runs beside one, so a rule
+// storm drains on its own pods. Both arrays are never NULL - `<> ALL(NULL)` would match nothing.
 func (q *Queries) ClaimJobs(ctx context.Context, arg ClaimJobsParams) ([]ClaimJobsRow, error) {
-	rows, err := q.db.Query(ctx, claimJobs, arg.LockedUntil, arg.Now, arg.BatchSize)
+	rows, err := q.db.Query(ctx, claimJobs,
+		arg.LockedUntil,
+		arg.Now,
+		arg.OnlyKinds,
+		arg.ExceptKinds,
+		arg.BatchSize,
+	)
 	if err != nil {
 		return nil, err
 	}

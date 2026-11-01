@@ -629,3 +629,46 @@ func TestAnExtendedLeaseHoldsAndATakenOverJobIsNotExtended(t *testing.T) {
 		t.Errorf("completing under the extended lease: %v", err)
 	}
 }
+
+// The automation role's bulkhead (deployment.md §2.2): a claim narrowed to some kinds takes only
+// those, and a claim that excludes some never takes them - so a rule storm queued behind a
+// worker's jobs drains on the automation pods and nowhere else.
+func TestAClaimTakesOnlyTheKindsItsRoleRuns(t *testing.T) {
+	ctx := context.Background()
+	rule, other := queue.Kind("test.bulkhead.rule"), queue.Kind("test.bulkhead.other")
+	dedupe := freshID(t).String()
+	enqueue(ctx, t, queue.Request{Kind: rule, DedupeKey: dedupe + "-rule", RunAt: queueClock.Now()})
+	enqueue(ctx, t, queue.Request{Kind: other, DedupeKey: dedupe + "-other", RunAt: queueClock.Now()})
+
+	claimKinds := func(only, except []queue.Kind) []queue.Job {
+		var jobs []queue.Job
+		if err := systemWrite(ctx, t, func(txCtx context.Context) error {
+			var err error
+			jobs, err = jobQueue(t).Claim(txCtx, queue.Lease{
+				Now: queueClock.Now(), Until: queueClock.Now().Add(time.Minute), Batch: 50,
+				Only: only, Except: except,
+			})
+			return err
+		}); err != nil {
+			t.Fatalf("claiming: %v", err)
+		}
+		return jobs
+	}
+
+	worker := claimKinds([]queue.Kind{rule, other}, []queue.Kind{rule})
+	if len(worker) != 1 || worker[0].Kind != other {
+		t.Fatalf("the worker's claim took %v, want the one %s job", kindsOf(worker), other)
+	}
+	automation := claimKinds([]queue.Kind{rule}, nil)
+	if len(automation) != 1 || automation[0].Kind != rule {
+		t.Fatalf("the automation claim took %v, want the one %s job", kindsOf(automation), rule)
+	}
+}
+
+func kindsOf(jobs []queue.Job) []queue.Kind {
+	kinds := make([]queue.Kind, 0, len(jobs))
+	for _, job := range jobs {
+		kinds = append(kinds, job.Kind)
+	}
+	return kinds
+}

@@ -751,6 +751,17 @@ type Lease struct {
 	Until time.Time
 	// Batch is how many jobs are claimed at once.
 	Batch int
+	// Only, when not empty, is the kinds this claim may take; Except is kinds it never takes. A
+	// role's bulkhead (deployment.md §2.2): the automation role claims AutomationKinds, a worker
+	// beside it every other kind.
+	Only   []Kind
+	Except []Kind
+}
+
+// AutomationKinds are the jobs the automation role runs: rule runs, their HTTP calls, schedule
+// wake-ups and rule checks.
+func AutomationKinds() []Kind {
+	return []Kind{KindAutomationRun, KindAutomationHTTP, KindAutomationSchedule, KindAutomationCheck}
 }
 
 // Failure is a job that did not work out.

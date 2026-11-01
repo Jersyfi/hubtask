@@ -149,6 +149,8 @@ func (q Queue) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error
 		LockedUntil: timestampOf(lease.Until),
 		Now:         timestampOf(lease.Now),
 		BatchSize:   boundedBatch(lease.Batch),
+		OnlyKinds:   kindNames(lease.Only),
+		ExceptKinds: kindNames(lease.Except),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -165,6 +167,15 @@ func (q Queue) Claim(ctx context.Context, lease queue.Lease) ([]queue.Job, error
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
+}
+
+// kindNames is never nil: a NULL array would make the claim's kind filter match no row.
+func kindNames(kinds []queue.Kind) []string {
+	names := make([]string, 0, len(kinds))
+	for _, kind := range kinds {
+		names = append(names, string(kind))
+	}
+	return names
 }
 
 // Hold takes the row lock on the job for the rest of the caller's transaction (queue.Queue.Hold).

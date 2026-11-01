@@ -57,6 +57,9 @@ type Runner struct {
 	Clock    clock.Clock
 	Signals  Signals
 
+	// Only and Except narrow the kinds this runner claims (queue.Lease); both empty claims all.
+	Only, Except []queue.Kind
+
 	// Batch is how many jobs one round claims at most.
 	Batch int
 	// Concurrency is how many jobs run at once. A round claims no more than there are free
@@ -213,6 +216,7 @@ func (r Runner) claimAndRun(ctx context.Context, want int, slots *slots) int {
 			Now:   now,
 			Until: now.Add(r.Lease),
 			Batch: want,
+			Only:  r.Only, Except: r.Except,
 		})
 		jobs = claimed
 		return err

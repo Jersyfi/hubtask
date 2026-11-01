@@ -110,8 +110,14 @@ ConfigMap by reference rather than by value, so that changing it is one object a
 rather than a re-render of every deployment.
 */}}
 {{- define "hubtask.env" -}}
+# The automation role claims the rule jobs alone (deployment.md §2.2); with its deployment
+# switched off, the worker takes them over, or no rule would ever run.
 - name: HUBTASK_ROLES
+  {{- if and (eq .role "worker") (not (dig "automation" "enabled" false .root.Values.roles)) }}
+  value: "worker,automation"
+  {{- else }}
   value: {{ .role | quote }}
+  {{- end }}
 {{- with (index .root.Values.roles .role).loadShedInflight }}
 # Admission control, per role rather than per installation: each role is its own deployment with
 # its own resources, so the number of requests in flight at which deferrable work is refused is a
