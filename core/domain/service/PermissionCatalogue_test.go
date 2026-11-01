@@ -243,7 +243,11 @@ func TestAShippedRoleHoldsCommentAndWriteAssignedByItsItemRows(t *testing.T) {
 		{identity.RoleContributor, "WRITE_ASSIGNED", true},
 		{identity.RoleGuest, "WRITE_ASSIGNED", false},
 		{identity.RoleViewer, "WRITE_ASSIGNED", false},
-		{identity.RoleOwner, "REQUEST", false},
+		// The portal's requester role (UC-SVC-05): raising a request is less than raising an entry.
+		{identity.RoleOwner, "REQUEST", true},
+		{identity.RoleAdmin, "REQUEST", true},
+		{identity.RoleViewer, "REQUEST", false},
+		{identity.RoleGuest, "REQUEST", false},
 	}
 	for _, c := range cases {
 		held := []identity.Membership{grant(identity.TenantScope(), c.role), custom(identity.TenantScope(), "people", service.PermissionManageMembers)}

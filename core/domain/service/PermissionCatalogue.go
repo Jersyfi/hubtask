@@ -233,15 +233,17 @@ func Lacking(
 	return lacking
 }
 
-// holdsToHandOut is Allows, and for COMMENT and WRITE_ASSIGNED also a shipped role whose rows in
-// ItemAccess.go reach that far: those two spell the rows as permissions, which a shipped role is
-// not told it holds (Held), yet the owner who takes a template bringing a role with COMMENT holds
-// everything that role gives.
+// holdsToHandOut is Allows, and for COMMENT, WRITE_ASSIGNED and REQUEST also a shipped role whose
+// rows in ItemAccess.go reach that far: a shipped role is not told it holds them (Held), yet the
+// owner who takes a template bringing a role with COMMENT, or gives a desk its requesters
+// (UC-SVC-05), holds everything that role gives - raising a request is less than raising an entry.
 func holdsToHandOut(memberships []identity.Membership, path []identity.Scope, privacy Privacy, permission Permission) bool {
 	if Allows(memberships, path, privacy, permission) {
 		return true
 	}
-	action, spelled := map[Permission]ItemAction{PermissionComment: ItemComment, PermissionWriteAssigned: ItemCreate}[permission]
+	action, spelled := map[Permission]ItemAction{
+		PermissionComment: ItemComment, PermissionWriteAssigned: ItemCreate, PermissionRequest: ItemCreate,
+	}[permission]
 	if !spelled {
 		return false
 	}

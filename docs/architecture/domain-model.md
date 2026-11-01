@@ -616,7 +616,9 @@ permissions (`READ` reads, `WRITE_ITEMS` changes, `WRITE_ASSIGNED` changes what 
 form's `actor.role`; a form reads it in `actor.roles`. **Nobody hands out a permission they do not hold** (`service.MayHandOut`):
 defining, changing (what it adds and takes away), granting, revoking or deleting a custom role
 needs `MANAGE_MEMBERS` and every permission concerned at that place, or is refused with
-`access.permission_above_own` naming what is lacking. *Who may do what* and *view as* read
+`access.permission_above_own` naming what is lacking; a shipped role holds `COMMENT`,
+`WRITE_ASSIGNED` and `REQUEST` there for this where its rows reach that far (comments on every
+entry; creates entries). *Who may do what* and *view as* read
 `ExplainAccess`: the roles that count at a place, where each is held, what they carry. Each use
 case declares the permission it asks for (`Descriptor.Permission`); the handler still asks it at
 the path. A **requester** (`service.IsRequester`) holds `REQUEST` and not `READ` along the path: the
