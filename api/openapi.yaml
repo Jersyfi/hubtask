@@ -38748,9 +38748,16 @@ components:
           items: { $ref: "#/components/schemas/DegradedFeature" }
         backlogs:
           type: object
+          description: >
+            The installation's queues as last counted, in the background about once a minute.
+            Absent until a count has succeeded, never a zero standing in for one not taken;
+            `sampled_at` says when it was.
           properties:
+            sampled_at: { type: string, format: date-time }
             outbox_pending: { type: integer }
-            outbox_lag_seconds: { type: number }
+            outbox_lag_seconds:
+              type: number
+              description: How long the oldest event not yet dispatched has waited; 0 when none waits.
             job_queue_depth: { type: integer }
             dead_letter_total: { type: integer }
             webhook_retry_backlog: { type: integer }

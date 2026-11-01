@@ -56,6 +56,7 @@ type degradedFeature struct {
 }
 
 type backlogs struct {
+	SampledAt           string  `json:"sampled_at"`
 	OutboxPending       int64   `json:"outbox_pending"`
 	OutboxLagSeconds    float64 `json:"outbox_lag_seconds"`
 	JobQueueDepth       int64   `json:"job_queue_depth"`
@@ -85,8 +86,9 @@ func healthReportJSON(report health.Report) healthReport {
 			Status:         report.Migration.Status,
 		}
 	}
-	if report.Backlogs != (health.Backlogs{}) {
+	if !report.Backlogs.SampledAt.IsZero() {
 		out.Backlogs = &backlogs{
+			SampledAt:           report.Backlogs.SampledAt.UTC().Format(time.RFC3339),
 			OutboxPending:       report.Backlogs.OutboxPending,
 			OutboxLagSeconds:    report.Backlogs.OutboxLagSeconds,
 			JobQueueDepth:       report.Backlogs.JobQueueDepth,

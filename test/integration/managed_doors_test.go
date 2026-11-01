@@ -12,6 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
@@ -237,6 +239,46 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		one(t, `SELECT count(*) FROM mailbox`, &direct)
 		if direct != 0 {
 			t.Errorf("without a workspace the application read %d mailboxes", direct)
+		}
+	})
+
+	// The health report's backlogs (P-11): the outbox counted across workspaces through its door,
+	// and a dead-lettered job among the figures, as the application role reads them.
+	t.Run("the health report's backlogs count every workspace and the dead letters", func(t *testing.T) {
+		event := func(id, tenant, dispatched string) string {
+			return `INSERT INTO outbox_event (id, tenant_id, event_type, payload, actor_type, occurred_at, dispatched_at)
+				VALUES ('` + id + `', '` + tenant + `', 'de.hubtask.test.v1', '{}', 'SYSTEM',
+				now() - interval '30 seconds', ` + dispatched + `)`
+		}
+		for _, statement := range []string{
+			event("01936f2a-7c1e-7000-8000-000000145671", tenantA, "NULL"),
+			event("01936f2a-7c1e-7000-8000-000000145672", tenantB, "NULL"),
+			event("01936f2a-7c1e-7000-8000-000000145673", tenantB, "now()"),
+			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, finished_at, last_error)
+			 VALUES ('01936f2a-7c1e-7000-8000-000000145681', '` + tenantA + `', 'backup.run', 'DEAD_LETTER',
+			 3, 3, now(), 'queue.lease_expired_exhausted')`,
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding: %v", err)
+			}
+		}
+
+		read := postgres.Backlogs{UnitOfWork: postgres.NewUnitOfWork(app), Clock: clockadapter.System{}}.Read
+		got, err := read(ctx)
+		if err != nil {
+			t.Fatalf("counting the backlogs: %v", err)
+		}
+		if got.OutboxPending != 2 || got.OutboxLagSeconds < 25 {
+			t.Errorf("outbox pending %d, lag %.1fs; want 2 across both workspaces, about 30s",
+				got.OutboxPending, got.OutboxLagSeconds)
+		}
+		if got.DeadLetterTotal != 1 {
+			t.Errorf("dead letters = %d, want the one", got.DeadLetterTotal)
+		}
+		var direct int
+		one(t, `SELECT count(*) FROM outbox_event`, &direct)
+		if direct != 0 {
+			t.Errorf("without a workspace the application read %d outbox events", direct)
 		}
 	})
 

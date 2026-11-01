@@ -246,6 +246,19 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 	return result.RowsAffected(), nil
 }
 
+const deadLetterCount = `-- name: DeadLetterCount :one
+SELECT count(*) FROM job WHERE state = 'DEAD_LETTER'
+`
+
+// The dead letters waiting for an operator, every kind and workspace: the health report's
+// dead_letter_total, which an installation without Prometheus reads instead of alert A-07.
+func (q *Queries) DeadLetterCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, deadLetterCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deadLetterJob = `-- name: DeadLetterJob :execrows
 UPDATE job SET
   state        = 'DEAD_LETTER',

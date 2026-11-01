@@ -78,7 +78,10 @@ type DegradedFeature struct {
 	Since      time.Time
 }
 
+// Backlogs is the installation's queues as last counted. A zero SampledAt is no count yet: the
+// figures are then not served at all, never as zeros (P-11).
 type Backlogs struct {
+	SampledAt           time.Time
 	OutboxPending       int64
 	OutboxLagSeconds    float64
 	JobQueueDepth       int64

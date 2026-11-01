@@ -16896,12 +16896,16 @@ type GroupUpdate struct {
 // statement. `version` is required because the public capability manifest already carries
 // it.
 type HealthReport struct {
+	// Backlogs The installation's queues as last counted, in the background about once a minute. Absent until a count has succeeded, never a zero standing in for one not taken; `sampled_at` says when it was.
 	Backlogs *struct {
-		DeadLetterTotal     *int     `json:"dead_letter_total,omitempty"`
-		JobQueueDepth       *int     `json:"job_queue_depth,omitempty"`
-		OutboxLagSeconds    *float32 `json:"outbox_lag_seconds,omitempty"`
-		OutboxPending       *int     `json:"outbox_pending,omitempty"`
-		WebhookRetryBacklog *int     `json:"webhook_retry_backlog,omitempty"`
+		DeadLetterTotal *int `json:"dead_letter_total,omitempty"`
+		JobQueueDepth   *int `json:"job_queue_depth,omitempty"`
+
+		// OutboxLagSeconds How long the oldest event not yet dispatched has waited; 0 when none waits.
+		OutboxLagSeconds    *float32   `json:"outbox_lag_seconds,omitempty"`
+		OutboxPending       *int       `json:"outbox_pending,omitempty"`
+		SampledAt           *time.Time `json:"sampled_at,omitempty"`
+		WebhookRetryBacklog *int       `json:"webhook_retry_backlog,omitempty"`
 	} `json:"backlogs,omitempty"`
 	DegradedFeatures *[]DegradedFeature  `json:"degraded_features,omitempty"`
 	Dependencies     *[]DependencyHealth `json:"dependencies,omitempty"`

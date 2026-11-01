@@ -327,6 +327,25 @@ func (q *Queries) MarkEventsDispatched(ctx context.Context, arg MarkEventsDispat
 	return err
 }
 
+const outboxBacklog = `-- name: OutboxBacklog :one
+SELECT pending::bigint AS pending, oldest_seconds::double precision AS oldest_seconds
+FROM outbox_backlog()
+`
+
+type OutboxBacklogRow struct {
+	Pending       int64
+	OldestSeconds float64
+}
+
+// The health report's outbox backlog, across workspaces through the door (0345): how many events
+// wait to be dispatched and how long the oldest has waited. Numbers, no rows.
+func (q *Queries) OutboxBacklog(ctx context.Context) (OutboxBacklogRow, error) {
+	row := q.db.QueryRow(ctx, outboxBacklog)
+	var i OutboxBacklogRow
+	err := row.Scan(&i.Pending, &i.OldestSeconds)
+	return i, err
+}
+
 const pollOutboxEvents = `-- name: PollOutboxEvents :many
 SELECT
   id, tenant_id, event_type, subject, payload,

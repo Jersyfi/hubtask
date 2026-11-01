@@ -193,6 +193,11 @@ GROUP BY kind;
 SELECT count(*) FROM job
 WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now');
 
+-- The dead letters waiting for an operator, every kind and workspace: the health report's
+-- dead_letter_total, which an installation without Prometheus reads instead of alert A-07.
+-- name: DeadLetterCount :one
+SELECT count(*) FROM job WHERE state = 'DEAD_LETTER';
+
 -- The jobs of one kind not yet finished, due, parked between rounds or running: for a kind with one
 -- job per workspace while there is work (media.scan), the number of workspaces that have it.
 -- name: OpenJobCount :one

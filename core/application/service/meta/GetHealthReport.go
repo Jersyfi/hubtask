@@ -5,6 +5,7 @@ package meta
 
 import (
 	"context"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -201,12 +202,16 @@ func healthOutput(report health.Report) usecase.Output {
 			"status":   report.Migration.Status,
 		}
 	}
-	out["backlogs"] = usecase.Output{
-		"outbox_pending":        report.Backlogs.OutboxPending,
-		"outbox_lag_seconds":    report.Backlogs.OutboxLagSeconds,
-		"job_queue_depth":       report.Backlogs.JobQueueDepth,
-		"dead_letter_total":     report.Backlogs.DeadLetterTotal,
-		"webhook_retry_backlog": report.Backlogs.WebhookRetryBacklog,
+	// Only once counted: a zero would read as an empty queue nobody looked at (P-11).
+	if !report.Backlogs.SampledAt.IsZero() {
+		out["backlogs"] = usecase.Output{
+			"sampled_at":            report.Backlogs.SampledAt.UTC().Format(time.RFC3339),
+			"outbox_pending":        report.Backlogs.OutboxPending,
+			"outbox_lag_seconds":    report.Backlogs.OutboxLagSeconds,
+			"job_queue_depth":       report.Backlogs.JobQueueDepth,
+			"dead_letter_total":     report.Backlogs.DeadLetterTotal,
+			"webhook_retry_backlog": report.Backlogs.WebhookRetryBacklog,
+		}
 	}
 
 	warnings := make([]usecase.Output, 0, len(report.Warnings))

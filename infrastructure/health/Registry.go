@@ -6,6 +6,7 @@ package health
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -48,6 +49,12 @@ type Registry struct {
 	migrationState port.MigrationState
 	migrationAt    time.Time
 	now            func() time.Time
+
+	// backlogRead counts the queues (SetBacklogs); the last count is served, and a report finding
+	// it older than backlogsEvery starts the next in the background.
+	backlogRead     BacklogReader
+	backlogs        port.Backlogs
+	backlogsRunning bool
 }
 
 func NewRegistry(version string, roles []string) *Registry {
@@ -135,6 +142,12 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 	rep.Warnings = append([]port.Warning(nil), r.warnings...)
 	sources := append([]func(context.Context) []port.Warning(nil), r.sources...)
 	r.mu.RUnlock()
+
+	rep.Backlogs = r.lastBacklogs(ctx)
+	if rep.Backlogs.DeadLetterTotal > 0 {
+		rep.Warnings = append(rep.Warnings, port.Warning{Code: DeadLettersCode, Severity: "warn",
+			Params: map[string]string{"count": strconv.FormatInt(rep.Backlogs.DeadLetterTotal, 10)}})
+	}
 
 	for _, source := range sources {
 		rep.Warnings = append(rep.Warnings, source(ctx)...)

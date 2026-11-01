@@ -146,3 +146,9 @@ WHERE event_type = sqlc.arg('event_type')
   AND (occurred_at, id) > (sqlc.arg('after_occurred_at')::timestamptz, sqlc.arg('after_id')::uuid)
 ORDER BY occurred_at, id
 LIMIT sqlc.arg('batch');
+
+-- The health report's outbox backlog, across workspaces through the door (0345): how many events
+-- wait to be dispatched and how long the oldest has waited. Numbers, no rows.
+-- name: OutboxBacklog :one
+SELECT pending::bigint AS pending, oldest_seconds::double precision AS oldest_seconds
+FROM outbox_backlog();

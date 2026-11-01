@@ -394,6 +394,9 @@ func run() error {
 	schemaLedger := postgres.SchemaLedger{UnitOfWork: unitOfWork}
 	registry.SetMigration(dbfiles.Versions(), schemaLedger.Applied)
 	registry.SetCompatibilityFloor(schemaLedger.Floor)
+	// The deep report's backlogs, counted in the background and served from the last count; an
+	// installation without Prometheus reads its dead letters and outbox lag there.
+	registry.SetBacklogs(postgres.Backlogs{UnitOfWork: unitOfWork, Clock: clockadapter.System{}}.Read)
 	// The worker and the scheduler ask the same comparison before they claim or lead.
 	schemaBehind := func(ctx context.Context) bool {
 		state, known := registry.Migration(ctx)
