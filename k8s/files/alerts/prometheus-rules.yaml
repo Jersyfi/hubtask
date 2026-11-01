@@ -3,13 +3,14 @@
 #
 # The self-hosting alert set (observability-reliability.md §10).
 #
-# Eight rules, not twenty. The catalogue's full set is written for provider operation with an
+# Nine rules, not thirty. The catalogue's full set is written for provider operation with an
 # on-call rota and an error budget; a self-hosted installation has one person, who is asleep, and
 # an alert that fires for a symptom nobody will act on trains that person to ignore the next one.
 # What is left is the set where doing nothing loses data or leaves the installation broken:
 # A-03 (nobody is serving), A-04 (a defect), A-05 (events are stuck), A-07 (work was finally
 # given up on), A-12 (the backup is not happening), A-19 (a data subject request nears its
-# statutory deadline), A-20 (nobody has proved the backups restore), and A-08 (reminders are late),
+# statutory deadline), A-20 (nobody has proved the backups restore), A-30 (the scheduler stands
+# still, so no backup is taken), and A-08 (reminders are late),
 # which joins them because a reminder that does not arrive is not a symptom somebody can catch up
 # on afterwards: the moment it was for has passed, and to the person waiting for it the failure is
 # indistinguishable from the reminder never having been set.
@@ -165,3 +166,23 @@ groups:
           summary: "The last restore drill is more than 90 days old"
           description: "Nobody has proved that these backups restore. Run a trial restore into a new tenant."
           runbook: RB-A20-restore-drill-stale.md
+
+      - alert: HubtaskSchedulerStalled
+        # A-30. The scheduler's leader has not run its duties for two minutes (twelve of its
+        # ten-second ticks), runs them more than thirty seconds late, or no instance has ever
+        # reported a tick. Nothing else says so: a stopped scheduler queues no work, so A-05/A-06
+        # stay quiet, A-08 measures only reminders that fired, and A-12 notices the backups a day
+        # late. It joins the set for A-08's reason - while it lasts no backup is taken and no
+        # reminder fires, and neither can be had afterwards.
+        expr: |
+          (time() - max(hubtask_scheduler_last_tick_timestamp_seconds)) > 120
+          or max(hubtask_scheduler_tick_lag_seconds) > 30
+          or absent(hubtask_scheduler_last_tick_timestamp_seconds)
+        for: 10m
+        labels:
+          severity: page
+          alert_id: A-30
+        annotations:
+          summary: "The scheduler is not running its duties"
+          description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
+          runbook: RB-A30-scheduler-stalled.md

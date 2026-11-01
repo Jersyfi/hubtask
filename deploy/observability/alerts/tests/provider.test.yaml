@@ -540,3 +540,131 @@ tests:
       - eval_time: 50m
         alertname: HubtaskMailAppFailing
         exp_alerts: []
+
+  # A-31: four sends in five fail - a mail server refusing every recipient.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_notification_failures_total{category="REMINDER",channel="EMAIL",reason="mail.recipient_rejected"}'
+        values: '0+4x60'
+      - series: 'hubtask_notification_send_duration_seconds_count{category="REMINDER",channel="EMAIL"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskNotificationsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-31
+            exp_annotations:
+              summary: "Notifications are failing to send"
+              description: "More than 5% of notification sends failed over 15 minutes. hubtask_notification_failures_total names the channel and the reason."
+              runbook: RB-A31-notifications-failing.md
+
+  # A-31 fires where nothing has ever been sent, and stays quiet for one failure in a hundred.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_notification_failures_total{category="MENTION",channel="EMAIL",reason="dependency.unavailable"}'
+        values: '0+1x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskNotificationsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-31
+            exp_annotations:
+              summary: "Notifications are failing to send"
+              description: "More than 5% of notification sends failed over 15 minutes. hubtask_notification_failures_total names the channel and the reason."
+              runbook: RB-A31-notifications-failing.md
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_notification_failures_total{category="REMINDER",channel="EMAIL",reason="mail.recipient_rejected"}'
+        values: '0+1x60'
+      - series: 'hubtask_notification_send_duration_seconds_count{category="REMINDER",channel="EMAIL"}'
+        values: '0+100x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskNotificationsFailing
+        exp_alerts: []
+
+  # A-32: one occurrence arrived two hours late among punctual ones.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_count{mode="FIXED"}'
+        values: '0x30 1+0x30'
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_bucket{mode="FIXED",le="3600"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskRecurrenceLate
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-32
+            exp_annotations:
+              summary: "Recurring entries were created more than an hour late"
+              description: "At least one occurrence of a recurrence arrived over an hour after its moment in the last hour."
+              runbook: RB-A32-recurrence-late.md
+
+  # A-32 stays quiet while every occurrence is in time.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_count{mode="FIXED"}'
+        values: '0+2x60'
+      - series: 'hubtask_recurrence_occurrence_lag_seconds_bucket{mode="FIXED",le="3600"}'
+        values: '0+2x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskRecurrenceLate
+        exp_alerts: []
+
+  # A-33: connections lost twelve times a minute; the serialisation retries beside them count not.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_errors_total{pool="api",kind="connection"}'
+        values: '0+12x60'
+      - series: 'hubtask_db_errors_total{pool="api",kind="serialization"}'
+        values: '0+600x60'
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: HubtaskDatabaseErrors
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-33
+              kind: connection
+            exp_annotations:
+              summary: "Database statements are failing (connection)"
+              description: "More than one statement every ten seconds fails with connection for 15 minutes."
+              runbook: RB-A33-database-errors.md
+
+  # A-34: aged entries stay in the default partition past six hours.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_audit_default_partition_aged_rows'
+        values: '40x480'
+      - series: 'hubtask_audit_partitions_held'
+        values: '2x480'
+    alert_rule_test:
+      - eval_time: 7h
+        alertname: HubtaskAuditDefaultPartitionAged
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-34
+            exp_annotations:
+              summary: "Audit entries past their period are stuck in the default partition"
+              description: "No partition drop reaches them; move them into their monthly partitions so retention can remove them."
+              runbook: RB-A34-audit-default-partition.md
+
+  # A-34 stays quiet for months a legal hold keeps whole: that is the hold working.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_audit_default_partition_aged_rows'
+        values: '0x480'
+      - series: 'hubtask_audit_partitions_held'
+        values: '3x480'
+    alert_rule_test:
+      - eval_time: 7h
+        alertname: HubtaskAuditDefaultPartitionAged
+        exp_alerts: []

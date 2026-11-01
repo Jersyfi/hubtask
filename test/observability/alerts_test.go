@@ -220,8 +220,11 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 // about a day that has not happened yet, and the only evidence for it is a restore that worked. An
 // installation that discovers on that day that its archives do not open has lost the data as
 // surely as one that never made them.
+//
+// A-30 is in it for A-08's reason: while the scheduler stands still no backup is taken and no
+// reminder fires, and nothing else in the set notices - the queues do not grow.
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
-	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20"}
+	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20", "A-30"}
 
 	// The self-hosting file alone: the tenant file next door (A-18) is the provider's
 	// set, under its own rule - a capacity signal is not "doing nothing loses data", which is

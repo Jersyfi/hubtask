@@ -160,3 +160,56 @@ tests:
               summary: "The last restore drill is more than 90 days old"
               description: "Nobody has proved that these backups restore. Run a trial restore into a new tenant."
               runbook: RB-A20-restore-drill-stale.md
+
+  # A-30: the leader's last tick stops moving - a hung leader whose lag gauge still reads 1.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_scheduler_last_tick_timestamp_seconds{instance="one"}'
+        values: '0+60x3 180x30'
+      - series: 'hubtask_scheduler_tick_lag_seconds{instance="one"}'
+        values: '1x33'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-30
+            exp_annotations:
+              summary: "The scheduler is not running its duties"
+              description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
+              runbook: RB-A30-scheduler-stalled.md
+
+  # A-30 stays quiet while a leader ticks, even with a former leader's stale timestamp beside it.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_scheduler_last_tick_timestamp_seconds{instance="one"}'
+        values: '0+60x30'
+      - series: 'hubtask_scheduler_last_tick_timestamp_seconds{instance="old"}'
+        values: '0x30'
+      - series: 'hubtask_scheduler_tick_lag_seconds{instance="one"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts: []
+
+  # A-30 for an installation where no instance has ever ticked.
+  - interval: 1m
+    input_series:
+      - series: 'up{job="hubtask", instance="one"}'
+        values: '1x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HubtaskSchedulerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              alert_id: A-30
+            exp_annotations:
+              summary: "The scheduler is not running its duties"
+              description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
+              runbook: RB-A30-scheduler-stalled.md

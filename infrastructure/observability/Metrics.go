@@ -60,6 +60,7 @@ type Metrics struct {
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
+	schedulerTicked   metric.Int64Gauge
 	backupLastSuccess metric.Int64Gauge
 	dsrDeadline       metric.Int64Counter
 	retentionDeleted  metric.Int64Counter
@@ -425,6 +426,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("tick lag gauge: %w", err)
+	}
+	if m.schedulerTicked, err = meter.Int64Gauge(
+		namespace+"_scheduler_last_tick_timestamp_seconds",
+		metric.WithDescription("When the scheduler's leader last ran its duties, as a Unix timestamp. "+
+			"Alert A-30 reads its age: a stopped scheduler leaves the lag gauge at its last value."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("last tick gauge: %w", err)
 	}
 	if m.backupLastSuccess, err = meter.Int64Gauge(
 		namespace+"_backup_last_success_timestamp_seconds",
@@ -1172,6 +1181,11 @@ func (m *Metrics) OutboxLag(ctx context.Context, seconds float64) {
 // exists to show drift, and a schedule that is off by less than a second is not drifting.
 func (m *Metrics) SchedulerTickLag(ctx context.Context, seconds float64) {
 	m.schedulerTickLag.Record(ctx, int64(seconds))
+}
+
+// SchedulerTicked publishes when the leader last ran its duties - alert A-30's number.
+func (m *Metrics) SchedulerTicked(ctx context.Context, at time.Time) {
+	m.schedulerTicked.Record(ctx, at.Unix())
 }
 
 // BackupLastSuccess publishes when a target last had a backup that worked - the number alert A-12

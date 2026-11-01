@@ -426,3 +426,71 @@ groups:
             {{ $labels.app }} app have failed for over an hour. Check the app's client secret at
             the provider and in HUBTASK_MAIL_OAUTH_*.
           runbook: RB-A29-mail-app-failing.md
+
+      # A-31. More than one in twenty notification sends failed over a quarter of an hour, with at
+      # least five failures so that one bounced address on a quiet installation stays silent. A
+      # failure the breaker does not see - a refusal per recipient, a template the channel rejects -
+      # raises only the counter; the person waiting for the mail notices nothing.
+      - alert: HubtaskNotificationsFailing
+        expr: |
+          sum(increase(hubtask_notification_failures_total[15m])) >= 5
+          and
+          sum(rate(hubtask_notification_failures_total[15m]))
+            / (sum(rate(hubtask_notification_failures_total[15m]))
+               + (sum(rate(hubtask_notification_send_duration_seconds_count[15m])) or vector(0)))
+            > 0.05
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-31
+        annotations:
+          summary: "Notifications are failing to send"
+          description: "More than 5% of notification sends failed over 15 minutes. hubtask_notification_failures_total names the channel and the reason."
+          runbook: RB-A31-notifications-failing.md
+
+      # A-32. An occurrence of a recurring entry was created more than an hour after the moment it
+      # is for. A rolling window creates them ahead, so a late one means the scheduler stopped and
+      # came back, or the materialising job is failing; A-30 catches the stop while it lasts.
+      - alert: HubtaskRecurrenceLate
+        expr: |
+          sum(increase(hubtask_recurrence_occurrence_lag_seconds_count[1h]))
+            - sum(increase(hubtask_recurrence_occurrence_lag_seconds_bucket{le="3600"}[1h]))
+            > 0
+        labels:
+          severity: ticket
+          alert_id: A-32
+        annotations:
+          summary: "Recurring entries were created more than an hour late"
+          description: "At least one occurrence of a recurrence arrived over an hour after its moment in the last hour."
+          runbook: RB-A32-recurrence-late.md
+
+      # A-33. Statements that fail by timeout, by a lost connection or for no known reason, at more
+      # than one every ten seconds for a quarter of an hour. Serialisation failures are retried and
+      # constraint violations are answers, so neither counts.
+      - alert: HubtaskDatabaseErrors
+        expr: |
+          sum by (kind) (rate(hubtask_db_errors_total{kind=~"timeout|connection|other"}[10m])) > 0.1
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-33
+        annotations:
+          summary: "Database statements are failing ({{ $labels.kind }})"
+          description: "More than one statement every ten seconds fails with {{ $labels.kind }} for 15 minutes."
+          runbook: RB-A33-database-errors.md
+
+      # A-34. Audit entries past their period lie in the trail's default partition, which no
+      # partition drop reaches: the retention promise is broken for them until an operator moves
+      # them out. Six hours lets the leader's own partition maintenance run first. The months a
+      # legal hold keeps whole (hubtask_audit_partitions_held) are the hold working, not a fault,
+      # and raise nothing.
+      - alert: HubtaskAuditDefaultPartitionAged
+        expr: max(hubtask_audit_default_partition_aged_rows) > 0
+        for: 6h
+        labels:
+          severity: ticket
+          alert_id: A-34
+        annotations:
+          summary: "Audit entries past their period are stuck in the default partition"
+          description: "No partition drop reaches them; move them into their monthly partitions so retention can remove them."
+          runbook: RB-A34-audit-default-partition.md

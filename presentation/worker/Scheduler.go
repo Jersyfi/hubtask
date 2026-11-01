@@ -30,6 +30,8 @@ import (
 type SchedulerSignals interface {
 	QueueDepth(ctx context.Context, kind string, pending int64)
 	SchedulerTickLag(ctx context.Context, seconds float64)
+	// SchedulerTicked is when the leader last ran its duties - alert A-30's number.
+	SchedulerTicked(ctx context.Context, at time.Time)
 	// BackupLastSuccess is when a target last had a backup that worked - alert A-12's number
 	// (observability-reliability.md §10).
 	BackupLastSuccess(ctx context.Context, targetID string, at time.Time)
@@ -319,6 +321,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 			lag = 0
 		}
 		s.Signals.SchedulerTickLag(ctx, lag.Seconds())
+		s.Signals.SchedulerTicked(ctx, s.Clock.Now())
 	}
 
 	s.sampleQueueDepth(ctx)

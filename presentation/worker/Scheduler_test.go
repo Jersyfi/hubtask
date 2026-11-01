@@ -69,6 +69,7 @@ type schedulerSignals struct {
 	platformDeadLetters []int64
 	depths              map[string]int64
 	lags                []float64
+	ticks               []time.Time
 	freshness           map[string]time.Time
 	backlogs            []int64
 	heldScans           []int64
@@ -107,6 +108,10 @@ func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending in
 
 func (s *schedulerSignals) SchedulerTickLag(_ context.Context, seconds float64) {
 	s.lags = append(s.lags, seconds)
+}
+
+func (s *schedulerSignals) SchedulerTicked(_ context.Context, at time.Time) {
+	s.ticks = append(s.ticks, at)
 }
 
 func (s *schedulerSignals) PlatformDeadLetters(_ context.Context, waiting int64) {
@@ -256,6 +261,12 @@ func TestTheTickLagIsMeasuredAgainstWhenItWasDue(t *testing.T) {
 	leader.tick(t.Context(), false, now.Add(-4*time.Second))
 	// A tick that is early - a clock that jumped - reports no lag rather than a negative one.
 	leader.tick(t.Context(), true, now.Add(time.Second))
+
+	// And each leading tick says when it ran - what A-30 reads to see a scheduler that stopped,
+	// which a lag gauge left at its last value cannot show.
+	if len(signals.ticks) != 2 || !signals.ticks[1].Equal(now) {
+		t.Errorf("ticks = %v, want two at %v", signals.ticks, now)
+	}
 
 	want := []float64{4, 0}
 	if len(signals.lags) != len(want) {

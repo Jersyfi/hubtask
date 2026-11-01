@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -422,6 +423,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 	m.QueueDepth(ctx, "outbox.dispatch", 12)
 	m.OutboxLag(ctx, 1.5)
 	m.SchedulerTickLag(ctx, 4)
+	m.SchedulerTicked(ctx, time.Unix(1793534400, 0))
 
 	body := scrape(t, m)
 	for _, want := range []string{
@@ -431,6 +433,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 		`hubtask_job_lease_expired_total{job_type="backup.run"} 1`,
 		`hubtask_job_queue_depth{job_type="outbox.dispatch"} 12`,
 		`hubtask_scheduler_tick_lag_seconds 4`,
+		`hubtask_scheduler_last_tick_timestamp_seconds 1.7935344e+09`,
 		`hubtask_job_duration_seconds_sum{job_type="outbox.dispatch"} 0.25`,
 		`hubtask_outbox_lag_seconds_sum 1.5`,
 	} {
