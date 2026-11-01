@@ -1717,6 +1717,7 @@ CREATE TABLE page_comment (
     REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
 );
 CREATE INDEX page_comment_page_idx ON page_comment (tenant_id, page_id, created_at);
+CREATE INDEX page_comment_parent_idx ON page_comment (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON page_comment TO hubtask_app;
 
@@ -2031,6 +2032,8 @@ CREATE TABLE entry_reference (
     FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX entry_reference_target_idx ON entry_reference (tenant_id, target_kind, target_id);
+-- A purged entry's references, which its cascade takes (0333).
+CREATE INDEX entry_reference_entry_idx ON entry_reference (tenant_id, entry_id);
 GRANT SELECT, INSERT, DELETE ON entry_reference TO hubtask_app;
 -- entry_references_of(text) and the triggers work_item_references_* and comment_references_*,
 -- which keep entry_reference from an entry's notes and its comments: migration 0213.
@@ -2068,6 +2071,8 @@ CREATE INDEX comment_search_idx ON comment USING gin (to_tsvector('simple'::regc
 ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
+-- A purged comment's replies, which its cascade takes (0335).
+CREATE INDEX comment_parent_idx ON comment (tenant_id, parent_comment_id) WHERE parent_comment_id IS NOT NULL;
 -- The tombstones whose text a legal hold keeps, which the retention pass reads (migration 0122).
 CREATE INDEX comment_kept_text_idx ON comment (tenant_id, id)
   WHERE deleted_at IS NOT NULL AND body <> '';
@@ -2975,6 +2980,8 @@ CREATE UNIQUE INDEX notification_event_recipient_idx
 CREATE INDEX notification_pending_idx
   ON notification (tenant_id, created_at) WHERE state = 'PENDING';
 CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
+-- A purged entry's notifications, which its cascade takes (0335).
+CREATE INDEX notification_item_idx ON notification (tenant_id, item_id) WHERE item_id IS NOT NULL;
 -- What a revocation's cascade finds its records by.
 CREATE INDEX notification_membership_idx
   ON notification (tenant_id, membership_id) WHERE membership_id IS NOT NULL;
@@ -6942,6 +6949,7 @@ CREATE TABLE whiteboard_comment (
     REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
 );
 CREATE INDEX whiteboard_comment_board_idx ON whiteboard_comment (tenant_id, whiteboard_id, created_at);
+CREATE INDEX whiteboard_comment_parent_idx ON whiteboard_comment (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
 ALTER TABLE whiteboard_comment ENABLE ROW LEVEL SECURITY;
 ALTER TABLE whiteboard_comment FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON whiteboard_comment
