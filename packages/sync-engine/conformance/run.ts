@@ -36,6 +36,7 @@ import type {
   StreamOptions,
   Transport,
   TransportDocument,
+  TransportDocumentHead,
 } from '../src/ports.ts';
 import type { ChangeRecord, PendingMutation, QueuedWrite, StoredRecord, SyncMutation } from '../src/schema.ts';
 
@@ -145,6 +146,11 @@ class Line implements Transport {
   async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {
     this.#cut();
     return this.#inner.document(path, body, options);
+  }
+
+  async documentTo(path: string, body: unknown, sink: WritableStream<Uint8Array>, options: RequestOptions): Promise<TransportDocumentHead> {
+    this.#cut();
+    return this.#inner.documentTo(path, body, sink, options);
   }
 }
 

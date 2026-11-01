@@ -196,6 +196,22 @@ export interface Transport {
    * `Export-Truncated` means is the application's business, not the transport's.
    */
   document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument>;
+  /**
+   * `document`, with the bytes written into `sink` as they arrive rather than held: a whole
+   * workspace does not fit in a tab's memory. The sink is touched only once the server answered
+   * `2xx`, so a refusal - a step-up asked for, a renewal - leaves it for the repeat; a body that
+   * breaks off aborts it. Closing it after the last byte is the transport's.
+   */
+  documentTo(path: string, body: unknown, sink: WritableStream<Uint8Array>, options: RequestOptions): Promise<TransportDocumentHead>;
+}
+
+/** What the answer said about a document whose bytes went into a sink. */
+export interface TransportDocumentHead {
+  readonly contentType?: string;
+  /** From `Content-Disposition`, where the server named one. */
+  readonly fileName?: string;
+  /** Lower-cased header names to values, for the few a caller has to read. */
+  readonly headers: ReadonlyMap<string, string>;
 }
 
 /** Bytes, what they are, what they should be called, and what the answer said about them. */

@@ -51,6 +51,7 @@ export type {
   StreamOptions,
   Transport,
   TransportDocument,
+  TransportDocumentHead,
 } from './ports.ts';
 
 // The two stores: the browser's, which the platform seam of a client opens per API origin

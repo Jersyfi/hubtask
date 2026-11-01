@@ -11,6 +11,7 @@ import { TransportError } from '../src/errors.ts';
 import type {
   ByteTransfer,
   TransportDocument,
+  TransportDocumentHead,
   Clock,
   RequestOptions,
   Response,
@@ -207,6 +208,12 @@ export class FakeTransport implements Transport {
   answerDocument(path: string, answer: TransportDocument): this {
     this.#documentAnswers.set(path, answer);
     return this;
+  }
+
+  async documentTo(path: string, body: unknown, sink: WritableStream<Uint8Array>, options: RequestOptions): Promise<TransportDocumentHead> {
+    const { body: bytes, ...head } = await this.document(path, body, options);
+    await new Response(bytes).body?.pipeTo(sink);
+    return head;
   }
 
   async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {

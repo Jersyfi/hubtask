@@ -14,6 +14,7 @@ import type {
   SnapshotLine,
   SnapshotOptions,
   TransportDocument,
+  TransportDocumentHead,
   RequestOptions,
   Response,
   StreamConnection,
@@ -293,6 +294,31 @@ export class FetchTransport implements Transport {
    * checked nothing.
    */
   async document(path: string, body: unknown, options: RequestOptions): Promise<TransportDocument> {
+    const answer = await this.#documentAnswer(path, body, options);
+    return { ...headOf(answer), body: await answer.blob() };
+  }
+
+  async documentTo(
+    path: string,
+    body: unknown,
+    sink: WritableStream<Uint8Array>,
+    options: RequestOptions,
+  ): Promise<TransportDocumentHead> {
+    const answer = await this.#documentAnswer(path, body, options);
+    const head = headOf(answer);
+    try {
+      // pipeTo aborts the sink when the body breaks off and closes it after the last byte.
+      if (answer.body) await answer.body.pipeTo(sink);
+      else await sink.close();
+    } catch (cause) {
+      const aborted = cause instanceof Error && (cause.name === 'TimeoutError' || cause.name === 'AbortError');
+      throw new TransportError(aborted ? 'timeout' : 'offline', { cause });
+    }
+    return head;
+  }
+
+  /** The request both document calls make, up to a `2xx` answer whose body is still unread. */
+  async #documentAnswer(path: string, body: unknown, options: RequestOptions): Promise<globalThis.Response> {
     if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
       throw new TypeError('a request needs a positive timeoutMs; there is no default of "forever"');
     }
@@ -333,16 +359,7 @@ export class FetchTransport implements Transport {
         requestId: problem.request_id ?? undefined,
       });
     }
-
-    const collected = new Map<string, string>();
-    answer.headers.forEach((value, name) => collected.set(name.toLowerCase(), value));
-
-    return {
-      body: await answer.blob(),
-      contentType: answer.headers.get('Content-Type') ?? undefined,
-      fileName: fileNameOf(answer.headers.get('Content-Disposition')),
-      headers: collected,
-    };
+    return answer;
   }
 
   async #call<T>(
@@ -679,6 +696,17 @@ function counted(
       controller.enqueue(chunk);
     },
   }));
+}
+
+/** What a document answer says about its bytes, read before the body is. */
+function headOf(answer: globalThis.Response): TransportDocumentHead {
+  const headers = new Map<string, string>();
+  answer.headers.forEach((value, name) => headers.set(name.toLowerCase(), value));
+  return {
+    contentType: answer.headers.get('Content-Type') ?? undefined,
+    fileName: fileNameOf(answer.headers.get('Content-Disposition')),
+    headers,
+  };
 }
 
 /**

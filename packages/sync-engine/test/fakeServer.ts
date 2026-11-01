@@ -20,6 +20,7 @@ import type {
   StreamOptions,
   Transport,
   TransportDocument,
+  TransportDocumentHead,
 } from '../src/ports.ts';
 import type { ChangeRecord, SyncMutation, SyncMutationResult } from '../src/schema.ts';
 
@@ -297,6 +298,10 @@ class FakeServerTransport implements Transport {
   }
 
   async document(_path: string, _body: unknown, _options: RequestOptions): Promise<TransportDocument> {
+    throw problem(404, 'not_found');
+  }
+
+  async documentTo(_path: string, _body: unknown, _sink: WritableStream<Uint8Array>, _options: RequestOptions): Promise<TransportDocumentHead> {
     throw problem(404, 'not_found');
   }
 }

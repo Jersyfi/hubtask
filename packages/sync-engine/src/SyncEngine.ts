@@ -797,6 +797,19 @@ export class SyncEngine {
   }
 
   /**
+   * documentTo is `document` with the bytes written into `sink` as they arrive (ports.ts). The
+   * sink stays the caller's until the server answered: a renewal repeats the call into it.
+   */
+  async documentTo(
+    path: string,
+    body: unknown,
+    sink: WritableStream<Uint8Array>,
+    options: { timeoutMs?: number; idempotencyKey?: string; accept?: string; stepUpToken?: string } = {},
+  ) {
+    return this.#attempt(() => this.#transport.documentTo(path, body, sink, { ...this.#options(options), accept: options.accept }));
+  }
+
+  /**
    * loadMore appends the next page of a paged resource to the one already held.
    *
    * Appending rather than replacing is the whole point: `LoadMore` is a control a person presses

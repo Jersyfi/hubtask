@@ -506,6 +506,61 @@ test('a document carries the step-up proof it is asked with', async () => {
   assert.equal(new Headers(calls[1]?.init.headers).get('X-Hubtask-Step-Up'), null);
 });
 
+/** A sink that keeps what reached it and how it ended. */
+function recordingSink() {
+  const chunks: Uint8Array[] = [];
+  const ended: string[] = [];
+  const sink = new WritableStream<Uint8Array>({
+    write: (chunk) => { chunks.push(chunk); },
+    close: () => { ended.push('closed'); },
+    abort: () => { ended.push('aborted'); },
+  });
+  return { sink, chunks, ended };
+}
+
+// A whole workspace does not fit in a tab: its bytes go to the disk as they come.
+test('a document handed a sink writes the bytes into it and closes it', async () => {
+  const { fetch } = recordingFetch(() => new Response(new Uint8Array([0x50, 0x4b, 0x05, 0x06]), {
+    status: 200, headers: { 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="w.zip"' },
+  }));
+  const { sink, chunks, ended } = recordingSink();
+  const head = await new FetchTransport({ baseUrl: '/api/v1', fetch })
+    .documentTo('/backups:download-workspace', {}, sink, { timeoutMs: 1000, accept: 'application/zip' });
+  assert.deepEqual([...chunks.flatMap((chunk) => [...chunk])], [0x50, 0x4b, 0x05, 0x06]);
+  assert.deepEqual(ended, ['closed']);
+  assert.equal(head.fileName, 'w.zip');
+  assert.equal('body' in head, false);
+});
+
+// The step-up prompt repeats the call with the proof, into the same file.
+test('a refused document leaves its sink untouched for the repeat', async () => {
+  const { fetch } = recordingFetch(() => new Response(JSON.stringify({ code: 'forbidden', detail_code: 'auth.step_up_required' }), { status: 403 }));
+  const { sink, chunks, ended } = recordingSink();
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).documentTo('/backups:download-workspace', {}, sink, { timeoutMs: 1000 }),
+    (error: unknown) => error instanceof TransportError && error.status === 403 && error.detailCode === 'auth.step_up_required',
+  );
+  assert.equal(chunks.length, 0);
+  assert.deepEqual(ended, []);
+  assert.equal(sink.locked, false);
+});
+
+test('a document body that breaks off aborts its sink rather than closing it', async () => {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array([0x50, 0x4b]));
+      controller.error(new TypeError('network'));
+    },
+  });
+  const { fetch } = recordingFetch(() => new Response(body, { status: 200 }));
+  const { sink, ended } = recordingSink();
+  await assert.rejects(
+    () => new FetchTransport({ baseUrl: '/api/v1', fetch }).documentTo('/backups:download-workspace', {}, sink, { timeoutMs: 1000 }),
+    (error: unknown) => error instanceof TransportError && error.kind === 'offline',
+  );
+  assert.deepEqual(ended, ['aborted']);
+});
+
 const buildMismatch = () =>
   new Response(JSON.stringify({ code: 'dependency_unavailable', detail_code: 'route.build_mismatch' }), {
     status: 503, headers: { 'Retry-After': '0' },
