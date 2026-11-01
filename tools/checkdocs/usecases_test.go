@@ -75,3 +75,15 @@ func TestAListOfChecksCitesEachOfThem(t *testing.T) {
 		t.Fatalf("uncited %v, want [4] - checks 1 to 3 are named in one list, check 4 only for another use case", got)
 	}
 }
+
+// A range in a list - `checks 1-3` or `checks 1–3` - cites every check in it.
+func TestARangeOfChecksCitesEachOfThem(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "a_test.go"), []byte("// UC-ID-16 checks 1-2 and 4\n// UC-ID-17 checks 1–3\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := uncitedChecks(root, "UC-ID-16", map[int]bool{1: true, 2: true, 3: true, 4: true}, []string{"a_test.go"})
+	if len(got) != 1 || got[0] != 3 {
+		t.Fatalf("uncited %v, want [3] - checks 1 to 2 and 4 are cited, 3 only for another use case", got)
+	}
+}

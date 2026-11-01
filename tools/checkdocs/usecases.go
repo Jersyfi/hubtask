@@ -361,8 +361,25 @@ func checkUseCaseIndex(root string, cases []useCase) []string {
 // ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`.
 var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,? check (\d+)\b)`)
 
-// ucChecksReference is a citation of several checks in one list: `UC-WRK-32 checks 2, 3 and 6`.
-var ucChecksReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3}):?,? checks (\d+(?:(?:,| and|, and) \d+)*)\b`)
+// ucChecksReference is a citation of several checks in one list: `UC-WRK-32 checks 2, 3 and 6`,
+// or `UC-WRK-30 checks 1-4`.
+var ucChecksReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3}):?,? checks (\d+(?:[-–]\d+)?(?:(?:,| and|, and) \d+(?:[-–]\d+)?)*)\b`)
+
+// listedChecks answers the check numbers a list names, a range counted whole.
+func listedChecks(list string) []int {
+	var numbers []int
+	for _, item := range regexp.MustCompile(`(\d+)(?:[-–](\d+))?`).FindAllStringSubmatch(list, -1) {
+		from, _ := strconv.Atoi(item[1])
+		to := from
+		if item[2] != "" {
+			to, _ = strconv.Atoi(item[2])
+		}
+		for n := from; n <= to && n-from < 100; n++ {
+			numbers = append(numbers, n)
+		}
+	}
+	return numbers
+}
 
 // checkUseCaseReferences makes sure a UC-… cited anywhere resolves, the way checkADRReferences does
 // for decisions: a task, a pull request template or a code comment pointing at a use case that does
@@ -402,9 +419,9 @@ func checkUseCaseReferences(root string, known map[string]string, checks map[str
 		}
 		for _, m := range ucChecksReference.FindAllStringSubmatch(string(content), -1) {
 			uc, ok := checks[m[1]]
-			for _, number := range regexp.MustCompile(`\d+`).FindAllString(m[2], -1) {
-				if n, _ := strconv.Atoi(number); ok && !uc.checks[n] {
-					key := m[1] + " check " + number
+			for _, n := range listedChecks(m[2]) {
+				if ok && !uc.checks[n] {
+					key := m[1] + " check " + strconv.Itoa(n)
 					missingChecks[key] = append(missingChecks[key], relative)
 				}
 			}
@@ -453,7 +470,7 @@ func setOf(matches [][]string) map[string]bool {
 // uncitedVerifiedAtMost bounds the checks of verified use cases that no file in their checked_by
 // cites as `UC-XX-nn check n`, `UC-XX-nn/n` or in a list of checks. Each one cited
 // lowers the bound, and it only falls - a use case made verified now cites every check.
-const uncitedVerifiedAtMost = 33
+const uncitedVerifiedAtMost = 5
 
 // checkVerifiedCitations holds `verified` to its meaning: every check proven, by a test that says
 // which check it proves (docs/usecases/README.md).
@@ -500,10 +517,8 @@ func uncitedChecks(root, id string, checks map[int]bool, evidence []string) []in
 			if m[1] != id {
 				continue
 			}
-			for _, number := range regexp.MustCompile(`\d+`).FindAllString(m[2], -1) {
-				if n, err := strconv.Atoi(number); err == nil {
-					cited[n] = true
-				}
+			for _, n := range listedChecks(m[2]) {
+				cited[n] = true
 			}
 		}
 	}
