@@ -97,7 +97,7 @@ func TestASecondCollectionUnderATakenNameIsAConflict(t *testing.T) {
 }
 
 // A row naming by key something neither the archive nor the workspace holds - here a hub's
-// calendar under a key no workspace calendar has - is refused by its foreign key, and that refusal
+// workflow scheme naming a workflow no workspace has - is refused by its foreign key, and that refusal
 // is a conflict the restore stops on by name, not a database error the queue would retry against
 // the same row forever.
 func TestARowNamingAKeyNobodyHoldsIsRefusedByName(t *testing.T) {
@@ -109,18 +109,16 @@ func TestARowNamingAKeyNobodyHoldsIsRefusedByName(t *testing.T) {
 		if _, err := importRepo().Write(ctx, "container", containerRow(hub, authorA, "Desk "+hub.String()[:8]), false); err != nil {
 			return err
 		}
-		_, err := importRepo().Write(ctx, "hub_business_calendar", map[string]any{
-			"id": freshID(t).String(), "hub_id": hub.String(), "key": "nobody_holds_this",
-			"name": "Office", "spec": map[string]any{},
-			"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
-			"version": 1,
+		_, err := importRepo().Write(ctx, "workflow_scheme", map[string]any{
+			"container_id": hub.String(), "entry_type": "", "workflow_key": "nobody_holds_this",
+			"created_at": created.Format(time.RFC3339Nano),
 		}, false)
 		return err
 	})
 	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "backup.row_dangles" {
 		t.Fatalf("the write answered %v, want the dangling row's conflict", err)
 	}
-	if got := shared.AsError(err).Params["constraint"]; got != "hub_business_calendar_key_fkey" {
+	if got := shared.AsError(err).Params["constraint"]; got != "workflow_scheme_workflow_fkey" {
 		t.Errorf("the conflict names %q, want the foreign key that refused the row", got)
 	}
 }
