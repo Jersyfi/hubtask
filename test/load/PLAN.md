@@ -25,6 +25,11 @@ holds about 1.7 million entries instead of 170 000.
 | R1 | The capacity run, 10⁷ entries over 2 000 workspaces | `make capacity ITEMS=10000000 TENANTS=2000` | the owner's workstation (third answers 9) | **about 50 to 60 minutes**, of which the seed about 30, the vacuum and the indexes up to 10, the measuring 11 |
 | R2 | If R1 found and fixed anything: R1 again on the fix | the same | the same | the same |
 | B1 | Backup and workspace export of the largest workspace at 10⁶ entries: one backup run to a local and to a throttled S3 target, one tenant export, their durations against `HUBTASK_LONG_JOB_TIMEOUT` (6 h) | not built: the harness has no backup or export path yet | the owner's workstation | **unmeasured** - no backup or export duration at any size is on record |
+| L1 | Live updates in one workspace: 64 change streams (eight credentials, under the per-credential cap of 8) held open while 10 writes a second land for 5 minutes; database transactions per second, the writes' P95 and every stream's delivery delay recorded | not built: the harness opens no stream | the owner's workstation | **unmeasured**. Pass: no stream refused (64 is under the tenant cap of 512), the writes' P95 within SLO-3 (300 ms), no record later than SLO-4's 30 s. Alert threshold: A-26 (`hubtask_stream_refused_total`) and A-36 (NOTIFY queue over half full) stay silent |
+| L2 | A drain: 256 streams on one of two processes, that process sent `SIGTERM`; when each stream is back, and every refusal | not built | the owner's workstation | **unmeasured**. Pass: every stream back on the other process within 75 s (the 15 s deregistration, the 30 s grace and the client's 30 s backoff cap), each refusal a `503` with `Retry-After`, no other 5xx, no record lost (a `:pull` from the last cursor returns it). Alert threshold: A-26 silent once the streams are back |
+| L3 | The first synchronisation of the largest workspace of P2 (about 170 000 entries): one null-cursor walk to the end, its pages, bytes and time, and how long it holds its snapshot connection | not built: the harness reads five paths, not the walk | the owner's workstation | **unmeasured**. Pass: every page within `HUBTASK_REQUEST_TIMEOUT` (30 s) and without a 5xx; the total time and bytes are recorded as the baseline the next run is compared with (no bar until one exists) |
+| L4 | Awareness: 30 clients on one live document across two processes, each sending a cursor ten times a second for 2 minutes; the NOTIFY rate on `hubtask_awareness` and the relay outcomes | not built | the owner's workstation | **unmeasured**. Pass: at most 10 relaying transactions a second per process (offline-sync.md §13's bound), no `too_large` or `failed` in `hubtask_realtime_awareness_relayed_total`. Alert threshold: A-22 and A-36 stay silent |
+| F1 | The footprint of the single small machine: the Compose stack idle for 10 minutes, then P1's mixed window against it; the resident memory of `app` and `db` (`docker stats`) at the end of each | not built: P1 runs the binary, not the Compose stack | the owner's workstation | **unmeasured for the Compose stack.** One reading of the bare binary is on record (support-matrix.md, *Host size*). Pass: the figures are written into support-matrix.md as the minimum (idle) and the recommended size (the peak under load divided by 0.9, the `GOMEMLIMIT` share, rounded up), and the commented `mem_limit` in `compose.yaml` is set to the recommendation |
 
 Why the durations are what they are, from the probes:
 
@@ -41,6 +46,10 @@ Why the durations are what they are, from the probes:
 * **The stack's own budget** is twenty minutes plus ten per 10⁶ entries — 120 minutes at 10⁷ — so
   a seed that stalls (as the first 10⁶ attempt did, quadratically) ends the run instead of holding
   the machine for hours.
+* **The live paths are not in R1.** L1 to L4 measure what grows with the number of viewers rather
+  than with the data - streams, a drain's reconnects, the first synchronisation, awareness - and F1
+  the smallest host. None is built yet; each is a probe of a few minutes once it is, and none
+  changes P2, R1 or R3.
 * **Several hours of load is not planned.** No soak run is in this plan; one would be its own
   proposal with its own probe.
 
