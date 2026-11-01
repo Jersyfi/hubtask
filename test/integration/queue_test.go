@@ -544,3 +544,46 @@ func TestOpenJobsCountsEveryUnfinishedJobOfTheKind(t *testing.T) {
 		t.Errorf("open jobs = %d, want 3 (due, parked, running; not the finished one)", open)
 	}
 }
+
+// TestOpenKeysNameEachLivingJobsWorkspaceAndKey: a mailbox's read lives as one job keyed by the
+// mailbox, so the open jobs' keys are the mailboxes a watcher holds; a finished job and a job of
+// no workspace are not among them, and another kind's never are.
+func TestOpenKeysNameEachLivingJobsWorkspaceAndKey(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.keys." + freshID(t).String())
+	tenantA, tenantB := freshID(t), freshID(t)
+	now := queueClock.Now()
+	requests := []queue.Request{
+		{Kind: kind, TenantID: tenantA, DedupeKey: "a", RunAt: now},
+		{Kind: kind, TenantID: tenantB, DedupeKey: "b", RunAt: now.Add(time.Hour)},
+		{Kind: kind, TenantID: tenantA, DedupeKey: "finished", RunAt: now},
+		{Kind: kind, DedupeKey: "nobody", RunAt: now},
+		{Kind: queue.Kind(kind + ".other"), TenantID: tenantA, DedupeKey: "other", RunAt: now},
+	}
+	ids := make([]shared.ID, 0, len(requests))
+	for _, request := range requests {
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			id, err := jobQueue(t).Enqueue(ctx, request)
+			ids = append(ids, id)
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE job SET state = 'SUCCEEDED', finished_at = $2 WHERE id = $1`,
+		ids[2].String(), now); err != nil {
+		t.Fatal(err)
+	}
+	var keys []queue.OpenKey
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		keys, err = jobQueue(t).OpenKeys(ctx, kind, 10)
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	want := []queue.OpenKey{{TenantID: tenantA, DedupeKey: "a"}, {TenantID: tenantB, DedupeKey: "b"}}
+	if len(keys) != len(want) || keys[0] != want[0] || keys[1] != want[1] {
+		t.Errorf("open keys = %+v, want %+v", keys, want)
+	}
+}

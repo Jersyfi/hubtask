@@ -370,6 +370,36 @@ func (q Queue) OpenJobs(ctx context.Context, kind queue.Kind) (int, error) {
 	return int(count), nil
 }
 
+// maxOpenKeys bounds one listing of open jobs' keys.
+const maxOpenKeys = 10_000
+
+// OpenKeys answers the workspace and dedupe key of up to limit open jobs of one kind, oldest
+// first: for a kind with one job per thing while it lives, the things that live now.
+func (q Queue) OpenKeys(ctx context.Context, kind queue.Kind, limit int) ([]queue.OpenKey, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > maxOpenKeys {
+		limit = maxOpenKeys
+	}
+	rows, err := queries.OpenJobKeys(ctx, sqlc.OpenJobKeysParams{Kind: string(kind), LimitCount: int32(limit)})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the open jobs' keys: %w", err))
+	}
+	out := make([]queue.OpenKey, 0, len(rows))
+	for _, row := range rows {
+		tenantID, err := optionalID(row.TenantID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, queue.OpenKey{TenantID: tenantID, DedupeKey: row.DedupeKey})
+	}
+	return out, nil
+}
+
 // ScheduledBacklog counts the jobs of one kind waiting for a future moment - the retry ladders
 // parked on the queue, which is what hubtask_webhook_retry_backlog reads
 // (observability-reliability.md §4).

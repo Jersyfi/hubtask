@@ -179,6 +179,16 @@ WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now')
 SELECT count(*) FROM job
 WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING');
 
+-- The workspace and key of each open job of one kind, oldest first: for a kind with one job per
+-- thing while it lives (mail.mailbox_poll, keyed by the mailbox), the things that live now. No
+-- payload: the caller loads each under its own workspace.
+-- name: OpenJobKeys :many
+SELECT tenant_id, dedupe_key::text AS dedupe_key FROM job
+WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
+  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+ORDER BY created_at, id
+LIMIT sqlc.arg('limit_count');
+
 -- What a caller polls, and the only two statements here that are asked on somebody's behalf
 -- rather than by a worker. They therefore carry the tenant condition themselves - the job table
 -- has no row level security, so there is no policy underneath that would catch a forgotten one,

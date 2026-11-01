@@ -808,6 +808,19 @@ type Queue interface {
 	Depth(ctx context.Context) ([]Depth, error)
 }
 
+// OpenKey is an open job's workspace and dedupe key.
+type OpenKey struct {
+	TenantID  shared.ID
+	DedupeKey string
+}
+
+// OpenKeys lists the open jobs of one kind by workspace and key, across every tenant, within the
+// caller's unit of work. For a kind with one job per thing while it lives - a mailbox's read - it
+// answers which things live without reading a table that has a tenant boundary.
+type OpenKeys interface {
+	OpenKeys(ctx context.Context, kind Kind, limit int) ([]OpenKey, error)
+}
+
 // Leadership is the "exactly one" of ADR-0008: the scheduler role may run in several replicas so
 // that one can fail, but only one of them may act, or every reminder fires twice.
 //

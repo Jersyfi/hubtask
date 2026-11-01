@@ -508,6 +508,47 @@ func (q *Queries) OpenJobCount(ctx context.Context, kind string) (int64, error) 
 	return count, err
 }
 
+const openJobKeys = `-- name: OpenJobKeys :many
+SELECT tenant_id, dedupe_key::text AS dedupe_key FROM job
+WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
+  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+ORDER BY created_at, id
+LIMIT $2
+`
+
+type OpenJobKeysParams struct {
+	Kind       string
+	LimitCount int32
+}
+
+type OpenJobKeysRow struct {
+	TenantID  pgtype.UUID
+	DedupeKey string
+}
+
+// The workspace and key of each open job of one kind, oldest first: for a kind with one job per
+// thing while it lives (mail.mailbox_poll, keyed by the mailbox), the things that live now. No
+// payload: the caller loads each under its own workspace.
+func (q *Queries) OpenJobKeys(ctx context.Context, arg OpenJobKeysParams) ([]OpenJobKeysRow, error) {
+	rows, err := q.db.Query(ctx, openJobKeys, arg.Kind, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OpenJobKeysRow{}
+	for rows.Next() {
+		var i OpenJobKeysRow
+		if err := rows.Scan(&i.TenantID, &i.DedupeKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const purgeFinishedJobs = `-- name: PurgeFinishedJobs :many
 DELETE FROM job
 WHERE id IN (
