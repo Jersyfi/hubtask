@@ -25953,8 +25953,11 @@ type ListAuditEntriesParams struct {
 	// TargetId One object's whole history, whatever was done to it
 	TargetId *openapi_types.UUID            `form:"target_id,omitempty" json:"target_id,omitempty"`
 	Outcome  *ListAuditEntriesParamsOutcome `form:"outcome,omitempty" json:"outcome,omitempty"`
-	Cursor   *string                        `form:"cursor,omitempty" json:"cursor,omitempty"`
-	Limit    *int                           `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// RequestId The entries of one request: the reference an error answer carries as request_id
+	RequestId *string `form:"request_id,omitempty" json:"request_id,omitempty"`
+	Cursor    *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit     *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ListAuditEntriesParamsOutcome defines parameters for ListAuditEntries.
@@ -36538,6 +36541,19 @@ func (siw *ServerInterfaceWrapper) ListAuditEntries(w http.ResponseWriter, r *ht
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "outcome"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "outcome", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "request_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "request_id", r.URL.Query(), &params.RequestId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "request_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "request_id", Err: err})
 		}
 		return
 	}

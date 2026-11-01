@@ -6961,6 +6961,8 @@
   "app.audit.target_type": "What kind of thing",
   "app.audit.target_type_hint": "For example container, or legal_hold.",
   "app.audit.target_id": "Which one",
+  "app.audit.request_id": "Reference",
+  "app.audit.request_id_hint": "The reference a person quotes from an error message: that request's entries.",
   "app.audit.outcome": "How it ended",
   "app.audit.any_outcome": "Any way",
   "app.audit.outcome_success": "Done",

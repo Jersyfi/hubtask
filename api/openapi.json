@@ -14440,6 +14440,16 @@
             }
           },
           {
+            "name": "request_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9._-]+$"
+            },
+            "description": "The entries of one request: the reference an error answer carries as request_id"
+          },
+          {
             "name": "cursor",
             "in": "query",
             "schema": {

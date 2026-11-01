@@ -24,6 +24,7 @@ test('every filter the contract declares reaches the query string', () => {
     targetType: 'container',
     targetId: 't1',
     outcome: 'DENIED',
+    requestId: 'r-77',
   });
   for (const expected of [
     'from=2026-01-01T00%3A00%3A00Z',
@@ -33,6 +34,7 @@ test('every filter the contract declares reaches the query string', () => {
     'target_type=container',
     'target_id=t1',
     'outcome=DENIED',
+    'request_id=r-77',
   ]) {
     assert.ok(path.includes(expected), `${expected} is missing from ${path}`);
   }

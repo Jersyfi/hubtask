@@ -307,3 +307,39 @@ func TestReadingTheTrailAddsNoEntry(t *testing.T) {
 			len(second), len(first), before)
 	}
 }
+
+// The reference a person quotes from an error answer finds that request's entries, over the door an
+// administrator uses, and only in the reader's own workspace (multi-tenancy.md §2).
+func TestTheReferenceAPersonQuotesFindsItsEntries(t *testing.T) {
+	ctx := context.Background()
+	tenant, other := auditTenant(ctx, t), auditTenant(ctx, t)
+	entries := mixedEntries(t, tenant, 6)
+	entries[2].Context.RequestID = "5f2b9c0e7a1d4e3f8b6a0c9d2e1f4a7b"
+	entries[2].Outcome = port.OutcomeDenied
+	entries[4].Context.RequestID = "another-request"
+	appendTo(ctx, t, tenant, entries)
+	elsewhere := mixedEntries(t, other, 1)
+	elsewhere[0].Context.RequestID = "5f2b9c0e7a1d4e3f8b6a0c9d2e1f4a7b"
+	appendTo(ctx, t, other, elsewhere)
+
+	list := listerFor(ctx, t, permissive{})
+	registry := auditCatalogue(t, list)
+	found := auditOverREST(ctx, t, registry, auditActor(tenant), url.Values{
+		"request_id": {"5f2b9c0e7a1d4e3f8b6a0c9d2e1f4a7b"}, "limit": {"500"},
+	})
+	if len(found) != 1 {
+		t.Fatalf("the reference found %d entries, want the one of that request in this workspace: %v", len(found), found)
+	}
+	page, err := list.Execute(ctx, auditActor(tenant), auditservice.EntryQuery{Filter: repository.Filter{
+		RequestID: "5f2b9c0e7a1d4e3f8b6a0c9d2e1f4a7b", Page: repository.Page{Size: 500},
+	}})
+	if err != nil {
+		t.Fatalf("reading by the reference: %v", err)
+	}
+	if len(page.Records) != 1 || page.Records[0].ID.String() != found[0] || page.Records[0].Entry.Outcome != port.OutcomeDenied {
+		t.Errorf("the reference found %+v, want the refused entry of that request", page.Records)
+	}
+	if none := auditOverREST(ctx, t, registry, auditActor(tenant), url.Values{"request_id": {"nobody-asked"}}); len(none) != 0 {
+		t.Errorf("an unknown reference found %v", none)
+	}
+}

@@ -84,6 +84,7 @@ WHERE tenant_id = current_tenant_id()
   AND (sqlc.narg('target_type')::text IS NULL OR target_type = sqlc.narg('target_type')::text)
   AND (sqlc.narg('target_id')::uuid IS NULL OR target_id = sqlc.narg('target_id')::uuid)
   AND (sqlc.narg('outcome')::text IS NULL OR outcome = sqlc.narg('outcome')::text)
+  AND (sqlc.narg('request_id')::text IS NULL OR context->>'RequestID' = sqlc.narg('request_id')::text)
   AND (
     sqlc.narg('cursor_occurred_at')::timestamptz IS NULL
     OR (occurred_at, id) < (sqlc.narg('cursor_occurred_at')::timestamptz, sqlc.narg('cursor_id')::uuid)

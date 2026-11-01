@@ -25959,8 +25959,11 @@ type ListAuditEntriesParams struct {
 	// TargetId One object's whole history, whatever was done to it
 	TargetId *openapi_types.UUID            `form:"target_id,omitempty" json:"target_id,omitempty"`
 	Outcome  *ListAuditEntriesParamsOutcome `form:"outcome,omitempty" json:"outcome,omitempty"`
-	Cursor   *string                        `form:"cursor,omitempty" json:"cursor,omitempty"`
-	Limit    *int                           `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// RequestId The entries of one request: the reference an error answer carries as request_id
+	RequestId *string `form:"request_id,omitempty" json:"request_id,omitempty"`
+	Cursor    *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit     *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ListAuditEntriesParamsOutcome defines parameters for ListAuditEntries.
@@ -70086,6 +70089,18 @@ func NewListAuditEntriesRequest(server string, params *ListAuditEntriesParams) (
 		if params.Outcome != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "outcome", *params.Outcome, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.RequestId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "request_id", *params.RequestId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {

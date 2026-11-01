@@ -8790,6 +8790,7 @@ paths:
         - { name: target_type, in: query, schema: { type: string }, description: "The kind of object the entry is about, e.g. container or legal_hold" }
         - { name: target_id, in: query, schema: { type: string, format: uuid }, description: "One object's whole history, whatever was done to it" }
         - { name: outcome, in: query, schema: { type: string, enum: [SUCCESS, DENIED, FAILED] } }
+        - { name: request_id, in: query, schema: { type: string, maxLength: 64, pattern: "^[A-Za-z0-9._-]+$" }, description: "The entries of one request: the reference an error answer carries as request_id" }
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 500 } }
       responses:

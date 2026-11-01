@@ -161,6 +161,8 @@ export interface Query {
   readonly targetType?: string;
   readonly targetId?: string;
   readonly outcome?: string;
+  /** The reference an error answer carried: that one request's entries. */
+  readonly requestId?: string;
 }
 
 /** The listing's path for a query. Built here so the store and its callers agree on one string. */
@@ -173,6 +175,7 @@ export function auditPath(query: Query = {}, cursor?: string): string {
   if (query.targetType) written.set('target_type', query.targetType);
   if (query.targetId) written.set('target_id', query.targetId);
   if (query.outcome) written.set('outcome', query.outcome);
+  if (query.requestId) written.set('request_id', query.requestId);
   if (cursor) written.set('cursor', cursor);
   const search = written.toString();
   return search ? `${AUDIT}?${search}` : AUDIT;

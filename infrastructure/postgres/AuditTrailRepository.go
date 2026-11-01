@@ -258,6 +258,7 @@ func auditQueryParams(
 		TargetType:       optionalText(filter.TargetType),
 		TargetID:         targetID,
 		Outcome:          optionalText(string(filter.Outcome)),
+		RequestID:        optionalText(filter.RequestID),
 		CursorOccurredAt: boundary.occurredAt,
 		CursorID:         boundary.id,
 		PageSize:         pageProbe(filter.Page.Size),

@@ -53,6 +53,7 @@
   let targetType = $state('');
   let targetId = $state('');
   let outcome = $state('');
+  let requestId = $state('');
 
   // The query the listing is reading. Separate from the fields, so that typing into a filter does
   // not send a request per keystroke: the reader presses the button.
@@ -214,6 +215,7 @@
       ...(targetType.trim() ? { targetType: targetType.trim() } : {}),
       ...(targetId.trim() ? { targetId: targetId.trim() } : {}),
       ...(outcome ? { outcome } : {}),
+      ...(requestId.trim() ? { requestId: requestId.trim() } : {}),
     };
   }
 
@@ -290,6 +292,11 @@
             bind:value={targetType}
           />
           <Input label={t('app.audit.target_id')} bind:value={targetId} />
+          <Input
+            label={t('app.audit.request_id')}
+            hint={t('app.audit.request_id_hint')}
+            bind:value={requestId}
+          />
           <Select
             label={t('app.audit.outcome')}
             bind:value={outcome}
