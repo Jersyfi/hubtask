@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-05, P-06, P-11, P-13, P-17]
 state: built
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/WorkflowHub_test.go, core/application/service/workflow/WorkflowHub_test.go, core/application/service/work/WorkflowHubGate_test.go, core/application/service/sync/InitialSyncHubBlocks_test.go, test/integration/workflow_hub_test.go]
 ---
 
 # Describe how our work moves, and switch it on
@@ -40,9 +40,16 @@ publishes; the board now shows one column per status.
    with who did it.
 7. A shipped default workflow exists and works without editing.
 8. A person without the right to shape the workspace is not offered the designer.
+9. A person who may shape a hub defines workflows of the hub's own, and makes a copy of a
+   workflow shared from the workspace there under a key of its own, which names the workflow it
+   was copied from; only that hub and its collections run a hub's own workflow, it is listed only
+   to who may read the hub, and a collection running it is refused leaving the hub.
 
 ## Where it ends
 
 * One workflow per type per collection; no parallel statuses.
+* A workflow's key is unique in the workspace, a hub's own included; a copy takes a key of its
+  own and the shape in force, never the source's draft. A shared workflow is never changed from a
+  hub (configuration model §2); a collection defines no workflows of its own.
 * Steps with conditions, required fields and actions: [UC-FLW-04](./UC-FLW-04-ask-for-what-a-step-needs.md).
 * Changing a workflow in use: [UC-FLW-05](./UC-FLW-05-change-a-workflow-in-use.md).

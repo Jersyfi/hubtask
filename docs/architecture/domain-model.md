@@ -155,7 +155,14 @@ use (`workflows.mapping_required`) -, and otherwise a done entry enters the firs
 an open one the initial status; no move changes completion or runs a step's conditions
 (`workflows.mapping_changes_completion`). Each moved entry's history says `item.workflow_changed`;
 the trail records the counts. Using a workflow needs the person's confirmation of its preview
-(`workflows.confirmation_required`). The operations belong to the workflows module.
+(`workflows.confirmation_required`). A workflow may be **a hub's own** (`hub_id`, migration 0323;
+UC-FLW-02 check 9): made there with STRUCTURE on the hub, or copied there from a shared one
+(`CopyWorkflowHere`, the shape in force under a key of its own, `copied_from` naming the source's
+key; the shipped workflow is copied by adding one with the client's words, rule 8). Only the hub
+and its collections run it (`Workflows.Within`, `workflows.hub_bound` on a scheme row elsewhere and
+on a collection's move out of the hub while its own row runs it), it is listed and walked only to
+who reads the hub, and it goes with the hub. Keys stay unique in the workspace, as for types. The
+operations belong to the workflows module.
 
 **Levels and presets** (decisions #1619–#1622). A collection's *level* is a preset — *List*,
 *Tasks*, *Project*, *Flow*, or one a workspace or installation defines — that sets eight things:

@@ -1287,6 +1287,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `workflow.created` | CopyWorkflowHere | `workflow` | INFO | Every time |
 | `workflow.created` | CreateWorkflow | `workflow` | INFO | Every time |
 | `workflow.deleted` | DeleteWorkflow | `workflow` | INFO | Every time |
 | `workflow.drafted` | SaveWorkflowDraft | `workflow` | INFO | Every time |
