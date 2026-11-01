@@ -24,12 +24,15 @@ import type { HlcReading } from './hlc.ts';
 
 /** The store's own collection: the cursor, the device, the clock. Never a server entity. */
 export const META = 'meta';
+/** The application's collection of live documents' unsent words (offline-sync.md §13). */
+export const LIVE_UNSENT = 'live_unsent';
 /**
- * The collections that are the device's rather than the server's: the store's own records, and
- * the queue's three (queue.ts). A walk over the replica's entities skips them, and emptying the
- * replica keeps them - what a device did offline is not stale because its copy is.
+ * The collections that are the device's rather than the server's: the store's own records, the
+ * queue's three (queue.ts) and a live document's unsent words. A walk over the replica's entities
+ * skips them, and emptying the replica keeps them - what a device did offline is not stale because
+ * its copy is.
  */
-export const OWN_COLLECTIONS: ReadonlySet<string> = new Set([META, 'queue', 'rejected', 'conflicts']);
+export const OWN_COLLECTIONS: ReadonlySet<string> = new Set([META, 'queue', 'rejected', 'conflicts', LIVE_UNSENT]);
 
 /** Where the delta left off, and what the server said beside it. */
 export interface SyncPosition {

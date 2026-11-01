@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { SyncEngine } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import { MemoryStorage } from '../src/storage/MemoryStorage.ts';
-import { collectionOf, META } from '../src/replica.ts';
+import { collectionOf, LIVE_UNSENT, META } from '../src/replica.ts';
 import type { ChangeRecord, StoredRecord } from '../src/schema.ts';
 import type { StreamEvent } from '../src/ports.ts';
 import { FakeTransport, FixedClock } from './fakes.ts';
@@ -258,11 +258,14 @@ test('§9.4: sync.cursor_too_old empties the store and resynchronises; the devic
     { changes: [], cursor: 'c-new', has_more: false },
   ]);
   const { engine, storage, device } = await attached(transport);
+  // A live document's words typed offline are the device's, not the stale copy's.
+  await storage.put(LIVE_UNSENT, 'page:p1', { id: 'page:p1', updates: [new Uint8Array([7])] });
   const stop = engine.listen({ pathsFor });
   await settle(30);
   stop();
 
   assert.equal(transport.snapshots.length, 2, 'the refusal led to a second initial synchronisation');
+  assert.deepEqual(await storage.get(LIVE_UNSENT, 'page:p1'), { id: 'page:p1', updates: [new Uint8Array([7])] }, 'the unsent words stay');
   assert.equal((await storage.get<{ cursor: string }>(META, 'position'))?.cursor, 'c-new');
   assert.equal((await held(storage, 'comment', COMMENT))?.document.body, 'soon', 'the second snapshot filled the store again');
   assert.equal((await storage.get<{ id: string }>(META, 'device'))?.id, device.id, 'the device is the same device');

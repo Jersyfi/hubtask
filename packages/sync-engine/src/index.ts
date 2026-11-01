@@ -57,7 +57,7 @@ export type {
 // and account, and the memory one the tests and the conformance runner use.
 export { IndexedDbStorage, databaseNameFor } from './storage/IndexedDbStorage.ts';
 export { MemoryStorage } from './storage/MemoryStorage.ts';
-export { META, collectionOf } from './replica.ts';
+export { LIVE_UNSENT, META, collectionOf } from './replica.ts';
 export type { SyncPosition } from './replica.ts';
 export type { DeviceIdentity } from './device.ts';
 export { isUuidV7, mintUuidV7 } from './device.ts';
