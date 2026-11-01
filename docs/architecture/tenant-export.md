@@ -442,7 +442,9 @@ owner is the operator.
 stored, the archive's paths as their names) to the workspace's owner with a fresh proof, stored
 nowhere on the way; once in 24 hours (`tenant.archive_downloaded_at`, left out of the archive),
 within the export quota, audited as `tenant.exported` with `download` as its target, and a failed
-transfer gives its window back (UC-BAK-07 check 7). Unpacked onto a target, it restores as §10 says.
+transfer gives its window back (UC-BAK-07 check 7). The archive is read inside one snapshot on one
+pool connection while the client reads, so a client that takes nothing for two minutes ends the
+transfer (each write's deadline, renewed while it reads), and six hours end any. Unpacked onto a target, it restores as §10 says.
 
 **The rule for what comes:** a new kind of workspace data — a type, a field, a link, a form, a
 workflow, a page, a whiteboard, a record, a time entry, a goal — joins §6 in the step that builds

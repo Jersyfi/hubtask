@@ -34,6 +34,10 @@ type WorkspaceArchiveDoor struct {
 	Downloads WorkspaceArchiveStarter
 	// Timeout bounds the whole transfer (rule 7); zero is six hours.
 	Timeout time.Duration
+	// Stall bounds one write: a client that reads nothing for this long ends the transfer, so a
+	// stalled reader never holds the archive's snapshot and its pool connection for the whole
+	// Timeout. Zero is two minutes.
+	Stall time.Duration
 }
 
 // DownloadWorkspaceArchive answers POST /backups:download-workspace.
@@ -73,17 +77,23 @@ func (d *WorkspaceArchiveDoor) DownloadWorkspaceArchive(
 	if timeout <= 0 {
 		timeout = 6 * time.Hour
 	}
+	stall := d.Stall
+	if stall <= 0 {
+		stall = 2 * time.Minute
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
-	// A whole workspace takes longer than the server's write timeout allows a response.
-	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(timeout))
+	// A whole workspace takes longer than the server's write timeout allows a response; each write
+	// gets the stall bound instead, renewed while the client reads.
+	controller := http.NewResponseController(w)
+	_ = controller.SetWriteDeadline(time.Now().Add(stall))
 
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+download.Name+`"`)
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 
-	archive := NewZipStream(w)
+	archive := NewZipStream(&stallWriter{w: w, controller: controller, stall: stall, end: time.Now().Add(timeout), cancel: cancel})
 	if err := download.WriteTo(ctx, archive); err != nil {
 		// The answer has begun: the ZIP stays without its end, which no unpacker accepts.
 		slog.WarnContext(ctx, "the workspace archive download ended early", "request_id", requestID, "error", err)
@@ -92,6 +102,29 @@ func (d *WorkspaceArchiveDoor) DownloadWorkspaceArchive(
 	if err := archive.Close(); err != nil {
 		slog.WarnContext(ctx, "the workspace archive download could not be finished", "request_id", requestID, "error", err)
 	}
+}
+
+// stallWriter renews the response's write deadline before every write, never past the transfer's
+// end, and cancels the archive once a write fails: the snapshot it reads under ends with it.
+type stallWriter struct {
+	w          io.Writer
+	controller *http.ResponseController
+	stall      time.Duration
+	end        time.Time
+	cancel     context.CancelFunc
+}
+
+func (s *stallWriter) Write(p []byte) (int, error) {
+	deadline := time.Now().Add(s.stall)
+	if deadline.After(s.end) {
+		deadline = s.end
+	}
+	_ = s.controller.SetWriteDeadline(deadline)
+	n, err := s.w.Write(p)
+	if err != nil {
+		s.cancel()
+	}
+	return n, err
 }
 
 // ZipStream is a backupstorage.Store that writes every object as the next member of one ZIP

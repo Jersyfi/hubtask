@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -115,4 +116,51 @@ func TestTheDownloadsPassphraseTravelsInTheBody(t *testing.T) {
 	if recorder.Code != http.StatusUnprocessableEntity && recorder.Code != http.StatusBadRequest {
 		t.Errorf("an unknown field answered %d", recorder.Code)
 	}
+}
+
+// A client that stops reading ends the transfer after the stall bound rather than holding the
+// archive's snapshot and its pool connection for the whole transfer budget.
+func TestADownloadNobodyReadsEndsAfterItsStall(t *testing.T) {
+	ended := make(chan error, 1)
+	starter := archiveStarterFunc(func(ctx context.Context, store backupstorage.Store) error {
+		// Far more than the sockets' buffers hold, so the writes block on the silent client.
+		_, err := store.Put(ctx, "x/media/big", io.LimitReader(zeroes{}, 256<<20))
+		ended <- err
+		return err
+	})
+	door := &WorkspaceArchiveDoor{Downloads: starter, Stall: 300 * time.Millisecond}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		door.DownloadWorkspaceArchive(w, r, openapi.DownloadWorkspaceArchiveParams{})
+	}))
+	defer server.Close()
+
+	response, err := server.Client().Post(server.URL, "application/json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	// The client reads nothing more.
+	select {
+	case err := <-ended:
+		if err == nil {
+			t.Fatal("the archive was written to a client that read nothing")
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("a download nobody reads still holds its archive after 20 s")
+	}
+}
+
+type archiveStarterFunc func(ctx context.Context, store backupstorage.Store) error
+
+func (f archiveStarterFunc) Start(
+	context.Context, appshared.ActorContext, adminservice.DownloadWorkspaceArchiveCommand,
+) (adminservice.WorkspaceDownload, error) {
+	return adminservice.NewWorkspaceDownload("hubtask-export-x.zip", f), nil
+}
+
+type zeroes struct{}
+
+func (zeroes) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
 }

@@ -33053,7 +33053,9 @@ type ClientInterface interface {
 	// spent.
 	//
 	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-	// and the ZIP file without its end is one no unpacker accepts.
+	// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+	// for two minutes ends the transfer the same way, and so does one still reading after six
+	// hours.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -33083,7 +33085,9 @@ type ClientInterface interface {
 	// spent.
 	//
 	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-	// and the ZIP file without its end is one no unpacker accepts.
+	// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+	// for two minutes ends the transfer the same way, and so does one still reading after six
+	// hours.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -47003,7 +47007,9 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 // spent.
 //
 // A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-// and the ZIP file without its end is one no unpacker accepts.
+// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+// for two minutes ends the transfer the same way, and so does one still reading after six
+// hours.
 //
 // Takes any type of body and a specified content type.
 //
@@ -47043,7 +47049,9 @@ func (c *Client) DownloadWorkspaceArchiveWithBody(ctx context.Context, params *D
 // spent.
 //
 // A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-// and the ZIP file without its end is one no unpacker accepts.
+// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+// for two minutes ends the transfer the same way, and so does one still reading after six
+// hours.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -105723,7 +105731,9 @@ type ClientWithResponsesInterface interface {
 	// spent.
 	//
 	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-	// and the ZIP file without its end is one no unpacker accepts.
+	// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+	// for two minutes ends the transfer the same way, and so does one still reading after six
+	// hours.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105753,7 +105763,9 @@ type ClientWithResponsesInterface interface {
 	// spent.
 	//
 	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-	// and the ZIP file without its end is one no unpacker accepts.
+	// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+	// for two minutes ends the transfer the same way, and so does one still reading after six
+	// hours.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -159231,7 +159243,9 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 // spent.
 //
 // A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-// and the ZIP file without its end is one no unpacker accepts.
+// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+// for two minutes ends the transfer the same way, and so does one still reading after six
+// hours.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159267,7 +159281,9 @@ func (c *ClientWithResponses) DownloadWorkspaceArchiveWithBodyWithResponse(ctx c
 // spent.
 //
 // A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
-// and the ZIP file without its end is one no unpacker accepts.
+// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
+// for two minutes ends the transfer the same way, and so does one still reading after six
+// hours.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
