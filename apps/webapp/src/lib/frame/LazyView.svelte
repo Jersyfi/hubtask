@@ -12,6 +12,7 @@
   import type { Component } from 'svelte';
   import { t } from '../i18n/i18n.svelte.ts';
   import { settle } from './chunkfailure.ts';
+  import ViewFailed from './ViewFailed.svelte';
 
   type Props = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each screen has its own props
@@ -25,7 +26,14 @@
 
 {#await pending then module}
   {@const View = module.default}
-  <View {...props} />
+  <!-- Its own boundary: a screen drawn once its chunk arrived is drawn after the frame's boundary
+       has settled, and a throw there would otherwise escape it. -->
+  <svelte:boundary>
+    <View {...props} />
+    {#snippet failed(error, reset)}
+      <ViewFailed {error} {reset} />
+    {/snippet}
+  </svelte:boundary>
 {:catch}
   {#await settle() then outcome}
     {#if outcome !== 'reload'}

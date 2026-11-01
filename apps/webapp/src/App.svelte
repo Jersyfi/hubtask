@@ -16,6 +16,7 @@
 
   import AppFrame from './lib/frame/AppFrame.svelte';
   import LazyView from './lib/frame/LazyView.svelte';
+  import ViewFailed from './lib/frame/ViewFailed.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
@@ -284,8 +285,22 @@
     live.start(accountId);
     return () => live.stop();
   });
+
+  // A screen that throws while drawing is caught by the boundary inside the frame, so the frame and
+  // its navigation stay usable; leaving the address draws the next screen afresh.
+  let resetView: (() => void) | undefined;
+  $effect(() => {
+    void route.path;
+    untrack(() => {
+      resetView?.();
+      resetView = undefined;
+    });
+  });
 </script>
 
+<!-- The outer boundary catches what the frame itself throws: the page still says what happened and
+     offers a reload, instead of going blank. -->
+<svelte:boundary>
 <!-- Signed out there is no shell, and that is the decision rather than an omission (ADR-0061 draws
      the bar for a page that has navigation; this one has none). The card is the page: it brings
      its own `main`, its own canvas and the footer the operator's legal links live in, so a screen
@@ -339,6 +354,7 @@
   {/if}
 {:else}
 <AppFrame {route} onnavigate={(path) => router.navigate(path)}>
+  <svelte:boundary onerror={(_, reset) => (resetView = reset)}>
   {#if reach === undefined}
     <!-- Not yet known whether this reader is inside the level: nothing, rather than a guess. -->
   {:else if reach === false}
@@ -593,8 +609,16 @@
   {:else}
     {@render nothingHere()}
   {/if}
+  {#snippet failed(error, reset)}
+    <ViewFailed {error} {reset} />
+  {/snippet}
+  </svelte:boundary>
 </AppFrame>
 {/if}
+{#snippet failed(error)}
+  <main><ViewFailed {error} /></main>
+{/snippet}
+</svelte:boundary>
 
 {#snippet nothingHere()}
   <!-- The server's own code for a path that reaches nothing, at the same address - as the

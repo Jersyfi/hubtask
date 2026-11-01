@@ -33,6 +33,10 @@ import App from './App.svelte';
 import { manifest } from './lib/data/capabilities.svelte.ts';
 import { startLocale } from './lib/i18n/i18n.svelte.ts';
 import { device } from './lib/device.svelte.ts';
+import { t } from './lib/i18n/i18n.svelte.ts';
+import { toast } from './lib/frame/toasts.svelte.ts';
+import { currentEntry } from './lib/frame/chunkfailure.ts';
+import { crashDetails, isNoise, newReference } from './lib/frame/crash.ts';
 
 // Before the first paint: the stylesheet deliberately renders nothing sensible without
 // `data-theme` (ADR-0029), and this is the call that sets it - from what this device kept, else
@@ -54,5 +58,27 @@ manifest.start();
 
 const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('#app is missing from index.html');
+
+// A failure outside drawing - a handler that threw, a promise nobody awaited - is told, with a
+// reference and the details to copy, rather than swallowed. A drawing failure is the boundaries'
+// in App.svelte. One message at a time: a failure repeating in a loop must not bury the screen.
+let lastTold = 0;
+function tell(error: unknown, message?: string): void {
+  if (isNoise(error, message)) return;
+  const now = Date.now();
+  if (now - lastTold < 5_000) return;
+  lastTold = now;
+  const reference = newReference();
+  const details = crashDetails({
+    reference, build: currentEntry(), path: location.pathname, userAgent: navigator.userAgent, at: new Date(now), error,
+  });
+  toast.show({
+    text: t('app.crash_unhandled', { reference }),
+    tone: 'danger',
+    action: { label: t('app.crash_copy'), run: () => navigator.clipboard.writeText(details) },
+  });
+}
+window.addEventListener('unhandledrejection', (event) => tell(event.reason));
+window.addEventListener('error', (event) => tell(event.error, event.message));
 
 mount(App, { target: root });
