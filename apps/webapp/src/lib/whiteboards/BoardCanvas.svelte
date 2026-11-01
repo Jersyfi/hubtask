@@ -36,6 +36,7 @@
   import { announcer } from '../announce.svelte.ts';
   import EntryPicker from '../entries/EntryPicker.svelte';
   import { keyboardTool, sizeOf, tabTarget } from './keys.ts';
+  import { keepThenReplace } from './restore.ts';
   import BoardComments from './BoardComments.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -76,6 +77,10 @@
   const saved = untrack(() => (board.elements ?? []) as Element[]);
   const doc = new Doc();
   const model = new Board(doc);
+  // This device's own changes only: another participant's are never undone here.
+  const undoable = model.history();
+  let canUndo = $state(false);
+  let canRedo = $state(false);
   const session = new Facilitation(doc);
   let elements = $state<Element[]>(untrack(() => saved));
   let status = $state<LiveStatus | 'reading'>('connecting');
@@ -131,6 +136,7 @@
   $effect(() => {
     return untrack(() => {
       const stop = model.observe(changed);
+      const stopHistory = undoable.observe(() => { canUndo = undoable.canUndo; canRedo = undoable.canRedo; });
       const stopSession = session.observe(sessionChanged);
       connection = new LiveDocument(doc, {
         open: () => whiteboards.liveSocket(board.id) as unknown as LiveSocket,
@@ -155,6 +161,8 @@
         clearTimeout(timer);
         if (isLive && writable) void save();
         stop();
+        stopHistory();
+        undoable.destroy();
         stopSession();
         live.awareness.off('change', peersChanged);
         live.destroy();
@@ -487,6 +495,12 @@
     if (event.key === 'Enter' && chosen?.kind === 'CARD') { event.preventDefault(); openCard(chosen); return; }
     if (event.key === 'Enter' && chosen?.kind === 'FILE') { event.preventDefault(); void openFile(chosen.media_id); return; }
     if (!writable) return;
+    if (mod && (event.key === 'z' || event.key === 'Z' || event.key === 'y' || event.key === 'Y')) {
+      event.preventDefault();
+      if (event.key === 'y' || event.key === 'Y' || event.shiftKey) redo();
+      else undo();
+      return;
+    }
     if (event.key === ' ' && chosen?.kind === 'CARD') { event.preventDefault(); void tick(chosen); return; }
     if (mod && (event.key === 'd' || event.key === 'D') && selected.length > 0) {
       event.preventDefault();
@@ -549,9 +563,23 @@
   }
 
   function remove() {
+    undoable.stopCapturing();
     model.remove(selected);
+    undoable.stopCapturing();
     selected = [];
-    announcer.say(t('app.whiteboards.removed'));
+    // Everyone drawing sees it gone at once, so the way back is offered where it happened.
+    toast.show({ text: t('app.whiteboards.removed'), tone: 'info', undo: () => undo() });
+  }
+
+  /** Takes back this device's last change, for everyone drawing. */
+  function undo() {
+    selected = [];
+    announcer.say(t(undoable.undo() ? 'app.whiteboards.undone' : 'app.whiteboards.nothing_to_undo'));
+  }
+
+  function redo() {
+    selected = [];
+    announcer.say(t(undoable.redo() ? 'app.whiteboards.redone' : 'app.whiteboards.nothing_to_redo'));
   }
 
   function duplicate() {
@@ -905,14 +933,36 @@
     }
   }
 
-  /** An older version brought back: its objects in place of the scene, for everyone drawing; the save that follows is a version of its own. */
+  /** The version a person asked to bring back, while they confirm it replaces the board for everyone. */
+  let restoring = $state<WhiteboardVersion | undefined>(undefined);
+  let isRestoreAsked = $state(false);
+
+  /**
+   * An older version brought back: its objects in place of the scene, for everyone drawing. What
+   * stood is saved and named first, so a later save of the same drawing session cannot fold over
+   * it in the history; and the change is one step to undo.
+   */
   async function bringBack(seq: number) {
+    isRestoreAsked = false;
+    restoring = undefined;
     try {
       const version = await whiteboards.version(board.id, seq);
-      if (!model.replace((version.elements ?? []) as Element[])) return;
+      const when = formatDateTime(version.created_at, messages.locale);
+      const back = await keepThenReplace({
+        // Not save(), which reports and goes on: a state that could not be kept is not replaced.
+        save: async () => void (await whiteboards.saveScene(board, model.scene() as never)),
+        versions: () => whiteboards.versions(board.id),
+        name: (kept, name) => whiteboards.nameVersion(board.id, kept, name),
+        replace: () => {
+          undoable.stopCapturing();
+          const replaced = model.replace((version.elements ?? []) as Element[]);
+          undoable.stopCapturing();
+          return replaced;
+        },
+      }, seq, t('app.whiteboards.before_restore', { when }));
+      if (!back) return;
       selected = [];
-      toast.show({ text: t('app.whiteboards.version_back', { when: formatDateTime(version.created_at, messages.locale) }), tone: 'success' });
-      await save();
+      toast.show({ text: t('app.whiteboards.version_back', { when }), tone: 'success', undo: () => undo() });
       await openHistory();
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
@@ -1046,6 +1096,10 @@
           options={TEMPLATES.map((each) => ({ value: each, label: t(`app.whiteboards.template_${each.toLowerCase()}`) }))}
           onchange={(event: Event) => { const name = (event.currentTarget as HTMLSelectElement).value; if (name) putTemplate(name as TemplateName); }}
         />
+      {/if}
+      {#if writable}
+        <Button size="sm" tone="subtle" icon="rotate-ccw" aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo}>{t('app.whiteboards.undo')}</Button>
+        <Button size="sm" tone="subtle" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabledReason={canRedo ? undefined : t('app.whiteboards.nothing_to_redo')} onclick={redo}>{t('app.whiteboards.redo')}</Button>
       {/if}
       <IconButton size="sm" icon="minus" label={t('app.whiteboards.zoom_out')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1 / 1.25))} />
       <span class="zoom">{Math.round(view.zoom * 100)}%</span>
@@ -1464,7 +1518,7 @@
                 <span>{version.name ?? formatDateTime(version.created_at, messages.locale)} · {t('app.whiteboards.objects', { count: String(version.element_count) })}</span>
                 {#if writable && isLive}
                   <Inline gap="050">
-                    <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void bringBack(version.seq)}>{t('app.whiteboards.version_restore')}</Button>
+                    <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => { restoring = version; isRestoreAsked = true; }}>{t('app.whiteboards.version_restore')}</Button>
                     <Button size="sm" tone="subtle" icon="tag" onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }}>{t('app.whiteboards.version_name')}</Button>
                   </Inline>
                   {#if namingSeq === version.seq}
@@ -1529,6 +1583,17 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isPickingEntry = false)}>{t('app.links.cancel')}</Button>
       <Button tone="primary" disabledReason={picked ? undefined : t('app.links.choose_first')} onclick={putEntry}>{t('app.whiteboards.put_entry_confirm')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if restoring && isRestoreAsked}
+  {@const asked = restoring}
+  <Dialog bind:isOpen={isRestoreAsked} title={t('app.whiteboards.restore_title')} dismissLabel={t('app.links.cancel')} onClose={() => (restoring = undefined)}>
+    <p>{t('app.whiteboards.restore_body', { when: formatDateTime(asked.created_at, messages.locale) })}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => { isRestoreAsked = false; restoring = undefined; }}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" onclick={() => void bringBack(asked.seq)}>{t('app.whiteboards.restore_confirm')}</Button>
     {/snippet}
   </Dialog>
 {/if}

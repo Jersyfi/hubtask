@@ -99,3 +99,45 @@ test('a picture keeps the upload it draws through the live document (UC-CNV-08 c
   a.add({ id: 'i', kind: 'IMAGE', x: 0, y: 0, width: 320, height: 200, media_id: 'm1' });
   assert.equal(b.scene()[0]?.media_id, 'm1');
 });
+
+test('a removal is undone and redone on the device that made it, and the seed is not undone', () => {
+  const [anna, bert] = pair();
+  anna.seed([sticky('s')]);
+  const history = anna.history();
+  assert.equal(history.canUndo, false, 'the seed is nobody\'s step');
+  anna.add(sticky('a'));
+  anna.add({ id: 'f', kind: 'FRAME', x: 0, y: 0, width: 400, height: 400 });
+  history.stopCapturing();
+  anna.remove(['a', 'f']);
+  assert.equal(bert.get('a'), undefined);
+  assert.equal(history.undo(), true);
+  assert.equal(anna.get('a')?.text, 'a');
+  assert.equal(bert.get('f')?.kind, 'FRAME', 'everyone gets the objects back');
+  assert.equal(history.redo(), true);
+  assert.equal(bert.get('a'), undefined);
+  assert.equal(anna.get('s')?.text, 's');
+});
+
+test('undo takes back only this device\'s changes, never another participant\'s', () => {
+  const [anna, bert] = pair();
+  const history = anna.history();
+  anna.add(sticky('a'));
+  history.stopCapturing();
+  bert.add(sticky('b', 300));
+  bert.update('a', { x: 50 });
+  assert.equal(history.undo(), true);
+  assert.equal(anna.get('b')?.text, 'b', 'the other participant\'s object stays');
+  assert.equal(history.undo(), false);
+});
+
+test('a version brought back is undone in one step', () => {
+  const board = new Board(new Y.Doc());
+  const history = board.history();
+  board.add(sticky('a'));
+  board.add(sticky('b', 300));
+  history.stopCapturing();
+  board.replace([sticky('old')]);
+  assert.deepEqual(board.elements().map((e) => e.id), ['old']);
+  history.undo();
+  assert.deepEqual(board.elements().map((e) => e.id).sort(), ['a', 'b']);
+});

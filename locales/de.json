@@ -11473,5 +11473,15 @@
   "app.roadmap.link_address": "Öffentlicher Link der Roadmap",
   "app.roadmap.link_once": "Der Link wird nur dieses eine Mal gezeigt. Ein neuer ersetzt ihn, und der alte antwortet nicht mehr.",
   "app.roadmap.shared_gone": "Unter diesem Link gibt es keine Roadmap.",
-  "app.roadmap.shared_note": "Eine mit Ihnen geteilte Roadmap, nur zum Lesen. Sie zeigt den heutigen Stand."
+  "app.roadmap.shared_note": "Eine mit Ihnen geteilte Roadmap, nur zum Lesen. Sie zeigt den heutigen Stand.",
+  "app.whiteboards.undo": "Rückgängig",
+  "app.whiteboards.redo": "Wiederholen",
+  "app.whiteboards.undone": "Deine letzte Änderung ist rückgängig gemacht.",
+  "app.whiteboards.redone": "Deine Änderung ist wieder da.",
+  "app.whiteboards.nothing_to_undo": "Noch nichts von dir rückgängig zu machen.",
+  "app.whiteboards.nothing_to_redo": "Nichts zu wiederholen.",
+  "app.whiteboards.restore_title": "Diese Version für alle zurückholen?",
+  "app.whiteboards.restore_body": "Die Version vom {when} ersetzt das Whiteboard für alle, die gerade darauf zeichnen. Was jetzt steht, bleibt im Verlauf, und Rückgängig nimmt die Änderung zurück.",
+  "app.whiteboards.restore_confirm": "Zurückholen",
+  "app.whiteboards.before_restore": "Vor dem Zurückholen von {when}"
 }

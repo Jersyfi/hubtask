@@ -11473,5 +11473,15 @@
   "app.roadmap.link_address": "The roadmap's public link",
   "app.roadmap.link_once": "The link is shown this once. A new one replaces it, and the old one stops answering.",
   "app.roadmap.shared_gone": "There is no roadmap at this link.",
-  "app.roadmap.shared_note": "A read-only roadmap shared with you. It shows what stands today."
+  "app.roadmap.shared_note": "A read-only roadmap shared with you. It shows what stands today.",
+  "app.whiteboards.undo": "Undo",
+  "app.whiteboards.redo": "Redo",
+  "app.whiteboards.undone": "Your last change is undone.",
+  "app.whiteboards.redone": "Your change is back.",
+  "app.whiteboards.nothing_to_undo": "Nothing of yours to undo yet.",
+  "app.whiteboards.nothing_to_redo": "Nothing to redo.",
+  "app.whiteboards.restore_title": "Bring this version back for everyone?",
+  "app.whiteboards.restore_body": "The version of {when} replaces the whiteboard for everyone drawing on it now. What stands now is kept in the history, and Undo takes the change back.",
+  "app.whiteboards.restore_confirm": "Bring it back",
+  "app.whiteboards.before_restore": "Before bringing back {when}"
 }

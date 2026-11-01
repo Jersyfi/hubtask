@@ -72,6 +72,56 @@ const FIELDS = ['kind', 'x', 'y', 'width', 'height', 'text', 'color_token', 'sha
 
 type Stored = Y.Map<unknown>;
 
+/** The origin of a seed's change: not the person's, so not theirs to undo. */
+const SEEDED = Symbol('seeded');
+
+/** Changes this close together are one step to undo: a drag or a typed word, not every frame of it. */
+const CAPTURE_MS = 500;
+
+/** Undo and redo of one device's changes to a board. */
+export class BoardHistory {
+  readonly #manager: Y.UndoManager;
+
+  constructor(manager: Y.UndoManager) {
+    this.#manager = manager;
+  }
+
+  get canUndo(): boolean {
+    return this.#manager.canUndo();
+  }
+
+  get canRedo(): boolean {
+    return this.#manager.canRedo();
+  }
+
+  /** Answers whether there was a step to undo. */
+  undo(): boolean {
+    return this.#manager.undo() !== null;
+  }
+
+  redo(): boolean {
+    return this.#manager.redo() !== null;
+  }
+
+  /** Ends the step being captured, so the next change is a step of its own. */
+  stopCapturing(): void {
+    this.#manager.stopCapturing();
+  }
+
+  /** Calls back whenever what can be undone or redone changes; answers the unsubscription. */
+  observe(changed: () => void): () => void {
+    const events = ['stack-item-added', 'stack-item-popped', 'stack-cleared'] as const;
+    for (const event of events) this.#manager.on(event, changed);
+    return () => {
+      for (const event of events) this.#manager.off(event, changed);
+    };
+  }
+
+  destroy(): void {
+    this.#manager.destroy();
+  }
+}
+
 /** A board's live document, read and written as objects. */
 export class Board {
   readonly doc: Y.Doc;
@@ -226,7 +276,7 @@ export class Board {
     return true;
   }
 
-  /** Writes a saved scene into an empty document - the first writer's job. */
+  /** Writes a saved scene into an empty document - the first writer's job, which nobody undoes. */
   seed(elements: readonly Element[]): boolean {
     if (this.#map.size > 0 || elements.length === 0) return false;
     this.doc.transact(() => {
@@ -236,8 +286,16 @@ export class Board {
         stored.set('z', index);
         this.#map.set(element.id, stored);
       });
-    });
+    }, SEEDED);
     return true;
+  }
+
+  /**
+   * This device's own changes, to undo and redo. Only changes made here are tracked - another
+   * participant's arrive with the connection as their origin and are never undone by this one.
+   */
+  history(): BoardHistory {
+    return new BoardHistory(new Y.UndoManager(this.#map, { captureTimeout: CAPTURE_MS }));
   }
 
   /** Calls back after every change, local or another writer's; answers the unsubscription. */
