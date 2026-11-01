@@ -77,7 +77,44 @@ export function scopesInForce(path: Path, isPrivate: boolean): readonly Scope[] 
 export function membershipsPath(scope: Scope): string {
   const query = new URLSearchParams({ scope_type: scope.scopeType });
   if (scope.scopeId) query.set('scope_id', scope.scopeId);
+  query.set('size', String(MEMBERSHIP_PAGE));
   return `/memberships?${query.toString()}`;
+}
+
+/** One read of a scope's memberships: the contract's largest page. */
+export const MEMBERSHIP_PAGE = 200;
+/** How many pages one scope is read through at most - 4,000 grants at one level. */
+export const MEMBERSHIP_PAGES = 20;
+
+/** The part of a membership page the walk reads. */
+interface PageShape {
+  readonly page?: { readonly has_more?: boolean };
+}
+
+/**
+ * Reads a scope on to its last page, from the first one held: a role worked out from the newest
+ * grants alone is a wrong answer - an owner whose grant is older reads as nobody - so a scope
+ * counts only once it is whole. `next` is the engine's loadMore, which appends; it answers
+ * `undefined` where a page did not arrive, and the scope then stays incomplete, its roles unknown
+ * rather than wrong. Answers how many pages were asked for.
+ */
+export async function readWhole<T extends PageShape>(first: T, next: () => Promise<T | undefined>, maxPages = MEMBERSHIP_PAGES): Promise<number> {
+  let held: T | undefined = first;
+  let asked = 0;
+  for (let pages = 1; pages < maxPages && held?.page?.has_more === true; pages += 1) {
+    held = await next();
+    asked += 1;
+  }
+  return asked;
+}
+
+/**
+ * What a scope contributes to a role: its rows once all of them are held, `'refused'` where the
+ * reader may not list it, and `undefined` - unknown - while pages are still to come.
+ */
+export function scopeAnswer(rows: readonly Membership[] | undefined, isComplete: boolean, isRefused: boolean): ScopeAnswer {
+  if (isRefused) return 'refused';
+  return isComplete ? rows : undefined;
 }
 
 /** The groups named by any of these memberships, each once. */

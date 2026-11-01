@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayRevoke, membershipsPath, ownershipOf, readWhole, scopeAnswer, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -49,10 +49,10 @@ test('a level that does not exist contributes no scope', () => {
 test('the workspace is asked for without a scope identifier', () => {
   // The contract: "omitted for the whole workspace, and only then". An empty `scope_id=` would be
   // a value rather than an absence, and the server reads it as one.
-  assert.equal(membershipsPath({ scopeType: 'TENANT' }), '/memberships?scope_type=TENANT');
+  assert.equal(membershipsPath({ scopeType: 'TENANT' }), '/memberships?scope_type=TENANT&size=200');
   assert.equal(
     membershipsPath({ scopeType: 'HUB', scopeId: HUB }),
-    `/memberships?scope_type=HUB&scope_id=${HUB}`,
+    `/memberships?scope_type=HUB&scope_id=${HUB}&size=200`,
   );
 });
 
@@ -246,4 +246,43 @@ test('a role held through a group counts once its members are read, and not befo
 test('a role this installation does not order counts for nothing', () => {
   const hub = [grant({ id: 'm1', scope_type: 'HUB', scope_id: HUB, account_id: AMELIE, role: 'SUPERUSER' as never })];
   assert.equal(effectiveRole({ answers: [hub], accountId: AMELIE, groupMembers: {}, order: ORDER }), null);
+});
+
+test('a workspace of 120 grants: the owner whose grant is past the first page is still the owner', async () => {
+  // Newest first, as the server answers: the reader's OWNER grant is the oldest of them.
+  const all = Array.from({ length: 120 }, (_, n) =>
+    grant({
+      id: `m${n}`,
+      scope_type: 'TENANT',
+      account_id: n === 119 ? AMELIE : `44444444-0000-4000-8000-${String(n).padStart(12, '0')}`,
+      role: n === 119 ? 'OWNER' : 'MEMBER',
+    }),
+  );
+  const pageOf = (rows: number) => ({ data: all.slice(0, rows), page: { has_more: rows < all.length } });
+
+  // The first page alone answers "unknown", never "nobody": the reader's grant may be behind it.
+  const first = pageOf(50);
+  const partial = scopeAnswer(first.data, first.page.has_more === false, false);
+  assert.equal(effectiveRole({ answers: [partial], accountId: AMELIE, groupMembers: {}, order: ORDER }), undefined);
+
+  // The scope is read on to its last page, and then the role is the server's.
+  let held = first;
+  const asked = await readWhole(first, async () => {
+    held = pageOf(Math.min(held.data.length + 50, all.length));
+    return held;
+  });
+  assert.equal(asked, 2, 'two more pages after the first, and no more');
+  const whole = scopeAnswer(held.data, held.page.has_more === false, false);
+  assert.equal(effectiveRole({ answers: [whole], accountId: AMELIE, groupMembers: {}, order: ORDER }), 'OWNER');
+  assert.equal(candidatesOf(held.data, {}).length, 120, 'every person can be named, not the first fifty');
+});
+
+test('a scope read no further than its bound, or a page that did not arrive, stays unknown', async () => {
+  let calls = 0;
+  const endless = { page: { has_more: true } };
+  assert.equal(await readWhole(endless, async () => (calls += 1, endless), 3), 2);
+  assert.equal(calls, 2);
+  assert.equal(await readWhole(endless, async () => undefined), 1, 'a failed page ends the walk');
+  assert.equal(scopeAnswer([], false, false), undefined);
+  assert.equal(scopeAnswer([], false, true), 'refused');
 });

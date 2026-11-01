@@ -23,7 +23,7 @@ import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 import { handedOverLink } from '../people/invitation.ts';
-import { candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
+import { candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, readWhole, scopeAnswer, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
 const TOUCHES = ['/memberships'];
@@ -44,6 +44,8 @@ class People {
   #groups = $state<Record<string, readonly string[]>>({});
   #openScopes = new Map<string, () => void>();
   #askedGroups = new Set<string>();
+  /** The scopes being read on to their last page. */
+  #walking = new Set<string>();
 
   /**
    * Starts reading every scope along a path, and stops when the caller lets go.
@@ -90,7 +92,8 @@ class People {
 
   /**
    * The reader's effective role along a path - the role the server decides an entry by - or
-   * `undefined` while any part of the answer is still out (`effectiveRole`). Opens nothing: the
+   * `undefined` while any part of the answer is still out (`effectiveRole`), a scope whose later
+   * pages are still being read included (`scopeAnswer`). Opens nothing: the
    * caller has opened the path, as every screen reading people along one does.
    *
    * A path through a hub whose standing is not yet known is unknown too: on a private hub the
@@ -101,7 +104,7 @@ class People {
     const isPrivate = path.hubId ? containers.find(path.hubId)?.private === true : false;
     const answers = scopesInForce(path, isPrivate).map((scope) => {
       const key = membershipsPath(scope);
-      return this.#refused[key] ? ('refused' as const) : this.#scopes[key];
+      return scopeAnswer(this.#scopes[key], this.#complete[key] ?? false, this.#refused[key] ?? false);
     });
     this.#resolveGroups(answers.flatMap((answer) => (Array.isArray(answer) ? answer : [])));
     return effectiveRole({ answers, accountId, groupMembers: this.#groups, order });
@@ -319,8 +322,25 @@ class People {
       }
       if (next.status !== 'ready') return;
       this.#keep(path, next.data);
+      void this.#readOn(path, next.data);
     });
     this.#openScopes.set(path, stop);
+  }
+
+  /** Reads a scope on to its last page; each page arrives through the subscription above. */
+  async #readOn(path: string, first: MembershipPage): Promise<void> {
+    if (this.#walking.has(path)) return;
+    this.#walking.add(path);
+    try {
+      await readWhole(first, async () => {
+        const state = await engine.loadMore<MembershipPage>({ path });
+        return state.status === 'ready' ? state.data : undefined;
+      });
+    } catch {
+      // A page that did not arrive leaves the scope incomplete: its roles stay unknown, never wrong.
+    } finally {
+      this.#walking.delete(path);
+    }
   }
 
   /**
