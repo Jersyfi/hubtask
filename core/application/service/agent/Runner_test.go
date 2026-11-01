@@ -37,6 +37,8 @@ func (q *queued) Enqueue(_ context.Context, r queue.Request) (shared.ID, error) 
 type workspace struct {
 	gate      Gate
 	completed bool
+	// notes replace the ticket's own notes where set.
+	notes     string
 	performed []call
 	actors    []appshared.ActorContext
 	// The routing's material: who holds the ticket, the CIs it names as affected, what each CI's
@@ -50,9 +52,13 @@ type workspace struct {
 }
 
 func (w *workspace) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	notes := "Since the Router-2 update, the printer stops."
+	if w.notes != "" {
+		notes = w.notes
+	}
 	reads := map[string]usecase.Output{
 		getWorkItemName: {"id": ticket.String(), "collection_id": collection.String(), "title": "Printer on floor 3 jams",
-			"notes": "Since the Router-2 update, the printer stops.", "is_completed": w.completed},
+			"notes": notes, "is_completed": w.completed},
 		getContainerName: {"id": collection.String(), "parent_id": hubID.String()},
 		listCisName: {"data": []usecase.Output{
 			{"id": printer.String(), "name": "Printer"}, {"id": router.String(), "name": "Router-2"},
@@ -258,6 +264,30 @@ func TestTheDuplicateReviewAndTheKnowledgeDraftPropose(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("no page proposed: %+v", g.store.requests)
+	}
+}
+
+// A ticket filed from a requester's mail opens with the intake's "From:" line; the knowledge draft
+// leaves it out, so that no page carries the name and address where an erasure of the address
+// does not look.
+func TestTheKnowledgeDraftLeavesOutTheRequestersFromLine(t *testing.T) {
+	g := newFixture()
+	k, kq := g.shipped(t, "KNOWLEDGE_DRAFT", nil)
+	ws := &workspace{completed: true, notes: "From: Max Muster <max@example.org>\n\nThe printer stops."}
+	if ended := g.run(t, g.start(t, k, ticket, kq), ws, nil); ended.Proposals != 1 {
+		t.Fatalf("draft = %+v", ended)
+	}
+	for _, r := range g.store.requests {
+		body, _ := r.Input["body"].(string)
+		if r.UseCase != createPageName {
+			continue
+		}
+		if strings.Contains(body, "max@example.org") || strings.Contains(body, "Max Muster") {
+			t.Fatalf("the draft carries the requester: %q", body)
+		}
+		if !strings.HasPrefix(body, "The printer stops.") {
+			t.Fatalf("the draft lost the notes: %q", body)
+		}
 	}
 }
 

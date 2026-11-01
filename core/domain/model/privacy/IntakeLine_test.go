@@ -27,3 +27,19 @@ func TestStripIntakeLine(t *testing.T) {
 		})
 	}
 }
+
+func TestWithoutIntakeLineRemovesAnyAddressesLine(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"From: Max Muster <max@example.org>\n\nThe printer is broken", "The printer is broken"},
+		{"From: max@example.org\n\nHi", "Hi"},
+		{"From: max@example.org", ""},
+		{"From: the accounting team\n\nNotes", "From: the accounting team\n\nNotes"},
+		{"Restart the spooler", "Restart the spooler"},
+		{"The printer\nFrom: max@example.org", "The printer\nFrom: max@example.org"},
+	}
+	for _, c := range cases {
+		if got := WithoutIntakeLine(c.in); got != c.want {
+			t.Errorf("WithoutIntakeLine(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

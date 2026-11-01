@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/agent"
+	privacy "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -349,7 +350,7 @@ func Survivor(cis []usecase.Output) string {
 }
 
 // draftKnowledge proposes a page in the ticket's hub from a resolved ticket: its title, its
-// notes, and a reference back to it. A ticket still open is not drafted from.
+// notes without the intake's "From:" line, and a reference back to it. A ticket still open is not drafted from.
 func (w *jobWork) draftKnowledge(ctx context.Context, item shared.ID) error {
 	entry, hub, err := w.entry(ctx, item)
 	if err != nil {
@@ -363,7 +364,8 @@ func (w *jobWork) draftKnowledge(ctx context.Context, item shared.ID) error {
 		return nil
 	}
 	title := strings.TrimSpace(entry.String("title"))
-	body := strings.TrimSpace(entry.String("notes"))
+	// The intake's line names the requester, and no erasure or expiry of the address reaches a page.
+	body := strings.TrimSpace(privacy.WithoutIntakeLine(entry.String("notes")))
 	if body != "" {
 		body += "\n\n"
 	}

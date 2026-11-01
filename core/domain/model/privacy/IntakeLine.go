@@ -28,3 +28,25 @@ func StripIntakeLine(text, address string) (string, bool) {
 	}
 	return strings.TrimLeft(rest, "\r\n \t"), true
 }
+
+// WithoutIntakeLine removes the intake's first line from text whatever address it names, with the
+// blank lines after it: what is copied out of an entry - a knowledge draft - must not carry a
+// requester's name and address to where no erasure of the address looks. A first line starting
+// with the prefix but naming no address is a person's own words and stays.
+func WithoutIntakeLine(text string) string {
+	first, _, _ := strings.Cut(text, "\n")
+	line := strings.TrimSpace(first)
+	if !strings.HasPrefix(strings.ToLower(line), strings.ToLower(IntakePrefix)) {
+		return text
+	}
+	named := strings.TrimSpace(line[len(IntakePrefix):])
+	address := named
+	if open := strings.LastIndex(named, "<"); open >= 0 && strings.HasSuffix(named, ">") {
+		address = named[open+1 : len(named)-1]
+	}
+	if strings.ContainsAny(address, " \t") || !strings.Contains(address, "@") {
+		return text
+	}
+	out, _ := StripIntakeLine(text, address)
+	return out
+}
