@@ -1536,7 +1536,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// carries: the restore's write of each entry rebuilds them.
 	"work_item_announcement": "a mirror of the entry's announcement moments, rebuilt by the trigger as each entry is restored",
 	"work_item_flow":         "a mirror of the entry's flow moments, rebuilt by the trigger as each entry is restored",
-	"entry_status_change":    "a history of status changes as they happened; a restored entry's starts at its restore, recorded by the trigger",
+	"entry_status_change":    "a history of status changes as they happened; a restored entry's starts at its restore, which the trigger records (migration 0350)",
 	"work_item_retention":    "a mirror of what a retention run marked on the entry, rebuilt by the trigger as each entry is restored",
 	// Migration 0292: counts kept between reads and the bookkeeping that says when they stop
 	// answering. A restore writes its entries, every write records itself, and the first read

@@ -66,6 +66,13 @@ func (r BackupImportRepository) Write(
 	if err != nil {
 		return false, err
 	}
+	if table == "work_item" {
+		// The status history is not archived: the trigger dates a restored entry's status from the
+		// restore rather than from its creation (migration 0350).
+		if err := markRestoring(ctx); err != nil {
+			return false, err
+		}
+	}
 	written, err := entity.write(ctx, queries, payload, overwrite)
 	if err != nil {
 		if conflict := rowConflict(err, table, data); conflict != nil {
@@ -75,6 +82,18 @@ func (r BackupImportRepository) Write(
 			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
 	}
 	return written > 0, nil
+}
+
+func markRestoring(ctx context.Context) error {
+	tx, ok := txFromContext(ctx)
+	if !ok {
+		return shared.ErrInternal.WithDetail("postgres.scope_missing")
+	}
+	if _, err := tx.Exec(ctx, `SELECT set_config('hubtask.restoring', 'on', true)`); err != nil {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("marking the restore: %w", err))
+	}
+	return nil
 }
 
 // rowConflict turns a unique index refusing an archive's row into the conflict it is, rather

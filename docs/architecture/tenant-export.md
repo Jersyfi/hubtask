@@ -341,7 +341,8 @@ reasoning is backup-restore.md §8.4):
   restore's write of each entry records its change, and the first read counts again.
 * **The status history** (`entry_status_change`, migration 0250): derived from the entries' status
   changes as they happen; a restored entry's history starts with its restore, which records its
-  current status at its creation moment, so its cycle time and WIP age count from there.
+  current status at the restore's moment (migration 0350), so its cycle time and WIP age count
+  from there - never from its creation, which would claim a year in a status entered yesterday.
 * **AI machinery**: the AI provider configuration (with its sealed key), the workspace's choice of AI
   source (choosing an offered model is a consent a restore must not resume), suggestions, pending AI
   requests, and embedding vectors (derived from content that is in the export). The workspace's own
