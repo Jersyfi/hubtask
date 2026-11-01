@@ -72,6 +72,7 @@ type schedulerSignals struct {
 	lags                []float64
 	ticks               []time.Time
 	freshness           map[string]time.Time
+	cadence             map[string]time.Duration
 	backlogs            []int64
 	heldScans           []int64
 	purged              map[string]int64
@@ -111,6 +112,13 @@ func newSchedulerSignals() *schedulerSignals {
 
 func (s *schedulerSignals) BackupLastSuccess(_ context.Context, targetID string, at time.Time) {
 	s.freshness[targetID] = at
+}
+
+func (s *schedulerSignals) BackupCadence(_ context.Context, targetID string, every time.Duration) {
+	if s.cadence == nil {
+		s.cadence = map[string]time.Duration{}
+	}
+	s.cadence[targetID] = every
 }
 
 func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending int64) {
@@ -739,5 +747,36 @@ func TestTheLeaderPublishesTheSAMLCertificatesEnding(t *testing.T) {
 	want := identity.SAMLCertificateCount{Providers: 5, Within30Days: 2, Within7Days: 1, Ended: 1}
 	if len(signals.samlEnding) != 1 || signals.samlEnding[0] != want {
 		t.Errorf("published %v, want %v", signals.samlEnding, want)
+	}
+}
+
+type fixedFreshness struct {
+	last    map[shared.ID]time.Time
+	cadence map[shared.ID]time.Duration
+}
+
+func (f fixedFreshness) LastSuccessPerTarget(context.Context) (map[shared.ID]time.Time, error) {
+	return f.last, nil
+}
+
+func (f fixedFreshness) CadencePerTarget(context.Context) (map[shared.ID]time.Duration, error) {
+	return f.cadence, nil
+}
+
+// A-12 measures a target against its own schedules: the sample hands out the cadence beside the
+// last success, so a weekly target is held to a week.
+func TestTheBackupSampleCarriesEachTargetsCadence(t *testing.T) {
+	weekly := shared.ID("0192a7c0-0000-7000-8000-0000000000b1")
+	signals := newSchedulerSignals()
+	s := Scheduler{Signals: signals, BackupFreshness: fixedFreshness{
+		last:    map[shared.ID]time.Time{weekly: time.Unix(1_800_000_000, 0)},
+		cadence: map[shared.ID]time.Duration{weekly: 7 * 24 * time.Hour},
+	}}
+	s.sampleBackupFreshness(t.Context())
+	if got := signals.cadence[weekly.String()]; got != 7*24*time.Hour {
+		t.Fatalf("cadence %v, want a week", got)
+	}
+	if _, ok := signals.freshness[weekly.String()]; !ok {
+		t.Fatal("the last success was not sampled")
 	}
 }

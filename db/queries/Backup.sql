@@ -236,6 +236,20 @@ FROM backup_run
 WHERE status = 'SUCCEEDED'
 GROUP BY target_id;
 
+-- name: BackupCadencePerTarget :many
+-- How often each target is owed a backup: per enabled schedule, the gap between its last scheduled
+-- run and the moment it is next owed - the rule's own period, read off what the scheduler stored
+-- rather than by expanding the rule again - and per target the shortest. A schedule that has not
+-- run yet owes no cadence; A-12 then holds its target to a day.
+SELECT s.target_id, min(extract(epoch FROM s.next_run_at - r.last_start))::bigint AS cadence_seconds
+FROM backup_schedule s
+JOIN LATERAL (
+  SELECT max(b.started_at) AS last_start FROM backup_run b
+  WHERE b.schedule_id = s.id AND b.trigger = 'SCHEDULE'
+) r ON true
+WHERE s.enabled AND s.next_run_at IS NOT NULL AND r.last_start IS NOT NULL AND s.next_run_at > r.last_start
+GROUP BY s.target_id;
+
 -- The lifecycle: a schedule that can be changed and removed, and a target that can be
 -- removed once nothing points at it.
 

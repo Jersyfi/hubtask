@@ -63,6 +63,7 @@ type Metrics struct {
 	schedulerTickLag  metric.Int64Gauge
 	schedulerTicked   metric.Int64Gauge
 	backupLastSuccess metric.Int64Gauge
+	backupCadence     metric.Int64Gauge
 	dsrDeadline       metric.Int64Counter
 	timerFailures     metric.Int64Counter
 	retentionDeleted  metric.Int64Counter
@@ -448,6 +449,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("backup freshness gauge: %w", err)
+	}
+	if m.backupCadence, err = meter.Int64Gauge(
+		namespace+"_backup_cadence_seconds",
+		metric.WithDescription(
+			"How often each backup target is owed a backup by its schedules, in seconds."),
+		metric.WithUnit("s"),
+	); err != nil {
+		return fmt.Errorf("backup cadence gauge: %w", err)
 	}
 	if m.timerFailures, err = meter.Int64Counter(
 		namespace+"_timer_failures_total",
@@ -1241,6 +1250,13 @@ func (m *Metrics) SchedulerTicked(ctx context.Context, at time.Time) {
 // (observability-reliability.md §3.2).
 func (m *Metrics) BackupLastSuccess(ctx context.Context, targetID string, at time.Time) {
 	m.backupLastSuccess.Record(ctx, at.Unix(),
+		metric.WithAttributes(attribute.String("target_id", targetID)))
+}
+
+// BackupCadence publishes how often a target's schedules owe it a backup, so A-12 holds a weekly
+// target to a week and a daily one to a day (backup-restore.md §10).
+func (m *Metrics) BackupCadence(ctx context.Context, targetID string, every time.Duration) {
+	m.backupCadence.Record(ctx, int64(every/time.Second),
 		metric.WithAttributes(attribute.String("target_id", targetID)))
 }
 

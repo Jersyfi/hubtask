@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
-# RB-A12 — No successful backup in the last 24 hours
+# RB-A12 — No successful backup within a target's schedule
 
 **Alerts:** `HubtaskBackupStale`, and A-12's point-in-time recovery half — `HubtaskArchiveGap`,
 `HubtaskArchiveBacklog`, `HubtaskBaseBackupStale`, `HubtaskNoRecoverabilityPoint`,
@@ -14,8 +14,10 @@ it for two different parties (`backup-restore.md` §1).
 
 ## The symptom
 
-Either no backup has succeeded in 24 hours, or **the backup metric is absent entirely** — which
-means no backup is configured at all. The alert is deliberately written to fire on the absence:
+Either a target has had no successful backup within its schedule — its cadence
+(`hubtask_backup_cadence_seconds`, a week for a weekly schedule) plus six hours, or 24 hours for a
+target no schedule has run for — or **the backup metric is absent entirely**, which means no backup
+is configured at all. The alert is deliberately written to fire on the absence:
 an installation that never had a backup is the one that most needs telling.
 
 Nothing is broken right now. That is exactly why it is a page: the cost of this alert becomes

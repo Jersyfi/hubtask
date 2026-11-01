@@ -36,6 +36,9 @@ type SchedulerSignals interface {
 	// BackupLastSuccess is when a target last had a backup that worked - alert A-12's number
 	// (observability-reliability.md §10).
 	BackupLastSuccess(ctx context.Context, targetID string, at time.Time)
+	// BackupCadence is how often a target is owed a backup by its schedules - what A-12 measures
+	// the last success against.
+	BackupCadence(ctx context.Context, targetID string, every time.Duration)
 	// WebhookRetryBacklog is the deliveries waiting out their backoff
 	// (observability-reliability.md §4).
 	WebhookRetryBacklog(ctx context.Context, waiting int64)
@@ -155,9 +158,11 @@ type InstanceBackups interface {
 	Run(ctx context.Context, scope persistence.Scope) (backupservice.PassResult, error)
 }
 
-// BackupFreshness answers when each target last had a backup that worked.
+// BackupFreshness answers when each target last had a backup that worked, and how often its
+// schedules owe one.
 type BackupFreshness interface {
 	LastSuccessPerTarget(ctx context.Context) (map[shared.ID]time.Time, error)
+	CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error)
 }
 
 // EnvironmentOperators is the operator list the installation's environment names.
@@ -764,6 +769,17 @@ func (s Scheduler) sampleBackupFreshness(ctx context.Context) {
 	}
 	for targetID, at := range moments {
 		s.Signals.BackupLastSuccess(ctx, targetID.String(), at)
+	}
+	cadences, err := s.BackupFreshness.CadencePerTarget(sampleCtx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the backup cadence failed",
+				slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for targetID, every := range cadences {
+		s.Signals.BackupCadence(ctx, targetID.String(), every)
 	}
 }
 

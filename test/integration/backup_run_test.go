@@ -473,3 +473,54 @@ func TestTheFreshnessReadingIsTheLastSuccessPerTarget(t *testing.T) {
 }
 
 var _ repository.Runs = postgres.NewBackupRunRepository()
+
+// A-12's yardstick: a weekly schedule's target is owed a backup a week apart, read off the gap
+// between its last scheduled run and the moment it is next owed; a manual run sets no cadence.
+func TestTheCadenceReadingIsEachTargetsSchedulePeriod(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	weekly, manual, elsewhere := seedTarget(ctx, t, tenantA), seedTarget(ctx, t, tenantA), seedTarget(ctx, t, tenantB)
+	last := created.Add(time.Hour)
+	admin := adminPool(ctx, t)
+	for _, run := range []struct {
+		tenant, target shared.ID
+		scheduled      bool
+	}{{tenantA, weekly, true}, {tenantA, manual, false}, {tenantB, elsewhere, true}} {
+		var schedule any
+		trigger := "MANUAL"
+		if run.scheduled {
+			id := freshID(t)
+			schedule, trigger = id.String(), "SCHEDULE"
+			if _, err := admin.Exec(ctx, `
+				INSERT INTO backup_schedule (id, target_id, tenant_id, scope_kind, rrule, next_run_at)
+				VALUES ($1, $2, $3, 'TENANT', 'FREQ=WEEKLY', $4)`,
+				id.String(), run.target.String(), run.tenant.String(), last.Add(7*24*time.Hour)); err != nil {
+				t.Fatalf("seeding the schedule: %v", err)
+			}
+		}
+		if _, err := admin.Exec(ctx, `
+			INSERT INTO backup_run (id, schedule_id, target_id, tenant_id, trigger, mode, status, started_at)
+			VALUES ($1, $2, $3, $4, $5, 'FULL', 'SUCCEEDED', $6)`,
+			freshID(t).String(), schedule, run.target.String(), run.tenant.String(), trigger, last); err != nil {
+			t.Fatalf("seeding a run: %v", err)
+		}
+	}
+
+	var cadences map[shared.ID]time.Duration
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		cadences, err = postgres.NewBackupRunRepository().CadencePerTarget(ctx)
+		return err
+	}); err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if cadences[weekly] != 7*24*time.Hour {
+		t.Errorf("the weekly target's cadence is %v, want a week", cadences[weekly])
+	}
+	if _, owed := cadences[manual]; owed {
+		t.Errorf("a target with only a manual run has a cadence: %v", cadences[manual])
+	}
+	if _, seen := cadences[elsewhere]; seen {
+		t.Error("a workspace's read sees another workspace's schedule")
+	}
+}

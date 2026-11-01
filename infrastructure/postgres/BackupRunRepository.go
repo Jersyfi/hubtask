@@ -264,6 +264,32 @@ func (r BackupRunRepository) LastSuccessPerTarget(
 	return answer, nil
 }
 
+// CadencePerTarget is how often each target is owed a backup, by its schedules' own period: what
+// alert A-12 measures a target's last success against, so a weekly target is late after a week,
+// not after a day. A target without a schedule that has run is absent.
+func (r BackupRunRepository) CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.BackupCadencePerTarget(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the backup cadence: %w", err))
+	}
+	answer := make(map[shared.ID]time.Duration, len(rows))
+	for _, row := range rows {
+		targetID, err := idFrom(row.TargetID)
+		if err != nil {
+			return nil, err
+		}
+		if row.CadenceSeconds > 0 {
+			answer[targetID] = time.Duration(row.CadenceSeconds) * time.Second
+		}
+	}
+	return answer, nil
+}
+
 // runRow is the shape both read statements answer: the table's columns without the manifest, which
 // is a copy of a file and has no business in a resource.
 type runRow struct {

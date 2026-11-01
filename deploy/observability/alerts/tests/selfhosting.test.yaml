@@ -120,7 +120,43 @@ tests:
               severity: page
               alert_id: A-12
             exp_annotations:
-              summary: "No successful backup in the last 24 hours"
+              summary: "No successful backup within the target's schedule"
+              description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+              runbook: RB-A12-backup-stale.md
+
+  # A-12, held to the target's own cadence: a weekly target six days after its last success is on
+  # time and silent; one eight days after it is a day late and fires. A target without a cadence
+  # is still held to a day. The test clock starts at zero, so the moments are negative.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_backup_last_success_timestamp_seconds{target_id="weekly-on-time"}'
+        values: '-518400x90'
+      - series: 'hubtask_backup_cadence_seconds{target_id="weekly-on-time"}'
+        values: '604800x90'
+      - series: 'hubtask_backup_last_success_timestamp_seconds{target_id="weekly-late"}'
+        values: '-691200x90'
+      - series: 'hubtask_backup_cadence_seconds{target_id="weekly-late"}'
+        values: '604800x90'
+      - series: 'hubtask_backup_last_success_timestamp_seconds{target_id="unscheduled"}'
+        values: '-90000x90'
+    alert_rule_test:
+      - eval_time: 1h
+        alertname: HubtaskBackupStale
+        exp_alerts:
+          - exp_labels:
+              target_id: weekly-late
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "No successful backup within the target's schedule"
+              description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
+              runbook: RB-A12-backup-stale.md
+          - exp_labels:
+              target_id: unscheduled
+              severity: page
+              alert_id: A-12
+            exp_annotations:
+              summary: "No successful backup within the target's schedule"
               description: "Either backups are failing, or none is configured. Both lose data on the next disk failure."
               runbook: RB-A12-backup-stale.md
 

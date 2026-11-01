@@ -5346,7 +5346,7 @@ func run() error {
 			SchemaBehind: schemaBehind,
 			// The leader's one duty beyond measurement, and the reading behind alert A-12.
 			InstanceBackups: backupPass,
-			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
+			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Cadence: backupRuns, Work: backgroundWork},
 			// The partition duty `0001_init` wrote down: next month's partition of `audit_log`
 			// exists before the first entry of it does, and carries its own policy and its own
 			// revokes (audit.md §3).
@@ -6156,8 +6156,21 @@ func (a auditPartitionsInBackground) Ensure(ctx context.Context, month time.Time
 }
 
 type backupRunsInBackground struct {
-	Runs backuprepo.Runs
+	Runs    backuprepo.Runs
+	Cadence interface {
+		CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error)
+	}
 	Work persistenceport.UnitOfWork
+}
+
+func (b backupRunsInBackground) CadencePerTarget(ctx context.Context) (map[shared.ID]time.Duration, error) {
+	var cadences map[shared.ID]time.Duration
+	err := b.Work.WithinReadOnly(ctx, persistenceport.SystemScope(), func(ctx context.Context) error {
+		var err error
+		cadences, err = b.Cadence.CadencePerTarget(ctx)
+		return err
+	})
+	return cadences, err
 }
 
 func (b backupRunsInBackground) LastSuccessPerTarget(
