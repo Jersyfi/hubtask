@@ -41,6 +41,7 @@
   import BoardView from '../whiteboards/BoardView.svelte';
   import PagePicture from './PagePicture.svelte';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { todayIn } from '../i18n/zone.ts';
   import { formatDay } from '../i18n/datetime.ts';
   import { renderProblem } from '../problem.ts';
   import { messages } from '../i18n/i18n.svelte.ts';
@@ -374,7 +375,7 @@
     changed(markdownOf(editor));
   }
 
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => todayIn(actor.zone);
 
   function embedView(id: string) {
     if (!editor) return;

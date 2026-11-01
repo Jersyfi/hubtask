@@ -18,6 +18,7 @@
     BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine, SlaPolicyList, SlaReport,
   } from '@hubtask/sync-engine';
 
+  import { actor } from '../lib/data/account.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { calendarsPath, desk, organisationsPath, policiesPath, repliesPath, slaReportPath } from '../lib/data/desk.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
@@ -28,6 +29,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { addDays, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
   import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
@@ -165,14 +167,14 @@
   }
 
   // The report over the last thirty days by default.
-  const day = 24 * 60 * 60 * 1000;
-  let reportFrom = $state(new Date(Date.now() - 30 * day).toISOString().slice(0, 10));
-  let reportTo = $state(new Date(Date.now() + day).toISOString().slice(0, 10));
+  // Days on the reader's clock, and each bound the start of its day in the reader's zone.
+  let reportFrom = $state(addDays(todayIn(actor.zone), -30));
+  let reportTo = $state(addDays(todayIn(actor.zone), 1));
   let report = $state<SlaReport | undefined>(undefined);
   async function readReport() {
     refusal = undefined;
     const state = await engine.refresh<SlaReport>({
-      path: slaReportPath(new Date(reportFrom).toISOString(), new Date(reportTo).toISOString()),
+      path: slaReportPath(instantOf(reportFrom, '00:00', actor.zone) ?? new Date(reportFrom).toISOString(), instantOf(reportTo, '00:00', actor.zone) ?? new Date(reportTo).toISOString()),
     });
     if (state.status === 'ready') report = state.data;
     else if (state.status === 'failed') refusal = renderProblem(state.error as never, messages).message;

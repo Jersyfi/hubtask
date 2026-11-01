@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dateIn, endOfDayIn, instantOf, timeIn, todayIn, zoneName } from './zone.ts';
+import { addDays, dateIn, endOfDayIn, instantOf, timeIn, todayIn, zoneName } from './zone.ts';
 
 test('a wall clock in a zone becomes the instant behind it', () => {
   // Berlin is UTC+1 in winter and UTC+2 in summer, and the same wall clock is therefore two
@@ -89,4 +89,20 @@ test('a day typed as a deadline ends at the end of that day where the person is'
   assert.equal(endOfDayIn('2026-03-28', 'Europe/Berlin'), '2026-03-28T22:59:59.000Z');
   assert.equal(endOfDayIn('2026-03-29', 'Europe/Berlin'), '2026-03-29T21:59:59.000Z');
   assert.equal(endOfDayIn('31.12.2026', 'Europe/Berlin'), undefined);
+});
+
+test('today is the reader\'s day, not Greenwich\'s, on both sides of the date line', () => {
+  // 20:00 in New York on 30 October is 00:00 on 31 October in Greenwich.
+  const evening = Date.parse('2026-10-31T00:00:00Z');
+  assert.equal(todayIn('America/New_York', evening), '2026-10-30');
+  // 01:00 in Berlin on 31 October is still 30 October in Greenwich.
+  assert.equal(todayIn('Europe/Berlin', Date.parse('2026-10-30T23:00:00Z')), '2026-10-31');
+  // Fourteen hours ahead: a Greenwich afternoon is already tomorrow in Kiritimati.
+  assert.equal(todayIn('Pacific/Kiritimati', Date.parse('2026-10-30T12:00:00Z')), '2026-10-31');
+});
+
+test('a date moves by whole days whatever the device\'s zone', () => {
+  assert.equal(addDays('2026-10-31', 1), '2026-11-01');
+  assert.equal(addDays('2026-03-01', -1), '2026-02-28');
+  assert.equal(addDays('2026-10-25', 30), '2026-11-24');
 });

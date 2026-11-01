@@ -22,6 +22,7 @@
   import { engine } from '../data/engine.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
+  import { todayIn } from '../i18n/zone.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -79,7 +80,8 @@
   let isStartOpen = $state(false);
   let draft = $state<CampaignDraft>(campaignDraft());
   let isStarting = $state(false);
-  const today = () => new Date().toISOString().slice(0, 10);
+  // Today on the reader's clock, which is what a due day is measured against - not Greenwich's.
+  const today = () => todayIn(actor.zone);
   const missing = $derived(campaignMissing(draft, today()));
   const classChecks = $derived(instantiable(classes).map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
 
