@@ -15,6 +15,8 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	workdomain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 // PendingFor is ListPendingApprovalsFor's selection: counted at the current level, or a level
@@ -122,5 +124,43 @@ func TestAReadersApprovalsAreFoundPastTheWorkspacesOldest(t *testing.T) {
 	if store.pendingReads != 1 || store.delegationReads != 1 || store.decisionReads != 1 {
 		t.Errorf("one list read the pending approvals %d, the delegations %d and the decisions %d times",
 			store.pendingReads, store.delegationReads, store.decisionReads)
+	}
+}
+
+// transacted marks the context it runs in, as the database's unit of work puts its transaction
+// there; inTransaction refuses an entry written outside one, as the audit sink does.
+type transacted struct{}
+
+type txMark struct{}
+
+func (transacted) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	return fn(context.WithValue(ctx, txMark{}, true))
+}
+
+func (transacted) WithinReadOnly(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	return fn(context.WithValue(ctx, txMark{}, true))
+}
+
+type inTransaction struct{ entries int }
+
+func (a *inTransaction) Append(ctx context.Context, _ audit.Entry) error {
+	if ctx.Value(txMark{}) == nil {
+		return shared.ErrInternal.WithDetail("postgres.no_transaction_in_context")
+	}
+	a.entries++
+	return nil
+}
+
+// The reader's list writes its read to the trail inside a transaction: the sink refuses an entry
+// without one, and the list answered 500 to every approver.
+func TestAReadersApprovalListIsRecordedInATransaction(t *testing.T) {
+	approvals, _, _, _ := approvalFixture(t)
+	sink := &inTransaction{}
+	approvals.Desk.UnitOfWork, approvals.Desk.Audit = transacted{}, sink
+	if _, err := (ListMyApprovals{Approvals: approvals}).Execute(context.Background(), person(requesterID)); err != nil {
+		t.Fatalf("the list: %v", err)
+	}
+	if sink.entries != 1 {
+		t.Fatalf("the read is recorded %d times", sink.entries)
 	}
 }

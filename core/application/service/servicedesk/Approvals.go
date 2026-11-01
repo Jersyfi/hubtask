@@ -520,11 +520,14 @@ func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorConte
 	if err != nil {
 		return nil, err
 	}
-	return out, a.Desk.Audit.Append(ctx, audit.Entry{
-		TenantID: actor.TenantID, OccurredAt: a.Desk.Clock.Now(), Action: ApprovalsReadAction,
-		Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo, ActorKind: actor.Kind, ActorID: actor.AccountID,
-		ActorLabel: actor.AccountName, TargetType: approvalTarget, TargetID: actor.AccountID,
-		Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+	// The sink writes through the transaction in the context; a read-only one cannot take it.
+	return out, a.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return a.Desk.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: a.Desk.Clock.Now(), Action: ApprovalsReadAction,
+			Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo, ActorKind: actor.Kind, ActorID: actor.AccountID,
+			ActorLabel: actor.AccountName, TargetType: approvalTarget, TargetID: actor.AccountID,
+			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+		})
 	})
 }
 
