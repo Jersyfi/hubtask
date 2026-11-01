@@ -30,8 +30,8 @@ sum by (pool, kind) (rate(hubtask_db_errors_total[10m]))
 ## Escalation
 
 Failures on every replica while the database answers every other statement point at the
-notification queue (`pg_notification_queue_usage()` near 1): a listener that stopped reading. Treat
-that as an incident - it also holds back the change stream's wake-ups.
+notification queue (`pg_notification_queue_usage()` near 1, alert A-36): a listener that stopped
+reading. Follow RB-A36 - it also holds back the change stream's wake-ups.
 
 ## Follow-up
 

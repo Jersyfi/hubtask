@@ -57,6 +57,9 @@ type SchedulerSignals interface {
 	// OldestTransaction is the age of the database's oldest open transaction - alert A-25's
 	// number: vacuum cannot reclaim what changed after it began.
 	OldestTransaction(ctx context.Context, seconds float64)
+	// DatabaseHorizon is the share of the NOTIFY queue in use and the transaction-ID age vacuum
+	// has not frozen - alerts A-36 and A-37: each, at its limit, stops every write.
+	DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge int64)
 	// InvalidIndexes is how many indexes PostgreSQL holds invalid - alert A-28's number.
 	InvalidIndexes(ctx context.Context, count int64)
 	// MailApp is one installation mail app's mailboxes and the failing ones - alert A-29's numbers.
@@ -83,6 +86,11 @@ type InvalidIndexes interface {
 // OldestTransactions answers the age of the database's oldest open transaction, in seconds.
 type OldestTransactions interface {
 	OldestTransactionSeconds(ctx context.Context) (float64, error)
+}
+
+// DatabaseHorizons answers the share of the NOTIFY queue in use and the unfrozen transaction-ID age.
+type DatabaseHorizons interface {
+	DatabaseHorizon(ctx context.Context) (notifyQueueUsage float64, xidAge int64, err error)
 }
 
 // FinishedJobs removes the jobs whose catalogue period has run out. The queue's own table, read
@@ -195,6 +203,8 @@ type Scheduler struct {
 	Open OpenJobs
 	// Transactions answers the oldest open transaction's age. Optional, like Backlog.
 	Transactions OldestTransactions
+	// Horizon answers the NOTIFY queue's use and the unfrozen transaction-ID age. Optional.
+	Horizon DatabaseHorizons
 	// Indexes answers the indexes held invalid. Optional, like Backlog.
 	Indexes InvalidIndexes
 	// MailApps answers the installation mail apps' mailboxes. Optional, like Backlog.
@@ -338,6 +348,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleRetryBacklog(ctx)
 	s.sampleHeldScans(ctx)
 	s.sampleOldestTransaction(ctx)
+	s.sampleDatabaseHorizon(ctx)
 	s.sampleInvalidIndexes(ctx)
 	s.sampleMailApps(ctx)
 	s.sampleSAMLCertificates(ctx)
@@ -814,6 +825,32 @@ func (s Scheduler) sampleOldestTransaction(ctx context.Context) {
 		return
 	}
 	s.Signals.OldestTransaction(ctx, seconds)
+}
+
+// sampleDatabaseHorizon publishes how close the database is to the two limits that stop every
+// write (A-36, A-37): a NOTIFY queue a stuck listener filled fails each notifying transaction at
+// commit, and an unfrozen transaction-ID age near two billion makes PostgreSQL refuse writes.
+func (s Scheduler) sampleDatabaseHorizon(ctx context.Context) {
+	if s.Signals == nil || s.Horizon == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var usage float64
+	var age int64
+	// On the primary: its queue is the one writers notify into.
+	err := s.UnitOfWork.Within(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		usage, age, err = s.Horizon.DatabaseHorizon(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the database's horizon failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.DatabaseHorizon(ctx, usage, age)
 }
 
 // sampleInvalidIndexes publishes how many indexes are invalid (A-28): an interrupted concurrent

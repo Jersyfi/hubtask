@@ -5319,8 +5319,8 @@ func run() error {
 			// Alert A-23's number: the workspaces whose uploads wait for a scan (UC-MED-01).
 			Open: jobs,
 			// Alert A-25's number: a snapshot or a session pinning vacuum.
-			Transactions: jobs,
-			Indexes:      jobs,
+			Transactions: jobs, Horizon: jobs,
+			Indexes: jobs,
 			// Alert A-29's numbers, across workspaces through the door of migration 0344.
 			MailApps: postgres.NewMailboxRepository(),
 			// The SAML providers' certificate ends, across workspaces through the door of 0348.

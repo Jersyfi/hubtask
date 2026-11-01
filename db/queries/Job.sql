@@ -407,3 +407,10 @@ RETURNING id, tenant_id, kind, attempts, max_attempts, last_error, created_at;
 -- answers.
 -- name: IsDeadLetter :one
 SELECT EXISTS (SELECT 1 FROM job WHERE id = sqlc.arg('id') AND state = 'DEAD_LETTER');
+
+-- How close the database is to the limits that stop every write (alerts A-36, A-37): the share of
+-- the NOTIFY queue a stuck listener has filled - once full, every transaction that notifies fails
+-- at commit - and the transaction-ID age vacuum has not yet frozen, which at about two billion
+-- makes PostgreSQL refuse writes (migration 0353).
+-- name: DatabaseHorizon :one
+SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age;

@@ -246,6 +246,26 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 	return result.RowsAffected(), nil
 }
 
+const databaseHorizon = `-- name: DatabaseHorizon :one
+SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age
+`
+
+type DatabaseHorizonRow struct {
+	NotifyQueueUsage float64
+	XidAge           int64
+}
+
+// How close the database is to the limits that stop every write (alerts A-36, A-37): the share of
+// the NOTIFY queue a stuck listener has filled - once full, every transaction that notifies fails
+// at commit - and the transaction-ID age vacuum has not yet frozen, which at about two billion
+// makes PostgreSQL refuse writes (migration 0353).
+func (q *Queries) DatabaseHorizon(ctx context.Context) (DatabaseHorizonRow, error) {
+	row := q.db.QueryRow(ctx, databaseHorizon)
+	var i DatabaseHorizonRow
+	err := row.Scan(&i.NotifyQueueUsage, &i.XidAge)
+	return i, err
+}
+
 const databaseRoleIsolation = `-- name: DatabaseRoleIsolation :one
 SELECT r.rolsuper AS superuser, r.rolbypassrls AS bypass_rls,
   EXISTS (

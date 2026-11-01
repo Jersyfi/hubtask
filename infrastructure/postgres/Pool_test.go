@@ -19,10 +19,17 @@ func TestEveryConnectionRunsBoundedNamedAndWithoutJIT(t *testing.T) {
 	sessionParams(params, 5*time.Second, env.RoleAPI)
 
 	want := map[string]string{"statement_timeout": "5000", "application_name": "hubtask/api", "jit": "off",
-		"plan_cache_mode": "force_custom_plan"}
+		"plan_cache_mode": "force_custom_plan",
+		// A stalled transaction ends instead of pinning locks and the vacuum horizon for ever.
+		"idle_in_transaction_session_timeout": "600000", "lock_timeout": "15000"}
 	for key, value := range want {
 		if params[key] != value {
 			t.Errorf("%s = %q, want %q", key, params[key], value)
 		}
+	}
+	worker := map[string]string{}
+	sessionParams(worker, time.Minute, env.RoleWorker)
+	if worker["idle_in_transaction_session_timeout"] != "1800000" || worker["lock_timeout"] != "60000" {
+		t.Errorf("the worker runs with %q idle and %q lock bounds", worker["idle_in_transaction_session_timeout"], worker["lock_timeout"])
 	}
 }

@@ -79,6 +79,7 @@ type schedulerSignals struct {
 	auditHeld        []int64
 	auditDefaultAged []int64
 	oldest           []float64
+	horizon          [][2]float64
 	invalidIndexes   []int64
 	mailApps         []mail.AppHealth
 	samlEnding       []identity.SAMLCertificateCount
@@ -98,6 +99,10 @@ func (s *schedulerSignals) InvalidIndexes(_ context.Context, count int64) {
 
 func (s *schedulerSignals) OldestTransaction(_ context.Context, seconds float64) {
 	s.oldest = append(s.oldest, seconds)
+}
+
+func (s *schedulerSignals) DatabaseHorizon(_ context.Context, usage float64, age int64) {
+	s.horizon = append(s.horizon, [2]float64{usage, float64(age)})
 }
 
 func newSchedulerSignals() *schedulerSignals {
@@ -656,6 +661,26 @@ func TestTheLeaderPublishesTheOldestTransaction(t *testing.T) {
 	leader.tick(t.Context(), false, now)
 	if len(signals.oldest) != 1 || signals.oldest[0] != 7300 {
 		t.Errorf("published %v, want [7300]", signals.oldest)
+	}
+}
+
+type horizon struct {
+	usage float64
+	age   int64
+}
+
+func (h horizon) DatabaseHorizon(context.Context) (float64, int64, error) { return h.usage, h.age, nil }
+
+// Alerts A-36 and A-37's numbers: the NOTIFY queue's use and the unfrozen transaction-ID age,
+// published by the leader on every tick, so either limit is seen long before writes stop.
+func TestTheLeaderPublishesTheDatabaseHorizon(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.Horizon = horizon{usage: 0.6, age: 900_000_000}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.horizon) != 1 || signals.horizon[0] != [2]float64{0.6, 900_000_000} {
+		t.Errorf("published %v, want [[0.6 9e8]]", signals.horizon)
 	}
 }
 

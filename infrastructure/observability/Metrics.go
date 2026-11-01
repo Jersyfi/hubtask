@@ -102,6 +102,8 @@ type Metrics struct {
 	webhookBacklog    metric.Int64Gauge
 	mediaScanHeld     metric.Int64Gauge
 	oldestTransaction metric.Float64Gauge
+	notifyQueueUsage  metric.Float64Gauge
+	frozenXIDAge      metric.Int64Gauge
 	invalidIndexes    metric.Int64Gauge
 	mailApps          metric.Int64Gauge
 	mailAppsFailing   metric.Int64Gauge
@@ -543,6 +545,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithUnit("s"),
 	); err != nil {
 		return fmt.Errorf("oldest transaction gauge: %w", err)
+	}
+	if m.notifyQueueUsage, err = meter.Float64Gauge(
+		namespace+"_db_notify_queue_usage_ratio",
+		metric.WithDescription("The share of PostgreSQL's NOTIFY queue in use: once full, every transaction "+
+			"that notifies fails at commit. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("notify queue gauge: %w", err)
+	}
+	if m.frozenXIDAge, err = meter.Int64Gauge(
+		namespace+"_db_frozen_xid_age",
+		metric.WithDescription("Transaction IDs used since vacuum last froze the database: near two billion "+
+			"PostgreSQL refuses writes. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("frozen xid age gauge: %w", err)
 	}
 	if m.invalidIndexes, err = meter.Int64Gauge(
 		namespace+"_db_invalid_indexes",
@@ -1322,6 +1338,12 @@ func (m *Metrics) WebhookRetryBacklog(ctx context.Context, waiting int64) {
 // OldestTransaction publishes the age of the database's oldest open transaction.
 func (m *Metrics) OldestTransaction(ctx context.Context, seconds float64) {
 	m.oldestTransaction.Record(ctx, seconds)
+}
+
+// DatabaseHorizon publishes the NOTIFY queue's use and the unfrozen transaction-ID age.
+func (m *Metrics) DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge int64) {
+	m.notifyQueueUsage.Record(ctx, notifyQueueUsage)
+	m.frozenXIDAge.Record(ctx, xidAge)
 }
 
 // InvalidIndexes publishes how many indexes PostgreSQL holds invalid.

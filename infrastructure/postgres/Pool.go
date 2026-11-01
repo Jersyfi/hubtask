@@ -138,6 +138,14 @@ func Stats(pool *pgxpool.Pool) PoolStats {
 	}
 }
 
+// The bounds of a transaction left idle and of a lock wait, per role (sessionParams).
+const (
+	apiIdleInTransaction    = 10 * time.Minute
+	workerIdleInTransaction = 30 * time.Minute
+	apiLockTimeout          = 15 * time.Second
+	workerLockTimeout       = time.Minute
+)
+
 // sessionParams sets what every connection of a role's pool runs with.
 //
 // JIT is off: on a generic plan whose row estimates are large, PostgreSQL compiles the statement
@@ -149,8 +157,20 @@ func Stats(pool *pgxpool.Pool) PoolStats {
 // switch to a generic plan that keeps both branches, and at 10⁷ entries ListWorkItems' generic plan
 // read a 300 000-entry level whole and sorted it for a page of fifty (known-traps.md). The planning
 // it costs is a fraction of a millisecond per statement.
+//
+// A transaction left idle between statements - a request that stalled, a job waiting on an outbound
+// call - is ended rather than kept: it held its locks and pinned the vacuum horizon for as long as
+// it lived. The bound is generous, so that a download streaming a snapshot to a slow client or a
+// backup uploading one large file between reads is not cut. A lock wait is bounded too: a write
+// stuck behind a forgotten lock fails and is retried instead of waiting for ever.
 func sessionParams(params map[string]string, statementTimeout time.Duration, role env.Role) {
 	params["statement_timeout"] = strconv.FormatInt(statementTimeout.Milliseconds(), 10)
+	idle, lock := workerIdleInTransaction, workerLockTimeout
+	if role == env.RoleAPI {
+		idle, lock = apiIdleInTransaction, apiLockTimeout
+	}
+	params["idle_in_transaction_session_timeout"] = strconv.FormatInt(idle.Milliseconds(), 10)
+	params["lock_timeout"] = strconv.FormatInt(lock.Milliseconds(), 10)
 	// Visible in pg_stat_activity, which is where an operator looks first when one role is
 	// holding connections.
 	params["application_name"] = "hubtask/" + string(role)
