@@ -1806,8 +1806,8 @@ export class HubtaskClient {
   }
 
   /** Download the whole workspace as one archive */
-  downloadWorkspaceArchive(options: CallOptions & { readonly stepUp?: string } = {}): Promise<Response> {
-    return this.call("POST", "/backups:download-workspace", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "raw", options.signal);
+  downloadWorkspaceArchive(body: NonNullable<operations["downloadWorkspaceArchive"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<Response> {
+    return this.call("POST", "/backups:download-workspace", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "raw", options.signal);
   }
 
   /** What one backup run did */

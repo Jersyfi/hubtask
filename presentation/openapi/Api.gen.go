@@ -21548,12 +21548,14 @@ type RestoreRequest struct {
 	ArchiveId string `json:"archive_id"`
 
 	// Confirmation For destructive modes, the exact tenant name.
-	Confirmation         *string                     `json:"confirmation,omitempty"`
-	ConflictRule         *RestoreRequestConflictRule `json:"conflict_rule,omitempty"`
-	CreateSafetyBackup   *bool                       `json:"create_safety_backup,omitempty"`
-	DecryptionPassphrase *string                     `json:"decryption_passphrase,omitempty"`
-	DryRun               *bool                       `json:"dry_run,omitempty"`
-	Mode                 RestoreRequestMode          `json:"mode"`
+	Confirmation       *string                     `json:"confirmation,omitempty"`
+	ConflictRule       *RestoreRequestConflictRule `json:"conflict_rule,omitempty"`
+	CreateSafetyBackup *bool                       `json:"create_safety_backup,omitempty"`
+
+	// DecryptionPassphrase The passphrase an archive downloaded with one is encrypted to. Held sealed only while the restore runs, never stored after it; an archive encrypted to a passphrase is refused without it (`backup.archive_passphrase_required`) and with a wrong one (`backup.archive_passphrase_wrong`), and given for an archive not encrypted to one it is refused too (`backup.archive_passphrase_unused`) rather than ignored.
+	DecryptionPassphrase *string            `json:"decryption_passphrase,omitempty"`
+	DryRun               *bool              `json:"dry_run,omitempty"`
+	Mode                 RestoreRequestMode `json:"mode"`
 
 	// Selection The selection for SELECTIVE - container and/or item IDs.
 	Selection *struct {
@@ -24976,6 +24978,12 @@ type WorkspaceAgentPolicy struct {
 		// Value Whether MCP takes registered agents only.
 		Value bool `json:"value"`
 	} `json:"agents.registered_only"`
+}
+
+// WorkspaceArchiveDownload defines model for WorkspaceArchiveDownload.
+type WorkspaceArchiveDownload struct {
+	// Passphrase Encrypts the archive to this passphrase; stored nowhere. Without it the archive is unencrypted.
+	Passphrase *string `json:"passphrase,omitempty"`
 }
 
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
@@ -28413,6 +28421,9 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
+
+// DownloadWorkspaceArchiveJSONRequestBody defines body for DownloadWorkspaceArchive for application/json ContentType.
+type DownloadWorkspaceArchiveJSONRequestBody = WorkspaceArchiveDownload
 
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine

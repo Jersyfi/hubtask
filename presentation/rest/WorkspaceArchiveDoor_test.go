@@ -21,14 +21,16 @@ import (
 )
 
 type archiveStarterFake struct {
-	refused error
-	token   string
+	refused    error
+	token      string
+	passphrase string
 }
 
 func (f *archiveStarterFake) Start(
 	_ context.Context, _ appshared.ActorContext, cmd adminservice.DownloadWorkspaceArchiveCommand,
 ) (adminservice.WorkspaceDownload, error) {
 	f.token = cmd.StepUpToken
+	f.passphrase = cmd.Passphrase.Reveal()
 	if f.refused != nil {
 		return adminservice.WorkspaceDownload{}, f.refused
 	}
@@ -87,5 +89,30 @@ func TestARefusedDownloadSaysWhenToComeBack(t *testing.T) {
 	if recorder.Code != http.StatusTooManyRequests || recorder.Header().Get("Retry-After") != "3600" ||
 		!strings.Contains(recorder.Body.String(), "backup.download_window") {
 		t.Errorf("answered %d %v %s", recorder.Code, recorder.Header(), recorder.Body.String())
+	}
+}
+
+// UC-BAK-07 check 7: the passphrase travels in the body to the download, and a body with a field
+// the contract does not name is refused before anything is started.
+func TestTheDownloadsPassphraseTravelsInTheBody(t *testing.T) {
+	starter := &archiveStarterFake{}
+	door := &WorkspaceArchiveDoor{Downloads: starter}
+	recorder := httptest.NewRecorder()
+	door.DownloadWorkspaceArchive(recorder,
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/backups:download-workspace",
+			strings.NewReader(`{"passphrase":"correct horse battery staple"}`)),
+		openapi.DownloadWorkspaceArchiveParams{})
+	if recorder.Code != http.StatusOK || starter.passphrase != "correct horse battery staple" {
+		t.Fatalf("answered %d, passphrase %q", recorder.Code, starter.passphrase)
+	}
+
+	refused := &archiveStarterFake{}
+	recorder = httptest.NewRecorder()
+	(&WorkspaceArchiveDoor{Downloads: refused}).DownloadWorkspaceArchive(recorder,
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/backups:download-workspace",
+			strings.NewReader(`{"pass_phrase":"x"}`)),
+		openapi.DownloadWorkspaceArchiveParams{})
+	if recorder.Code != http.StatusUnprocessableEntity && recorder.Code != http.StatusBadRequest {
+		t.Errorf("an unknown field answered %d", recorder.Code)
 	}
 }

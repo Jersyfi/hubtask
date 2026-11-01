@@ -102,3 +102,30 @@ func TestACutArchiveLeavesNoFileAndARefusalIsReported(t *testing.T) {
 		t.Fatalf("without --out: exit %d: %s", code, errOut)
 	}
 }
+
+// UC-BAK-07 check 7: with $HUBTASK_ARCHIVE_PASSPHRASE set, the download asks for an archive
+// encrypted to it; the passphrase travels in the body, never in the address.
+func TestTheDownloadAsksForThePassphraseFromTheEnvironment(t *testing.T) {
+	archive := zipOf(t, "manifest.json", `{"format":1}`)
+	var body string
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RawQuery != "" {
+			t.Errorf("the address carries %q", r.URL.RawQuery)
+		}
+		w.Header().Set("Content-Type", "application/zip")
+		_, _ = w.Write(archive)
+	})
+	env := signedIn(stub)
+	env[envStepUp] = "proof-1"
+	env[envArchivePassphrase] = "correct horse battery staple"
+	file := filepath.Join(t.TempDir(), "workspace.zip")
+
+	code, _, errOut := invokeAgainst(t, stub, env, "", "backup", "download", "--out", file)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	body = stub.body
+	if body != `{"passphrase":"correct horse battery staple"}` {
+		t.Errorf("the body was %q", body)
+	}
+}

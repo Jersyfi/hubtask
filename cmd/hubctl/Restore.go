@@ -134,9 +134,11 @@ func (cli *CLI) restoreRequest(target, archive, mode string) (openapi.RestoreReq
 		ArchiveId: archive,
 		Mode:      openapi.RestoreRequestMode(mode),
 	}
-	// No `decryption_passphrase`, for the reason `backup target add` sends no passphrase: the key
-	// an archive is written under is derived from the installation's master key, and this
-	// version refuses the field rather than ignoring it.
+	// An archive downloaded with a passphrase opens with it, read from the environment rather than
+	// a flag that would stay in the shell's history.
+	if passphrase := cli.Env(envArchivePassphrase); passphrase != "" {
+		request.DecryptionPassphrase = &passphrase
+	}
 	return request, nil
 }
 

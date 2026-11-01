@@ -48,8 +48,10 @@ type Applier struct {
 	Opener    backupstorage.Opener
 	Encryptor crypto.Encryptor
 	Keys      crypto.KeyMaterialiser
-	Cipher    crypto.StreamCipher
-	Objects   storage.ObjectStore
+	// Deriver turns the passphrase a restore holds into the key of an archive encrypted to one.
+	Deriver crypto.KeyDeriver
+	Cipher  crypto.StreamCipher
+	Objects storage.ObjectStore
 	// Holds are the workspace's legal holds in force. A replace reads them in the transaction that
 	// empties the workspace, under the shared hold lock, and refuses while any stands
 	// (backup-restore.md §8.2): a hold placed after the request is met here.
@@ -127,6 +129,8 @@ type claimed struct {
 	// only for NEW_TENANT.
 	into        persistence.Scope
 	safetyRunID shared.ID
+	// passphrase is the sealed passphrase the run holds, zero where it was asked without one.
+	passphrase crypto.Sealed
 }
 
 // claim takes the tenant's restore lock and reads the run's surroundings, in one short
@@ -153,6 +157,9 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 		}
 		out.restore = restore
 		out.safetyRunID = restore.SafetyRunID
+		if out.passphrase, err = a.Restores.Passphrase(ctx, in.RestoreID); err != nil {
+			return err
+		}
 
 		target, err := a.Targets.Find(ctx, restore.TargetID)
 		if err != nil {
@@ -189,7 +196,14 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.Report, error) {
 	reader := archive.NewReader(ready.store, a.Cipher)
 
-	chain, keys, err := a.precheck(ctx, reader, ready.restore, in.TenantID)
+	// Opened here rather than at the claim, so that a passphrase that no longer opens fails the
+	// run, and the run's end empties it.
+	passphrase, err := heldPassphrase(ctx, a.Encryptor, ready.passphrase, in.RestoreID)
+	if err != nil {
+		return domain.Report{}, err
+	}
+	given := ArchivePassphrase{Deriver: a.Deriver, Passphrase: passphrase}
+	chain, keys, err := a.precheck(ctx, reader, ready.restore, in.TenantID, given)
 	if err != nil {
 		return domain.Report{}, err
 	}
@@ -286,6 +300,7 @@ func (a Applier) AdvanceEpoch(ctx context.Context) error {
 // manifests, not data.
 func (a Applier) precheck(
 	ctx context.Context, reader *archive.Reader, restore domain.Restore, asking shared.ID,
+	given ArchivePassphrase,
 ) ([]archive.Description, archive.Keys, error) {
 	chain, err := reader.Chain(ctx, restore.SourceArchive)
 	if err != nil {
@@ -349,7 +364,7 @@ func (a Applier) precheck(
 
 	// Decryptability, before anything is read. An archive that cannot be opened is worth finding
 	// out about now rather than after the first batch has landed.
-	keys, err := openableKeys(ctx, a.Keys, reader, chain, restore.TargetID)
+	keys, err := openableKeys(ctx, a.Keys, reader, chain, restore.TargetID, given)
 	if err != nil {
 		return nil, nil, err
 	}

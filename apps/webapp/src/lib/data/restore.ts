@@ -106,4 +106,6 @@ export interface Asked {
   };
   readonly create_safety_backup?: boolean;
   readonly confirmation?: string;
+  /** The passphrase an archive downloaded with one is encrypted to (UC-BAK-07 check 7). */
+  readonly decryption_passphrase?: string;
 }

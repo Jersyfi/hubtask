@@ -17,6 +17,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
 // The restore itself (backup-restore.md §8.3): what it writes, what it deliberately does not
@@ -37,6 +38,20 @@ type restoreStore struct {
 	// progress keeps every recording, oldest first, for a test that asks what a resumed
 	// attempt would have trusted at each step.
 	progress []map[string]int
+	// passphrases are the sealed passphrases held, by run.
+	passphrases map[shared.ID]crypto.Sealed
+}
+
+func (r *restoreStore) HoldPassphrase(_ context.Context, id shared.ID, sealed crypto.Sealed) error {
+	if r.passphrases == nil {
+		r.passphrases = map[shared.ID]crypto.Sealed{}
+	}
+	r.passphrases[id] = sealed
+	return nil
+}
+
+func (r *restoreStore) Passphrase(_ context.Context, id shared.ID) (crypto.Sealed, error) {
+	return r.passphrases[id], nil
 }
 
 func newRestores() *restoreStore {

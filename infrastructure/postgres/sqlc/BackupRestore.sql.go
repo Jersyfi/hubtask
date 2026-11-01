@@ -123,7 +123,10 @@ UPDATE restore_run SET
   report               = COALESCE($2, report),
   safety_backup_run_id = COALESCE($3, safety_backup_run_id),
   finished_at          = $4,
-  error_code           = $5
+  error_code           = $5,
+  -- A run that has ended needs its passphrase no more (migration 0320).
+  passphrase_enc       = NULL,
+  passphrase_key_id    = NULL
 WHERE id = $6
   AND status IN ('PENDING', 'VALIDATING', 'RUNNING')
 `
@@ -148,6 +151,29 @@ func (q *Queries) FinishRestoreRun(ctx context.Context, arg FinishRestoreRunPara
 		arg.ErrorCode,
 		arg.ID,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const holdRestorePassphrase = `-- name: HoldRestorePassphrase :execrows
+UPDATE restore_run SET
+  passphrase_enc    = $1,
+  passphrase_key_id = $2
+WHERE id = $3
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING')
+`
+
+type HoldRestorePassphraseParams struct {
+	PassphraseEnc   []byte
+	PassphraseKeyID *string
+	ID              pgtype.UUID
+}
+
+// The sealed passphrase a restore was asked with, written in the transaction that accepts it.
+func (q *Queries) HoldRestorePassphrase(ctx context.Context, arg HoldRestorePassphraseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, holdRestorePassphrase, arg.PassphraseEnc, arg.PassphraseKeyID, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -325,4 +351,23 @@ func (q *Queries) RestoreInProgress(ctx context.Context) (bool, error) {
 	var running bool
 	err := row.Scan(&running)
 	return running, err
+}
+
+const restorePassphrase = `-- name: RestorePassphrase :one
+SELECT passphrase_enc, passphrase_key_id FROM restore_run
+WHERE id = $1
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING')
+`
+
+type RestorePassphraseRow struct {
+	PassphraseEnc   []byte
+	PassphraseKeyID *string
+}
+
+// Read by the job alone, never by a statement that feeds an answer.
+func (q *Queries) RestorePassphrase(ctx context.Context, id pgtype.UUID) (RestorePassphraseRow, error) {
+	row := q.db.QueryRow(ctx, restorePassphrase, id)
+	var i RestorePassphraseRow
+	err := row.Scan(&i.PassphraseEnc, &i.PassphraseKeyID)
+	return i, err
 }

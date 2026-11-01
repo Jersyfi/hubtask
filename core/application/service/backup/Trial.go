@@ -68,7 +68,7 @@ func (a Applier) Inspect(ctx context.Context, in InspectInput) (domain.Report, e
 		TargetID: in.TargetID, TenantID: in.TenantID, SourceArchive: in.Archive,
 		Mode: domain.RestoreInspect, DryRun: true,
 	}
-	chain, keys, err := a.precheck(ctx, reader, restore, in.TenantID)
+	chain, keys, err := a.precheck(ctx, reader, restore, in.TenantID, ArchivePassphrase{})
 	if err != nil {
 		return domain.Report{}, err
 	}

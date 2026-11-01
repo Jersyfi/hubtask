@@ -660,6 +660,9 @@ class InstallationDefaults(TypedDict, total=False):
     time_zone: str
     week_start: Literal["MONDAY", "SATURDAY", "SUNDAY"]
 
+class WorkspaceArchiveDownload(TypedDict, total=False):
+    passphrase: str
+
 class WorkspaceUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question."""
     display_name: str

@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -41,11 +42,23 @@ func (d *WorkspaceArchiveDoor) DownloadWorkspaceArchive(
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	actor, _ := appshared.ActorFrom(r.Context())
-	token := ""
+	cmd := adminservice.DownloadWorkspaceArchiveCommand{}
 	if params.XHubtaskStepUp != nil {
-		token = *params.XHubtaskStepUp
+		cmd.StepUpToken = *params.XHubtaskStepUp
 	}
-	download, err := d.Downloads.Start(r.Context(), actor, adminservice.DownloadWorkspaceArchiveCommand{StepUpToken: token})
+	// The body is optional: without one the archive is the unencrypted format.
+	if r.ContentLength != 0 {
+		var body openapi.WorkspaceArchiveDownload
+		err := decodeFrom(http.MaxBytesReader(w, r.Body, 8<<10), &body)
+		if err != nil && !(shared.AsError(err) != nil && shared.AsError(err).DetailCode == "request.body_missing") {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		if body.Passphrase != nil {
+			cmd.Passphrase = secret.New(*body.Passphrase)
+		}
+	}
+	download, err := d.Downloads.Start(r.Context(), actor, cmd)
 	if err != nil {
 		if typed := shared.AsError(err); typed != nil && errors.Is(err, shared.ErrRateLimited) {
 			if wait, convErr := strconv.Atoi(typed.Params["retry_after"]); convErr == nil && wait > 0 {

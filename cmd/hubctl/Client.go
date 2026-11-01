@@ -281,7 +281,7 @@ func (c *Client) OpenSnapshot(ctx context.Context, body any) (httpclient.StreamR
 // response back; the caller copies the body and closes it. A refusal before the first byte is
 // answered as its problem document, and a 429 is not waited out: the download's window is a day,
 // not a rate limit.
-func (c *Client) OpenDownload(ctx context.Context, path string, header map[string][]string) (httpclient.StreamResponse, error) {
+func (c *Client) OpenDownload(ctx context.Context, path string, header map[string][]string, body []byte) (httpclient.StreamResponse, error) {
 	request := port.Request{
 		Method:      http.MethodPost,
 		URL:         c.base + path,
@@ -290,6 +290,10 @@ func (c *Client) OpenDownload(ctx context.Context, path string, header map[strin
 			"Accept":     {"application/zip, application/problem+json"},
 			"User-Agent": {"hubctl/" + version},
 		},
+		Body: body,
+	}
+	if body != nil {
+		request.Header["Content-Type"] = []string{"application/json"}
 	}
 	for name, values := range header {
 		request.Header[name] = values

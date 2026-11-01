@@ -69,7 +69,24 @@ UPDATE restore_run SET
   report               = COALESCE(sqlc.narg('report'), report),
   safety_backup_run_id = COALESCE(sqlc.narg('safety_backup_run_id'), safety_backup_run_id),
   finished_at          = sqlc.arg('finished_at'),
-  error_code           = sqlc.narg('error_code')
+  error_code           = sqlc.narg('error_code'),
+  -- A run that has ended needs its passphrase no more (migration 0320).
+  passphrase_enc       = NULL,
+  passphrase_key_id    = NULL
+WHERE id = sqlc.arg('id')
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING');
+
+-- name: HoldRestorePassphrase :execrows
+-- The sealed passphrase a restore was asked with, written in the transaction that accepts it.
+UPDATE restore_run SET
+  passphrase_enc    = sqlc.arg('passphrase_enc'),
+  passphrase_key_id = sqlc.arg('passphrase_key_id')
+WHERE id = sqlc.arg('id')
+  AND status IN ('PENDING', 'VALIDATING', 'RUNNING');
+
+-- name: RestorePassphrase :one
+-- Read by the job alone, never by a statement that feeds an answer.
+SELECT passphrase_enc, passphrase_key_id FROM restore_run
 WHERE id = sqlc.arg('id')
   AND status IN ('PENDING', 'VALIDATING', 'RUNNING');
 

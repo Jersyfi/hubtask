@@ -77,6 +77,8 @@
   let safetyBackup = $state(true);
   let safetyOffAcknowledged = $state(false);
   let typedName = $state('');
+  /** Only for an archive downloaded with a passphrase; the server refuses one any other has no use for. */
+  let passphrase = $state('');
   let costAcknowledged = $state(false);
   /** Which containers a selective restore names. Composed, never typed. */
   let chosen = $state<readonly string[]>([]);
@@ -139,7 +141,7 @@
   });
   /** Everything a request is made of, as one comparable value. */
   const signature = $derived(
-    [targetId, archiveId, mode, conflictRule, [...chosen].sort().join(','), String(safetyBackup)].join('|'),
+    [targetId, archiveId, mode, conflictRule, [...chosen].sort().join(','), String(safetyBackup), passphrase].join('|'),
   );
   const rehearsal = $derived<Run | undefined>(
     rehearsalId && signature === rehearsedFrom ? restores.of(rehearsalId) : undefined,
@@ -223,6 +225,7 @@
       ...(destructive
         ? { create_safety_backup: safetyBackup, confirmation: typedName.trim() }
         : {}),
+      ...(passphrase !== '' ? { decryption_passphrase: passphrase } : {}),
     };
   }
 
@@ -363,6 +366,13 @@
                 {#if chosenArchive.complete === false}
                   <p class="warning">{t('app.restore.archive_incomplete')}</p>
                 {/if}
+                <Input
+                  label={t('app.restore.passphrase')}
+                  hint={t('app.restore.passphrase_hint')}
+                  type="password"
+                  autocomplete="off"
+                  bind:value={passphrase}
+                />
               {/if}
             {:else if archives.status === 'failed'}
               <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>

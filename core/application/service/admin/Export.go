@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 )
@@ -238,6 +239,9 @@ type ExportArchiveRequest struct {
 	ExportID shared.ID
 	TenantID shared.ID
 	TargetID shared.ID
+	// Passphrase encrypts the archive to it - the owner's download alone, never a job's payload,
+	// which is stored (backup-restore.md §4). Empty for the unencrypted format.
+	Passphrase secret.Secret
 }
 
 // ExportRequestOf reads the job payload back.
@@ -271,13 +275,15 @@ func ExportArchiveName(tenantID shared.ID, at time.Time) string {
 }
 
 // TenantExportArchivist writes the archive the job owes: the Hubtask archive of tenant-export.md,
-// FULL, unencrypted, media and audit included, credentials redacted - through the same writer and
+// FULL, unencrypted unless the owner's download names a passphrase, media and audit included, credentials redacted - through the same writer and
 // the same row-level-security path a backup uses (T-20).
 type TenantExportArchivist struct {
-	Targets  TargetStore
-	Rows     backuprepo.Export
-	Objects  storage.ObjectStore
-	Cipher   crypto.StreamCipher
+	Targets TargetStore
+	Rows    backuprepo.Export
+	Objects storage.ObjectStore
+	Cipher  crypto.StreamCipher
+	// Deriver derives the key of an archive encrypted to a passphrase.
+	Deriver  crypto.KeyDeriver
 	Snapshot persistence.Snapshot
 	Clock    clock.Clock
 	// SchemaVersion and ProductVersion go into the manifest: what an archive has to record is
@@ -306,19 +312,32 @@ func (a TenantExportArchivist) WriteInto(
 	scope := persistence.Scope{TenantID: in.TenantID}
 	var manifest archive.Manifest
 
+	// Unencrypted unless the owner gave a passphrase, the DSR export's reasoning taken one step
+	// further: the archive is the workspace's way out of this installation, and a copy the
+	// receiver cannot open without this installation's keys is lock-in with extra steps. A
+	// passphrase is the owner's own key, which opens it anywhere.
+	encryption, key := archive.Encryption{Mode: archive.EncryptionNone}, secret.Bytes{}
+	if !in.Passphrase.IsEmpty() {
+		if a.Deriver == nil {
+			return archive.Manifest{}, shared.Internalf("admin: a passphrase download without a key deriver")
+		}
+		var err error
+		if encryption, key, err = backupservice.PassphraseEncryption(a.Deriver, in.Passphrase); err != nil {
+			return archive.Manifest{}, err
+		}
+	}
+
 	err := a.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
 		source := backupservice.Redacted(backupservice.ExportSource{Export: a.Rows, SnapshotAt: at})
 		media := backupservice.ExportMedia{Export: a.Rows, Objects: a.Objects}
 
 		written, err := archive.NewWriter(store, a.Cipher, media).Write(snapshotCtx, archive.Request{
 			ArchiveID: in.ExportID, Prefix: prefix,
-			Scope:      archive.Scope{Kind: archive.ScopeTenant, ID: in.TenantID.String()},
-			Mode:       archive.ModeFull,
-			SnapshotAt: at,
-			// Unencrypted, the DSR export's reasoning taken one step further: the archive is
-			// the workspace's way out of this installation, and a copy the receiver cannot open
-			// without this installation's keys is lock-in with extra steps.
-			Encryption:     archive.Encryption{Mode: archive.EncryptionNone},
+			Scope:          archive.Scope{Kind: archive.ScopeTenant, ID: in.TenantID.String()},
+			Mode:           archive.ModeFull,
+			SnapshotAt:     at,
+			Encryption:     encryption,
+			Key:            key,
 			SchemaVersion:  a.SchemaVersion,
 			ProductVersion: a.ProductVersion,
 			IncludeMedia:   true,

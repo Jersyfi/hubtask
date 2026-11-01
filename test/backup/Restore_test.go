@@ -65,6 +65,14 @@ type memoryRestores struct {
 	stored map[shared.ID]domain.Restore
 }
 
+func (r *memoryRestores) HoldPassphrase(context.Context, shared.ID, crypto.Sealed) error {
+	return nil
+}
+
+func (r *memoryRestores) Passphrase(context.Context, shared.ID) (crypto.Sealed, error) {
+	return crypto.Sealed{}, nil
+}
+
 func newMemoryRestores() *memoryRestores {
 	return &memoryRestores{stored: map[shared.ID]domain.Restore{}}
 }

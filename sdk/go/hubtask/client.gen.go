@@ -21554,12 +21554,14 @@ type RestoreRequest struct {
 	ArchiveId string `json:"archive_id"`
 
 	// Confirmation For destructive modes, the exact tenant name.
-	Confirmation         *string                     `json:"confirmation,omitempty"`
-	ConflictRule         *RestoreRequestConflictRule `json:"conflict_rule,omitempty"`
-	CreateSafetyBackup   *bool                       `json:"create_safety_backup,omitempty"`
-	DecryptionPassphrase *string                     `json:"decryption_passphrase,omitempty"`
-	DryRun               *bool                       `json:"dry_run,omitempty"`
-	Mode                 RestoreRequestMode          `json:"mode"`
+	Confirmation       *string                     `json:"confirmation,omitempty"`
+	ConflictRule       *RestoreRequestConflictRule `json:"conflict_rule,omitempty"`
+	CreateSafetyBackup *bool                       `json:"create_safety_backup,omitempty"`
+
+	// DecryptionPassphrase The passphrase an archive downloaded with one is encrypted to. Held sealed only while the restore runs, never stored after it; an archive encrypted to a passphrase is refused without it (`backup.archive_passphrase_required`) and with a wrong one (`backup.archive_passphrase_wrong`), and given for an archive not encrypted to one it is refused too (`backup.archive_passphrase_unused`) rather than ignored.
+	DecryptionPassphrase *string            `json:"decryption_passphrase,omitempty"`
+	DryRun               *bool              `json:"dry_run,omitempty"`
+	Mode                 RestoreRequestMode `json:"mode"`
 
 	// Selection The selection for SELECTIVE - container and/or item IDs.
 	Selection *struct {
@@ -24982,6 +24984,12 @@ type WorkspaceAgentPolicy struct {
 		// Value Whether MCP takes registered agents only.
 		Value bool `json:"value"`
 	} `json:"agents.registered_only"`
+}
+
+// WorkspaceArchiveDownload defines model for WorkspaceArchiveDownload.
+type WorkspaceArchiveDownload struct {
+	// Passphrase Encrypts the archive to this passphrase; stored nowhere. Without it the archive is unencrypted.
+	Passphrase *string `json:"passphrase,omitempty"`
 }
 
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
@@ -28419,6 +28427,9 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
+
+// DownloadWorkspaceArchiveJSONRequestBody defines body for DownloadWorkspaceArchive for application/json ContentType.
+type DownloadWorkspaceArchiveJSONRequestBody = WorkspaceArchiveDownload
 
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
@@ -32884,6 +32895,36 @@ type ClientInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackup(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DownloadWorkspaceArchiveWithBody Download the whole workspace as one archive
+	//
+	// The workspace's way out that needs no backup target: the complete archive of the
+	// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+	// trail, every credential left out - streamed into this answer as one ZIP file and stored
+	// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+	// new workspace, as an export to a target does.
+	//
+	// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+	// 24 hours per workspace: a second request inside the window is refused with
+	// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+	// that fails on the way gives its window back. It counts against the workspace's export
+	// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+	// `download` as its target in the workspace's trail - never its content.
+	//
+	// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+	// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+	// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+	// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+	// characters is refused with `backup.download_passphrase_too_short` before the proof is
+	// spent.
+	//
+	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+	// and the ZIP file without its end is one no unpacker accepts.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+	DownloadWorkspaceArchiveWithBody(ctx context.Context, params *DownloadWorkspaceArchiveParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DownloadWorkspaceArchive Download the whole workspace as one archive
 	//
 	// The workspace's way out that needs no backup target: the complete archive of the
@@ -32899,11 +32940,20 @@ type ClientInterface interface {
 	// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
 	// `download` as its target in the workspace's trail - never its content.
 	//
+	// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+	// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+	// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+	// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+	// characters is refused with `backup.download_passphrase_too_short` before the proof is
+	// spent.
+	//
 	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
 	// and the ZIP file without its end is one no unpacker accepts.
 	//
+	// Takes a body of the `application/json` content type.
+	//
 	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
-	DownloadWorkspaceArchive(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DownloadWorkspaceArchive(ctx context.Context, params *DownloadWorkspaceArchiveParams, body DownloadWorkspaceArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteBaseline Delete a baseline
 	//
@@ -46667,6 +46717,46 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
+// DownloadWorkspaceArchiveWithBody Download the whole workspace as one archive
+//
+// The workspace's way out that needs no backup target: the complete archive of the
+// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+// trail, every credential left out - streamed into this answer as one ZIP file and stored
+// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+// new workspace, as an export to a target does.
+//
+// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+// 24 hours per workspace: a second request inside the window is refused with
+// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+// that fails on the way gives its window back. It counts against the workspace's export
+// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+// `download` as its target in the workspace's trail - never its content.
+//
+// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+// characters is refused with `backup.download_passphrase_too_short` before the proof is
+// spent.
+//
+// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+// and the ZIP file without its end is one no unpacker accepts.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+func (c *Client) DownloadWorkspaceArchiveWithBody(ctx context.Context, params *DownloadWorkspaceArchiveParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDownloadWorkspaceArchiveRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // DownloadWorkspaceArchive Download the whole workspace as one archive
 //
 // The workspace's way out that needs no backup target: the complete archive of the
@@ -46682,12 +46772,21 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 // quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
 // `download` as its target in the workspace's trail - never its content.
 //
+// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+// characters is refused with `backup.download_passphrase_too_short` before the proof is
+// spent.
+//
 // A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
 // and the ZIP file without its end is one no unpacker accepts.
 //
+// Takes a body of the `application/json` content type.
+//
 // Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
-func (c *Client) DownloadWorkspaceArchive(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDownloadWorkspaceArchiveRequest(c.Server, params)
+func (c *Client) DownloadWorkspaceArchive(ctx context.Context, params *DownloadWorkspaceArchiveParams, body DownloadWorkspaceArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDownloadWorkspaceArchiveRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -72130,8 +72229,19 @@ func NewVerifyBackupRequest(server string, backupId openapi_types.UUID) (*http.R
 	return req, nil
 }
 
-// NewDownloadWorkspaceArchiveRequest constructs an http.Request for the DownloadWorkspaceArchive method
-func NewDownloadWorkspaceArchiveRequest(server string, params *DownloadWorkspaceArchiveParams) (*http.Request, error) {
+// NewDownloadWorkspaceArchiveRequest calls the generic DownloadWorkspaceArchive builder with application/json body
+func NewDownloadWorkspaceArchiveRequest(server string, params *DownloadWorkspaceArchiveParams, body DownloadWorkspaceArchiveJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDownloadWorkspaceArchiveRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewDownloadWorkspaceArchiveRequestWithBody constructs an http.Request for the DownloadWorkspaceArchive method, with any body, and a specified content type
+func NewDownloadWorkspaceArchiveRequestWithBody(server string, params *DownloadWorkspaceArchiveParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -72149,10 +72259,12 @@ func NewDownloadWorkspaceArchiveRequest(server string, params *DownloadWorkspace
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -104552,6 +104664,36 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /backups/{backupId}:verify (the `VerifyBackup` operationId).
 	VerifyBackupWithResponse(ctx context.Context, backupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*VerifyBackupResult, error)
 
+	// DownloadWorkspaceArchiveWithBodyWithResponse Download the whole workspace as one archive
+	//
+	// The workspace's way out that needs no backup target: the complete archive of the
+	// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+	// trail, every credential left out - streamed into this answer as one ZIP file and stored
+	// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+	// new workspace, as an export to a target does.
+	//
+	// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+	// 24 hours per workspace: a second request inside the window is refused with
+	// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+	// that fails on the way gives its window back. It counts against the workspace's export
+	// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+	// `download` as its target in the workspace's trail - never its content.
+	//
+	// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+	// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+	// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+	// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+	// characters is refused with `backup.download_passphrase_too_short` before the proof is
+	// spent.
+	//
+	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+	// and the ZIP file without its end is one no unpacker accepts.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+	DownloadWorkspaceArchiveWithBodyWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error)
+
 	// DownloadWorkspaceArchiveWithResponse Download the whole workspace as one archive
 	//
 	// The workspace's way out that needs no backup target: the complete archive of the
@@ -104567,13 +104709,20 @@ type ClientWithResponsesInterface interface {
 	// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
 	// `download` as its target in the workspace's trail - never its content.
 	//
+	// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+	// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+	// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+	// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+	// characters is refused with `backup.download_passphrase_too_short` before the proof is
+	// spent.
+	//
 	// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
 	// and the ZIP file without its end is one no unpacker accepts.
 	//
-	// Returns a wrapper object for the known response body format(s).
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
-	DownloadWorkspaceArchiveWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error)
+	DownloadWorkspaceArchiveWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, body DownloadWorkspaceArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error)
 
 	// DeleteBaselineWithResponse Delete a baseline
 	//
@@ -157303,6 +157452,42 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 	return ParseVerifyBackupResult(rsp)
 }
 
+// DownloadWorkspaceArchiveWithBodyWithResponse Download the whole workspace as one archive
+//
+// The workspace's way out that needs no backup target: the complete archive of the
+// documented tenant export format - manifest, JSON Lines per kind of record, media and the
+// trail, every credential left out - streamed into this answer as one ZIP file and stored
+// nowhere on the way. Unpacked onto a target of another installation, it restores there as a
+// new workspace, as an export to a target does.
+//
+// Only the workspace's owner, with a fresh proof (`auth.step_up_required` otherwise). Once in
+// 24 hours per workspace: a second request inside the window is refused with
+// `429 backup.download_window` and a `Retry-After` header naming the seconds left; a download
+// that fails on the way gives its window back. It counts against the workspace's export
+// quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
+// `download` as its target in the workspace's trail - never its content.
+//
+// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+// characters is refused with `backup.download_passphrase_too_short` before the proof is
+// spent.
+//
+// A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
+// and the ZIP file without its end is one no unpacker accepts.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
+func (c *ClientWithResponses) DownloadWorkspaceArchiveWithBodyWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error) {
+	rsp, err := c.DownloadWorkspaceArchiveWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDownloadWorkspaceArchiveResult(rsp)
+}
+
 // DownloadWorkspaceArchiveWithResponse Download the whole workspace as one archive
 //
 // The workspace's way out that needs no backup target: the complete archive of the
@@ -157318,14 +157503,21 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 // quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
 // `download` as its target in the workspace's trail - never its content.
 //
+// With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+// key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+// is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+// Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+// characters is refused with `backup.download_passphrase_too_short` before the proof is
+// spent.
+//
 // A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
 // and the ZIP file without its end is one no unpacker accepts.
 //
-// Returns a wrapper object for the known response body format(s).
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
-func (c *ClientWithResponses) DownloadWorkspaceArchiveWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error) {
-	rsp, err := c.DownloadWorkspaceArchive(ctx, params, reqEditors...)
+func (c *ClientWithResponses) DownloadWorkspaceArchiveWithResponse(ctx context.Context, params *DownloadWorkspaceArchiveParams, body DownloadWorkspaceArchiveJSONRequestBody, reqEditors ...RequestEditorFn) (*DownloadWorkspaceArchiveResult, error) {
+	rsp, err := c.DownloadWorkspaceArchive(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

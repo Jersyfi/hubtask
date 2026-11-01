@@ -3676,6 +3676,7 @@ func run() error {
 			Archive: adminservice.TenantExportArchivist{
 				Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
 				Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
+				Deriver:  crypto.NewPassphrase(clockadapter.CryptoRandom{}),
 				Snapshot: unitOfWork, Clock: clockadapter.System{},
 				SchemaVersion: schemaVersion(), ProductVersion: version,
 			},
@@ -4570,7 +4571,9 @@ func run() error {
 		Journal: postgres.NewDeletionJournalRepository(postgres.DefaultJournalBatch),
 		Opener:  backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
-		Safety: backupPerformer, UnitOfWork: unitOfWork,
+		// An archive downloaded with a passphrase opens with the key it derives (§4).
+		Deriver: crypto.NewPassphrase(clockadapter.CryptoRandom{}),
+		Safety:  backupPerformer, UnitOfWork: unitOfWork,
 		// The legal holds a replace reads in the transaction that empties the workspace (§8.2).
 		Holds: postgres.NewLifecycleRepository(),
 		// The synchronisation epoch a restore advances (backup-restore.md §8.3), so that every

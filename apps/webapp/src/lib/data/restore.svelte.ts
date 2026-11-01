@@ -61,6 +61,7 @@ class Restores {
           ? {}
           : { create_safety_backup: asked.create_safety_backup }),
         ...(asked.confirmation ? { confirmation: asked.confirmation } : {}),
+        ...(asked.decryption_passphrase ? { decryption_passphrase: asked.decryption_passphrase } : {}),
         // The one operation in this contract whose proof travels in the body (§8.3 step 3).
         ...(stepUpToken ? { step_up_token: stepUpToken } : {}),
       },

@@ -6,19 +6,25 @@ package main
 import (
 	"archive/zip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 const workspaceArchivePath = "/backups:download-workspace"
+
+// envArchivePassphrase is the passphrase a download is encrypted to and a restore opens it with.
+const envArchivePassphrase = "HUBTASK_ARCHIVE_PASSPHRASE" //nolint:gosec // G101: a variable's name
 
 // backupDownload writes the owner's archive of the workspace (UC-BAK-07) to a file. The bytes go
 // to `<file>.part` and are renamed only once the ZIP's directory reads, so a transfer cut short
 // leaves nothing at --out that looks like an archive.
 func backupDownload(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "backup", "download", "--out <file> [--wait <d>]")
+	flags := commandFlags(cli, "backup", "download", "--out <file> [--wait <d>]  (encrypted to $HUBTASK_ARCHIVE_PASSPHRASE when set)")
 	out := flags.String("out", "", "write the archive here (required: it is binary)")
 	wait := waitFlag(flags)
 	if err := parseCommand(flags, args); err != nil {
@@ -37,10 +43,18 @@ func backupDownload(ctx context.Context, cli *CLI, args []string) error {
 	bounded, cancel := context.WithTimeout(ctx, *wait)
 	defer cancel()
 
+	// The passphrase from the environment, never a flag: a flag stays in the shell's history.
+	var body []byte
+	if passphrase := cli.Env(envArchivePassphrase); passphrase != "" {
+		if body, err = json.Marshal(openapi.WorkspaceArchiveDownload{Passphrase: &passphrase}); err != nil {
+			return err
+		}
+	}
+
 	partial := *out + ".part"
 	var size int64
 	err = cli.proveAgain(bounded, client, func(stepUp string) error {
-		response, err := client.OpenDownload(bounded, workspaceArchivePath, stepUpProof(stepUp))
+		response, err := client.OpenDownload(bounded, workspaceArchivePath, stepUpProof(stepUp), body)
 		if err != nil {
 			return err
 		}

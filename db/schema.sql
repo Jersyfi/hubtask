@@ -3455,7 +3455,11 @@ CREATE TABLE restore_run (
   approved_by    uuid,
   started_at     timestamptz,
   finished_at    timestamptz,
-  error_code     text
+  error_code     text,
+  -- The sealed passphrase of a passphrase-encrypted archive's restore, held while the run goes and
+  -- emptied when it ends (migration 0320).
+  passphrase_enc bytea,
+  passphrase_key_id text
 );
 CREATE INDEX restore_run_tenant_idx ON restore_run (tenant_id, started_at DESC);
 

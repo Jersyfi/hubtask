@@ -26,6 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 const (
@@ -362,6 +363,20 @@ func archiveOutput(found Archive) usecase.Output {
 func (h StartRestore) Execute(
 	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest,
 ) (Accepted, error) {
+	return h.execute(ctx, actor, request, secret.Secret{})
+}
+
+// ExecuteWithPassphrase is Execute for an archive encrypted to a passphrase: the passphrase is held
+// sealed, bound to the run, until the run ends (backup-restore.md §4).
+func (h StartRestore) ExecuteWithPassphrase(
+	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest, passphrase secret.Secret,
+) (Accepted, error) {
+	return h.execute(ctx, actor, request, passphrase)
+}
+
+func (h StartRestore) execute(
+	ctx context.Context, actor appshared.ActorContext, request domain.RestoreRequest, passphrase secret.Secret,
+) (Accepted, error) {
 	if err := request.Validate(); err != nil {
 		return Accepted{}, err
 	}
@@ -424,6 +439,9 @@ func (h StartRestore) Execute(
 			Status:             domain.RestorePending, RequestedBy: actor.AccountID,
 		})
 		if err != nil {
+			return err
+		}
+		if err := HoldPassphrase(ctx, h.Restorer.Encryptor, h.Restorer.Restores, restoreID, passphrase); err != nil {
 			return err
 		}
 
@@ -639,8 +657,9 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "decryption_passphrase", Kind: usecase.KindString,
-				Description: "Not served by this build: a passphrase is refused rather than " +
-					"ignored. The archive's key is the installation's.",
+				Description: "The passphrase an archive downloaded with one is encrypted to. " +
+					"Held sealed while the restore runs and emptied when it ends; refused for an " +
+					"archive not encrypted to one.",
 			},
 		},
 		StepUp: "the destructive modes (REPLACE_TENANT, INSTANCE)",
@@ -655,13 +674,7 @@ func (h StartRestore) Descriptor() usecase.Descriptor {
 func (h StartRestore) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	if in.String("decryption_passphrase") != "" {
-		return nil, shared.ErrValidation.
-			WithDetail("backup.encryption_passphrase_not_available").
-			WithFields(shared.FieldError{
-				Path: "/decryption_passphrase", Code: "backup.encryption_passphrase_not_available",
-			})
-	}
+	passphrase := secret.New(in.String("decryption_passphrase"))
 	targetID, err := in.ID("target_id")
 	if err != nil {
 		return nil, err
@@ -691,7 +704,7 @@ func (h StartRestore) invoke(
 		return nil, err
 	}
 
-	accepted, err := h.Execute(ctx, actor, request)
+	accepted, err := h.execute(ctx, actor, request, passphrase)
 	if err != nil {
 		return nil, err
 	}

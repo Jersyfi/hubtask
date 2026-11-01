@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 type rolesFake struct{ role identity.Role }
@@ -154,5 +155,28 @@ func TestAFailedDownloadGivesItsWindowBack(t *testing.T) {
 	}
 	if _, err := f.handler.Start(t.Context(), workspaceOwner(), DownloadWorkspaceArchiveCommand{StepUpToken: "proof"}); err != nil {
 		t.Errorf("the retry was refused: %v", err)
+	}
+}
+
+// UC-BAK-07 check 7: a passphrase the owner gives reaches the archive writer, and one too short is
+// refused before the proof is spent or the window taken.
+func TestTheDownloadsPassphraseIsCheckedBeforeTheProof(t *testing.T) {
+	f := newDownloadFixture(identity.RoleOwner)
+	_, err := f.handler.Start(t.Context(), workspaceOwner(), DownloadWorkspaceArchiveCommand{
+		StepUpToken: "proof", Passphrase: secret.New("short words"),
+	})
+	if detailOf(err) != "backup.download_passphrase_too_short" || f.stepUp.consumed != 0 || !f.downloads.last.IsZero() {
+		t.Fatalf("a short passphrase answered %v (proofs spent %d)", err, f.stepUp.consumed)
+	}
+
+	download, err := f.handler.Start(t.Context(), workspaceOwner(), DownloadWorkspaceArchiveCommand{
+		StepUpToken: "proof", Passphrase: secret.New("correct horse battery staple"),
+	})
+	if err != nil {
+		t.Fatalf("the owner was refused: %v", err)
+	}
+	if err := download.WriteTo(t.Context(), nil); err != nil || len(f.archive.written) != 1 ||
+		f.archive.written[0].Passphrase.Reveal() != "correct horse battery staple" {
+		t.Fatalf("the writer was not handed the passphrase: %v", err)
 	}
 }

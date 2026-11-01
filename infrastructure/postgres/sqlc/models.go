@@ -2806,6 +2806,8 @@ type RestoreRun struct {
 	TargetTenantID     pgtype.UUID
 	CreateSafetyBackup bool
 	Progress           []byte
+	PassphraseEnc      []byte
+	PassphraseKeyID    *string
 }
 
 type RetentionCursor struct {

@@ -147,6 +147,14 @@ type Restores interface {
 	// InProgress reports whether this tenant already has a restore going, so that a second one is
 	// refused where the caller can read the refusal rather than minutes later inside a job.
 	InProgress(ctx context.Context) (bool, error)
+
+	// HoldPassphrase keeps the sealed passphrase a restore was asked with until the run ends;
+	// Finish empties it (backup-restore.md §4).
+	HoldPassphrase(ctx context.Context, id shared.ID, sealed crypto.Sealed) error
+
+	// Passphrase answers the sealed passphrase of a run that is still going, zero where none was
+	// given. Read by the job alone.
+	Passphrase(ctx context.Context, id shared.ID) (crypto.Sealed, error)
 }
 
 // Workspace is the one thing a destructive restore has to ask about the tenant it is about to

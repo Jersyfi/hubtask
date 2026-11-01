@@ -233,10 +233,13 @@
    * in 24 hours, behind a fresh proof - `stepUp.around` turns the refusal into the prompt.
    */
   let isDownloading = $state(false);
+  /** Encrypts the file to it when given; stored nowhere, so it is the one key to the file. */
+  let downloadPassphrase = $state('');
   async function downloadWorkspace(): Promise<void> {
     isDownloading = true;
     await attempt(async () => {
-      const file = await stepUp.around((token) => backup.downloadWorkspace(token));
+      const file = await stepUp.around((token) => backup.downloadWorkspace(token, downloadPassphrase));
+      downloadPassphrase = '';
       platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
     }, t('app.backup.download_done'));
     isDownloading = false;
@@ -325,6 +328,15 @@
         <Stack gap="100">
           <h2 class="section">{t('app.backup.download_title')}</h2>
           <p class="quiet">{t('app.backup.download_intro')}</p>
+          <Input
+            label={t('app.backup.download_passphrase')}
+            hint={t('app.backup.download_passphrase_hint')}
+            type="password"
+            autocomplete="new-password"
+            revealLabel={t('app.backup.download_passphrase_show')}
+            hideLabel={t('app.backup.download_passphrase_hide')}
+            bind:value={downloadPassphrase}
+          />
           <div>
             <Button tone="secondary" isBusy={isDownloading} busyLabel={t('app.backup.downloading')} onclick={() => void downloadWorkspace()}>
               {t('app.backup.download')}

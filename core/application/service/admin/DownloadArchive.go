@@ -7,6 +7,7 @@ import (
 	"context"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -18,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // ArchiveDownloadWindow is how often the owner may download the whole workspace: the archive reads
@@ -62,10 +64,19 @@ type DownloadWorkspaceArchive struct {
 	IDs        clock.IDGenerator
 }
 
-// DownloadWorkspaceArchiveCommand carries the proof the download is asked with.
+// DownloadWorkspaceArchiveCommand carries the proof the download is asked with, and the
+// passphrase the archive is encrypted to - empty for the export's unencrypted format.
 type DownloadWorkspaceArchiveCommand struct {
 	StepUpToken string
+	Passphrase  secret.Secret
 }
+
+// The bounds of a download's passphrase, in characters. The lower one is what keeps an archive
+// that leaves the installation from opening to a guess; Argon2id's cost does the rest.
+const (
+	ArchivePassphraseMinLength = 12
+	ArchivePassphraseMaxLength = 1024
+)
 
 // WorkspaceDownload is a download every check has passed: Name is the archive's, and WriteTo
 // streams it. Nothing is read before WriteTo, so a refusal never follows a first byte.
@@ -102,6 +113,23 @@ func (h DownloadWorkspaceArchive) Start(
 	}
 	if !found || role != identity.RoleOwner {
 		return WorkspaceDownload{}, shared.ErrForbidden.WithDetail("backup.download_owner_only")
+	}
+	// Before the proof, so that a passphrase too short does not spend it.
+	if !cmd.Passphrase.IsEmpty() {
+		code, length := "", utf8.RuneCountInString(cmd.Passphrase.Reveal())
+		switch {
+		case length < ArchivePassphraseMinLength:
+			code = "backup.download_passphrase_too_short"
+		case length > ArchivePassphraseMaxLength:
+			code = "backup.download_passphrase_too_long"
+		}
+		if code != "" {
+			return WorkspaceDownload{}, shared.ErrValidation.WithDetail(code).
+				WithParams(map[string]string{
+					"min": strconv.Itoa(ArchivePassphraseMinLength), "max": strconv.Itoa(ArchivePassphraseMaxLength),
+				}).
+				WithFields(shared.FieldError{Path: "/passphrase", Code: code})
+		}
 	}
 	if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
 		return WorkspaceDownload{}, err
@@ -140,7 +168,7 @@ func (h DownloadWorkspaceArchive) Start(
 		return WorkspaceDownload{}, err
 	}
 
-	request := ExportArchiveRequest{ExportID: exportID, TenantID: actor.TenantID}
+	request := ExportArchiveRequest{ExportID: exportID, TenantID: actor.TenantID, Passphrase: cmd.Passphrase}
 	return WorkspaceDownload{
 		Name: ExportArchiveName(actor.TenantID, now) + ".zip",
 		write: func(ctx context.Context, store backupstorage.Store) error {

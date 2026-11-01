@@ -292,8 +292,9 @@ class Backup {
    * The whole workspace as one ZIP file, for its owner (UC-BAK-07 check 7): once in 24 hours, with
    * a fresh proof. Six hours, because a large workspace is a long transfer, and a bound is owed.
    */
-  downloadWorkspace(stepUpToken?: string): Promise<TransportDocument> {
-    return engine.document('/backups:download-workspace', {}, {
+  downloadWorkspace(stepUpToken?: string, passphrase = ''): Promise<TransportDocument> {
+    // Encrypted to the passphrase when one is given; the export's unencrypted format otherwise.
+    return engine.document('/backups:download-workspace', passphrase === '' ? {} : { passphrase }, {
       timeoutMs: 6 * 60 * 60 * 1000, accept: 'application/zip', stepUpToken,
     });
   }

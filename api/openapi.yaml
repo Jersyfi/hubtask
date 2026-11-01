@@ -9046,10 +9046,23 @@ paths:
         quota while it runs (`quota.exceeded` otherwise), and it writes `tenant.exported` with
         `download` as its target in the workspace's trail - never its content.
 
+        With a `passphrase`, every member but the manifest is encrypted with AES-256-GCM under a
+        key derived from it with Argon2id, whose salt and cost the manifest names; the passphrase
+        is stored nowhere, and a restore of the archive asks for it as `decryption_passphrase`.
+        Without one, the archive is the export's unencrypted format. A passphrase shorter than 12
+        characters is refused with `backup.download_passphrase_too_short` before the proof is
+        spent.
+
         A refusal is a problem document; once the first byte is sent, a failure ends the transfer,
         and the ZIP file without its end is one no unpacker accepts.
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceArchiveDownload"
       responses:
         "200":
           description: The archive, as a ZIP file
@@ -25527,6 +25540,18 @@ components:
         time_zone: { type: string }
         week_start: { type: string, enum: [MONDAY, SATURDAY, SUNDAY] }
 
+    WorkspaceArchiveDownload:
+      type: object
+      additionalProperties: false
+      properties:
+        passphrase:
+          type: string
+          writeOnly: true
+          minLength: 12
+          maxLength: 1024
+          description: >
+            Encrypts the archive to this passphrase; stored nowhere. Without it the archive is
+            unencrypted.
     WorkspaceUpdate:
       type: object
       description: >
@@ -37183,7 +37208,15 @@ components:
           properties:
             container_ids: { type: array, items: { type: string, format: uuid } }
             item_ids: { type: array, items: { type: string, format: uuid } }
-        decryption_passphrase: { type: [string, "null"] }
+        decryption_passphrase:
+          type: [string, "null"]
+          writeOnly: true
+          description: >
+            The passphrase an archive downloaded with one is encrypted to. Held sealed only while
+            the restore runs, never stored after it; an archive encrypted to a passphrase is
+            refused without it (`backup.archive_passphrase_required`) and with a wrong one
+            (`backup.archive_passphrase_wrong`), and given for an archive not encrypted to one it is
+            refused too (`backup.archive_passphrase_unused`) rather than ignored.
         dry_run: { type: boolean, default: true }
         create_safety_backup: { type: boolean, default: true }
         confirmation:
