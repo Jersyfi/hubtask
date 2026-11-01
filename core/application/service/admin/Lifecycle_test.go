@@ -73,6 +73,7 @@ func TestSuspensionMovesTheEdgeAndLeavesEvidenceTwice(t *testing.T) {
 	}
 }
 
+// UC-INS-08 check 3: resuming is the one status write back; nothing else is touched.
 func TestResumingIsOneWriteBack(t *testing.T) {
 	f := newShiftFixture(domain.TenantSuspended)
 
