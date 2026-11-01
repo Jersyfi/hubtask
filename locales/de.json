@@ -4455,6 +4455,8 @@
   "app.identity_provider.inherited_intro": "Alle auf dieser Installation können sich darüber anmelden. Ändern kann sie nur, wer die Installation betreibt.",
   "app.identity_provider.badge_inherited": "Von der Installation",
   "app.identity_provider.badge_off": "Ausgeschaltet",
+  "app.identity_provider.certificate_ending": "Zertifikat endet am {date}",
+  "app.identity_provider.certificate_ended": "Zertifikat seit {date} abgelaufen - niemand kann sich anmelden",
   "app.identity_provider.badge_on_here": "Hier an",
   "app.identity_provider.badge_off_here": "Hier aus",
   "app.identity_provider.switched_in_sign_in": "Ein Anbieter wird für diesen Arbeitsbereich unter Anmeldung eingeschaltet oder ausgeschaltet, in der Liste der Wege der Anmeldung. Ein neuer wird ausgeschaltet gespeichert.",

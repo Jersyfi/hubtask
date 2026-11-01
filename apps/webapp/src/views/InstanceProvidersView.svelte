@@ -47,6 +47,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { certificateState } from '../lib/signin/certificate.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -253,6 +254,11 @@
                     <Badge tone="warning">{t('app.instance.provider_withdrawing', { date: when(provider.withdraw_at) })}</Badge>
                   {:else}
                     <Badge tone="neutral">{t('app.instance.provider_withdrawn')}</Badge>
+                  {/if}
+                  {#if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ended'}
+                    <Badge tone="danger">{t('app.identity_provider.certificate_ended', { date: when(provider.saml_certificate_expires_at) })}</Badge>
+                  {:else if certificateState(provider.saml_certificate_expires_at, Date.now()) === 'ending'}
+                    <Badge tone="warning">{t('app.identity_provider.certificate_ending', { date: when(provider.saml_certificate_expires_at) })}</Badge>
                   {/if}
                   <span class="slug">{t('app.instance.provider_in_use', { count: String(usedBy(provider)) })}</span>
                   {#if lockSays(provider)}<span class="slug" data-lock>{lockSays(provider)}</span>{/if}

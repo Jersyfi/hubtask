@@ -38,6 +38,8 @@
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import ProviderFields from '../lib/signin/ProviderFields.svelte';
   import { draftBody, draftOf, draftRefusal, emptyDraft } from '../lib/signin/issuer.ts';
+  import { certificateState } from '../lib/signin/certificate.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -139,6 +141,11 @@
     failure = undefined;
     saved = false;
   }
+
+  /** Where a SAML provider's certificates stand, and the moment they end in the reader's words. */
+  const certificate = (provider: IdentityProvider) => certificateState(provider.saml_certificate_expires_at, Date.now());
+  const certificateEnd = (provider: IdentityProvider): string =>
+    provider.saml_certificate_expires_at ? formatDateTime(provider.saml_certificate_expires_at, messages.locale) : '';
 
   function close(): void {
     editing = undefined;
@@ -298,6 +305,13 @@
                   <Badge tone="neutral">{t('app.plan.resting')}</Badge>
                 {:else if !provider.enabled}
                   <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
+                {/if}
+                <!-- Before the e-mail is the only sign: an ended certificate refuses every answer,
+                     so nobody signs in through the provider until a new one is stored. -->
+                {#if certificate(provider) === 'ended'}
+                  <Badge tone="danger">{t('app.identity_provider.certificate_ended', { date: certificateEnd(provider) })}</Badge>
+                {:else if certificate(provider) === 'ending'}
+                  <Badge tone="warning">{t('app.identity_provider.certificate_ending', { date: certificateEnd(provider) })}</Badge>
                 {/if}
                 {#if mayManage}
                 <div class="row">

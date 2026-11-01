@@ -5072,6 +5072,8 @@
   "app.identity_provider.inherited_intro": "Everybody on this installation can sign in through these. Only its operator can change them.",
   "app.identity_provider.badge_inherited": "From the installation",
   "app.identity_provider.badge_off": "Switched off",
+  "app.identity_provider.certificate_ending": "Certificate ends {date}",
+  "app.identity_provider.certificate_ended": "Certificate ended {date} - nobody can sign in",
   "app.identity_provider.badge_on_here": "On here",
   "app.identity_provider.badge_off_here": "Off here",
   "app.identity_provider.switched_in_sign_in": "A provider is switched on or off for this workspace under Sign-in, in the list of ways to sign in. A new one is saved off.",
