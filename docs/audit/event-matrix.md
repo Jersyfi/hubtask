@@ -761,6 +761,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | ListHubTemplatePages | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | ListSampleEntries | `` |  | When refused |
+| `` | LocateConnectorReturn | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
 | `` | ReadConfigSchema | `` |  | When refused |
 | `` | ReadSettingsCatalogue | `` |  | When refused |
