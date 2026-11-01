@@ -943,7 +943,7 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 		rows := make([]walkRow, 0, len(definitions))
 		for _, d := range definitions {
 			rows = append(rows, walkRow{
-				entity: entityCustomField, entityID: d.ID, containerID: d.CollectionID,
+				entity: entityCustomField, entityID: d.ID, containerID: d.ScopeID(),
 				payload: workservice.CustomFieldRecord(d), key: d.ID.String(),
 			})
 		}

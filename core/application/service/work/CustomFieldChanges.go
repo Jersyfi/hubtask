@@ -37,7 +37,7 @@ func (c FieldChanges) record(ctx context.Context, actor appshared.ActorContext, 
 	}
 	change := changelog.Change{
 		TenantID: actor.TenantID, Entity: CustomFieldEntity, EntityID: definition.ID, Op: changelog.Upsert,
-		ContainerID: definition.CollectionID, ActorID: actor.AccountID, HLC: c.HLC.Next(),
+		ContainerID: definition.ScopeID(), ActorID: actor.AccountID, HLC: c.HLC.Next(),
 		Payload: CustomFieldRecord(definition),
 	}
 	if definition.DeletedAt != nil {

@@ -540,6 +540,7 @@ func Descriptors() []usecase.Descriptor {
 		work.AttachMedia{}.Descriptor(),
 		work.DefineCustomField{}.Descriptor(),
 		work.ListCustomFields{}.Descriptor(),
+		work.CopyCustomFieldHere{}.Descriptor(),
 		work.UpdateCustomField{}.Descriptor(),
 		work.DeleteCustomField{}.Descriptor(),
 		work.PreviewCustomFieldReach{}.Descriptor(),

@@ -234,11 +234,12 @@ func (w CustomFieldWriter) reachable(
 
 		path = []identity.Scope{identity.TenantScope()}
 		if !found.IsTenantWide() {
-			collection, err := findCollection(ctx, w.Containers, found.CollectionID)
+			// A collection's or a hub's: the permission is asked where it was defined.
+			container, err := findCollection(ctx, w.Containers, found.ScopeID())
 			if err != nil {
 				return err
 			}
-			path = containerPath(collection)
+			path = containerPath(container)
 		}
 		return nil
 	})
@@ -276,7 +277,7 @@ func (w CustomFieldWriter) recordAudit(
 		audit.Change{Field: "key", Classification: audit.Open, To: definition.Key},
 		audit.Change{
 			Field: "collection_id", Classification: audit.Open,
-			To: scopeLabel(definition.CollectionID),
+			To: scopeLabel(definition.ScopeID()),
 		},
 	)
 

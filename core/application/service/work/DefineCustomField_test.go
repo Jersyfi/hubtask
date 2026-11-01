@@ -112,7 +112,7 @@ func (s *customFieldStore) ListInScope(
 		if definition.IsDeleted() {
 			continue
 		}
-		if definition.IsTenantWide() || definition.CollectionID == collectionID {
+		if definition.IsTenantWide() || definition.ScopeID() == collectionID {
 			listed = append(listed, definition)
 		}
 	}

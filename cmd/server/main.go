@@ -1159,6 +1159,13 @@ func run() error {
 		Entropy: clockadapter.CryptoRandom{},
 	}
 
+	fieldDefiner := work.DefineCustomField{
+		Fields: customFields, Containers: containers, Profiles: profiles,
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(), Jobs: jobs,
+		Changes: work.FieldChanges{Changes: changes, HLC: hybrid},
+	}
+
 	// An edit and a deletion of a definition share one dependency set (work.CustomFieldWriter):
 	// the same read, the same scope resolution, the same permission question, and only the write
 	// at the end differs.
@@ -3430,12 +3437,8 @@ func run() error {
 		}.Descriptor(),
 		work.AttachMedia{Writer: attachmentWriter}.Descriptor(),
 
-		work.DefineCustomField{
-			Fields: customFields, Containers: containers, Profiles: profiles,
-			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: ids, Text: forms, Compiler: celexpression.New(), Jobs: jobs,
-			Changes: work.FieldChanges{Changes: changes, HLC: hybrid},
-		}.Descriptor(),
+		fieldDefiner.Descriptor(),
+		work.CopyCustomFieldHere{Define: fieldDefiner}.Descriptor(),
 		work.ListCustomFields{
 			Fields: customFields, Containers: containers, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,

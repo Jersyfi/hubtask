@@ -488,8 +488,10 @@ func effectiveDefinitions(inScope []domain.CustomFieldDefinition) []domain.Custo
 	effective := make([]domain.CustomFieldDefinition, 0, len(inScope))
 	for _, definition := range inScope {
 		if at, seen := byKey[definition.Key]; seen {
-			// The workspace-wide ones come first; the collection's own replaces it.
-			effective[at] = definition
+			// The nearest wins: a collection's over its hub's over the workspace's.
+			if definition.Nearness() >= effective[at].Nearness() {
+				effective[at] = definition
+			}
 			continue
 		}
 		byKey[definition.Key] = len(effective)
