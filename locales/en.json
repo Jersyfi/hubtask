@@ -6963,6 +6963,7 @@
   "app.audit.target_id": "Which one",
   "app.audit.request_id": "Reference",
   "app.audit.request_id_hint": "The reference a person quotes from an error message: that request's entries.",
+  "app.problem_with_reference": "{message} Reference: {request_id}",
   "app.audit.outcome": "How it ended",
   "app.audit.any_outcome": "Any way",
   "app.audit.outcome_success": "Done",

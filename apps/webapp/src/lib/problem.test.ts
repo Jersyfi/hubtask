@@ -67,14 +67,18 @@ test('a 500 renders its reference, and does not say it twice', () => {
   assert.equal(rendered.isServerFault, true);
 });
 
+test('a refusal or a failure carries its reference in the sentence, so every screen shows it', () => {
+  for (const status of [403, 409, 422, 503]) {
+    const rendered = renderProblem(new TransportError('problem', { status, code: 'forbidden', requestId: 'r-77' }), messages);
+    assert.ok(rendered.message.endsWith('Reference: r-77'), `${status}: ${rendered.message}`);
+    assert.equal(rendered.reference, undefined, `${status}: said twice`);
+  }
+});
+
 test('a reference the sentence does not carry is handed to the frame', () => {
-  const rendered = renderProblem(
-    new TransportError('problem', { status: 503, code: 'dependency_unavailable', requestId: 'r-77' }),
-    messages,
-  );
-  assert.equal(rendered.message, 'A required service is temporarily unavailable.');
+  const rendered = renderProblem(new TransportError('problem', { status: 404, code: 'not_found', requestId: 'r-77' }), messages);
+  assert.ok(!rendered.message.includes('r-77'));
   assert.equal(rendered.reference, 'r-77');
-  assert.equal(rendered.isServerFault, true);
 });
 
 test('a failure that never reached the server still says something true', () => {

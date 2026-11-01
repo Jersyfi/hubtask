@@ -6963,6 +6963,7 @@
   "app.audit.target_id": "Welches",
   "app.audit.request_id": "Referenz",
   "app.audit.request_id_hint": "Die Referenz, die jemand aus einer Fehlermeldung nennt: die Einträge dieser Anfrage.",
+  "app.problem_with_reference": "{message} Referenz: {request_id}",
   "app.audit.outcome": "Wie es ausging",
   "app.audit.any_outcome": "Egal wie",
   "app.audit.outcome_success": "Getan",

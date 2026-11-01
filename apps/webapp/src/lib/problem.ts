@@ -86,6 +86,11 @@ function readable(params: Readonly<Record<string, string>> | undefined, locale: 
   return out;
 }
 
+/** The statuses whose answer is worth quoting: a refusal (audited as denied), a conflict or quota, a server fault. */
+function quotable(status: number | undefined): boolean {
+  return status === 403 || (status ?? 0) >= 409;
+}
+
 export function renderProblem(error: TransportError, messages: Messages): RenderedProblem {
   // The request id travels as a parameter as well as a field, because `errors.internal` renders it
   // inside its own sentence. Where it does, showing it again beneath would say it twice.
@@ -95,7 +100,13 @@ export function renderProblem(error: TransportError, messages: Messages): Render
   };
 
   const code = candidates(error).find((candidate) => messages.has(candidate)) ?? 'errors.internal';
-  const message = messages.t(code, params);
+  let message = messages.t(code, params);
+  // A refusal or a failure the person may take to an administrator carries its reference in the
+  // sentence, so every screen shows it whether or not it renders `reference`: the administrator
+  // finds the request's entries by it (`GET /audit?request_id=`). A 404 or a plain 400 is not one.
+  if (error.requestId && quotable(error.status) && !message.includes(error.requestId)) {
+    message = messages.t('app.problem_with_reference', { message, request_id: error.requestId });
+  }
 
   const fields = new Map<string, string>();
   for (const field of error.fieldErrors) {
