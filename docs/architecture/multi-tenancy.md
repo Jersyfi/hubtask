@@ -285,7 +285,8 @@ through `PATCH /admin/tenants/{id}/quotas` and the last word. The workspace read
 `GET /quotas` with the level that set it (`source`) and the one that locked it (`lock`). Enforced
 in the application layer and middleware; the per-token rate is resolved the same way in the
 authentication query that already runs. A capacity quota refuses as `422 capacity.<quota>` naming the
-ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is alert A-18.
+ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is alert A-18, which counts workspaces without naming them;
+`GET /admin/quotas` and the installation's overview name each one and the quota it stands at.
 
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|

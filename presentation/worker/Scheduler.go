@@ -74,7 +74,7 @@ type SchedulerSignals interface {
 
 // QuotaCensus counts the workspaces near and at each bounded quota (quota.Census).
 type QuotaCensus interface {
-	Count(ctx context.Context) (map[string]quotaservice.Band, []shared.ID, error)
+	Count(ctx context.Context) (map[string]quotaservice.Band, []quotaservice.Near, error)
 }
 
 // QuotaCensusSignals publishes the census: two series per quota, never a tenant.

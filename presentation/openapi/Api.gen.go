@@ -25227,6 +25227,16 @@ type WorkspaceHost struct {
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
 
+// WorkspaceNearQuota One workspace at or above 90% of a quota, and the quotas that put it there.
+type WorkspaceNearQuota struct {
+	// Quotas Only the quotas at or above 90% of their ceiling.
+	Quotas []QuotaStanding `json:"quotas"`
+
+	// Slug The address the workspace is reached by.
+	Slug     string             `json:"slug"`
+	TenantId openapi_types.UUID `json:"tenant_id"`
+}
+
 // WorkspacePasswordOpening An operator's opening of the password as the workspace itself reads it. Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.
 type WorkspacePasswordOpening struct {
 	// Reason Why. Absent for a reader without `READ_CONFIGURATION`.
@@ -30111,6 +30121,9 @@ type ServerInterface interface {
 	// ChangeInstallationPreset Change a preset of the installation
 	// (PATCH /admin/presets/{presetId})
 	ChangeInstallationPreset(w http.ResponseWriter, r *http.Request, presetId PresetId, params ChangeInstallationPresetParams)
+	// ListWorkspacesNearQuota The workspaces near a quota
+	// (GET /admin/quotas)
+	ListWorkspacesNearQuota(w http.ResponseWriter, r *http.Request)
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	// (GET /admin/settings)
 	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
@@ -34210,6 +34223,20 @@ func (siw *ServerInterfaceWrapper) ChangeInstallationPreset(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangeInstallationPreset(w, r, presetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListWorkspacesNearQuota operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkspacesNearQuota(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkspacesNearQuota(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60480,6 +60507,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/overview", wrapper.ReadInstanceOverview)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/quotas", wrapper.ListWorkspacesNearQuota)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/journal", wrapper.ListInstanceJournal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/events", wrapper.ListPlatformEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/subscriptions", wrapper.ListPlatformSubscriptions)

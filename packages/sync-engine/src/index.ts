@@ -467,6 +467,7 @@ export type {
   ImportRequest,
   ImportRun,
   InstanceOverview,
+  WorkspaceNearQuota,
   InstallationSetUp,
   InstanceJournalEntry,
   InstanceJournalPage,

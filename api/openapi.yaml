@@ -13143,6 +13143,38 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/quotas:
+    get:
+      tags: [admin]
+      operationId: listWorkspacesNearQuota
+      x-hubtask-cli: "admin quota near"
+      x-hubtask-cli-columns: [tenant_id, slug, quotas]
+      x-hubtask-rest: generated
+      x-hubtask-rest-list: data
+      x-hubtask-rest-answer: workspaceNearQuotaResponse
+      summary: The workspaces near a quota
+      description: >
+        Every active workspace that stands at 90% or more of at least one counted quota, with the
+        quotas that put it there: the ceiling, what is used and the ratio. Numbers and the
+        workspace's address only, never its content. It is the answer to "which workspace" when
+        the alert that counts them fires, read at the moment of the call; raising a ceiling is
+        `PATCH /admin/tenants/{tenantId}/quotas`. Behind `admin:tenants` and the operator
+        register, both.
+      responses:
+        "200":
+          description: The workspaces near a quota, in the order the installation lists them
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WorkspaceNearQuota" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/journal:
     get:
       tags: [admin]
@@ -26631,6 +26663,21 @@ components:
             Workspaces that hold no person, only service accounts - one made to hold a machine's
             credential, for instance. They are not customers, so the three workspace counts above
             leave them out; the list of workspaces shows them.
+
+    WorkspaceNearQuota:
+      type: object
+      description: >
+        One workspace at or above 90% of a quota, and the quotas that put it there.
+      required: [tenant_id, slug, quotas]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        slug:
+          type: string
+          description: The address the workspace is reached by.
+        quotas:
+          type: array
+          description: Only the quotas at or above 90% of their ceiling.
+          items: { $ref: "#/components/schemas/QuotaStanding" }
 
     InstanceSettingsPlan:
       type: object

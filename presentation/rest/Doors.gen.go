@@ -438,6 +438,7 @@ var restDoors = map[string]restDoor{
 	"listWorkItems":                     {UseCase: "ListWorkItems", Status: 200, Query: []string{"collection_id", "cursor", "expand", "include_archived", "parent_id", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Expand: map[string]string{"labels": "expand_labels"}},
 	"listWorkTypes":                     {UseCase: "ListWorkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkflows":                     {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWorkspacesNearQuota":           {UseCase: "ListWorkspacesNearQuota", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"locateConnectorReturn":             {UseCase: "LocateConnectorReturn", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"locateOidcFlow":                    {UseCase: "LocateOidcFlow", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"logTime":                           {UseCase: "LogTime", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
@@ -3581,6 +3582,11 @@ func (c *RestController) ListWorkTypes(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.WorkflowList
 	c.door(w, r, restDoors["listWorkflows"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ListWorkspacesNearQuota answers GET /admin/quotas by the generated mapping.
+func (c *RestController) ListWorkspacesNearQuota(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["listWorkspacesNearQuota"], usecase.Input{}, nil, nil, answerData(workspaceNearQuotaResponse))
 }
 
 // LocateConnectorReturn answers POST /auth/connector:locate by the generated mapping.

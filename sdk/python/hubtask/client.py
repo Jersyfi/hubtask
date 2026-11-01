@@ -1967,6 +1967,10 @@ class Client:
         """How big this installation is and how its workspaces stand"""
         return self._call("GET", "/admin/overview", {}, None, {}, None, "none", None, "json")
 
+    def list_workspaces_near_quota(self) -> dict[str, Any]:
+        """The workspaces near a quota"""
+        return self._call("GET", "/admin/quotas", {}, None, {}, None, "none", None, "json")
+
     def list_instance_journal(self, *, query: dict[str, Any] | None = None) -> "InstanceJournalPage":
         """The installation's own record"""
         return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")

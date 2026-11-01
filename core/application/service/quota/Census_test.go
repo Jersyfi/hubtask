@@ -37,7 +37,7 @@ func TestTheCensusCountsEveryWorkspaceNearItsCeiling(t *testing.T) {
 	walled := shared.ID("018f2a1b-0000-7000-8000-0000000000a2")
 	suspended := shared.ID("018f2a1b-0000-7000-8000-0000000000a3")
 	tenants := tenantList{
-		{ID: near, Status: identity.TenantActive},
+		{ID: near, Slug: "near", Status: identity.TenantActive},
 		{ID: walled, Status: identity.TenantActive},
 		{ID: suspended, Status: identity.TenantSuspended},
 	}
@@ -61,7 +61,13 @@ func TestTheCensusCountsEveryWorkspaceNearItsCeiling(t *testing.T) {
 	if got := bands[Items]; got.Approaching != 2 || got.AtLimit != 1 {
 		t.Fatalf("items band %+v, want 2 approaching and 1 at the limit", got)
 	}
-	if len(listed) != 2 || listed[0] != near || listed[1] != walled {
+	if len(listed) != 2 || listed[0].TenantID != near || listed[1].TenantID != walled {
 		t.Fatalf("listed %v, want the two workspaces near the ceiling", listed)
+	}
+	// The operator's list says which wall and how close, so the alert has a name to act on.
+	first := listed[0]
+	if first.Slug != "near" || len(first.Quotas) != 1 || first.Quotas[0].Quota != Items ||
+		first.Quotas[0].Used == nil || *first.Quotas[0].Used != 95 || first.Quotas[0].Limit != 100 {
+		t.Fatalf("near workspace %+v, want items at 95 of 100 under its slug", first)
 	}
 }

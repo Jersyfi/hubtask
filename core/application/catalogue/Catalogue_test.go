@@ -403,10 +403,11 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // feed written into their own calendar, listed, connected and taken off (UC-INT-16). The six of a
 // file store connection are a person's own sign-in to their own files (UC-INT-17). Planning the
 // installation's level is the installation's, as reading it is (accepted.md D). The installation's
-// dead letters, listed and requeued, are its operator's (UC-INS-12). Locating a connector's
+// dead letters, listed and requeued, are its operator's (UC-INS-12), as the list of workspaces near a
+// quota is. Locating a connector's
 // provider return is anonymous, as locating a sign-in's is. Resolving many names at once is
 // GetAccount's batch and, like it, open to every member.
-const undeclaredPermissionsAtMost = 202
+const undeclaredPermissionsAtMost = 203
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

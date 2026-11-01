@@ -3609,6 +3609,12 @@ func run() error {
 		adminservice.ReadInstanceOverview{
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
+		// The workspaces A-18 counts, by name, read on the request's own deadline.
+		adminservice.ListWorkspacesNearQuota{Writer: instanceWriter, Census: quotaservice.Census{
+			Tenants: postgres.NewAdminTenantRepository(),
+			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListDeadLetters{
 			Writer: instanceWriter, DeadLetters: postgres.NewDeadLetterRepository(), Cursors: cursors,

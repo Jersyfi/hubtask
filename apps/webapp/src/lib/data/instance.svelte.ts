@@ -36,6 +36,7 @@ import type {
   ProvisionedTenant,
   TenantProvision,
   TenantQuotas,
+  WorkspaceNearQuota,
   ResourceState,
   SessionElevation,
 } from '@hubtask/sync-engine';
@@ -56,6 +57,7 @@ const ELEVATE = '/auth/sessions:elevate';
 /** The refusal of a raise while the session's hour still runs; it names the end. */
 const ALREADY_ELEVATED = 'auth.session_already_elevated';
 const OVERVIEW = '/admin/overview';
+const NEAR_QUOTA = '/admin/quotas';
 const TENANTS = '/admin/tenants';
 const TENANT_QUERY = '/admin/tenants:query';
 type TenantPage = { readonly data: readonly AdminTenant[]; readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean } };
@@ -104,6 +106,7 @@ class Instance {
   #ticking: ReturnType<typeof setInterval> | undefined;
 
   #overview = $state<ResourceState<InstanceOverview>>({ status: 'idle' });
+  #nearQuota = $state<ResourceState<{ readonly data: readonly WorkspaceNearQuota[] }>>({ status: 'idle' });
   #workspaces = $state<ResourceState<readonly AdminTenant[]>>({ status: 'idle' });
   #workspacePage = $state<ResourceState<TenantPage>>({ status: 'idle' });
   #workspaceQuery: Record<string, unknown> = workspaceQuery({});
@@ -189,6 +192,11 @@ class Instance {
     return this.#operators;
   }
 
+  /** The workspaces at 90% or more of a quota (A-18's who), empty until read. */
+  get nearQuota(): readonly WorkspaceNearQuota[] {
+    return this.#nearQuota.status === 'ready' ? this.#nearQuota.data.data : [];
+  }
+
   get journal(): readonly InstanceJournalEntry[] {
     return this.#journal.status === 'ready' ? this.#journal.data.data : [];
   }
@@ -239,6 +247,7 @@ class Instance {
   forget(): void {
     this.#until = undefined;
     this.#overview = { status: 'idle' };
+    this.#nearQuota = { status: 'idle' };
     this.#workspaces = { status: 'idle' };
     this.#workspacePage = { status: 'idle' };
     this.#settings = { status: 'idle' };
@@ -382,6 +391,12 @@ class Instance {
   openEncryption(): () => void {
     return engine.subscribe<EncryptionStatus>({ path: ENCRYPTION }, (next) => {
       this.#encryption = next;
+    });
+  }
+
+  openNearQuota(): () => void {
+    return engine.subscribe<{ readonly data: readonly WorkspaceNearQuota[] }>({ path: NEAR_QUOTA }, (next) => {
+      this.#nearQuota = next;
     });
   }
 

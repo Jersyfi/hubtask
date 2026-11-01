@@ -803,6 +803,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.WriteInstanceSettings{}.Descriptor(),
 		adminservice.ListOperators{}.Descriptor(),
 		adminservice.ReadInstanceOverview{}.Descriptor(),
+		adminservice.ListWorkspacesNearQuota{}.Descriptor(),
 		adminservice.ListInstanceJournal{}.Descriptor(),
 		adminservice.ListDeadLetters{}.Descriptor(),
 		adminservice.RequeueDeadLetter{}.Descriptor(),

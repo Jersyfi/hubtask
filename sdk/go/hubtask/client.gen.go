@@ -25233,6 +25233,16 @@ type WorkspaceHost struct {
 // WorkspaceHostState `PENDING` resolves nothing: a host somebody typed is not a host they own. `VERIFIED` is one whose zone carried the mark and which may become canonical; it is not serving yet. `ACTIVE` is verified, its certificate in place, and answering - the canonical host is always this one. `BROKEN` was `ACTIVE` and stopped, and the row is kept because it is the way back: when it recovers it is `ACTIVE` again without anybody doing anything.
 type WorkspaceHostState string
 
+// WorkspaceNearQuota One workspace at or above 90% of a quota, and the quotas that put it there.
+type WorkspaceNearQuota struct {
+	// Quotas Only the quotas at or above 90% of their ceiling.
+	Quotas []QuotaStanding `json:"quotas"`
+
+	// Slug The address the workspace is reached by.
+	Slug     string             `json:"slug"`
+	TenantId openapi_types.UUID `json:"tenant_id"`
+}
+
 // WorkspacePasswordOpening An operator's opening of the password as the workspace itself reads it. Every member is told until when; who asked and why are answered only to a reader of the workspace's configuration (`READ_CONFIGURATION`: owners, administrators, the auditor) - the requester may name a person, and the reason may say more than a member needs.
 type WorkspacePasswordOpening struct {
 	// Reason Why. Absent for a reader without `READ_CONFIGURATION`.
@@ -31058,6 +31068,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
 	ChangeInstallationPreset(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWorkspacesNearQuota The workspaces near a quota
+	//
+	// Every active workspace that stands at 90% or more of at least one counted quota, with the quotas that put it there: the ceiling, what is used and the ratio. Numbers and the workspace's address only, never its content. It is the answer to "which workspace" when the alert that counts them fires, read at the moment of the call; raising a ceiling is `PATCH /admin/tenants/{tenantId}/quotas`. Behind `admin:tenants` and the operator register, both.
+	//
+	// Corresponds with GET /admin/quotas (the `ListWorkspacesNearQuota` operationId).
+	ListWorkspacesNearQuota(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	//
@@ -42840,6 +42857,23 @@ func (c *Client) ChangeInstallationPresetWithBody(ctx context.Context, presetId 
 // Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
 func (c *Client) ChangeInstallationPreset(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewChangeInstallationPresetRequest(c.Server, presetId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWorkspacesNearQuota The workspaces near a quota
+//
+// Every active workspace that stands at 90% or more of at least one counted quota, with the quotas that put it there: the ceiling, what is used and the ratio. Numbers and the workspace's address only, never its content. It is the answer to "which workspace" when the alert that counts them fires, read at the moment of the call; raising a ceiling is `PATCH /admin/tenants/{tenantId}/quotas`. Behind `admin:tenants` and the operator register, both.
+//
+// Corresponds with GET /admin/quotas (the `ListWorkspacesNearQuota` operationId).
+func (c *Client) ListWorkspacesNearQuota(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkspacesNearQuotaRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -66634,6 +66668,33 @@ func NewChangeInstallationPresetRequestWithBody(server string, presetId PresetId
 			req.Header.Set("If-Match", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewListWorkspacesNearQuotaRequest constructs an http.Request for the ListWorkspacesNearQuota method
+func NewListWorkspacesNearQuotaRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/quotas")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -103977,6 +104038,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
 	ChangeInstallationPresetWithResponse(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeInstallationPresetResult, error)
 
+	// ListWorkspacesNearQuotaWithResponse The workspaces near a quota
+	//
+	// Every active workspace that stands at 90% or more of at least one counted quota, with the quotas that put it there: the ceiling, what is used and the ratio. Numbers and the workspace's address only, never its content. It is the answer to "which workspace" when the alert that counts them fires, read at the moment of the call; raising a ceiling is `PATCH /admin/tenants/{tenantId}/quotas`. Behind `admin:tenants` and the operator register, both.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/quotas (the `ListWorkspacesNearQuota` operationId).
+	ListWorkspacesNearQuotaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkspacesNearQuotaResult, error)
+
 	// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
 	//
 	// The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -117618,6 +117688,58 @@ func (r ChangeInstallationPresetResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ChangeInstallationPresetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListWorkspacesNearQuotaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []WorkspaceNearQuota `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWorkspacesNearQuotaResult) GetJSON200() *struct {
+	Data []WorkspaceNearQuota `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWorkspacesNearQuotaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWorkspacesNearQuotaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkspacesNearQuotaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkspacesNearQuotaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWorkspacesNearQuotaResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156425,6 +156547,21 @@ func (c *ClientWithResponses) ChangeInstallationPresetWithResponse(ctx context.C
 	return ParseChangeInstallationPresetResult(rsp)
 }
 
+// ListWorkspacesNearQuotaWithResponse The workspaces near a quota
+//
+// Every active workspace that stands at 90% or more of at least one counted quota, with the quotas that put it there: the ceiling, what is used and the ratio. Numbers and the workspace's address only, never its content. It is the answer to "which workspace" when the alert that counts them fires, read at the moment of the call; raising a ceiling is `PATCH /admin/tenants/{tenantId}/quotas`. Behind `admin:tenants` and the operator register, both.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/quotas (the `ListWorkspacesNearQuota` operationId).
+func (c *ClientWithResponses) ListWorkspacesNearQuotaWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkspacesNearQuotaResult, error) {
+	rsp, err := c.ListWorkspacesNearQuota(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkspacesNearQuotaResult(rsp)
+}
+
 // ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
 //
 // The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -176009,6 +176146,41 @@ func ParseChangeInstallationPresetResult(rsp *http.Response) (*ChangeInstallatio
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListWorkspacesNearQuotaResult parses an HTTP response from a ListWorkspacesNearQuotaWithResponse call
+func ParseListWorkspacesNearQuotaResult(rsp *http.Response) (*ListWorkspacesNearQuotaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkspacesNearQuotaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []WorkspaceNearQuota `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

@@ -795,6 +795,12 @@ class InstanceOverview(TypedDict, total=False):
     accounts_total: Required[int]
     workspaces_service_only: Required[int]
 
+class WorkspaceNearQuota(TypedDict, total=False):
+    """One workspace at or above 90% of a quota, and the quotas that put it there."""
+    tenant_id: Required[str]
+    slug: Required[str]
+    quotas: Required[list["QuotaStanding"]]
+
 class InstanceSettingsPlan(TypedDict, total=False):
     """What a level would change; nothing is written."""
     version: Required[int]

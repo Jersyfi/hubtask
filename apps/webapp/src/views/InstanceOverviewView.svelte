@@ -39,6 +39,7 @@
     // rather than a list of links to go and find them.
     const stops = untrack(() => [
       instance.openOverview(),
+      instance.openNearQuota(),
       instance.openSettings(),
       instance.openOperators(),
       instance.openProviders(),
@@ -99,6 +100,12 @@
     { id: 'retention', code: 'app.instance.later_retention' },
   ];
 
+  const KNOWN_LIMITS = new Set([
+    'api_requests_per_minute', 'items', 'media_bytes', 'automation_runs_per_hour', 'webhook_targets',
+    'export_jobs', 'ai_tokens_per_day', 'ai_own_tokens_per_day', 'ai_arrival_proposals_per_day', 'accounts',
+  ]);
+  const limitName = (quota: string) => (KNOWN_LIMITS.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
+
   const reading = $derived(instance.overview);
   const census = $derived(reading.status === 'ready' ? reading.data : undefined);
   const unreadable = $derived(
@@ -154,6 +161,38 @@
           <!-- Not a customer, so not in the counts above; said here so the counts still add up with
                the list of workspaces (UC-INS-12 check 5). -->
           <p class="quiet">{t('app.instance.workspaces_service_only', { count: census.workspaces_service_only })}</p>
+        {/if}
+
+        <!-- Who A-18 counts: the alert names no workspace, so this says which one and at which
+             wall, before somebody there meets the refusal. -->
+        {#if instance.nearQuota.length > 0}
+          <Stack gap="100">
+            <h2 class="section">{t('app.instance.near_quota_title')}</h2>
+            <ul class="near" data-near-quota>
+              {#each instance.nearQuota as workspace (workspace.tenant_id)}
+                <li>
+                  <strong>{workspace.slug}</strong>
+                  <span>
+                    {workspace.quotas
+                      .map((standing) =>
+                        t('app.instance.near_quota_standing', {
+                          name: limitName(standing.quota),
+                          used: standing.used ?? 0,
+                          limit: standing.limit,
+                          percent: Math.round((standing.ratio ?? 0) * 100),
+                        }),
+                      )
+                      .join(' · ')}
+                  </span>
+                </li>
+              {/each}
+            </ul>
+            <div>
+              <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/workspaces')}>
+                {t('app.instance.near_quota_open')}
+              </Button>
+            </div>
+          </Stack>
         {/if}
 
         <!-- The digest the concept's §5.5 draws: each area with what it currently says, and the
@@ -319,6 +358,10 @@
     justify-content: space-between;
     gap: var(--sp-100);
   }
+
+  .near { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
+  .near li { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: baseline; }
+  .near span { color: var(--text-secondary); font-size: var(--fs-100); }
 
   .later { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
   .later li { display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-100); }

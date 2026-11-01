@@ -636,6 +636,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
+| `instance.quotas_near_read` | ListWorkspacesNearQuota | `instance` | INFO | When refused |
 | `instance.platform_deliveries_read` | ListPlatformDeliveries | `platform_subscription` | INFO | When refused |
 | `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
 | `instance.platform_subscription_changed` | UpdatePlatformSubscription | `platform_subscription` | WARNING | Every time |

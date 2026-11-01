@@ -785,7 +785,7 @@ func TestTheBackupSampleCarriesEachTargetsCadence(t *testing.T) {
 
 type censusOf map[string]quotaservice.Band
 
-func (c censusOf) Count(context.Context) (map[string]quotaservice.Band, []shared.ID, error) {
+func (c censusOf) Count(context.Context) (map[string]quotaservice.Band, []quotaservice.Near, error) {
 	return c, nil, nil
 }
 

@@ -43,9 +43,17 @@ type TenantList interface {
 	List(ctx context.Context) ([]adminrepo.TenantRecord, error)
 }
 
+// Near is one workspace at or above ApproachingRatio of at least one quota: its identifier and
+// address, and the standings that put it there - numbers only, never its content.
+type Near struct {
+	TenantID shared.ID
+	Slug     string
+	Quotas   []Standing
+}
+
 // Count answers a band per quota that carries a count, every one present even when zero, and
-// the workspaces at or above the ratio of any quota, by identifier only.
-func (c Census) Count(ctx context.Context) (map[string]Band, []shared.ID, error) {
+// the workspaces at or above the ratio of any quota with the standings that put them there.
+func (c Census) Count(ctx context.Context) (map[string]Band, []Near, error) {
 	var tenants []adminrepo.TenantRecord
 	err := c.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
 		var err error
@@ -56,7 +64,7 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []shared.ID, error)
 		return nil, nil, err
 	}
 	bands := map[string]Band{}
-	var near []shared.ID
+	var near []Near
 	now := c.Clock.Now()
 	for _, tenant := range tenants {
 		if tenant.Status != identity.TenantActive {
@@ -71,7 +79,7 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []shared.ID, error)
 		if err != nil {
 			return nil, nil, err
 		}
-		approaching := false
+		var close []Standing
 		for _, standing := range standings {
 			if standing.Used == nil {
 				continue
@@ -80,7 +88,7 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []shared.ID, error)
 			if ratio := standing.Ratio(); ratio != nil {
 				if *ratio >= ApproachingRatio {
 					band.Approaching++
-					approaching = true
+					close = append(close, standing)
 				}
 				if *standing.Used >= standing.Limit {
 					band.AtLimit++
@@ -88,8 +96,8 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []shared.ID, error)
 			}
 			bands[standing.Quota] = band
 		}
-		if approaching {
-			near = append(near, tenant.ID)
+		if len(close) > 0 {
+			near = append(near, Near{TenantID: tenant.ID, Slug: tenant.Slug, Quotas: close})
 		}
 	}
 	return bands, near, nil

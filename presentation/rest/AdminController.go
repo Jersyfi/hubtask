@@ -80,6 +80,19 @@ func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
 	return standings
 }
 
+// workspaceNearQuotaResponse maps one workspace the census found near a quota.
+func workspaceNearQuotaResponse(out usecase.Output) openapi.WorkspaceNearQuota {
+	answer := openapi.WorkspaceNearQuota{
+		TenantId: uuidValue(out.String("tenant_id")), Slug: out.String("slug"),
+		Quotas: []openapi.QuotaStanding{},
+	}
+	rows, _ := out["quotas"].([]usecase.Output)
+	for _, row := range rows {
+		answer.Quotas = append(answer.Quotas, quotaStandingResponse(row))
+	}
+	return answer
+}
+
 func quotaStandingResponse(row usecase.Output) openapi.QuotaStanding {
 	standing := openapi.QuotaStanding{
 		Quota: openapi.QuotaStandingQuota(row.String("quota")),

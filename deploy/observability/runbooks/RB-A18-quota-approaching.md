@@ -24,13 +24,15 @@ is broken.
 
 ## Who it is
 
-With `HUBTASK_METRICS_TENANT_LABEL=true` the series carries `tenant_id`. Without it, ask the
-installation: every workspace's standing is one authenticated call to `GET /quotas` (their own
-view), or read the ledger —
+The series never carries a workspace, not even with `HUBTASK_METRICS_TENANT_LABEL=true`. Ask the
+installation which one, and at which wall:
 
-```sql
-SELECT tenant_id, metric, period, value FROM usage_record ORDER BY period DESC, value DESC LIMIT 20;
+```sh
+hubctl admin quota near        # GET /admin/quotas
 ```
+
+It answers every active workspace at 90% or more of a counted quota, by identifier and address,
+with each such quota's ceiling, use and ratio, read at the moment of the call.
 
 ## What to do
 

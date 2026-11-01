@@ -2481,6 +2481,11 @@ export class HubtaskClient {
     return this.call("GET", "/admin/overview", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The workspaces near a quota */
+  listWorkspacesNearQuota(options: CallOptions = {}): Promise<operations["listWorkspacesNearQuota"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/quotas", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The installation's own record */
   listInstanceJournal(options: CallOptions & { readonly query?: NonNullable<operations["listInstanceJournal"]['parameters']['query']> } = {}): Promise<operations["listInstanceJournal"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/journal", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

@@ -1154,6 +1154,7 @@ export function stub(route) {
     return route.fulfill({ json: { data: rows.slice(0, query.size ?? 50), page: { next_cursor: null, has_more: false } } });
   }
   if (path.endsWith('/api/v1/admin/overview')) return route.fulfill({ json: INSTANCE_OVERVIEW });
+  if (path.endsWith('/api/v1/admin/quotas')) return route.fulfill({ json: { data: [] } });
   if (path.endsWith('/api/v1/admin/settings') && request.method() === 'GET') return route.fulfill({ json: INSTANCE_SETTINGS, headers: { ETag: '"1"' } });
   if (path.endsWith('/api/v1/admin/journal') && request.method() === 'GET') return route.fulfill({ json: journalAnswer(request.url()) });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });

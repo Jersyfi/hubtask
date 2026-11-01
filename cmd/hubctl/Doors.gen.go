@@ -210,6 +210,8 @@ var generatedCommands = []door{
 			{Name: "withdraw_at", Kind: "string", Help: "When the offer ends", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: true, List: false, Columns: []string{"id", "kind", "version"}},
+	{Group: "admin", Verb: "quota near", OperationID: "listWorkspacesNearQuota", Method: "GET", Path: "/admin/quotas", Summary: "The workspaces near a quota",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"tenant_id", "slug", "quotas"}},
 	{Group: "admin", Verb: "subscription deliveries", OperationID: "listPlatformDeliveries", Method: "GET", Path: "/admin/subscriptions/{subscriptionId}/deliveries", Summary: "What was sent to the subscription, and what became of it",
 		PathParams: []doorParam{
 			{Name: "subscriptionId", Kind: "uuid", Help: "", Required: true},

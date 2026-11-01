@@ -850,6 +850,8 @@ export type ImportRun = components['schemas']['ImportRun'];
  * of the `tenant` row rather than of anything inside it.
  */
 export type InstanceOverview = components['schemas']['InstanceOverview'];
+/** A workspace at 90% or more of a counted quota, with the quotas that put it there. */
+export type WorkspaceNearQuota = components['schemas']['WorkspaceNearQuota'];
 /** What the first start's setup card sends (UC-INS-01). */
 export type InstallationSetUp = components['schemas']['InstallationSetUp'];
 export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
