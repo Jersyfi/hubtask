@@ -147,6 +147,24 @@ func TestTheQuotaWriteIsPartialAndAudited(t *testing.T) {
 	}
 }
 
+// UC-INS-10 check 4: a workspace's administrator - a credential without the installation's scope -
+// cannot change a limit, and nothing is opened or written.
+func TestAWorkspaceAdministratorCannotChangeALimit(t *testing.T) {
+	f := newQuotasFixture()
+	actor := operator()
+	actor.Scopes = []string{"items:read", "items:write"}
+
+	_, err := f.handler.Execute(t.Context(), actor, UpdateTenantQuotasCommand{
+		TenantID: lifecycleTenant, Changes: []QuotaChange{{Quota: quotaservice.Items, Value: hold(200)}},
+	})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("answer %v, want forbidden", err)
+	}
+	if len(f.store.versions) != 0 || len(f.audit.entries) != 0 {
+		t.Error("a refused write reached the store or the trail")
+	}
+}
+
 // UC-AI-07 check 1: the offered model's budget has an exception per workspace, set by the operator
 // like every other ceiling - stored, read back and recorded with what it was before.
 func TestTheOperatorSetsAWorkspacesAiBudget(t *testing.T) {

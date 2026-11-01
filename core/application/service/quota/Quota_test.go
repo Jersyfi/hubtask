@@ -62,6 +62,7 @@ func TestTheResolutionLaysOverridesOverTheModesColumn(t *testing.T) {
 }
 
 // The capacity refusal: 422-shaped, naming the quota and the ceiling.
+// UC-INS-10 check 3: the refusal names the quota and its ceiling.
 func TestTheCapacityRefusalNamesTheQuotaAndTheCeiling(t *testing.T) {
 	err := Exceeded(Items, 100, 100)
 
@@ -190,6 +191,7 @@ func guardWith(store *storeFake, usage *usageFake, signals *signalsFake) Guard {
 
 // The guard refuses at the wall, reports the approach ratio, and an unlimited quota neither
 // counts nor refuses.
+// UC-INS-10 check 3: the next creation at the limit is refused, naming the limit.
 func TestTheGuardRefusesAtTheWallAndReportsTheApproach(t *testing.T) {
 	store := &storeFake{overrides: repository.Overrides{Items: ceiling(10)}}
 	usage := &usageFake{items: 9}
