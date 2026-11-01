@@ -186,6 +186,60 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
+	// Alert A-29's numbers: the installation's mail app counted across both workspaces - one
+	// mailbox failing for two hours, one for ten minutes (inside the grace), one on the
+	// administrator's own app and one switched off, neither of which is the installation's.
+	t.Run("the installation's mail apps are counted across workspaces", func(t *testing.T) {
+		mailbox := func(id, tenant, provider string, installation, enabled bool, failingFor string) string {
+			failing := "NULL"
+			if failingFor != "" {
+				failing = "now() - interval '" + failingFor + "'"
+			}
+			return `INSERT INTO mailbox (id, tenant_id, protocol, address, host, port, username, folder,
+				done_folder, enabled, secret_enc, secret_key_id, failing_since, auth, oauth_provider,
+				oauth_token_url, oauth_installation, created_at)
+				VALUES ('` + id + `', '` + tenant + `', 'IMAP', '` + id[len(id)-4:] + `@door.example',
+				'imap.door.example', 993, 'u', 'INBOX', 'Hubtask', ` + boolSQL(enabled) + `, '\x00', 'k',
+				` + failing + `, 'OAUTH', '` + provider + `', 'https://door.example/token', ` +
+				boolSQL(installation) + `, now())`
+		}
+		for _, statement := range []string{
+			mailbox("01936f2a-7c1e-7000-8000-000000145651", tenantA, "google", true, true, "2 hours"),
+			mailbox("01936f2a-7c1e-7000-8000-000000145652", tenantB, "google", true, true, "10 minutes"),
+			mailbox("01936f2a-7c1e-7000-8000-000000145653", tenantB, "google", false, true, "2 hours"),
+			mailbox("01936f2a-7c1e-7000-8000-000000145654", tenantA, "microsoft", true, false, "2 hours"),
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding a mailbox: %v", err)
+			}
+		}
+		rows, err := app.Query(ctx, `SELECT provider, connected, failing FROM installation_mail_apps()`)
+		if err != nil {
+			t.Fatalf("installation_mail_apps: %v", err)
+		}
+		defer rows.Close()
+		answered := map[string][2]int64{}
+		for rows.Next() {
+			var provider string
+			var connected, failing int64
+			if err := rows.Scan(&provider, &connected, &failing); err != nil {
+				t.Fatalf("reading: %v", err)
+			}
+			answered[provider] = [2]int64{connected, failing}
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatalf("reading: %v", err)
+		}
+		if len(answered) != 1 || answered["google"] != [2]int64{2, 1} {
+			t.Errorf("installation_mail_apps answered %v, want google connected 2, failing 1", answered)
+		}
+		var direct int
+		one(t, `SELECT count(*) FROM mailbox`, &direct)
+		if direct != 0 {
+			t.Errorf("without a workspace the application read %d mailboxes", direct)
+		}
+	})
+
 	// The owner's policies name the owner and nobody else: the application, reading the same tables
 	// directly with no workspace set, still sees nothing.
 	t.Run("the application role is still bounded", func(t *testing.T) {
@@ -199,4 +253,12 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 				tenants, accounts, memberships, providers)
 		}
 	})
+}
+
+// boolSQL is a boolean as an SQL literal, for a seeding statement.
+func boolSQL(value bool) string {
+	if value {
+		return "true"
+	}
+	return "false"
 }

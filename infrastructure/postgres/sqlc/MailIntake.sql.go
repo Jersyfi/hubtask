@@ -399,6 +399,39 @@ func (q *Queries) InsertMailboxAuthorization(ctx context.Context, arg InsertMail
 	return err
 }
 
+const installationMailApps = `-- name: InstallationMailApps :many
+SELECT provider::text AS provider, connected::bigint AS connected, failing::bigint AS failing
+FROM installation_mail_apps()
+`
+
+type InstallationMailAppsRow struct {
+	Provider  string
+	Connected int64
+	Failing   int64
+}
+
+// Alert A-29's numbers, across workspaces through the door (0344): per provider preset, the enabled
+// mailboxes on the installation's own app and those failing for over an hour. Numbers, no rows.
+func (q *Queries) InstallationMailApps(ctx context.Context) ([]InstallationMailAppsRow, error) {
+	rows, err := q.db.Query(ctx, installationMailApps)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []InstallationMailAppsRow{}
+	for rows.Next() {
+		var i InstallationMailAppsRow
+		if err := rows.Scan(&i.Provider, &i.Connected, &i.Failing); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const itemByKey = `-- name: ItemByKey :one
 SELECT wi.id
 FROM work_item wi

@@ -30,6 +30,12 @@ SELECT mail_workspace_name_taken(sqlc.arg('name')::text, current_tenant_id())::b
 -- Before any tenant is known: the function reads past row level security, and only an enabled row.
 SELECT resolve_mail_workspace(sqlc.arg('name')::text)::uuid AS tenant_id;
 
+-- name: InstallationMailApps :many
+-- Alert A-29's numbers, across workspaces through the door (0344): per provider preset, the enabled
+-- mailboxes on the installation's own app and those failing for over an hour. Numbers, no rows.
+SELECT provider::text AS provider, connected::bigint AS connected, failing::bigint AS failing
+FROM installation_mail_apps();
+
 -- name: MailReceiptExists :one
 SELECT EXISTS (SELECT 1 FROM mail_receipt WHERE message_id = sqlc.arg('message_id'))::boolean AS seen;
 

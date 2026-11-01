@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/mail"
@@ -313,4 +314,24 @@ func (MailboxAuthorizationRepository) DeleteExpired(ctx context.Context, now tim
 		return 0, mailQueryFailed("forgetting expired mailbox authorizations", err)
 	}
 	return int(rows), nil
+}
+
+// InstallationApps answers how the installation's own mail apps fare across every workspace
+// (alert A-29), through the door that counts and names no mailbox (migration 0344).
+func (MailboxRepository) InstallationApps(ctx context.Context) ([]domain.AppHealth, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.InstallationMailApps(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the installation's mail apps: %w", err))
+	}
+	counts := make([]domain.PresetCount, 0, len(rows))
+	for _, row := range rows {
+		counts = append(counts, domain.PresetCount{Provider: row.Provider, Connected: row.Connected, Failing: row.Failing})
+	}
+	return domain.InstallationApps(counts), nil
 }
