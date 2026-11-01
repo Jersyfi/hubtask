@@ -14,7 +14,7 @@ INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
   event_id, item_id, actor_id, created_at, rule_id, subscription_id, private_hub_access_id,
   membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id, mailbox_id,
-  identity_provider_id, calendar_push_id, cmdb_connector_id
+  identity_provider_id, calendar_push_id, cmdb_connector_id, code_hook_id
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('recipient_id'), sqlc.arg('category'),
   sqlc.arg('channel'), sqlc.arg('state'), sqlc.narg('reason'),
@@ -22,7 +22,8 @@ INSERT INTO notification (
   sqlc.narg('rule_id'), sqlc.narg('subscription_id'), sqlc.narg('private_hub_access_id'),
   sqlc.narg('membership_id'), sqlc.narg('page_id'), sqlc.narg('agent_id'), sqlc.narg('whiteboard_id'),
   sqlc.narg('approval_id'), sqlc.narg('baseline_id'), sqlc.narg('mailbox_id'),
-  sqlc.narg('identity_provider_id'), sqlc.narg('calendar_push_id'), sqlc.narg('cmdb_connector_id')
+  sqlc.narg('identity_provider_id'), sqlc.narg('calendar_push_id'), sqlc.narg('cmdb_connector_id'),
+  sqlc.narg('code_hook_id')
 )
 ON CONFLICT DO NOTHING;
 
@@ -30,7 +31,7 @@ ON CONFLICT DO NOTHING;
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
        event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id,
        private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id,
-       mailbox_id, identity_provider_id, calendar_push_id, cmdb_connector_id
+       mailbox_id, identity_provider_id, calendar_push_id, cmdb_connector_id, code_hook_id
 FROM notification
 WHERE id = $1;
 

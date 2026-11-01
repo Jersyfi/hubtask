@@ -94,6 +94,9 @@ const (
 	// A CMDB connector that switched itself off after its failures in a row.
 	subjectConnectorSwitchedOff = "email.connector_switched_off.subject"
 	bodyConnectorSwitchedOff    = "email.connector_switched_off.body"
+	// A forge hook that switched itself off because its writer may no longer write in the hub.
+	subjectHookSwitchedOff = "email.code_hook_switched_off.subject"
+	bodyHookSwitchedOff    = "email.code_hook_switched_off.body"
 	// A person a whiteboard's comment named (UC-CNV-09): COMMENT's category, its own sentence - the
 	// subject is a board, not an entry.
 	subjectWhiteboardMention = "email.whiteboard_mention.subject"
@@ -236,6 +239,8 @@ type PageReader interface {
 type ConnectionReader interface {
 	CalendarPushName(ctx context.Context, id shared.ID) (string, error)
 	ConnectorName(ctx context.Context, id shared.ID) (string, error)
+	// CodeHook answers a forge hook's name and the hub whose settings hold it.
+	CodeHook(ctx context.Context, id shared.ID) (name string, hubID shared.ID, err error)
 }
 
 // SAMLProviderReader answers a SAML provider's name and when its last certificate ends.
@@ -298,6 +303,8 @@ type subject struct {
 	// samlEnd is when the SAML provider the record names stops admitting anybody, zero for every
 	// other message.
 	samlEnd time.Time
+	// hookHub is the hub a forge hook the record names belongs to, zero for every other message.
+	hookHub shared.ID
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
 	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
@@ -523,6 +530,12 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title = name
+		case !record.CodeHookID.IsZero() && d.Connections != nil:
+			name, hubID, err := d.Connections.CodeHook(ctx, record.CodeHookID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title, loaded.hookHub = name, hubID
 		case !record.MailboxID.IsZero() && d.Mailboxes != nil:
 			address, err := d.Mailboxes.MailboxAddress(ctx, record.MailboxID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -648,6 +661,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	}
 	if !loaded.record.ConnectorID.IsZero() {
 		subjectCode, bodyCode = subjectConnectorSwitchedOff, bodyConnectorSwitchedOff
+	}
+	if !loaded.record.CodeHookID.IsZero() {
+		subjectCode, bodyCode = subjectHookSwitchedOff, bodyHookSwitchedOff
 	}
 	if !loaded.record.WhiteboardID.IsZero() {
 		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
@@ -813,6 +829,8 @@ func link(loaded subject) string {
 		return base + "/profile/calendars"
 	case !record.ConnectorID.IsZero():
 		return base + "/administration/configuration-items"
+	case !record.CodeHookID.IsZero() && !loaded.hookHub.IsZero():
+		return base + "/hubs/" + url.PathEscape(loaded.hookHub.String()) + "/settings/code"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.ApprovalID.IsZero():

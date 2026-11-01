@@ -4545,8 +4545,8 @@ func run() error {
 			Mailboxes: mailboxAddresses{postgres.NewMailboxRepository()},
 			// The SAML provider whose certificates end, and when.
 			SAMLProviders: samlProviderEnds{postgres.NewIdentityProviderRepository()},
-			// The calendar push or connector that stopped, by the name it is known by.
-			Connections: connectionNames{pushes: postgres.NewCalendarPushRepository(), connectors: postgres.NewCmdbConnectorRepository()},
+			// The calendar push, connector or forge hook that stopped, by the name it is known by.
+			Connections: connectionNames{pushes: postgres.NewCalendarPushRepository(), connectors: postgres.NewCmdbConnectorRepository(), hooks: postgres.NewCodeForgeRepository()},
 			Boards:      postgres.NewWhiteboardRepository(),
 			// The approval a message is about, and through it the entry.
 			Approvals: serviceDeskStore.Approvals(),
@@ -5570,10 +5570,16 @@ func runsBackgroundWork(cfg envport.Config) bool {
 }
 
 // connectionNames names a stopped calendar push by its address at the provider and a switched-off
-// connector by its key.
+// connector by its key, a switched-off forge hook by its name and hub.
 type connectionNames struct {
 	pushes     postgres.CalendarPushRepository
 	connectors postgres.CmdbConnectorRepository
+	hooks      postgres.CodeForgeRepository
+}
+
+func (c connectionNames) CodeHook(ctx context.Context, id shared.ID) (string, shared.ID, error) {
+	hook, err := c.hooks.FindHook(ctx, id)
+	return hook.Name, hook.HubID, err
 }
 
 func (c connectionNames) CalendarPushName(ctx context.Context, id shared.ID) (string, error) {

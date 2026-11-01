@@ -238,6 +238,9 @@ type Notification struct {
 	// ConnectorID is the CMDB connector that switched itself off after its failures, told to the
 	// workspace's and the hub's administrators once when it does.
 	ConnectorID shared.ID
+	// CodeHookID is the forge hook that switched itself off because the person it acts as may no
+	// longer write in its hub, told to the workspace's and the hub's administrators once.
+	CodeHookID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -274,6 +277,7 @@ type NewInput struct {
 	IdentityProviderID shared.ID
 	CalendarPushID     shared.ID
 	ConnectorID        shared.ID
+	CodeHookID         shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -326,6 +330,7 @@ func New(in NewInput) (Notification, error) {
 		IdentityProviderID: in.IdentityProviderID,
 		CalendarPushID:     in.CalendarPushID,
 		ConnectorID:        in.ConnectorID,
+		CodeHookID:         in.CodeHookID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -333,7 +338,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID, in.CalendarPushID, in.ConnectorID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID, in.CalendarPushID, in.ConnectorID, in.CodeHookID} {
 		if !id.IsZero() {
 			named++
 		}

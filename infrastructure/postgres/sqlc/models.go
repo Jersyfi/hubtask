@@ -2293,6 +2293,7 @@ type Notification struct {
 	IdentityProviderID pgtype.UUID
 	CalendarPushID     pgtype.UUID
 	CmdbConnectorID    pgtype.UUID
+	CodeHookID         pgtype.UUID
 }
 
 type NotificationPreference struct {

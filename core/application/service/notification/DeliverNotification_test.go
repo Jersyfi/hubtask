@@ -813,8 +813,12 @@ func (connectionNames) ConnectorName(context.Context, shared.ID) (string, error)
 	return "netbox", nil
 }
 
-// A stopped calendar push and a connector that switched itself off are each said in their own
-// words, by the name they are known by, with the page where they are connected again.
+func (connectionNames) CodeHook(context.Context, shared.ID) (string, shared.ID, error) {
+	return "web", shared.ID("01936f2a-7c1e-7000-8000-0000000000fe"), nil
+}
+
+// A stopped calendar push, and a connector or forge hook that switched itself off, are each said in
+// their own words, by the name they are known by, with the page where they are connected again.
 func TestAStoppedConnectionIsSaidInItsOwnWords(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -827,6 +831,9 @@ func TestAStoppedConnectionIsSaidInItsOwnWords(t *testing.T) {
 			code: "email.calendar_push_stopped.subject", title: "ada@example.org", page: "/profile/calendars"},
 		{name: "connector", input: domain.NewInput{ConnectorID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fc")},
 			code: "email.connector_switched_off.subject", title: "netbox", page: "/administration/configuration-items"},
+		{name: "forge hook", input: domain.NewInput{CodeHookID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fd")},
+			code: "email.code_hook_switched_off.subject", title: "web",
+			page: "/hubs/01936f2a-7c1e-7000-8000-0000000000fe/settings/code"},
 	}
 	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

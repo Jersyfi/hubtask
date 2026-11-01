@@ -18,7 +18,8 @@ import (
 // ConnectionNotices records what a connection that stopped, or is about to, has to tell whoever can
 // fix it before people notice: the workspace's administrators of a mailbox that has refused for over
 // an hour (ADR-0094), a SAML provider whose certificates end soon (identity.md §26.1) and a CMDB
-// connector that switched itself off; a calendar push's owner of the push its provider refused.
+// connector or a forge hook that switched itself off; a calendar push's owner of the push its
+// provider refused.
 //
 // The integration category: what an integration has to tell its owner, on the switch somebody set
 // for exactly that. No event, like a disabled webhook: a state that was found is what caused it.
@@ -49,6 +50,14 @@ func (r ConnectionNotices) SAMLCertificateEnding(ctx context.Context, tenantID, 
 // stopped after its failures in a row: nothing is pulled until somebody switches it on again.
 func (r ConnectionNotices) ConnectorSwitchedOff(ctx context.Context, tenantID, hubID, connectorID shared.ID) error {
 	return r.tellAt(ctx, domain.NewInput{TenantID: tenantID, ConnectorID: connectorID},
+		[]identity.Scope{identity.TenantScope(), identity.HubScope(hubID)})
+}
+
+// HookSwitchedOff tells the workspace's and the hub's administrators that a forge hook stopped
+// because the person it acts as may no longer write in the hub: no commit is linked until somebody
+// who may switches it on again, and so defines it as themselves.
+func (r ConnectionNotices) HookSwitchedOff(ctx context.Context, tenantID, hubID, hookID shared.ID) error {
+	return r.tellAt(ctx, domain.NewInput{TenantID: tenantID, CodeHookID: hookID},
 		[]identity.Scope{identity.TenantScope(), identity.HubScope(hubID)})
 }
 
