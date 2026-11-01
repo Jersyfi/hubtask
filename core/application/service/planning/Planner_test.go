@@ -279,7 +279,8 @@ func TestAPlanIsScheduledForItsReader(t *testing.T) {
 	if b := entryOf(t, out, build); b["start"] != "2026-11-05" || b["finish"] != "2026-11-06" || b["moved"] != true {
 		t.Errorf("build = %v, want Thursday and Friday, moved", b)
 	}
-	if l := entryOf(t, out, launch); l["start"] != "2026-11-06" || l["milestone"] != true || l["duration_days"] != 0 {
+	// UC-PLN-05 check 3: a milestone reads one date and milestone: true.
+	if l := entryOf(t, out, launch); l["start"] != "2026-11-06" || l["finish"] != "2026-11-06" || l["milestone"] != true || l["duration_days"] != 0 {
 		t.Errorf("launch = %v, want the milestone on the Friday build finishes", l)
 	}
 	if d := entryOf(t, out, design); d["title"] != "Approve the design" || d["parent_id"] != nil || d["collection_id"] != collection.String() {

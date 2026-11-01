@@ -216,19 +216,27 @@ func TestScheduleRollsUpAnAutomaticParent(t *testing.T) {
 	}
 }
 
+// UC-PLN-05 check 2: a milestone has no duration, falls on the day its predecessor finishes, and
+// what waits for it starts on the next working day.
 func TestScheduleMilestoneMeetsItsPredecessorsFinish(t *testing.T) {
 	m := entry(t, "m", Automatic, "", "2026-11-20")
 	m.Milestone = true
 	r, err := Schedule(Plan{
-		Calendar:     weekdays{},
-		Entries:      []Entry{entry(t, "a", Manual, "2026-11-02", "2026-11-06"), m},
-		Dependencies: []Dependency{{Predecessor: "a", Successor: "m"}},
+		Calendar: weekdays{},
+		Entries: []Entry{
+			entry(t, "a", Manual, "2026-11-02", "2026-11-06"), m,
+			entry(t, "n", Automatic, "2026-11-20", "2026-11-20"),
+		},
+		Dependencies: []Dependency{{Predecessor: "a", Successor: "m"}, {Predecessor: "m", Successor: "n"}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := placed(t, r, "m"); got.Start != day(t, "2026-11-06") || got.Finish != got.Start || got.Duration != 0 {
 		t.Errorf("milestone = %+v, want the Friday a finishes", got)
+	}
+	if got := placed(t, r, "n"); got.Start != day(t, "2026-11-09") {
+		t.Errorf("what waits for the milestone starts %s, want the next working day, Monday", got.Start)
 	}
 }
 
@@ -239,6 +247,7 @@ func TestScheduleLeavesUndatedEntriesOut(t *testing.T) {
 	}
 }
 
+// UC-PLN-03 check 3: the same plan on the same calendar answers the same dates and the same path.
 func TestScheduleIsDeterministic(t *testing.T) {
 	plan := Plan{
 		Calendar: weekdays{},
@@ -254,6 +263,9 @@ func TestScheduleIsDeterministic(t *testing.T) {
 		again, _ := Schedule(plan)
 		if !slices.Equal(first.Placements, again.Placements) {
 			t.Fatal("the same plan answered different dates")
+		}
+		if !slices.Equal(first.CriticalPath, again.CriticalPath) || len(first.CriticalPath) == 0 {
+			t.Fatalf("the same plan answered the paths %v and %v", first.CriticalPath, again.CriticalPath)
 		}
 	}
 }
