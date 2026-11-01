@@ -152,6 +152,35 @@ func TestASprintRecordsItsCommitmentAndWhatWasDone(t *testing.T) {
 	}
 }
 
+// UC-PLN-07 check 2: a sprint counting points adds up points and sizes, one counting hours adds
+// up hours; an entry without an estimate, or in the other unit, adds nothing and still counts.
+func TestASprintAddsUpTheEstimatesOfItsUnit(t *testing.T) {
+	a, b, c, d := sprintID(10), sprintID(11), sprintID(12), sprintID(13)
+	estimates := map[shared.ID]Estimate{
+		a: {EntryID: a, Unit: Points, Value: 3},
+		b: {EntryID: b, Unit: Size, Value: 5, Size: "L"},
+		c: {EntryID: c, Unit: Hours, Value: 7},
+	}
+	entries := []SprintEntry{{EntryID: a}, {EntryID: b}, {EntryID: c}, {EntryID: d}}
+	now := time.Date(2026, 11, 2, 9, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		unit EstimateUnit
+		want float64
+	}{{Points, 8}, {Hours, 7}} {
+		s := Sprint{State: SprintPlanned, Unit: tc.unit}
+		if err := s.Start(entries, estimates, now); err != nil {
+			t.Fatal(err)
+		}
+		if s.CommittedValue != tc.want || s.CommittedCount != 4 {
+			t.Errorf("%s: committed %v of %d, want %v of 4", tc.unit, s.CommittedValue, s.CommittedCount, tc.want)
+		}
+	}
+	hours := Sprint{State: SprintPlanned, Unit: Hours}
+	if err := hours.Start(entries[:2], estimates, now); err != nil || hours.CommittedValue != 0 || hours.CommittedCount != 2 {
+		t.Errorf("points in an hours sprint: %v of %d (%v)", hours.CommittedValue, hours.CommittedCount, err)
+	}
+}
+
 // UC-PLN-07 check 3: the burndown falls as entries finish, rises when one joins, and the ideal
 // line falls over working days only.
 func TestBurndown(t *testing.T) {

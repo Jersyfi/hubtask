@@ -233,9 +233,9 @@ func TestASprintIsPlannedWithEntriesOfItsCollection(t *testing.T) {
 	}
 }
 
-// UC-PLN-06 check 3, UC-PLN-07 checks 1 to 3: starting records the commitment from the estimates,
-// closing the result, the unfinished entries move into the next sprint, the burndown follows the
-// days, and the velocity averages the closed sprints.
+// UC-PLN-06 checks 3 and 5, UC-PLN-07 checks 1, 2 and 3: starting records the commitment from the estimates,
+// closing the result, the unfinished entries move into the next sprint, a running sprint is not
+// deleted, the burndown follows the days, and the velocity averages the closed sprints.
 func TestASprintRunsAndCloses(t *testing.T) {
 	f, store := sprintFixture()
 	ctx := context.Background()
@@ -312,6 +312,36 @@ func TestASprintRunsAndCloses(t *testing.T) {
 	}
 	if !slices.Contains(names, launch) || slices.Contains(names, build) || slices.Contains(names, secret) {
 		t.Errorf("backlog = %v, want the launch, not the carried build nor the secret", names)
+	}
+}
+
+// UC-PLN-06 check 5: a planned sprint is deleted and its entries go back to the backlog as they
+// were - estimated as before, free to join another sprint.
+func TestAPlannedSprintIsDeletedAndItsEntriesGoBack(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	if _, err := (SetEntryEstimate{Planner: f.planner}).Execute(ctx, actor(), SetEntryEstimateCommand{ItemID: design, Unit: domain.Points, Value: 3}); err != nil {
+		t.Fatal(err)
+	}
+	sprint := planSprint(t, f, "Sprint 1", "2026-11-02")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{design, build}); err != nil {
+		t.Fatal(err)
+	}
+	if err := (DeleteSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID); err != nil {
+		t.Fatalf("deleting a planned sprint: %v", err)
+	}
+	if _, kept := store.sprints[sprint.ID]; kept {
+		t.Error("the sprint is still there")
+	}
+	if open, _ := store.OpenMemberships(ctx, []shared.ID{design, build}); len(open) != 0 {
+		t.Errorf("the entries are still in a sprint: %+v", open)
+	}
+	if e := store.estimates[design]; e.Unit != domain.Points || e.Value != 3 {
+		t.Errorf("the entry's estimate changed: %+v", e)
+	}
+	next := planSprint(t, f, "Sprint 2", "2026-11-16")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), next.ID, []shared.ID{design, build}); err != nil {
+		t.Errorf("the entries back in the backlog did not join the next sprint: %v", err)
 	}
 }
 
