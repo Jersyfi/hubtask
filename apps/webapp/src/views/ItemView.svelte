@@ -135,19 +135,12 @@
   import { textLanguages } from '../lib/data/query.ts';
   import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { entryParts } from '../lib/frame/parts.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
-
-  // The editors an entry opens on demand are chunks of their own (F-10): an entry's first paint
-  // carries none of them.
-  const entryParts = {
-    RecurrencePanel: () => import('../lib/entries/RecurrencePanel.svelte'),
-    ReminderPanel: () => import('../lib/entries/ReminderPanel.svelte'),
-    CoverPanel: () => import('../lib/media/CoverPanel.svelte'),
-  };
 
   interface Props {
     id: string;

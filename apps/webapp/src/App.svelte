@@ -28,6 +28,7 @@
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import { precacheWhenIdle } from './lib/frame/precache.ts';
+  import { partLoaders } from './lib/frame/parts.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
   import { engine } from './lib/data/engine.ts';
   import { forwardTo } from './lib/data/oidc.ts';
@@ -269,13 +270,13 @@
     if (!session.isSignedIn) return;
     return untrack(() => viewAs.open());
   });
-  // Every screen's chunk once the signed-in session is idle, so a screen never opened before going
-  // offline still opens from the copy (precache.ts).
+  // Every screen's and part's chunk once the signed-in session is idle, so one never opened before
+  // going offline still opens from the copy (precache.ts).
   let precached = false;
   $effect(() => {
     if (!session.isSignedIn || precached) return;
     precached = true;
-    void precacheWhenIdle(Object.values(views));
+    void precacheWhenIdle([...Object.values(views), ...partLoaders()]);
   });
   $effect(() => {
     const accountId = liveAccountId;

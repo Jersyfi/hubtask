@@ -121,26 +121,9 @@
 
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
+  import { settingsParts } from '../lib/frame/parts.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-
-  // The place's settings are chunks of their own (F-10): the work of a place draws none of them,
-  // and the first visit to its settings fetches them.
-  const settingsParts = {
-    StructurePanel: () => import('../lib/workspace/StructurePanel.svelte'),
-    ModuleSwitches: () => import('../lib/workspace/ModuleSwitches.svelte'),
-    CustomFieldsDialog: () => import('../lib/entries/CustomFieldsDialog.svelte'),
-    LabelsDialog: () => import('../lib/entries/LabelsDialog.svelte'),
-    PoliciesDialog: () => import('../lib/workspace/PoliciesDialog.svelte'),
-    HandleField: () => import('../lib/mail/HandleField.svelte'),
-    ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
-    HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
-    HubSlaPolicies: () => import('../lib/servicedesk/HubSlaPolicies.svelte'),
-    TemplatesGallery: () => import('../lib/settings/TemplatesGallery.svelte'),
-    SampleEntries: () => import('../lib/settings/SampleEntries.svelte'),
-    CodeHooks: () => import('../lib/code/CodeHooks.svelte'),
-    ChatBots: () => import('../lib/chat/ChatBots.svelte'),
-  };
 
   interface Props {
     id: string;
