@@ -100,6 +100,15 @@ instanceFile:
   key: instance.json
   mode: seed
 
+# The instance file checked by `hubtask instance check` before every upgrade (a pre-upgrade hook,
+# job-instance-check.yaml): a file the new pods would refuse to start on stops the upgrade instead.
+# Only where an instance file is named.
+instanceCheck:
+  enabled: true
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 128Mi }
+
 # Files the process needs and the chart does not know about, mounted into every role: a private
 # certificate authority behind an internal mail relay, most likely, read through Go's own
 # SSL_CERT_DIR in extraEnv. Lists in the pod's own syntax, so that a new kind of file is a value

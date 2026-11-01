@@ -245,6 +245,8 @@ services:
       - restore-drill:/var/lib/hubtask/restore-drill
       # With HUBTASK_INSTANCE_FILE=/etc/hubtask/instance.json in .env:
       # - ./instance.json:/etc/hubtask/instance.json:ro
+      # Check a changed file before the restart it would refuse:
+      # docker compose run --rm --no-deps app instance check
     ports:
       - "${HUBTASK_PORT:-8080}:8080"
       # The operations port on loopback only. It carries the metrics and the health report, which

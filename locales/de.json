@@ -2058,6 +2058,8 @@
   "cli.operator_no_database": "Die Datenbank war mit der Konfiguration dieses Servers nicht erreichbar. Führe den Befehl dort aus, wo der Server läuft, mit seiner Umgebung.",
   "cli.operator_failed": "Der Betreiber konnte nicht hinzugefügt werden. Nichts hat sich geändert.",
   "cli.workspace_usage": "Aufruf: hubtask workspace resume --workspace <Kurzname> | hubtask workspace cancel-deletion --workspace <Kurzname>",
+  "cli.instance_usage": "Aufruf: hubtask instance check [Datei]. Ohne Datei wird die geprüft, die HUBTASK_INSTANCE_FILE nennt.",
+  "cli.instance_file_valid": "{source} ist eine gültige Instanzdatei. Was nur die Datenbank beurteilen kann, etwa ein Tarif gegen die Werte der Installation, wird beim Start geprüft.",
   "cli.workspace_resumed": "{workspace} ist aktiv, in seinem Protokoll und im Journal der Installation als vom Rechner aus erledigt festgehalten.",
   "cli.workspace_deletion_off_active": "{workspace} ist nicht mehr zum Löschen vorgemerkt und ist aktiv, in seinem Protokoll und im Journal der Installation als vom Rechner aus erledigt festgehalten.",
   "cli.workspace_deletion_off_suspended": "{workspace} ist nicht mehr zum Löschen vorgemerkt und ist gesperrt, wie zu dem Zeitpunkt, als das Löschen angefordert wurde. Um seine Leute wieder hereinzulassen: hubtask workspace resume --workspace {workspace}",

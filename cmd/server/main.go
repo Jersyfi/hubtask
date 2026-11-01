@@ -178,6 +178,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "operator" {
 		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// The instance file checked before a restart, without a database (deployment.md §6.1).
+	if len(os.Args) > 1 && os.Args[1] == "instance" {
+		os.Exit(runInstanceCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	// The rest of that way: a workspace its own state locks every operator out of.
 	if len(os.Args) > 1 && os.Args[1] == "workspace" {
 		os.Exit(runWorkspaceCommand(os.Args[2:], os.Stdout, os.Stderr))

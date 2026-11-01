@@ -541,6 +541,8 @@
   "cli.operator_no_database": "The database could not be reached with this server's configuration. Run the command where the server runs, with its environment.",
   "cli.operator_failed": "The operator could not be added. Nothing changed.",
   "cli.workspace_usage": "Usage: hubtask workspace resume --workspace <short name> | hubtask workspace cancel-deletion --workspace <short name>",
+  "cli.instance_usage": "Usage: hubtask instance check [file]. Without a file, the one HUBTASK_INSTANCE_FILE names is checked.",
+  "cli.instance_file_valid": "{source} is a valid instance file. What only the database can judge, such as a plan against the installation's values, is checked at the start.",
   "cli.workspace_resumed": "{workspace} is active, recorded in its trail and the installation's journal as done from the machine.",
   "cli.workspace_deletion_off_active": "{workspace} is no longer set for deletion and is active, recorded in its trail and the installation's journal as done from the machine.",
   "cli.workspace_deletion_off_suspended": "{workspace} is no longer set for deletion and is suspended, as it was when the deletion was requested. To let its people back in: hubtask workspace resume --workspace {workspace}",

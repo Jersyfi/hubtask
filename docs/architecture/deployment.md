@@ -273,6 +273,16 @@ configuration, and every variable the table below names is passed through or lis
 variable reaches the application only once it is added to `compose.yaml` too. The instance file
 needs its mount as well: the commented `instance.json` line under the application's volumes.
 
+A malformed instance file refuses the start (the table below), so a changed file is checked before
+the restart: `hubtask instance check [file]` runs every reader the start runs - the level, the
+plans, the presets, the AI models with the variables they name, the platform subscriptions with
+their secret files, the upload scanner and the business calendars - without a database, and prints
+each refusal (exit 1). It runs where the server runs, so the variables and files are the server's:
+`docker compose run --rm --no-deps app instance check` before `docker compose up -d`. The chart
+runs it as a pre-upgrade hook (`instanceCheck.enabled`, on where an instance file is named), so an
+upgrade stops with the refusal in the hook's log while the running pods keep serving. What only the
+database can judge (a plan against the installation's values) is still the start's to refuse.
+
 Required, with no default: `HUBTASK_DB_DSN` (the connection as `hubtask_app`) and
 `HUBTASK_SECRET_KEY` — the installation secret, at least 32 characters. It peppers stored
 credential hashes, signs cursors, mints media and feed tokens and keys the audit trail's
