@@ -11323,6 +11323,7 @@
   "planning.collection_required": "Name the collection the plan comes into.",
   "app.planning.more": "More for the plan",
   "app.planning.export_csv": "Export as CSV",
+  "app.planning.export_xlsx": "Export as XLSX",
   "app.planning.export_png": "Export the chart as PNG",
   "app.planning.export_pdf": "Print or save as PDF",
   "app.planning.exported": "The plan is saved.",

@@ -34,7 +34,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, ganttRows, lagOf, planCsvRows, planning, proposedMoves, schedulePath, tolerancePath,
+    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, ganttRows, lagOf, planCsvRows, planXlsxOf, planning, proposedMoves, schedulePath, tolerancePath,
   } from '../lib/data/planning.svelte.ts';
   import { anchorOf, draggedTo, gridOf, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
@@ -49,6 +49,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { platform } from '../lib/platform/index.ts';
   import { csvOf } from '../lib/data/goals.ts';
+  import { SPREADSHEET_TYPE } from '../lib/data/xlsx.ts';
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
 
@@ -270,7 +271,8 @@
   let isImporting = $state(false);
 
   /**
-   * The plan saved as the reader sees it (UC-PLN-09 check 6): a CSV the import reads back, a PNG
+   * The plan saved as the reader sees it (UC-PLN-09 check 6): a CSV the import reads back, the same
+   * rows as a workbook, a PNG
    * of the chart, or the chart printed - which the browser saves as PDF.
    */
   async function exportAs(id: string) {
@@ -283,6 +285,8 @@
     const title = place ? t('app.planning.title_of', { place: place.name }) : t('app.planning.title');
     if (id === 'csv') {
       platform.saveFile(new Blob([csvOf([...PLAN_CSV_HEADS], planCsvRows(rows, schedule))], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
+    } else if (id === 'xlsx') {
+      platform.saveFile(new Blob([planXlsxOf(rows, schedule) as BlobPart], { type: SPREADSHEET_TYPE }), `${name}.xlsx`);
     } else if (id === 'png') {
       platform.saveFile(await pngOf(drawPlan(rows, title)), `${name}.png`);
     } else if (id === 'pdf') {
@@ -347,6 +351,7 @@
       label: t('app.planning.more'),
       items: [
         { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' },
+        { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' },
         { id: 'png', label: t('app.planning.export_png'), icon: 'image' },
         { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' },
         ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),

@@ -47,7 +47,8 @@ meeting.
 5. A dry run answers how many tasks, work packages, activities, dependencies and milestones the
    file brings, and how many rows it flattens, and writes nothing.
 6. The *Plan* screen exports the plan as CSV - the outline level, the milestone mark and each
-   entry's predecessors by row number, so the import reads it back -, the chart as PNG, and the
+   entry's predecessors by row number, so the import reads it back -, the same rows as an XLSX
+   workbook, the chart as PNG, and the
    chart printed, which the browser saves as PDF; a collection's *Plan* screen brings a file in
    with its dry run first.
 7. REST, MCP and hubctl bring a file in alike.

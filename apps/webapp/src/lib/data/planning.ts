@@ -15,6 +15,8 @@
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
+import { xlsxOf } from './xlsx.ts';
+
 /** One row of the chart and of the table beside it. */
 export interface GanttRow {
   readonly id: string;
@@ -149,6 +151,11 @@ export function planCsvRows(rows: readonly GanttRow[], schedule: PlanSchedule): 
 
 /** The columns `planCsvRows` fills, in its order; the first seven are the ones the import reads. */
 export const PLAN_CSV_HEADS = ['ID', 'Name', 'Start', 'Finish', 'Outline Level', 'Milestone', 'Predecessors', 'Duration', 'Total Float', 'Critical'] as const;
+
+/** The plan as a workbook with the CSV export's columns and rows (UC-PLN-09 check 6). */
+export function planXlsxOf(rows: readonly GanttRow[], schedule: PlanSchedule): Uint8Array {
+  return xlsxOf('Plan', PLAN_CSV_HEADS, planCsvRows(rows, schedule));
+}
 
 /** A project file's format from its name, else from its first character. */
 export function projectFormatOf(fileName: string, content: string): 'MSPROJECT_XML' | 'CSV' {
