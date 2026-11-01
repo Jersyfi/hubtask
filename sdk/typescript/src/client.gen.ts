@@ -2010,6 +2010,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/accounts/me/avatar", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The names behind many account identifiers at once */
+  resolveAccounts(body: NonNullable<operations["resolveAccounts"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["resolveAccounts"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts:resolve", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The name behind an account identifier */
   getAccount(accountId: string, options: CallOptions = {}): Promise<operations["getAccount"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

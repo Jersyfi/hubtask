@@ -1611,6 +1611,10 @@ class Client:
         """Go back to the initials"""
         return self._call("DELETE", "/accounts/me/avatar", {}, None, {}, None, "none", None, "json")
 
+    def resolve_accounts(self, body: dict[str, Any]) -> dict[str, Any]:
+        """The names behind many account identifiers at once"""
+        return self._call("POST", "/accounts:resolve", {}, None, {}, body, "json", "application/json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")

@@ -25586,6 +25586,11 @@ type InviteAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ResolveAccountsJSONBody defines parameters for ResolveAccounts.
+type ResolveAccountsJSONBody struct {
+	Ids []openapi_types.UUID `json:"ids"`
+}
+
 // CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
 type CreateInstanceBackupTargetParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -28406,6 +28411,9 @@ type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// ResolveAccountsJSONRequestBody defines body for ResolveAccounts for application/json ContentType.
+type ResolveAccountsJSONRequestBody ResolveAccountsJSONBody
+
 // CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
 type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
@@ -30001,6 +30009,9 @@ type ServerInterface interface {
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
+	// ResolveAccounts The names behind many account identifiers at once
+	// (POST /accounts:resolve)
+	ResolveAccounts(w http.ResponseWriter, r *http.Request)
 	// ListInstanceAiProviders The AI models this installation offers every workspace
 	// (GET /admin/ai-providers)
 	ListInstanceAiProviders(w http.ResponseWriter, r *http.Request)
@@ -33135,6 +33146,20 @@ func (siw *ServerInterfaceWrapper) InviteAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InviteAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResolveAccounts operation middleware
+func (siw *ServerInterfaceWrapper) ResolveAccounts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResolveAccounts(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60366,6 +60391,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/settings", wrapper.ReadOwnSettings)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/avatar", wrapper.RemoveOwnAvatar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/me/avatar", wrapper.SetOwnAvatar)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:resolve", wrapper.ResolveAccounts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)

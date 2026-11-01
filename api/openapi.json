@@ -16427,6 +16427,70 @@
         }
       }
     },
+    "/accounts:resolve": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "resolveAccounts",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-list": "data",
+        "x-hubtask-rest-answer": "accountSummaryResponse",
+        "summary": "The names behind many account identifiers at once",
+        "description": "`GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed\nor a board names everybody it shows with one read rather than one per person. The same\nrules apply - any member of the tenant may make it, and an identifier from another tenant\nor of no account is left out of the answer rather than refused, so a client reads an\nidentifier missing from `data` as one it may not name. Each identifier is answered once,\nin no particular order.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The accounts this reader may name, as another member may see them",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AccountSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/accounts/{accountId}": {
       "parameters": [
         {

@@ -25592,6 +25592,11 @@ type InviteAccountParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ResolveAccountsJSONBody defines parameters for ResolveAccounts.
+type ResolveAccountsJSONBody struct {
+	Ids []openapi_types.UUID `json:"ids"`
+}
+
 // CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
 type CreateInstanceBackupTargetParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -28412,6 +28417,9 @@ type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// ResolveAccountsJSONRequestBody defines body for ResolveAccounts for application/json ContentType.
+type ResolveAccountsJSONRequestBody ResolveAccountsJSONBody
+
 // CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
 type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
@@ -30654,6 +30662,34 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 	InviteAccount(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveAccountsWithBody The names behind many account identifiers at once
+	//
+	// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+	// or a board names everybody it shows with one read rather than one per person. The same
+	// rules apply - any member of the tenant may make it, and an identifier from another tenant
+	// or of no account is left out of the answer rather than refused, so a client reads an
+	// identifier missing from `data` as one it may not name. Each identifier is answered once,
+	// in no particular order.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+	ResolveAccountsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResolveAccounts The names behind many account identifiers at once
+	//
+	// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+	// or a board names everybody it shows with one read rather than one per person. The same
+	// rules apply - any member of the tenant may make it, and an identifier from another tenant
+	// or of no account is left out of the answer rather than refused, so a client reads an
+	// identifier missing from `data` as one it may not name. Each identifier is answered once,
+	// in no particular order.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+	ResolveAccounts(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceAiProviders The AI models this installation offers every workspace
 	//
@@ -41947,6 +41983,54 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 // Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 func (c *Client) InviteAccount(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewInviteAccountRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveAccountsWithBody The names behind many account identifiers at once
+//
+// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+// or a board names everybody it shows with one read rather than one per person. The same
+// rules apply - any member of the tenant may make it, and an identifier from another tenant
+// or of no account is left out of the answer rather than refused, so a client reads an
+// identifier missing from `data` as one it may not name. Each identifier is answered once,
+// in no particular order.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+func (c *Client) ResolveAccountsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveAccountsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResolveAccounts The names behind many account identifiers at once
+//
+// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+// or a board names everybody it shows with one read rather than one per person. The same
+// rules apply - any member of the tenant may make it, and an identifier from another tenant
+// or of no account is left out of the answer rather than refused, so a client reads an
+// identifier missing from `data` as one it may not name. Each identifier is answered once,
+// in no particular order.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+func (c *Client) ResolveAccounts(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveAccountsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -65052,6 +65136,46 @@ func NewInviteAccountRequestWithBody(server string, params *InviteAccountParams,
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewResolveAccountsRequest calls the generic ResolveAccounts builder with application/json body
+func NewResolveAccountsRequest(server string, body ResolveAccountsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewResolveAccountsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewResolveAccountsRequestWithBody constructs an http.Request for the ResolveAccounts method, with any body, and a specified content type
+func NewResolveAccountsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts:resolve")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -103411,6 +103535,34 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 	InviteAccountWithResponse(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*InviteAccountResult, error)
 
+	// ResolveAccountsWithBodyWithResponse The names behind many account identifiers at once
+	//
+	// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+	// or a board names everybody it shows with one read rather than one per person. The same
+	// rules apply - any member of the tenant may make it, and an identifier from another tenant
+	// or of no account is left out of the answer rather than refused, so a client reads an
+	// identifier missing from `data` as one it may not name. Each identifier is answered once,
+	// in no particular order.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+	ResolveAccountsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResolveAccountsResult, error)
+
+	// ResolveAccountsWithResponse The names behind many account identifiers at once
+	//
+	// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+	// or a board names everybody it shows with one read rather than one per person. The same
+	// rules apply - any member of the tenant may make it, and an identifier from another tenant
+	// or of no account is left out of the answer rather than refused, so a client reads an
+	// identifier missing from `data` as one it may not name. Each identifier is answered once,
+	// in no particular order.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+	ResolveAccountsWithResponse(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveAccountsResult, error)
+
 	// ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
 	//
 	// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
@@ -115833,6 +115985,58 @@ func (r InviteAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r InviteAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResolveAccountsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []AccountSummary `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ResolveAccountsResult) GetJSON200() *struct {
+	Data []AccountSummary `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ResolveAccountsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ResolveAccountsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResolveAccountsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResolveAccountsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResolveAccountsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -155502,6 +155706,46 @@ func (c *ClientWithResponses) InviteAccountWithResponse(ctx context.Context, par
 	return ParseInviteAccountResult(rsp)
 }
 
+// ResolveAccountsWithBodyWithResponse The names behind many account identifiers at once
+//
+// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+// or a board names everybody it shows with one read rather than one per person. The same
+// rules apply - any member of the tenant may make it, and an identifier from another tenant
+// or of no account is left out of the answer rather than refused, so a client reads an
+// identifier missing from `data` as one it may not name. Each identifier is answered once,
+// in no particular order.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+func (c *ClientWithResponses) ResolveAccountsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ResolveAccountsResult, error) {
+	rsp, err := c.ResolveAccountsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveAccountsResult(rsp)
+}
+
+// ResolveAccountsWithResponse The names behind many account identifiers at once
+//
+// `GET /accounts/{accountId}` for up to 200 identifiers in one request: a member list, a feed
+// or a board names everybody it shows with one read rather than one per person. The same
+// rules apply - any member of the tenant may make it, and an identifier from another tenant
+// or of no account is left out of the answer rather than refused, so a client reads an
+// identifier missing from `data` as one it may not name. Each identifier is answered once,
+// in no particular order.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
+func (c *ClientWithResponses) ResolveAccountsWithResponse(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveAccountsResult, error) {
+	rsp, err := c.ResolveAccounts(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResolveAccountsResult(rsp)
+}
+
 // ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
 //
 // A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
@@ -174588,6 +174832,41 @@ func ParseInviteAccountResult(rsp *http.Response) (*InviteAccountResult, error) 
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResolveAccountsResult parses an HTTP response from a ResolveAccountsWithResponse call
+func ParseResolveAccountsResult(rsp *http.Response) (*ResolveAccountsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResolveAccountsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []AccountSummary `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

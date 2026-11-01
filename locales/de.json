@@ -687,6 +687,7 @@
   "accounts.onboarding_completed_at_invalid": "{value} ist kein Zeitpunkt. Schick Datum und Uhrzeit nach RFC 3339, oder nichts, damit die Tour wieder läuft.",
   "accounts.not_found": "Diese Person ist nicht in diesem Workspace.",
   "accounts.account_required": "Sag, wessen Konto gelesen werden soll.",
+  "accounts.too_many": "Höchstens {maximum} Konten in einer Anfrage nennen.",
   "accounts.self_required": "Dieser Aufruf läuft als die Installation selbst, die kein eigenes Konto hat.",
   "accounts.name_needs_a_person": "Ein Dienstkonto benennt, wer es verwaltet, nicht es sich selbst.",
   "accounts.picture_needs_a_person": "Nur eine Person zeigt ein Bild von sich; ein Dienstkonto hat keines.",

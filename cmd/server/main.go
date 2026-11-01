@@ -2652,6 +2652,7 @@ func run() error {
 		}.Descriptor(),
 		identity.ReadOwnSettings{Accounts: accounts, UnitOfWork: unitOfWork, Resolver: signInPolicyResolver}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.ResolveAccounts{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateManagedAccount{
 			Managed: postgres.NewAccountRepository(), Authorizer: authorizer,
 			Grant: identity.GrantMembership{
