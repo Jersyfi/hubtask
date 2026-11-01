@@ -5,6 +5,7 @@ package worker
 
 import (
 	"context"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"sync"
 	"testing"
 	"time"
@@ -779,5 +780,34 @@ func TestTheBackupSampleCarriesEachTargetsCadence(t *testing.T) {
 	}
 	if _, ok := signals.freshness[weekly.String()]; !ok {
 		t.Fatal("the last success was not sampled")
+	}
+}
+
+type censusOf map[string]quotaservice.Band
+
+func (c censusOf) Count(context.Context) (map[string]quotaservice.Band, []shared.ID, error) {
+	return c, nil, nil
+}
+
+type quotaSignals struct{ approaching, atLimit map[string]int64 }
+
+func (q *quotaSignals) QuotaWorkspaces(_ context.Context, quota string, approaching, atLimit int64) {
+	q.approaching[quota], q.atLimit[quota] = approaching, atLimit
+}
+
+// A-18's numbers are published on the first tick of each five minutes and not on the ticks between.
+func TestTheLeaderPublishesTheQuotaCensusEveryFiveMinutes(t *testing.T) {
+	signals := &quotaSignals{approaching: map[string]int64{}, atLimit: map[string]int64{}}
+	s := Scheduler{
+		Quotas: censusOf{"items": {Approaching: 2, AtLimit: 1}}, QuotaSignals: signals,
+		TickInterval: 10 * time.Second,
+	}
+	s.sampleQuotaCensus(t.Context(), time.Date(2026, 11, 1, 9, 3, 10, 0, time.UTC))
+	if len(signals.approaching) != 0 {
+		t.Fatal("the census ran between its five minutes")
+	}
+	s.sampleQuotaCensus(t.Context(), time.Date(2026, 11, 1, 9, 5, 0, 0, time.UTC))
+	if signals.approaching["items"] != 2 || signals.atLimit["items"] != 1 {
+		t.Fatalf("published %v / %v", signals.approaching, signals.atLimit)
 	}
 }

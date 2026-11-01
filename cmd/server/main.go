@@ -5338,6 +5338,14 @@ func run() error {
 				return onBackground
 			}(),
 			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
+			// Alert A-18's numbers: every workspace's standing, read on the leader's own clock
+			// rather than on whichever workspace created last.
+			Quotas: quotaservice.Census{
+				Tenants: postgres.NewAdminTenantRepository(),
+				Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+				UnitOfWork: backgroundWork, Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+			},
+			QuotaSignals: metrics,
 			// Alert A-21's number: the dead letters waiting for a purchase platform (UC-INS-14).
 			PlatformDeliveries: postgres.NewPlatformDeliveryRepository(),
 			Queue:              jobs,

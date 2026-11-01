@@ -14,17 +14,17 @@ groups:
   - name: hubtask-tenant
     rules:
       - alert: HubtaskTenantQuotaApproaching
-        # A-18. The gauge is used/limit per quota, recorded at every enforcement check;
-        # 90% for a quarter hour is a workspace that will hit the wall on a normal afternoon,
-        # early enough that raising the ceiling is a decision rather than an incident. Without
-        # the tenant label the series says "somebody stands at 90%" - which is the alarm - and
-        # the who is one HUBTASK_METRICS_TENANT_LABEL=true away.
-        expr: max by (quota) (hubtask_tenant_quota_usage_ratio) > 0.9
+        # A-18. The scheduler leader counts every workspace's standing every five minutes;
+        # one at 90% or more of a quota for a quarter hour will hit the wall on a normal
+        # afternoon, early enough that raising the ceiling is a decision rather than an
+        # incident. Not the guard's own ratio: that is written on a create and carries whichever
+        # workspace created last, so a busy neighbour hides the one near its wall.
+        expr: max by (quota) (hubtask_tenant_quota_workspaces{band="approaching"}) > 0
         for: 15m
         labels:
           severity: info
           alert_id: A-18
         annotations:
-          summary: "A workspace stands at {{ $value | humanizePercentage }} of its {{ $labels.quota }} quota"
-          description: "hubtask_tenant_quota_usage_ratio is above 0.9; capacity planning, not an outage."
+          summary: "{{ $value }} workspaces stand at 90% or more of their {{ $labels.quota }} quota"
+          description: "hubtask_tenant_quota_workspaces{band=approaching} is above 0; capacity planning, not an outage."
           runbook: RB-A18-quota-approaching.md

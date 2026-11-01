@@ -6,11 +6,16 @@ rule_files:
   - ../prometheus-rules-tenant.yaml
 evaluation_interval: 30s
 tests:
-  # A-18: one quota stands at 95% for long enough to be capacity planning, not a blip.
+  # A-18: one workspace stands at 95% for long enough to be capacity planning, not a blip - while
+  # the guard's own ratio, overwritten by busier workspaces' creates, shows 0.1 nearly all the time.
   - interval: 1m
     input_series:
       - series: 'hubtask_tenant_quota_usage_ratio{quota="items"}'
-        values: '0.95x30'
+        values: '0.1x30'
+      - series: 'hubtask_tenant_quota_workspaces{quota="items",band="approaching"}'
+        values: '1x30'
+      - series: 'hubtask_tenant_quota_workspaces{quota="items",band="at_limit"}'
+        values: '0x30'
     alert_rule_test:
       - eval_time: 20m
         alertname: HubtaskTenantQuotaApproaching
@@ -20,6 +25,6 @@ tests:
               severity: info
               alert_id: A-18
             exp_annotations:
-              summary: "A workspace stands at 95% of its items quota"
-              description: "hubtask_tenant_quota_usage_ratio is above 0.9; capacity planning, not an outage."
+              summary: "1 workspaces stand at 90% or more of their items quota"
+              description: "hubtask_tenant_quota_workspaces{band=approaching} is above 0; capacity planning, not an outage."
               runbook: RB-A18-quota-approaching.md

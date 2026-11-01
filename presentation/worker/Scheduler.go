@@ -21,6 +21,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 )
 
 // SchedulerSignals is the slice of the metrics adapter the scheduler uses.
@@ -70,6 +71,20 @@ type SchedulerSignals interface {
 	// SAMLCertificatesEnding is the installation's SAML providers by their certificates' end.
 	SAMLCertificatesEnding(ctx context.Context, count identity.SAMLCertificateCount)
 }
+
+// QuotaCensus counts the workspaces near and at each bounded quota (quota.Census).
+type QuotaCensus interface {
+	Count(ctx context.Context) (map[string]quotaservice.Band, []shared.ID, error)
+}
+
+// QuotaCensusSignals publishes the census: two series per quota, never a tenant.
+type QuotaCensusSignals interface {
+	QuotaWorkspaces(ctx context.Context, quota string, approaching, atLimit int64)
+}
+
+// quotaCensusEvery is how often the census reads every workspace's standing: often enough for a
+// 15-minute alert, rarely enough that a count over every workspace is not the leader's whole tick.
+const quotaCensusEvery = 5 * time.Minute
 
 // SAMLCertificateEnds counts the installation's SAML providers by their certificates' end.
 type SAMLCertificateEnds interface {
@@ -193,6 +208,11 @@ type Scheduler struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	Signals    SchedulerSignals
+	// Quotas counts the workspaces near and at each bounded quota every five minutes, for A-18:
+	// the guard's own ratio is written on a create and carries whichever workspace created last.
+	// Nil samples nothing.
+	Quotas       QuotaCensus
+	QuotaSignals QuotaCensusSignals
 	// PlatformDeliveries counts the dead letters waiting for a purchase platform. Nil samples
 	// nothing: an installation without the feed has none.
 	PlatformDeliveries PlatformDeadLetters
@@ -358,6 +378,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleInvalidIndexes(ctx)
 	s.sampleMailApps(ctx)
 	s.sampleSAMLCertificates(ctx)
+	s.sampleQuotaCensus(ctx, due)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -543,6 +564,29 @@ func (s Scheduler) sweepUsage(ctx context.Context, due time.Time) {
 	})
 	if err != nil && ctx.Err() == nil {
 		slog.WarnContext(ctx, "the use counts could not be swept", slog.String("error", shared.AsError(err).Code))
+	}
+}
+
+// sampleQuotaCensus publishes how many workspaces stand near and at each quota (A-18), on the
+// first tick of every five minutes - stateless, so a new leader keeps the pace.
+func (s Scheduler) sampleQuotaCensus(ctx context.Context, due time.Time) {
+	if s.Quotas == nil || s.QuotaSignals == nil {
+		return
+	}
+	if due.Truncate(quotaCensusEvery).Equal(due.Add(-s.TickInterval).Truncate(quotaCensusEvery)) {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, 4*bookkeepingTimeout)
+	defer cancel()
+	bands, _, err := s.Quotas.Count(sampleCtx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "the quota census failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for quota, band := range bands {
+		s.QuotaSignals.QuotaWorkspaces(ctx, quota, band.Approaching, band.AtLimit)
 	}
 }
 

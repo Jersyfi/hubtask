@@ -58,6 +58,7 @@ type Metrics struct {
 	auditHeld         metric.Int64Gauge
 	auditDefaultAged  metric.Int64Gauge
 	jobQueueDepth     metric.Int64Gauge
+	quotaWorkspaces   metric.Int64Gauge
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
 	schedulerTickLag  metric.Int64Gauge
@@ -416,6 +417,12 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("How close a workspace stands to one of its quota ceilings: used/limit, by quota."),
 	); err != nil {
 		return fmt.Errorf("quota usage gauge: %w", err)
+	}
+	if m.quotaWorkspaces, err = meter.Int64Gauge(
+		namespace+"_tenant_quota_workspaces",
+		metric.WithDescription("Workspaces standing at 90% or more of a quota (band approaching) and at its limit (band at_limit), by quota. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("quota workspaces gauge: %w", err)
 	}
 	if m.outboxLag, err = meter.Float64Histogram(
 		namespace+"_outbox_lag_seconds",
@@ -1078,6 +1085,16 @@ func (m *Metrics) QuotaUsage(ctx context.Context, quota string, tenant string, r
 		attrs = append(attrs, attribute.String("tenant_id", tenant))
 	}
 	m.quotaUsageRatio.Record(ctx, ratio, metric.WithAttributes(attrs...))
+}
+
+// QuotaWorkspaces publishes the leader's census of one quota (A-18): how many workspaces stand at
+// 90% or more of it and how many at its limit. Two series per quota, never a tenant - the who is
+// the operator's overview.
+func (m *Metrics) QuotaWorkspaces(ctx context.Context, quota string, approaching, atLimit int64) {
+	m.quotaWorkspaces.Record(ctx, approaching, metric.WithAttributes(
+		attribute.String("quota", quota), attribute.String("band", "approaching")))
+	m.quotaWorkspaces.Record(ctx, atLimit, metric.WithAttributes(
+		attribute.String("quota", quota), attribute.String("band", "at_limit")))
 }
 
 // DependencyUp mirrors the health report into a time series, so that a disruption has a

@@ -1,7 +1,8 @@
 # RB-A18 — A workspace approaches a quota
 
-**Alert**: `HubtaskTenantQuotaApproaching` — `hubtask_tenant_quota_usage_ratio > 0.9` for 15
-minutes. Severity `info`: capacity planning, not an outage. Nothing is broken yet, and that is
+**Alert**: `HubtaskTenantQuotaApproaching` — `hubtask_tenant_quota_workspaces{band="approaching"} > 0`
+for 15 minutes: the scheduler leader's count, every five minutes, of the workspaces at 90% or more
+of a quota (`band="at_limit"` beside it counts those at the wall). Severity `info`: capacity planning, not an outage. Nothing is broken yet, and that is
 the point of being told now.
 
 ## What is happening
