@@ -152,10 +152,10 @@ jobs:
         # (deployment.md §1); compose.yaml refuses an unset HUBTASK_VERSION.
         run: |
           mkdir -p dist/compose
-          cp deploy/docker/compose.yaml dist/compose/compose.yaml
+          cp deploy/docker/compose.yaml deploy/docker/backup.sh deploy/docker/restore.sh dist/compose/
           sed "s/^HUBTASK_VERSION=.*/HUBTASK_VERSION=${GITHUB_REF_NAME}/" deploy/docker/.env.example > dist/compose/.env.example
           grep -qx "HUBTASK_VERSION=${GITHUB_REF_NAME}" dist/compose/.env.example
-          tar -czf compose.tar.gz -C dist/compose compose.yaml .env.example
+          tar -czf compose.tar.gz -C dist/compose compose.yaml .env.example backup.sh restore.sh
 
       - name: GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3

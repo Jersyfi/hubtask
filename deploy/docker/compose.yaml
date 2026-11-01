@@ -70,6 +70,28 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # The operator's tools for a backup and a restore (backup-restore.md §8.6): backup.sh and
+  # restore.sh beside this file run it; `up` never starts it. The database's image, so pg_dump and
+  # pg_restore match the server's major, with the volumes a restore puts back.
+  ops:
+    image: pgvector/pgvector:pg16
+    profiles: ["ops"]
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-hubtask}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-hubtask}
+      RELEASE: ${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
+    volumes:
+      - media:/var/lib/hubtask/media
+      - restore-drill:/var/lib/hubtask/restore-drill
+      - upgrade-dumps:/dumps
+      - ${HUBTASK_BACKUP_DIR:-./backup}:/backup
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   migrate:
     image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
     entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]

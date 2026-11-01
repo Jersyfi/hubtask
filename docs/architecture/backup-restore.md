@@ -506,30 +506,64 @@ CloudNativePG operator and an S3-compatible store — it proves the path, not th
 ### 8.6 The minimal path: a dump, and what it does not give
 
 On the two-container Compose stack the system backup is a dump, with the media beside it (the
-database references objects it does not contain):
+database references objects it does not contain). Two scripts beside `compose.yaml` do it, and
+`make gate-compose` runs both against a seeded stack (`scripts/compose-restore-drill.sh`): onto a
+fresh machine and onto the running stack, asserting that a session from before still works, an
+attachment downloads byte for byte, a write after the backup is gone and the drill record is read.
+
+**What to keep**, all three, the first two on another machine:
+
+1. **The backup directory** `./backup.sh` writes: `database.dump` (`pg_dump -Fc`, taken first),
+   `media.tar` (the `media` volume, taken after, so every file the dump names is in it) and
+   `release` (the `HUBTASK_VERSION` that wrote them).
+
+   ```bash
+   ./backup.sh /srv/backups/hubtask-$(date -u +%Y%m%dT%H%M%SZ)
+   ```
+
+   With `HUBTASK_STORAGE_KIND=s3` the media are in the bucket: copy it with the bucket's own tools.
+2. **`.env`**, stored apart from the dump. It holds `HUBTASK_SECRET_KEY` - a new one ends every
+   session and token - and the keyring, `HUBTASK_ENCRYPTION_KEYS` with every
+   `HUBTASK_ENCRYPTION_KEY_<ID>`: with a new keyring every sealed secret is unreadable after the
+   restore - mailbox tokens, AI keys, backup-target credentials, webhook secrets (§4). Apart,
+   because a dump and the keys that open it in one place are one theft away from both.
+3. A compose line added by hand, such as a second key of the keyring.
+
+**Restoring**, on the same machine or a new one with Docker, `compose.yaml`, `.env` and the
+backup directory:
 
 ```bash
-docker compose exec -T db pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \
-  > "hubtask-$(date -u +%Y%m%dT%H%M%SZ).dump"
-docker compose cp app:/var/lib/hubtask/media ./media-backup
-# Putting it back, into a database that is empty:
-docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists \
-  < hubtask-20260907T020000Z.dump
+./restore.sh /srv/backups/hubtask-20261101T020000Z
 ```
+
+In this order: `app` and `migrate` are stopped, so nothing writes into a half-restored schema; the
+database as it stands, if there is one, is dumped into the `upgrade-dumps` volume as
+`…-before-restore.dump`, so a restore is never the last copy; the database is dropped and created
+empty, so no object of a later release is left beside the restored ones (a `pg_restore --clean`
+leaves them, and the next upgrade's migration then fails on them); the roles the first migration
+creates are created if the cluster lacks them, as a new machine's does; the dump is restored; the
+media are put back owned by the image's non-root user (65532), which reclaims files it no longer
+needs; the stack starts, `migrate` bringing the schema up to the release `.env` names and granting
+`hubtask_app` its login again; and once `/readyz` answers, the drill record A-20 reads is written.
+Afterwards read `/meta/health` on the operations port, sign in and open one attachment.
+
+A backup of a later release than `.env` names does not start: the older binary refuses a schema
+past its compatibility floor (`config.binary_older_than_schema`, deployment.md §5). Set
+`HUBTASK_VERSION` to the backup's `release` or later.
 
 Before an upgrade the stack takes one itself: the `upgrade-dump` service dumps the database before
 `migrate` runs a release it has not run yet, into the `upgrade-dumps` volume, keeping the last three
 (`HUBTASK_UPGRADE_DUMPS_KEPT`). A dump that fails stops the upgrade. It covers the database only, not
-the media, and lies on the same host — a way back from a failed upgrade, not a backup:
+the media, and lies on the same host - a way back from a failed upgrade, not a backup:
 
 ```bash
 docker compose run --rm --entrypoint ls upgrade-dump -1t /dumps     # newest first
-docker compose stop app
-docker compose run --rm --entrypoint sh upgrade-dump -c \
-  'pg_restore --clean --if-exists -d "$PGDATABASE" /dumps/hubtask-20261101T020000Z-before-v1.1.0.dump'
+# set HUBTASK_VERSION in .env back to the release the file names, then:
+./restore.sh --upgrade-dump hubtask-20261101T020000Z-before-v1.1.0.dump
 ```
 
-Then set `HUBTASK_VERSION` back to the release named before, and start it.
+That restores the database alone and leaves the media as they are - a file uploaded after the dump
+is an orphan the reconciliation removes.
 
 A dump gives a consistent snapshot of the whole installation, restorable onto the same PostgreSQL
 major version — not what §8.5 gives:
@@ -539,10 +573,12 @@ major version — not what §8.5 gives:
   continuous WAL archiving.
 * **No protection against a deletion you copy** — a dump written over the previous one is a backup
   of the damage. Object lock on the target prevents that (B-3).
-* **Nothing has restored it.** The drill metric stays absent, so **A-20 never fires and never
-  reassures**. After a restore you checked yourself, copy the record into the `restore-drill`
-  volume, where `HUBTASK_RESTORE_DRILL_RECORD_FILE` points by default (the container's root is
-  read-only; a volume is not):
+* **Nothing has restored it until you do.** The drill metric stays absent until a restore wrote
+  it, so **A-20 neither fires nor reassures** for backups nobody restored. `restore.sh` writes the
+  record into the `restore-drill` volume, where `HUBTASK_RESTORE_DRILL_RECORD_FILE` points by
+  default, once the restored stack is ready: restoring a backup onto a second machine now and then
+  is the drill. A restore made another way records it by hand (the container's root is read-only;
+  a volume is not):
 
   ```bash
   date -u +%s > last_success_unix
