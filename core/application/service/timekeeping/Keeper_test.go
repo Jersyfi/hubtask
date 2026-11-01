@@ -443,7 +443,7 @@ func TestATimerRunsOnceAndStopsIntoARecord(t *testing.T) {
 	}
 }
 
-// UC-TIM-02 checks 1 to 4: the week answers its days; handed in, its records no longer change
+// UC-TIM-02 checks 1-4: the week answers its days; handed in, its records no longer change
 // and the timer cannot stop into it; taken back it is open; last week is copied day by day.
 func TestAWeekIsFilledInAndHandedIn(t *testing.T) {
 	f := newFixture()
@@ -497,7 +497,7 @@ func TestAWeekIsFilledInAndHandedIn(t *testing.T) {
 	}
 }
 
-// UC-TIM-03 checks 1 to 5: an approver of the hub approves the week, a member and the person
+// UC-TIM-03 checks 1-5: an approver of the hub approves the week, a member and the person
 // themselves cannot; a sent-back week opens again; an approved record is corrected only by a
 // new one; the locked period refuses every write.
 func TestAnApproverDecidesTheWeek(t *testing.T) {
@@ -564,7 +564,7 @@ func TestAnApproverDecidesTheWeek(t *testing.T) {
 	}
 }
 
-// UC-TIM-04 checks 1 to 4: a report sums the caller's own time, or everybody's where they
+// UC-TIM-04 checks 1-4: a report sums the caller's own time, or everybody's where they
 // approve; aggregated, it names nobody and withholds a small group; estimates meet actuals.
 func TestAReportSumsWhatItsReaderMaySee(t *testing.T) {
 	f := newFixture()
@@ -595,6 +595,9 @@ func TestAReportSumsWhatItsReaderMaySee(t *testing.T) {
 	if _, err := (ReadEstimatesVsActuals{Keeper: f.keeper}).Execute(ctx, as(ben), listID); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("a member read actuals in aggregated mode: %v", err)
 	}
+	if _, err := (ReadEstimatesVsActuals{Keeper: f.keeper}).Execute(ctx, as(lead), listID); err != nil {
+		t.Fatalf("an approver of the plan did not read its actuals in aggregated mode: %v", err)
+	}
 	f.store.policy.Visibility = domain.VisibilityFull
 	rows, err := ReadEstimatesVsActuals{Keeper: f.keeper}.Execute(ctx, as(ben), listID)
 	if err != nil || len(rows) != 2 {
@@ -605,7 +608,7 @@ func TestAReportSumsWhatItsReaderMaySee(t *testing.T) {
 	}
 }
 
-// UC-TIM-05 checks 1 to 3: the export carries fixed columns and the records the caller may read,
+// UC-TIM-05 checks 1-3: the export carries fixed columns and the records the caller may read,
 // is the caller's own only in aggregated mode, and is recorded.
 func TestTimeIsHandedToAccounting(t *testing.T) {
 	f := newFixture()
@@ -628,6 +631,13 @@ func TestTimeIsHandedToAccounting(t *testing.T) {
 	last := f.audit.entries[len(f.audit.entries)-1]
 	if last.Action != RecordsExportedAction {
 		t.Fatalf("the export was not recorded: %+v", last)
+	}
+	to := func(field string) any {
+		change, _ := last.Changes[field].(map[string]any)
+		return change["to"]
+	}
+	if to("from") != "2026-11-02" || to("to") != "2026-11-08" || to("records") != "1" {
+		t.Errorf("the export recorded %v, want its range and its one row", last.Changes)
 	}
 	out, err := ExportTimeRecords{Keeper: f.keeper}.Descriptor().Handler.Invoke(ctx, as(ben), usecase.Input{"from": "2026-11-02", "to": "2026-11-08", "mine": true})
 	if err != nil || len(out["columns"].([]string)) != len(ExportColumns) {

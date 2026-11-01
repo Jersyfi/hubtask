@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The installation's defaults, walked as an operator meets them (UC-INS-09 checks 1 to 4, 7): every
+// The installation's defaults, walked as an operator meets them (UC-INS-09 checks 1-4, 7): every
 // key in words with the control of its kind, the lock worded by kind and absent for a language, a
 // value that was undecided saved as its kind, a refusal at its row, and no control while a file
 // enforces the level.

@@ -9,6 +9,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// UC-TIM-08 check 2: a rate prices a person or a role in a currency's minor unit with an ISO 4217
+// code, from a day to a day or on.
 func TestCostRatesAreChecked(t *testing.T) {
 	end := day(t, "2026-12-31")
 	before := day(t, "2026-01-01")
@@ -33,6 +35,7 @@ func TestCostRatesAreChecked(t *testing.T) {
 	}
 }
 
+// UC-TIM-08 check 2: two rates of one subject never share a day.
 func TestOneRateHoldsOnEachDay(t *testing.T) {
 	june := day(t, "2026-06-30")
 	existing := []CostRate{
@@ -58,6 +61,7 @@ func TestOneRateHoldsOnEachDay(t *testing.T) {
 	}
 }
 
+// UC-TIM-08 check 3: the person's own rate, else their role's.
 func TestAPersonsRateComesBeforeTheirRole(t *testing.T) {
 	june := day(t, "2026-06-30")
 	rates := NewRates([]CostRate{
@@ -88,6 +92,9 @@ func TestAPersonsRateComesBeforeTheirRole(t *testing.T) {
 	}
 }
 
+// UC-TIM-08 checks 3 and 4: a rate in another currency than the budget's leaves its minutes
+// unpriced; the burn answers every minute and its cost against the budget, whether either is
+// passed, and the cumulative burn week by week.
 func TestABudgetBurnsByTimeAndMoney(t *testing.T) {
 	if got := code(CheckBudget(Budget{Minutes: 6000, AmountMinor: 1_000_000, Currency: "EUR"})); got != "" {
 		t.Errorf("a budget: %q", got)

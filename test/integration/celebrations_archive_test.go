@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Milestones and kudos in the archives (UC-WRK-29 checks 4 to 6): a milestone is the workspace's
+// Milestones and kudos in the archives (UC-WRK-29 checks 4-6): a milestone is the workspace's
 // and goes through a backup and its restore with its collection's identity and its moment; kudos
 // are the two people's, so the copy a person gets of their own data carries the ones they gave and
 // received, and no archive an administrator reads carries any.

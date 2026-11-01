@@ -48,7 +48,7 @@ func requester() appshared.ActorContext {
 	return appshared.ActorContext{TenantID: tenantID, AccountID: requesterID, Kind: appshared.ActorUser, Scopes: []string{deskRead, "comments:write"}}
 }
 
-// UC-SVC-07 checks 1 to 3: the requester rates their own resolved request, with words that become
+// UC-SVC-07 checks 1-3: the requester rates their own resolved request, with words that become
 // their comment; an open request and anybody else's request are refused; rating again replaces.
 func TestTheRequesterRatesTheirResolvedRequest(t *testing.T) {
 	f := newFixture(t)

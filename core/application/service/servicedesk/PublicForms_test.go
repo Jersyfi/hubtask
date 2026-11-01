@@ -293,7 +293,7 @@ func TestAPublicFormAnswersOnlyWhileEverythingBehindItHolds(t *testing.T) {
 	}
 }
 
-// UC-SVC-13 checks 4 to 6: a request is filed through CreateWorkItem on the PUBLIC door as the
+// UC-SVC-13 checks 4-6: a request is filed through CreateWorkItem on the PUBLIC door as the
 // maker, with the From line above the words and the requester recorded; one solved challenge
 // files one request, a refused one may be corrected and sent with the same work, and a type the
 // form does not offer is refused.

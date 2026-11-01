@@ -241,7 +241,7 @@ func period(t *testing.T, s Steward) string {
 	return out.String("id")
 }
 
-// UC-GOL-01 checks 1 to 4: a goal's progress is the mean of its key results, its child goals
+// UC-GOL-01 checks 1-4: a goal's progress is the mean of its key results, its child goals
 // and its linked entries' share completed, counted for the reader.
 func TestAGoalsProgressComesFromItsWork(t *testing.T) {
 	s, _, _, _ := newSteward(t)
@@ -338,7 +338,7 @@ func TestAGoalIsNoParentOfItsParent(t *testing.T) {
 	}
 }
 
-// UC-GOL-02 checks 1 to 4: a check-in sets the goal's status, confidence and reported values and
+// UC-GOL-02 checks 1-4: a check-in sets the goal's status, confidence and reported values and
 // is kept as history; a closed period grades its goals and they take no more check-ins.
 func TestACheckInIsKeptAndAClosedPeriodGrades(t *testing.T) {
 	s, store, g, _ := newSteward(t)
@@ -378,7 +378,7 @@ func TestACheckInIsKeptAndAClosedPeriodGrades(t *testing.T) {
 	}
 }
 
-// UC-GOL-03 checks 1 to 5: a portfolio rolls its projects up through the reader's own summary;
+// UC-GOL-03 checks 1-5: a portfolio rolls its projects up through the reader's own summary;
 // a project the reader may not read is left out, and kept when they change the portfolio; a
 // status update sets its health.
 func TestAPortfolioRollsUpWhatItsReaderSees(t *testing.T) {
@@ -464,7 +464,7 @@ func TestAPortfolioRollsUpItsBudgetsForWhoeverManagesCosts(t *testing.T) {
 	}
 }
 
-// UC-GOL-04 checks 1 to 5: a widget runs the query's own summary for its reader; a private
+// UC-GOL-04 checks 1-5: a widget runs the query's own summary for its reader; a private
 // dashboard is its owner's; a shared one needs STRUCTURE and shows each reader their numbers,
 // a widget they cannot run carrying its error in place.
 func TestADashboardDrawsEachReadersOwnNumbers(t *testing.T) {
@@ -910,5 +910,32 @@ func TestAWidgetSumsRecordedTimeAndCountsPagesAsTheReaderSees(t *testing.T) {
 		if source != "time" && source != "pages" {
 			t.Fatalf("the summary was asked %v", in)
 		}
+	}
+}
+
+// UC-GOL-01 checks 2 and 3: a milestone key result is reached when its entry is completed, a goal
+// below counts as one part until it is dropped, and a goal with no part has no progress.
+func TestAMilestoneAndADroppedGoalCountAsTheUseCaseSays(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	p := period(t, s)
+	parent := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{
+		"period_id": p, "title": "Launch",
+		"key_results": []any{map[string]any{"title": "Beta out", "kind": "MILESTONE", "entry_id": entry2.String()}},
+	})
+	near(t, "a milestone on an open entry", parent["progress"], 0)
+	child := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{
+		"period_id": p, "parent_id": parent.String("id"), "title": "Design",
+		"key_results": []any{map[string]any{"title": "Design approved", "kind": "MILESTONE", "entry_id": entry1.String()}},
+	})
+	near(t, "a milestone on a completed entry", child["progress"], 1)
+	near(t, "the parent with its child", ok(t, ReadGoal{s}.Descriptor(), ana, usecase.Input{"goal_id": parent.String("id")})["progress"], 0.5)
+	ok(t, UpdateGoal{s}.Descriptor(), ana, usecase.Input{
+		"goal_id": child.String("id"), "expected_version": child["version"], "period_id": p, "title": "Design",
+		"parent_id": parent.String("id"), "status": "DROPPED",
+	})
+	near(t, "the parent without its dropped child", ok(t, ReadGoal{s}.Descriptor(), ana, usecase.Input{"goal_id": parent.String("id")})["progress"], 0)
+	empty := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{"period_id": p, "title": "Nothing yet"})
+	if empty["progress"] != nil {
+		t.Errorf("a goal with no part reads progress %v", empty["progress"])
 	}
 }

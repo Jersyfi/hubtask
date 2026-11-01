@@ -191,6 +191,41 @@ func (assigned) Entries(context.Context, shared.ID, int) ([]planrepo.PlanEntry, 
 	}, nil
 }
 
+// doneAndUnestimated is a plan whose scheduled entries ask nothing: one is done, one has no
+// estimate in hours; the payment is open, estimated and has no days.
+type doneAndUnestimated struct{ planrepo.Plans }
+
+func (doneAndUnestimated) Entries(context.Context, shared.ID, int) ([]planrepo.PlanEntry, error) {
+	start := monday
+	due := monday.AddDate(0, 0, 4)
+	return []planrepo.PlanEntry{
+		{ID: checkout, HubID: hubID, CollectionID: listID, AssigneeID: ana, StartAt: &start, DueAt: &due, Done: true},
+		{ID: elsewhere, HubID: hubID, CollectionID: listID, AssigneeID: ana, StartAt: &start, DueAt: &due},
+		{ID: payment, HubID: hubID, CollectionID: listID, AssigneeID: ben},
+	}, nil
+}
+
+// UC-TIM-06 check 3: a done entry and one without an hours estimate ask nothing; an assigned open
+// entry with neither a start nor a due day is counted as unscheduled.
+func TestDoneAndUnestimatedWorkAsksNothing(t *testing.T) {
+	f := newFixture()
+	r := f.withResources()
+	f.keeper.Plans = doneAndUnestimated{}
+	r.capacities = []domain.Capacity{{AccountID: ana, From: day(t, "2026-01-01"), WeekMinutes: [7]int{480, 480, 480, 480, 480, 0, 0}}}
+	w, err := ReadWorkload{Keeper: f.keeper}.Execute(context.Background(), as(ben), WorkloadQuery{PlanID: listID, From: day(t, "2026-11-02"), Weeks: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range w.Cells {
+		if c.Allocated != 0 {
+			t.Errorf("%s is asked %d minutes by done or unestimated work", c.AccountID, c.Allocated)
+		}
+	}
+	if w.UnscheduledMinutes != 120 {
+		t.Errorf("unscheduled %d minutes, want the payment's 120", w.UnscheduledMinutes)
+	}
+}
+
 func (f *fixture) withResources() *resources {
 	r := newResources()
 	f.keeper.Resources, f.keeper.Roles = r, roles{}
@@ -225,7 +260,7 @@ func TestAPersonSetsTheirCapacityAndOnlyAManagerAnothers(t *testing.T) {
 	}
 }
 
-// UC-TIM-07 checks 1 to 3: an absence is recorded once, never twice on a day, and every member
+// UC-TIM-07 checks 1-3: an absence is recorded once, never twice on a day, and every member
 // reads the shared calendar - with the kind, and no reason.
 func TestAnAbsenceIsRecordedOnceAndSharedByKind(t *testing.T) {
 	f := newFixture()
@@ -274,7 +309,7 @@ func TestAnAbsenceIsRecordedOnceAndSharedByKind(t *testing.T) {
 	}
 }
 
-// UC-TIM-06 checks 2 to 4: the workload sets each person's available minutes - capacity less
+// UC-TIM-06 checks 2-4: the workload sets each person's available minutes - capacity less
 // absences - against what their open entries' remaining estimates ask over the scheduled days,
 // marks an overload, keeps an unreadable entry out, and under AGGREGATED gives a reader who does
 // not approve only the team's sums.
@@ -329,7 +364,7 @@ func TestTheWorkloadShowsWhoHasRoom(t *testing.T) {
 	}
 }
 
-// UC-TIM-08 checks 1 to 5: rates and budgets are only MANAGE_COSTS's; a person's rate comes before
+// UC-TIM-08 checks 1-5: rates and budgets are only MANAGE_COSTS's; a person's rate comes before
 // their role's; the burn prices each day by its rate and tells a passed budget; a rate's amount
 // never reaches the trail.
 func TestABudgetBurnsByTheRates(t *testing.T) {
@@ -354,7 +389,10 @@ func TestABudgetBurnsByTheRates(t *testing.T) {
 	}
 	f.log(t, ana, checkout, "2026-11-02", 60) // ana's own rate: 90.00
 	f.log(t, ana, payment, "2026-11-03", 120) // her role's in the hub: 2 x 60.00
-	f.log(t, ben, checkout, "2026-11-03", 30) // no rate: unpriced
+	f.log(t, ben, checkout, "2026-11-03", 30) // a rate in dollars against a budget in euros: unpriced
+	if _, err := (SetCostRate{Keeper: f.keeper}).Execute(ctx, as(lead), domain.CostRate{AccountID: ben, HourMinor: 5000, Currency: "USD", From: from}, 0); err != nil {
+		t.Fatalf("a rate in another currency: %v", err)
+	}
 	if _, err := (SetBudget{Keeper: f.keeper}).Execute(ctx, as(ana), domain.Budget{PlanID: hubID, Minutes: 120}, 0); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("a member sets the budget: %v", err)
 	}
@@ -379,7 +417,7 @@ func TestABudgetBurnsByTheRates(t *testing.T) {
 			t.Fatalf("a rate's amount reached the trail: %+v", e)
 		}
 	}
-	if err := (RemoveCostRate{Keeper: f.keeper}).Execute(ctx, as(lead), designer.ID, 1); err != nil || len(r.rates) != 1 {
+	if err := (RemoveCostRate{Keeper: f.keeper}).Execute(ctx, as(lead), designer.ID, 1); err != nil || len(r.rates) != 2 {
 		t.Fatalf("remove the rate: %v", err)
 	}
 }

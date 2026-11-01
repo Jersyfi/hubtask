@@ -31,7 +31,7 @@ func (plans) Invoke(_ context.Context, _ appshared.ActorContext, in usecase.Inpu
 	return usecase.Output{"entries": []usecase.Output{}}, nil
 }
 
-// UC-GOL-03 checks 10 to 12 (planning.md §2): a lane per hub, a bar per top-level entry, a reader
+// UC-GOL-03 checks 10-12 (planning.md §2): a lane per hub, a bar per top-level entry, a reader
 // sees only the projects and the lanes they may read, and nothing is written.
 func TestARoadmapDrawsALanePerHubAndABarPerTopLevelEntry(t *testing.T) {
 	s, _, _, _ := newSteward(t)

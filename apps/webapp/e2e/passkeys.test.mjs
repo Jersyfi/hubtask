@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Passkeys on *Password and sign-in* (UC-ID-22 checks 1 to 6), walked in the browser against a
+// Passkeys on *Password and sign-in* (UC-ID-22 checks 1-6), walked in the browser against a
 // stubbed API with Chromium's virtual authenticator standing in for the device: the list, the fresh
 // proof, the device, the name, and the ten codes once; ten reached; a prompt closed; a challenge run
 // out; renaming and removing; the last factor a workspace requires; a key beside the app.

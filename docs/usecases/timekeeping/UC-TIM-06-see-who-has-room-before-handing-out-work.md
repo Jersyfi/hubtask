@@ -5,7 +5,7 @@ context: timekeeping
 actors: [PE-planner, PE-member, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-14, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/timekeeping/Resources_test.go, core/application/service/timekeeping/Resources_test.go, test/integration/time_resources_test.go, apps/webapp/src/lib/data/time.test.ts, test/architecture/doorsalike_test.go]
 ---
