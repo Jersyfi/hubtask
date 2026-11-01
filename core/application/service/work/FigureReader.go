@@ -33,6 +33,12 @@ const figureCountDeadline = 20 * time.Second
 // one late count per figure at a time, however many reads were cut off on it.
 var lateCounts sync.Map
 
+// slowCounts are the figures whose last count took longer than a read waits, by the same key: a
+// read that would count one only waits out its deadline and leaves a cancelled statement behind,
+// so it hands the count to a late one at once. A late count that answers within the read's
+// deadline makes its figure an ordinary one again.
+var slowCounts sync.Map
+
 type lateCount struct {
 	tenant shared.ID
 	key    repository.KeptFigureKey
@@ -136,7 +142,7 @@ func (r FigureReader) Count(
 	}
 
 	answered := map[shared.ID]domain.FigureCounts{}
-	var missing []domain.FigureRequest
+	var missing, late []domain.FigureRequest
 	for _, request := range offered {
 		if counts, held := keptAnswer(states, request, window); held {
 			answered[request.CollectionID] = counts
@@ -144,11 +150,20 @@ func (r FigureReader) Count(
 		}
 		// Being counted late already: counting it here as well would only wait out the deadline
 		// for the same mark, beside the count that will answer the next read.
-		if _, running := lateCounts.Load(lateCount{tenant: actor.TenantID, key: keptKey(request, window)}); running {
+		key := lateCount{tenant: actor.TenantID, key: keptKey(request, window)}
+		if _, running := lateCounts.Load(key); running {
 			figures[request.CollectionID] = domain.UnavailableFigure(request, window)
 			continue
 		}
+		if _, slow := slowCounts.Load(key); slow && states != nil {
+			figures[request.CollectionID] = domain.UnavailableFigure(request, window)
+			late = append(late, request)
+			continue
+		}
 		missing = append(missing, request)
+	}
+	if len(late) > 0 {
+		r.countLate(ctx, actor, uow, late, window, states)
 	}
 	if len(missing) > 0 {
 		var counted map[shared.ID]domain.FigureCounts
@@ -165,6 +180,9 @@ func (r FigureReader) Count(
 			// pay the deadline again for the same mark: the count is run once more beside the
 			// read, under a deadline of its own, and what it counts kept.
 			if states != nil && (errors.Is(err, context.DeadlineExceeded) || bounded.Err() != nil) {
+				for _, request := range missing {
+					slowCounts.Store(lateCount{tenant: actor.TenantID, key: keptKey(request, window)}, struct{}{})
+				}
 				r.countLate(ctx, actor, uow, missing, window, states)
 			}
 			missing = nil
@@ -249,6 +267,7 @@ func (r FigureReader) countLate(
 		}()
 		bounded, cancel := context.WithTimeout(ctx, figureCountDeadline)
 		defer cancel()
+		started := r.Clock.Now()
 		var counted map[shared.ID]domain.FigureCounts
 		err := uow.WithinReadOnly(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
 			var err error
@@ -257,6 +276,11 @@ func (r FigureReader) countLate(
 		})
 		if err != nil {
 			return
+		}
+		if r.Clock.Now().Sub(started) < figureDeadline {
+			for _, key := range keys {
+				slowCounts.Delete(key)
+			}
 		}
 		// Stored at once: the read whose transaction keep would wait for has ended long since.
 		if figures := keptOf(claimed, window, states, counted); len(figures) > 0 {

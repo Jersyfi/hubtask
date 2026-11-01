@@ -241,6 +241,7 @@ func TestACountTheReadCouldNotWaitForIsCountedAfterwardsAndKept(t *testing.T) {
 // While one late count for a figure runs, another cut-off read starts none: eight callers on a slow
 // hub would otherwise run eight counts of it at once.
 func TestOnlyOneLateCountRunsPerFigure(t *testing.T) {
+	t.Cleanup(func() { slowCounts.Clear() })
 	collection := countedCollection(collectionID)
 	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureProgress, domain.ItemTask, domain.ItemWorkPackage)}
 	kept := &keptStore{changes: map[shared.ID]int64{collection.ID: 7}, kept: map[repository.KeptFigureKey]repository.KeptFigure{}}
@@ -268,4 +269,61 @@ func TestOnlyOneLateCountRunsPerFigure(t *testing.T) {
 		t.Fatalf("a finished late count left its figure blocked: %d started", len(held))
 	}
 	held[1](context.Background())
+}
+
+// steppedClock moves on by step each time it is read: a late count that reads it before and after
+// counting takes step.
+type steppedClock struct {
+	at   time.Time
+	step time.Duration
+}
+
+func (c *steppedClock) Now() time.Time {
+	now := c.at
+	c.at = c.at.Add(c.step)
+	return now
+}
+
+// A figure whose count outlasted the read's deadline is not counted by the next read after a write
+// - it would only wait out the deadline and leave a cancelled statement - but handed to a late count
+// at once; once a late count answers within the deadline, a read counts it again itself
+// (capacity-10000000-2026-11-01.md, finding 4).
+func TestASlowFigureIsCountedLateWithoutWaitingOutTheRead(t *testing.T) {
+	t.Cleanup(func() { slowCounts.Clear() })
+	collection := countedCollection(collectionID)
+	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureProgress, domain.ItemTask, domain.ItemWorkPackage)}
+	store := &slowFigures{figureStore: figureStore{counts: map[shared.ID]domain.FigureCounts{collection.ID: {Done: 3, Total: 9}}}}
+	kept := &keptStore{changes: map[shared.ID]int64{collection.ID: 7}, kept: map[repository.KeptFigureKey]repository.KeptFigure{}}
+	ticking := &steppedClock{at: now, step: time.Second}
+	var held []func(context.Context)
+	reader := FigureReader{
+		Figures: store, Clock: ticking, Profiles: &profiles{rows: seededProfiles()},
+		Kept: kept, Jobs: &jobsAsked{},
+		Spawn: func(_ context.Context, _ string, fn func(context.Context)) { held = append(held, fn) },
+	}
+	read := func() domain.CollectionFigure {
+		return reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)[collection.ID]
+	}
+
+	read() // cut off: the count is handed to a late one, which takes a second
+	held[0](context.Background())
+	kept.changes[collection.ID] = 8 // a write leaves the kept count behind
+
+	if figure := read(); !figure.Unavailable {
+		t.Fatalf("the read after the write answered %+v", figure)
+	}
+	if len(store.deadlines) != 2 || len(held) != 2 {
+		t.Fatalf("the read counted %d times (want 2: the cut-off and the late one) and started %d late counts",
+			len(store.deadlines), len(held))
+	}
+
+	ticking.step = 0 // the late count now answers at once
+	held[1](context.Background())
+	kept.changes[collection.ID] = 9
+	if figure := read(); figure.Unavailable || figure.Counts.Done != 3 {
+		t.Fatalf("a figure counted quickly again was not counted by the read: %+v", figure)
+	}
+	if len(held) != 2 {
+		t.Fatalf("%d late counts for a figure that counts in time", len(held))
+	}
 }
