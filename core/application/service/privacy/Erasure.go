@@ -718,6 +718,36 @@ func (e Eraser) addressHeld(ctx context.Context, subjectEmail string) (bool, err
 	return false, nil
 }
 
+// keptOfAddress answers whether a workspace hold is in force and what it keeps of the address -
+// nothing when the address sent nothing. The one reading the erasure and its preview share.
+func (e Eraser) keptOfAddress(ctx context.Context, address string, now time.Time) (bool, []domain.Kept, error) {
+	holds, err := e.Holds.Active(ctx)
+	if err != nil {
+		return false, nil, err
+	}
+	hold, held := holds.OnTenant()
+	if !held {
+		return false, nil, nil
+	}
+	count, err := e.Addresses.CountAddress(ctx, address)
+	if err != nil || count == 0 {
+		return true, nil, err
+	}
+	return true, []domain.Kept{{
+		HoldID: hold.ID, HoldScope: hold.Scope, HoldScopeID: hold.ScopeID, Intake: count, RecordedAt: now,
+	}}, nil
+}
+
+// addressKept is the preview's half of keptOfAddress, for a case without an account.
+func (e Eraser) addressKept(ctx context.Context, request domain.Request) ([]domain.Kept, error) {
+	address := strings.ToLower(strings.TrimSpace(request.SubjectEmail))
+	if address == "" || e.Addresses == nil {
+		return nil, nil
+	}
+	_, kept, err := e.keptOfAddress(ctx, address, e.Clock.Now())
+	return kept, err
+}
+
 // eraseAddress erases a requester without an account: the record, the mail receipts and the
 // jumble entries of the address - removed in a full deletion, stripped of the address otherwise.
 // The entries an account filed on their behalf are the team's and stay. A hold on the workspace
@@ -746,21 +776,12 @@ func (e Eraser) eraseAddress(
 		if !found {
 			return shared.ErrNotFound.WithDetail(domain.CodeRequestNotFound)
 		}
-		holds, err := e.Holds.Active(ctx)
+		held, kept, err := e.keptOfAddress(ctx, address, now)
 		if err != nil {
 			return err
 		}
-		if hold, held := holds.OnTenant(); held {
-			count, err := e.Addresses.CountAddress(ctx, address)
-			if err != nil {
-				return err
-			}
-			if count == 0 {
-				return e.Kept.RecordKept(ctx, request.ID, nil, now)
-			}
-			erased.Kept = []domain.Kept{{
-				HoldID: hold.ID, HoldScope: hold.Scope, HoldScopeID: hold.ScopeID, Intake: count, RecordedAt: now,
-			}}
+		if held {
+			erased.Kept = kept
 			return e.Kept.RecordKept(ctx, request.ID, erased.Kept, now)
 		}
 		if erased.Intake, err = e.Addresses.EraseAddress(ctx, address, request.ErasureMode == domain.ModeFullDelete); err != nil {

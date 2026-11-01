@@ -357,6 +357,8 @@ type erasureHarness struct {
 	holds      *holdSource
 	kept       *keptStore
 	subjects   *subjectStore
+	// addresses is the requester store of an address case; nil leaves Eraser.Addresses unset.
+	addresses *addressStore
 }
 
 // Where the person's rows are: two comments on one task, and three tasks assigned to them, all in
@@ -409,13 +411,17 @@ func newErasureHarness() *erasureHarness {
 func (h *erasureHarness) eraser() Eraser { return h.eraserFor(newRequestStore()) }
 
 func (h *erasureHarness) eraserFor(requests *requestStore) Eraser {
-	return Eraser{
+	eraser := Eraser{
 		Requests: requests, Erasure: h.storage, Pseudonyms: h.pseudonyms,
 		Holds: h.holds, Kept: h.kept, Subjects: h.subjects, Statuses: h.subjects,
 		Removals: h.removals, Objects: h.objects, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 		TombstoneWindow: 90 * 24 * time.Hour,
 	}
+	if h.addresses != nil {
+		eraser.Addresses = h.addresses
+	}
+	return eraser
 }
 
 func erasureCase(mode domain.ErasureMode) domain.Request {

@@ -25,9 +25,12 @@ type previewRig struct {
 	registry   *usecase.Registry
 }
 
-func newPreviewRig(t *testing.T) *previewRig {
+func newPreviewRig(t *testing.T, setup ...func(*erasureHarness)) *previewRig {
 	t.Helper()
 	rig := &previewRig{requests: newRequestStore(), authorizer: &authorizerDouble{}, erasure: newErasureHarness()}
+	for _, s := range setup {
+		s(rig.erasure)
+	}
 	cases := Cases{
 		Requests: rig.requests, Authorizer: rig.authorizer, Audit: &auditSink{},
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
@@ -118,5 +121,33 @@ func TestAPreviewOfWhatIsNoErasureIsRefused(t *testing.T) {
 	rig := newPreviewRig(t)
 	if _, err := rig.preview(erasureCase(""), usecase.Input{"mode": "SHRED"}); err == nil {
 		t.Error("a mode outside the enum was accepted")
+	}
+}
+
+// A case known only by address: a workspace hold keeps what the address sent, so the preview names
+// that hold, as the erasure records it - not "nothing reaches this person".
+func TestThePreviewOfAnAddressCaseNamesTheWorkspaceHold(t *testing.T) {
+	addresses := &addressStore{held: 3}
+	rig := newPreviewRig(t, func(h *erasureHarness) { h.addresses = addresses })
+	hold := shared.MustParseID("0192f000-0000-7000-8000-0000000000f1")
+	rig.erasure.holds.holds = lifecycle.Holds{{ID: hold, Scope: lifecycle.HoldTenant, Reason: "Litigation"}}
+
+	out, err := rig.preview(addressCase(domain.ModeFullDelete), nil)
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	parts, _ := out["kept"].([]map[string]any)
+	if len(parts) != 1 || parts[0]["intake"] != 3 || parts[0]["hold_id"] != hold.String() {
+		t.Errorf("the preview answered %+v", parts)
+	}
+	if len(addresses.erased) != 0 {
+		t.Errorf("a preview erased %v", addresses.erased)
+	}
+
+	// Without a hold on the workspace, nothing is kept: a narrower hold does not reach an address.
+	rig.erasure.holds.holds = lifecycle.Holds{{ID: hold, Scope: lifecycle.HoldContainer, ScopeID: erasureHub}}
+	out, err = rig.preview(addressCase(domain.ModeFullDelete), nil)
+	if parts, _ := out["kept"].([]map[string]any); err != nil || len(parts) != 0 {
+		t.Errorf("a container hold kept %+v (%v)", parts, err)
 	}
 }

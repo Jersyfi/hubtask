@@ -93,8 +93,11 @@ func (h PreviewErasure) Execute(
 			preview.Mode = domain.DefaultErasureMode
 		}
 		if request.SubjectAccountID.IsZero() {
-			// Nobody here: an erasure would remove nothing, and a hold could keep nothing.
-			return nil
+			// A case by address: the question eraseAddress asks, so the dialog names the hold that
+			// would keep what the address sent. Without an address nothing is erased or kept.
+			kept, err := h.Eraser.addressKept(ctx, request)
+			preview.Kept = kept
+			return err
 		}
 		plan, err := h.Eraser.decide(ctx, request.SubjectAccountID, preview.Mode)
 		if err != nil {
