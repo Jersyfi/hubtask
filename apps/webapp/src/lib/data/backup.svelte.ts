@@ -23,7 +23,7 @@
 
 import type { ResourceState, TransportDocument } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import type { Retention } from './backup.ts';
@@ -179,7 +179,7 @@ class Backup {
 
   async createTarget(draft: TargetDraft): Promise<Target> {
     return engine.mutate<Target>('POST', TARGETS, draft, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [TARGETS],
     });
   }
@@ -239,7 +239,7 @@ class Backup {
 
   async createSchedule(draft: Omit<Schedule, 'id' | 'next_run_at'>): Promise<Schedule> {
     return engine.mutate<Schedule>('POST', SCHEDULES, draft, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [SCHEDULES],
     });
   }
@@ -275,7 +275,7 @@ class Backup {
     include_audit?: boolean;
   }): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', RUNS, request, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
     jobs.watch(accepted);
     return accepted;
@@ -301,7 +301,7 @@ class Backup {
 
   async verify(runId: string): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', `${RUNS}/${runId}:verify`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
     jobs.watch(accepted);
     return accepted;

@@ -25,7 +25,7 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import type { WebhookFormat, WebhookScope } from './webhooks.ts';
 
 const WEBHOOKS = '/integrations/webhooks';
@@ -208,14 +208,14 @@ class Webhooks {
       'POST',
       `${WEBHOOKS}/${webhookId}/deliveries/${deliveryId}:replay`,
       {},
-      { idempotencyKey: crypto.randomUUID() },
+      { idempotencyKey: INTENT },
     );
   }
 
   /** Delivers one event to this subscription by hand, through the pipeline every delivery takes. */
   async send(webhookId: string, eventId: string): Promise<Delivery> {
     return engine.mutate<Delivery>('POST', `${WEBHOOKS}/${webhookId}:send`, { event_id: eventId }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
   }
 

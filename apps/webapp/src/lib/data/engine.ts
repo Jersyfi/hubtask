@@ -12,11 +12,12 @@
  * back, and a copy taken once is a copy that keeps working after a sign-out.
  * `lib/session.svelte.ts` is what puts a pair there and takes it away again.
  */
-import { FetchTransport, SyncEngine, TransportError } from '@hubtask/sync-engine';
+import { FetchTransport, SyncEngine, TransportError, type MutateOptions } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { currentEntry } from '../frame/chunkfailure.ts';
 import { noteServerBuild } from '../frame/release.ts';
+import { Intents } from './intent.ts';
 import { mutationFor, storeFor } from './replica.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
@@ -135,7 +136,35 @@ async function renew(): Promise<boolean> {
   }
 }
 
-export const engine = new SyncEngine({
+/**
+ * The idempotency key a write asks for when its key is its intent's (`intent.ts`): replaced by the
+ * key of the same content's undecided write before the call leaves, never sent as it is.
+ */
+export const INTENT = 'intent';
+
+const intents = new Intents();
+
+class IntentEngine extends SyncEngine {
+  override async mutate<T>(
+    method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+    path: string,
+    body: unknown,
+    options: MutateOptions = {},
+  ): Promise<T> {
+    if (options.idempotencyKey !== INTENT) return super.mutate<T>(method, path, body, options);
+    const idempotencyKey = intents.keyFor(method, path, body);
+    try {
+      const answer = await super.mutate<T>(method, path, body, { ...options, idempotencyKey });
+      intents.settle(method, path, body);
+      return answer;
+    } catch (cause) {
+      intents.settle(method, path, body, cause);
+      throw cause;
+    }
+  }
+}
+
+export const engine = new IntentEngine({
   transport,
   token: () => platform.bearer(),
   onUnauthorized: () => onRefused(),

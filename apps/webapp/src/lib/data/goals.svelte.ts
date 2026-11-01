@@ -17,7 +17,7 @@ import type {
   Dashboard, DashboardCreate, DashboardDigest, DashboardDigestWrite, DashboardWrite, Goal, GoalCreate, GoalPeriod, GoalWrite, Portfolio, PortfolioUpdate, PortfolioWrite,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 
 export * from './goals.ts';
@@ -58,7 +58,7 @@ export interface CheckIn {
 
 class Goals {
   definePeriod(fields: { name: string; start_on: string; end_on: string }): Promise<GoalPeriod> {
-    return engine.mutate<GoalPeriod>('POST', PERIODS, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [PERIODS] });
+    return engine.mutate<GoalPeriod>('POST', PERIODS, fields, { idempotencyKey: INTENT, invalidates: [PERIODS] });
   }
 
   /** Closes a period; a goal without a grade here is graded by its progress. */
@@ -70,7 +70,7 @@ class Goals {
   }
 
   create(fields: GoalCreate): Promise<Goal> {
-    return engine.mutate<Goal>('POST', '/goals', fields, { idempotencyKey: crypto.randomUUID(), invalidates: GOAL_READS });
+    return engine.mutate<Goal>('POST', '/goals', fields, { idempotencyKey: INTENT, invalidates: GOAL_READS });
   }
 
   update(goal: Goal, fields: GoalWrite): Promise<Goal> {
@@ -90,11 +90,11 @@ class Goals {
   }
 
   checkIn(goalId: string, fields: CheckIn): Promise<Goal> {
-    return engine.mutate<Goal>('POST', checkInsPath(goalId), fields, { idempotencyKey: crypto.randomUUID(), invalidates: GOAL_READS });
+    return engine.mutate<Goal>('POST', checkInsPath(goalId), fields, { idempotencyKey: INTENT, invalidates: GOAL_READS });
   }
 
   createPortfolio(fields: PortfolioWrite): Promise<Portfolio> {
-    return engine.mutate<Portfolio>('POST', PORTFOLIOS, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [PORTFOLIOS] });
+    return engine.mutate<Portfolio>('POST', PORTFOLIOS, fields, { idempotencyKey: INTENT, invalidates: [PORTFOLIOS] });
   }
 
   updatePortfolio(portfolio: Portfolio, fields: PortfolioWrite): Promise<Portfolio> {
@@ -106,11 +106,11 @@ class Goals {
   }
 
   reportStatus(portfolioId: string, fields: { status: 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK'; summary: string }): Promise<PortfolioUpdate> {
-    return engine.mutate<PortfolioUpdate>('POST', updatesPath(portfolioId), fields, { idempotencyKey: crypto.randomUUID(), invalidates: [PORTFOLIOS] });
+    return engine.mutate<PortfolioUpdate>('POST', updatesPath(portfolioId), fields, { idempotencyKey: INTENT, invalidates: [PORTFOLIOS] });
   }
 
   createDashboard(fields: DashboardCreate): Promise<Dashboard> {
-    return engine.mutate<Dashboard>('POST', DASHBOARDS, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [DASHBOARDS] });
+    return engine.mutate<Dashboard>('POST', DASHBOARDS, fields, { idempotencyKey: INTENT, invalidates: [DASHBOARDS] });
   }
 
   updateDashboard(dashboard: Dashboard, fields: DashboardWrite): Promise<Dashboard> {

@@ -11,7 +11,7 @@ import type {
   AccessExplanation, CustomRole, CustomRoleGrant, CustomRoleGrantCreate, ResourceState, RoleCatalogue,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { CONFIG_CHECK } from './touches.ts';
 
@@ -52,7 +52,7 @@ class Roles {
 
   create(key: string, name: string, permissions: readonly string[]): Promise<CustomRole> {
     return engine.mutate<CustomRole>('POST', PATH, { key, name, permissions }, {
-      idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES,
+      idempotencyKey: INTENT, invalidates: TOUCHES,
     });
   }
 
@@ -68,7 +68,7 @@ class Roles {
 
   grant(body: CustomRoleGrantCreate): Promise<CustomRoleGrant> {
     return engine.mutate<CustomRoleGrant>('POST', GRANTS, body, {
-      idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES,
+      idempotencyKey: INTENT, invalidates: TOUCHES,
     });
   }
 

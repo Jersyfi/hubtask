@@ -21,7 +21,7 @@
 
 import type { Container, ContainerPage, ResourceState, StructureChange, StructurePreview } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { anchorFor } from './rank.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
@@ -240,7 +240,7 @@ class Containers {
    */
   async setHandle(id: string, hubId: string | null | undefined, handle: string): Promise<string> {
     const answer = await engine.mutate<{ handle: string }>(
-      'PUT', `/collections/${encodeURIComponent(id)}/handle`, { handle }, { idempotencyKey: crypto.randomUUID() },
+      'PUT', `/collections/${encodeURIComponent(id)}/handle`, { handle }, { idempotencyKey: INTENT },
     );
     const reads: Promise<unknown>[] = [engine.refresh<Container>({ path: `/containers/${id}` })];
     if (hubId) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));

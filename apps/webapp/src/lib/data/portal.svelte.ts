@@ -9,7 +9,7 @@
 
 import type { ArticleRating, DeskLogo, PortalRequest, PortalRequestDetail, RequestSatisfaction } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const query = (collectionId: string) => `collection_id=${encodeURIComponent(collectionId)}`;
 
@@ -33,14 +33,14 @@ export interface RequestDraft {
 class Portal {
   raise(collectionId: string, draft: RequestDraft): Promise<PortalRequest> {
     return engine.mutate<PortalRequest>('POST', '/requests', { collection_id: collectionId, ...draft }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [myRequestsPath(collectionId), organisationRequestsPath(collectionId)],
     });
   }
 
   answer(request: PortalRequestDetail, body: string, parentCommentId?: string): Promise<unknown> {
     return engine.mutate('POST', `${myRequestPath(request.id)}/comments`, { body, parent_comment_id: parentCommentId ?? null }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [myRequestPath(request.id)],
     });
   }

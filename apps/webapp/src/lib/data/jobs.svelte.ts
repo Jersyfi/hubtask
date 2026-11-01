@@ -22,7 +22,7 @@
  * it through the catalogue like every other code (ADR-0011).
  */
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { isTerminal, pollDelay, worthRetrying, type Job, type JobRef } from './jobs.ts';
 
 export type { Job, JobRef, JobStatus } from './jobs.ts';
@@ -101,7 +101,7 @@ class Jobs {
    */
   async cancel(jobId: string): Promise<void> {
     const answer = await engine.mutate<Job>('POST', `${JOBS}/${jobId}:cancel`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       timeoutMs: READ_TIMEOUT_MS,
     });
     this.#stop(jobId);

@@ -9,7 +9,7 @@
  * terminal. Not a resource: a report arrives once and is not something a screen watches change.
  */
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import type { ImportRequest, ImportRun } from './imports.ts';
@@ -32,7 +32,7 @@ class Imports {
    */
   async start(request: ImportRequest): Promise<JobRef> {
     const accepted = await engine.mutate<JobRef>('POST', IMPORTS, request, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
     });
     jobs.watch(accepted);
     return accepted;

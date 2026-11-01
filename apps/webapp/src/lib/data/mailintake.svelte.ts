@@ -9,7 +9,7 @@
  * settings where the installation has one; a connected mailbox is the other door.
  */
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const SETTINGS = '/mail/settings';
 
@@ -69,7 +69,7 @@ export async function readMailSettings(): Promise<MailSettings | undefined> {
 
 export async function saveMailSettings(settings: MailSettings): Promise<MailSettings> {
   const { domain: _domain, address: _address, ...body } = settings;
-  return engine.mutate<MailSettings>('PUT', SETTINGS, body, { idempotencyKey: crypto.randomUUID() });
+  return engine.mutate<MailSettings>('PUT', SETTINGS, body, { idempotencyKey: INTENT });
 }
 
 export async function readMailReceipts(): Promise<readonly MailReceipt[]> {
@@ -197,22 +197,22 @@ export async function readMailboxes(): Promise<MailboxesRead> {
 /** Starts connecting through the provider's sign-in; answers the provider's page to go to. */
 export async function authorizeMailbox(request: MailboxAuthorizationRequest): Promise<string> {
   const answer = await engine.mutate<{ authorize_url: string }>('POST', '/mail/mailboxes:authorize', request, {
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: INTENT,
   });
   return answer.authorize_url;
 }
 
 /** Finishes it with what the provider sent back. */
 export async function completeMailboxAuthorization(answer: { state: string; code?: string; error?: string }): Promise<Mailbox> {
-  return engine.mutate<Mailbox>('POST', '/mail/mailboxes:complete', answer, { idempotencyKey: crypto.randomUUID() });
+  return engine.mutate<Mailbox>('POST', '/mail/mailboxes:complete', answer, { idempotencyKey: INTENT });
 }
 
 export async function connectMailbox(connection: MailboxConnection): Promise<Mailbox> {
-  return engine.mutate<Mailbox>('POST', '/mail/mailboxes', connection, { idempotencyKey: crypto.randomUUID() });
+  return engine.mutate<Mailbox>('POST', '/mail/mailboxes', connection, { idempotencyKey: INTENT });
 }
 
 export async function checkMailbox(id: string): Promise<Mailbox> {
-  return engine.mutate<Mailbox>('POST', `/mail/mailboxes/${encodeURIComponent(id)}:check`, {}, { idempotencyKey: crypto.randomUUID() });
+  return engine.mutate<Mailbox>('POST', `/mail/mailboxes/${encodeURIComponent(id)}:check`, {}, { idempotencyKey: INTENT });
 }
 
 export async function removeMailbox(id: string): Promise<void> {

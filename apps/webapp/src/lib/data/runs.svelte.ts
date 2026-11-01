@@ -17,7 +17,7 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import type { RuleDraft } from './rules.svelte.ts';
 import { runsPath, type RunFilter } from './runs.ts';
 
@@ -170,7 +170,7 @@ class Runs {
   /** Runs it now, for real. A different thing from a dry run, and named differently. */
   async trigger(ruleId: string): Promise<Run> {
     return engine.mutate<Run>('POST', `${RULES}/${ruleId}:trigger`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [RUNS],
     });
   }
@@ -178,7 +178,7 @@ class Runs {
   /** Finishes a failed run. The actions it already completed are not done again. */
   async replay(runId: string): Promise<Run> {
     return engine.mutate<Run>('POST', `${RUNS}/${runId}:replay`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [RUNS],
     });
   }

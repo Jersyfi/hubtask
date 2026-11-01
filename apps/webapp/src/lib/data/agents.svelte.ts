@@ -18,7 +18,7 @@ import type {
 import {
   agentCasesPath, agentEvaluationsPath, agentHaltPath, agentPolicyPath, agentJobsPath, agentModelPath, agentModelsPath, agentPath, agentsPath, meteringPath, requestsPath,
 } from './agents.ts';
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 export * from './agents.ts';
 
@@ -26,7 +26,7 @@ const REQUESTS = (['PENDING', 'APPROVED', 'DECLINED', 'FAILED'] as const).map((s
 
 class Agents {
   register(body: AgentWrite): Promise<Agent> {
-    return engine.mutate<Agent>('POST', agentsPath, body, { idempotencyKey: crypto.randomUUID(), invalidates: [agentsPath] });
+    return engine.mutate<Agent>('POST', agentsPath, body, { idempotencyKey: INTENT, invalidates: [agentsPath] });
   }
 
   change(agent: Agent, body: AgentWrite): Promise<Agent> {
@@ -52,7 +52,7 @@ class Agents {
   }
 
   registerModel(body: AgentModelCreate): Promise<AgentModel> {
-    return engine.mutate<AgentModel>('POST', agentModelsPath, body, { idempotencyKey: crypto.randomUUID(), invalidates: [agentModelsPath] });
+    return engine.mutate<AgentModel>('POST', agentModelsPath, body, { idempotencyKey: INTENT, invalidates: [agentModelsPath] });
   }
 
   /** A change of what the model is asks every agent using it for approval again, so they are stale too. */
@@ -72,14 +72,14 @@ class Agents {
 
   startJob(agentId: string, targetId: string): Promise<AgentJob> {
     return engine.mutate<AgentJob>('POST', agentJobsPath(agentId), { target_id: targetId }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [agentJobsPath(agentId)],
     });
   }
 
   addCase(agentId: string, body: AgentCaseCreate): Promise<AgentCase> {
     return engine.mutate<AgentCase>('POST', agentCasesPath(agentId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [agentCasesPath(agentId)],
     });
   }
@@ -91,7 +91,7 @@ class Agents {
   evaluate(agentId: string, hubId?: string, collectionId?: string): Promise<AgentRun> {
     const body = { ...(hubId ? { hub_id: hubId } : {}), ...(collectionId ? { collection_id: collectionId } : {}) };
     return engine.mutate<AgentRun>('POST', `${agentEvaluationsPath(agentId)}:run`, body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [agentEvaluationsPath(agentId)],
     });
   }

@@ -14,7 +14,7 @@
 
 import type { InstallationPreset, InstallationPresetCreate, InstallationPresetUpdate, ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { stepUp } from './stepup.svelte.ts';
 
@@ -48,7 +48,7 @@ class InstallationPresets {
   async create(body: InstallationPresetCreate): Promise<InstallationPreset> {
     return stepUp.around((stepUpToken) =>
       engine.mutate<InstallationPreset>('POST', PATH, body, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         stepUpToken,
         invalidates: STALE,
       }),

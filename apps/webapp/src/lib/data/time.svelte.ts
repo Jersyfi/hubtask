@@ -17,7 +17,7 @@ import type {
   Absence, BillingRate, BudgetBurn, Capacity, CostRate, TimeExport, TimePolicy, TimeRecord, TimeTimer, Timesheet, TransportDocument, WorkType,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 
 export * from './time.ts';
@@ -71,7 +71,7 @@ class Time {
   /** Records time; `weeks` are the weeks whose reads it changes. */
   log(fields: RecordFields, weeks: readonly string[]): Promise<TimeRecord> {
     return engine.mutate<TimeRecord>('POST', '/time-records', fields, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: weeks.map((week) => weekPath(week)),
     });
   }
@@ -93,7 +93,7 @@ class Time {
   /** A correction of signed minutes on a day of an open week, naming an approved or locked record. */
   correct(recordId: string, fields: { minutes: number; day: string; note?: string }, weeks: readonly string[]): Promise<TimeRecord> {
     return engine.mutate<TimeRecord>('POST', `/time-records/${recordId}:correct`, fields, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: weeks.map((week) => weekPath(week)),
     });
   }
@@ -168,7 +168,7 @@ class Time {
 
   /** Records an absence of the caller's; `calendar` is the month's read it changes. */
   recordAbsence(fields: { from: string; to: string; kind: string; half: boolean }, calendar: string): Promise<Absence> {
-    return engine.mutate<Absence>('POST', '/time-absences', fields, { idempotencyKey: crypto.randomUUID(), invalidates: [calendar] });
+    return engine.mutate<Absence>('POST', '/time-absences', fields, { idempotencyKey: INTENT, invalidates: [calendar] });
   }
 
   updateAbsence(absence: Absence, fields: { from: string; to: string; kind: string; half: boolean }, calendar: string): Promise<Absence> {
@@ -180,7 +180,7 @@ class Time {
   }
 
   addRate(fields: { account_id?: string; role?: string; hour_minor: number; currency: string; from: string; to?: string }): Promise<CostRate> {
-    return engine.mutate<CostRate>('POST', RATES, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [RATES] });
+    return engine.mutate<CostRate>('POST', RATES, fields, { idempotencyKey: INTENT, invalidates: [RATES] });
   }
 
   changeRate(rate: CostRate, fields: { hour_minor: number; currency: string; from: string; to?: string }): Promise<CostRate> {
@@ -193,7 +193,7 @@ class Time {
 
   addBillingRate(planId: string, fields: { hour_minor: number; currency: string; from: string; to?: string }): Promise<BillingRate> {
     const path = billingRatesPath(planId);
-    return engine.mutate<BillingRate>('POST', path, fields, { idempotencyKey: crypto.randomUUID(), invalidates: [path] });
+    return engine.mutate<BillingRate>('POST', path, fields, { idempotencyKey: INTENT, invalidates: [path] });
   }
 
   changeBillingRate(rate: BillingRate, fields: { hour_minor: number; currency: string; from: string; to?: string }): Promise<BillingRate> {

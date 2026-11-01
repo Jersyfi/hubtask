@@ -44,7 +44,7 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import type { Probe, Target, TargetDraft } from './backup.svelte.ts';
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { workspaceQuery, type WorkspaceFilter } from './workspacequery.ts';
 
 export type { WorkspaceFilter };
@@ -515,7 +515,7 @@ class Instance {
   async provision(request: TenantProvision): Promise<ProvisionedTenant> {
     return stepUp.around((stepUpToken) =>
       engine.mutate<ProvisionedTenant>('POST', TENANTS, request, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         stepUpToken,
         invalidates: EVERYTHING,
       }),
@@ -674,7 +674,7 @@ class Instance {
     return stepUp.around((stepUpToken) =>
       engine.mutate<Target>('POST', TARGETS, draft, {
         stepUpToken,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         invalidates: [TARGETS, JOURNAL],
       }),
     );

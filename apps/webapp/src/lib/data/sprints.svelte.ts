@@ -9,7 +9,7 @@
 
 import type { EntryEstimate, Sprint, SprintClosure } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import type { EstimateInput } from './sprints.ts';
 
@@ -29,7 +29,7 @@ class Sprints {
 
   create(collectionId: string, zone: string, fields: { name: string; goal: string; start_on: string; end_on: string; unit: 'POINTS' | 'HOURS' }): Promise<Sprint> {
     return engine.mutate<Sprint>('POST', sprintsPath(collectionId), fields, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: this.touched(collectionId, undefined, zone),
     });
   }

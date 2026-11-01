@@ -8,7 +8,7 @@
 
 import type { Release } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 
 export * from './releases.ts';
@@ -23,7 +23,7 @@ class Releases {
 
   create(hubId: string, fields: { name: string; description: string; release_on: string }): Promise<Release> {
     return engine.mutate<Release>('POST', releasesPath(hubId), fields, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: this.touched(hubId),
     });
   }

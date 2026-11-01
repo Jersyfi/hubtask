@@ -13,7 +13,7 @@ import {
 } from '@hubtask/sync-engine';
 
 import type { FormActor } from '@hubtask/expression';
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { actorOf, offlineFormState, withOwnGrants, type HeldGrant, type HeldRole } from './entryforms.ts';
 import { etagFor } from './etag.ts';
 import { CONFIG_CHECK } from './touches.ts';
@@ -65,7 +65,7 @@ class EntryTypes {
   /** Adds a type of the workspace's own (UC-FLW-01 check 1). */
   create(body: EntryTypeCreate): Promise<EntryType> {
     return engine.mutate<EntryType>('POST', PATH, body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [PATH, CONFIG_CHECK],
     });
   }
@@ -76,7 +76,7 @@ class EntryTypes {
    */
   copyHere(source: string, hubId: string, key: string, name?: string): Promise<EntryType> {
     return engine.mutate<EntryType>('POST', `${PATH}/${encodeURIComponent(source)}:copy-here`, { hub_id: hubId, new_key: key, ...(name ? { name } : {}) }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [PATH, CONFIG_CHECK],
     });
   }

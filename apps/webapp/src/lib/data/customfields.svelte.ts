@@ -25,7 +25,7 @@ import type {
   WorkItem,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { ANY_ENTRY_DOCUMENT, CONFIG_CHECK, ENTRY_LISTS, touchesOf } from './touches.ts';
 
@@ -74,7 +74,7 @@ class CustomFields {
   /** Makes a hub's own copy of a workspace-wide field under its key (UC-WRK-12 check 9). */
   async copyHere(fieldId: string, hubId: string): Promise<CustomFieldDefinition> {
     return engine.mutate<CustomFieldDefinition>('POST', `/custom-fields/${fieldId}:copy-here`, { hub_id: hubId }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHES,
     });
   }

@@ -15,7 +15,7 @@ import type {
   Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageLanguageVariant, PageMove, PagePublicLinkMinted, PageShare, PageSpaceDrafts, PublicLinksPolicy, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { livePath } from './pages.ts';
 
 export * from './pages.ts';
@@ -46,7 +46,7 @@ export type SearchNarrowing = Pick<PageSearch, 'label' | 'author_id' | 'updated_
 class Pages {
   create(hubId: string, body: PageCreate): Promise<Page> {
     return engine.mutate<Page>('POST', pagesPath(hubId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [`/hubs/${hubId}/pages`],
     });
   }
@@ -101,7 +101,7 @@ class Pages {
   /** A copy beside the page, titled as the page; the editor renames it (UC-DOC-01 check 8). */
   copy(page: Page): Promise<Page> {
     return engine.mutate<Page>('POST', `${pagePath(page.id)}:copy`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [`/hubs/${page.hub_id}/pages`],
     });
   }
@@ -147,7 +147,7 @@ class Pages {
 
   addComment(pageId: string, body: PageCommentCreate): Promise<PageComment> {
     return engine.mutate<PageComment>('POST', pageCommentsPath(pageId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [pageCommentsPath(pageId)],
     });
   }
@@ -192,7 +192,7 @@ class Pages {
   /** Shares the page read-only with one person beside its hub (UC-DOC-08). */
   share(pageId: string, accountId: string): Promise<PageShare> {
     return engine.mutate<PageShare>('POST', `${pagePath(pageId)}/shares`, { account_id: accountId }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [accessPath(pageId)],
     });
   }

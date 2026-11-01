@@ -33,7 +33,7 @@ import type {
   ResourceState,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 const PATH = '/ai-provider';
 const SOURCE = '/ai-source';
@@ -121,14 +121,14 @@ class AiProviderStore {
   /** Sets it, whole. `api_key` absent keeps the sealed one; empty clears it; a value replaces it. */
   async configure(body: AiProviderConfiguration): Promise<AiProvider> {
     return engine.mutate<AiProvider>('PUT', PATH, body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHES,
     });
   }
 
   /** Takes it away: the configuration and its sealed key. Nothing already accepted is undone. */
   async remove(): Promise<void> {
-    await engine.mutate('DELETE', PATH, undefined, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES });
+    await engine.mutate('DELETE', PATH, undefined, { idempotencyKey: INTENT, invalidates: TOUCHES });
   }
 }
 

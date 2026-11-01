@@ -22,7 +22,7 @@
 
 import type { Group, GroupDetail, GroupPage, ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/groups';
@@ -70,7 +70,7 @@ class Groups {
       'POST',
       PATH,
       { name, ...(description ? { description } : {}) },
-      { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES },
+      { idempotencyKey: INTENT, invalidates: TOUCHES },
     );
   }
 

@@ -12,7 +12,7 @@ import type {
   RequesterOrganisationDefine, SlaPolicy, SlaPolicyDefine,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 export const calendarsPath = '/business-calendars';
 export const policiesPath = '/sla-policies';
@@ -47,7 +47,7 @@ class Desk {
   /** A hub's own copy of a shared SLA policy under a new key (UC-SVC-02 check 13). */
   copyPolicyHere(source: string, hubId: string, key: string): Promise<SlaPolicy> {
     return engine.mutate<SlaPolicy>('POST', `${policiesPath}/${source}:copy-here`, { hub_id: hubId, key }, {
-      idempotencyKey: crypto.randomUUID(), invalidates: [policiesPath],
+      idempotencyKey: INTENT, invalidates: [policiesPath],
     });
   }
 
@@ -82,7 +82,7 @@ class Desk {
   /** Presses a manual rule on the entry: a macro (UC-SVC-06 check 4). */
   press(ruleId: string, itemId: string): Promise<unknown> {
     return engine.mutate('POST', `/automation/rules/${ruleId}:trigger`, { item_id: itemId }, {
-      idempotencyKey: crypto.randomUUID(), invalidates: [`/items/${itemId}`],
+      idempotencyKey: INTENT, invalidates: [`/items/${itemId}`],
     });
   }
 }

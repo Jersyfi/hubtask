@@ -20,7 +20,7 @@
  * from `Mode` rather than filtered later, so nothing in this client can compose one by accident.
  */
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { jobs } from './jobs.svelte.ts';
 import type { JobRef } from './jobs.ts';
 import type { Asked, Run } from './restore.ts';
@@ -65,7 +65,7 @@ class Restores {
         // The one operation in this contract whose proof travels in the body (§8.3 step 3).
         ...(stepUpToken ? { step_up_token: stepUpToken } : {}),
       },
-      { idempotencyKey: crypto.randomUUID() },
+      { idempotencyKey: INTENT },
     );
     jobs.watch(accepted);
     return accepted;

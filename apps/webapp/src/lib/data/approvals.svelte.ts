@@ -9,7 +9,7 @@
 
 import type { Approval, ApprovalDelegation } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 export const myApprovalsPath = '/approvals';
 export const entryApprovalsPath = (itemId: string) => `/items/${itemId}/approvals`;
@@ -21,7 +21,7 @@ class Approvals {
   decide(approval: Pick<Approval, 'id' | 'item_id'>, verdict: Verdict, reason: string): Promise<Approval> {
     const body = reason.trim() === '' ? { verdict } : { verdict, reason: reason.trim() };
     return engine.mutate<Approval>('POST', `/approvals/${approval.id}:decide`, body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [myApprovalsPath, entryApprovalsPath(approval.item_id), `/items/${approval.item_id}$`],
     });
   }

@@ -23,7 +23,7 @@
 
 import type { AcceptedSuggestion, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import {
   arrivalEndedAs,
   budgetSpentOf,
@@ -122,7 +122,7 @@ class Suggestions {
     if (operation === 'duplicates') {
       const answer = await whilePending(begin, withdraw, () =>
         engine.mutate<Suggestion | undefined>('POST', `/items/${itemId}:duplicates`, undefined, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: ASK_TIMEOUT_MS,
           invalidates: touches(itemId),
         }),
@@ -133,7 +133,7 @@ class Suggestions {
 
     const accepted = await whilePending(begin, withdraw, () =>
       engine.mutate<Accepted | undefined>('POST', `/items/${itemId}:${operation}`, {}, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         timeoutMs: ASK_TIMEOUT_MS,
         // Nothing to invalidate: the answer is not there yet, and the follow reads the listing itself.
         invalidates: [],
@@ -170,7 +170,7 @@ class Suggestions {
       () => this.#withdraw(entryId, askedAt),
       () =>
         engine.mutate<Accepted | undefined>('POST', `/jumble/entries/${entryId}:suggest`, undefined, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: ASK_TIMEOUT_MS,
           invalidates: [],
         }),
@@ -190,7 +190,7 @@ class Suggestions {
       () => this.#withdraw(containerId, askedAt),
       () =>
         engine.mutate<Accepted | undefined>('POST', `/containers/${containerId}:summarize`, undefined, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: ASK_TIMEOUT_MS,
           invalidates: [],
         }),
@@ -206,7 +206,7 @@ class Suggestions {
   async generateTemplate(collectionId: string, description: string): Promise<void> {
     const askedAt = new Date().toISOString();
     const accepted = await engine.mutate<Accepted | undefined>('POST', '/templates:generate', { collection_id: collectionId, description }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       timeoutMs: ASK_TIMEOUT_MS,
       invalidates: [],
     });
@@ -228,7 +228,7 @@ class Suggestions {
       () => this.#withdraw(accountId, askedAt),
       () =>
         engine.mutate<Accepted | undefined>('POST', '/automation/rules:describe', { scope, description }, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: ASK_TIMEOUT_MS,
           invalidates: [],
         }),
@@ -248,7 +248,7 @@ class Suggestions {
       `/suggestions/${suggestion.id}:accept`,
       overrides ? { overrides } : {},
       {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         // The entry changed - its fields, or the children under it - so every read of it is stale,
         // and the engine matches by prefix: `/items/{id}`, its activity, its children. A jumble
         // acceptance is a conversion, so the inbox and the containers a board reads are stale too.
@@ -279,7 +279,7 @@ class Suggestions {
       () => this.#withdraw(accountId, askedAt),
       () =>
         engine.mutate<Accepted | undefined>('POST', `/containers/${collectionId}:make-entries`, { text }, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: ASK_TIMEOUT_MS,
           invalidates: [],
         }),
@@ -296,7 +296,7 @@ class Suggestions {
    */
   async take(suggestion: Suggestion, keys?: readonly string[]): Promise<AcceptedSuggestion> {
     return engine.mutate<AcceptedSuggestion>('POST', `/suggestions/${suggestion.id}:accept`, keys ? { take: keys } : {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       // New entries: every list that may hold them is stale, and so is the person's own listing.
       invalidates: [...touches(suggestion.target_id, 'ACCOUNT'), ENTRY_LISTS],
     });
@@ -314,7 +314,7 @@ class Suggestions {
     if (asking?.jobId) {
       try {
         await engine.mutate('POST', `/jobs/${asking.jobId}:cancel`, undefined, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: STOP_TIMEOUT_MS,
           invalidates: [],
         });
@@ -333,7 +333,7 @@ class Suggestions {
   async dismiss(suggestion: Suggestion): Promise<Suggestion> {
     const target = targetOf(suggestion);
     return engine.mutate<Suggestion>('POST', `/suggestions/${suggestion.id}:dismiss`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: touches(suggestion.target_id, target),
     });
   }

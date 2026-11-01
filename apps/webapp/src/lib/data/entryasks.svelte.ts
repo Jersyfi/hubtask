@@ -18,7 +18,7 @@ import type { AiTranslation, Suggestion } from '@hubtask/sync-engine';
 
 import type { Ask } from './aiplaces.ts';
 import { ASKED_FIELD } from './aiplaces.ts';
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { endedAs, followArrival, suggestionsPath, waitWhileVisible, whilePending, type AskingState } from './suggestions.ts';
 
 /** How one question stands: following (or slow), or how it ended - with the job that carries it. */
@@ -95,7 +95,7 @@ class EntryAsks {
     if (ask === 'duplicates') {
       const answer = await whilePending(begin, withdraw, () =>
         engine.mutate<Suggestion | undefined>('POST', `/items/${itemId}:duplicates`, undefined, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: ASK_TIMEOUT_MS,
           invalidates: [suggestionsPath(itemId)],
         }),
@@ -109,7 +109,7 @@ class EntryAsks {
     const field = ASKED_FIELD[ask];
     const accepted = await whilePending(begin, withdraw, () =>
       engine.mutate<Accepted | undefined>('POST', `/items/${itemId}:${operation}`, field ? { fields: [field] } : {}, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         timeoutMs: ASK_TIMEOUT_MS,
         // Nothing to invalidate: the answer is not there yet, and the follow reads the listing.
         invalidates: [],
@@ -142,7 +142,7 @@ class EntryAsks {
     if (question?.jobId) {
       try {
         await engine.mutate('POST', `/jobs/${question.jobId}:cancel`, undefined, {
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: INTENT,
           timeoutMs: STOP_TIMEOUT_MS,
           invalidates: [],
         });
@@ -165,7 +165,7 @@ class EntryAsks {
     this.#translating.set(itemId, controller);
     try {
       return await engine.mutate<AiTranslation>('POST', `/items/${itemId}:translate`, { target_locale: targetLocale }, {
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: INTENT,
         timeoutMs: TRANSLATE_TIMEOUT_MS,
         signal: controller.signal,
         // A read: nothing it answers makes anything the client holds stale.

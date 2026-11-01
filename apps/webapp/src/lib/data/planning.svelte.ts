@@ -12,7 +12,7 @@ import type {
   BaselineComparison, EntryLink, EntryScheduling, PlanBaseline, PlanMoves, WorkItem,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 
 export * from './planning.ts';
@@ -27,7 +27,7 @@ class Planning {
   /** Applies the moves accepted, all or none (check 4); the plan is scheduled again by the server. */
   apply(planId: string, zone: string, itemIds: readonly string[]): Promise<PlanMoves> {
     return engine.mutate<PlanMoves>('POST', `/plans/${planId}/schedule:apply`, { item_ids: [...itemIds], zone }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [schedulePath(planId, zone), ...itemIds.map((id) => `/items/${id}`)],
     });
   }
@@ -80,7 +80,7 @@ class Planning {
   /** Keeps the plan as it is agreed now (PLN-04). */
   takeBaseline(planId: string, name: string): Promise<PlanBaseline> {
     return engine.mutate<PlanBaseline>('POST', baselinesPath(planId), { name }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [baselinesPath(planId)],
     });
   }

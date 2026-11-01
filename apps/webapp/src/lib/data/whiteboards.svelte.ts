@@ -15,7 +15,7 @@ import type {
   WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentCreate,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { liveBoardPath } from './whiteboards.ts';
 
 export * from './whiteboards.ts';
@@ -30,7 +30,7 @@ const touched = (hubId: string, boardId: string) => [boardPath(boardId), boardsP
 class Whiteboards {
   create(hubId: string, body: WhiteboardCreate): Promise<WhiteboardRead> {
     return engine.mutate<WhiteboardRead>('POST', boardsPath(hubId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [boardsPath(hubId)],
     });
   }
@@ -99,7 +99,7 @@ class Whiteboards {
   /** A thread pinned to an object or a place, or a reply (UC-CNV-09); the people it names are told. */
   addComment(boardId: string, body: WhiteboardCommentCreate): Promise<WhiteboardComment> {
     return engine.mutate<WhiteboardComment>('POST', boardCommentsPath(boardId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [boardCommentsPath(boardId)],
     });
   }

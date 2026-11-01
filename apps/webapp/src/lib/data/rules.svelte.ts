@@ -20,7 +20,7 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { CONFIG_CHECK } from './touches.ts';
 
 const PATH = '/automation/rules';
@@ -149,7 +149,7 @@ class Rules {
 
   async write(draft: RuleDraft): Promise<Rule> {
     const created = await engine.mutate<Rule>('POST', PATH, draft, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [PATH, CONFIG_CHECK],
     });
     // Into the page at once: the editor navigates to the new rule's address the moment the

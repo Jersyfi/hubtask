@@ -10,7 +10,7 @@
 
 import type { ModuleList, ModuleReach, ModulesOn, ModuleState, ModuleSwitch, ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 export { asksFirst, isSetHere, offReach, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
 
@@ -48,7 +48,7 @@ class Modules {
   async switch(module: ModuleState['module'], to: ModuleSwitch['switch'], hubId?: string): Promise<ModuleList> {
     const body: ModuleSwitch = hubId ? { switch: to, hub_id: hubId } : { switch: to };
     return engine.mutate<ModuleList>('PUT', `${PATH}/${encodeURIComponent(module)}`, body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [PATH, CAPABILITIES, PLACES],
     });
   }

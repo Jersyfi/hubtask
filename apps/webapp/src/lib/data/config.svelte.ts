@@ -13,7 +13,7 @@ import type {
   ConfigVersionList, ResourceState,
 } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 
 const VERSIONS = '/config/versions';
@@ -86,7 +86,7 @@ class Config {
   /** Applies a rollback by the plan's hash. */
   async rollback(version: number, planHash: string, acknowledge: boolean): Promise<ConfigApplyResult> {
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', { to_version: version, plan_hash: planHash, acknowledge }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHED,
     });
   }
@@ -127,7 +127,7 @@ class Config {
    */
   async removeSamples(hubId: string): Promise<{ removed: number }> {
     return engine.mutate<{ removed: number }>('POST', `${sampleEntriesPath(hubId)}:remove`, undefined, {
-      idempotencyKey: crypto.randomUUID(), invalidates: [sampleEntriesPath(hubId), '/items'],
+      idempotencyKey: INTENT, invalidates: [sampleEntriesPath(hubId), '/items'],
     });
   }
 
@@ -143,7 +143,7 @@ class Config {
       document: plan.document, mode: plan.mode, plan_hash: plan.plan_hash ?? '', template: plan.template, acknowledge,
       ...(hubId ? { hub_id: hubId } : {}),
       ...(collectionId ? { collection_id: collectionId } : {}),
-    }, { idempotencyKey: crypto.randomUUID(), invalidates });
+    }, { idempotencyKey: INTENT, invalidates });
   }
 
   /** Reads the sandbox and the plan of promoting it. **From `untrack`**. */
@@ -154,7 +154,7 @@ class Config {
   /** Copies the configuration in force into the sandbox afresh, or throws the sandbox away. */
   async resetSandbox(discard: boolean): Promise<ConfigSandbox> {
     return engine.mutate<ConfigSandbox>('POST', SANDBOX, discard ? { discard: true } : { reset: true }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [SANDBOX],
     });
   }
@@ -162,7 +162,7 @@ class Config {
   /** Promotes the sandbox by its promotion's plan hash: what it changed since its copy. */
   async promote(planHash: string, acknowledge: boolean): Promise<ConfigApplyResult> {
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', { from_sandbox: true, plan_hash: planHash, acknowledge }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [...TOUCHED, SANDBOX],
     });
   }
@@ -175,13 +175,13 @@ class Config {
   /** Saves a block's draft; the block in force stays in force for everybody. */
   async saveDraft(section: DraftSection, key: string, block: Record<string, unknown>, version?: number): Promise<ConfigDraft> {
     return engine.mutate<ConfigDraft>('PUT', draftPath(section, key), { block }, {
-      idempotencyKey: crypto.randomUUID(), invalidates: [DRAFTS], ...(version ? { ifMatch: etagFor(version) } : {}),
+      idempotencyKey: INTENT, invalidates: [DRAFTS], ...(version ? { ifMatch: etagFor(version) } : {}),
     });
   }
 
   /** Throws a block's draft away. */
   async discardDraft(section: DraftSection, key: string): Promise<void> {
-    await engine.mutate<void>('DELETE', draftPath(section, key), undefined, { idempotencyKey: crypto.randomUUID(), invalidates: [DRAFTS] });
+    await engine.mutate<void>('DELETE', draftPath(section, key), undefined, { idempotencyKey: INTENT, invalidates: [DRAFTS] });
   }
 
   /** The plan of putting a draft in force: its block merged into the document in force. */
@@ -193,13 +193,13 @@ class Config {
   async publishDraft(section: DraftSection, key: string, block: Record<string, unknown>, plan: ConfigPlan, acknowledge: boolean): Promise<ConfigApplyResult> {
     return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
       document: { [section]: { [key]: block } }, plan_hash: plan.plan_hash, base_hash: plan.base_hash, acknowledge,
-    }, { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHED });
+    }, { idempotencyKey: INTENT, invalidates: TOUCHED });
   }
 
   /** Sets what an agent's apply does in the workspace (D-16); a person's decision, never an agent's. */
   async setAgentApply(agentApply: 'ALLOWED' | 'APPROVAL' | 'NEVER'): Promise<{ agent_apply: string }> {
     return engine.mutate<{ agent_apply: string }>('PUT', '/config/policy', { agent_apply: agentApply }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [DOCUMENT, VERSIONS],
     });
   }
@@ -207,7 +207,7 @@ class Config {
   /** Applies or declines a proposal. */
   async decide(id: string, decision: 'APPLY' | 'DECLINE', acknowledge: boolean): Promise<ConfigApplyResult> {
     return engine.mutate<ConfigApplyResult>('POST', `${PROPOSALS}/${encodeURIComponent(id)}:decide`, { decision, acknowledge }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: TOUCHED,
     });
   }

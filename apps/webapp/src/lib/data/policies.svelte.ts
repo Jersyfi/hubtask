@@ -26,7 +26,7 @@
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 const POLICIES = '/retention-policies';
@@ -158,7 +158,7 @@ class Policies {
     enabled?: boolean;
   }): Promise<Policy> {
     return engine.mutate<Policy>('POST', POLICIES, draft, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [POLICIES],
     });
   }
@@ -197,7 +197,7 @@ class Policies {
    */
   async retain(itemId: string): Promise<void> {
     await engine.mutate<unknown>('POST', `/items/${itemId}:retain`, {}, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
     });
   }
@@ -205,7 +205,7 @@ class Policies {
   /** Places a hold. The reason is mandatory and is kept: it is what an auditor reads. */
   async place(scope: { kind: string; id?: string | null }, reason: string): Promise<Hold> {
     return engine.mutate<Hold>('POST', HOLDS, { scope, reason }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [HOLDS],
     });
   }
@@ -213,7 +213,7 @@ class Policies {
   /** Lifts one. The reason is required here too — "released" with no reason is unactionable. */
   async release(holdId: string, reason: string): Promise<Hold> {
     return engine.mutate<Hold>('POST', `${HOLDS}/${holdId}:release`, { reason }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [HOLDS],
     });
   }

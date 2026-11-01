@@ -22,7 +22,7 @@ import {
   groupsPath, serviceMapPath, softwareAliasPath, softwareAliasesPath, type AssetState, type DisposalMethod,
 } from './cmdb.ts';
 import { backlinksPath, ciPath, connectorCredentialPath, connectorPath, connectorRunPath, connectorsPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
-import { engine } from './engine.ts';
+import { engine, INTENT } from './engine.ts';
 
 export * from './cmdb.ts';
 
@@ -64,7 +64,7 @@ class Cmdb {
 
   create(hubId: string, body: ConfigurationItemCreate): Promise<ConfigurationItem> {
     return engine.mutate<ConfigurationItem>('POST', cisPath(hubId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: reconciled(hubId),
     });
   }
@@ -85,7 +85,7 @@ class Cmdb {
 
   relate(hubId: string, sourceId: string, targetId: string, type: string): Promise<CiRelation> {
     return engine.mutate<CiRelation>('POST', '/ci-relations', { source_ci_id: sourceId, target_ci_id: targetId, type }, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [ciPath(sourceId), ciPath(targetId), healthPath(hubId)],
     });
   }
@@ -99,7 +99,7 @@ class Cmdb {
   /** A file through the reconciliation; a dry run invalidates nothing, because it wrote nothing. */
   importFile(hubId: string, body: CiFileImport): Promise<CiRun> {
     return engine.mutate<CiRun>('POST', `/hubs/${hubId}/cis:import`, body, {
-      ...(body.dry_run ? {} : { idempotencyKey: crypto.randomUUID() }),
+      ...(body.dry_run ? {} : { idempotencyKey: INTENT }),
       invalidates: body.dry_run ? [] : reconciled(hubId),
     });
   }
@@ -172,7 +172,7 @@ class Cmdb {
 
   startCampaign(hubId: string, body: CiCampaignStart): Promise<CiCampaign> {
     return engine.mutate<CiCampaign>('POST', campaignsPath(hubId), body, {
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: INTENT,
       invalidates: [campaignsPath(hubId)],
     });
   }
