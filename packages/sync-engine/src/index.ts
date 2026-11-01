@@ -21,6 +21,7 @@ export {
   matchesPath,
 } from './SyncEngine.ts';
 export type {
+  ConnectionPause,
   Listener,
   ListenOptions,
   MutateOptions,

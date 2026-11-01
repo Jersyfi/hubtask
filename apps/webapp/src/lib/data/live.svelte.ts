@@ -5,7 +5,7 @@
  * The one stream this tab keeps, and what it does to the screen.
  *
  * **It opens after sign-in and closes on sign-out.** The engine reconnects with the last identifier
- * it saw, waits out a `503` for exactly the `Retry-After` the server named, and treats
+ * it saw, waits out a `503` for at least the `Retry-After` the server named, and treats
  * `sync.cursor_too_old` as "forget everything and read again" — all of that is the engine's and none
  * of it is repeated here. What this module owns is the *lifecycle* and the *mapping*: when to listen,
  * and what a record means in this application's paths.
@@ -34,9 +34,11 @@ import { fetchStructureAfresh } from './replica.ts';
  *
  * `off` is "no stream is running" - before the first start and after a sign-out, which is also
  * when the mark is not drawn at all. `offline` is the *device's* answer: this machine says it has
- * no network, and the three states are then not a question about the server.
+ * no network, and the three states are then not a question about the server. `paused` is the
+ * server refusing the stream at its cap: it is up and busy, and the engine still pulls the changes
+ * at a slowing interval, so the reader is told live updates are paused, not that the server is gone.
  */
-export type LiveState = 'off' | 'live' | 'reconnecting' | 'offline';
+export type LiveState = 'off' | 'live' | 'reconnecting' | 'paused' | 'offline';
 
 class Live {
   #state = $state<LiveState>('off');
@@ -124,8 +126,8 @@ class Live {
         // workspace nobody else is writing in - would say *Reconnecting…* until somebody changed
         // something. A record proves the stream delivers; the engine is what knows whether it is
         // attached, and it says so.
-        onConnection: (isOpen) => {
-          this.#state = isOpen ? 'live' : 'reconnecting';
+        onConnection: (isOpen, reason) => {
+          this.#state = isOpen ? 'live' : reason === 'refused' ? 'paused' : 'reconnecting';
         },
         onRecord: (record) => this.#notice(record),
       });

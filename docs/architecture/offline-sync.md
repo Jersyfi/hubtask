@@ -209,7 +209,11 @@ source of truth.
 
 * It resumes from `Last-Event-ID` as a change-log cursor; one past the window is `sync.cursor_too_old`.
 * It authorises every record for its reader rather than trusting the subscription.
-* It is capped per credential, per tenant and per process; a refusal is `503` with `Retry-After`.
+* It is capped per credential, per tenant and per process (`HUBTASK_STREAM_PER_*`, deployment.md);
+  a refusal is `503` with `Retry-After`. Snapshots and live documents hold at most half of a
+  tenant's and a process's share, so they never leave the streams without room. A client refused
+  at a cap waits at least `Retry-After`, longer and spread with each refusal, pulls the delta on
+  each turn and shows "live updates paused" rather than "reconnecting".
 * A browser reads it through `fetch`, never `EventSource`, which cannot carry a bearer.
 
 ---

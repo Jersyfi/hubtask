@@ -100,7 +100,9 @@ order keys a reorder needs offline, with the server's cases as its test.
 * **`Transport.stream`** reads `GET /stream` from the response body; `engine.listen` keeps one
   connection per tab. `connectTimeoutMs` bounds the wait for the headers, `idleTimeoutMs` the
   silence between chunks. `401` ends the session through the one hook, the two cursor refusals
-  recover as above, and a `503` waits exactly the `Retry-After` the server named.
+  recover as above, and a `503` waits the `Retry-After` the server named; a stream refused at the server's cap
+  (`sync.stream_unavailable`) waits at least that, growing and spread with each refusal, and
+  `onConnection` says `'refused'` so the client can say "live updates paused".
 * **`Transport.transfer`** is the middle step of the three-step upload (arc42 §8.4): the bytes go
   to a presigned URL with no bearer and `credentials: 'omit'`, under a deadline sized by the bytes,
   with progress reported as they leave. `engine.transfer` invalidates only what the caller names.

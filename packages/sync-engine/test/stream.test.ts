@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SyncEngine, RECONNECT_BASE_MS } from '../src/SyncEngine.ts';
+import { SyncEngine, RECONNECT_BASE_MS, RECONNECT_MAX_MS } from '../src/SyncEngine.ts';
 import { TransportError } from '../src/errors.ts';
 import type { ChangeRecord } from '../src/schema.ts';
 import type { StreamEvent } from '../src/ports.ts';
@@ -223,11 +223,33 @@ test('a busy server is waited out for exactly as long as it asked', async () => 
   const engine = new SyncEngine({ transport });
   const pause = pauses(1);
 
-  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0 }));
   await settle();
   pause.end();
 
   assert.deepEqual(pause.seen, [12_000], 'the server said when, and the engine came back sooner');
+});
+
+test('a stream refused at the cap is paused, not lost: the waits grow past the server\'s and spread', async () => {
+  const refusal = () => ({ refuse: new TransportError('problem', { status: 503, detailCode: 'sync.stream_unavailable', retryAfterMs: 5_000 }) });
+  const transport = new FakeTransport().streamSessions(refusal(), refusal(), refusal(), refusal(), refusal(), refusal());
+  const engine = new SyncEngine({ transport });
+  const pause = pauses(6);
+  const reasons: (string | undefined)[] = [];
+
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0, onConnection: (_, reason) => reasons.push(reason) }));
+  await settle(24);
+  pause.end();
+
+  assert.deepEqual(pause.seen, [5_000, 5_000, 5_000, 8_000, 16_000, RECONNECT_MAX_MS], 'never sooner than asked, and slower each time');
+  assert.equal(reasons[0], 'refused', 'the caller is told the server refused, not that it is gone');
+
+  const spread = new SyncEngine({ transport: new FakeTransport().streamSessions(refusal()) });
+  const later = pauses(1);
+  later.hold(spread.listen({ pathsFor, wait: later.wait, random: () => 0.5 }));
+  await settle();
+  later.end();
+  assert.deepEqual(later.seen, [6_250], 'the wait is spread above the floor');
 });
 
 test('a connection that will not open backs off, doubling', async () => {

@@ -34,8 +34,12 @@
   // The mark's three words, from the store's four states: `off` is drawn by nobody - the line is
   // only rendered with a session - and `offline` is the device's own answer, which is what the
   // struck cloud of ADR-0063 decision 5 is for.
-  const connection = $derived<Connection>(live.state === 'live' ? 'connected' : live.state === 'reconnecting' ? 'reconnecting' : 'offline');
-  const connectionLabel = $derived(t(`app.sync.${connection}`));
+  // `paused` - the server up, the stream refused at its cap - draws the reconnecting mark and says
+  // what it is.
+  const connection = $derived<Connection>(
+    live.state === 'live' ? 'connected' : live.state === 'reconnecting' || live.state === 'paused' ? 'reconnecting' : 'offline',
+  );
+  const connectionLabel = $derived(live.state === 'paused' ? t('app.sync.paused') : t(`app.sync.${connection}`));
 
   /** When the copy last synchronised: the store's position, read once per change of the queue. */
   let syncedAt = $state<number | undefined>(undefined);
@@ -90,6 +94,7 @@
     if (conflicts.length > 0) return { headline: t('app.sync.state.conflict', { count: conflicts.length }), tone: 'warn' };
     if (refused.length > 0) return { headline: t('app.sync.state.refused', { count: refused.length }), tone: 'bad' };
     if (connection === 'offline') return { headline: t('app.sync.state.offline'), tone: 'warn' };
+    if (live.state === 'paused') return { headline: t('app.sync.state.paused'), tone: 'warn' };
     if (connection === 'reconnecting') return { headline: t('app.sync.state.reconnecting'), tone: 'warn' };
     if (queue.count > 0) return { headline: t('app.sync.state.busy'), tone: 'busy' };
     return { headline: t('app.sync.state.ok'), tone: 'ok' };

@@ -40,6 +40,10 @@ export const DEFAULT_IDLE_TIMEOUT_MS = 45_000;
 export const RECONNECT_BASE_MS = 1_000;
 /** The longest the engine waits between attempts. A tab left open overnight still comes back. */
 export const RECONNECT_MAX_MS = 30_000;
+/** The server's code for a stream refused at a cap: the server is up and busy. */
+const STREAM_REFUSED = 'sync.stream_unavailable';
+/** Why the stream is not attached, where it is known: refused at the server's cap. */
+export type ConnectionPause = 'refused';
 /** How many records one delta page asks for. The contract's default, and well under its maximum. */
 export const PULL_PAGE_SIZE = 500;
 /** How many mutations one push carries at most: the contract's `maxItems`. */
@@ -217,8 +221,17 @@ export interface ListenOptions {
    * connected, so an open and idle stream - the normal state of a workspace nobody else is writing
    * in - would read *Reconnecting…* for as long as nobody changed anything. Only this loop knows
    * the connection's state, so this loop says it.
+   *
+   * `reason` is `'refused'` when the server refused the stream at its cap (`503`
+   * `sync.stream_unavailable`): the server is up and every turn still pulls the changes, so the
+   * caller can say "live updates paused" rather than "reconnecting".
    */
-  readonly onConnection?: (isOpen: boolean) => void;
+  readonly onConnection?: (isOpen: boolean, reason?: ConnectionPause) => void;
+  /**
+   * A number in [0, 1) that spreads the waits after a refusal at the server's stream cap, injected
+   * so a test can fix it. The default is `Math.random`: it schedules, it identifies nothing.
+   */
+  readonly random?: () => number;
   /**
    * How the engine waits between attempts, injected so a test does not spend the wait.
    *
@@ -961,10 +974,15 @@ export class SyncEngine {
           continue;
         }
         attempt += 1;
-        pause = error.retryAfterMs ?? backoff(attempt - 1);
+        const refused = error.status === 503 && (error.detailCode ?? error.code) === STREAM_REFUSED;
+        pause = refused
+          ? // The server's word is the floor; past it the wait grows and spreads, so a full pod is
+            // not asked again by every refused tab at the same second, each with a catch-up pull.
+            Math.max(error.retryAfterMs ?? 0, backoff(attempt - 1)) * (1 + 0.5 * (options.random ?? Math.random)())
+          : (error.retryAfterMs ?? backoff(attempt - 1));
         // An attempt failed and the next one is a wait away: the caller is told, once per change,
         // so that what it draws says what is true rather than what last arrived through it.
-        options.onConnection?.(false);
+        options.onConnection?.(false, refused ? 'refused' : undefined);
       } finally {
         signal.removeEventListener('abort', follow);
         this.#turns.delete(follow);

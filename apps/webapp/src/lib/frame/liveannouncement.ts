@@ -18,5 +18,6 @@ export function liveAnnouncement(previous: LiveState | undefined, next: LiveStat
   if (!hasBeenLive) return undefined;
   if (next === 'live') return 'app.live.became_live';
   if (next === 'reconnecting') return 'app.live.lost';
+  if (next === 'paused') return 'app.live.paused';
   return undefined;
 }
