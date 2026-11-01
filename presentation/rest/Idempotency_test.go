@@ -120,6 +120,8 @@ func TestAProblemsDetailCodeReachesTheGuard(t *testing.T) {
 	}
 }
 
+// A repeat runs nothing and answers what the first call answered - how provisioning twice under one
+// key makes one workspace (UC-INS-06 check 3).
 func TestARepeatIsAnsweredFromTheRecordWithoutRunning(t *testing.T) {
 	g := &guard{replay: &repository.Record{Status: http.StatusCreated, Body: []byte(`{"id":"x"}`)}}
 	ran := false

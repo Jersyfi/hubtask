@@ -47,6 +47,7 @@ func newShiftFixture(status domain.TenantStatus) *shiftFixture {
 	return f
 }
 
+// UC-INS-06 check 4: a suspension is in the instance journal and in the workspace's own trail.
 func TestSuspensionMovesTheEdgeAndLeavesEvidenceTwice(t *testing.T) {
 	f := newShiftFixture(domain.TenantActive)
 
@@ -86,10 +87,14 @@ func TestResumingIsOneWriteBack(t *testing.T) {
 	if len(f.audit.entries) != 1 || f.audit.entries[0].Action != TenantResumedAction {
 		t.Errorf("audit %+v", f.audit.entries)
 	}
+	// UC-INS-06 check 4: and the instance journal holds the resumption too.
+	if len(f.journal.entries) != 1 || f.journal.entries[0].Action != journalResumed {
+		t.Errorf("journal %+v", f.journal.entries)
+	}
 }
 
 // The state the operator wanted already stands: a retry is a success that records nothing -
-// noise per retry is not evidence.
+// noise per retry is not evidence (UC-INS-06 check 4).
 func TestMovingToTheStandingStatusIsANoOp(t *testing.T) {
 	cases := []struct {
 		name   string
