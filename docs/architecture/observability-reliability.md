@@ -372,9 +372,10 @@ and 21 ms or less in the others, the writes 20 to 23 ms. The database held
 found and fixed a seed that grew with the square of a collection's entries (migration 0289),
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ ran
 on the owner's workstation on 2026-11-01** ([evidence](../evidence/capacity-10000000-2026-11-01.md)):
-no server error, but a collection's page, the board, the count over the hub and the hub's level
-miss the 200 ms read target in some workspaces; those findings are open, and R2 measures their
-fixes.
+no server error. It found a generic plan behind a collection's page and a figure deadline that
+kept nothing, both fixed and measured again by R2 at 8 ms P95; the board and the count over the hub
+still read every entry they cover and miss the 200 ms read target in the 1.2-million-entry
+workspace (430 and 974 ms P95).
 
 ### 13.3 Partitioning of the entries
 
