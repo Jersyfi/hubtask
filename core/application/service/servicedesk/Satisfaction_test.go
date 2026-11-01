@@ -84,3 +84,30 @@ func TestTheRequesterRatesTheirResolvedRequest(t *testing.T) {
 		t.Errorf("somebody else rated the request: %v", err)
 	}
 }
+
+// UC-SVC-07 check 3: the requester reads their own score with the request in the portal, null
+// while they gave none.
+func TestTheRequesterReadsTheirOwnScoreWithTheRequest(t *testing.T) {
+	ctx := context.Background()
+	portal, items, _ := organisationPortal(ctx, t, false)
+	items.item.CreatedBy = requesterID
+	read := func() any {
+		t.Helper()
+		out, err := ReadMyRequest{Portal: portal}.Descriptor().Handler.Invoke(ctx, requester(), usecase.Input{"item_id": itemID.String()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		satisfaction, present := out["satisfaction"]
+		if !present {
+			t.Fatal("the request answers no satisfaction")
+		}
+		return satisfaction
+	}
+	if got := read(); got != nil {
+		t.Errorf("before a rating the score reads %v, want null", got)
+	}
+	portal.Desk.Ratings.(*ratingStore).rows[itemID] = domain.Rating{ItemID: itemID, Score: 4, RatedAt: monday}
+	if got, _ := read().(usecase.Output); got == nil || got["score"] != 4 {
+		t.Errorf("the requester's own score reads %v", got)
+	}
+}
