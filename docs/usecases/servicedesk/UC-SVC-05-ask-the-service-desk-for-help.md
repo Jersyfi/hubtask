@@ -5,7 +5,7 @@ context: servicedesk
 actors: [PE-requester, PE-handler]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/servicedesk/Portal_test.go, core/domain/model/work/EntryTypeText_test.go, core/application/service/servicedesk/PortalCatalogue_test.go, core/application/service/workflow/EntryTypes_test.go, test/integration/entry_type_texts_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/data/entrytypes.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/work/AddCommentPortal_test.go, core/domain/model/media/Object_test.go, core/application/service/media/ReadMedia_test.go, core/application/service/servicedesk/DeskLogo_test.go, test/integration/desk_logo_test.go]
 ---

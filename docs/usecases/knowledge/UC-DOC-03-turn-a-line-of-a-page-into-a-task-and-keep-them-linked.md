@@ -5,7 +5,7 @@ context: knowledge
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
-state: built
+state: verified
 tasks: []
 checked_by: [packages/editor/test/tasks.test.ts]
 ---

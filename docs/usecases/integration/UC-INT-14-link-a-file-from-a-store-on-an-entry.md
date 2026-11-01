@@ -5,7 +5,7 @@ context: integration
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/filelink/FileLink_test.go, core/application/service/filelink/FileLink_test.go, core/application/service/sync/InitialSyncFiles_test.go, apps/webapp/src/lib/data/files.test.ts, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/entryintegrations.test.mjs, test/integration/file_link_test.go]
 ---

@@ -5,7 +5,7 @@ context: identity
 actors: [PE-admin, PE-owner, PE-member, PE-auditor]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11]
-state: built
+state: verified
 tasks: []
 checked_by: [core/application/service/identity/ViewAs_test.go, core/application/service/access/ViewAs_test.go, core/application/usecase/Registry_test.go, test/integration/session_view_as_test.go]
 ---

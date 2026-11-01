@@ -5,7 +5,7 @@ context: agent
 actors: [PE-admin, PE-member, PE-agent, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/agent/Agent_test.go, core/application/service/agent/Agent_test.go, core/application/service/access/Delegation_test.go, core/application/service/agent/Runner_test.go, core/application/service/agent/Policy_test.go, core/application/service/lifecycle/RunRetention_test.go, test/integration/agent_retention_test.go, core/application/service/notification/RecordAgentNotice_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
 ---

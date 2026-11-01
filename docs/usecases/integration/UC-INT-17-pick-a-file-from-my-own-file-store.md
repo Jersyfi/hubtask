@@ -5,7 +5,7 @@ context: integration
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/filelink/Connection_test.go, core/application/service/filestore/FileStore_test.go, infrastructure/filestore/Store_test.go, test/integration/file_store_connection_test.go, apps/webapp/src/lib/data/filestore.test.ts]
 ---

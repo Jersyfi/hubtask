@@ -5,7 +5,7 @@ context: planning
 actors: [PE-planner, PE-member, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-18, P-19]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/work/Link_test.go, core/domain/model/reference/Reference_test.go, core/application/service/work/Links_test.go, core/application/condition/Links_test.go, core/domain/event/Link_test.go, test/integration/entry_link_test.go, apps/webapp/src/lib/data/links.test.ts]
 ---

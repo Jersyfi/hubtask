@@ -5,7 +5,7 @@ context: assets
 actors: [PE-admin, PE-member, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---

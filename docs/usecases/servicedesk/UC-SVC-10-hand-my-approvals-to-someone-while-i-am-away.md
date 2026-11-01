@@ -5,7 +5,7 @@ context: servicedesk
 actors: [PE-handler]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/servicedesk/Approval_test.go, core/application/service/servicedesk/Approvals_test.go, test/integration/service_desk_approval_test.go, apps/webapp/src/lib/servicedesk/approvals.test.ts]
 ---

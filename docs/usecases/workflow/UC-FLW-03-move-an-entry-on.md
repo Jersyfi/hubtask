@@ -5,7 +5,7 @@ context: workflow
 actors: [PE-member, PE-guest, PE-agent, PE-integrator, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12, P-13]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/application/service/work/BulkUpdateWorkItems_test.go, infrastructure/postgres/query/Status_test.go]
 ---

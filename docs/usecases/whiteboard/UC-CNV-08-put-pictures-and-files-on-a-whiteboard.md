@@ -5,7 +5,7 @@ context: whiteboard
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/whiteboard/Scene_test.go, core/application/service/whiteboard/Files_test.go, core/application/service/media/ReadMedia_test.go, test/integration/whiteboard_repository_test.go, packages/whiteboard/test/geometry.test.ts, packages/whiteboard/test/scene.test.ts]
 ---

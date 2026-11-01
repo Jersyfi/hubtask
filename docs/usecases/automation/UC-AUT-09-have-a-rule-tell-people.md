@@ -5,7 +5,7 @@ context: automation
 actors: [PE-admin, PE-owner, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/application/service/notification/NotifyPeople_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/automation/Recipients_test.go, test/integration/role_holders_test.go, apps/webapp/src/lib/automation/words.test.ts]
 ---

@@ -5,7 +5,7 @@ context: importer
 actors: [PE-admin, PE-person]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [infrastructure/importer/IssueTrackerPlanning_test.go]
 ---

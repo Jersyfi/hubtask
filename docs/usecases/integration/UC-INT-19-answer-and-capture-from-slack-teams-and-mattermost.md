@@ -5,7 +5,7 @@ context: integration
 actors: [PE-admin, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/integration/ChatBot_test.go, core/application/service/chatbot/Intake_test.go, infrastructure/chatbot/Platforms_test.go, test/integration/chat_bot_test.go, apps/webapp/src/lib/data/chatbots.test.ts]
 ---

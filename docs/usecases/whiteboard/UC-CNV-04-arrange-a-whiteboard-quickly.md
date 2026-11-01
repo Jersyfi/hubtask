@@ -5,7 +5,7 @@ context: whiteboard
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [packages/whiteboard/test/tools.test.ts, core/application/service/whiteboard/Boards_test.go]
 ---
