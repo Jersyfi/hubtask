@@ -67,6 +67,7 @@ func TestAMomentThatIsNotOneIsAUsageError(t *testing.T) {
 	}
 }
 
+// UC-AUD-02 check 6: an intact chain exits zero.
 func TestAnIntactChainVerifiesAndSaysNothingIsAnchored(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK,
 		`{"valid":true,"checked":1200,"first_broken_seq":null,"gaps":[],"gap_count":0,"sealed_until":null}`)
@@ -91,6 +92,7 @@ func TestAnIntactChainVerifiesAndSaysNothingIsAnchored(t *testing.T) {
 
 // A broken chain is a failure of the command. A table with `valid false` in it and exit 0 beside
 // it is how a scheduled check reports for years that everything is fine.
+// UC-AUD-02 check 6: a broken chain exits non-zero.
 func TestABrokenChainFailsTheCommand(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK,
 		`{"valid":false,"checked":900,"first_broken_seq":513,"gaps":[513,514,515,516],

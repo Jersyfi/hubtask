@@ -71,6 +71,8 @@ func period() repository.Period {
 	return repository.Period{From: now, To: now.Add(24 * time.Hour)}
 }
 
+// UC-AUD-02 check 2 and check 5: a sound trail answers valid with its count and no break, and
+// writes nothing.
 func TestAnIntactChainVerifiesAndRecordsNothing(t *testing.T) {
 	verify, _, sink, _ := newVerifyHarness(chainOf(50))
 
@@ -96,6 +98,8 @@ func TestAnIntactChainVerifiesAndRecordsNothing(t *testing.T) {
 
 // A row somebody edited in the database hashes to something else, whatever else they remembered to
 // change - which is the whole of what the chain is for.
+// UC-AUD-02 check 3 and UC-AUD-02 check 5: the break is named by its sequence number and recorded once, as
+// a critical audit.chain_broken entry.
 func TestATamperedEntryIsFoundAtItsOwnSequenceNumber(t *testing.T) {
 	records := chainOf(10)
 	records[4].Entry.Action = "container.deleted"
@@ -127,6 +131,12 @@ func TestATamperedEntryIsFoundAtItsOwnSequenceNumber(t *testing.T) {
 	if entry.Outcome != port.OutcomeFailed {
 		t.Errorf("the break was recorded with the outcome %s", entry.Outcome)
 	}
+	if first, _ := entry.Changes["first_broken_seq"].(map[string]any); first["to"] != int64(5) {
+		t.Errorf("the entry names %v as the first broken number, want 5", entry.Changes["first_broken_seq"])
+	}
+	if _, ok := entry.Changes["gaps"]; !ok {
+		t.Error("the entry does not carry the gaps")
+	}
 }
 
 // An entry whose own hash is fine but whose predecessor's digest is not the one before it is an
@@ -150,6 +160,7 @@ func TestABrokenLinkIsFoundEvenWhenEveryRowHashesCorrectly(t *testing.T) {
 
 // The gap is the other half, and the reason `0001_init` leaves it to the application: a global
 // UNIQUE (tenant_id, seq) cannot be enforced across partitions.
+// UC-AUD-02 check 4: a missing sequence number is reported as a gap, by number.
 func TestAMissingEntryIsReportedAsAGap(t *testing.T) {
 	records := chainOf(8)
 	// Entries 4 and 5 are gone, and the rest is untouched - which is what a row somebody deleted
@@ -225,15 +236,23 @@ func TestAVerificationAsksForTheWholeTrail(t *testing.T) {
 	}
 }
 
+// UC-AUD-02 check 1: a period without an end is refused as required, one that ends before it starts
+// as invalid, and the trail is not walked.
 func TestAVerificationNeedsBothEndsOfItsPeriod(t *testing.T) {
 	verify, trail, _, _ := newVerifyHarness(chainOf(2))
 
-	for _, incomplete := range []repository.Period{
-		{To: now.Add(time.Hour)}, {From: now}, {From: now, To: now},
+	for _, refused := range []struct {
+		period repository.Period
+		code   string
+		path   string
+	}{
+		{repository.Period{To: now.Add(time.Hour)}, "audit.period_required", "/from"},
+		{repository.Period{From: now}, "audit.period_required", "/from"},
+		{repository.Period{From: now, To: now}, "audit.period_invalid", "/to"},
+		{repository.Period{From: now, To: now.Add(-time.Hour)}, "audit.period_invalid", "/to"},
 	} {
-		if _, err := verify.Execute(context.Background(), actor(), incomplete); err == nil {
-			t.Errorf("the period %+v was accepted", incomplete)
-		}
+		_, err := verify.Execute(context.Background(), actor(), refused.period)
+		assertRefusedWith(t, err, refused.code, refused.path)
 	}
 	if len(trail.walked) != 0 {
 		t.Errorf("the trail was walked %d times for an incomplete period", len(trail.walked))
