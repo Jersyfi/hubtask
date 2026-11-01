@@ -87,3 +87,24 @@ func TestOnlyAnExistsLineAnnouncesMail(t *testing.T) {
 		}
 	}
 }
+
+// A context that ends after the IDLE is accepted but before the hold's deadline is set still ends
+// the hold at once: the hold's deadline never replaces the cancellation's.
+func TestAContextEndedAsTheIdleStartsEndsTheHold(t *testing.T) {
+	server := newServer("pw")
+	server.idle = true
+	ctx, cancel := context.WithCancel(context.Background())
+	idleAccepted = func() {
+		cancel()
+		time.Sleep(20 * time.Millisecond) // the cancellation's deadline is set by now
+	}
+	defer func() { idleAccepted = func() {} }()
+	started := time.Now()
+	_, err := server.reader().Watch(ctx, connectionFor("pw", ""), 3*time.Second)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("an ended context answered %v", err)
+	}
+	if took := time.Since(started); took > time.Second {
+		t.Errorf("the hold outlived its context by %s", took)
+	}
+}

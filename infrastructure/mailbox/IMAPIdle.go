@@ -23,6 +23,9 @@ const (
 	signOffTimeout = 30 * time.Second
 )
 
+// idleAccepted runs once the server has accepted the IDLE; a test widens the moment there.
+var idleAccepted = func() {}
+
 // Watch signs in, selects the folder and holds it in IDLE until the server announces a message
 // (an EXISTS) or hold passes. It reads nothing: the read stays the job's, which takes what arrived.
 func (i IMAP) Watch(ctx context.Context, connection port.Connection, hold time.Duration) (bool, error) {
@@ -43,6 +46,9 @@ func (i IMAP) Watch(ctx context.Context, connection port.Connection, hold time.D
 		_, _ = session.command("LOGOUT")
 		return false, idleUnsupported()
 	}
+	// The hold's deadline is set before the cancellation is registered and never again, so a
+	// context that ends at any later moment moves it to now and nothing moves it back.
+	_ = session.conn.SetReadDeadline(time.Now().Add(hold))
 	// A context that ends while the read blocks ends the read: the deadline moves to now.
 	stop := context.AfterFunc(ctx, func() { _ = session.conn.SetReadDeadline(time.Now()) })
 	defer stop()
@@ -59,7 +65,7 @@ func (i IMAP) Watch(ctx context.Context, connection port.Connection, hold time.D
 	if !strings.HasPrefix(first, "+") {
 		return false, idleUnsupported()
 	}
-	_ = session.conn.SetReadDeadline(time.Now().Add(hold))
+	idleAccepted()
 	arrived := false
 	for !arrived {
 		line, err := session.readLine()
