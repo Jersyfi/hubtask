@@ -57,6 +57,9 @@ services:
       # database in an earlier wave (k8s/values.yaml, migration.connectWait). The wait is bounded;
       # a database that is not there in five minutes is not late, it is absent.
       HUBTASK_DB_CONNECT_WAIT: ${HUBTASK_DB_CONNECT_WAIT:-5m}
+      # The bound on the whole run (deployment.md §2). A large installation's upgrade may need
+      # longer; a run cut off is resumed by the next `docker compose up`.
+      HUBTASK_MIGRATE_TIMEOUT: ${HUBTASK_MIGRATE_TIMEOUT:-30m}
     depends_on:
       db:
         condition: service_healthy
