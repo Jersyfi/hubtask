@@ -387,7 +387,7 @@ func (r CustomFieldRepository) ReadRestricted(ctx context.Context) ([]repository
 		if err != nil {
 			return nil, err
 		}
-		hidings = append(hidings, repository.FieldHiding{Key: row.Key, CollectionID: collectionID})
+		hidings = append(hidings, repository.FieldHiding{Key: row.Key, CollectionID: collectionID, AtHub: row.AtHub})
 	}
 	return hidings, nil
 }
@@ -410,7 +410,9 @@ func (r CustomFieldRepository) ReadFormulas(ctx context.Context) ([]repository.F
 		if err != nil {
 			return nil, err
 		}
-		formula := repository.FieldFormula{Key: row.Key, CollectionID: collectionID, Kind: work.CustomFieldKind(row.Kind)}
+		formula := repository.FieldFormula{
+			Key: row.Key, CollectionID: collectionID, AtHub: row.AtHub, Kind: work.CustomFieldKind(row.Kind),
+		}
 		if row.Formula != nil {
 			formula.Formula = *row.Formula
 		}

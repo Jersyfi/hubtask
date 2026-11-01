@@ -89,8 +89,7 @@ func (l *FieldLens) HiddenIn(ctx context.Context, collection domain.Container) (
 	}
 	candidates := []string{}
 	for _, hiding := range l.hidings {
-		if (hiding.CollectionID.IsZero() || hiding.CollectionID == collection.ID) &&
-			!slices.Contains(candidates, hiding.Key) {
+		if inForceIn(hiding.CollectionID, collection) && !slices.Contains(candidates, hiding.Key) {
 			candidates = append(candidates, hiding.Key)
 		}
 	}
@@ -106,16 +105,23 @@ func (l *FieldLens) HiddenIn(ctx context.Context, collection domain.Container) (
 			}
 		}
 	}
-	keys = append(keys, l.calculatedReading(l.formulasIn(collection.ID), keys)...)
+	keys = append(keys, l.calculatedReading(l.formulasIn(collection), keys)...)
 	l.hidden[collection.ID] = keys
 	return keys, nil
 }
 
-// hidesAnyIn reports whether any hidden definition is in force in the collection.
+// hidesAnyIn reports whether any hidden definition may be in force in the collection: a hub's
+// counts until the collection is read, because only the collection names its hub.
 func (l *FieldLens) hidesAnyIn(collectionID shared.ID) bool {
 	return slices.ContainsFunc(l.hidings, func(h repository.FieldHiding) bool {
-		return h.CollectionID.IsZero() || h.CollectionID == collectionID
+		return h.CollectionID.IsZero() || h.CollectionID == collectionID || h.AtHub
 	})
+}
+
+// inForceIn reports whether a definition of a container - zero for the workspace - is in force in
+// a collection: the workspace's, its hub's and its own are.
+func inForceIn(scope shared.ID, collection domain.Container) bool {
+	return scope.IsZero() || scope == collection.ID || (!collection.ParentID.IsZero() && scope == collection.ParentID)
 }
 
 // HiddenFrom answers the keys hidden from the reader somewhere along a path that a query ranges
@@ -150,17 +156,26 @@ func (l *FieldLens) HiddenFrom(ctx context.Context, path []identity.Scope, keys 
 	return hidden, nil
 }
 
-// formulasIn are the formula definitions in force in a collection: the workspace-wide ones, and
-// the collection's own in their place where it defines the key again.
-func (l *FieldLens) formulasIn(collectionID shared.ID) []repository.FieldFormula {
+// formulasIn are the formula definitions in force in a collection: under each key the nearest of
+// the collection's own, its hub's and the workspace's.
+func (l *FieldLens) formulasIn(collection domain.Container) []repository.FieldFormula {
+	nearness := func(formula repository.FieldFormula) int {
+		switch {
+		case formula.CollectionID.IsZero():
+			return 0
+		case formula.CollectionID == collection.ID:
+			return 2
+		}
+		return 1
+	}
 	byKey := map[string]int{}
 	var effective []repository.FieldFormula
 	for _, formula := range l.formulas {
-		if !formula.CollectionID.IsZero() && formula.CollectionID != collectionID {
+		if !inForceIn(formula.CollectionID, collection) {
 			continue
 		}
 		if at, seen := byKey[formula.Key]; seen {
-			if !formula.CollectionID.IsZero() {
+			if nearness(formula) > nearness(effective[at]) {
 				effective[at] = formula
 			}
 			continue

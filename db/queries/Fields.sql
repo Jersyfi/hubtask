@@ -104,18 +104,20 @@ ORDER BY d.key, d.kind;
 -- name: ListReadRestrictedFields :many
 -- The definitions hidden from readers, across the workspace: what every read asks before it
 -- narrows an answer (UC-ID-27 check 3). Small - a handful per workspace - and empty for most.
-SELECT key, collection_id
-FROM custom_field_definition
-WHERE deleted_at IS NULL AND read_restricted
-ORDER BY key, collection_id NULLS FIRST;
+SELECT f.key, f.collection_id, coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL AND f.read_restricted
+ORDER BY f.key, f.collection_id NULLS FIRST;
 
 -- name: ListFormulaFields :many
 -- The CALCULATED definitions and those a formula may read, across the workspace: asked only where
 -- a field is hidden from readers, to hide with it a calculated field that reads it.
-SELECT key, collection_id, kind, formula
-FROM custom_field_definition
-WHERE deleted_at IS NULL AND kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
-ORDER BY key, collection_id NULLS FIRST;
+SELECT f.key, f.collection_id, f.kind, f.formula, coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL AND f.kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
+ORDER BY f.key, f.collection_id NULLS FIRST;
 
 -- name: CountEntriesHoldingCustomField :one
 -- The live entries that hold a value under a definition's key where the definition is in force:

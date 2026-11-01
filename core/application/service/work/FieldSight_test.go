@@ -277,3 +277,38 @@ func TestACalculatedFieldReadingAHiddenOneIsHiddenWithIt(t *testing.T) {
 		t.Fatalf("a query over the hidden field and its calculation: %v, %v, want [rate cost]", hidden, err)
 	}
 }
+
+// UC-ID-27 check 3 with UC-WRK-12 check 9: a field a hub hides is hidden in the entries of the
+// hub's collections and nowhere else.
+func TestAFieldAHubHidesIsHiddenInItsCollectionsAlone(t *testing.T) {
+	ctx := context.Background()
+	hub := shared.MustParseID("0192f000-0000-7000-8000-0000000005c4")
+	inside := shared.MustParseID("0192f000-0000-7000-8000-0000000005c5")
+	outside := shared.MustParseID("0192f000-0000-7000-8000-0000000005c6")
+	sight := FieldSight{
+		Hidings: hidings([]repository.FieldHiding{{Key: "cost", CollectionID: hub, AtHub: true}}),
+		Containers: &containers{stored: map[shared.ID]domain.Container{
+			inside:  {ID: inside, TenantID: tenantID, ParentID: hub},
+			outside: {ID: outside, TenantID: tenantID, ParentID: shared.MustParseID("0192f000-0000-7000-8000-0000000005c7")},
+		}},
+		Roles: roleOf{role: identity.RoleMember},
+	}
+	lens, err := sight.Lens(ctx, &unitOfWork{}, itemActor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := []domain.WorkItem{
+		{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005c8"), CollectionID: inside, CustomFields: map[string]any{"cost": 1.0}},
+		{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005c9"), CollectionID: outside, CustomFields: map[string]any{"cost": 2.0}},
+	}
+	narrowed, err := lens.Items(ctx, &unitOfWork{}, entries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, sees := narrowed[0].CustomFields["cost"]; sees {
+		t.Error("a member sees the field the hub hides in its collection")
+	}
+	if _, sees := narrowed[1].CustomFields["cost"]; !sees {
+		t.Error("the hub's hiding reached another hub's collection")
+	}
+}

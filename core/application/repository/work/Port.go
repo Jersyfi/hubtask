@@ -1228,6 +1228,8 @@ type Trash interface {
 type FieldHiding struct {
 	Key          string
 	CollectionID shared.ID
+	// AtHub says the container is a hub, whose collections the hiding reaches.
+	AtHub bool
 }
 
 // FieldHidings answers the definitions hidden from readers. Its own interface beside CustomFields,
@@ -1253,8 +1255,10 @@ type FieldValueCounts interface {
 type FieldFormula struct {
 	Key          string
 	CollectionID shared.ID
-	Kind         work.CustomFieldKind
-	Formula      string
+	// AtHub says the container is a hub, whose collections the definition reaches.
+	AtHub   bool
+	Kind    work.CustomFieldKind
+	Formula string
 }
 
 // CustomFields stores the definitions a workspace, a hub or a collection adds to its entries.

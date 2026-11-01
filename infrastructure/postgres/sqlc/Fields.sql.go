@@ -354,10 +354,11 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 }
 
 const listFormulaFields = `-- name: ListFormulaFields :many
-SELECT key, collection_id, kind, formula
-FROM custom_field_definition
-WHERE deleted_at IS NULL AND kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
-ORDER BY key, collection_id NULLS FIRST
+SELECT f.key, f.collection_id, f.kind, f.formula, coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL AND f.kind IN ('CALCULATED', 'NUMBER', 'MONEY', 'DURATION', 'BOOL')
+ORDER BY f.key, f.collection_id NULLS FIRST
 `
 
 type ListFormulaFieldsRow struct {
@@ -365,6 +366,7 @@ type ListFormulaFieldsRow struct {
 	CollectionID pgtype.UUID
 	Kind         string
 	Formula      *string
+	AtHub        bool
 }
 
 // The CALCULATED definitions and those a formula may read, across the workspace: asked only where
@@ -383,6 +385,7 @@ func (q *Queries) ListFormulaFields(ctx context.Context) ([]ListFormulaFieldsRow
 			&i.CollectionID,
 			&i.Kind,
 			&i.Formula,
+			&i.AtHub,
 		); err != nil {
 			return nil, err
 		}
@@ -395,15 +398,17 @@ func (q *Queries) ListFormulaFields(ctx context.Context) ([]ListFormulaFieldsRow
 }
 
 const listReadRestrictedFields = `-- name: ListReadRestrictedFields :many
-SELECT key, collection_id
-FROM custom_field_definition
-WHERE deleted_at IS NULL AND read_restricted
-ORDER BY key, collection_id NULLS FIRST
+SELECT f.key, f.collection_id, coalesce(hub.type = 'HUB', false)::boolean AS at_hub
+FROM custom_field_definition f
+LEFT JOIN container hub ON hub.id = f.collection_id
+WHERE f.deleted_at IS NULL AND f.read_restricted
+ORDER BY f.key, f.collection_id NULLS FIRST
 `
 
 type ListReadRestrictedFieldsRow struct {
 	Key          string
 	CollectionID pgtype.UUID
+	AtHub        bool
 }
 
 // The definitions hidden from readers, across the workspace: what every read asks before it
@@ -417,7 +422,7 @@ func (q *Queries) ListReadRestrictedFields(ctx context.Context) ([]ListReadRestr
 	items := []ListReadRestrictedFieldsRow{}
 	for rows.Next() {
 		var i ListReadRestrictedFieldsRow
-		if err := rows.Scan(&i.Key, &i.CollectionID); err != nil {
+		if err := rows.Scan(&i.Key, &i.CollectionID, &i.AtHub); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
