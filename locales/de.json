@@ -2344,6 +2344,7 @@
   "privacy.reason_too_long": "Dieser Grund ist länger, als diese Installation speichert.",
   "privacy.rejection_reason_required": "Sag, warum die Anfrage abgelehnt wird. Eine Ablehnung ohne Grund ist keine Antwort.",
   "privacy.erasure_blocked_by_rule": "In ihrem Namen laufen noch Automatisierungsregeln. Lass sie im Namen eines anderen Kontos laufen oder entferne sie, dann führe die Löschung aus. Betroffene Regeln: {rules}.",
+  "privacy.erasure_blocked_by_integration": "In ihrem Namen arbeiten noch Integrationen: {connectors} Inventar-Connectoren, {hooks} Forge-Hooks, {agents} Agenten. Übergib sie einem anderen Konto oder schalte sie ab, dann führe die Löschung aus.",
   "privacy.erasures_required": "Nenne mindestens einen Löschfall, der erneut ausgeführt werden soll.",
   "privacy.too_many_erasures": "Höchstens {maximum} Löschfälle passen in einen Aufruf; sende den Rest in einem weiteren.",
   "privacy.erasure_record_invalid": "Ein Löschfall braucht seinen Bezeichner, seine Art und die Zeitpunkte, zu denen er eingegangen, fällig und erledigt war.",

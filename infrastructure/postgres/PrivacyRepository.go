@@ -834,6 +834,23 @@ func (r PrivacyRepository) AutomationsRunningAs(
 	return int(count), nil
 }
 
+// IntegrationsRunningAs counts the switched-on integrations that act as the person.
+func (r PrivacyRepository) IntegrationsRunningAs(
+	ctx context.Context, accountID shared.ID,
+) (repository.IntegrationsAs, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	row, err := queries.IntegrationsRunningAs(ctx, id)
+	if err != nil {
+		return repository.IntegrationsAs{}, erasureFailed("counting the integrations that act as an account", err)
+	}
+	return repository.IntegrationsAs{
+		Connectors: int(row.Connectors), Hooks: int(row.Hooks), Agents: int(row.Agents),
+	}, nil
+}
+
 // OrphanedMedia answers the uploads nothing points at any more.
 func (r PrivacyRepository) OrphanedMedia(
 	ctx context.Context, accountID shared.ID,

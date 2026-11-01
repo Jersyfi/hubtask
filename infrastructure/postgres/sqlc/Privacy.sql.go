@@ -1203,6 +1203,32 @@ func (q *Queries) InsertRecoveredErasureCase(ctx context.Context, arg InsertReco
 	return result.RowsAffected(), nil
 }
 
+const integrationsRunningAs = `-- name: IntegrationsRunningAs :one
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.enabled AND c.run_as = $1)::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.enabled AND h.run_as = $1)::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = $1
+       AND a.status IN ('APPROVED', 'ACTIVE'))::int AS agents
+`
+
+type IntegrationsRunningAsRow struct {
+	Connectors int32
+	Hooks      int32
+	Agents     int32
+}
+
+// The integrations that act as one account and would fail on every run once it is gone, counted
+// before a full deletion as the rules are: none has a foreign key to refuse it.
+func (q *Queries) IntegrationsRunningAs(ctx context.Context, accountID pgtype.UUID) (IntegrationsRunningAsRow, error) {
+	row := q.db.QueryRow(ctx, integrationsRunningAs, accountID)
+	var i IntegrationsRunningAsRow
+	err := row.Scan(&i.Connectors, &i.Hooks, &i.Agents)
+	return i, err
+}
+
 const kudosOfAccount = `-- name: KudosOfAccount :many
 SELECT item_id, given_by, given_to, given_at FROM kudos
 WHERE tenant_id = current_tenant_id()

@@ -179,6 +179,11 @@ are built.
   Releasing the hold seeds the recorded remainder's erasure. An `ACCOUNT` hold covers the account
   and everything the person contributed to the workspace; it stops their erasure and deletion, not
   their sign-in.
+  * **What acts as the person.** A full deletion is refused while a workspace rule runs as them
+    (`privacy.erasure_blocked_by_rule`) and while a switched-on inventory connector or forge hook
+    runs as them, or an approved or active agent is theirs (`privacy.erasure_blocked_by_integration`,
+    with how many of each): none of these has a foreign key that would refuse it, and each would
+    fail on every run afterwards. They are handed over or switched off first.
   * **What each step keeps.** A row on an entry is kept when a hold covers the entry: the workspace,
     its hub or collection, the entry or one above it, or the account that created it - so the
     person's comments (in a full deletion), their assignments and the entries they created under it.

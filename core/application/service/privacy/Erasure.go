@@ -209,6 +209,21 @@ func (e Eraser) erase(
 					WithDetail(domain.CodeErasureBlockedByRule).
 					WithParams(map[string]string{"rules": strconv.Itoa(running)})
 			}
+			// The integrations that act as the person, for the same reason: none of them has a
+			// foreign key to fail on, so without this the deletion succeeds and each one fails on
+			// every run afterwards - a forge hook answering its forge as if it did not exist.
+			acting, err := e.Erasure.IntegrationsRunningAs(ctx, subject)
+			if err != nil {
+				return err
+			}
+			if acting.Any() {
+				return shared.ErrConflict.
+					WithDetail(domain.CodeErasureBlockedByIntegration).
+					WithParams(map[string]string{
+						"connectors": strconv.Itoa(acting.Connectors), "hooks": strconv.Itoa(acting.Hooks),
+						"agents": strconv.Itoa(acting.Agents),
+					})
+			}
 		}
 
 		// The last-owner rule, asked of every erasure that ends the account - removed or anonymised.

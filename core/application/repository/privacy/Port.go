@@ -247,6 +247,9 @@ type Erasure interface {
 	// somebody must not quietly start acting as nobody. The deletion is refused with that count
 	// rather than attempted and failed on a foreign key (PG-2).
 	AutomationsRunningAs(ctx context.Context, accountID shared.ID) (int, error)
+	// IntegrationsRunningAs counts the switched-on integrations that act as the person, asked
+	// before a full deletion for the reason AutomationsRunningAs is.
+	IntegrationsRunningAs(ctx context.Context, accountID shared.ID) (IntegrationsAs, error)
 
 	// RevokeCredentials removes every token, calendar feed and sync device of the person, and ends
 	// an invitation nobody accepted at the given moment. Called in both modes: an anonymised account
@@ -387,3 +390,14 @@ type IntakeLines interface {
 	// first, past the first skip of them.
 	ExpiredAddresses(ctx context.Context, cutoff time.Time, skip, batch int) ([]string, error)
 }
+
+// IntegrationsAs is how many of each integration act as one account: the inventory connectors and
+// forge hooks switched on with it as run_as, and the approved or active agents it owns.
+type IntegrationsAs struct {
+	Connectors int
+	Hooks      int
+	Agents     int
+}
+
+// Any reports whether one of them acts as the account.
+func (i IntegrationsAs) Any() bool { return i.Connectors+i.Hooks+i.Agents > 0 }

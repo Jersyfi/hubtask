@@ -1661,6 +1661,7 @@
   "privacy.reason_too_long": "That reason is longer than this installation stores.",
   "privacy.rejection_reason_required": "Say why the request is being refused. A refusal without a reason is not an answer.",
   "privacy.erasure_blocked_by_rule": "This person still runs automation rules. Point them at another account or remove them, then carry the erasure out. Rules affected: {rules}.",
+  "privacy.erasure_blocked_by_integration": "Integrations still act as this person: {connectors} inventory connectors, {hooks} forge hooks, {agents} agents. Hand them to another account or switch them off, then carry the erasure out.",
   "privacy.erasures_required": "Name at least one erasure case to carry out again.",
   "privacy.too_many_erasures": "At most {maximum} erasure cases go in one call; send the rest in another.",
   "privacy.erasure_record_invalid": "An erasure case needs its identifier, its mode and the moments it was received, due and completed.",

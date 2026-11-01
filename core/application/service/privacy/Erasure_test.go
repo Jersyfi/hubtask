@@ -40,8 +40,10 @@ type erasureStore struct {
 	runningRules int
 	// personalRules are the person's own rules, which go with them before the count above.
 	personalRules int
-	intakeGone    int
-	intakeFreed   int
+	// integrations act as the person.
+	integrations repository.IntegrationsAs
+	intakeGone   int
+	intakeFreed  int
 	// contributions are the person's rows on entries, and where each entry is.
 	contributions  []repository.Contribution
 	commentIDsGone []shared.ID
@@ -81,6 +83,33 @@ func (e *erasureStore) ReleaseIntake(context.Context, shared.ID) (int, error) {
 	}
 	e.intakeFreed = 2
 	return e.intakeFreed, nil
+}
+
+func (e *erasureStore) IntegrationsRunningAs(context.Context, shared.ID) (repository.IntegrationsAs, error) {
+	return e.integrations, nil
+}
+
+// A full deletion is refused while an integration acts as the person, with how many of each, and
+// deletes nothing; an anonymisation is not, as for a rule.
+func TestAFullDeletionIsRefusedWhileAnIntegrationActsAsThePerson(t *testing.T) {
+	harness := newErasureHarness()
+	harness.storage.integrations = repository.IntegrationsAs{Connectors: 1, Hooks: 2}
+
+	_, err := harness.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	problem := shared.AsError(err)
+	if problem == nil || problem.DetailCode != domain.CodeErasureBlockedByIntegration ||
+		problem.Params["connectors"] != "1" || problem.Params["hooks"] != "2" || problem.Params["agents"] != "0" {
+		t.Fatalf("refused with %v", err)
+	}
+	if harness.storage.deleted {
+		t.Error("the account was deleted anyway")
+	}
+
+	anonymise := newErasureHarness()
+	anonymise.storage.integrations = repository.IntegrationsAs{Agents: 1}
+	if _, err := anonymise.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeAnonymize)); err != nil {
+		t.Fatalf("anonymising: %v", err)
+	}
 }
 
 func (e *erasureStore) AutomationsRunningAs(context.Context, shared.ID) (int, error) {

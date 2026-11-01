@@ -281,6 +281,18 @@ WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = s
 SELECT count(*) FROM automation_rule
 WHERE tenant_id = current_tenant_id() AND run_as = sqlc.arg('account_id') AND scope_type <> 'PERSON';
 
+-- name: IntegrationsRunningAs :one
+-- The integrations that act as one account and would fail on every run once it is gone, counted
+-- before a full deletion as the rules are: none has a foreign key to refuse it.
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.enabled AND c.run_as = sqlc.arg('account_id'))::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.enabled AND h.run_as = sqlc.arg('account_id'))::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = sqlc.arg('account_id')
+       AND a.status IN ('APPROVED', 'ACTIVE'))::int AS agents;
+
 -- name: DeleteAccount :execrows
 -- The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,
 -- group memberships, item memberships, tokens, calendar feeds, sync devices, consents and
