@@ -477,6 +477,27 @@ func (g ModuleGate) hubOf(ctx context.Context, descriptor usecase.Descriptor, in
 	return ""
 }
 
+// answer reads the place the operation acts at and the modules on there in one transaction: On
+// joins it, so a gated call costs one pool acquisition before the handler's own, not two.
+func (g ModuleGate) answer(
+	ctx context.Context, actor appshared.ActorContext, descriptor usecase.Descriptor, in usecase.Input,
+) (module.Set, error) {
+	if g.Modules.UnitOfWork == nil || actor.TenantID.IsZero() {
+		return g.Modules.On(ctx, actor, "")
+	}
+	var on module.Set
+	err := g.Modules.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var hubID shared.ID
+		if g.Modules.Containers != nil {
+			hubID = g.hubOf(ctx, descriptor, in)
+		}
+		var err error
+		on, err = g.Modules.On(ctx, actor, hubID)
+		return err
+	})
+	return on, err
+}
+
 // Wrap puts the gate inside the composition root's middleware.
 func (g ModuleGate) Wrap(observe usecase.Middleware) usecase.Middleware {
 	return func(descriptor usecase.Descriptor, next usecase.Handler) usecase.Handler {
@@ -486,14 +507,7 @@ func (g ModuleGate) Wrap(observe usecase.Middleware) usecase.Middleware {
 			handler = usecase.HandlerFunc(func(
 				ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 			) (usecase.Output, error) {
-				var hubID shared.ID
-				if g.Modules.Containers != nil && g.Modules.UnitOfWork != nil && !actor.TenantID.IsZero() {
-					_ = g.Modules.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-						hubID = g.hubOf(ctx, descriptor, in)
-						return nil
-					})
-				}
-				on, err := g.Modules.On(ctx, actor, hubID)
+				on, err := g.answer(ctx, actor, descriptor, in)
 				if err != nil && !errors.Is(err, shared.ErrNotFound) {
 					return nil, err
 				}

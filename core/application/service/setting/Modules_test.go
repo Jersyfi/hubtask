@@ -405,3 +405,47 @@ func TestTheGateJudgesAModuleObjectAtItsHub(t *testing.T) {
 		t.Errorf("an unknown page: %v, want the workspace's answer", err)
 	}
 }
+
+// countingWork counts the transactions a call opens: a nested one joins the running one, as the
+// PostgreSQL unit of work does.
+type countingWork struct{ opened int }
+
+type runningKey struct{}
+
+func (w *countingWork) run(ctx context.Context, fn func(context.Context) error) error {
+	if ctx.Value(runningKey{}) != nil {
+		return fn(ctx)
+	}
+	w.opened++
+	return fn(context.WithValue(ctx, runningKey{}, true))
+}
+
+func (w *countingWork) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	return w.run(ctx, fn)
+}
+
+func (w *countingWork) WithinReadOnly(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	return w.run(ctx, fn)
+}
+
+// The gate reads the place and the switches in one transaction of its own: on the busiest module
+// paths every extra one is a pool acquisition the handler's own transaction waits behind.
+func TestTheGateReadsItsAnswerInOneTransaction(t *testing.T) {
+	modules, _, _ := fixture()
+	work := &countingWork{}
+	modules.UnitOfWork = work
+	descriptor := usecase.Descriptor{
+		Name: "DrawGantt", Summary: "test", Module: module.Planning,
+		Handler: usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+			return usecase.Output{}, nil
+		}),
+	}
+	registry, err := usecase.NewRegistry(settingservice.ModuleGate{Modules: modules}.Wrap(nil), descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = registry.Invoke(context.Background(), "DrawGantt", actor(), usecase.Input{})
+	if work.opened != 1 {
+		t.Errorf("the gate opened %d transactions, want one", work.opened)
+	}
+}
