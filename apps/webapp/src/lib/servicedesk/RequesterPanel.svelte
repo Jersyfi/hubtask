@@ -1,9 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Who raised the request, their organisation and their other open requests (UC-SVC-03 check 7):
-  // the side panel a handler reads before answering. The other requests are a search by creator,
-  // so it lists only what this reader may see; the address is never shown.
+  // Who raised the request, their organisation, their other open requests (UC-SVC-03 check 7) and
+  // the assets they own (check 9): the side panel a handler reads before answering. The other
+  // requests are a search by creator and the assets the server's selection, so it lists only what
+  // this reader may see; the address is never shown.
 
   import { untrack } from 'svelte';
   import type { WorkItem, WorkItemPage } from '@hubtask/sync-engine';
@@ -13,7 +14,8 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import { otherRequests, requesterRequests } from './desk.ts';
 
-  interface Requester { account_id: string; organisation: { key: string; name: string } | null }
+  interface RequesterAsset { id: string; hub_id: string; class: string; name: string; stage: string }
+  interface Requester { account_id: string; organisation: { key: string; name: string } | null; assets?: RequesterAsset[] }
 
   const { item, onnavigate }: { item: WorkItem; onnavigate: (path: string) => void } = $props();
 
@@ -45,6 +47,14 @@
       </ul>
     {:else}
       <p class="label">{t('app.desk.requester.none_open')}</p>
+    {/if}
+    {#if (requester.assets ?? []).length > 0}
+      <p class="label">{t('app.desk.requester.assets')}</p>
+      <ul class="others" data-requester-assets>
+        {#each requester.assets ?? [] as asset (asset.id)}
+          <li><a href={`/cis/${asset.id}`} onclick={(event) => { event.preventDefault(); onnavigate(`/cis/${asset.id}`); }}>{asset.name}</a></li>
+        {/each}
+      </ul>
     {/if}
   </section>
 {/if}

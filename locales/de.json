@@ -11205,6 +11205,7 @@
   "app.desk.requester.title": "Anfragende Person",
   "app.desk.requester.open": "Weitere offene Anfragen",
   "app.desk.requester.none_open": "Keine weiteren offenen Anfragen",
+  "app.desk.requester.assets": "Zugeordnete Assets",
   "app.planning.tolerance": "Zeittoleranz",
   "app.planning.tolerance_days": "{days} Tage",
   "app.planning.tolerance_from": "Gesetzt im {level}",

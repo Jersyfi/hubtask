@@ -11205,6 +11205,7 @@
   "app.desk.requester.title": "Requester",
   "app.desk.requester.open": "Their other open requests",
   "app.desk.requester.none_open": "No other open requests",
+  "app.desk.requester.assets": "Their assets",
   "app.planning.tolerance": "Time tolerance",
   "app.planning.tolerance_days": "{days} days",
   "app.planning.tolerance_from": "Set at the {level}",
