@@ -370,9 +370,11 @@ after a write counts that collection again). Read while two writers add entries 
 and 21 ms or less in the others, the writes 20 to 23 ms. The database held
 1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
 found and fixed a seed that grew with the square of a collection's entries (migration 0289),
-whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ is
-*not measured*** - it runs on the owner's workstation as well (accepted.md, third answers 9), by
-the long-run plan the owner accepted (`test/load/PLAN.md`, R1 and R3).
+whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ ran
+on the owner's workstation on 2026-11-01** ([evidence](../evidence/capacity-10000000-2026-11-01.md)):
+no server error, but a collection's page, the board, the count over the hub and the hub's level
+miss the 200 ms read target in some workspaces; those findings are open, and R2 measures their
+fixes.
 
 ### 13.3 Partitioning of the entries
 
