@@ -343,6 +343,10 @@ func unavailable(cause error) error {
 		WithCause(cause)
 }
 
+// RecipientRejected is the code of a message the mail server refused for good (a 5xx reply at RCPT
+// or DATA).
+const RecipientRejected = "mail.recipient_rejected"
+
 // replyFailure is what a refusal from the server becomes: the step and the reply code, never the
 // reply text.
 //
@@ -351,10 +355,19 @@ func unavailable(cause error) error {
 // personal data in a log (rule 10). The number says as much as an operator can act on, and the
 // step says where the conversation stopped. The same reasoning the S3 adapter applies to an error
 // body that carries the key and the bucket.
+//
+// A permanent reply (5xx) at RCPT or DATA refuses this one message - a bounced address, a body the
+// server will not take - and is a validation error: asking again meets the same answer, and it must
+// not count against the breaker every workspace's mail shares. A 5xx at MAIL refuses the sender,
+// which every message shares, so it stays the dependency's failure, as does a 4xx anywhere.
 func replyFailure(step string, err error) error {
 	var reply *textproto.Error
 	if errors.As(err, &reply) {
-		return unavailable(fmt.Errorf("the mail server answered %d at %s", reply.Code, step))
+		cause := fmt.Errorf("the mail server answered %d at %s", reply.Code, step)
+		if reply.Code >= 500 && reply.Code < 600 && (step == "RCPT" || step == "DATA") {
+			return shared.ErrValidation.WithDetail(RecipientRejected).WithCause(cause)
+		}
+		return unavailable(cause)
 	}
 	// Not a reply but a transport failure: the connection went away mid-conversation, and what it
 	// carries is this side's view of a socket rather than anything the server said.

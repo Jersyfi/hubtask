@@ -313,6 +313,22 @@ func TestTheLastAttemptMarksTheRecordFailed(t *testing.T) {
 	}
 }
 
+// A message the mail server refused for good fails on its first attempt: asking eight times meets
+// the same answer, and the record says FAILED now rather than after the queue's budget.
+func TestARefusedRecipientFailsTheRecordAtOnce(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	fixture.mailbox.err = shared.ErrValidation.WithDetail("mail.recipient_rejected")
+
+	err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false)
+	if shared.AsError(err).DetailCode != "mail.recipient_rejected" {
+		t.Fatalf("error %v, want the refusal carried back", err)
+	}
+	stored := fixture.stored(t)
+	if stored.State != domain.StateFailed || stored.Reason != domain.ReasonDeliveryFailed {
+		t.Errorf("record %+v, want FAILED on the first attempt", stored)
+	}
+}
+
 // A record the retention sweep took while the job waited is a job that is done, not one that
 // failed: retrying it forever would fill a dead letter with ninety-day-old notifications.
 func TestARecordThatIsGoneIsNotAFailure(t *testing.T) {

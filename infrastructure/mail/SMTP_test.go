@@ -21,6 +21,7 @@ import (
 	port "github.com/Jersyfi/hubtask/core/port/mail"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/infrastructure/mail"
+	"github.com/Jersyfi/hubtask/infrastructure/resilience"
 )
 
 // server is a scripted SMTP server on a real socket. Enough of RFC 5321 for the adapter's
@@ -34,6 +35,8 @@ type server struct {
 	// refuseRecipient makes the server answer RCPT the way a real one refuses an address: with
 	// the address quoted back in the reply text.
 	refuseRecipient bool
+	// refuseContaining refuses, with a 550, only the recipients whose RCPT line holds it.
+	refuseContaining string
 }
 
 func newServer(t *testing.T) *server {
@@ -108,7 +111,7 @@ func (s *server) converse(conn net.Conn) {
 			write("250-test.invalid")
 			write("250 SIZE 10240000")
 		case strings.HasPrefix(line, "RCPT TO"):
-			if s.refuseRecipient {
+			if s.refuseRecipient || (s.refuseContaining != "" && strings.Contains(line, s.refuseContaining)) {
 				write("550 5.1.1 <anna@test.invalid>: Recipient address rejected")
 				continue
 			}
@@ -435,5 +438,35 @@ func TestAnUnsafeAttachmentIsRefused(t *testing.T) {
 	}
 	if len(smtpServer.messages()) != 0 {
 		t.Error("a refused message reached the server")
+	}
+}
+
+// A refused address is the message's answer, not the mail server's health: six of them in a row
+// leave the installation-wide breaker closed, and the next valid message goes out.
+func TestRefusedRecipientsLeaveTheBreakerClosed(t *testing.T) {
+	smtpServer := newServer(t)
+	smtpServer.refuseContaining = "bounced"
+	breaker := resilience.NewBreaker(resilience.BreakerConfig{Dependency: mail.Dependency})
+	sender := mail.NewResilientSender(mail.NewSMTP(configFor(smtpServer)), breaker,
+		resilience.NewBulkhead(resilience.BulkheadConfig{Name: mail.Dependency, Capacity: 1}))
+
+	for range 6 {
+		err := sender.Send(context.Background(), port.Message{
+			To: "bounced@test.invalid", Subject: "Hello", Body: "there",
+		})
+		if code := shared.AsError(err).DetailCode; code != "mail.recipient_rejected" {
+			t.Fatalf("a refused recipient answered %q, want mail.recipient_rejected", code)
+		}
+		if resilience.Retryable(err) {
+			t.Fatal("a refused recipient is retryable, so the delivery would ask again")
+		}
+	}
+	if state := breaker.State(); state != resilience.BreakerClosed {
+		t.Fatalf("six refused recipients put the breaker in state %v", state)
+	}
+	if err := sender.Send(context.Background(), port.Message{
+		To: "anna@test.invalid", Subject: "Hello", Body: "there",
+	}); err != nil {
+		t.Fatalf("a valid message after the refusals failed: %v", err)
 	}
 }

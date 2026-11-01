@@ -753,7 +753,10 @@ func placeLink(base string, scope identity.Scope) string {
 func (d DeliverNotification) recordFailure(
 	ctx context.Context, scope persistence.Scope, loaded subject, lastAttempt bool, cause error,
 ) error {
-	if err := d.write(ctx, scope, loaded.record.Failed(lastAttempt)); err != nil {
+	// A refusal (a recipient the mail server rejected for good) is final on any attempt: the queue
+	// is told so by the handler (queue.Refusal) and does not ask again.
+	final := lastAttempt || shared.AsError(cause).Category == shared.CategoryValidation
+	if err := d.write(ctx, scope, loaded.record.Failed(final)); err != nil {
 		return err
 	}
 	if d.Signals != nil {

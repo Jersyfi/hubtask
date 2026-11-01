@@ -50,6 +50,10 @@ func (h NotificationDelivery) Run(ctx context.Context, job queue.Job) (queue.Res
 	// The attempt budget is the queue's, and it is passed rather than recomputed: a handler that
 	// counted its own would be a second budget disagreeing with the first (queue.Job.LastAttempt).
 	if err := h.Delivery.Execute(ctx, job.TenantID, notificationID, job.LastAttempt()); err != nil {
+		// A message refused for good ends FAILED now - a refusal, not a retry and a dead letter.
+		if typed := shared.AsError(err); typed.Category == shared.CategoryValidation {
+			return queue.Result{Refusal: &queue.Refusal{Code: typed.DetailCode}}, nil
+		}
 		return queue.Result{}, err
 	}
 	// Finished rather than repeated: one job is one message, so that a refused address holds up
