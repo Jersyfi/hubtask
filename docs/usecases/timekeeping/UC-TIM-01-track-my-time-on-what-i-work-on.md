@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, core/application/service/timekeeping/Timers_test.go, core/application/service/sync/Entity_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts, test/architecture/doorsalike_test.go]
+checked_by: [core/domain/model/timekeeping/Timekeeping_test.go, core/application/service/timekeeping/Keeper_test.go, core/application/service/timekeeping/Timers_test.go, core/application/service/sync/Entity_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/time_repository_test.go, apps/webapp/src/lib/data/time.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/timewalk.test.mjs]
 ---
 
 # Track my time on what I work on

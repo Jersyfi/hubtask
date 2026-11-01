@@ -17,6 +17,9 @@ import { fold, record } from './scalewalk-errors.mjs';
  */
 export async function productWalk(browser, { modules, answer, width = 1280, height = 900 }) {
   const { page, context, unstubbed } = await signedIn(browser, width, height, { timezoneId: 'UTC' });
+  // A live document's socket (an entry's notes) is accepted and kept silent: the fixture serves no
+  // live documents, and a refused handshake would be the harness's error, not the product's.
+  await context.routeWebSocket(/\/api\/v1\/realtime\//, () => {});
   const events = [];
   record(page, events);
   const written = [];
@@ -33,6 +36,8 @@ export async function productWalk(browser, { modules, answer, width = 1280, heig
       const asked = new Set(request.postDataJSON()?.ids ?? []);
       return route.fulfill({ json: { data: [ACCOUNT, OTHER, INVITED].filter((each) => asked.has(each.id)) } });
     }
+    // A place's modules are the workspace's: none of these walks turns one off below it.
+    if (/^\/containers\/[^/]+\/modules$/.test(path) && method === 'GET') return route.fulfill({ json: { modules_on: modules } });
     let body;
     try { body = request.postDataJSON(); } catch { body = undefined; }
     if (method !== 'GET') written.push({ method, path, body });
