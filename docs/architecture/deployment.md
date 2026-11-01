@@ -323,6 +323,12 @@ its conversations in Matrix rooms. Hubtask joins both without code of the portal
   `HUBTASK_UI_FRAME_ANCESTORS`. The address is no credential: whoever opens the widget signs in as
   themselves - once inside the frame, which the browser keeps apart from a tab of its own - and sees
   what they may.
+* **A Nextcloud dashboard widget and unified search provider** read two routes as the person
+  whose token they carry: `GET /api/v1/glance/open-entries` (their open entries, due first) and
+  `POST /api/v1/glance:search` (entries and pages by their words), each answering title, ticket key
+  or passage, and a link into the web app (UC-INT-20). A personal access token with `items:read`
+  alone is enough; the answer holds only what that person may see. The Nextcloud app that calls
+  them is a PHP package of its own repository, not part of this one.
 * A sign-in through the workplace's identity provider inside a frame needs the provider to allow
   being framed by the installation, or the provider's page opens in its own window; that is the
   provider's setting.

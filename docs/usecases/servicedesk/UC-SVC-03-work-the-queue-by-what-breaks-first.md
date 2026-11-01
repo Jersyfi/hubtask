@@ -33,5 +33,5 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 
 ## Where it ends
 
-* A merged request's portal requester is told of a reply on their own request; the reply's words reach them only by mail, since the portal reads a request by its creator and the request merged into stays the team's.
+* A merged request's portal requester is told of a reply on their own request and reads the request merged into through its `duplicates` link, its public replies only (UC-SVC-05 check 10, by the owner's fourth answers, item 7); the rest of the request merged into stays the team's.
 * A queue is a saved view with a filter and a sort. Handing a request out by round robin, by load or to a group is the collection's assignment policy (UC-WRK-11); canned replies and macros are UC-SVC-06.
