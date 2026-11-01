@@ -608,6 +608,7 @@ func TestAnErasureLeavesAPseudonymForTheTrail(t *testing.T) {
 
 // The erasure is recorded in the trail it does not touch, with counts rather than identifiers:
 // what an auditor needs is that every location was served, which is checkable.
+// UC-PRV-03 check 7: one dsr.erased entry, counts per place, no name.
 func TestTheErasureIsRecordedWithWhatItDid(t *testing.T) {
 	h := newErasureHarness()
 
@@ -711,6 +712,7 @@ func TestAStorageLocationThatRefusesFailsTheErasure(t *testing.T) {
 // A full deletion is refused while a rule still acts as the person. The reference is `ON DELETE
 // RESTRICT`, so the alternative to this refusal is a foreign key violation reaching the caller as
 // a dependency error - which is what PG-2 found.
+// UC-PRV-03 check 5: delete in full is refused while a rule acts as the person, naming how many.
 func TestAFullDeletionIsRefusedWhileARuleActsAsThePerson(t *testing.T) {
 	harness := newErasureHarness()
 	harness.storage.runningRules = 3

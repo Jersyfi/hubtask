@@ -240,6 +240,7 @@ func TestTheStateMachineIsTheOneTheDocumentNames(t *testing.T) {
 // (data-protection.md §4). Not a refusal: a case that cannot start because a field nobody filled in
 // is empty is a statutory deadline running while an administrator works out which of two words to
 // type.
+// UC-PRV-03 check 2: a case with no mode chosen is carried out as anonymise.
 func TestAnErasureWithNoModeStartsAsTheDefault(t *testing.T) {
 	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
 		in.Kind = privacy.KindErasure
