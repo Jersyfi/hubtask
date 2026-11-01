@@ -133,21 +133,21 @@ for (const [locale, script] of Object.entries(SCRIPTS)) {
     await page.waitForFunction((tag) => document.documentElement.lang === tag, locale, { timeout: 5_000 });
     const loaded = await loadedFaces(page);
 
-    // Check 1: the text is set in the face made for its script.
+    // UC-ID-23 check 1: the text is set in the face made for its script.
     assert.ok(loaded.includes(script.face), `${script.face} was not loaded: ${[...new Set(loaded)].join(', ')}`);
     assert.ok(fonts().some((each) => script.file.test(each.url)), `no file of ${script.face} was fetched`);
 
-    // Check 2: the heading - in the display stack - is set in IBM Plex Sans, not the condensed cut,
+    // UC-ID-23 check 2: the heading - in the display stack - is set in IBM Plex Sans, not the condensed cut,
     // which covers none of these scripts.
     const heading = page.getByRole('heading', { level: 1, name: script.collection });
     const family = await heading.evaluate((element) => getComputedStyle(element).fontFamily);
     assert.match(family, /^"?IBM Plex Sans"?,/, `the heading is set in ${family}`);
     assert.ok(loaded.includes('IBM Plex Sans'), 'IBM Plex Sans was not loaded for the heading');
 
-    // Check 3: every font from this installation.
+    // UC-ID-23 check 3: every font from this installation.
     for (const each of fonts()) assert.ok(each.url.startsWith(`${served.origin}/`), `a font from elsewhere: ${each.url}`);
 
-    // Check 4: only the parts the text needs - no other script's face, and of SC's chunks only
+    // UC-ID-23 check 4: only the parts the text needs - no other script's face, and of SC's chunks only
     // those the characters on the page fall in.
     const others = fonts().filter((each) => SCRIPT_FACE.test(each.url) && !script.file.test(each.url) && !script.shares?.test(each.url));
     assert.deepEqual(others.map((each) => each.url), [], `a ${locale} page fetched another script's face`);

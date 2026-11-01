@@ -55,6 +55,7 @@ test('every script a face is there for is covered by that face, letter by letter
   }
 });
 
+// UC-ID-23 checks 3 and 4: shipped woff2 files only, each behind a unicode-range.
 test('every face is loaded only for the parts its text needs, and only from this installation', () => {
   for (const rule of builtRules()) {
     assert.ok(rule.range, `${rule.family}: a face without unicode-range is downloaded for any text`);

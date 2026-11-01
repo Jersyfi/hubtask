@@ -45,6 +45,7 @@ func shippedScripts(t *testing.T) map[string][]string {
 	return scripts
 }
 
+// UC-ID-23 check 1: every supported language has a shipped face for its script.
 func TestEveryLanguageOfTheProductHasAShippedFace(t *testing.T) {
 	scripts := shippedScripts(t)
 
