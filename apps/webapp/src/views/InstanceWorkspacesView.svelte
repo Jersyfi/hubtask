@@ -37,7 +37,7 @@
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { OWN_TARGET, exportTargetChoices } from '../lib/backup/targets.ts';
-  import { instance } from '../lib/data/instance.svelte.ts';
+  import { instance, type WorkspaceFilter } from '../lib/data/instance.svelte.ts';
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { plans } from '../lib/data/plans.svelte.ts';
   import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
@@ -93,9 +93,40 @@
     if (!instance.isElevated) return;
     // The instance level too, so the limits dialog can say what an empty field actually means:
     // "the installation's default" is not a helpful sentence without the number.
-    const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
+    const stops = untrack(() => [instance.openSettings(), instance.openTargets()]);
     return () => stops.forEach((stop) => stop());
   });
+
+  // The rows: a page at a time of the narrowing in force, never every workspace at once. The short
+  // name is applied a moment after the last keystroke rather than on each.
+  let findSlug = $state('');
+  let findStatus = $state('');
+  let findPlan = $state('');
+  let filter = $state<WorkspaceFilter>({});
+  $effect(() => {
+    const next: WorkspaceFilter = {
+      slug: findSlug,
+      status: (findStatus || undefined) as WorkspaceFilter['status'],
+      plan: findPlan,
+    };
+    const timer = setTimeout(() => { filter = next; }, findSlug === (untrack(() => filter.slug) ?? '') ? 0 : 300);
+    return () => clearTimeout(timer);
+  });
+  $effect(() => {
+    if (!instance.isElevated) return;
+    const narrowing = filter;
+    return untrack(() => instance.openWorkspacePage(narrowing));
+  });
+  const isNarrowed = $derived(Boolean(filter.slug?.trim() || filter.status || filter.plan));
+  let loadingMore = $state(false);
+  async function more(): Promise<void> {
+    loadingMore = true;
+    try {
+      await instance.loadMoreWorkspaces();
+    } finally {
+      loadingMore = false;
+    }
+  }
   // A New workspace opened before the plans were read is preset once they are, as it would have been.
   $effect(() => {
     if (acting?.kind !== 'new' || isPlanPreset || plans.state.status !== 'ready') return;
@@ -146,8 +177,8 @@
   const isOwn = $derived(acting?.tenant !== undefined && acting.tenant.id === ownId);
   const isMulti = $derived(manifest.isMultiTenant);
 
-  const reading = $derived(instance.workspacesState);
-  const workspaces = $derived(instance.workspaces);
+  const reading = $derived(instance.workspacePage);
+  const workspaces = $derived(reading.status === 'ready' ? reading.data.data : []);
   const unreadable = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
@@ -268,18 +299,27 @@
   }
 
   /**
-   * Whether the address being typed is one an existing workspace already answers at.
-   *
-   * Answered from the table this screen already holds rather than by asking the server on every
-   * keystroke: the operator is looking at every workspace on the installation, so the one fact
-   * needed is already here. The server still refuses a collision — two operators typing at once is
-   * a race no client can win — and this is the half that means nobody meets that refusal after
-   * filling in four fields.
+   * Whether the address being typed is one an existing workspace already answers at: one read by
+   * the short name, a moment after the last keystroke, so nobody meets the server's refusal after
+   * filling in four fields. The server still refuses a collision - two operators typing at once is
+   * a race no client can win.
    */
-  const slugTaken = $derived(
-    slug.trim() !== '' &&
-      workspaces.some((each) => each.slug.toLowerCase() === slug.trim().toLowerCase()),
-  );
+  let slugTaken = $state(false);
+  $effect(() => {
+    const typed = slug.trim();
+    if (typed === '' || acting?.kind !== 'new') {
+      slugTaken = false;
+      return;
+    }
+    let current = true;
+    const timer = setTimeout(() => {
+      void instance.isSlugTaken(typed).then((taken) => { if (current) slugTaken = taken; }, () => {});
+    }, 300);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  });
 
   function readQuota(name: string, raw: string): void {
     const trimmed = raw.trim();
@@ -338,8 +378,33 @@
           </div>
         {/if}
 
+        <div class="filters">
+          <Input label={t('app.instance.find_slug')} bind:value={findSlug} />
+          <Select
+            label={t('app.instance.find_status')}
+            bind:value={findStatus}
+            options={[
+              { value: '', label: t('app.instance.find_any') },
+              { value: 'ACTIVE', label: t('app.instance.state_active') },
+              { value: 'SUSPENDED', label: t('app.instance.state_suspended') },
+              { value: 'PENDING_DELETION', label: t('app.instance.state_pending_deletion') },
+            ]}
+          />
+          {#if hasPlans}
+            <Select
+              label={t('app.instance.find_plan')}
+              bind:value={findPlan}
+              options={[
+                { value: '', label: t('app.instance.find_any') },
+                { value: '-', label: t('app.instance.plan_none') },
+                ...plans.all.map((plan) => ({ value: plan.name, label: plan.display_name })),
+              ]}
+            />
+          {/if}
+        </div>
+
         {#if workspaces.length === 0}
-          <Banner tone="info">{t('app.instance.workspaces_none')}</Banner>
+          <Banner tone="info">{t(isNarrowed ? 'app.instance.workspaces_none_found' : 'app.instance.workspaces_none')}</Banner>
         {:else}
           <Table label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
             {#each workspaces as workspace (workspace.id)}
@@ -422,6 +487,11 @@
               </tr>
             {/each}
           </Table>
+          {#if instance.hasMoreWorkspaces}
+            <div>
+              <Button onclick={more} isBusy={loadingMore}>{t('app.instance.workspaces_more')}</Button>
+            </div>
+          {/if}
         {/if}
       {/if}
     </Stack>
@@ -704,6 +774,7 @@
 
 <style>
   .prose { margin: 0; max-inline-size: 60ch; }
+  .filters { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: end; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }

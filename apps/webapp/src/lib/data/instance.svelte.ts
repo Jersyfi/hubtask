@@ -44,6 +44,9 @@ import { TransportError } from '@hubtask/sync-engine';
 import { platform } from '../platform/index.ts';
 import type { Probe, Target, TargetDraft } from './backup.svelte.ts';
 import { engine } from './engine.ts';
+import { workspaceQuery, type WorkspaceFilter } from './workspacequery.ts';
+
+export type { WorkspaceFilter };
 import { identityProviderPresetPath } from './identityprovider.svelte.ts';
 import { platformSubscriptions } from './platformsubscriptions.svelte.ts';
 import { deadLetters } from './deadletters.svelte.ts';
@@ -54,6 +57,9 @@ const ELEVATE = '/auth/sessions:elevate';
 const ALREADY_ELEVATED = 'auth.session_already_elevated';
 const OVERVIEW = '/admin/overview';
 const TENANTS = '/admin/tenants';
+const TENANT_QUERY = '/admin/tenants:query';
+type TenantPage = { readonly data: readonly AdminTenant[]; readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean } };
+
 const SETTINGS = '/admin/settings';
 const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
@@ -99,6 +105,8 @@ class Instance {
 
   #overview = $state<ResourceState<InstanceOverview>>({ status: 'idle' });
   #workspaces = $state<ResourceState<readonly AdminTenant[]>>({ status: 'idle' });
+  #workspacePage = $state<ResourceState<TenantPage>>({ status: 'idle' });
+  #workspaceQuery: Record<string, unknown> = workspaceQuery({});
   #settings = $state<ResourceState<InstanceSettings>>({ status: 'idle' });
   #operators = $state<ResourceState<readonly Operator[]>>({ status: 'idle' });
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
@@ -137,6 +145,36 @@ class Instance {
 
   get workspacesState(): ResourceState<readonly AdminTenant[]> {
     return this.#workspaces;
+  }
+
+  /** The workspaces screen's rows: the pages read so far of the narrowing in force. */
+  get workspacePage(): ResourceState<TenantPage> {
+    return this.#workspacePage;
+  }
+
+  get hasMoreWorkspaces(): boolean {
+    return this.#workspacePage.status === 'ready' && Boolean(this.#workspacePage.data.page?.next_cursor);
+  }
+
+  /**
+   * The workspaces screen reads a page at a time through the filtered query, never the whole
+   * installation: an operator with thousands of workspaces finds one by its short name or reference.
+   */
+  openWorkspacePage(filter: WorkspaceFilter): () => void {
+    this.#workspaceQuery = workspaceQuery(filter);
+    return engine.subscribe<TenantPage>({ path: TENANT_QUERY, body: this.#workspaceQuery }, (next) => {
+      this.#workspacePage = next;
+    });
+  }
+
+  async loadMoreWorkspaces(): Promise<void> {
+    await engine.loadMore<TenantPage>({ path: TENANT_QUERY, body: this.#workspaceQuery });
+  }
+
+  /** Whether a workspace answers at the short name: one read of the query, not the whole list. */
+  async isSlugTaken(slug: string): Promise<boolean> {
+    const state = await engine.refresh<TenantPage>({ path: TENANT_QUERY, body: workspaceQuery({ slug }, 1) });
+    return state.status === 'ready' && state.data.data.length > 0;
   }
 
   get settings(): ResourceState<InstanceSettings> {
@@ -202,6 +240,7 @@ class Instance {
     this.#until = undefined;
     this.#overview = { status: 'idle' };
     this.#workspaces = { status: 'idle' };
+    this.#workspacePage = { status: 'idle' };
     this.#settings = { status: 'idle' };
     this.#operators = { status: 'idle' };
     this.#journal = { status: 'idle' };

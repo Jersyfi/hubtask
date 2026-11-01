@@ -62,6 +62,7 @@ async function open(browser) {
       return route.fulfill({ status: 201, json: added });
     }
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [WORKSPACE] });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: ([WORKSPACE]).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     if (path.endsWith(':export') && request.method() === 'POST') {
       sent.push({ method: 'POST', path, body: request.postDataJSON() });
       return route.fulfill({ status: 202, json: { job_id: '01a0e2e0-0000-7000-8000-000000001921', status: 'QUEUED' } });

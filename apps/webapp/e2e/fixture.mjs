@@ -1148,6 +1148,11 @@ export function stub(route) {
   if (path.endsWith(`/api/v1/automation/rules/${DRAFTED_RULE_ID}`)) return route.fulfill({ json: DRAFTED_RULE });
   if (path.endsWith('/api/v1/automation/rules') && request.method() === 'GET') return route.fulfill({ json: { ...PAGE, data: draftSaved ? [DRAFTED_RULE] : [] } });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
+  if (path.endsWith('/api/v1/admin/tenants:query')) {
+    const query = request.postDataJSON() ?? {};
+    const rows = WORKSPACES.filter((each) => (!query.slug || each.slug === query.slug) && (!query.status || each.status === query.status));
+    return route.fulfill({ json: { data: rows.slice(0, query.size ?? 50), page: { next_cursor: null, has_more: false } } });
+  }
   if (path.endsWith('/api/v1/admin/overview')) return route.fulfill({ json: INSTANCE_OVERVIEW });
   if (path.endsWith('/api/v1/admin/settings') && request.method() === 'GET') return route.fulfill({ json: INSTANCE_SETTINGS, headers: { ETag: '"1"' } });
   if (path.endsWith('/api/v1/admin/journal') && request.method() === 'GET') return route.fulfill({ json: journalAnswer(request.url()) });

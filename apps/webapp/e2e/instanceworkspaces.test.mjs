@@ -48,6 +48,7 @@ async function open(browser) {
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [row] });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: ([row]).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     if (path === `/admin/tenants/${TENANT}:open-password`) {
       const body = request.postDataJSON() ?? {};
       sent.push({ path, body });
@@ -148,6 +149,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && route.request().method() === 'GET') return route.fulfill({ json: rows });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: (rows).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -188,6 +190,7 @@ async function operatorConsole(browser, { mode, rows, width = 1280 }) {
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: mode } });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: rows });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: (rows).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     const shift = /^\/admin\/tenants\/([^/:]+):(suspend|resume|cancel-deletion)$/.exec(path);
     if (shift) {
       sent.push(`${shift[1]}:${shift[2]}`);
@@ -319,6 +322,7 @@ test('chromium: a reserved short name is refused at the field of New workspace',
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [workspace()] });
+    if (path === '/admin/tenants:query') return route.fulfill({ json: { data: ([workspace()]).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     if (path === '/admin/tenants' && request.method() === 'POST') {
       const body = request.postDataJSON() ?? {};
       sent.push(body);
