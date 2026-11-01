@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [C-07, F3-10, K-03]
-checked_by: [core/application/service/work/Calculated_test.go, core/application/service/work/FillCalculatedFields_test.go, infrastructure/expression/Formula_test.go, test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
+checked_by: [core/application/service/work/FieldHub_test.go, test/integration/custom_field_hub_test.go, core/application/service/work/Calculated_test.go, core/application/service/work/FillCalculatedFields_test.go, infrastructure/expression/Formula_test.go, test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
 ---
 
 # Record the facts a team tracks, with custom fields
@@ -53,6 +53,12 @@ the list by `priority = high`.
    operators that fit the kind (a pick field offers its options).
 8. A member without the right to change the collection's shape sees the fields on entries and
    fills them in, but is not offered to define, change or delete them.
+9. A hub defines fields of its own, which the entries of its collections carry: a collection's own
+   field under the key wins over the hub's, and the hub's over the workspace's. The hub's settings
+   show the workspace's fields read-only with *Make a copy here*, which makes the hub's own copy
+   under the same key, naming its source; values already filled in stay visible. A field the hub
+   hides from readers is hidden in its collections alone, and another hub's collections never
+   carry it.
 
 ## Where it ends
 
@@ -61,7 +67,10 @@ the list by `priority = high`.
 * No sorting by a field that holds several values, a person, a reference or formatted text, and no
   grouping by one that holds several values or formatted text (UC-WRK-17).
 * No display name separate from the key; the key is what people read.
-* Workspace-wide fields are defined through the API; the collection's dialog shows them read-only.
+* Workspace-wide fields are defined through the API; the collection's dialog shows them, and its
+  hub's, read-only. A hub's own field is defined through the API or made by *Make a copy here*.
+* A collection moved out of its hub stops showing the values of the hub's fields and keeps them;
+  moved back, it shows them again.
 * A field that decides behaviour (a status that drives a workflow) is an automation rule's job,
   not a field's; a state field records where a record stands and moves nothing.
 * A two-level pick has two levels, no more; a file field names an attachment the entry already

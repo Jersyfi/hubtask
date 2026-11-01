@@ -1074,6 +1074,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `custom_field.defined` | CopyCustomFieldHere | `custom_field` | INFO | Every time |
 | `custom_field.defined` | DefineCustomField | `custom_field` | INFO | Every time |
 | `custom_field.deleted` | DeleteCustomField | `custom_field` | INFO | Every time |
 | `custom_field.reach_previewed` | PreviewCustomFieldReach | `custom_field` | INFO | When refused |
