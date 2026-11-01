@@ -222,3 +222,31 @@ func TestTheTimeResourcesWalkStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the workspace next door walked %+v", got)
 	}
 }
+
+// UC-TIM-07 check 4 against the real statements: an absence is changed and removed only at the
+// version read.
+func TestAnAbsenceIsHeldToTheVersionRead(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewTimeResourceRepository()
+	now := time.Date(2026, 11, 3, 17, 0, 0, 0, time.UTC)
+	day, _ := timekeeping.ParseDay("2026-11-02")
+	absence := timekeeping.Absence{ID: freshID(t), AccountID: authorA, From: day + 7, To: day + 8, Kind: timekeeping.AbsenceLeave}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return store.PutAbsence(ctx, absence, 0, authorA, now) }); err != nil {
+		t.Fatal(err)
+	}
+	moved := absence
+	moved.To = day + 9
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return store.PutAbsence(ctx, moved, 0, authorA, now) }); !errors.Is(err, shared.ErrVersionConflict) {
+		t.Errorf("a change on a stale version: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return store.PutAbsence(ctx, moved, 1, authorA, now) }); err != nil {
+		t.Fatalf("a change on the version read: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return store.RemoveAbsence(ctx, absence.ID, 1) }); !errors.Is(err, shared.ErrVersionConflict) {
+		t.Errorf("a removal on a stale version: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return store.RemoveAbsence(ctx, absence.ID, 2) }); err != nil {
+		t.Errorf("a removal on the version read: %v", err)
+	}
+}

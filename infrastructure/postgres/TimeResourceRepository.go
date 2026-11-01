@@ -195,10 +195,15 @@ func (TimeResourceRepository) PutAbsence(ctx context.Context, a domain.Absence, 
 		if err != nil {
 			return err
 		}
-		if err := queries.InsertTimeAbsence(ctx, sqlc.InsertTimeAbsenceParams{
+		err = queries.InsertTimeAbsence(ctx, sqlc.InsertTimeAbsenceParams{
 			ID: key, AccountID: account, FromDay: dayDate(a.From), ToDay: dayDate(a.To), Kind: string(a.Kind),
 			Half: a.Half, At: timestampOf(at), CreatedBy: who,
-		}); err != nil {
+		})
+		// A change sent as version 0 meets the row it means: a stale read, not an outage.
+		if isUniqueViolation(err) {
+			return versionConflict("time.absence_version_conflict", expected)
+		}
+		if err != nil {
 			return timeError(err, "writing an absence")
 		}
 		return nil
