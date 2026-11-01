@@ -941,6 +941,9 @@ var entities = []Entity{
 		Name: "sla_policies", Table: "sla_policy", Whole: true, Unmarked: true, Later: true,
 		Keys: []string{"id"}, Duplicable: true, Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 		ByKey: []KeyReference{{Field: "calendar_key", Table: "business_calendar", Key: "key"}},
+		// A hub's own policy (migration 0324) follows its hub; `copied_from` is a key kept as a
+		// word, not a reference (it outlives its source).
+		References: []Reference{{Field: "hub_id", Table: "container"}},
 	},
 	// The planning module (migration 0244, M2): an entry's scheduling mode, and a plan's baselines
 	// with the dates they hold. Whole: a mode is removed with its entry without a marker, and a

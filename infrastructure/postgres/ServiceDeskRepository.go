@@ -237,7 +237,12 @@ func (ServiceDeskPolicies) Insert(ctx context.Context, policy servicedesk.SLAPol
 	if err != nil {
 		return err
 	}
+	hub, err := optionalUUID(policy.HubID)
+	if err != nil {
+		return err
+	}
 	if err := queries.InsertSlaPolicy(ctx, sqlc.InsertSlaPolicyParams{
+		HubID: hub, CopiedFrom: optionalText(policy.CopiedFrom),
 		AssigneeGroupID: group, ID: id, TenantID: tenant, Key: policy.Key, Name: policy.Name, CalendarKey: optionalKey(policy.CalendarKey),
 		EntryTypes: policy.EntryTypes, Organisations: keysOrEmpty(policy.Organisations), PriorityField: policy.PriorityField,
 		Goals: goals, Position: int32(policy.Position), //nolint:gosec // a position is small
@@ -309,6 +314,10 @@ func policyFrom(row sqlc.SlaPolicy) (servicedesk.SLAPolicy, error) {
 	if policy.AssigneeGroup, err = optionalID(row.AssigneeGroupID); err != nil {
 		return servicedesk.SLAPolicy{}, err
 	}
+	if policy.HubID, err = optionalID(row.HubID); err != nil {
+		return servicedesk.SLAPolicy{}, err
+	}
+	policy.CopiedFrom = textFrom(row.CopiedFrom)
 	return policy, nil
 }
 

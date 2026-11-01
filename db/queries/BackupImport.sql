@@ -2794,9 +2794,10 @@ SELECT EXISTS (SELECT 1 FROM hub_business_calendar WHERE id = (sqlc.arg('payload
 DELETE FROM hub_business_calendar;
 
 -- name: ImportSlaPolicy :execrows
-INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations, assignee_group_id)
+-- An archive from before 0324 carries no hub: the policy is then the whole workspace's.
+INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations, assignee_group_id, hub_id, copied_from)
 SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version,
-       coalesce(r.organisations, '{}'), r.assignee_group_id
+       coalesce(r.organisations, '{}'), r.assignee_group_id, r.hub_id, r.copied_from
 FROM jsonb_populate_record(
   NULL::sla_policy,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2805,7 +2806,8 @@ ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, calendar_key = EXCLUDED.calendar_key, entry_types = EXCLUDED.entry_types,
   priority_field = EXCLUDED.priority_field, goals = EXCLUDED.goals, position = EXCLUDED.position,
   enabled = EXCLUDED.enabled, updated_at = EXCLUDED.updated_at, version = EXCLUDED.version,
-  organisations = EXCLUDED.organisations, assignee_group_id = EXCLUDED.assignee_group_id
+  organisations = EXCLUDED.organisations, assignee_group_id = EXCLUDED.assignee_group_id,
+  hub_id = EXCLUDED.hub_id, copied_from = EXCLUDED.copied_from
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsSlaPolicy :one

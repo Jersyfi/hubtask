@@ -5757,10 +5757,17 @@ CREATE TABLE sla_policy (
   organisations  text[] NOT NULL DEFAULT '{}' CHECK (cardinality(organisations) <= 20),
   -- the group whose internal promise (an OLA) the policy is; NULL is the requester's (0303)
   assignee_group_id uuid,
+  -- the hub it is defined at, whose entries alone it measures; null is the whole workspace. A copy
+  -- names the key it was copied from (0324, UC-SVC-02 check 11)
+  hub_id         uuid,
+  copied_from    text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),
   -- the calendar is held by key in the use cases: the workspace's or the installation's (0291)
-  CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key)
+  CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key),
+  CONSTRAINT sla_policy_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
+CREATE INDEX sla_policy_hub_idx ON sla_policy (tenant_id, hub_id) WHERE hub_id IS NOT NULL;
 ALTER TABLE sla_policy ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sla_policy FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON sla_policy

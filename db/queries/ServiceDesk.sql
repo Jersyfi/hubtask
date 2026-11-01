@@ -25,15 +25,16 @@ DELETE FROM business_calendar WHERE key = sqlc.arg('key');
 -- name: InsertSlaPolicy :exec
 INSERT INTO sla_policy (
   id, tenant_id, key, name, calendar_key, entry_types, organisations, priority_field, goals, position,
-  enabled, created_at, updated_at, version, assignee_group_id
+  enabled, created_at, updated_at, version, assignee_group_id, hub_id, copied_from
 ) VALUES (
   sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.narg('calendar_key'),
   sqlc.arg('entry_types')::text[], sqlc.arg('organisations')::text[], sqlc.arg('priority_field'),
   sqlc.arg('goals'), sqlc.arg('position'), sqlc.arg('enabled'), sqlc.arg('now'), sqlc.arg('now'), 1,
-  sqlc.narg('assignee_group_id')
+  sqlc.narg('assignee_group_id'), sqlc.narg('hub_id')::uuid, sqlc.narg('copied_from')::text
 );
 
 -- name: UpdateSlaPolicy :execrows
+-- A policy's hub and source never change.
 UPDATE sla_policy SET
   name = sqlc.arg('name'), calendar_key = sqlc.narg('calendar_key'),
   entry_types = sqlc.arg('entry_types')::text[], organisations = sqlc.arg('organisations')::text[],
@@ -45,12 +46,12 @@ WHERE key = sqlc.arg('key') AND version = sqlc.arg('expected_version');
 
 -- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations, assignee_group_id
+       created_at, updated_at, version, organisations, assignee_group_id, hub_id, copied_from
 FROM sla_policy WHERE key = sqlc.arg('key');
 
 -- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations, assignee_group_id
+       created_at, updated_at, version, organisations, assignee_group_id, hub_id, copied_from
 FROM sla_policy ORDER BY position, key;
 
 -- name: DeleteSlaPolicy :execrows

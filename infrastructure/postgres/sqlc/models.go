@@ -3034,6 +3034,8 @@ type SlaPolicy struct {
 	Version         int32
 	Organisations   []string
 	AssigneeGroupID pgtype.UUID
+	HubID           pgtype.UUID
+	CopiedFrom      *string
 }
 
 type Sprint struct {

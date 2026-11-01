@@ -383,7 +383,7 @@ func (q *Queries) FindSatisfactionRating(ctx context.Context, itemID pgtype.UUID
 
 const findSlaPolicy = `-- name: FindSlaPolicy :one
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations, assignee_group_id
+       created_at, updated_at, version, organisations, assignee_group_id, hub_id, copied_from
 FROM sla_policy WHERE key = $1
 `
 
@@ -406,6 +406,8 @@ func (q *Queries) FindSlaPolicy(ctx context.Context, key string) (SlaPolicy, err
 		&i.Version,
 		&i.Organisations,
 		&i.AssigneeGroupID,
+		&i.HubID,
+		&i.CopiedFrom,
 	)
 	return i, err
 }
@@ -603,12 +605,12 @@ func (q *Queries) InsertRequesterOrganisation(ctx context.Context, arg InsertReq
 const insertSlaPolicy = `-- name: InsertSlaPolicy :exec
 INSERT INTO sla_policy (
   id, tenant_id, key, name, calendar_key, entry_types, organisations, priority_field, goals, position,
-  enabled, created_at, updated_at, version, assignee_group_id
+  enabled, created_at, updated_at, version, assignee_group_id, hub_id, copied_from
 ) VALUES (
   $1, $2, $3, $4, $5,
   $6::text[], $7::text[], $8,
   $9, $10, $11, $12, $12, 1,
-  $13
+  $13, $14::uuid, $15::text
 )
 `
 
@@ -626,6 +628,8 @@ type InsertSlaPolicyParams struct {
 	Enabled         bool
 	Now             pgtype.Timestamptz
 	AssigneeGroupID pgtype.UUID
+	HubID           pgtype.UUID
+	CopiedFrom      *string
 }
 
 func (q *Queries) InsertSlaPolicy(ctx context.Context, arg InsertSlaPolicyParams) error {
@@ -643,6 +647,8 @@ func (q *Queries) InsertSlaPolicy(ctx context.Context, arg InsertSlaPolicyParams
 		arg.Enabled,
 		arg.Now,
 		arg.AssigneeGroupID,
+		arg.HubID,
+		arg.CopiedFrom,
 	)
 	return err
 }
@@ -994,7 +1000,7 @@ func (q *Queries) ListRequesterOrganisations(ctx context.Context, max int32) ([]
 
 const listSlaPolicies = `-- name: ListSlaPolicies :many
 SELECT id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled,
-       created_at, updated_at, version, organisations, assignee_group_id
+       created_at, updated_at, version, organisations, assignee_group_id, hub_id, copied_from
 FROM sla_policy ORDER BY position, key
 `
 
@@ -1023,6 +1029,8 @@ func (q *Queries) ListSlaPolicies(ctx context.Context) ([]SlaPolicy, error) {
 			&i.Version,
 			&i.Organisations,
 			&i.AssigneeGroupID,
+			&i.HubID,
+			&i.CopiedFrom,
 		); err != nil {
 			return nil, err
 		}
@@ -1495,6 +1503,7 @@ type UpdateSlaPolicyParams struct {
 	ExpectedVersion int32
 }
 
+// A policy's hub and source never change.
 func (q *Queries) UpdateSlaPolicy(ctx context.Context, arg UpdateSlaPolicyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateSlaPolicy,
 		arg.Name,
