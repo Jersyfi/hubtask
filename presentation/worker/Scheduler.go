@@ -11,6 +11,7 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -60,6 +61,13 @@ type SchedulerSignals interface {
 	InvalidIndexes(ctx context.Context, count int64)
 	// MailApp is one installation mail app's mailboxes and the failing ones - alert A-29's numbers.
 	MailApp(ctx context.Context, app string, connected, failing int64)
+	// SAMLCertificatesEnding is the installation's SAML providers by their certificates' end.
+	SAMLCertificatesEnding(ctx context.Context, count identity.SAMLCertificateCount)
+}
+
+// SAMLCertificateEnds counts the installation's SAML providers by their certificates' end.
+type SAMLCertificateEnds interface {
+	SAMLCertificatesEnding(ctx context.Context) (identity.SAMLCertificateCount, error)
 }
 
 // InstallationMailApps answers how the installation's own mail apps fare across workspaces.
@@ -191,6 +199,8 @@ type Scheduler struct {
 	Indexes InvalidIndexes
 	// MailApps answers the installation mail apps' mailboxes. Optional, like Backlog.
 	MailApps InstallationMailApps
+	// SAMLProviders answers the SAML providers' certificate ends. Optional, like Backlog.
+	SAMLProviders SAMLCertificateEnds
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -330,6 +340,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleOldestTransaction(ctx)
 	s.sampleInvalidIndexes(ctx)
 	s.sampleMailApps(ctx)
+	s.sampleSAMLCertificates(ctx)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -851,6 +862,29 @@ func (s Scheduler) sampleMailApps(ctx context.Context) {
 	for _, app := range apps {
 		s.Signals.MailApp(ctx, app.App, app.Connected, app.Failing)
 	}
+}
+
+// sampleSAMLCertificates publishes how many workspaces' SAML sign-in ends soon or has ended
+// (identity.md §26.1): each workspace's administrators are told, and the operator sees the sum.
+func (s Scheduler) sampleSAMLCertificates(ctx context.Context) {
+	if s.Signals == nil || s.SAMLProviders == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var count identity.SAMLCertificateCount
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		count, err = s.SAMLProviders.SAMLCertificatesEnding(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "counting the SAML certificates' ends failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.SAMLCertificatesEnding(ctx, count)
 }
 
 // sampleRetryBacklog publishes the webhook retries waiting out their backoff. The queue depth

@@ -5320,6 +5320,8 @@ func run() error {
 			Indexes:      jobs,
 			// Alert A-29's numbers, across workspaces through the door of migration 0344.
 			MailApps: postgres.NewMailboxRepository(),
+			// The SAML providers' certificate ends, across workspaces through the door of 0348.
+			SAMLProviders: postgres.NewIdentityProviderRepository(),
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,

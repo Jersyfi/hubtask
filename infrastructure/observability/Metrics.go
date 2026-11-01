@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -103,6 +104,8 @@ type Metrics struct {
 	invalidIndexes    metric.Int64Gauge
 	mailApps          metric.Int64Gauge
 	mailAppsFailing   metric.Int64Gauge
+	samlProviders     metric.Int64Gauge
+	samlEnding        metric.Int64Gauge
 	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
 	// dead letters waiting - alert A-21's number.
 	platformDeliveries  metric.Int64Counter
@@ -554,6 +557,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"app's secret runs out, all of them fail together. Reported by the scheduler leader only."),
 	); err != nil {
 		return fmt.Errorf("mail app failing gauge: %w", err)
+	}
+	if m.samlProviders, err = meter.Int64Gauge(
+		namespace+"_saml_providers",
+		metric.WithDescription("Enabled SAML sign-in providers, across every workspace, whose certificates' end "+
+			"is known. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("SAML providers gauge: %w", err)
+	}
+	if m.samlEnding, err = meter.Int64Gauge(
+		namespace+"_saml_providers_ending",
+		metric.WithDescription("Of those providers, the ones whose last certificate ends within 30 or 7 days, "+
+			"or has ended - nobody signs in through those. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("SAML providers ending gauge: %w", err)
 	}
 	if m.platformDeliveries, err = meter.Int64Counter(
 		namespace+"_platform_deliveries_total",
@@ -1303,6 +1320,14 @@ func (m *Metrics) MailApp(ctx context.Context, app string, connected, failing in
 	attributes := metric.WithAttributes(attribute.String("app", app))
 	m.mailApps.Record(ctx, connected, attributes)
 	m.mailAppsFailing.Record(ctx, failing, attributes)
+}
+
+// SAMLCertificatesEnding publishes the installation's SAML providers by their certificates' end.
+func (m *Metrics) SAMLCertificatesEnding(ctx context.Context, count identity.SAMLCertificateCount) {
+	m.samlProviders.Record(ctx, count.Providers)
+	m.samlEnding.Record(ctx, count.Within30Days, metric.WithAttributes(attribute.String("within", "30d")))
+	m.samlEnding.Record(ctx, count.Within7Days, metric.WithAttributes(attribute.String("within", "7d")))
+	m.samlEnding.Record(ctx, count.Ended, metric.WithAttributes(attribute.String("within", "ended")))
 }
 
 // MediaScanHeldWorkspaces publishes how many workspaces hold uploads waiting for a scan.

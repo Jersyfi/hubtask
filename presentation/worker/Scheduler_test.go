@@ -10,6 +10,7 @@ import (
 	"time"
 
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -80,6 +81,11 @@ type schedulerSignals struct {
 	oldest           []float64
 	invalidIndexes   []int64
 	mailApps         []mail.AppHealth
+	samlEnding       []identity.SAMLCertificateCount
+}
+
+func (s *schedulerSignals) SAMLCertificatesEnding(_ context.Context, count identity.SAMLCertificateCount) {
+	s.samlEnding = append(s.samlEnding, count)
 }
 
 func (s *schedulerSignals) MailApp(_ context.Context, app string, connected, failing int64) {
@@ -687,5 +693,26 @@ func TestTheLeaderPublishesTheInstallationMailApps(t *testing.T) {
 	want := []mail.AppHealth{{App: "google", Connected: 4, Failing: 4}, {App: "microsoft"}}
 	if len(signals.mailApps) != 2 || signals.mailApps[0] != want[0] || signals.mailApps[1] != want[1] {
 		t.Errorf("published %v, want %v", signals.mailApps, want)
+	}
+}
+
+// samlEnds is the installation's SAML providers as the door counts them.
+type samlEnds identity.SAMLCertificateCount
+
+func (c samlEnds) SAMLCertificatesEnding(context.Context) (identity.SAMLCertificateCount, error) {
+	return identity.SAMLCertificateCount(c), nil
+}
+
+// The leader publishes how many workspaces' SAML sign-in ends soon or has ended, on every tick, so
+// the operator sees across workspaces what each workspace's administrators are told by mail.
+func TestTheLeaderPublishesTheSAMLCertificatesEnding(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.SAMLProviders = samlEnds{Providers: 5, Within30Days: 2, Within7Days: 1, Ended: 1}
+
+	leader.tick(t.Context(), false, now)
+	want := identity.SAMLCertificateCount{Providers: 5, Within30Days: 2, Within7Days: 1, Ended: 1}
+	if len(signals.samlEnding) != 1 || signals.samlEnding[0] != want {
+		t.Errorf("published %v, want %v", signals.samlEnding, want)
 	}
 }

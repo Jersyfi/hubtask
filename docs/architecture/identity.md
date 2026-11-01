@@ -1142,6 +1142,13 @@ warned of afresh. A switched-off provider is told nothing. The watch is the per-
 latest, and ends when the workspace has no SAML provider. The message links `/administration/sign-in`.
 The provider's answer carries that end as `saml_certificate_expires_at`; the sign-in settings and
 the installation's provider list draw it as a warning from 30 days before and as ended after.
+Each pass of the watch also keeps the end on the row (`identity_provider.saml_certificates_end`,
+migration 0348) when it changed, and the scheduler's leader counts the enabled SAML providers across
+workspaces through `saml_certificates_ending()` into `hubtask_saml_providers` and
+`hubtask_saml_providers_ending{within="30d"|"7d"|"ended"}` - numbers, no provider and no
+workspace. A provider is counted from its watch's next pass, within a day. No alert reads them:
+a workspace's certificate is its administrators' to renew, and they are told; the numbers show the
+operator how many workspaces' SAML sign-in has stopped or is about to.
 
 ---
 
