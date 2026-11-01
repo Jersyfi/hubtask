@@ -548,7 +548,9 @@ func codeOf(err error) string {
 }
 
 // read answers the next position and a refusal's code; each message is answered at most once,
-// its event identifier the notice's transaction.
+// its event identifier the notice's transaction. A sync position covers the whole batch, so a post
+// that fails keeps the position the batch began at: the batch is read again, and what it already
+// did is not done twice - an entry by CaptureID, a notice by its transaction.
 func (b Bots) read(ctx context.Context, bot integration.ChatBot, sealed crypto.Sealed) (string, string) {
 	token, err := b.Encryptor.Open(ctx, sealed, tokenPurpose(bot.ID))
 	if err != nil {
@@ -569,7 +571,7 @@ func (b Bots) read(ctx context.Context, bot integration.ChatBot, sealed crypto.S
 		}
 		for _, r := range b.answer(ctx, actor, bot, base, m) {
 			if err := b.Room.Post(ctx, bot.Homeserver, token, bot.Room, r.txn, notice(r.Card)); err != nil {
-				return next, codeOf(err)
+				return "", codeOf(err)
 			}
 		}
 	}
@@ -588,7 +590,7 @@ func (b Bots) answer(ctx context.Context, actor appshared.ActorContext, bot inte
 		return []reply{{Card: card, txn: "hubtask-" + m.EventID}}
 	}
 	if title, ok := integration.Captured(m.Body); ok && bot.Capture {
-		return []reply{{Card: b.captured(ctx, actor, bot, base, title), txn: "hubtask-" + m.EventID}}
+		return []reply{{Card: b.captured(ctx, actor, bot, base, title, integration.CaptureID(bot.ID, m.EventID, m.At)), txn: "hubtask-" + m.EventID}}
 	}
 	out := []reply{}
 	if !bot.Unfurl {
@@ -605,10 +607,17 @@ func (b Bots) answer(ctx context.Context, actor appshared.ActorContext, bot inte
 }
 
 // captured makes the entry a command asks for and answers its card, or the refusal's.
-func (b Bots) captured(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base, title string) roomport.Card {
-	created, err := b.Invoker.Invoke(ctx, createEntry, actor, usecase.Input{
-		"type": "TASK", "title": title, "collection_id": bot.CollectionID.String(),
-	})
+// An empty id lets the server mint one; items.id_taken is the message read again, whose entry is
+// already there.
+func (b Bots) captured(ctx context.Context, actor appshared.ActorContext, bot integration.ChatBot, base, title string, id shared.ID) roomport.Card {
+	in := usecase.Input{"type": "TASK", "title": title, "collection_id": bot.CollectionID.String()}
+	if !id.IsZero() {
+		in["id"] = id.String()
+	}
+	created, err := b.Invoker.Invoke(ctx, createEntry, actor, in)
+	if err != nil && !id.IsZero() && shared.AsError(err).DetailCode == "items.id_taken" {
+		created, err = usecase.Output{"id": id.String()}, nil
+	}
 	if err != nil {
 		return roomport.Card{Headline: b.Texts.Render(bot.Locale, "chat.bot_capture_refused", nil)}
 	}
@@ -876,7 +885,7 @@ func (b Bots) cards(ctx context.Context, actor appshared.ActorContext, bot integ
 	switch in.Asks {
 	case roomport.AsksCapture:
 		if title, ok := integration.Captured(integration.CaptureCommand + " " + in.Text); ok && bot.Capture {
-			out = append(out, b.captured(ctx, actor, bot, base, title))
+			out = append(out, b.captured(ctx, actor, bot, base, title, ""))
 		}
 	case roomport.AsksUnfurl:
 		if !bot.Unfurl {

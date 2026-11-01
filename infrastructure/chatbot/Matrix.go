@@ -14,6 +14,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -91,7 +92,9 @@ type syncAnswer struct {
 					Type    string `json:"type"`
 					EventID string `json:"event_id"`
 					Sender  string `json:"sender"`
-					Content struct {
+					// OriginServerTS is milliseconds since the epoch.
+					OriginServerTS int64 `json:"origin_server_ts"`
+					Content        struct {
 						MsgType string `json:"msgtype"`
 						Body    string `json:"body"`
 					} `json:"content"`
@@ -131,7 +134,8 @@ func (m Matrix) Read(ctx context.Context, homeserver string, token secret.Secret
 		if e.Type != "m.room.message" || e.Content.MsgType != "m.text" || e.Content.Body == "" {
 			continue
 		}
-		messages = append(messages, port.Message{EventID: e.EventID, Sender: e.Sender, Body: e.Content.Body})
+		messages = append(messages, port.Message{EventID: e.EventID, Sender: e.Sender, Body: e.Content.Body,
+			At: time.UnixMilli(e.OriginServerTS).UTC()})
 	}
 	return answer.NextBatch, messages, nil
 }

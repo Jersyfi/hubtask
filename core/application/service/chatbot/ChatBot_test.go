@@ -143,6 +143,8 @@ type room struct {
 	messages []roomport.Message
 	posted   []string
 	revoked  bool
+	// failPost refuses the post of that transaction once.
+	failPost string
 }
 
 func (r *room) WhoAmI(context.Context, string, secret.Secret) (string, error) {
@@ -162,16 +164,33 @@ func (r *room) Read(_ context.Context, _ string, token secret.Secret, _, since s
 	return "s2", r.messages, nil
 }
 func (r *room) Post(_ context.Context, _ string, _ secret.Secret, _, txn string, n roomport.Notice) error {
+	if txn == r.failPost {
+		r.failPost = ""
+		return shared.ErrUnavailable.WithDetail("chatbot.homeserver_unreachable")
+	}
 	r.posted = append(r.posted, txn+"|"+n.Body)
 	return nil
 }
 
-type invoker struct{ calls []string }
+type invoker struct {
+	calls   []string
+	created map[string]bool
+}
 
 func (i *invoker) Invoke(_ context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	i.calls = append(i.calls, name+":"+actor.AccountID.String())
 	if name == createEntry {
-		return usecase.Output{"id": "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a59", "title": in.String("title")}, nil
+		id := in.String("id")
+		if id == "" {
+			id = "0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a59"
+		} else if i.created[id] {
+			return nil, shared.ErrConflict.WithDetail("items.id_taken")
+		}
+		if i.created == nil {
+			i.created = map[string]bool{}
+		}
+		i.created[id] = true
+		return usecase.Output{"id": id, "title": in.String("title")}, nil
 	}
 	return usecase.Output{"title": "Renew the certificate", "status": "IN_PROGRESS", "notes": "the secret plan"}, nil
 }
@@ -326,5 +345,44 @@ func TestARefusedTokenStopsTheBot(t *testing.T) {
 	}
 	if _, err := (DeleteChatBot{f.bots}).Descriptor().Handler.Invoke(context.Background(), actorOf(bert), usecase.Input{"bot_id": id.String()}); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("a reader removed the bot: %v", err)
+	}
+}
+
+// A post that fails part-way keeps the position where the batch began, so the messages after it are
+// read again rather than lost; the message read again creates no second entry, and its notice
+// keeps its transaction.
+func TestAFailedPostReadsTheBatchAgainAndCapturesOnce(t *testing.T) {
+	f := newFixture()
+	out, err := seat(t, f, actorOf(anna))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := shared.ID(out["id"].(string))
+	if _, err := f.bots.Run(context.Background(), tenant, id); err != nil {
+		t.Fatal(err)
+	}
+	f.room.messages = []roomport.Message{
+		{EventID: "$1", Sender: "@ada:example.org", Body: "!task Call the supplier", At: now},
+		{EventID: "$2", Sender: "@ada:example.org", Body: "!task Order paper", At: now},
+	}
+	f.room.failPost = "hubtask-$1"
+	if _, err := f.bots.Run(context.Background(), tenant, id); err != nil {
+		t.Fatal(err)
+	}
+	if bot := f.store.bots[id]; bot.Since != "s1" || bot.Failure != "chatbot.homeserver_unreachable" {
+		t.Fatalf("after the failed post: since %q, failure %q", bot.Since, bot.Failure)
+	}
+	if _, err := f.bots.Run(context.Background(), tenant, id); err != nil {
+		t.Fatal(err)
+	}
+	if bot := f.store.bots[id]; bot.Since != "s2" || bot.Failure != "" {
+		t.Fatalf("after the second read: since %q, failure %q", bot.Since, bot.Failure)
+	}
+	if len(f.invoker.created) != 2 {
+		t.Fatalf("entries created = %v", f.invoker.created)
+	}
+	if len(f.room.posted) != 2 || !strings.HasPrefix(f.room.posted[0], "hubtask-$1|de:chat.bot_captured:\nCall the supplier\n"+base+"/items/") ||
+		!strings.HasPrefix(f.room.posted[1], "hubtask-$2|de:chat.bot_captured:") {
+		t.Fatalf("posted = %v", f.room.posted)
 	}
 }

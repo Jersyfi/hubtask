@@ -18,6 +18,8 @@ type Message struct {
 	EventID string
 	Sender  string
 	Body    string
+	// At is when the homeserver received it.
+	At time.Time
 }
 
 // Notice is what the bot posts: a plain body and its HTML form.

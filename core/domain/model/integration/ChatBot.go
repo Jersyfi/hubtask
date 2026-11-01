@@ -4,6 +4,8 @@
 package integration
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/url"
 	"regexp"
 	"strings"
@@ -198,4 +200,22 @@ func (b *ChatBot) Read(since, failure string, now time.Time) {
 		b.Since = since
 	}
 	b.Failure, b.UpdatedAt = failure, now
+}
+
+// CaptureID is the identifier of the entry a room message captures: the same for the same bot and
+// message on every read, so a batch read again after a failed post or a lost position creates
+// nothing twice - the second create meets items.id_taken. A UUIDv7 in shape, as CreateWorkItem asks
+// of a caller's identifier, its time the message's own and the rest a hash of bot and event.
+func CaptureID(botID shared.ID, eventID string, at time.Time) shared.ID {
+	sum := sha256.Sum256([]byte(botID.String() + "\x00" + eventID))
+	var b [16]byte
+	ms := uint64(max(at.UnixMilli(), 0)) //nolint:gosec // G115: clamped to zero above
+	for i := 0; i < 6; i++ {
+		b[i] = byte(ms >> (8 * (5 - i)))
+	}
+	copy(b[6:], sum[:10])
+	b[6] = 0x70 | b[6]&0x0f
+	b[8] = 0x80 | b[8]&0x3f
+	h := hex.EncodeToString(b[:])
+	return shared.ID(h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32])
 }

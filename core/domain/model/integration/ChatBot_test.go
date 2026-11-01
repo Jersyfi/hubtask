@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -128,5 +129,25 @@ func TestSameRoomReadsATeamsThreadAsItsConversation(t *testing.T) {
 	slack := ChatBot{Platform: FormatSlack, Room: "C0123ABCD"}
 	if slack.SameRoom("C0123ABCD;x") || slack.SameRoom("") || !slack.SameRoom("C0123ABCD") {
 		t.Fatal("a Slack channel was read loosely")
+	}
+}
+
+// A message read twice captures one entry: its identifier is the same on every read, a UUIDv7 in
+// shape, and another message's or another bot's is another.
+func TestACapturedMessageHasOneIdentifier(t *testing.T) {
+	bot, other := shared.ID("00000000-0000-7000-8000-0000000000a1"), shared.ID("00000000-0000-7000-8000-0000000000a2")
+	at := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+	first := CaptureID(bot, "$1", at)
+	if first != CaptureID(bot, "$1", at) {
+		t.Fatal("the same message has two identifiers")
+	}
+	if !first.IsUUIDv7() {
+		t.Fatalf("%s is not a UUIDv7", first)
+	}
+	if _, err := shared.ParseID(first.String()); err != nil {
+		t.Fatal(err)
+	}
+	if first == CaptureID(bot, "$2", at) || first == CaptureID(other, "$1", at) {
+		t.Fatal("two messages share an identifier")
 	}
 }

@@ -65,7 +65,7 @@ func TestABotIsNamedJoinsAndStartsAtTheRoomsPresent(t *testing.T) {
 func TestABotReadsTextsAndPostsNotices(t *testing.T) {
 	fake := &homeserver{answers: []httpport.Response{
 		{Status: 200, Body: []byte(`{"next_batch":"s2","rooms":{"join":{"!r:example.org":{"timeline":{"events":[
-			{"type":"m.room.message","event_id":"$1","sender":"@ada:example.org","content":{"msgtype":"m.text","body":"!task Renew"}},
+			{"type":"m.room.message","event_id":"$1","sender":"@ada:example.org","origin_server_ts":1793534400000,"content":{"msgtype":"m.text","body":"!task Renew"}},
 			{"type":"m.room.message","event_id":"$2","sender":"@ada:example.org","content":{"msgtype":"m.image","body":"pic.png"}},
 			{"type":"m.room.message","event_id":"$3","sender":"@bob:example.org","content":{"msgtype":"m.notice","body":"a bot"}}]}}}}}`)},
 		{Status: 200, Body: []byte(`{"event_id":"$n"}`)},
@@ -74,7 +74,8 @@ func TestABotReadsTextsAndPostsNotices(t *testing.T) {
 	m := Matrix{Client: fake}
 	ctx, token := context.Background(), secret.New("tok")
 	next, messages, err := m.Read(ctx, hs, token, "!r:example.org", "s1")
-	if err != nil || next != "s2" || len(messages) != 1 || messages[0].Body != "!task Renew" || messages[0].Sender != "@ada:example.org" {
+	if err != nil || next != "s2" || len(messages) != 1 || messages[0].Body != "!task Renew" || messages[0].Sender != "@ada:example.org" ||
+		messages[0].At.UnixMilli() != 1793534400000 {
 		t.Fatalf("read = %q %+v %v", next, messages, err)
 	}
 	u, _ := url.Parse(fake.requests[0].URL)
