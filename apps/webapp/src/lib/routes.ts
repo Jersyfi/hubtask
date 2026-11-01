@@ -29,6 +29,9 @@ export const ROUTES: readonly Route[] = [
   // A collection's public form (UC-SVC-13): opened by anybody holding its link, signed in or not,
   // and never in the frame - the visitor is nobody this workspace knows.
   { name: 'public-form', pattern: '/form' },
+  // A portfolio's roadmap opened by its public link (UC-GOL-03 check 15), the same way: read as
+  // the link's maker, never as this tab's reader.
+  { name: 'public-roadmap', pattern: '/shared-roadmap' },
   // The satisfaction question of a resolution mail (UC-SVC-07 check 6), the same way: whoever
   // holds the link answers it, signed in or not.
   { name: 'rate', pattern: '/rate' },

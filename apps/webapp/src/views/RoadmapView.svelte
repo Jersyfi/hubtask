@@ -21,6 +21,7 @@
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import RoadmapLinkPanel from '../lib/goals/RoadmapLinkPanel.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -171,6 +172,8 @@
         {/each}
       </Table>
     </section>
+
+    <RoadmapLinkPanel {portfolioId} />
   {/if}
 </div>
 
