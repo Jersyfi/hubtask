@@ -389,10 +389,71 @@ func optionalID(in usecase.Input, field string) (shared.ID, error) {
 	return in.ID(field)
 }
 
-// ModuleGate refuses an operation whose module is off at the caller's workspace (UC-INS-21
-// check 5): one place, on the registry every door comes through - REST, MCP, `hubctl` and a rule's
-// action - with one message code, the way the plan's EntitlementGate refuses a feature.
-type ModuleGate struct{ Modules Modules }
+// ModuleGate refuses an operation whose module is off where it acts (UC-INS-21 checks 3 and 5):
+// one place, on the registry every door comes through - REST, MCP, `hubctl` and a rule's action -
+// with one message code, the way the plan's EntitlementGate refuses a feature.
+//
+// Where it acts is the hub the operation's input names, directly or through a collection or an
+// entry in it (placeFields); an operation that names none is judged at the workspace. A place
+// that cannot be found is judged at the workspace too, and the handler answers for it - the gate
+// is no second way to learn whether something exists.
+type ModuleGate struct {
+	Modules Modules
+	// Items finds the collection an entry is in. Nil judges an operation that names only an entry
+	// at the workspace.
+	Items GateItems
+}
+
+// GateItems is the one read of the item store the gate needs.
+type GateItems interface {
+	Find(ctx context.Context, id shared.ID) (work.WorkItem, error)
+}
+
+// placeFields are the input fields that locate an operation's place, in the order they are read:
+// a hub, a container (a collection, or a plan that is a hub or a collection), an entry.
+var placeFields = []struct {
+	name string
+	kind string
+}{
+	{"hub_id", "container"}, {"collection_id", "container"}, {"container_id", "container"},
+	{"plan_id", "container"}, {"item_id", "item"}, {"entry_id", "item"},
+}
+
+// hubOf answers the hub an operation's input locates, or empty for the workspace.
+func (g ModuleGate) hubOf(ctx context.Context, descriptor usecase.Descriptor, in usecase.Input) shared.ID {
+	declared := map[string]bool{}
+	for _, field := range descriptor.Input {
+		declared[field.Name] = true
+	}
+	for _, field := range placeFields {
+		if !declared[field.name] || in.String(field.name) == "" {
+			continue
+		}
+		id, err := in.ID(field.name)
+		if err != nil {
+			return ""
+		}
+		if field.kind == "item" {
+			if g.Items == nil {
+				return ""
+			}
+			item, err := g.Items.Find(ctx, id)
+			if err != nil {
+				return ""
+			}
+			id = item.CollectionID
+		}
+		container, err := g.Modules.Containers.Find(ctx, id)
+		if err != nil {
+			return ""
+		}
+		if container.Type == work.ContainerHub {
+			return container.ID
+		}
+		return container.ParentID
+	}
+	return ""
+}
 
 // Wrap puts the gate inside the composition root's middleware.
 func (g ModuleGate) Wrap(observe usecase.Middleware) usecase.Middleware {
@@ -403,7 +464,14 @@ func (g ModuleGate) Wrap(observe usecase.Middleware) usecase.Middleware {
 			handler = usecase.HandlerFunc(func(
 				ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 			) (usecase.Output, error) {
-				on, err := g.Modules.On(ctx, actor, "")
+				var hubID shared.ID
+				if g.Modules.Containers != nil && g.Modules.UnitOfWork != nil && !actor.TenantID.IsZero() {
+					_ = g.Modules.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+						hubID = g.hubOf(ctx, descriptor, in)
+						return nil
+					})
+				}
+				on, err := g.Modules.On(ctx, actor, hubID)
 				if err != nil && !errors.Is(err, shared.ErrNotFound) {
 					return nil, err
 				}

@@ -304,3 +304,61 @@ func TestSwitchingTheGoalsResynchronisesTheWorkspace(t *testing.T) {
 		}
 	}
 }
+
+type gateItems map[shared.ID]shared.ID
+
+func (g gateItems) Find(_ context.Context, id shared.ID) (work.WorkItem, error) {
+	if collection, ok := g[id]; ok {
+		return work.WorkItem{ID: id, CollectionID: collection}, nil
+	}
+	return work.WorkItem{}, shared.ErrNotFound
+}
+
+// UC-INS-21 check 3 at the gate: planning on for the workspace and narrowed off for one hub is
+// refused for an operation that names that hub, a collection in it or an entry there - the same
+// refusal every door meets - and accepted for one judged at the workspace.
+func TestTheGateRefusesAModuleAHubNarrowedOff(t *testing.T) {
+	ctx := context.Background()
+	modules, _, _ := fixture()
+	set := settingservice.SetModule{Modules: modules}
+	for _, cmd := range []settingservice.SetModuleCommand{
+		{Module: module.Planning, Switch: settingservice.SwitchOn},
+		{Module: module.Planning, Switch: settingservice.SwitchOff, HubID: hub},
+	} {
+		if _, err := set.Execute(ctx, actor(), cmd); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entry := shared.MustParseID("018f0000-0000-7000-8000-0000000000e1")
+	descriptor := usecase.Descriptor{
+		Name: "MovePlan", Summary: "test", Module: module.Planning,
+		Input: []usecase.Field{
+			{Name: "collection_id", Kind: usecase.KindID},
+			{Name: "item_id", Kind: usecase.KindID},
+		},
+		Handler: usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+			return usecase.Output{}, nil
+		}),
+	}
+	gate := settingservice.ModuleGate{Modules: modules, Items: gateItems{entry: list}}
+	registry, err := usecase.NewRegistry(gate.Wrap(nil), descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, in := range map[string]usecase.Input{
+		"a collection in the hub": {"collection_id": list.String()},
+		"an entry in the hub":     {"item_id": entry.String()},
+	} {
+		if _, err := registry.Invoke(ctx, "MovePlan", actor(), in); !refusedWith(err, module.OffCode) {
+			t.Errorf("%s: %v, want %s", name, err, module.OffCode)
+		}
+	}
+	if _, err := registry.Invoke(ctx, "MovePlan", actor(), usecase.Input{}); err != nil {
+		t.Errorf("at the workspace, where planning is on: %v", err)
+	}
+	// A place nobody can find is the handler's to answer, not the gate's.
+	unknown := shared.MustParseID("018f0000-0000-7000-8000-0000000000ff")
+	if _, err := registry.Invoke(ctx, "MovePlan", actor(), usecase.Input{"item_id": unknown.String()}); err != nil {
+		t.Errorf("an unknown entry: %v, want the workspace's answer", err)
+	}
+}

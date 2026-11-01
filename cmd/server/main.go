@@ -2195,7 +2195,7 @@ func run() error {
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
 		agentservice.Gate{Desk: agentDesk}.Wrap(
-			settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry()))),
+			settingservice.ModuleGate{Modules: modules, Items: items}.Wrap(entitlementGate.Wrap(observer.Registry()))),
 		agentservice.RegisterAgentModel{Desk: agentDesk}.Descriptor(),
 		agentservice.ListAgentModels{Desk: agentDesk}.Descriptor(),
 		agentservice.ChangeAgentModel{Desk: agentDesk}.Descriptor(),

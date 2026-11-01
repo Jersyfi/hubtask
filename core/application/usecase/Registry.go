@@ -114,8 +114,9 @@ type Descriptor struct {
 	// every read and every act that stops or removes.
 	Entitlement entitlement.Feature
 	// Module is the module of the suite this operation belongs to (UC-INS-21). The registry's
-	// middleware refuses it with `module.off` where the module is off at the caller's workspace,
-	// through every door alike. Empty for every operation of the base product.
+	// middleware refuses it with `module.off` where the module is off at the hub the input names
+	// (a hub, a collection or an entry in it) or, naming none, at the workspace, through every
+	// door alike. Empty for every operation of the base product.
 	Module module.Key
 	// Permission is the catalogue's permission the use case asks for at the place it acts on
 	// (F-7): what *who may do what* and *view as* read (A6, A11). The handler still asks it, at
