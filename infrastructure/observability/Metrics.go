@@ -51,6 +51,8 @@ type Metrics struct {
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
 	jobsPurged        metric.Int64Counter
+	mailboxesHeld     metric.Int64Gauge
+	mailboxHolds      metric.Int64Counter
 	auditHeld         metric.Int64Gauge
 	auditDefaultAged  metric.Int64Gauge
 	jobQueueDepth     metric.Int64Gauge
@@ -355,6 +357,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Reported by the scheduler leader only."),
 	); err != nil {
 		return fmt.Errorf("purged job counter: %w", err)
+	}
+	if m.mailboxesHeld, err = meter.Int64Gauge(
+		namespace+"_mailbox_watches_held",
+		metric.WithDescription("Connected IMAP mailboxes this process holds open to hear of new mail at once. "+
+			"Zero on every process but the one holding the watch's lock."),
+	); err != nil {
+		return fmt.Errorf("held mailboxes gauge: %w", err)
+	}
+	if m.mailboxHolds, err = meter.Int64Counter(
+		namespace+"_mailbox_watch_holds_total",
+		metric.WithDescription("Holds of a connected mailbox by how they ended: arrived, quiet, gone, unsupported or failed. "+
+			"A failed hold leaves the mailbox to its read every minute."),
+	); err != nil {
+		return fmt.Errorf("mailbox hold counter: %w", err)
 	}
 	if m.auditHeld, err = meter.Int64Gauge(
 		namespace+"_audit_partitions_held",
@@ -1065,6 +1081,16 @@ func (m *Metrics) JobFailed(ctx context.Context, kind, attemptClass string) {
 // for RetentionDeleted's reason.
 func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
 	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
+}
+
+// MailboxWatchesHeld is how many mailboxes this process holds open now.
+func (m *Metrics) MailboxWatchesHeld(ctx context.Context, held int64) {
+	m.mailboxesHeld.Record(ctx, held)
+}
+
+// MailboxWatchEnded counts one hold of a mailbox by what it came to, a closed set of five.
+func (m *Metrics) MailboxWatchEnded(ctx context.Context, outcome string) {
+	m.mailboxHolds.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
 }
 
 // AuditPartitionsHeld is how many of the trail's aged months a hold keeps.

@@ -26,6 +26,10 @@ type LockKey int64
 // they are the leader, which is the one state this mechanism exists to rule out.
 const SchedulerLock LockKey = 8_010_001
 
+// MailboxWatchLock is the lock one worker holds while it keeps the IMAP mailboxes open (IDLE), so
+// no mailbox is signed in twice for it.
+const MailboxWatchLock LockKey = 8_010_002
+
 // Leader is leadership as a PostgreSQL advisory lock held on one connection.
 //
 // # Why this holds a connection, and why that is not a hole in rule 3

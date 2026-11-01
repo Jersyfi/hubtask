@@ -5160,6 +5160,19 @@ func run() error {
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 
+		// The connected IMAP mailboxes held open (IDLE) by one worker of the installation, so mail
+		// reaches the desk in seconds; the minute's read above stays whatever happens here. Its lock
+		// holds one connection of the background pool on that worker.
+		mailboxWatch := worker.MailboxWatch{
+			Holds: mailservice.WatchMailbox{
+				Boxes: mailBoxes, Watcher: mailboxadapter.IMAP{Guard: outboundGuard}, Keys: jobs,
+			},
+			Leadership:   postgres.NewLeader(backgroundPool, postgres.MailboxWatchLock),
+			Signals:      metrics,
+			SchemaBehind: schemaBehind,
+		}
+		background = append(background, start(ctx, "worker.mailbox_watch", mailboxWatch.Run))
+
 		// Seeded by every worker that starts; the dedupe key keeps it one job. A failure costs a
 		// pass, not the start: the next worker to start seeds it again.
 		seeding, cancelSeeding := context.WithTimeout(ctx, 10*time.Second)
