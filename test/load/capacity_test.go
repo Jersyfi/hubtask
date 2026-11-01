@@ -227,7 +227,7 @@ func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
 		t.Errorf("walking %s: %v", as.id, err)
 		return nil
 	}
-	raw, err := os.ReadFile(out) //nolint:gosec // the walk's own file in the test's directory
+	raw, err := os.ReadFile(out)
 	if err != nil {
 		t.Errorf("reading the walk of %s: %v", as.id, err)
 		return nil
