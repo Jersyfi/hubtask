@@ -373,9 +373,10 @@ found and fixed a seed that grew with the square of a collection's entries (migr
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ ran
 on the owner's workstation on 2026-11-01** ([evidence](../evidence/capacity-10000000-2026-11-01.md)):
 no server error. It found a generic plan behind a collection's page and a figure deadline that
-kept nothing, both fixed and measured again by R2 at 8 ms P95; the board and the count over the hub
-still read every entry they cover and miss the 200 ms read target in the 1.2-million-entry
-workspace (430 and 974 ms P95).
+kept nothing, both fixed and measured again by R2 at 8 ms P95. The board by completion and the
+count over the hub read every entry they covered (430 and 974 ms P95 in the 1.2-million-entry
+workspace); a board grouped by a field whose type names its values is now read per column and
+the count from `wi_completion_idx` alone (migration 0318), measured again at 10 and 128 ms P95.
 
 ### 13.3 Partitioning of the entries
 
