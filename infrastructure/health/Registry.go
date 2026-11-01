@@ -54,6 +54,7 @@ type Registry struct {
 	// it older than backlogsEvery starts the next in the background.
 	backlogRead     BacklogReader
 	backlogs        port.Backlogs
+	scanningOff     bool
 	backlogsRunning bool
 }
 
@@ -148,6 +149,10 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 		rep.Warnings = append(rep.Warnings, port.Warning{Code: DeadLettersCode, Severity: "warn",
 			Params: map[string]string{"count": strconv.FormatInt(rep.Backlogs.DeadLetterTotal, 10)}})
 	}
+	r.mu.RLock()
+	scanningOff := r.scanningOff
+	r.mu.RUnlock()
+	rep.Warnings = append(rep.Warnings, heldUploads(rep.Backlogs, scanningOff)...)
 
 	for _, source := range sources {
 		rep.Warnings = append(rep.Warnings, source(ctx)...)

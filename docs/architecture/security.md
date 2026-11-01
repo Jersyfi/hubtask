@@ -167,7 +167,11 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   is a duty (`queue.Perpetual`): a pass failing for a storage or database error is its next round,
   and a dead letter is revived hourly, counted as held until a later pass succeeds. A scanner
   that is down never stops an upload and never lets an unscanned file out; files held for an hour
-  raise A-23 (`hubtask_media_scan_held_workspaces`). Without a daemon nothing is scanned. A file
+  raise A-23 (`hubtask_media_scan_held_workspaces`), and `/meta/health` warns
+  `media.uploads_held` (workspaces, the oldest hold's age) for an installation without Prometheus;
+  with no daemon named any more, the warning is `media.uploads_held_without_scanner`, critical,
+  and said at start. Whether held files may ever be released unscanned is not decided: until it is,
+  they stay held. Without a daemon nothing is scanned. A file
   the daemon refuses for its size is not "cannot answer": a confirmation refuses it with
   `media.too_large_to_scan`, and a held one is settled `UNSCANNABLE` (never downloaded) so the
   pass goes on to the next. A daemon that answers an error for one file holds that file and the

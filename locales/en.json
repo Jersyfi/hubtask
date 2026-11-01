@@ -211,6 +211,8 @@
   "disk.low": "The {volume} volume has {free_percent} % free ({free_mb} MB). When the disk this installation writes fills up, the database stops accepting changes. Free space or enlarge the disk.",
   "database.isolation_bypassed": "The database role this installation connects as is not held by tenant isolation ({cause}): every workspace's data is open to every query. Connect as hubtask_app, which owns no table and has no BYPASSRLS; a leftover backfill policy is removed by running the migrator again.",
   "queue.dead_letters": "{count} background jobs used up their attempts and wait for an operator. Look at them under Failed jobs, and run them again once the cause is fixed.",
+  "media.uploads_held": "Uploads in {workspaces} workspaces are held for a virus scan the scanner has not answered, the oldest for {oldest_minutes} minutes. They can be attached but not downloaded until it does. Check that the scanner is running.",
+  "media.uploads_held_without_scanner": "Uploads in {workspaces} workspaces are held for a virus scan and this installation names no scanner, the oldest for {oldest_minutes} minutes. They can be attached and never downloaded until a scanner is named again.",
   "config.backup_not_configured": "No schedule writes to a backup target, so nothing is being backed up.",
   "config.backup_coverage_unchecked": "The backup targets could not be counted, so whether this installation is backed up was not checked.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",

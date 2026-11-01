@@ -66,3 +66,48 @@ func TestAFailedCountKeepsTheLastOne(t *testing.T) {
 		}
 	}
 }
+
+// Held uploads are said on the report, so an installation without Prometheus learns of them from
+// the overview rather than from its users (A-23's notice); with scanning switched off they are
+// said as critical, since nothing will ever release them.
+func TestHeldUploadsAppearInTheReport(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		off      bool
+		code     string
+		severity string
+	}{
+		{"a scanner that cannot answer", false, UploadsHeldCode, "warn"},
+		{"scanning switched off", true, UploadsHeldUnscannedCode, "critical"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			registry := startedRegistry()
+			if tc.off {
+				registry.ScanningSwitchedOff()
+			}
+			registry.SetBacklogs(func(context.Context) (port.Backlogs, error) {
+				return port.Backlogs{HeldUploadWorkspaces: 2, HeldUploadOldestSeconds: 7260}, nil
+			})
+			registry.SampleBacklogs(context.Background())
+
+			var warned *port.Warning
+			for i, w := range registry.Report(context.Background()).Warnings {
+				if w.Code == UploadsHeldCode || w.Code == UploadsHeldUnscannedCode {
+					warned = &registry.Report(context.Background()).Warnings[i]
+				}
+			}
+			if warned == nil || warned.Code != tc.code || warned.Severity != tc.severity ||
+				warned.Params["workspaces"] != "2" || warned.Params["oldest_minutes"] != "121" {
+				t.Errorf("warning = %+v, want %s at %s for 2 workspaces, oldest 121 minutes", warned, tc.code, tc.severity)
+			}
+		})
+	}
+	registry := startedRegistry()
+	registry.SetBacklogs(func(context.Context) (port.Backlogs, error) { return port.Backlogs{}, nil })
+	registry.SampleBacklogs(context.Background())
+	for _, w := range registry.Report(context.Background()).Warnings {
+		if w.Code == UploadsHeldCode {
+			t.Errorf("nothing held, and the report warns %+v", w)
+		}
+	}
+}

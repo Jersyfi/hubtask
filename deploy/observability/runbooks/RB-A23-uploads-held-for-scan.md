@@ -37,7 +37,13 @@ kubectl logs deploy/hubtask | grep 'the upload scanner did not answer'
   capped to `HUBTASK_CLAMD_STREAM_MAX_BYTES` (default 25 MiB), which must match the daemon's
   `StreamMaxLength`.
 * **`HUBTASK_CLAMD_ADDRESS` was emptied with files held** → they stay held, never served unscanned.
-  Configure the scanner again; there is no switch that releases them unscanned.
+  The server says so at start (`media.uploads_held_without_scanner` in its log) and on
+  `/meta/health` as a critical warning. Configure the scanner again; there is no switch that
+  releases them unscanned.
+
+Without Prometheus (the Compose stack), the same is on `/meta/health` and the instance overview:
+`media.uploads_held` (a warning, with the workspaces and the oldest hold's age) while a named
+scanner has not answered.
 
 ## Diagnostic queries
 

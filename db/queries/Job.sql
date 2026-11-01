@@ -216,6 +216,20 @@ WHERE duty.kind = sqlc.arg('kind')
       WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
         AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)));
 
+-- The same keys for media.scan as UnsettledDutyCount, with how long the oldest has waited: the
+-- health report's notice of held uploads. A repeated pass keeps its row, so created_at is when the
+-- workspace's hold began.
+-- name: HeldUploadDuties :one
+SELECT count(DISTINCT dedupe_key)::bigint AS workspaces,
+       COALESCE(EXTRACT(EPOCH FROM (sqlc.arg('now')::timestamptz - min(created_at))), 0)::float8 AS oldest_seconds
+FROM job AS duty
+WHERE duty.kind = 'media.scan'
+  AND (duty.state IN ('PENDING', 'RUNNING')
+    OR (duty.state = 'DEAD_LETTER' AND NOT EXISTS (
+      SELECT 1 FROM job AS later
+      WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
+        AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)));
+
 -- The workspace and key of each open job of one kind, oldest first: for a kind with one job per
 -- thing while it lives (mail.mailbox_poll, keyed by the mailbox), the things that live now. No
 -- payload: the caller loads each under its own workspace.

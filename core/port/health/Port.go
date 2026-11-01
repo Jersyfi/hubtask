@@ -87,6 +87,10 @@ type Backlogs struct {
 	JobQueueDepth       int64
 	DeadLetterTotal     int64
 	WebhookRetryBacklog int64
+	// HeldUploadWorkspaces counts the workspaces whose uploads are held for a scan, and
+	// HeldUploadOldestSeconds how long the oldest of them has been - a warning, not a figure.
+	HeldUploadWorkspaces    int64
+	HeldUploadOldestSeconds float64
 }
 
 type Warning struct {

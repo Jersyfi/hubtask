@@ -6,6 +6,7 @@ package health
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	port "github.com/Jersyfi/hubtask/core/port/health"
@@ -16,6 +17,11 @@ const (
 	// DeadLettersCode is the report's warning while jobs wait in the dead letter for an operator:
 	// the notice an installation without Prometheus has instead of alert A-07.
 	DeadLettersCode = "queue.dead_letters"
+	// UploadsHeldCode is the report's warning while uploads wait for a scanner that cannot answer:
+	// the notice an installation without Prometheus has instead of alert A-23.
+	UploadsHeldCode = "media.uploads_held"
+	// UploadsHeldUnscannedCode is the same with scanning switched off: nothing will release them.
+	UploadsHeldUnscannedCode = "media.uploads_held_without_scanner"
 
 	// backlogsEvery is how old a count may be before a report starts the next one.
 	backlogsEvery = time.Minute
@@ -26,6 +32,29 @@ const (
 // BacklogReader counts the installation's queues: what is due, dead-lettered, waiting to be
 // dispatched and parked for a retry. SampledAt is left to the registry.
 type BacklogReader func(ctx context.Context) (port.Backlogs, error)
+
+// ScanningSwitchedOff tells the report that this installation names no upload scanner, so that
+// files still held are said as stuck rather than as waiting.
+func (r *Registry) ScanningSwitchedOff() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.scanningOff = true
+}
+
+// heldUploads is the warning for uploads held for a scan, if any are.
+func heldUploads(counted port.Backlogs, scanningOff bool) []port.Warning {
+	if counted.HeldUploadWorkspaces <= 0 {
+		return nil
+	}
+	code, severity := UploadsHeldCode, "warn"
+	if scanningOff {
+		code, severity = UploadsHeldUnscannedCode, "critical"
+	}
+	return []port.Warning{{Code: code, Severity: severity, Params: map[string]string{
+		"workspaces":     strconv.FormatInt(counted.HeldUploadWorkspaces, 10),
+		"oldest_minutes": strconv.FormatInt(int64(counted.HeldUploadOldestSeconds/60), 10),
+	}}}
+}
 
 // SetBacklogs has the report serve the queues as last counted. Without it, no figures are served.
 func (r *Registry) SetBacklogs(read BacklogReader) {

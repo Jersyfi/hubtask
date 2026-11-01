@@ -398,7 +398,14 @@ func run() error {
 	registry.SetCompatibilityFloor(schemaLedger.Floor)
 	// The deep report's backlogs, counted in the background and served from the last count; an
 	// installation without Prometheus reads its dead letters and outbox lag there.
-	registry.SetBacklogs(postgres.Backlogs{UnitOfWork: unitOfWork, Clock: clockadapter.System{}}.Read)
+	backlogs := postgres.Backlogs{UnitOfWork: unitOfWork, Clock: clockadapter.System{}}.Read
+	registry.SetBacklogs(backlogs)
+	if mediaScanner == nil {
+		// Files held while a scanner was named stay held with none: say so at start, and on the
+		// report as critical, rather than leave the operator to hear it from the people.
+		registry.ScanningSwitchedOff()
+		warnUploadsHeldWithoutScanner(ctx, backlogs)
+	}
 	// The worker and the scheduler ask the same comparison before they claim or lead.
 	schemaBehind := func(ctx context.Context) bool {
 		state, known := registry.Migration(ctx)
@@ -6356,6 +6363,21 @@ func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFi
 		"mode", string(applying.mode), "created", outcome.Created, "rotated", outcome.Rotated,
 		"kept", outcome.Kept, "removed", outcome.Removed)
 	return nil
+}
+
+// warnUploadsHeldWithoutScanner logs the uploads held for a scan on an installation that names no
+// scanner: they can be attached and never downloaded until a scanner is named again (RB-A23).
+func warnUploadsHeldWithoutScanner(ctx context.Context, read healthadapter.BacklogReader) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	counted, err := read(ctx)
+	if err != nil || counted.HeldUploadWorkspaces == 0 {
+		return
+	}
+	slog.WarnContext(ctx, "uploads are held for a scan and no scanner is named; they stay undownloadable until one is",
+		slog.String("error_code", healthadapter.UploadsHeldUnscannedCode),
+		slog.Int64("workspaces", counted.HeldUploadWorkspaces),
+		slog.Int64("oldest_minutes", int64(counted.HeldUploadOldestSeconds/60)))
 }
 
 // uploadScanner builds the scanner the instance file's `upload_scanner` names, the environment

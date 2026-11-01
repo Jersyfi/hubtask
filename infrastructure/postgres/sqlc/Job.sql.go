@@ -548,6 +548,33 @@ func (q *Queries) FindJobByDedupeKey(ctx context.Context, arg FindJobByDedupeKey
 	return id, err
 }
 
+const heldUploadDuties = `-- name: HeldUploadDuties :one
+SELECT count(DISTINCT dedupe_key)::bigint AS workspaces,
+       COALESCE(EXTRACT(EPOCH FROM ($1::timestamptz - min(created_at))), 0)::float8 AS oldest_seconds
+FROM job AS duty
+WHERE duty.kind = 'media.scan'
+  AND (duty.state IN ('PENDING', 'RUNNING')
+    OR (duty.state = 'DEAD_LETTER' AND NOT EXISTS (
+      SELECT 1 FROM job AS later
+      WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
+        AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)))
+`
+
+type HeldUploadDutiesRow struct {
+	Workspaces    int64
+	OldestSeconds float64
+}
+
+// The same keys for media.scan as UnsettledDutyCount, with how long the oldest has waited: the
+// health report's notice of held uploads. A repeated pass keeps its row, so created_at is when the
+// workspace's hold began.
+func (q *Queries) HeldUploadDuties(ctx context.Context, now pgtype.Timestamptz) (HeldUploadDutiesRow, error) {
+	row := q.db.QueryRow(ctx, heldUploadDuties, now)
+	var i HeldUploadDutiesRow
+	err := row.Scan(&i.Workspaces, &i.OldestSeconds)
+	return i, err
+}
+
 const holdJob = `-- name: HoldJob :one
 SELECT id FROM job
 WHERE id = $1 AND state = 'RUNNING' AND locked_until = $2

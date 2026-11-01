@@ -287,6 +287,13 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, finished_at, last_error)
 			 VALUES ('01936f2a-7c1e-7000-8000-000000145681', '` + tenantA + `', 'backup.run', 'DEAD_LETTER',
 			 3, 3, now(), 'queue.lease_expired_exhausted')`,
+			// Held uploads: one workspace's pass waiting two hours, another's dead-lettered.
+			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, dedupe_key, created_at)
+			 VALUES ('01936f2a-7c1e-7000-8000-000000145682', '` + tenantA + `', 'media.scan', 'PENDING',
+			 0, 8, 'media.scan:` + tenantA + `', now() - interval '2 hours')`,
+			`INSERT INTO job (id, tenant_id, kind, state, attempts, max_attempts, dedupe_key, finished_at, last_error)
+			 VALUES ('01936f2a-7c1e-7000-8000-000000145683', '` + tenantB + `', 'media.scan', 'DEAD_LETTER',
+			 8, 8, 'media.scan:` + tenantB + `', now(), 'postgres.query_failed')`,
 		} {
 			if _, err := super.Exec(ctx, statement); err != nil {
 				t.Fatalf("seeding: %v", err)
@@ -302,8 +309,12 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 			t.Errorf("outbox pending %d, lag %.1fs; want 2 across both workspaces, about 30s",
 				got.OutboxPending, got.OutboxLagSeconds)
 		}
-		if got.DeadLetterTotal != 1 {
-			t.Errorf("dead letters = %d, want the one", got.DeadLetterTotal)
+		if got.DeadLetterTotal != 2 {
+			t.Errorf("dead letters = %d, want the two", got.DeadLetterTotal)
+		}
+		if got.HeldUploadWorkspaces != 2 || got.HeldUploadOldestSeconds < 7100 {
+			t.Errorf("held uploads in %d workspaces, oldest %.0fs; want 2, about 7200s",
+				got.HeldUploadWorkspaces, got.HeldUploadOldestSeconds)
 		}
 		var direct int
 		one(t, `SELECT count(*) FROM outbox_event`, &direct)

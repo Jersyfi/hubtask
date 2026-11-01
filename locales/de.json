@@ -2027,6 +2027,8 @@
   "disk.low": "Das Volume {volume} hat {free_percent} % frei ({free_mb} MB). Wenn die Platte voll ist, auf die diese Installation schreibt, nimmt die Datenbank keine Änderungen mehr an. Schaffe Platz oder vergrößere die Platte.",
   "database.isolation_bypassed": "Die Datenbankrolle, mit der diese Installation verbindet, unterliegt nicht der Mandantentrennung ({cause}): Die Daten jedes Arbeitsbereichs stehen jeder Abfrage offen. Verbinde als hubtask_app, die keine Tabelle besitzt und kein BYPASSRLS hat; eine zurückgebliebene Backfill-Policy entfernt ein erneuter Lauf des Migrators.",
   "queue.dead_letters": "{count} Hintergrund-Jobs haben alle Versuche aufgebraucht und warten auf einen Betreiber. Sieh sie unter Fehlgeschlagene Jobs an und starte sie erneut, sobald die Ursache behoben ist.",
+  "media.uploads_held": "Uploads in {workspaces} Arbeitsbereichen warten auf einen Virenscan, den der Scanner nicht beantwortet hat, der älteste seit {oldest_minutes} Minuten. Sie lassen sich anhängen, aber erst herunterladen, wenn er antwortet. Prüfe, ob der Scanner läuft.",
+  "media.uploads_held_without_scanner": "Uploads in {workspaces} Arbeitsbereichen warten auf einen Virenscan, und diese Installation nennt keinen Scanner, der älteste seit {oldest_minutes} Minuten. Sie lassen sich anhängen und erst wieder herunterladen, wenn wieder ein Scanner genannt ist.",
   "config.backup_not_configured": "Kein Zeitplan schreibt in ein Sicherungsziel, darum wird nichts gesichert.",
   "config.backup_coverage_unchecked": "Die Sicherungsziele ließen sich nicht zählen, daher wurde nicht geprüft, ob diese Installation gesichert wird.",
   "config.smtp_missing": "Es ist kein SMTP-Server eingerichtet. Benachrichtigungen per E-Mail sind nicht verfügbar.",

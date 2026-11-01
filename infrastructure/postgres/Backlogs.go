@@ -52,6 +52,11 @@ func (b Backlogs) Read(ctx context.Context) (health.Backlogs, error) {
 			return backlogFailed("the outbox", err)
 		}
 		out.OutboxPending, out.OutboxLagSeconds = outbox.Pending, outbox.OldestSeconds
+		held, err := queries.HeldUploadDuties(ctx, now)
+		if err != nil {
+			return backlogFailed("the held uploads", err)
+		}
+		out.HeldUploadWorkspaces, out.HeldUploadOldestSeconds = held.Workspaces, held.OldestSeconds
 		return nil
 	})
 	return out, err
