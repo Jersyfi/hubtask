@@ -50,7 +50,7 @@ func (d *WorkspaceArchiveDoor) DownloadWorkspaceArchive(
 	if r.ContentLength != 0 {
 		var body openapi.WorkspaceArchiveDownload
 		err := decodeFrom(http.MaxBytesReader(w, r.Body, 8<<10), &body)
-		if err != nil && !(shared.AsError(err) != nil && shared.AsError(err).DetailCode == "request.body_missing") {
+		if typed := shared.AsError(err); err != nil && (typed == nil || typed.DetailCode != "request.body_missing") {
 			WriteProblem(w, err, requestID)
 			return
 		}
