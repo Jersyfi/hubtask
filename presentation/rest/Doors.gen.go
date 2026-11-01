@@ -338,6 +338,7 @@ var restDoors = map[string]restDoor{
 	"listConfigTemplates":               {UseCase: "ListConfigTemplates", Status: 200, Query: []string{"collection_id", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listConfigVersions":                {UseCase: "ListConfigVersions", Status: 200, Query: []string{"before", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"before"}},
 	"listConsents":                      {UseCase: "ListConsents", Status: 200, Query: []string{"purpose"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listContainerModules":              {UseCase: "ListContainerModules", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listContainers":                    {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listCostRates":                     {UseCase: "ListCostRates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2982,6 +2983,12 @@ func (c *RestController) ListConfigVersions(w http.ResponseWriter, r *http.Reque
 // ListConsents answers GET /privacy/consents by the generated mapping.
 func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, params openapi.ListConsentsParams) {
 	c.door(w, r, restDoors["listConsents"], usecase.Input{}, params, nil, answerBy(consentRegisterResponse))
+}
+
+// ListContainerModules answers GET /containers/{containerId}/modules by the generated mapping.
+func (c *RestController) ListContainerModules(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var answer openapi.ModulesOn
+	c.door(w, r, restDoors["listContainerModules"], usecase.Input{"container_id": containerId.String()}, nil, nil, &answer)
 }
 
 // ListContainers answers GET /containers by the generated mapping.

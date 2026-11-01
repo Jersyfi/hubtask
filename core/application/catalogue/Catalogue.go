@@ -69,6 +69,7 @@ import (
 func Descriptors() []usecase.Descriptor {
 	return []usecase.Descriptor{
 		settingservice.ListModules{}.Descriptor(),
+		settingservice.ListContainerModules{}.Descriptor(),
 		settingservice.SetModule{}.Descriptor(),
 		settingservice.PreviewModuleReach{}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),

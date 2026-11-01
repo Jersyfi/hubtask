@@ -27288,6 +27288,38 @@
         }
       }
     },
+    "/containers/{containerId}/modules": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "listContainerModules",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "module here",
+        "summary": "The modules on where a hub or a collection is",
+        "description": "The modules on at the hub - for a collection, at the hub it is in - in the order of `Module`: what a hub's or a collection's screens, menus, fields and words are drawn for. A hub narrows the workspace, so this may list fewer than the capabilities' `modules_on`, never more. Needs READ on the hub or collection; a place the caller may not read is not found.\n",
+        "responses": {
+          "200": {
+            "description": "The modules on there",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModulesOn"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}/desk-logo": {
       "parameters": [
         {
@@ -50644,6 +50676,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ModuleState"
+            }
+          }
+        }
+      },
+      "ModulesOn": {
+        "type": "object",
+        "required": [
+          "modules_on"
+        ],
+        "properties": {
+          "modules_on": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Module"
             }
           }
         }

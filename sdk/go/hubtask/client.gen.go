@@ -18872,6 +18872,11 @@ type ModuleSwitch struct {
 // ModuleSwitchSwitch defines model for ModuleSwitch.Switch.
 type ModuleSwitchSwitch string
 
+// ModulesOn defines model for ModulesOn.
+type ModulesOn struct {
+	ModulesOn []Module `json:"modules_on"`
+}
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -34095,6 +34100,13 @@ type ClientInterface interface {
 	//
 	// Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
 	RestoreLabel(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListContainerModules The modules on where a hub or a collection is
+	//
+	// The modules on at the hub - for a collection, at the hub it is in - in the order of `Module`: what a hub's or a collection's screens, menus, fields and words are drawn for. A hub narrows the workspace, so this may list fewer than the capabilities' `modules_on`, never more. Needs READ on the hub or collection; a place the caller may not read is not found.
+	//
+	// Corresponds with GET /containers/{containerId}/modules (the `ListContainerModules` operationId).
+	ListContainerModules(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateContainerPoliciesWithBody performs a PUT /containers/{containerId}/policies (the `UpdateContainerPolicies` operationId) request,
 	// with any type of body and a specified content type.
@@ -49329,6 +49341,23 @@ func (c *Client) UpdateLabelWithApplicationMergePatchPlusJSONBody(ctx context.Co
 // Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
 func (c *Client) RestoreLabel(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestoreLabelRequest(c.Server, containerId, labelId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListContainerModules The modules on where a hub or a collection is
+//
+// The modules on at the hub - for a collection, at the hub it is in - in the order of `Module`: what a hub's or a collection's screens, menus, fields and words are drawn for. A hub narrows the workspace, so this may list fewer than the capabilities' `modules_on`, never more. Needs READ on the hub or collection; a place the caller may not read is not found.
+//
+// Corresponds with GET /containers/{containerId}/modules (the `ListContainerModules` operationId).
+func (c *Client) ListContainerModules(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListContainerModulesRequest(c.Server, containerId)
 	if err != nil {
 		return nil, err
 	}
@@ -77118,6 +77147,40 @@ func NewRestoreLabelRequest(server string, containerId ContainerId, labelId Labe
 			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewListContainerModulesRequest constructs an http.Request for the ListContainerModules method
+func NewListContainerModulesRequest(server string, containerId ContainerId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/modules", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -106816,6 +106879,15 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	RestoreLabelWithResponse(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*RestoreLabelResult, error)
 
+	// ListContainerModulesWithResponse The modules on where a hub or a collection is
+	//
+	// The modules on at the hub - for a collection, at the hub it is in - in the order of `Module`: what a hub's or a collection's screens, menus, fields and words are drawn for. A hub narrows the workspace, so this may list fewer than the capabilities' `modules_on`, never more. Needs READ on the hub or collection; a place the caller may not read is not found.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /containers/{containerId}/modules (the `ListContainerModules` operationId).
+	ListContainerModulesWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*ListContainerModulesResult, error)
+
 	// UpdateContainerPoliciesWithBodyWithResponse performs a PUT /containers/{containerId}/policies (the `UpdateContainerPolicies` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -128346,6 +128418,54 @@ func (r RestoreLabelResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RestoreLabelResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListContainerModulesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ModulesOn
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListContainerModulesResult) GetJSON200() *ModulesOn {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListContainerModulesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListContainerModulesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListContainerModulesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListContainerModulesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListContainerModulesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -161047,6 +161167,21 @@ func (c *ClientWithResponses) RestoreLabelWithResponse(ctx context.Context, cont
 	return ParseRestoreLabelResult(rsp)
 }
 
+// ListContainerModulesWithResponse The modules on where a hub or a collection is
+//
+// The modules on at the hub - for a collection, at the hub it is in - in the order of `Module`: what a hub's or a collection's screens, menus, fields and words are drawn for. A hub narrows the workspace, so this may list fewer than the capabilities' `modules_on`, never more. Needs READ on the hub or collection; a place the caller may not read is not found.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /containers/{containerId}/modules (the `ListContainerModules` operationId).
+func (c *ClientWithResponses) ListContainerModulesWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*ListContainerModulesResult, error) {
+	rsp, err := c.ListContainerModules(ctx, containerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListContainerModulesResult(rsp)
+}
+
 // UpdateContainerPoliciesWithBodyWithResponse performs a PUT /containers/{containerId}/policies (the `UpdateContainerPolicies` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -182951,6 +183086,39 @@ func ParseRestoreLabelResult(rsp *http.Response) (*RestoreLabelResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListContainerModulesResult parses an HTTP response from a ListContainerModulesWithResponse call
+func ParseListContainerModulesResult(rsp *http.Response) (*ListContainerModulesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListContainerModulesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ModulesOn
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

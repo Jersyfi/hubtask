@@ -3426,6 +3426,11 @@ export class HubtaskClient {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The modules on where a hub or a collection is */
+  listContainerModules(containerId: string, options: CallOptions = {}): Promise<operations["listContainerModules"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/containers/{containerId}/modules", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Show a logo of the service's own on its portal */
   setDeskLogo(containerId: string, body: NonNullable<operations["setDeskLogo"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setDeskLogo"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/containers/{containerId}/desk-logo", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

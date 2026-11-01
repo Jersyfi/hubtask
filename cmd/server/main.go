@@ -2525,6 +2525,7 @@ func run() error {
 		work.ListLinksAmong{Linking: linking}.Descriptor(),
 		work.ResolveReferences{Linking: linking}.Descriptor(),
 		settingservice.ListModules{Modules: modules}.Descriptor(),
+		settingservice.ListContainerModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
 		settingservice.PreviewModuleReach{Modules: modules, People: postgres.NewMembershipRepository()}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),

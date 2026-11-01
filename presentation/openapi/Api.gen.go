@@ -18866,6 +18866,11 @@ type ModuleSwitch struct {
 // ModuleSwitchSwitch defines model for ModuleSwitch.Switch.
 type ModuleSwitchSwitch string
 
+// ModulesOn defines model for ModulesOn.
+type ModulesOn struct {
+	ModulesOn []Module `json:"modules_on"`
+}
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -30681,6 +30686,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}/labels/{labelId}:restore)
 	RestoreLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params RestoreLabelParams)
+	// ListContainerModules The modules on where a hub or a collection is
+	// (GET /containers/{containerId}/modules)
+	ListContainerModules(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
@@ -41503,6 +41511,32 @@ func (siw *ServerInterfaceWrapper) RestoreLabel(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RestoreLabel(w, r, containerId, labelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListContainerModules operation middleware
+func (siw *ServerInterfaceWrapper) ListContainerModules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListContainerModules(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60377,6 +60411,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/modules", wrapper.ListContainerModules)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.RemoveDeskLogo)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.SetDeskLogo)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/structure", wrapper.SetContainerStructure)

@@ -2723,6 +2723,10 @@ class Client:
         """PUT /containers/{containerId}/policies"""
         return self._call("PUT", "/containers/{containerId}/policies", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def list_container_modules(self, container_id: str) -> "ModulesOn":
+        """The modules on where a hub or a collection is"""
+        return self._call("GET", "/containers/{containerId}/modules", {"containerId": container_id}, None, {}, None, "none", None, "json")
+
     def set_desk_logo(self, container_id: str, body: "DeskLogoInput") -> "DeskLogo":
         """Show a logo of the service's own on its portal"""
         return self._call("PUT", "/containers/{containerId}/desk-logo", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")

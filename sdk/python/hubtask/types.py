@@ -2901,6 +2901,9 @@ class ModuleState(TypedDict, total=False):
 class ModuleList(TypedDict, total=False):
     modules: Required[list["ModuleState"]]
 
+class ModulesOn(TypedDict, total=False):
+    modules_on: Required[list["Module"]]
+
 class ModuleSwitch(TypedDict, total=False):
     switch: Required[Literal["ON", "OFF", "INHERIT"]]
     hub_id: str

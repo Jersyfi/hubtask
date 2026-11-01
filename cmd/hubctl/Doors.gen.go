@@ -1712,6 +1712,11 @@ var generatedCommands = []door{
 			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id"}},
+	{Group: "module", Verb: "here", OperationID: "listContainerModules", Method: "GET", Path: "/containers/{containerId}/modules", Summary: "The modules on where a hub or a collection is",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
 	{Group: "module", Verb: "reach", OperationID: "previewModuleReach", Method: "GET", Path: "/tenant/modules/{module}/reach", Summary: "How many people switching a module off would leave without it",
 		PathParams: []doorParam{
 			{Name: "module", Kind: "string", Help: "", Required: true},
