@@ -40,8 +40,16 @@ class Workflows {
     });
   }
 
-  create(key: string, name: string, shape: WorkflowShape): Promise<Workflow> {
-    return engine.mutate<Workflow>('POST', PATH, { key, name, shape }, {
+  /** Adds a workflow - of the whole workspace, or with `hub` of that hub alone (UC-FLW-02 check 9). */
+  create(key: string, name: string, shape: WorkflowShape, hub?: string): Promise<Workflow> {
+    return engine.mutate<Workflow>('POST', PATH, { key, name, shape, ...(hub ? { hub_id: hub } : {}) }, {
+      idempotencyKey: crypto.randomUUID(), invalidates: [PATH, CONFIG_CHECK],
+    });
+  }
+
+  /** Makes a hub's own copy of a shared workflow under a new key (UC-FLW-02 check 9). */
+  copyHere(source: string, hub: string, key: string): Promise<Workflow> {
+    return engine.mutate<Workflow>('POST', `${PATH}/${encodeURIComponent(source)}:copy-here`, { hub_id: hub, key }, {
       idempotencyKey: crypto.randomUUID(), invalidates: [PATH, CONFIG_CHECK],
     });
   }

@@ -8,7 +8,7 @@ import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
   addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
-  removeStatus, standing, stepsFrom, toggleApproval, workflowChoices, workflowFor,
+  removeStatus, shippedCopy, standing, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -95,4 +95,25 @@ test('an approval step keeps what the server accepts of a level (UC-SVC-08 check
   assert.equal(draft.steps[1]?.approval?.levels.length, 5);
   assert.equal(changeApproval(shape, 'finish', { due_hours: 4 }), shape, 'a step without an approval is left alone');
   assert.equal(toggleApproval(draft, 'finish', false).steps[1]?.approval, null);
+});
+
+test('a hub’s settings show the shared workflows apart from its own, never another hub’s (UC-FLW-02 check 9)', () => {
+  const data = [
+    { key: 'default', system: true },
+    { key: 'service', system: false },
+    { key: 'support', system: false, hub_id: 'hub-1', copied_from: 'service' },
+    { key: 'sales', system: false, hub_id: 'hub-2' },
+  ] as unknown as WorkflowList['data'];
+  const atHub = workflowsAtHub(data, 'hub-1');
+  assert.deepEqual(atHub.shared.map((w) => w.key), ['default', 'service']);
+  assert.deepEqual(atHub.own.map((w) => w.key), ['support']);
+  assert.equal(workflowCopyKey(data, 'service'), 'service_copy');
+  assert.equal(workflowCopyKey([...data, { key: 'service_copy' } as never], 'service'), 'service_copy_2');
+});
+
+test('the shipped workflow is copied with the client’s own words for its statuses (rule 8)', () => {
+  const copy = shippedCopy(shape, (code) => `«${code}»`);
+  assert.deepEqual(copy.statuses.map((status) => status.name), ['«workflows.status.todo»', '«workflows.status.in_progress»', '«workflows.status.done»']);
+  assert.deepEqual(copy.steps, shape.steps);
+  assert.equal(shape.statuses[0]?.name, null);
 });

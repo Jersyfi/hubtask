@@ -21,7 +21,7 @@
   import { untrack, type Snippet } from 'svelte';
 
   import { Button, CheckboxGroup, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
-  import type { Container, StructureChange, StructurePreview, StructureSettings } from '@hubtask/sync-engine';
+  import type { Container, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -32,6 +32,7 @@
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
+  import { shippedCopy, workflowCopyKey, workflows, workflowsAtHub } from '../data/workflows.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import NarrowingDialog from './NarrowingDialog.svelte';
   import { reachOf } from '../settings/reach.ts';
@@ -112,7 +113,7 @@
     const id = container.id;
     const hub = isHub;
     return untrack(() => {
-      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [] : [customFields.open(id)])];
+      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [workflows.open()] : [customFields.open(id)])];
       return () => {
         for (const stop of stops) stop();
       };
@@ -269,6 +270,25 @@
     failure = undefined;
     try {
       await entryTypes.copyHere(type.key, container.id, copyKeyFor(entryTypes.all, type.key), type.name ?? levelName(type.level));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    } finally {
+      copying = undefined;
+    }
+  }
+
+  /** A shared workflow made the hub's own (UC-FLW-02 check 9); the shipped one with the client's words. */
+  async function copyWorkflowHere(workflow: Workflow) {
+    if (copying !== undefined) return;
+    copying = `workflow:${workflow.key}`;
+    failure = undefined;
+    const key = workflowCopyKey(workflows.list?.data ?? [], workflow.key);
+    try {
+      if (workflow.system) {
+        await workflows.create(key, workflow.name ?? t('workflows.default_name'), shippedCopy(workflow.published, t), container.id);
+      } else {
+        await workflows.copyHere(workflow.key, container.id, key);
+      }
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -685,6 +705,29 @@
                     {/each}
                   </ul>
                 </div>
+                {#if workflows.list}
+                  {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
+                  <div class="hub-types" data-hub-workflows>
+                    <p class="hint">{t('app.structure.hub_workflows_hint')}</p>
+                    <ul>
+                      {#each flowsHere.shared as workflow (workflow.key)}
+                        <li>
+                          <span>{workflow.name ?? t('workflows.default_name')}</span>
+                          <span class="source">{t('app.structure.hub_types_shared')}</span>
+                          {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `workflow:${workflow.key}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyWorkflowHere(workflow)}>
+                            {t('app.structure.hub_types_copy')}
+                          </Button>{/if}
+                        </li>
+                      {/each}
+                      {#each flowsHere.own as workflow (workflow.key)}
+                        <li>
+                          <span>{workflow.name ?? workflow.key}</span>
+                          <span class="source">{workflow.copied_from ? t('app.structure.hub_types_copied', { from: workflow.copied_from }) : t('app.structure.hub_types_own')}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/if}
               {/if}
             {/if}
           </section>

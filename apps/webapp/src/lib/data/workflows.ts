@@ -36,6 +36,33 @@ export function workflowFor(
   return undefined;
 }
 
+/**
+ * A hub's settings: the workflows shared with it, read-only there, and its own (UC-FLW-02 check
+ * 9) - never another hub's, which the hub may not run (`Workflows.Within`).
+ */
+export function workflowsAtHub(list: readonly Workflow[], hub: string): { readonly shared: readonly Workflow[]; readonly own: readonly Workflow[] } {
+  return { shared: list.filter((workflow) => !workflow.hub_id), own: list.filter((workflow) => workflow.hub_id === hub) };
+}
+
+/** A key free in the workspace for a copy of the workflow: `<key>_copy`, then `_2`, `_3`, … */
+export function workflowCopyKey(list: readonly Pick<Workflow, 'key'>[], key: string): string {
+  const taken = new Set(list.map((workflow) => workflow.key));
+  const stem = `${key}_copy`.slice(0, 44);
+  if (!taken.has(stem)) return stem;
+  for (let n = 2; ; n++) {
+    const candidate = `${stem}_${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+/**
+ * The shipped workflow's shape with the client's words for its statuses: the server holds none
+ * for it (rule 8), and a hub's own copy needs names, so it is added as a new workflow with these.
+ */
+export function shippedCopy(shape: WorkflowShape, t: (code: string) => string): WorkflowShape {
+  return { ...shape, statuses: shape.statuses.map((status) => ({ ...status, name: statusLabel(status, t) })) };
+}
+
 /** The scheme row a container holds for a type (`null` for every type), if any. */
 export function schemeOf(list: WorkflowList | undefined, containerId: string, entryType: string | null): string | undefined {
   return list?.scheme.find((row) => row.container_id === containerId && (row.entry_type ?? null) === entryType)?.workflow;

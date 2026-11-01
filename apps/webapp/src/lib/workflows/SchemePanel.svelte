@@ -50,7 +50,10 @@
     return untrack(() => containers.openLevel(wanted));
   });
 
-  const hubOptions = $derived(containers.hubs.map((each) => ({ value: each.id, label: each.name })));
+  // A hub's own workflow runs only in that hub and its collections (UC-FLW-02 check 9).
+  const hubOptions = $derived(
+    containers.hubs.filter((each) => !workflow.hub_id || each.id === workflow.hub_id).map((each) => ({ value: each.id, label: each.name })),
+  );
   const collectionOptions = $derived([
     { value: '', label: t('app.workflow_designer.whole_hub') },
     ...(hub ? containers.collectionsOf(hub) : []).map((each) => ({ value: each.id, label: each.name })),
