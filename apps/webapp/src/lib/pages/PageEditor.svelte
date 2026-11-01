@@ -32,6 +32,8 @@
   import { items } from '../data/items.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { caretOf, pages, writtenBody } from '../data/pages.svelte.ts';
+  import { unsentDocuments } from '../data/unsentdocs.ts';
+  import { liveKeeper } from '../data/unsentkeeper.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import BoardView from '../whiteboards/BoardView.svelte';
@@ -69,6 +71,8 @@
   let host = $state<HTMLElement | undefined>(undefined);
   let editor = $state<Editor | undefined>(undefined);
   let status = $state<LiveStatus | 'reading'>('reading');
+  // Local changes the server has not had yet, kept on the device meanwhile (unsentdocs.ts).
+  let unsent = $state(0);
   let isLive = $state(false);
   let saving = $state<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   let saveRefusal = $state<string | undefined>(undefined);
@@ -247,6 +251,11 @@
         open: () => pages.liveSocket(page.id) as unknown as LiveSocket,
         writable: true,
         onStatus: (next) => (status = next),
+        keep: liveKeeper('page', page.id),
+        onUnsent: (count) => {
+          unsent = count;
+          unsentDocuments.set(`page:${page.id}`, count);
+        },
         onSynced: () => {
           if (isLive) return;
           current.destroy();
@@ -271,6 +280,7 @@
         if (isLive && current.isEditable) void save(markdownOf(current));
         current.destroy();
         connection.destroy();
+        unsentDocuments.forget(`page:${page.id}`);
         doc.destroy();
       };
     });
@@ -371,6 +381,7 @@
     !page.writable ? t('app.pages.status_reading')
     : status === 'connected' && isLive ? (saving === 'saving' ? t('app.pages.status_saving') : t('app.pages.status_live'))
     : status === 'refused' ? t('app.pages.status_refused')
+    : unsent > 0 ? t('app.pages.status_unsent', { count: String(unsent) })
     : status === 'offline' ? t('app.pages.status_offline')
     : t('app.pages.status_connecting'),
   );

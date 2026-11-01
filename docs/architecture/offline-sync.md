@@ -546,6 +546,14 @@ it, order it and decide who may touch it.
   the scene beside the document a moment after the drawing stops, without `If-Match`; a reader is
   connected read-only and, before the document holds anything, draws the scene as last saved.
   Offline, an open board keeps being drawn on and merges when the connection is back.
+* **Unsent words are kept on the device.** A writer's local changes of a page or a board that no
+  answered connection carried yet are merged into one update and kept in the account's own store
+  (collection `live_unsent`, one of the device's own collections: emptying a stale copy keeps it,
+  sign-out deletes it with the store). A document opened again applies them before it connects and
+  sends them in its answer to the server's vector; the status line says how many changes wait, and
+  leaving the page while any wait asks first (`packages/editor` `UpdateKeeper`,
+  `apps/webapp/src/lib/data/unsentdocs.ts`). A tab never opened again on that device leaves them
+  there until the next sign-in or sign-out.
 * **An entry's presence** (kind `entry`) is awareness alone: who has the entry open and who is
   writing a reply (UC-SVC-03 check 4). It is read with READ on the entry itself - a role reading
   only its own entries is judged on it - and never written: the service answers it read-only and

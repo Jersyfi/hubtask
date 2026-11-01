@@ -54,6 +54,8 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
+  import { unsentDocuments } from '../data/unsentdocs.ts';
+  import { liveKeeper } from '../data/unsentkeeper.ts';
 
   interface Props {
     board: WhiteboardRead;
@@ -84,6 +86,8 @@
   const session = new Facilitation(doc);
   let elements = $state<Element[]>(untrack(() => saved));
   let status = $state<LiveStatus | 'reading'>('connecting');
+  // Local changes the server has not had yet, kept on the device meanwhile (unsentdocs.ts).
+  let unsent = $state(0);
   let isLive = $state(false);
   let tool = $state<Tool>('select');
   let shape = $state<Shape>('RECTANGLE');
@@ -142,6 +146,11 @@
         open: () => whiteboards.liveSocket(board.id) as unknown as LiveSocket,
         writable,
         onStatus: (next) => (status = next),
+        keep: writable ? liveKeeper('whiteboard', board.id) : undefined,
+        onUnsent: (count) => {
+          unsent = count;
+          unsentDocuments.set(`whiteboard:${board.id}`, count);
+        },
         onSynced: () => {
           if (isLive) return;
           isLive = true;
@@ -166,6 +175,7 @@
         stopSession();
         live.awareness.off('change', peersChanged);
         live.destroy();
+        unsentDocuments.forget(`whiteboard:${board.id}`);
         connection = undefined;
         doc.destroy();
       };
@@ -1036,6 +1046,7 @@
 
   const statusText = $derived(
     status === 'refused' ? t('app.whiteboards.status_refused')
+    : unsent > 0 ? t('app.whiteboards.status_unsent', { count: String(unsent) })
     : status === 'offline' ? t('app.whiteboards.status_offline')
     : !isLive ? t('app.whiteboards.status_connecting')
     : writable ? t('app.whiteboards.status_live')
