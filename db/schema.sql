@@ -7416,6 +7416,35 @@ CREATE POLICY tenant_isolation ON chat_bot
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON chat_bot TO hubtask_app;
 
+-- A person linked to their chat account through a bot (migration 0321).
+CREATE TABLE chat_link (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL,
+  bot_id          uuid NOT NULL,
+  account_id      uuid NOT NULL,
+  chat_user       text NOT NULL DEFAULT '' CHECK (char_length(chat_user) <= 255),
+  address         text NOT NULL DEFAULT '' CHECK (char_length(address) <= 1024),
+  code_hash       bytea,
+  code_expires_at timestamptz,
+  created_at      timestamptz NOT NULL,
+  linked_at       timestamptz,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, bot_id, account_id),
+  CONSTRAINT chat_link_bot_fkey FOREIGN KEY (tenant_id, bot_id)
+    REFERENCES chat_bot (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT chat_link_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX chat_link_user_idx ON chat_link (tenant_id, bot_id, chat_user) WHERE chat_user <> '';
+CREATE UNIQUE INDEX chat_link_code_idx ON chat_link (tenant_id, bot_id, code_hash) WHERE code_hash IS NOT NULL;
+CREATE INDEX chat_link_account_idx ON chat_link (tenant_id, account_id);
+
+ALTER TABLE chat_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON chat_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON chat_link TO hubtask_app;
+
 -- Migration 0282: what the retention pass reads of pages and boards.
 CREATE INDEX page_trashed_idx ON page (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX page_children_idx ON page (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
