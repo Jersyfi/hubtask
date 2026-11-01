@@ -3,18 +3,18 @@
 
 // Capture from anywhere (UC-WRK-26), walked against the shared fixture:
 //
-// * check 1 - `Q` and the bar's *Capture* open the field on every framed page; on a phone the
+// * UC-WRK-26 check 1 - `Q` and the bar's *Capture* open the field on every framed page; on a phone the
 //   bottom bar's ＋ does; a reader who may create nowhere has none of the three, and a child with
 //   one hub and no workspace role has all of them;
-// * check 2 - the story's line shows its chips, and a chip taken back stays in the title sent; a
+// * UC-WRK-26 check 2 - the story's line shows its chips, and a chip taken back stays in the title sent; a
 //   list's line shows its amount as a chip, and taken back the number stays in the title;
-// * check 3 - a collection set up as a list takes no date, person or label, splits lines and reads
+// * UC-WRK-26 check 3 - a collection set up as a list takes no date, person or label, splits lines and reads
 //   a leading amount, by the rule the list's own capture line reads too;
-// * check 4 - without a target the entry goes to the collection the reader is in, else the jumble;
+// * UC-WRK-26 check 4 - without a target the entry goes to the collection the reader is in, else the jumble;
 //   the message names the place, links to it and undoes it;
-// * check 5 - the due date sent is the person's tomorrow, in their zone, near midnight;
-// * check 6 - by keyboard alone, and what was recognised is said in the frame's live region;
-// * check 7 - every add opens this field pointed at its place, with suggestions while a token is
+// * UC-WRK-26 check 5 - the due date sent is the person's tomorrow, in their zone, near midnight;
+// * UC-WRK-26 check 6 - by keyboard alone, and what was recognised is said in the frame's live region;
+// * UC-WRK-26 check 7 - every add opens this field pointed at its place, with suggestions while a token is
 //   typed, the modes, and *Keep capturing* on where a list is typed line after line.
 //
 // Chromium; the keyboard sequence also runs in all three engines in `engines.test.mjs`.
