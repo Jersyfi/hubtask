@@ -20,8 +20,10 @@ A release produces four things, all under the same version
 | GitHub release | Repository | Release notes, the SBOM, the packaged chart, `THIRD-PARTY-LICENSES.md` |
 
 The chart's `image.repository` and the Compose file's `HUBTASK_IMAGE` make a mirror of the GitHub
-Container Registry possible. `latest` exists and is not recommended for production; the Compose
-file reads the tag from `HUBTASK_VERSION`, so a self-hoster pins it.
+Container Registry possible. `latest` exists for trying Hubtask out and is not for production; the
+Compose file reads the tag from `HUBTASK_VERSION` and refuses to start without one, so a self-hoster
+always runs a release they chose. Each GitHub release attaches `compose.tar.gz`: the Compose file
+and a `.env.example` that already names that release.
 
 ---
 

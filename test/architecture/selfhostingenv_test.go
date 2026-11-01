@@ -117,3 +117,26 @@ func variablesTheCodeReads(t *testing.T) func(string) bool {
 		return false
 	}
 }
+
+// The self-hosting stack runs a release somebody chose. A floating tag upgrades an installation
+// across contract migrations on the next pull, with no backup taken and no way back to a version
+// nobody wrote down (deployment.md §1), so an unpinned stack refuses to start instead.
+func TestTheSelfHostingStackRunsAPinnedRelease(t *testing.T) {
+	compose := string(readFile(t, "../../deploy/docker/compose.yaml"))
+	images := regexp.MustCompile(`(?m)^\s+image:\s*\$\{HUBTASK_IMAGE[^}]*\}:(.*)$`).FindAllStringSubmatch(compose, -1)
+	if len(images) == 0 {
+		t.Fatal("compose.yaml names no Hubtask image - the pattern has stopped matching")
+	}
+	for _, image := range images {
+		if !strings.HasPrefix(image[1], "${HUBTASK_VERSION:?") {
+			t.Errorf("compose.yaml tags the Hubtask image %q: it must refuse an unset HUBTASK_VERSION "+
+				"(${HUBTASK_VERSION:?...}) rather than fall back to a floating tag", image[1])
+		}
+	}
+	example := string(readFile(t, "../../deploy/docker/.env.example"))
+	if m := regexp.MustCompile(`(?m)^HUBTASK_VERSION=(.*)$`).FindStringSubmatch(example); m == nil {
+		t.Error(".env.example does not offer HUBTASK_VERSION")
+	} else if v := strings.TrimSpace(m[1]); v == "latest" || v == "rc" {
+		t.Errorf(".env.example sets HUBTASK_VERSION=%s, a floating tag", v)
+	}
+}
