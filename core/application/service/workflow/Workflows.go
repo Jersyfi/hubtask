@@ -77,6 +77,9 @@ type Desk struct {
 	Roles RoleKeys
 	// Groups are the workspace's groups, which a step's *who* may name (UC-FLW-04 check 1).
 	Groups GroupFinder
+	// Visibility narrows the list to the hubs the caller may read (UC-FLW-02 check 9). Nil lists
+	// the workspace's workflows alone, so a build without it never shows a private hub's words.
+	Visibility Visibility
 }
 
 // GroupFinder finds one of the workspace's groups.
@@ -145,13 +148,95 @@ func (d Desk) read(ctx context.Context) (domain.Workflows, error) {
 	return domain.NewWorkflows(rows), nil
 }
 
-// authorizeShape asks for the workspace's structure permission (UC-FLW-02 check 8): whoever may not
-// shape the workspace is not offered the designer and is refused here.
-func (d Desk) authorizeShape(ctx context.Context, actor appshared.ActorContext, action audit.Action) error {
+// authorizeAt asks for the structure permission where the workflow is defined - the workspace, or
+// the hub a hub's own workflow belongs to (UC-FLW-02 checks 8 and 9): whoever may not shape it is
+// not offered the designer and is refused here. Before any transaction, so that a refusal's audit
+// entry is not rolled back with it (audit.md §7).
+func (d Desk) authorizeAt(ctx context.Context, actor appshared.ActorContext, action audit.Action, hub shared.ID) error {
+	path := []identity.Scope{identity.TenantScope()}
+	if !hub.IsZero() {
+		path = append(path, identity.HubScope(hub))
+	}
 	return d.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure, Path: []identity.Scope{identity.TenantScope()},
+		Permission: service.PermissionStructure, Path: path,
 		Action: action, TokenScope: typesWrite, TargetType: WorkflowTarget, TargetID: actor.TenantID,
 	})
+}
+
+// authorizeWorkflow asks where the workflow of the key is defined. A workflow's hub never
+// changes, so reading it before the write's transaction decides nothing the write could move.
+func (d Desk) authorizeWorkflow(ctx context.Context, actor appshared.ActorContext, action audit.Action, key string) error {
+	var hub shared.ID
+	err := d.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		set, err := d.read(ctx)
+		if err != nil {
+			return err
+		}
+		if current, found := set.Find(key); found {
+			hub = current.HubID
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return d.authorizeAt(ctx, actor, action, hub)
+}
+
+// requireHub refuses a hub that is not one of the workspace's living hubs.
+func (d Desk) requireHub(ctx context.Context, hub shared.ID) error {
+	container, err := d.Containers.Find(ctx, hub)
+	if errors.Is(err, shared.ErrNotFound) || (err == nil && (container.Type != domain.ContainerHub || container.IsTrashed())) {
+		return shared.ErrValidation.WithDetail("workflows.hub_unknown").
+			WithFields(shared.FieldError{Path: "/hub_id", Code: "workflows.hub_unknown"})
+	}
+	return err
+}
+
+// hubOfContainer is the hub a hub or collection belongs to (I-C1).
+func hubOfContainer(container domain.Container) shared.ID {
+	if container.Type == domain.ContainerHub {
+		return container.ID
+	}
+	return container.ParentID
+}
+
+// visible leaves out the workflows of hubs the caller may not read; nothing is audited, a
+// workflow left out of a list is nobody refused (audit.md §4).
+func (d Desk) visible(ctx context.Context, actor appshared.ActorContext, set domain.Workflows) (domain.Workflows, error) {
+	var hubs []shared.ID
+	for _, w := range set {
+		if !w.HubID.IsZero() && !slices.Contains(hubs, w.HubID) {
+			hubs = append(hubs, w.HubID)
+		}
+	}
+	if len(hubs) == 0 {
+		return set, nil
+	}
+	readable := map[shared.ID]bool{}
+	if d.Visibility != nil {
+		paths := make([][]identity.Scope, 0, len(hubs))
+		for _, hub := range hubs {
+			paths = append(paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		allowed, err := d.Visibility.Permitted(ctx, actor, access.Request{
+			Permission: service.PermissionRead, Action: WorkflowsReadAction,
+			TokenScope: typesRead, TargetType: WorkflowTarget,
+		}, paths)
+		if err != nil {
+			return nil, err
+		}
+		for i, hub := range hubs {
+			readable[hub] = i < len(allowed) && allowed[i]
+		}
+	}
+	out := make(domain.Workflows, 0, len(set))
+	for _, w := range set {
+		if w.HubID.IsZero() || readable[w.HubID] {
+			out = append(out, w)
+		}
+	}
+	return out, nil
 }
 
 // compile holds every condition of a shape to the language (UC-FLW-04 check 6).
@@ -210,7 +295,7 @@ func (d Desk) announce(ctx context.Context, actor appshared.ActorContext, workfl
 	}
 	return d.Changes.Record(ctx, changelog.Change{
 		TenantID: actor.TenantID, Entity: WorkflowTarget, EntityID: workflow.ID, Op: op,
-		ActorID: actor.AccountID, HLC: d.HLC.Next(), Payload: payload,
+		ContainerID: workflow.HubID, ActorID: actor.AccountID, HLC: d.HLC.Next(), Payload: payload,
 	})
 }
 
@@ -392,6 +477,13 @@ func WorkflowOutput(w domain.Workflow) usecase.Output {
 	if w.PublishedAt != nil {
 		out["published_at"] = *w.PublishedAt
 	}
+	// Left out for a workspace's workflow, so its configuration document stays as it was.
+	if !w.HubID.IsZero() {
+		out["hub_id"] = w.HubID.String()
+	}
+	if w.CopiedFrom != "" {
+		out["copied_from"] = w.CopiedFrom
+	}
 	return out
 }
 
@@ -566,7 +658,11 @@ func (h ListWorkflows) Execute(ctx context.Context, actor appshared.ActorContext
 	)
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		if set, err = h.Desk.read(ctx); err != nil {
+		read, err := h.Desk.read(ctx)
+		if err != nil {
+			return err
+		}
+		if set, err = h.Desk.visible(ctx, actor, read); err != nil {
 			return err
 		}
 		schemes, err = h.Desk.Workflows.Schemes(ctx)
@@ -597,15 +693,21 @@ func (h ListWorkflows) Descriptor() usecase.Descriptor {
 // CreateWorkflow adds a workflow of the workspace's own, in force nowhere until a scheme names it.
 type CreateWorkflow struct{ Desk Desk }
 
-// Execute creates the workflow.
+// Execute creates a workflow of the whole workspace.
 func (h CreateWorkflow) Execute(ctx context.Context, actor appshared.ActorContext, key, name string, shape domain.WorkflowShape) (domain.Workflow, error) {
-	if err := h.Desk.authorizeShape(ctx, actor, WorkflowCreatedAction); err != nil {
+	return h.ExecuteAt(ctx, actor, "", key, name, shape)
+}
+
+// ExecuteAt creates the workflow at the hub, or of the whole workspace for a zero hub
+// (UC-FLW-02 check 9).
+func (h CreateWorkflow) ExecuteAt(ctx context.Context, actor appshared.ActorContext, hub shared.ID, key, name string, shape domain.WorkflowShape) (domain.Workflow, error) {
+	if err := h.Desk.authorizeAt(ctx, actor, WorkflowCreatedAction, hub); err != nil {
 		return domain.Workflow{}, err
 	}
 	now := h.Desk.Clock.Now()
 	created, err := domain.NewWorkflow(domain.NewWorkflowInput{
 		ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: key, Name: name, Shape: shape,
-		By: actor.AccountID, Now: now, Text: h.Desk.Text,
+		By: actor.AccountID, Now: now, Text: h.Desk.Text, HubID: hub,
 	})
 	if err != nil {
 		return domain.Workflow{}, err
@@ -614,6 +716,11 @@ func (h CreateWorkflow) Execute(ctx context.Context, actor appshared.ActorContex
 		return domain.Workflow{}, err
 	}
 	err = h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if !hub.IsZero() {
+			if err := h.Desk.requireHub(ctx, hub); err != nil {
+				return err
+			}
+		}
 		if err := h.Desk.knownRoles(ctx, created.Published); err != nil {
 			return err
 		}
@@ -651,13 +758,18 @@ func (h CreateWorkflow) Descriptor() usecase.Descriptor {
 		append([]usecase.Field{
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "Small letters, digits and underscores, starting with a letter; not default."},
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
+			{Name: "hub_id", Kind: usecase.KindID, Description: "Defines the workflow at this hub, which alone may use it; unset is the whole workspace."},
 		}, shapeFields()...),
 		func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			shape, err := ShapeFromInput(in["shape"])
 			if err != nil {
 				return nil, err
 			}
-			created, err := h.Execute(ctx, actor, in.String("key"), in.String("name"), shape)
+			hub, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
+			created, err := h.ExecuteAt(ctx, actor, hub, in.String("key"), in.String("name"), shape)
 			if err != nil {
 				return nil, err
 			}
@@ -680,7 +792,7 @@ type SaveWorkflowDraftCommand struct {
 
 // Execute saves the draft.
 func (h SaveWorkflowDraft) Execute(ctx context.Context, actor appshared.ActorContext, cmd SaveWorkflowDraftCommand) (domain.Workflow, error) {
-	if err := h.Desk.authorizeShape(ctx, actor, WorkflowDraftedAction); err != nil {
+	if err := h.Desk.authorizeWorkflow(ctx, actor, WorkflowDraftedAction, cmd.Key); err != nil {
 		return domain.Workflow{}, err
 	}
 	if cmd.Shape != nil {
@@ -867,7 +979,7 @@ func (h PreviewWorkflowPublish) Descriptor() usecase.Descriptor {
 			{Name: "shape", Kind: usecase.KindObject, Description: "A shape to preview instead of the stored draft (schema WorkflowShape)."},
 		},
 		func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorizeShape(ctx, actor, WorkflowPublishedAction); err != nil {
+			if err := h.Desk.authorizeWorkflow(ctx, actor, WorkflowPublishedAction, in.String("key")); err != nil {
 				return nil, err
 			}
 			var shape *domain.WorkflowShape
@@ -900,7 +1012,7 @@ type PublishWorkflow struct{ Desk Desk }
 
 // Execute publishes and answers the workflow and how many entries moved.
 func (h PublishWorkflow) Execute(ctx context.Context, actor appshared.ActorContext, key string, mapping map[string]string, expectedVersion int) (domain.Workflow, int, error) {
-	if err := h.Desk.authorizeShape(ctx, actor, WorkflowPublishedAction); err != nil {
+	if err := h.Desk.authorizeWorkflow(ctx, actor, WorkflowPublishedAction, key); err != nil {
 		return domain.Workflow{}, 0, err
 	}
 	var (
@@ -985,7 +1097,7 @@ func (h DeleteWorkflow) Descriptor() usecase.Descriptor {
 			if key == domain.SystemWorkflowKey {
 				return nil, shared.ErrConflict.WithDetail("workflows.system_kept")
 			}
-			if err := h.Desk.authorizeShape(ctx, actor, WorkflowDeletedAction); err != nil {
+			if err := h.Desk.authorizeWorkflow(ctx, actor, WorkflowDeletedAction, key); err != nil {
 				return nil, err
 			}
 			err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -1029,8 +1141,14 @@ func (d Desk) schemePlan(ctx context.Context, change SchemeChange) ([]domain.Wor
 		return nil, nil, domain.Container{}, err
 	}
 	if change.WorkflowKey != "" {
-		if _, found := set.Find(change.WorkflowKey); !found {
+		chosen, found := set.Find(change.WorkflowKey)
+		if !found {
 			return nil, nil, domain.Container{}, shared.ErrNotFound.WithDetail("workflows.not_found")
+		}
+		// A hub's own workflow runs in that hub and its collections alone (UC-FLW-02 check 9).
+		if !chosen.UsableIn(hubOfContainer(container)) {
+			return nil, nil, domain.Container{}, shared.ErrConflict.WithDetail("workflows.hub_bound").
+				WithFields(shared.FieldError{Path: "/workflow", Code: "workflows.hub_bound"})
 		}
 	}
 	before, err := d.Workflows.Schemes(ctx)
@@ -1231,7 +1349,7 @@ func (h TryWorkflowStep) Descriptor() usecase.Descriptor {
 			{Name: "draft", Kind: usecase.KindBool, Description: "True tries the draft's step."},
 		},
 		func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
-			if err := h.Desk.authorizeShape(ctx, actor, WorkflowStepTriedAction); err != nil {
+			if err := h.Desk.authorizeWorkflow(ctx, actor, WorkflowStepTriedAction, in.String("key")); err != nil {
 				return nil, err
 			}
 			itemID, err := in.ID("item_id")

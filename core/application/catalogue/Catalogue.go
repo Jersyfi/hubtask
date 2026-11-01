@@ -430,6 +430,7 @@ func Descriptors() []usecase.Descriptor {
 		work.ResolveReferences{}.Descriptor(),
 		workflowservice.ListWorkflows{}.Descriptor(),
 		workflowservice.CreateWorkflow{}.Descriptor(),
+		workflowservice.CopyWorkflowHere{}.Descriptor(),
 		workflowservice.SaveWorkflowDraft{}.Descriptor(),
 		workflowservice.PreviewWorkflowPublish{}.Descriptor(),
 		workflowservice.PublishWorkflow{}.Descriptor(),

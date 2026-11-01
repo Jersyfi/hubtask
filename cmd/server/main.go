@@ -1906,7 +1906,7 @@ func run() error {
 		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
 		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
-		Roles: customRoles.Store, Groups: groups,
+		Roles: customRoles.Store, Groups: groups, Visibility: authorizer,
 	}
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
@@ -2555,6 +2555,7 @@ func run() error {
 		}.Descriptor(),
 		workflowservice.ListWorkflows{Desk: workflowDesk}.Descriptor(),
 		workflowservice.CreateWorkflow{Desk: workflowDesk}.Descriptor(),
+		workflowservice.CopyWorkflowHere{Desk: workflowDesk}.Descriptor(),
 		workflowservice.SaveWorkflowDraft{Desk: workflowDesk}.Descriptor(),
 		workflowservice.PreviewWorkflowPublish{Desk: workflowDesk}.Descriptor(),
 		workflowservice.PublishWorkflow{Desk: workflowDesk}.Descriptor(),
