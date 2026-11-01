@@ -15,6 +15,8 @@
 import { FetchTransport, SyncEngine, TransportError } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
+import { currentEntry } from '../frame/chunkfailure.ts';
+import { noteServerBuild } from '../frame/release.ts';
 import { mutationFor, storeFor } from './replica.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
@@ -87,7 +89,11 @@ function watchedForPause<T extends object>(inner: T): T {
   });
 }
 
-const transport = watchedForPause(new FetchTransport({ baseUrl: '/api/v1' }));
+// The build travels both ways (api-guidelines.md §8): sent, so a server of the other release
+// answers a route it does not know with a retry; heard, so this tab can move to a newer release.
+const transport = watchedForPause(new FetchTransport({
+  baseUrl: '/api/v1', clientBuild: currentEntry() ?? undefined, onServerBuild: noteServerBuild,
+}));
 
 /**
  * Exchanges the refresh token for the next pair, and answers whether the session survived.

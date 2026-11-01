@@ -31,6 +31,8 @@ const RELOADED_KEY = 'hubtask.reloaded-for';
 
 // currentEntry answers the entry script this document runs, as a path.
 export function currentEntry(): string | null {
+  // Null where there is no document to ask - the engine module is also loaded by node tests.
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return null;
   const script = document.querySelector<HTMLScriptElement>('script[type="module"][src]');
   return script ? new URL(script.src, location.href).pathname : null;
 }

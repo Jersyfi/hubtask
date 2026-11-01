@@ -129,10 +129,20 @@ export class Router {
   readonly #routes: readonly Route[];
   readonly #listeners = new Set<(resolution: Resolution) => void>();
   #current: Resolution;
+  readonly #fullLoad?: (path: string) => boolean;
 
-  constructor(routes: readonly Route[], initialPath: string = window.location.pathname + window.location.search) {
+  /**
+   * `fullLoad` may take a navigation as a full page load instead - a newer release to load
+   * (`frame/release.ts`) - and answers whether it did.
+   */
+  constructor(
+    routes: readonly Route[],
+    initialPath: string = window.location.pathname + window.location.search,
+    options: { fullLoad?: (path: string) => boolean } = {},
+  ) {
     this.#routes = routes;
     this.#current = resolve(routes, initialPath);
+    this.#fullLoad = options.fullLoad;
   }
 
   get current(): Resolution {
@@ -148,6 +158,7 @@ export class Router {
   /** Navigate to a path, entering it into the session history. */
   navigate(path: string): void {
     if (addressOf(path) === this.#address()) return;
+    if (this.#fullLoad?.(path)) return;
     history.pushState(null, '', path);
     this.#apply(path);
   }

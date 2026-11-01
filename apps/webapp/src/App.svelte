@@ -19,6 +19,7 @@
   import ViewFailed from './lib/frame/ViewFailed.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
+  import { loadReleaseAt } from './lib/frame/release.ts';
   import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
@@ -132,7 +133,7 @@
     SignInSettingsView: () => import('./views/SignInSettingsView.svelte'),
   };
 
-  const router = new Router(ROUTES);
+  const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt });
   let route = $state<Resolution>(router.current);
 
   /**
