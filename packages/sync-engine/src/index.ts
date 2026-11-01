@@ -220,6 +220,8 @@ export type {
   PlanBaselineList,
   PlanTolerance,
   PortfolioRoadmap,
+  PortfolioPublicLinkState,
+  PortfolioPublicLinkMinted,
   WorkspaceTolerance,
   PlanImport,
   BaselineVariance,

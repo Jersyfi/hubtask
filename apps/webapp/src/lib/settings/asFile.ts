@@ -81,7 +81,7 @@ export function pagePartFile(document: Readonly<Record<string, unknown>>, part: 
 export const PAGE_PARTS: Readonly<Record<string, PagePart>> = {
   '/administration/sign-in': { sections: [], settings: ['sign_in'] },
   '/administration/legal': { sections: [], settings: ['legal'] },
-  '/administration/workspace': { sections: [], settings: ['localisation', 'knowledge', 'servicedesk'] },
+  '/administration/workspace': { sections: [], settings: ['localisation', 'knowledge', 'servicedesk', 'goals'] },
   '/administration/ai': { sections: [], settings: ['ai'] },
   '/administration/presets': { sections: ['structure'] },
   '/administration/agents': { sections: [], settings: ['agents'] },
