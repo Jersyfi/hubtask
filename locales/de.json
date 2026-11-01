@@ -8568,6 +8568,7 @@
   "roles.version_conflict": "Jemand hat die Rolle {key} inzwischen geändert. Lade sie neu und wiederhole deine Änderung.",
   "roles.held": "Die Rolle {key} ist noch {grants}-mal vergeben. Entziehe sie zuerst; ein Löschen brächte ihre Inhaber nicht zurück.",
   "roles.in_use": "Die Rolle {key} ist noch {grants}-mal vergeben und wird von {rules} eingeschalteten Regeln angesprochen. Entziehe sie und ändere diese Regeln zuerst; ein Löschen brächte ihre Inhaber nicht zurück.",
+  "roles.named_by_rules": "{rules} eingeschaltete Regeln benachrichtigen die Rolle {key}. Ändere oder schalte diese Regeln zuerst aus, oder entferne sie mit der Rolle.",
   "fields.restricted": "Nur wer eine Rolle mit der Berechtigung des Felds hat, darf {key} ändern.",
   "app.people.tab_roles": "Rollen",
   "app.people.view_as": "Ansehen als",

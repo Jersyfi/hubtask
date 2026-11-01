@@ -8568,6 +8568,7 @@
   "roles.version_conflict": "Someone changed the role {key} meanwhile. Load it again and repeat your change.",
   "roles.held": "The role {key} is still held {grants} times. Revoke it first; a deletion would not bring its holders back.",
   "roles.in_use": "The role {key} is still held {grants} times and addressed by {rules} switched-on rules. Revoke it and change those rules first; a deletion would not bring its holders back.",
+  "roles.named_by_rules": "{rules} switched-on rules notify the role {key}. Change or switch off those rules first, or remove them with the role.",
   "fields.restricted": "Only people whose role carries the field's permission may change {key}.",
   "app.people.tab_roles": "Roles",
   "app.people.view_as": "View as",

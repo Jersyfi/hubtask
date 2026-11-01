@@ -139,6 +139,38 @@ func TestAPlanRefusesRemovingARoleSomebodyHolds(t *testing.T) {
 	}
 }
 
+// configuration.md §2: a plan that removes a role a switched-on rule it keeps still addresses is
+// refused at the plan with the count of those rules, as DeleteRole refuses the apply; a plan that
+// switches the rule off or removes it with the role plans, since the apply runs those first.
+func TestAPlanRefusesRemovingARoleARuleItKeepsAddresses(t *testing.T) {
+	f := newFixture()
+	f.world.roles["desk_agent"] = map[string]any{"key": "desk_agent", "name": "Desk agent", "permissions": []any{"READ"}}
+	f.world.grants = []any{}
+	f.world.rules = map[string]map[string]any{
+		"tell_desk": {"id": existingRuleID, "key": "tell_desk", "scope": map[string]any{"type": "TENANT"}, "name": "Tell the desk",
+			"enabled": true, "run_as": "0190a8f0-0000-7000-8000-00000000cccc", "trigger": map[string]any{"kind": "MANUAL"},
+			"conditions": []any{}, "throttle": map[string]any{}, "on_error": "STOP",
+			"actions": []any{map[string]any{"kind": "NOTIFY_ROLE", "params": map[string]any{"role": "desk_agent"}}}},
+	}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{"roles": map[string]any{"desk_agent": nil}}})
+
+	refusals, _ := plan["refusals"].([]usecase.Output)
+	if len(refusals) != 1 || refusals[0]["code"] != "roles.named_by_rules" || refusals[0]["path"] != "/roles/desk_agent" || plan["plan_hash"] != nil {
+		t.Fatalf("refusals %v, hash %v", refusals, plan["plan_hash"])
+	}
+	if params := refusals[0]["params"].(map[string]string); params["rules"] != "1" || params["key"] != "desk_agent" {
+		t.Errorf("the refusal does not count the rules: %v", params)
+	}
+
+	// The rule goes with the role: the removal plans.
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{
+		"roles": map[string]any{"desk_agent": nil}, "rules": map[string]any{"tell_desk": nil},
+	}})
+	if plan["plan_hash"] == nil {
+		t.Errorf("a removal taking the rule along was refused: %v", plan["refusals"])
+	}
+}
+
 // S-09's gap: a plan that removes a field, or hides it from readers, says how many entries hold a
 // value under it - what would stop being shown - asked by the field's identifier.
 func TestAPlanCountsTheEntriesAFieldItRemovesHolds(t *testing.T) {

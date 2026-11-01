@@ -207,11 +207,17 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				}
 			}
 			r.Accounts, r.Groups = len(accounts), len(groups)
-			// DeleteRole refuses a role somebody holds; the plan says so now rather than the apply
-			// half-way. The rules that address it are counted at the apply only.
+			// DeleteRole refuses a role somebody holds or a switched-on rule addresses; the plan says
+			// so rather than the apply. Rules are counted in the document's own target, since the
+			// apply changes and removes them before it removes a role; another scope's rules are
+			// found at the apply.
 			if change.Op == domain.OpRemove && held > 0 {
 				p.Refusals = append(p.Refusals, domain.Refusal("roles.held", change.Path(),
 					map[string]string{"key": change.Key, "grants": strconv.Itoa(held)}))
+			}
+			if rules := domain.RulesAddressingRole(p.Target[sectionRules], change.Key); change.Op == domain.OpRemove && rules > 0 {
+				p.Refusals = append(p.Refusals, domain.Refusal("roles.named_by_rules", change.Path(),
+					map[string]string{"key": change.Key, "rules": strconv.Itoa(rules)}))
 			}
 			if len(r.Gained)+len(r.Lost) > 0 {
 				p.Reach = append(p.Reach, r)
