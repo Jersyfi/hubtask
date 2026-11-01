@@ -416,3 +416,48 @@ func TestAFieldHiddenFromReadersIsRestrictedForWritingAsWell(t *testing.T) {
 		t.Fatalf("a hidden calculated field: %v, want a validation error", err)
 	}
 }
+
+// A hub's own field (UC-WRK-12 check 9): never at a collection and a hub at once, and a copy of a
+// shared one carries everything of it, a new identity and the source's identifier.
+func TestAFieldBelongsToOneScopeAndAHubCopiesOnlyAShared(t *testing.T) {
+	hub := shared.MustParseID("0192f000-0000-7000-8000-0000000000f4")
+	copyID := shared.MustParseID("0192f000-0000-7000-8000-0000000000f5")
+	later := fieldNow.Add(time.Hour)
+
+	_, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, CollectionID: fieldColl, HubID: hub,
+		Key: "priority", Kind: work.CustomFieldText, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != "fields.scope_ambiguous" {
+		t.Fatalf("a collection and a hub together gave %v", err)
+	}
+
+	workspaceField := definition(t, work.CustomFieldSelect, "high", "low")
+	workspaceField.CollectionID = ""
+	copied, err := workspaceField.CopyAt(copyID, hub, later)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if copied.ID != copyID || copied.HubID != hub || copied.CopiedFrom != workspaceField.ID || !copied.CollectionID.IsZero() {
+		t.Errorf("the copy is %+v", copied)
+	}
+	if copied.Key != workspaceField.Key || copied.Kind != workspaceField.Kind || len(copied.Options) != 2 || copied.Version != 1 ||
+		!copied.CreatedAt.Equal(later) {
+		t.Errorf("the copy lost the source's shape: %+v", copied)
+	}
+	if copied.IsTenantWide() || copied.ScopeID() != hub || copied.Nearness() != 1 {
+		t.Errorf("the copy's scope reads %v, %v, %d", copied.IsTenantWide(), copied.ScopeID(), copied.Nearness())
+	}
+	copied.Options[0] = "changed"
+	if workspaceField.Options[0] != "high" {
+		t.Error("the copy shares its options with the source")
+	}
+
+	for name, source := range map[string]work.CustomFieldDefinition{
+		"a collection's": definition(t, work.CustomFieldText), "a hub's": copied,
+	} {
+		if _, err := source.CopyAt(copyID, hub, later); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("copying %s field gave %v", name, err)
+		}
+	}
+}

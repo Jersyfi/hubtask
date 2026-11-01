@@ -171,11 +171,16 @@ const CascadingSeparator = "/"
 type CustomFieldDefinition struct {
 	ID       shared.ID
 	TenantID shared.ID
-	// CollectionID is the collection the definition belongs to, zero for the whole workspace. Two
-	// scopes and no more: a field every collection defines separately is a field nobody can filter
-	// across, and a field only ever defined workspace-wide is one team's vocabulary imposed on
-	// every other (domain-model.md §3.5).
+	// CollectionID is the collection the definition belongs to, and HubID the hub; both zero is the
+	// whole workspace, and never both are set. Three scopes, the nearest winning under a key: a
+	// field every collection defines separately is a field nobody can filter across, and a field
+	// only ever defined workspace-wide is one team's vocabulary imposed on every other
+	// (domain-model.md §3.5).
 	CollectionID shared.ID
+	HubID        shared.ID
+	// CopiedFrom is the shared definition this one was copied from at its hub, zero for one made
+	// from scratch. An identifier, not a reference: it stays when the source is deleted.
+	CopiedFrom shared.ID
 	// Key is what the value is stored under. An identifier rather than a label, and fixed once
 	// defined: it appears in a `custom_fields.<key>` filter, and a key that could be renamed would
 	// orphan every value stored under it.
@@ -220,13 +225,15 @@ type NewCustomFieldInput struct {
 	ID           shared.ID
 	TenantID     shared.ID
 	CollectionID shared.ID
-	Key          string
-	Kind         CustomFieldKind
-	Options      []string
-	Currency     string
-	Formula      string
-	IsRequired   bool
-	Restricted   bool
+	// HubID defines the field for a hub's collections; not together with CollectionID.
+	HubID      shared.ID
+	Key        string
+	Kind       CustomFieldKind
+	Options    []string
+	Currency   string
+	Formula    string
+	IsRequired bool
+	Restricted bool
 	// ReadRestricted implies Restricted.
 	ReadRestricted bool
 	AppliesTo      []ItemType
@@ -273,13 +280,16 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 	if in.ID.IsZero() || in.TenantID.IsZero() {
 		return CustomFieldDefinition{}, shared.ErrInternal.WithDetail("fields.identity_incomplete")
 	}
+	if !in.CollectionID.IsZero() && !in.HubID.IsZero() {
+		return CustomFieldDefinition{}, customFieldError("/hub_id", "fields.scope_ambiguous", nil)
+	}
 	restricted := in.Restricted || in.ReadRestricted
 	if restricted && in.Kind == CustomFieldCalculated {
 		return CustomFieldDefinition{}, customFieldError("/restricted", "fields.calculated", nil)
 	}
 
 	return CustomFieldDefinition{
-		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID,
+		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID, HubID: in.HubID,
 		Key: key, Kind: in.Kind, Options: options, Currency: currency, Formula: formula,
 		IsRequired: in.IsRequired, Restricted: restricted, ReadRestricted: in.ReadRestricted,
 		AppliesTo: appliesTo, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
@@ -290,7 +300,48 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 func (d CustomFieldDefinition) IsDeleted() bool { return d.DeletedAt != nil }
 
 // IsTenantWide reports whether the definition applies to the whole workspace.
-func (d CustomFieldDefinition) IsTenantWide() bool { return d.CollectionID.IsZero() }
+func (d CustomFieldDefinition) IsTenantWide() bool {
+	return d.CollectionID.IsZero() && d.HubID.IsZero()
+}
+
+// ScopeID is the container the definition belongs to - its collection or its hub -, zero for the
+// whole workspace.
+func (d CustomFieldDefinition) ScopeID() shared.ID {
+	if !d.HubID.IsZero() {
+		return d.HubID
+	}
+	return d.CollectionID
+}
+
+// Nearness ranks the scope for the rule that the nearest definition under a key wins: the
+// workspace's 0, a hub's 1, a collection's 2.
+func (d CustomFieldDefinition) Nearness() int {
+	switch {
+	case !d.CollectionID.IsZero():
+		return 2
+	case !d.HubID.IsZero():
+		return 1
+	}
+	return 0
+}
+
+// CopyAt makes a hub's own copy of a shared definition under the same key (UC-WRK-12 check 9):
+// everything of the source, a new identity and the source named in CopiedFrom. Only a field of
+// the whole workspace is shared with a hub, so any other source is not found from there.
+func (d CustomFieldDefinition) CopyAt(id, hubID shared.ID, now time.Time) (CustomFieldDefinition, error) {
+	if !d.IsTenantWide() || d.IsDeleted() {
+		return CustomFieldDefinition{}, shared.ErrNotFound.WithDetail("fields.not_found")
+	}
+	if id.IsZero() || hubID.IsZero() {
+		return CustomFieldDefinition{}, customFieldError("/hub_id", "fields.hub_required", nil)
+	}
+	copied := d
+	copied.ID, copied.HubID, copied.CopiedFrom = id, hubID, d.ID
+	copied.Options = slices.Clone(d.Options)
+	copied.AppliesTo = slices.Clone(d.AppliesTo)
+	copied.CreatedAt, copied.UpdatedAt, copied.DeletedAt, copied.Version = now, now, nil, 1
+	return copied, nil
+}
 
 // CustomFieldAttributes is what an update may change. A pointer per field, so that "set it to
 // nothing" and "do not touch it" stay two different requests.

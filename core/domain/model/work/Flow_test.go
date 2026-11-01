@@ -81,12 +81,16 @@ func TestTheFirstColumnIsTheLeftmostOnTheBoard(t *testing.T) {
 
 func TestTheRequiredFieldsAnEntryLacks(t *testing.T) {
 	collection := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	hub := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
 	gone := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	definition := func(key string, required bool, scope shared.ID, types ...ItemType) CustomFieldDefinition {
 		if len(types) == 0 {
 			types = []ItemType{ItemTask}
 		}
 		return CustomFieldDefinition{Key: key, IsRequired: required, CollectionID: scope, AppliesTo: types}
+	}
+	atHub := func(key string, required bool) CustomFieldDefinition {
+		return CustomFieldDefinition{Key: key, IsRequired: required, HubID: hub, AppliesTo: []ItemType{ItemTask}}
 	}
 	deleted := definition("phone", true, collection)
 	deleted.DeletedAt = &gone
@@ -123,6 +127,13 @@ func TestTheRequiredFieldsAnEntryLacks(t *testing.T) {
 		{"whichever order they arrive in", []CustomFieldDefinition{
 			definition("customer", false, collection), definition("customer", true, shared.ID("")),
 		}, nil, nil},
+		{"the hub's wins over the workspace's", []CustomFieldDefinition{
+			definition("customer", true, shared.ID("")), atHub("customer", false),
+		}, nil, nil},
+		{"the collection's own wins over the hub's", []CustomFieldDefinition{
+			definition("customer", true, collection), atHub("customer", false),
+		}, map[string]any{}, []string{"customer"}},
+		{"a hub's required field asks", []CustomFieldDefinition{atHub("customer", true)}, nil, []string{"customer"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
