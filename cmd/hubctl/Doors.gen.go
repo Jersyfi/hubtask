@@ -2222,6 +2222,23 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "portfolio", Verb: "link", OperationID: "createPortfolioPublicLink", Method: "POST", Path: "/portfolios/{portfolioId}/public-link", Summary: "Make a portfolio roadmap's public link",
+		PathParams: []doorParam{
+			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "portfolio", Verb: "link-state", OperationID: "readPortfolioPublicLink", Method: "GET", Path: "/portfolios/{portfolioId}/public-link", Summary: "Whether a portfolio's roadmap has a public link",
+		PathParams: []doorParam{
+			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"portfolio_id"}},
+	{Group: "portfolio", Verb: "links-policy", OperationID: "readPublicRoadmapsPolicy", Method: "GET", Path: "/portfolios:public-links", Summary: "Whether roadmaps may be opened by a public link",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"allowed", "locked_by", "source"}},
+	{Group: "portfolio", Verb: "links-policy set", OperationID: "setPublicRoadmapsPolicy", Method: "PUT", Path: "/portfolios:public-links", Summary: "Allow public links to roadmaps, or not",
+		Body: []doorParam{
+			{Name: "allowed", Kind: "boolean", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"allowed", "locked_by", "source"}},
 	{Group: "portfolio", Verb: "ls", OperationID: "listPortfolios", Method: "GET", Path: "/portfolios", Summary: "The portfolios",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "status", "version"}},
 	{Group: "portfolio", Verb: "report", OperationID: "reportPortfolioStatus", Method: "POST", Path: "/portfolios/{portfolioId}/updates", Summary: "Write a status update",
@@ -2246,6 +2263,11 @@ var generatedCommands = []door{
 			{Name: "zone", Kind: "string", Help: "An IANA time zone the days are local to; UTC without", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"name", "status"}},
+	{Group: "portfolio", Verb: "unlink", OperationID: "deletePortfolioPublicLink", Method: "DELETE", Path: "/portfolios/{portfolioId}/public-link", Summary: "Take a portfolio roadmap's public link away",
+		PathParams: []doorParam{
+			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "portfolio", Verb: "update", OperationID: "updatePortfolio", Method: "PUT", Path: "/portfolios/{portfolioId}", Summary: "Replace a portfolio",
 		PathParams: []doorParam{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},

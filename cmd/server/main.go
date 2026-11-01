@@ -2070,6 +2070,12 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Text: forms, Jobs: jobs, Changes: changes, HLC: hybrid,
 		// A dashboard shared with groups reaches their members only.
 		Groups: postgres.NewSnapshotRepository(),
+		// A portfolio roadmap's public link (UC-GOL-03 check 15), a page link's way.
+		Public: goalservice.RoadmapLinking{
+			Links:    postgres.NewPortfolioPublicLinkRepository(security.NewRoadmapLinkHasher(cfg.SecretKey)),
+			Settings: postgres.SettingRepository{}, Entropy: clockadapter.CryptoRandom{},
+			Accounts: accounts, Modules: modules,
+		},
 	}
 	// The assets and configuration module (M6): a hub's CIs, judged at the hub; every write of a CI
 	// goes through the inventory's reconciliation.
@@ -2401,6 +2407,11 @@ func run() error {
 		goalservice.ListPortfolios{Steward: steward}.Descriptor(),
 		goalservice.ReadPortfolio{Steward: steward}.Descriptor(),
 		goalservice.ReadPortfolioRoadmap{Steward: steward}.Descriptor(),
+		goalservice.ReadPortfolioPublicLink{Steward: steward}.Descriptor(),
+		goalservice.CreatePortfolioPublicLink{Steward: steward}.Descriptor(),
+		goalservice.DeletePortfolioPublicLink{Steward: steward}.Descriptor(),
+		goalservice.ReadPublicRoadmapsPolicy{Steward: steward}.Descriptor(),
+		goalservice.SetPublicRoadmapsPolicy{Steward: steward}.Descriptor(),
 		goalservice.CreatePortfolio{Steward: steward}.Descriptor(),
 		goalservice.UpdatePortfolio{Steward: steward}.Descriptor(),
 		goalservice.DeletePortfolio{Steward: steward}.Descriptor(),
@@ -3711,6 +3722,8 @@ func run() error {
 		// system holds, and every question it asks is asked inwards of the controller.
 		// A page's public link: not a catalogue entry, for the feed's reason.
 		controller.Feeds = &rest.FeedDoor{BaseURL: cfg.BaseURL, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace}}
+		// A portfolio roadmap's public link, the page link's way (UC-GOL-03 check 15).
+		controller.Feeds.Roadmaps = goalservice.ReadPublicRoadmap{Steward: steward}
 		// A collection's public form, the page link's way (UC-SVC-13).
 		controller.Feeds.Forms = rest.PublicFormService{
 			Opener:    servicedeskservice.OpenPublicForm{Forms: publicForms},

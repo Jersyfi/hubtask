@@ -888,6 +888,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `portfolio.created` | CreatePortfolio | `portfolio` | INFO | Every time |
 | `portfolio.deleted` | DeletePortfolio | `portfolio` | INFO | Every time |
+| `portfolio.public_link_created` | CreatePortfolioPublicLink | `portfolio` | INFO | Every time |
+| `portfolio.public_link_deleted` | DeletePortfolioPublicLink | `portfolio` | INFO | Every time |
+| `portfolio.public_link_read` | ReadPortfolioPublicLink | `portfolio` | INFO | When refused |
 | `portfolio.read` | ListPortfolioUpdates | `portfolio` | INFO | When refused |
 | `portfolio.read` | ListPortfolios | `portfolio` | INFO | When refused |
 | `portfolio.read` | ReadPortfolio | `portfolio` | INFO | When refused |
@@ -924,6 +927,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `public_forms.policy_read` | ReadPublicFormsPolicy | `public_forms` | INFO | When refused |
 | `public_forms.policy_set` | SetPublicFormsPolicy | `public_forms` | INFO | Every time |
+
+## Public_roadmaps
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `public_roadmaps.policy_read` | ReadPublicRoadmapsPolicy | `public_roadmaps` | INFO | When refused |
+| `public_roadmaps.policy_set` | SetPublicRoadmapsPolicy | `public_roadmaps` | INFO | Every time |
 
 ## Quota
 

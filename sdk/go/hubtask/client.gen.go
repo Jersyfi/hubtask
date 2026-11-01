@@ -20710,6 +20710,30 @@ type PortfolioList struct {
 	Data []Portfolio `json:"data"`
 }
 
+// PortfolioPublicLink defines model for PortfolioPublicLink.
+type PortfolioPublicLink struct {
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by"`
+	PortfolioId openapi_types.UUID  `json:"portfolio_id"`
+}
+
+// PortfolioPublicLinkMinted A portfolio roadmap's public link with its token, answered once.
+type PortfolioPublicLinkMinted struct {
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by"`
+	PortfolioId openapi_types.UUID  `json:"portfolio_id"`
+
+	// Token The credential; the address is /api/v1/public/roadmaps/{token}.
+	Token string `json:"token"`
+}
+
+// PortfolioPublicLinkState defines model for PortfolioPublicLinkState.
+type PortfolioPublicLinkState struct {
+	// Link The roadmap's public link, never its token; null when it has none.
+	Link        *PortfolioPublicLink `json:"link"`
+	PortfolioId openapi_types.UUID   `json:"portfolio_id"`
+}
+
 // PortfolioRoadmap defines model for PortfolioRoadmap.
 type PortfolioRoadmap struct {
 	// Finish The latest day of any project or bar.
@@ -27460,6 +27484,11 @@ type ReportPortfolioStatusJSONBody struct {
 // ReportPortfolioStatusJSONBodyStatus defines parameters for ReportPortfolioStatus.
 type ReportPortfolioStatusJSONBodyStatus string
 
+// SetPublicRoadmapsPolicyJSONBody defines parameters for SetPublicRoadmapsPolicy.
+type SetPublicRoadmapsPolicyJSONBody struct {
+	Allowed bool `json:"allowed"`
+}
+
 // WithdrawPresetParams defines parameters for WithdrawPreset.
 type WithdrawPresetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27515,6 +27544,12 @@ type OpenPrivateHubParams struct {
 // SetPublicFormsPolicyJSONBody defines parameters for SetPublicFormsPolicy.
 type SetPublicFormsPolicyJSONBody struct {
 	Allowed bool `json:"allowed"`
+}
+
+// GetPublicRoadmapParams defines parameters for GetPublicRoadmap.
+type GetPublicRoadmapParams struct {
+	// Zone An IANA time zone the days are local to; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
 // ResolveReferencesJSONBody defines parameters for ResolveReferences.
@@ -29010,6 +29045,9 @@ type UpdatePortfolioJSONRequestBody = PortfolioWrite
 
 // ReportPortfolioStatusJSONRequestBody defines body for ReportPortfolioStatus for application/json ContentType.
 type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
+
+// SetPublicRoadmapsPolicyJSONRequestBody defines body for SetPublicRoadmapsPolicy for application/json ContentType.
+type SetPublicRoadmapsPolicyJSONRequestBody SetPublicRoadmapsPolicyJSONBody
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -37959,6 +37997,27 @@ type ClientInterface interface {
 	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
 	UpdatePortfolio(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// DeletePortfolioPublicLink Take a portfolio roadmap's public link away
+	//
+	// The link answers nothing from then on. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with DELETE /portfolios/{portfolioId}/public-link (the `DeletePortfolioPublicLink` operationId).
+	DeletePortfolioPublicLink(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPortfolioPublicLink Whether a portfolio's roadmap has a public link
+	//
+	// Who made the roadmap's public link and when, never its token; `link` is null where it has none. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /portfolios/{portfolioId}/public-link (the `ReadPortfolioPublicLink` operationId).
+	ReadPortfolioPublicLink(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePortfolioPublicLink Make a portfolio roadmap's public link
+	//
+	// Makes the roadmap's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the roadmap read-only without signing in, as the person who made it reads it at that moment. A new link replaces the previous one, which stops answering. Refused with `portfolios.public_links_off` unless the workspace allows public roadmaps. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with POST /portfolios/{portfolioId}/public-link (the `CreatePortfolioPublicLink` operationId).
+	CreatePortfolioPublicLink(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadPortfolioRoadmap A portfolio as a roadmap across teams
 	//
 	// A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
@@ -37990,6 +38049,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
 	ReportPortfolioStatus(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPublicRoadmapsPolicy Whether roadmaps may be opened by a public link
+	//
+	// Whether the workspace lets a portfolio's roadmap be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /portfolios:public-links (the `ReadPublicRoadmapsPolicy` operationId).
+	ReadPublicRoadmapsPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPublicRoadmapsPolicyWithBody Allow public links to roadmaps, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+	SetPublicRoadmapsPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPublicRoadmapsPolicy Allow public links to roadmaps, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+	SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -38348,6 +38432,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 	GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPublicRoadmap A portfolio's roadmap opened by its public link
+	//
+	// The roadmap as readPortfolioRoadmap answers it, read as the person who made the link, now. An unknown token, a replaced or removed link, a workspace that no longer allows public roadmaps or has the goals module off, a deleted portfolio, and a link whose maker may no longer read the workspace all answer the same 404.
+	//
+	// Corresponds with GET /public/roadmaps/{token} (the `GetPublicRoadmap` operationId).
+	GetPublicRoadmap(ctx context.Context, token string, params *GetPublicRoadmapParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// AnswerSatisfactionLinkWithBody Say how satisfied you were, by the link of a resolution mail
 	//
@@ -57895,6 +57986,57 @@ func (c *Client) UpdatePortfolio(ctx context.Context, portfolioId PortfolioId, p
 	return c.Client.Do(req)
 }
 
+// DeletePortfolioPublicLink Take a portfolio roadmap's public link away
+//
+// The link answers nothing from then on. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with DELETE /portfolios/{portfolioId}/public-link (the `DeletePortfolioPublicLink` operationId).
+func (c *Client) DeletePortfolioPublicLink(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePortfolioPublicLinkRequest(c.Server, portfolioId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPortfolioPublicLink Whether a portfolio's roadmap has a public link
+//
+// Who made the roadmap's public link and when, never its token; `link` is null where it has none. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /portfolios/{portfolioId}/public-link (the `ReadPortfolioPublicLink` operationId).
+func (c *Client) ReadPortfolioPublicLink(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPortfolioPublicLinkRequest(c.Server, portfolioId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePortfolioPublicLink Make a portfolio roadmap's public link
+//
+// Makes the roadmap's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the roadmap read-only without signing in, as the person who made it reads it at that moment. A new link replaces the previous one, which stops answering. Refused with `portfolios.public_links_off` unless the workspace allows public roadmaps. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with POST /portfolios/{portfolioId}/public-link (the `CreatePortfolioPublicLink` operationId).
+func (c *Client) CreatePortfolioPublicLink(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePortfolioPublicLinkRequest(c.Server, portfolioId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadPortfolioRoadmap A portfolio as a roadmap across teams
 //
 // A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
@@ -57957,6 +58099,61 @@ func (c *Client) ReportPortfolioStatusWithBody(ctx context.Context, portfolioId 
 // Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
 func (c *Client) ReportPortfolioStatus(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReportPortfolioStatusRequest(c.Server, portfolioId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPublicRoadmapsPolicy Whether roadmaps may be opened by a public link
+//
+// Whether the workspace lets a portfolio's roadmap be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /portfolios:public-links (the `ReadPublicRoadmapsPolicy` operationId).
+func (c *Client) ReadPublicRoadmapsPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPublicRoadmapsPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPublicRoadmapsPolicyWithBody Allow public links to roadmaps, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+func (c *Client) SetPublicRoadmapsPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPublicRoadmapsPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPublicRoadmapsPolicy Allow public links to roadmaps, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+func (c *Client) SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPublicRoadmapsPolicyRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -58635,6 +58832,23 @@ func (c *Client) SubmitPublicForm(ctx context.Context, token string, body Submit
 // Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 func (c *Client) GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetPublicPageRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPublicRoadmap A portfolio's roadmap opened by its public link
+//
+// The roadmap as readPortfolioRoadmap answers it, read as the person who made the link, now. An unknown token, a replaced or removed link, a workspace that no longer allows public roadmaps or has the goals module off, a deleted portfolio, and a link whose maker may no longer read the workspace all answer the same 404.
+//
+// Corresponds with GET /public/roadmaps/{token} (the `GetPublicRoadmap` operationId).
+func (c *Client) GetPublicRoadmap(ctx context.Context, token string, params *GetPublicRoadmapParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPublicRoadmapRequest(c.Server, token, params)
 	if err != nil {
 		return nil, err
 	}
@@ -92757,6 +92971,108 @@ func NewUpdatePortfolioRequestWithBody(server string, portfolioId PortfolioId, p
 	return req, nil
 }
 
+// NewDeletePortfolioPublicLinkRequest constructs an http.Request for the DeletePortfolioPublicLink method
+func NewDeletePortfolioPublicLinkRequest(server string, portfolioId PortfolioId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s/public-link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPortfolioPublicLinkRequest constructs an http.Request for the ReadPortfolioPublicLink method
+func NewReadPortfolioPublicLinkRequest(server string, portfolioId PortfolioId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s/public-link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePortfolioPublicLinkRequest constructs an http.Request for the CreatePortfolioPublicLink method
+func NewCreatePortfolioPublicLinkRequest(server string, portfolioId PortfolioId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "portfolioId", portfolioId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios/%s/public-link", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadPortfolioRoadmapRequest constructs an http.Request for the ReadPortfolioRoadmap method
 func NewReadPortfolioRoadmapRequest(server string, portfolioId PortfolioId, params *ReadPortfolioRoadmapParams) (*http.Request, error) {
 	var err error
@@ -92890,6 +93206,73 @@ func NewReportPortfolioStatusRequestWithBody(server string, portfolioId Portfoli
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadPublicRoadmapsPolicyRequest constructs an http.Request for the ReadPublicRoadmapsPolicy method
+func NewReadPublicRoadmapsPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios:public-links")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPublicRoadmapsPolicyRequest calls the generic SetPublicRoadmapsPolicy builder with application/json body
+func NewSetPublicRoadmapsPolicyRequest(server string, body SetPublicRoadmapsPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPublicRoadmapsPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetPublicRoadmapsPolicyRequestWithBody constructs an http.Request for the SetPublicRoadmapsPolicy method, with any body, and a specified content type
+func NewSetPublicRoadmapsPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portfolios:public-links")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -93895,6 +94278,67 @@ func NewGetPublicPageRequest(server string, token string) (*http.Request, error)
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetPublicRoadmapRequest constructs an http.Request for the GetPublicRoadmap method
+func NewGetPublicRoadmapRequest(server string, token string, params *GetPublicRoadmapParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/roadmaps/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Zone != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "zone", *params.Zone, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -110382,6 +110826,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /portfolios/{portfolioId} (the `UpdatePortfolio` operationId).
 	UpdatePortfolioWithResponse(ctx context.Context, portfolioId PortfolioId, params *UpdatePortfolioParams, body UpdatePortfolioJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePortfolioResult, error)
 
+	// DeletePortfolioPublicLinkWithResponse Take a portfolio roadmap's public link away
+	//
+	// The link answers nothing from then on. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /portfolios/{portfolioId}/public-link (the `DeletePortfolioPublicLink` operationId).
+	DeletePortfolioPublicLinkWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*DeletePortfolioPublicLinkResult, error)
+
+	// ReadPortfolioPublicLinkWithResponse Whether a portfolio's roadmap has a public link
+	//
+	// Who made the roadmap's public link and when, never its token; `link` is null where it has none. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portfolios/{portfolioId}/public-link (the `ReadPortfolioPublicLink` operationId).
+	ReadPortfolioPublicLinkWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*ReadPortfolioPublicLinkResult, error)
+
+	// CreatePortfolioPublicLinkWithResponse Make a portfolio roadmap's public link
+	//
+	// Makes the roadmap's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the roadmap read-only without signing in, as the person who made it reads it at that moment. A new link replaces the previous one, which stops answering. Refused with `portfolios.public_links_off` unless the workspace allows public roadmaps. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /portfolios/{portfolioId}/public-link (the `CreatePortfolioPublicLink` operationId).
+	CreatePortfolioPublicLinkWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*CreatePortfolioPublicLinkResult, error)
+
 	// ReadPortfolioRoadmapWithResponse A portfolio as a roadmap across teams
 	//
 	// A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
@@ -110417,6 +110888,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /portfolios/{portfolioId}/updates (the `ReportPortfolioStatus` operationId).
 	ReportPortfolioStatusWithResponse(ctx context.Context, portfolioId PortfolioId, body ReportPortfolioStatusJSONRequestBody, reqEditors ...RequestEditorFn) (*ReportPortfolioStatusResult, error)
+
+	// ReadPublicRoadmapsPolicyWithResponse Whether roadmaps may be opened by a public link
+	//
+	// Whether the workspace lets a portfolio's roadmap be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portfolios:public-links (the `ReadPublicRoadmapsPolicy` operationId).
+	ReadPublicRoadmapsPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPublicRoadmapsPolicyResult, error)
+
+	// SetPublicRoadmapsPolicyWithBodyWithResponse Allow public links to roadmaps, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+	SetPublicRoadmapsPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error)
+
+	// SetPublicRoadmapsPolicyWithResponse Allow public links to roadmaps, or not
+	//
+	// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+	SetPublicRoadmapsPolicyWithResponse(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -110799,6 +111297,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 	GetPublicPageWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicPageResult, error)
+
+	// GetPublicRoadmapWithResponse A portfolio's roadmap opened by its public link
+	//
+	// The roadmap as readPortfolioRoadmap answers it, read as the person who made the link, now. An unknown token, a replaced or removed link, a workspace that no longer allows public roadmaps or has the goals module off, a deleted portfolio, and a link whose maker may no longer read the workspace all answer the same 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /public/roadmaps/{token} (the `GetPublicRoadmap` operationId).
+	GetPublicRoadmapWithResponse(ctx context.Context, token string, params *GetPublicRoadmapParams, reqEditors ...RequestEditorFn) (*GetPublicRoadmapResult, error)
 
 	// AnswerSatisfactionLinkWithBodyWithResponse Say how satisfied you were, by the link of a resolution mail
 	//
@@ -143640,6 +144147,143 @@ func (r UpdatePortfolioResult) ContentType() string {
 	return ""
 }
 
+type DeletePortfolioPublicLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePortfolioPublicLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePortfolioPublicLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePortfolioPublicLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePortfolioPublicLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePortfolioPublicLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPortfolioPublicLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortfolioPublicLinkState
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPortfolioPublicLinkResult) GetJSON200() *PortfolioPublicLinkState {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPortfolioPublicLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPortfolioPublicLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPortfolioPublicLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPortfolioPublicLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPortfolioPublicLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePortfolioPublicLinkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PortfolioPublicLinkMinted
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePortfolioPublicLinkResult) GetJSON201() *PortfolioPublicLinkMinted {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePortfolioPublicLinkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePortfolioPublicLinkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePortfolioPublicLinkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePortfolioPublicLinkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePortfolioPublicLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadPortfolioRoadmapResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -143778,6 +144422,102 @@ func (r ReportPortfolioStatusResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReportPortfolioStatusResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPublicRoadmapsPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicLinksPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPublicRoadmapsPolicyResult) GetJSON200() *PublicLinksPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPublicRoadmapsPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPublicRoadmapsPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPublicRoadmapsPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPublicRoadmapsPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPublicRoadmapsPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPublicRoadmapsPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PublicLinksPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPublicRoadmapsPolicyResult) GetJSON200() *PublicLinksPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPublicRoadmapsPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPublicRoadmapsPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPublicRoadmapsPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPublicRoadmapsPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPublicRoadmapsPolicyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -144837,6 +145577,54 @@ func (r GetPublicPageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetPublicPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetPublicRoadmapResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortfolioRoadmap
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetPublicRoadmapResult) GetJSON200() *PortfolioRoadmap {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetPublicRoadmapResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPublicRoadmapResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPublicRoadmapResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPublicRoadmapResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPublicRoadmapResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -166937,6 +167725,51 @@ func (c *ClientWithResponses) UpdatePortfolioWithResponse(ctx context.Context, p
 	return ParseUpdatePortfolioResult(rsp)
 }
 
+// DeletePortfolioPublicLinkWithResponse Take a portfolio roadmap's public link away
+//
+// The link answers nothing from then on. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /portfolios/{portfolioId}/public-link (the `DeletePortfolioPublicLink` operationId).
+func (c *ClientWithResponses) DeletePortfolioPublicLinkWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*DeletePortfolioPublicLinkResult, error) {
+	rsp, err := c.DeletePortfolioPublicLink(ctx, portfolioId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePortfolioPublicLinkResult(rsp)
+}
+
+// ReadPortfolioPublicLinkWithResponse Whether a portfolio's roadmap has a public link
+//
+// Who made the roadmap's public link and when, never its token; `link` is null where it has none. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portfolios/{portfolioId}/public-link (the `ReadPortfolioPublicLink` operationId).
+func (c *ClientWithResponses) ReadPortfolioPublicLinkWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*ReadPortfolioPublicLinkResult, error) {
+	rsp, err := c.ReadPortfolioPublicLink(ctx, portfolioId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPortfolioPublicLinkResult(rsp)
+}
+
+// CreatePortfolioPublicLinkWithResponse Make a portfolio roadmap's public link
+//
+// Makes the roadmap's public link and answers its token - once; only a hash of it is kept. Whoever holds the link reads the roadmap read-only without signing in, as the person who made it reads it at that moment. A new link replaces the previous one, which stops answering. Refused with `portfolios.public_links_off` unless the workspace allows public roadmaps. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /portfolios/{portfolioId}/public-link (the `CreatePortfolioPublicLink` operationId).
+func (c *ClientWithResponses) CreatePortfolioPublicLinkWithResponse(ctx context.Context, portfolioId PortfolioId, reqEditors ...RequestEditorFn) (*CreatePortfolioPublicLinkResult, error) {
+	rsp, err := c.CreatePortfolioPublicLink(ctx, portfolioId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePortfolioPublicLinkResult(rsp)
+}
+
 // ReadPortfolioRoadmapWithResponse A portfolio as a roadmap across teams
 //
 // A lane per hub, each project the caller may read in it with the dates the portfolio plans it for and its health, and a bar per top-level entry with its start and finish as the project's plan schedules them (GET /plans/{planId}/schedule), marked milestone, done and critical. A hub the caller may not read is a lane without a name. Needs READ at the workspace.
@@ -166995,6 +167828,51 @@ func (c *ClientWithResponses) ReportPortfolioStatusWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseReportPortfolioStatusResult(rsp)
+}
+
+// ReadPublicRoadmapsPolicyWithResponse Whether roadmaps may be opened by a public link
+//
+// Whether the workspace lets a portfolio's roadmap be opened by a public link, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portfolios:public-links (the `ReadPublicRoadmapsPolicy` operationId).
+func (c *ClientWithResponses) ReadPublicRoadmapsPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadPublicRoadmapsPolicyResult, error) {
+	rsp, err := c.ReadPublicRoadmapsPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPublicRoadmapsPolicyResult(rsp)
+}
+
+// SetPublicRoadmapsPolicyWithBodyWithResponse Allow public links to roadmaps, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+func (c *ClientWithResponses) SetPublicRoadmapsPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error) {
+	rsp, err := c.SetPublicRoadmapsPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPublicRoadmapsPolicyResult(rsp)
+}
+
+// SetPublicRoadmapsPolicyWithResponse Allow public links to roadmaps, or not
+//
+// Off by default; the installation or the plan may lock it (`setting.locked`). Switched off, every roadmap link stops answering until it is switched on again. Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
+func (c *ClientWithResponses) SetPublicRoadmapsPolicyWithResponse(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error) {
+	rsp, err := c.SetPublicRoadmapsPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPublicRoadmapsPolicyResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -167569,6 +168447,21 @@ func (c *ClientWithResponses) GetPublicPageWithResponse(ctx context.Context, tok
 		return nil, err
 	}
 	return ParseGetPublicPageResult(rsp)
+}
+
+// GetPublicRoadmapWithResponse A portfolio's roadmap opened by its public link
+//
+// The roadmap as readPortfolioRoadmap answers it, read as the person who made the link, now. An unknown token, a replaced or removed link, a workspace that no longer allows public roadmaps or has the goals module off, a deleted portfolio, and a link whose maker may no longer read the workspace all answer the same 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /public/roadmaps/{token} (the `GetPublicRoadmap` operationId).
+func (c *ClientWithResponses) GetPublicRoadmapWithResponse(ctx context.Context, token string, params *GetPublicRoadmapParams, reqEditors ...RequestEditorFn) (*GetPublicRoadmapResult, error) {
+	rsp, err := c.GetPublicRoadmap(ctx, token, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPublicRoadmapResult(rsp)
 }
 
 // AnswerSatisfactionLinkWithBodyWithResponse Say how satisfied you were, by the link of a resolution mail
@@ -192958,6 +193851,101 @@ func ParseUpdatePortfolioResult(rsp *http.Response) (*UpdatePortfolioResult, err
 	return response, nil
 }
 
+// ParseDeletePortfolioPublicLinkResult parses an HTTP response from a DeletePortfolioPublicLinkWithResponse call
+func ParseDeletePortfolioPublicLinkResult(rsp *http.Response) (*DeletePortfolioPublicLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePortfolioPublicLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPortfolioPublicLinkResult parses an HTTP response from a ReadPortfolioPublicLinkWithResponse call
+func ParseReadPortfolioPublicLinkResult(rsp *http.Response) (*ReadPortfolioPublicLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPortfolioPublicLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortfolioPublicLinkState
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePortfolioPublicLinkResult parses an HTTP response from a CreatePortfolioPublicLinkWithResponse call
+func ParseCreatePortfolioPublicLinkResult(rsp *http.Response) (*CreatePortfolioPublicLinkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePortfolioPublicLinkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PortfolioPublicLinkMinted
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadPortfolioRoadmapResult parses an HTTP response from a ReadPortfolioRoadmapWithResponse call
 func ParseReadPortfolioRoadmapResult(rsp *http.Response) (*ReadPortfolioRoadmapResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -193044,6 +194032,72 @@ func ParseReportPortfolioStatusResult(rsp *http.Response) (*ReportPortfolioStatu
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPublicRoadmapsPolicyResult parses an HTTP response from a ReadPublicRoadmapsPolicyWithResponse call
+func ParseReadPublicRoadmapsPolicyResult(rsp *http.Response) (*ReadPublicRoadmapsPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPublicRoadmapsPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPublicRoadmapsPolicyResult parses an HTTP response from a SetPublicRoadmapsPolicyWithResponse call
+func ParseSetPublicRoadmapsPolicyResult(rsp *http.Response) (*SetPublicRoadmapsPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPublicRoadmapsPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -193787,6 +194841,39 @@ func ParseGetPublicPageResult(rsp *http.Response) (*GetPublicPageResult, error) 
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPublicRoadmapResult parses an HTTP response from a GetPublicRoadmapWithResponse call
+func ParseGetPublicRoadmapResult(rsp *http.Response) (*GetPublicRoadmapResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPublicRoadmapResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortfolioRoadmap
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {

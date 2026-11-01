@@ -2806,6 +2806,26 @@ func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { no
 
 func (pending) GetPublicPage(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
 
+func (pending) ReadPortfolioPublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) CreatePortfolioPublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePortfolioPublicLink(w http.ResponseWriter, r *http.Request, _ openapi.PortfolioId) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) GetPublicRoadmap(w http.ResponseWriter, r *http.Request, _ string, _ openapi.GetPublicRoadmapParams) {
+	notAvailable(w, r)
+}
+
 func (pending) ReadPublicForm(w http.ResponseWriter, r *http.Request, _ openapi.PublicFormCollectionId) {
 	notAvailable(w, r)
 }

@@ -20704,6 +20704,30 @@ type PortfolioList struct {
 	Data []Portfolio `json:"data"`
 }
 
+// PortfolioPublicLink defines model for PortfolioPublicLink.
+type PortfolioPublicLink struct {
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by"`
+	PortfolioId openapi_types.UUID  `json:"portfolio_id"`
+}
+
+// PortfolioPublicLinkMinted A portfolio roadmap's public link with its token, answered once.
+type PortfolioPublicLinkMinted struct {
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by"`
+	PortfolioId openapi_types.UUID  `json:"portfolio_id"`
+
+	// Token The credential; the address is /api/v1/public/roadmaps/{token}.
+	Token string `json:"token"`
+}
+
+// PortfolioPublicLinkState defines model for PortfolioPublicLinkState.
+type PortfolioPublicLinkState struct {
+	// Link The roadmap's public link, never its token; null when it has none.
+	Link        *PortfolioPublicLink `json:"link"`
+	PortfolioId openapi_types.UUID   `json:"portfolio_id"`
+}
+
 // PortfolioRoadmap defines model for PortfolioRoadmap.
 type PortfolioRoadmap struct {
 	// Finish The latest day of any project or bar.
@@ -27454,6 +27478,11 @@ type ReportPortfolioStatusJSONBody struct {
 // ReportPortfolioStatusJSONBodyStatus defines parameters for ReportPortfolioStatus.
 type ReportPortfolioStatusJSONBodyStatus string
 
+// SetPublicRoadmapsPolicyJSONBody defines parameters for SetPublicRoadmapsPolicy.
+type SetPublicRoadmapsPolicyJSONBody struct {
+	Allowed bool `json:"allowed"`
+}
+
 // WithdrawPresetParams defines parameters for WithdrawPreset.
 type WithdrawPresetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -27509,6 +27538,12 @@ type OpenPrivateHubParams struct {
 // SetPublicFormsPolicyJSONBody defines parameters for SetPublicFormsPolicy.
 type SetPublicFormsPolicyJSONBody struct {
 	Allowed bool `json:"allowed"`
+}
+
+// GetPublicRoadmapParams defines parameters for GetPublicRoadmap.
+type GetPublicRoadmapParams struct {
+	// Zone An IANA time zone the days are local to; UTC without.
+	Zone *string `form:"zone,omitempty" json:"zone,omitempty"`
 }
 
 // ResolveReferencesJSONBody defines parameters for ResolveReferences.
@@ -29004,6 +29039,9 @@ type UpdatePortfolioJSONRequestBody = PortfolioWrite
 
 // ReportPortfolioStatusJSONRequestBody defines body for ReportPortfolioStatus for application/json ContentType.
 type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
+
+// SetPublicRoadmapsPolicyJSONRequestBody defines body for SetPublicRoadmapsPolicy for application/json ContentType.
+type SetPublicRoadmapsPolicyJSONRequestBody SetPublicRoadmapsPolicyJSONBody
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -31572,6 +31610,15 @@ type ServerInterface interface {
 	// UpdatePortfolio Replace a portfolio
 	// (PUT /portfolios/{portfolioId})
 	UpdatePortfolio(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId, params UpdatePortfolioParams)
+	// DeletePortfolioPublicLink Take a portfolio roadmap's public link away
+	// (DELETE /portfolios/{portfolioId}/public-link)
+	DeletePortfolioPublicLink(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
+	// ReadPortfolioPublicLink Whether a portfolio's roadmap has a public link
+	// (GET /portfolios/{portfolioId}/public-link)
+	ReadPortfolioPublicLink(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
+	// CreatePortfolioPublicLink Make a portfolio roadmap's public link
+	// (POST /portfolios/{portfolioId}/public-link)
+	CreatePortfolioPublicLink(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
 	// ReadPortfolioRoadmap A portfolio as a roadmap across teams
 	// (GET /portfolios/{portfolioId}/roadmap)
 	ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId, params ReadPortfolioRoadmapParams)
@@ -31581,6 +31628,12 @@ type ServerInterface interface {
 	// ReportPortfolioStatus Write a status update
 	// (POST /portfolios/{portfolioId}/updates)
 	ReportPortfolioStatus(w http.ResponseWriter, r *http.Request, portfolioId PortfolioId)
+	// ReadPublicRoadmapsPolicy Whether roadmaps may be opened by a public link
+	// (GET /portfolios:public-links)
+	ReadPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request)
+	// SetPublicRoadmapsPolicy Allow public links to roadmaps, or not
+	// (PUT /portfolios:public-links)
+	SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -31647,6 +31700,9 @@ type ServerInterface interface {
 	// GetPublicPage A page opened by its public link
 	// (GET /public/pages/{token})
 	GetPublicPage(w http.ResponseWriter, r *http.Request, token string)
+	// GetPublicRoadmap A portfolio's roadmap opened by its public link
+	// (GET /public/roadmaps/{token})
+	GetPublicRoadmap(w http.ResponseWriter, r *http.Request, token string, params GetPublicRoadmapParams)
 	// AnswerSatisfactionLink Say how satisfied you were, by the link of a resolution mail
 	// (POST /public/satisfaction/{token})
 	AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, token string)
@@ -53397,6 +53453,84 @@ func (siw *ServerInterfaceWrapper) UpdatePortfolio(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// DeletePortfolioPublicLink operation middleware
+func (siw *ServerInterfaceWrapper) DeletePortfolioPublicLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePortfolioPublicLink(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPortfolioPublicLink operation middleware
+func (siw *ServerInterfaceWrapper) ReadPortfolioPublicLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPortfolioPublicLink(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePortfolioPublicLink operation middleware
+func (siw *ServerInterfaceWrapper) CreatePortfolioPublicLink(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "portfolioId" -------------
+	var portfolioId PortfolioId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "portfolioId", r.PathValue("portfolioId"), &portfolioId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "portfolioId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePortfolioPublicLink(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadPortfolioRoadmap operation middleware
 func (siw *ServerInterfaceWrapper) ReadPortfolioRoadmap(w http.ResponseWriter, r *http.Request) {
 
@@ -53482,6 +53616,34 @@ func (siw *ServerInterfaceWrapper) ReportPortfolioStatus(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReportPortfolioStatus(w, r, portfolioId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPublicRoadmapsPolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPublicRoadmapsPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPublicRoadmapsPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPublicRoadmapsPolicy(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -54152,6 +54314,48 @@ func (siw *ServerInterfaceWrapper) GetPublicPage(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetPublicPage(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicRoadmap operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicRoadmap(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPublicRoadmapParams
+
+	// ------------- Optional query parameter "zone" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "zone", r.URL.Query(), &params.Zone, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "zone"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zone", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicRoadmap(w, r, token, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59396,6 +59600,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.ReadPortfolio)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/portfolios/{portfolioId}", wrapper.UpdatePortfolio)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}/roadmap", wrapper.ReadPortfolioRoadmap)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/portfolios/{portfolioId}/public-link", wrapper.DeletePortfolioPublicLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}/public-link", wrapper.ReadPortfolioPublicLink)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/portfolios/{portfolioId}/public-link", wrapper.CreatePortfolioPublicLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios:public-links", wrapper.ReadPublicRoadmapsPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/portfolios:public-links", wrapper.SetPublicRoadmapsPolicy)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portfolios/{portfolioId}/updates", wrapper.ListPortfolioUpdates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/portfolios/{portfolioId}/updates", wrapper.ReportPortfolioStatus)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards", wrapper.ListDashboards)
@@ -60136,6 +60345,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/forms/{token}", wrapper.GetPublicForm)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/public/forms/{token}", wrapper.SubmitPublicForm)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/public/satisfaction/{token}", wrapper.AnswerSatisfactionLink)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/roadmaps/{token}", wrapper.GetPublicRoadmap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}", wrapper.GetPublicPage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:shared", wrapper.ListSharedPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:personal", wrapper.ReadPersonalSpace)

@@ -381,6 +381,31 @@ export class HubtaskClient {
     return this.call("GET", "/portfolios/{portfolioId}/roadmap", { "portfolioId": portfolioId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Whether a portfolio's roadmap has a public link */
+  readPortfolioPublicLink(portfolioId: string, options: CallOptions = {}): Promise<operations["readPortfolioPublicLink"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portfolios/{portfolioId}/public-link", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Make a portfolio roadmap's public link */
+  createPortfolioPublicLink(portfolioId: string, options: CallOptions = {}): Promise<operations["createPortfolioPublicLink"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/portfolios/{portfolioId}/public-link", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a portfolio roadmap's public link away */
+  deletePortfolioPublicLink(portfolioId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/portfolios/{portfolioId}/public-link", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Whether roadmaps may be opened by a public link */
+  readPublicRoadmapsPolicy(options: CallOptions = {}): Promise<operations["readPublicRoadmapsPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portfolios:public-links", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Allow public links to roadmaps, or not */
+  setPublicRoadmapsPolicy(body: NonNullable<operations["setPublicRoadmapsPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPublicRoadmapsPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/portfolios:public-links", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** A portfolio's status updates */
   listPortfolioUpdates(portfolioId: string, options: CallOptions = {}): Promise<operations["listPortfolioUpdates"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/portfolios/{portfolioId}/updates", { "portfolioId": portfolioId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -4124,6 +4149,12 @@ export class HubtaskClient {
    * Public: sent without a bearer where the client holds none. */
   answerSatisfactionLink(token: string, body: NonNullable<operations["answerSatisfactionLink"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/public/satisfaction/{token}", { "token": token }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  }
+
+  /** A portfolio's roadmap opened by its public link
+   * Public: sent without a bearer where the client holds none. */
+  getPublicRoadmap(token: string, options: CallOptions & { readonly query?: NonNullable<operations["getPublicRoadmap"]['parameters']['query']> } = {}): Promise<operations["getPublicRoadmap"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/public/roadmaps/{token}", { "token": token }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** A page opened by its public link

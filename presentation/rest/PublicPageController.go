@@ -29,6 +29,8 @@ type FeedDoor struct {
 	Data CalendarFeedReader
 	// Pages serves a page's public link (UC-DOC-08).
 	Pages PublicPageReader
+	// Roadmaps serves a portfolio roadmap's public link (UC-GOL-03 check 15).
+	Roadmaps PublicRoadmapReader
 	// Forms serves a collection's public form (UC-SVC-13).
 	Forms PublicFormDoor
 	// Satisfaction answers a resolution mail's satisfaction link (UC-SVC-07 check 6).

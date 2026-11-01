@@ -49,6 +49,7 @@ func settingAreas() []settingArea {
 		{read: "ReadWorkspaceTolerance", prefixes: []string{planningPrefix}, rows: toleranceRows, write: toleranceOp},
 		{read: "ReadPublicLinksPolicy", prefixes: []string{publicLinksKey}, rows: publicLinksRows, write: publicLinksOp},
 		{read: "ReadPublicFormsPolicy", prefixes: []string{publicFormsKey}, rows: publicFormsRows, write: publicFormsOp},
+		{read: "ReadPublicRoadmapsPolicy", prefixes: []string{publicRoadmapsKey}, rows: publicRoadmapsRows, write: publicRoadmapsOp},
 		{read: "ReadTimePolicy", prefixes: []string{timePrefix}, rows: timePolicyRows, write: timePolicyOp},
 	}
 }
@@ -118,6 +119,26 @@ func publicLinksOp(change domain.BlockChange, _ map[string]any) (operation, erro
 	}
 	on, _ := change.After[settingValueField].(bool)
 	return operation{UseCase: "SetPublicLinksPolicy", Path: change.Path(), Input: usecase.Input{"allowed": on}}, nil
+}
+
+// publicRoadmapsKey is the goals module's switch for a portfolio roadmap's public link
+// (UC-GOL-03 check 15).
+const publicRoadmapsKey = "goals.public_roadmaps"
+
+func publicRoadmapsRows(answer map[string]any) map[string]map[string]any {
+	return map[string]map[string]any{publicRoadmapsKey: {
+		settingValueField: answer["allowed"], "source": answer["source"], "locked_by": answer["locked_by"],
+	}}
+}
+
+// publicRoadmapsOp switches public roadmaps; the switch has no "inherit", as a page's links.
+func publicRoadmapsOp(change domain.BlockChange, _ map[string]any) (operation, error) {
+	if change.Op != domain.OpChange && change.Op != domain.OpAdd {
+		return operation{}, shared.ErrValidation.WithDetail("config.not_removable").
+			WithFields(domain.Refusal("config.not_removable", change.Path(), nil))
+	}
+	on, _ := change.After[settingValueField].(bool)
+	return operation{UseCase: "SetPublicRoadmapsPolicy", Path: change.Path(), Input: usecase.Input{"allowed": on}}, nil
 }
 
 // publicFormsKey is the service desk's switch for a collection's public form (UC-SVC-13).

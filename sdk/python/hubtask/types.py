@@ -5664,6 +5664,22 @@ class ArticleRating(TypedDict, total=False):
     collection_id: Required[str]
     helpful: Required[bool]
 
+class PortfolioPublicLink(TypedDict, total=False):
+    portfolio_id: Required[str]
+    created_by: Required[str | None]
+    created_at: Required[str]
+
+class PortfolioPublicLinkState(TypedDict, total=False):
+    portfolio_id: Required[str]
+    link: Required["PortfolioPublicLink" | Any]
+
+class PortfolioPublicLinkMinted(TypedDict, total=False):
+    """A portfolio roadmap's public link with its token, answered once."""
+    portfolio_id: Required[str]
+    created_by: Required[str | None]
+    created_at: Required[str]
+    token: Required[str]
+
 class PublicLinksPolicy(TypedDict, total=False):
     allowed: Required[bool]
     source: Required[str]

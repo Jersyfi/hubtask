@@ -7,6 +7,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/quota"
 	"github.com/Jersyfi/hubtask/core/domain/model/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
@@ -51,6 +52,7 @@ func Catalogue() (domain.Catalogue, error) {
 	definitions = append(definitions, knowledge.PublicLinksDefinition())
 	definitions = append(definitions, knowledge.DraftsDefinition())
 	definitions = append(definitions, servicedesk.PublicFormsDefinition())
+	definitions = append(definitions, goal.PublicRoadmapsDefinition())
 	definitions = append(definitions, planning.TimeToleranceDefinition())
 	definitions = append(definitions, timekeeping.PolicyDefinitions()...)
 	definitions = append(definitions, notification.PreferenceDefinitions()...)

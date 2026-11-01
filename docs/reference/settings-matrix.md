@@ -209,6 +209,9 @@ one workspace, by person and place.
 | `servicedesk.public_forms` | INSTANCE | `admin:instance` | the installation's operators |
 | `servicedesk.public_forms` | PLAN | `admin:instance` | the installation's operators |
 | `servicedesk.public_forms` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
+| `goals.public_roadmaps` | INSTANCE | `admin:instance` | the installation's operators |
+| `goals.public_roadmaps` | PLAN | `admin:instance` | the installation's operators |
+| `goals.public_roadmaps` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
 | `planning.time_tolerance_days` | WORKSPACE | `STRUCTURE` | OWNER, ADMIN |
 | `planning.time_tolerance_days` | HUB | `STRUCTURE` | OWNER, ADMIN |
 | `planning.time_tolerance_days` | COLLECTION | `STRUCTURE` | OWNER, ADMIN |

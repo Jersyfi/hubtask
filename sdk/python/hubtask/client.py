@@ -319,6 +319,26 @@ class Client:
         """A portfolio as a roadmap across teams"""
         return self._call("GET", "/portfolios/{portfolioId}/roadmap", {"portfolioId": portfolio_id}, query, {}, None, "none", None, "json")
 
+    def read_portfolio_public_link(self, portfolio_id: str) -> "PortfolioPublicLinkState":
+        """Whether a portfolio's roadmap has a public link"""
+        return self._call("GET", "/portfolios/{portfolioId}/public-link", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def create_portfolio_public_link(self, portfolio_id: str) -> "PortfolioPublicLinkMinted":
+        """Make a portfolio roadmap's public link"""
+        return self._call("POST", "/portfolios/{portfolioId}/public-link", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
+
+    def delete_portfolio_public_link(self, portfolio_id: str) -> None:
+        """Take a portfolio roadmap's public link away"""
+        return self._call("DELETE", "/portfolios/{portfolioId}/public-link", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "void")
+
+    def read_public_roadmaps_policy(self) -> "PublicLinksPolicy":
+        """Whether roadmaps may be opened by a public link"""
+        return self._call("GET", "/portfolios:public-links", {}, None, {}, None, "none", None, "json")
+
+    def set_public_roadmaps_policy(self, body: dict[str, Any]) -> "PublicLinksPolicy":
+        """Allow public links to roadmaps, or not"""
+        return self._call("PUT", "/portfolios:public-links", {}, None, {}, body, "json", "application/json", "json")
+
     def list_portfolio_updates(self, portfolio_id: str) -> "PortfolioUpdateList":
         """A portfolio's status updates"""
         return self._call("GET", "/portfolios/{portfolioId}/updates", {"portfolioId": portfolio_id}, None, {}, None, "none", None, "json")
@@ -3278,6 +3298,10 @@ class Client:
     def answer_satisfaction_link(self, token: str, body: "SatisfactionLinkAnswer") -> None:
         """Say how satisfied you were, by the link of a resolution mail"""
         return self._call("POST", "/public/satisfaction/{token}", {"token": token}, None, {}, body, "json", "application/json", "void")
+
+    def get_public_roadmap(self, token: str, *, query: dict[str, Any] | None = None) -> "PortfolioRoadmap":
+        """A portfolio's roadmap opened by its public link"""
+        return self._call("GET", "/public/roadmaps/{token}", {"token": token}, query, {}, None, "none", None, "json")
 
     def get_public_page(self, token: str) -> bytes:
         """A page opened by its public link"""

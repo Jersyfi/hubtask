@@ -11376,5 +11376,15 @@
   "app.structure.preset.PROCUREMENT": "Procurement",
   "app.structure.preset.CAPA": "Nonconformity and corrective action (CAPA)",
   "app.structure.preset.RISK_CONTROLS": "Risk and controls (ISO 27001)",
-  "app.structure.preset.RECORDS_OF_PROCESSING": "Records of processing (GDPR)"
+  "app.structure.preset.RECORDS_OF_PROCESSING": "Records of processing (GDPR)",
+  "portfolios.public_links_off": "This workspace does not allow public links to roadmaps.",
+  "portfolios.public_links_unavailable": "Public links to roadmaps are not available on this installation.",
+  "portfolios.link_not_found": "There is no roadmap at this link.",
+  "portfolios.link_malformed": "That is not a roadmap link this server made.",
+  "portfolios.link_unmintable": "The link could not be made. Try again.",
+  "portfolios.link_tenant_missing": "This installation is misconfigured and could not make a roadmap link.",
+  "portfolios.link_secret_short": "This installation is misconfigured and could not make a roadmap link.",
+  "portfolios.identity_incomplete": "This installation is misconfigured and could not make a roadmap link.",
+  "portfolios.agent_decides_policy_not": "Whether roadmaps may be opened by a public link is decided by a person, not an agent.",
+  "app.instance.setting.goals.public_roadmaps": "Public links to roadmaps"
 }

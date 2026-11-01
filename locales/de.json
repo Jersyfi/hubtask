@@ -11376,5 +11376,15 @@
   "app.structure.preset.PROCUREMENT": "Beschaffung",
   "app.structure.preset.CAPA": "Abweichungen und Korrekturmaßnahmen (CAPA)",
   "app.structure.preset.RISK_CONTROLS": "Risiken und Maßnahmen (ISO 27001)",
-  "app.structure.preset.RECORDS_OF_PROCESSING": "Verzeichnis von Verarbeitungstätigkeiten (DSGVO)"
+  "app.structure.preset.RECORDS_OF_PROCESSING": "Verzeichnis von Verarbeitungstätigkeiten (DSGVO)",
+  "portfolios.public_links_off": "Dieser Arbeitsbereich erlaubt keine öffentlichen Links auf Roadmaps.",
+  "portfolios.public_links_unavailable": "Öffentliche Links auf Roadmaps gibt es in dieser Installation nicht.",
+  "portfolios.link_not_found": "Unter diesem Link gibt es keine Roadmap.",
+  "portfolios.link_malformed": "Das ist kein Roadmap-Link, den dieser Server erstellt hat.",
+  "portfolios.link_unmintable": "Der Link ließ sich nicht erstellen. Bitte noch einmal versuchen.",
+  "portfolios.link_tenant_missing": "Diese Installation ist falsch eingerichtet und konnte keinen Roadmap-Link erstellen.",
+  "portfolios.link_secret_short": "Diese Installation ist falsch eingerichtet und konnte keinen Roadmap-Link erstellen.",
+  "portfolios.identity_incomplete": "Diese Installation ist falsch eingerichtet und konnte keinen Roadmap-Link erstellen.",
+  "portfolios.agent_decides_policy_not": "Ob Roadmaps über einen öffentlichen Link geöffnet werden dürfen, entscheidet ein Mensch, kein Agent.",
+  "app.instance.setting.goals.public_roadmaps": "Öffentliche Links auf Roadmaps"
 }

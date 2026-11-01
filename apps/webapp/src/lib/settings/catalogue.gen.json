@@ -1757,6 +1757,32 @@
       ]
     },
     {
+      "key": "goals.public_roadmaps",
+      "kind": "FLAG",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
       "key": "planning.time_tolerance_days",
       "kind": "COUNT",
       "levels": [

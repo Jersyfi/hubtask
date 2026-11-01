@@ -39,6 +39,7 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/jumble/intake:rotate-token":                     true,
 	http.MethodPost + " " + APIBasePath + "/integrations/calendar-feeds":                    true,
 	http.MethodPost + " " + APIBasePath + "/pages/{pageId}/public-link":                     true,
+	http.MethodPost + " " + APIBasePath + "/portfolios/{portfolioId}/public-link":           true,
 	http.MethodPost + " " + APIBasePath + "/collections/{collectionId}/public-form":         true,
 	// Secrets and second-factor material.
 	http.MethodPost + " " + APIBasePath + "/integrations/webhooks":                              true,
