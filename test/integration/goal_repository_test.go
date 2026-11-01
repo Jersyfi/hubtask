@@ -77,6 +77,11 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 		if err != nil || len(found.KeyResults) != 1 || found.KeyResults[0].ID != result || found.HubID != hub {
 			t.Errorf("goal = %+v %v", found, err)
 		}
+		// Without a filter every goal of the workspace: an empty list of identifiers keeps all.
+		listed, err := store.Goals(ctx, goalrepo.GoalFilter{Max: 10})
+		if err != nil || len(listed) != 1 || listed[0].ID != g.ID {
+			t.Errorf("goals = %+v %v", listed, err)
+		}
 		linked, err := store.LinkedEntries(ctx, []shared.ID{g.ID})
 		if err != nil || len(linked[g.ID]) != 1 {
 			t.Errorf("linked = %v %v", linked, err)

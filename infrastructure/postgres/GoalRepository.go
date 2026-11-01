@@ -377,6 +377,10 @@ func (GoalRepository) Goals(ctx context.Context, filter repository.GoalFilter) (
 	if err != nil {
 		return nil, err
 	}
+	if only == nil {
+		// A nil slice is sent as NULL, whose cardinality is NULL and keeps no row; '{}' keeps all.
+		only = []pgtype.UUID{}
+	}
 	//nolint:gosec // G115: max is a bound the use case sets
 	rows, err := queries.ListGoals(ctx, sqlc.ListGoalsParams{
 		PeriodID: keys[0], ParentID: keys[1], OwnerID: keys[2], Ids: only, Max: int32(filter.Max),
