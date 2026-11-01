@@ -25,6 +25,10 @@ const (
 	// balancers default to a minute - because a stream a proxy closed looks to a client like a
 	// server that went away.
 	streamHeartbeat = 20 * time.Second
+	// streamCredentialRecheck is how often a held stream asks its credential again, at the next
+	// round after it; the idle poll bounds a round, so a revoked session ends within about a minute.
+	streamCredentialRecheck = 30 * time.Second
+	streamCredentialTimeout = 5 * time.Second
 	// streamRetry is the reconnection delay the stream suggests to a browser's EventSource, in
 	// milliseconds. Longer than the default of a few hundred milliseconds: a client that
 	// reconnects to a pod that is shutting down should not spend the rollout in a tight loop.
@@ -170,8 +174,27 @@ func (c StreamController) serve(
 	idle := time.NewTimer(streamIdlePoll)
 	defer idle.Stop()
 
+	// The actor is fixed when the stream opens, the credential is not: a session revoked, signed out
+	// or expired since, or a view as somebody that lapsed, ends the stream within a recheck.
+	still := credentialStill(r.Context(), actor)
+	checked := c.now()
 	cursor := from
 	for {
+		if !actor.ViewingAsUntil.IsZero() && !c.now().Before(actor.ViewingAsUntil) {
+			_ = events.Comment("credential")
+			return
+		}
+		if still != nil && c.now().Sub(checked) >= streamCredentialRecheck {
+			checkCtx, cancel := context.WithTimeout(r.Context(), streamCredentialTimeout)
+			err := still(checkCtx)
+			cancel()
+			if err != nil {
+				// The client reconnects through a fresh authentication, which refuses it.
+				_ = events.Comment("credential")
+				return
+			}
+			checked = c.now()
+		}
 		batch, err := c.Stream.Next(r.Context(), actor, cursor)
 		if err != nil {
 			// Mid-stream there is no status left to send. The connection ends and the client

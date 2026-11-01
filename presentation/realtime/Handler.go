@@ -46,8 +46,9 @@ const (
 
 // The close codes a client is told why with: in the range RFC 6455 leaves to applications.
 const (
-	closeForbidden websocket.StatusCode = 4403
-	closeNotFound  websocket.StatusCode = 4404
+	closeUnauthenticated websocket.StatusCode = 4401
+	closeForbidden       websocket.StatusCode = 4403
+	closeNotFound        websocket.StatusCode = 4404
 )
 
 // Documents is the whole of what the adapter may do with a document: the realtime service.
@@ -79,6 +80,24 @@ type Handler struct {
 	Relay           *Relay
 	// Signals is optional; nil records nothing.
 	Signals Signals
+	// CredentialEvery is how often a held connection asks its credential again; zero is
+	// credentialRecheck.
+	CredentialEvery time.Duration
+}
+
+// credentialRecheck bounds how long a revoked session, a disabled account or a signed-out device
+// keeps a live document open after the fact.
+const credentialRecheck = 30 * time.Second
+
+// Credential is what the connection was admitted with, asked again while it is held: the actor is
+// fixed at the upgrade, and a session revoked, signed out or expired since must not keep reading
+// and writing.
+type Credential struct {
+	// Still answers an error once the credential no longer authenticates as the actor the
+	// connection opened with. Nil asks nothing.
+	Still func(ctx context.Context) error
+	// Until is when the credential ends regardless - a view as somebody lapsing; zero for none.
+	Until time.Time
 }
 
 // Signals counts a log nobody compacts (A-24): an update landing past domain.BacklogAlarm
@@ -92,6 +111,7 @@ type Signals interface {
 // problem document by the caller; after the upgrade every ending is a close code.
 func (h Handler) Serve(
 	w http.ResponseWriter, r *http.Request, actor appshared.ActorContext, ref domain.Ref, closing <-chan struct{},
+	credential Credential,
 ) error {
 	opened, err := h.Documents.Open(r.Context(), actor, ref)
 	if err != nil {
@@ -106,18 +126,22 @@ func (h Handler) Serve(
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
-	c := &connection{h: h, conn: conn, actor: actor, ref: ref, writable: opened.Writable, own: map[int64]bool{}}
+	c := &connection{
+		h: h, conn: conn, actor: actor, ref: ref, writable: opened.Writable, own: map[int64]bool{},
+		credential: credential,
+	}
 	status, reason := c.run(ctx, opened, closing)
 	_ = conn.Close(status, reason)
 	return nil
 }
 
 type connection struct {
-	h        Handler
-	conn     *websocket.Conn
-	actor    appshared.ActorContext
-	ref      domain.Ref
-	writable bool
+	h          Handler
+	conn       *websocket.Conn
+	actor      appshared.ActorContext
+	credential Credential
+	ref        domain.Ref
+	writable   bool
 	// last is the newest update this connection has handed out or sent; own are the places of
 	// its own updates, which the catch-up does not echo.
 	last int64
@@ -163,10 +187,34 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 		defer ticker.Stop()
 		refresh = ticker.C
 	}
+	var recheckCredential, credentialEnds <-chan time.Time
+	if c.credential.Still != nil {
+		every := c.h.CredentialEvery
+		if every <= 0 {
+			every = credentialRecheck
+		}
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		recheckCredential = ticker.C
+	}
+	if !c.credential.Until.IsZero() {
+		timer := time.NewTimer(time.Until(c.credential.Until))
+		defer timer.Stop()
+		credentialEnds = timer.C
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			return websocket.StatusGoingAway, ""
+		case <-recheckCredential:
+			checkCtx, cancel := context.WithTimeout(ctx, writeTimeout)
+			err := c.credential.Still(checkCtx)
+			cancel()
+			if err != nil {
+				return closeUnauthenticated, credentialCode(err)
+			}
+		case <-credentialEnds:
+			return closeUnauthenticated, "access.token_expired"
 		case <-closing:
 			return websocket.StatusGoingAway, "draining"
 		case err := <-failed:
@@ -430,6 +478,17 @@ func (c *connection) ending(err error) (websocket.StatusCode, string) {
 		return websocket.StatusInternalError, coded.DetailCode
 	}
 	return websocket.StatusInternalError, ""
+}
+
+// credentialCode is why a held credential no longer counts: the authentication's own code, or a
+// revoked credential for anything else - a database that did not answer closes the connection too,
+// and the client reconnects through a fresh authentication.
+func credentialCode(err error) string {
+	var coded *shared.Error
+	if errors.As(err, &coded) && errors.Is(err, shared.ErrUnauthenticated) {
+		return coded.DetailCode
+	}
+	return "access.token_revoked"
 }
 
 func detailOf(err error) string {

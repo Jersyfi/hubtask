@@ -6,6 +6,7 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -494,5 +495,39 @@ func TestABearerOffersItselfAsASubprotocolOnlyOnAWebSocketUpgrade(t *testing.T) 
 	plain.Header.Set("Sec-WebSocket-Protocol", "hubtask.bearer.hbt_pat_abc")
 	if got, _ := bearerCredential(plain); got != "" {
 		t.Errorf("a request that is no upgrade presented %q through the subprotocol header", got)
+	}
+}
+
+// A held connection asks its credential again with what the request presented: still the same
+// actor while the session lives, refused once it was revoked or names somebody else.
+func TestAHeldConnectionAsksItsCredentialAgain(t *testing.T) {
+	auth := &authenticator{actor: authenticatedActor()}
+	mux := NewMux()
+	var still func(context.Context) error
+	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(_ http.ResponseWriter, r *http.Request) {
+		actor, _ := appshared.ActorFrom(r.Context())
+		still = credentialStill(r.Context(), actor)
+	})
+	r := request(t, "/containers")
+	r.Header.Set("Authorization", "Bearer "+credential)
+	Authenticated{Routes: mux, Authenticator: auth, Next: mux}.ServeHTTP(httptest.NewRecorder(), r)
+	if still == nil {
+		t.Fatal("the request carries no way to ask its credential again")
+	}
+
+	if err := still(t.Context()); err != nil {
+		t.Errorf("a live credential was refused: %v", err)
+	}
+	if auth.command.Credential != credential || auth.calls != 2 {
+		t.Errorf("asked %d times with %q", auth.calls, auth.command.Credential)
+	}
+	auth.err = shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+	if err := still(t.Context()); !errors.Is(err, shared.ErrUnauthenticated) {
+		t.Errorf("a revoked credential answered %v", err)
+	}
+	auth.err = nil
+	auth.actor.AccountID = shared.MustParseID("0192f000-0000-7000-8000-0000000009f1")
+	if err := still(t.Context()); !errors.Is(err, shared.ErrUnauthenticated) {
+		t.Errorf("a credential now naming somebody else answered %v", err)
 	}
 }

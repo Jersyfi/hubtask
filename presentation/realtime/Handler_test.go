@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -88,7 +89,7 @@ func serving(t *testing.T, docs *documents) (*httptest.Server, *Relay) {
 	handler := Handler{Documents: docs, Relay: relay}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		actor := appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}
-		if err := handler.Serve(w, r, actor, doc, nil); err != nil {
+		if err := handler.Serve(w, r, actor, doc, nil, Credential{}); err != nil {
 			http.Error(w, "refused", http.StatusForbidden)
 		}
 	}))
@@ -270,7 +271,7 @@ func TestAWorkspacesChangesDoNotReaskAccessEachTime(t *testing.T) {
 	workspace, own := bell{make(chan struct{})}, bell{make(chan struct{})}
 	handler := Handler{Documents: docs, Relay: NewRelay(), Wakeups: workspace, DocumentWakeups: own}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil)
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil, Credential{})
 	}))
 	t.Cleanup(server.Close)
 	conn := dial(t, server)
@@ -308,7 +309,7 @@ func TestAwarenessCrossesToAnotherProcess(t *testing.T) {
 	open := func(relay *Relay) *websocket.Conn {
 		handler := Handler{Documents: docs, Relay: relay}
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil)
+			_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil, Credential{})
 		}))
 		t.Cleanup(server.Close)
 		conn := dial(t, server)
@@ -348,7 +349,7 @@ func TestARefusedUpdateAsksTheWriterForItsSnapshot(t *testing.T) {
 	signals := &backlogSignals{}
 	handler := Handler{Documents: docs, Relay: NewRelay(), Signals: signals}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil)
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil, Credential{})
 	}))
 	t.Cleanup(server.Close)
 	writer := dial(t, server)
@@ -366,5 +367,51 @@ func TestARefusedUpdateAsksTheWriterForItsSnapshot(t *testing.T) {
 	defer signals.mu.Unlock()
 	if len(signals.outcomes) != 2 || signals.outcomes[0] != "refused" {
 		t.Errorf("counted %v", signals.outcomes)
+	}
+}
+
+// The actor is fixed at the upgrade, the credential is not: a session revoked or signed out while
+// the document is open closes the connection, and a view as somebody closes when it lapses.
+func TestARevokedCredentialClosesTheConnection(t *testing.T) {
+	for name, credential := range map[string]func(revoked *atomic.Bool) Credential{
+		"revoked": func(revoked *atomic.Bool) Credential {
+			return Credential{Still: func(context.Context) error {
+				if revoked.Load() {
+					return shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+				}
+				return nil
+			}}
+		},
+		"view lapsed": func(*atomic.Bool) Credential {
+			return Credential{Until: time.Now().Add(300 * time.Millisecond)}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			docs := &documents{writable: true}
+			var revoked atomic.Bool
+			handler := Handler{Documents: docs, Relay: NewRelay(), CredentialEvery: 50 * time.Millisecond}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser},
+					doc, nil, credential(&revoked))
+			}))
+			t.Cleanup(server.Close)
+			conn := dial(t, server)
+			next(t, conn)
+			next(t, conn)
+			revoked.Store(true)
+
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			for {
+				_, _, err := conn.Read(ctx)
+				if err == nil {
+					continue
+				}
+				if websocket.CloseStatus(err) != closeUnauthenticated {
+					t.Errorf("closed with %v, want %d", err, closeUnauthenticated)
+				}
+				return
+			}
+		})
 	}
 }

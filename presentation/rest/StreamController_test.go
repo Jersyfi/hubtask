@@ -367,3 +367,40 @@ func parseEvents(t *testing.T, body string) []sseEvent {
 	}
 	return events
 }
+
+// A stream ends once its credential no longer counts: a session revoked since it opened, or a
+// view as somebody that lapsed.
+func TestARevokedCredentialEndsTheStream(t *testing.T) {
+	for name, prepare := range map[string]func(*http.Request) *http.Request{
+		"revoked": func(r *http.Request) *http.Request {
+			return r.WithContext(context.WithValue(r.Context(), reauthenticateKey{}, reauthenticate(
+				func(context.Context) (appshared.ActorContext, error) {
+					return appshared.ActorContext{}, shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+				})))
+		},
+		"view lapsed": func(r *http.Request) *http.Request {
+			return r.WithContext(appshared.ContextWithActor(r.Context(), appshared.ActorContext{
+				TenantID: streamTenant, AccountID: streamAccount, Kind: shared.ActorUser,
+				ViewedBy: streamAccount, ViewingAsUntil: streamNow.Add(-time.Second),
+			}))
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			controller, _, _ := streamController(t, &fakeStream{}, stream.Limits{PerProcess: 4})
+			var mu sync.Mutex
+			at := streamNow
+			controller.Clock = func() time.Time {
+				mu.Lock()
+				defer mu.Unlock()
+				at = at.Add(time.Minute)
+				return at
+			}
+			request := prepare(authenticated(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/stream", nil)))
+			recorder, wait := serveStream(t, controller, request)
+			wait()
+			if !strings.Contains(recorder.Body.String(), ": credential") {
+				t.Errorf("the stream did not end on its credential:\n%s", recorder.Body.String())
+			}
+		})
+	}
+}

@@ -252,7 +252,7 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// A credential that was presented is always verified, even on a public route: answering a
 	// wrong token as though it were anonymous would hide a revoked or mistyped credential from
 	// whoever is holding it.
-	actor, err := a.Authenticator.Execute(r.Context(), usecase.AuthenticateTokenCommand{
+	command := usecase.AuthenticateTokenCommand{
 		Credential:       credential,
 		RequestedLocale:  requestedLocaleFrom(r.Context()),
 		FallbackLocale:   a.Locale.DefaultLocale,
@@ -260,7 +260,8 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// The host as it arrived: the use case asks whether it names another workspace than the
 		// credential (multi-tenancy.md §3).
 		Host: r.Host,
-	})
+	}
+	actor, err := a.Authenticator.Execute(r.Context(), command)
 	if err != nil {
 		if BasicRoutes[route] {
 			writeBasicChallenge(w, err, requestID)
@@ -284,6 +285,10 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// an administrator viewing as somebody: the access is for the owner looking as themselves.
 	actor.Present = !BasicRoutes[route] && !actor.IsViewingAs()
 	ctx := appshared.ContextWithActor(r.Context(), actor)
+	// A held connection asks the same credential again later (credentialStill).
+	authenticator := a.Authenticator
+	ctx = context.WithValue(ctx, reauthenticateKey{}, reauthenticate(
+		func(ctx context.Context) (appshared.ActorContext, error) { return authenticator.Execute(ctx, command) }))
 	// The tenant reaches the log lines and the metric label from here (§3.1). An identifier of an
 	// installation, never user content (rule 10).
 	ctx = correlation.ContextWithTenant(ctx, actor.TenantID.String())
@@ -373,4 +378,30 @@ func websocketBearer(r *http.Request) string {
 		}
 	}
 	return ""
+}
+
+// reauthenticate runs the request's authentication again, with the credential it was given.
+type reauthenticate func(ctx context.Context) (appshared.ActorContext, error)
+
+type reauthenticateKey struct{}
+
+// credentialStill is the question a held connection - a live document, a change stream - asks
+// while it stays open: does the credential it was admitted with still authenticate as the same
+// actor? A revoked or expired session, a disabled account and a view as somebody that ended answer
+// no. Nil where the request was not authenticated by this middleware.
+func credentialStill(ctx context.Context, actor appshared.ActorContext) func(context.Context) error {
+	again, ok := ctx.Value(reauthenticateKey{}).(reauthenticate)
+	if !ok {
+		return nil
+	}
+	return func(ctx context.Context) error {
+		now, err := again(ctx)
+		if err != nil {
+			return err
+		}
+		if now.TenantID != actor.TenantID || now.AccountID != actor.AccountID || now.ViewedBy != actor.ViewedBy {
+			return shared.ErrUnauthenticated.WithDetail("access.token_revoked")
+		}
+		return nil
+	}
 }
