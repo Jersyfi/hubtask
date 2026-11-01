@@ -8,11 +8,11 @@
  * every other screen asks.
  */
 
-import type { ModuleList, ModulesOn, ModuleState, ModuleSwitch, ResourceState } from '@hubtask/sync-engine';
+import type { ModuleList, ModuleReach, ModulesOn, ModuleState, ModuleSwitch, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
-export { asksFirst, isSetHere, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
+export { asksFirst, isSetHere, offReach, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
 
 const PATH = '/tenant/modules';
 const CAPABILITIES = '/meta/capabilities';
@@ -36,6 +36,12 @@ class Modules {
    */
   here(containerId: string, onNext: (state: ResourceState<ModulesOn>) => void): () => void {
     return engine.subscribe<ModulesOn>({ path: `/containers/${encodeURIComponent(containerId)}/modules` }, onNext);
+  }
+
+  /** Reads whom and what switching a module off at the place reaches, before asking. **From `untrack`**. */
+  reach(module: ModuleState['module'], hubId: string | undefined, onNext: (state: ResourceState<ModuleReach>) => void): () => void {
+    const at = `${PATH}/${encodeURIComponent(module)}/reach`;
+    return engine.subscribe<ModuleReach>({ path: hubId ? `${at}?hub_id=${encodeURIComponent(hubId)}` : at }, onNext);
   }
 
   /** Switches one module on, off, or back to the level above. */

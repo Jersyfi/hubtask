@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { ModuleState } from '@hubtask/sync-engine';
 
-import { asksFirst, isSetHere, modulesHere, moduleCodes, unavailableBecause } from './modules.ts';
+import { asksFirst, isSetHere, modulesHere, moduleCodes, offReach, unavailableBecause } from './modules.ts';
 
 const state = (over: Partial<ModuleState>): ModuleState => ({ module: 'PLANNING', on: false, source: 'DEFAULT', ...over });
 
@@ -42,4 +42,14 @@ test("a place's screens are drawn for its hub's set, never wider than the worksp
   assert.deepEqual(modulesHere(['TIME'], ['PLANNING', 'TIME']), ['TIME']);
   assert.deepEqual(modulesHere(['PLANNING', 'TIME'], undefined), ['PLANNING', 'TIME']);
   assert.deepEqual(modulesHere(undefined, undefined), []);
+});
+
+test('the switch-off question says whom and which rules it reaches, as counted (check 4)', () => {
+  assert.deepEqual(offReach({ module: 'WORKFLOWS', on: true, people: 4, rules: 2 }), [
+    { code: 'app.modules.off_people', params: { count: 4 } },
+    { code: 'app.modules.off_rules', params: { count: 2 } },
+  ]);
+  assert.deepEqual(offReach({ module: 'WORKFLOWS', on: true, people: 0, rules: 0 }), []);
+  assert.deepEqual(offReach({ module: 'WORKFLOWS', on: false, people: 0 }), []);
+  assert.deepEqual(offReach(undefined), []);
 });

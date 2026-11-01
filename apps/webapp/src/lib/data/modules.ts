@@ -8,7 +8,7 @@
  * refuse (P-05).
  */
 
-import type { ModuleState } from '@hubtask/sync-engine';
+import type { ModuleReach, ModuleState } from '@hubtask/sync-engine';
 
 /** The place the section switches for: the workspace, or one hub. */
 export type ModulePlace = 'WORKSPACE' | 'HUB';
@@ -50,4 +50,16 @@ export function modulesHere<K extends string>(
 ): K[] {
   const outer = [...(workspace ?? [])];
   return place ? outer.filter((key) => place.includes(key)) : outer;
+}
+
+/**
+ * What the switch-off's question says it reaches, as the server counted it (check 4): the people
+ * left without the module and the switched-on rules that go quiet. A count of nothing is not said.
+ */
+export function offReach(reach: ModuleReach | undefined): { code: string; params: Record<string, number> }[] {
+  if (!reach?.on) return [];
+  const lines: { code: string; params: Record<string, number> }[] = [];
+  if (reach.people > 0) lines.push({ code: 'app.modules.off_people', params: { count: reach.people } });
+  if ((reach.rules ?? 0) > 0) lines.push({ code: 'app.modules.off_rules', params: { count: reach.rules ?? 0 } });
+  return lines;
 }

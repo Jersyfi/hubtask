@@ -78,6 +78,7 @@ export type {
   ModulesOn,
   ModuleState,
   ModuleSwitch,
+  ModuleReach,
   ConfigCheck,
   ConfigExport,
   ConfigFinding,

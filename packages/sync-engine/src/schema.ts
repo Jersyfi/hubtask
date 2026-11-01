@@ -194,6 +194,8 @@ export type ModuleList = components['schemas']['ModuleList'];
 export type ModulesOn = components['schemas']['ModulesOn'];
 export type ModuleState = components['schemas']['ModuleState'];
 export type ModuleSwitch = components['schemas']['ModuleSwitch'];
+/** Whom and what switching a module off reaches, before the switch: counts only. */
+export type ModuleReach = components['schemas']['ModuleReach'];
 /** The configuration document and its plans, versions and proposals (F-6). */
 export type ConfigExport = components['schemas']['ConfigExport'];
 export type ConfigPlan = components['schemas']['ConfigPlan'];

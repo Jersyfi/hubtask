@@ -16,13 +16,13 @@
   import { untrack } from 'svelte';
 
   import { Banner, Button, Dialog, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
-  import type { ModuleList, ModuleState, ResourceState } from '@hubtask/sync-engine';
+  import type { ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
   import SectionFindings from '../settings/SectionFindings.svelte';
   import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
-  import { asksFirst, isSetHere, moduleCodes, modules, unavailableBecause } from '../data/modules.svelte.ts';
+  import { asksFirst, isSetHere, moduleCodes, modules, offReach, unavailableBecause } from '../data/modules.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -59,6 +59,16 @@
   /** The module whose switch-off is being asked about. */
   let confirming = $state<ModuleState | undefined>(undefined);
   let isConfirming = $state(false);
+  /** Whom and what the switch-off being asked about reaches; the question stands without it. */
+  let reach = $state<ResourceState<ModuleReach>>({ status: 'idle' });
+  $effect(() => {
+    const module = confirming?.module;
+    const at = hubId;
+    reach = { status: 'idle' };
+    if (!module) return;
+    return untrack(() => modules.reach(module, at, (next) => (reach = next)));
+  });
+  const reachLines = $derived(offReach(reach.status === 'ready' ? reach.data : undefined));
   let refusal = $state<{ module: ModuleState['module']; message: string } | undefined>(undefined);
 
   async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT') {
@@ -160,6 +170,7 @@
     onClose={() => (confirming = undefined)}
   >
     <p class="quiet">{t('app.modules.off_explain')}</p>
+    {#each reachLines as line (line.code)}<p class="quiet" data-off-reach>{t(line.code, line.params)}</p>{/each}
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isConfirming = false)}>{t('app.modules.off_cancel')}</Button>
       <Button tone="danger" data-confirm-off onclick={confirmOff}>{t('app.modules.off_confirm')}</Button>
