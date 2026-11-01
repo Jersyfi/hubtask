@@ -14844,11 +14844,13 @@ type ConfigValidation struct {
 
 // ConfigVersion defines model for ConfigVersion.
 type ConfigVersion struct {
-	ActorId   *openapi_types.UUID `json:"actor_id,omitempty"`
-	ActorKind string              `json:"actor_kind"`
-	Added     int                 `json:"added"`
-	Changed   int                 `json:"changed"`
-	CreatedAt time.Time           `json:"created_at"`
+	ActorId *openapi_types.UUID `json:"actor_id,omitempty"`
+
+	// ActorKind The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply.
+	ActorKind string    `json:"actor_kind"`
+	Added     int       `json:"added"`
+	Changed   int       `json:"changed"`
+	CreatedAt time.Time `json:"created_at"`
 
 	// Document Sections of building blocks by stable key (`types`, `workflows`, `roles`, `fields`, `link_types`, `modules`, `structure`, `settings`); a null block removes it. The JSON Schema at `/meta/config-schema` says what each block holds.
 	Document *ConfigDocument `json:"document,omitempty"`

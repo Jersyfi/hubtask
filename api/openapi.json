@@ -50343,7 +50343,8 @@
             "type": "string"
           },
           "actor_kind": {
-            "type": "string"
+            "type": "string",
+            "description": "The kind of actor who applied the version; DIRECT for what changed outside a plan since the version before, recorded before the next apply."
           },
           "actor_id": {
             "type": [
