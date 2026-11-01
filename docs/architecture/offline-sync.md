@@ -500,8 +500,9 @@ it, order it and decide who may touch it.
   without a record, before every catch-up: access ended while connected closes it with `4403`. The
   credential the connection was admitted with is asked again every thirty seconds: a session
   revoked, signed out or expired since, a disabled account, or a credential that now names another
-  person closes it with `4401` and the code of the refusal; a view as somebody (UC-ID-29) closes at
-  its end. The change stream asks the same at its next round after thirty seconds. A
+  person closes it with `4401` and the code of the refusal - the client renews its pair then, as
+  for a refused call, so its reconnect carries a fresh bearer, and a pair it cannot renew ends the
+  session; a view as somebody (UC-ID-29) closes at its end. The change stream asks the same at its next round after thirty seconds. A
   connection catches up when its own document's log moves (migration 0296 rings
   `hubtask_document` with the document's key); any other change of the workspace - a grant taken
   among them - asks the reader's access again at most every five seconds, and every thirty

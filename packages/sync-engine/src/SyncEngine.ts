@@ -307,6 +307,9 @@ export interface SyncEngineOptions {
 export const LIVE_SUBPROTOCOL = 'hubtask.v1';
 export const LIVE_BEARER_PREFIX = 'hubtask.bearer.';
 
+/** The close code the server ends a live connection with once its credential no longer holds. */
+export const LIVE_CLOSE_UNAUTHENTICATED = 4401;
+
 /**
  * SyncEngine is the client's only door to a server.
  *
@@ -363,12 +366,25 @@ export class SyncEngine {
    * the address (security.md §9). A refreshed token reaches the next connection, since the editor
    * asks for a new socket on every reconnect. Refused with `sync.needs_connection` where the
    * application gave no way to open one.
+   *
+   * The server closes a held connection with 4401 once its credential no longer holds; the pair
+   * is then renewed, as a refused call's is, so the editor's reconnect carries a fresh bearer -
+   * and a pair that cannot be renewed ends the session rather than leaving a page retrying a
+   * dead token unseen.
    */
   liveSocket<T>(path: string): T {
     if (!this.#socket) throw new TransportError('offline', { code: 'sync.needs_connection' });
     const token = this.#token();
     const protocols = [LIVE_SUBPROTOCOL, ...(token ? [LIVE_BEARER_PREFIX + token] : [])];
-    return this.#socket(path, protocols) as T;
+    const socket = this.#socket(path, protocols);
+    const events = socket as { addEventListener?: (type: string, listener: (event: { code?: number }) => void) => void };
+    events.addEventListener?.('close', (event) => {
+      if (event.code !== LIVE_CLOSE_UNAUTHENTICATED) return;
+      void this.#renew().then((renewed) => {
+        if (!renewed) this.#onUnauthorized();
+      });
+    });
+    return socket as T;
   }
 
   /**
