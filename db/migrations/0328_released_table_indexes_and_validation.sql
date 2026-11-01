@@ -105,6 +105,12 @@ ALTER TABLE mailbox VALIDATE CONSTRAINT mailbox_protocol_check;
 ALTER TABLE automation_rule VALIDATE CONSTRAINT automation_rule_scope_type_check;
 ALTER TABLE automation_rule VALIDATE CONSTRAINT automation_rule_person_run_as_check;
 ALTER TABLE container VALIDATE CONSTRAINT container_logo_media_fkey;
+ALTER TABLE calendar_feed VALIDATE CONSTRAINT calendar_feed_kind_check;
+ALTER TABLE identity_provider VALIDATE CONSTRAINT identity_provider_saml_sso_url_check;
+ALTER TABLE identity_provider VALIDATE CONSTRAINT identity_provider_saml_certificate_check;
+ALTER TABLE oidc_flow VALIDATE CONSTRAINT oidc_flow_saml_response_check;
+ALTER TABLE saved_view VALIDATE CONSTRAINT saved_view_key_check;
+ALTER TABLE automation_rule VALIDATE CONSTRAINT automation_rule_key_check;
 
 -- Two that earlier files left NOT VALID for good, which a restore drill counts as a promise the data
 -- may break (constraints_validated): the embeddings' model bound (0129), only where pgvector made

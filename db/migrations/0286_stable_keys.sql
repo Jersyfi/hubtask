@@ -8,6 +8,7 @@
 -- namespace: one word names one place of the workspace. Mail still delivers to a collection only
 -- (MailIntake.sql asks `type = 'COLLECTION'`). Existing collections keep their handles; hubs are
 -- given theirs after them, so a clash numbers the hub, never a collection a mail address names.
+-- The existing rows are given theirs by 0329, batch by batch outside this file's transaction.
 --
 -- A view's and a rule's key is lower case, digits and underscores, starting with a letter, at
 -- most 63 (config.ValidKey). It is unique where the block lives - the workspace, one hub, one
@@ -21,10 +22,14 @@
 -- trigger's dedupe gives no two rows one key before then.
 
 -- +goose Up
-ALTER TABLE saved_view ADD COLUMN IF NOT EXISTS key text
-  CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$');
-ALTER TABLE automation_rule ADD COLUMN IF NOT EXISTS key text
-  CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$');
+-- The key checks are added NOT VALID and validated in 0328: inline on the new column they would
+-- scan the table under the ALTER's exclusive lock.
+ALTER TABLE saved_view ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE saved_view DROP CONSTRAINT IF EXISTS saved_view_key_check,
+  ADD CONSTRAINT saved_view_key_check CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$') NOT VALID;
+ALTER TABLE automation_rule ADD COLUMN IF NOT EXISTS key text;
+ALTER TABLE automation_rule DROP CONSTRAINT IF EXISTS automation_rule_key_check,
+  ADD CONSTRAINT automation_rule_key_check CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$') NOT VALID;
 
 -- +goose StatementBegin
 -- block_key_base is the key a name suggests: folded to plain Latin letters, digits and
@@ -103,44 +108,12 @@ END
 $$;
 -- +goose StatementEnd
 
--- The existing rows, one at a time for the reason migration 0204 gives: a single UPDATE would not
--- see the keys it has just given.
--- +goose StatementBegin
-DO $$
-DECLARE
-  row record;
-BEGIN
-  FOR row IN SELECT id, tenant_id, name FROM container
-             WHERE type = 'HUB' AND handle IS NULL ORDER BY created_at, id LOOP
-    UPDATE container SET handle = container_free_handle(row.tenant_id, container_handle_base(row.name), row.id)
-    WHERE id = row.id;
-  END LOOP;
-END
-$$;
--- +goose StatementEnd
-
 DROP TRIGGER IF EXISTS saved_view_key ON saved_view;
 CREATE TRIGGER saved_view_key BEFORE INSERT OR UPDATE OF key ON saved_view
   FOR EACH ROW EXECUTE FUNCTION saved_view_assign_key();
 DROP TRIGGER IF EXISTS automation_rule_key ON automation_rule;
 CREATE TRIGGER automation_rule_key BEFORE INSERT OR UPDATE OF key ON automation_rule
   FOR EACH ROW EXECUTE FUNCTION automation_rule_assign_key();
-
--- Setting the key to NULL draws it through the trigger, oldest first.
--- +goose StatementBegin
-DO $$
-DECLARE
-  row record;
-BEGIN
-  FOR row IN SELECT id FROM saved_view WHERE key IS NULL ORDER BY created_at, id LOOP
-    UPDATE saved_view SET key = NULL WHERE id = row.id;
-  END LOOP;
-  FOR row IN SELECT id FROM automation_rule WHERE key IS NULL ORDER BY created_at, id LOOP
-    UPDATE automation_rule SET key = NULL WHERE id = row.id;
-  END LOOP;
-END
-$$;
--- +goose StatementEnd
 
 
 -- +goose Down

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -24,8 +25,14 @@ var (
 	alteredTable   = regexp.MustCompile(`(?is)^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([a-z_][a-z0-9_]*)\s+(.*)$`)
 	addsConstraint = regexp.MustCompile(`(?is)\bADD\s+CONSTRAINT\s+([a-z_0-9]+)\s+(CHECK|FOREIGN\s+KEY)\b`)
 	validates      = regexp.MustCompile(`(?is)\bVALIDATE\s+CONSTRAINT\s+([a-z_0-9]+)`)
-	lineComment    = regexp.MustCompile(`--[^\n]*`)
-	dollarBlock    = regexp.MustCompile(`(?s)\$([a-z_]*)\$.*?\$([a-z_]*)\$`)
+	// The clauses of one ALTER TABLE; a column's own CHECK or REFERENCES is checked against every
+	// row under the ALTER's ACCESS EXCLUSIVE lock.
+	clauseStart  = regexp.MustCompile(`(?i),(\s*(?:ADD|ALTER|DROP|VALIDATE|RENAME)\b)`)
+	addsColumn   = regexp.MustCompile(`(?is)^\s*ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)\b(.*)$`)
+	inlineCheck  = regexp.MustCompile(`(?i)\b(CHECK|REFERENCES)\b`)
+	updatesTable = regexp.MustCompile(`(?is)^\s*UPDATE\s+(?:ONLY\s+)?([a-z_][a-z0-9_]*)\b`)
+	lineComment  = regexp.MustCompile(`--[^\n]*`)
+	dollarBlock  = regexp.MustCompile(`(?s)\$([a-z_]*)\$.*?\$([a-z_]*)\$`)
 )
 
 type migrationFile struct {
@@ -33,6 +40,9 @@ type migrationFile struct {
 	name          string
 	transactional bool
 	statements    []string
+	// executed is the Up text without comments and without function bodies: what runs when the
+	// file does, DO blocks included.
+	executed string
 }
 
 func readMigrations(t *testing.T) []migrationFile {
@@ -59,6 +69,7 @@ func readMigrations(t *testing.T) []migrationFile {
 			number: number, name: name,
 			transactional: !strings.Contains(text, "-- +goose NO TRANSACTION"),
 			statements:    strings.Split(body, ";"),
+			executed:      withoutFunctionBodies(lineComment.ReplaceAllString(up, "")),
 		})
 	}
 	return files
@@ -79,17 +90,7 @@ type lockViolation struct{ file, what string }
 func lockViolations(t *testing.T) []lockViolation {
 	t.Helper()
 	files := readMigrations(t)
-	released := map[string]bool{}
-	for _, file := range files {
-		if file.number > lastReleasedMigration {
-			continue
-		}
-		for _, statement := range file.statements {
-			for _, match := range createdTable.FindAllStringSubmatch(statement, -1) {
-				released[strings.ToLower(match[1])] = true
-			}
-		}
-	}
+	released := releasedTables(files)
 	if len(released) == 0 {
 		t.Fatal("no released table found; the parser no longer reads the migrations")
 	}
@@ -109,6 +110,15 @@ func lockViolations(t *testing.T) []lockViolation {
 			if altered == nil || !released[strings.ToLower(altered[1])] {
 				continue
 			}
+			for _, clause := range strings.Split(clauseStart.ReplaceAllString(altered[2], "\x00$1"), "\x00") {
+				column := addsColumn.FindStringSubmatch(clause)
+				if column == nil {
+					continue
+				}
+				if check := inlineCheck.FindStringSubmatch(column[2]); check != nil {
+					found = append(found, lockViolation{file.name, "column " + column[1] + " added to the released table " + altered[1] + " with an inline " + strings.ToUpper(check[1])})
+				}
+			}
 			if match := addsConstraint.FindStringSubmatch(altered[2]); match != nil {
 				addedHere[strings.ToLower(match[1])] = true
 				if !notValid.MatchString(altered[2]) {
@@ -122,6 +132,75 @@ func lockViolations(t *testing.T) []lockViolation {
 		}
 	}
 	return found
+}
+
+var (
+	functionStart   = regexp.MustCompile(`(?is)\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b[^$]*(\$[a-z_]*\$)`)
+	alterStatement  = regexp.MustCompile(`(?im)^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([a-z_][a-z0-9_]*)`)
+	updateStatement = regexp.MustCompile(`(?i)\bUPDATE\s+(?:ONLY\s+)?([a-z_][a-z0-9_]*)\s+SET\b`)
+)
+
+// withoutFunctionBodies drops each CREATE FUNCTION's quoted body, which is defined, not run.
+func withoutFunctionBodies(text string) string {
+	var out strings.Builder
+	for {
+		loc := functionStart.FindStringSubmatchIndex(text)
+		if loc == nil {
+			out.WriteString(text)
+			return out.String()
+		}
+		tag := text[loc[2]:loc[3]]
+		out.WriteString(text[:loc[2]])
+		rest := text[loc[3]:]
+		end := strings.Index(rest, tag)
+		if end < 0 {
+			return out.String()
+		}
+		text = rest[end+len(tag):]
+	}
+}
+
+// No transaction that alters a released table also rewrites a released table's rows: the ALTER's
+// ACCESS EXCLUSIVE lock is held until the commit, so every reader and writer of that table waits
+// for the whole backfill. A backfill runs in a NO TRANSACTION file of its own and commits by batch,
+// as 0212 does.
+func TestNoMigrationBackfillsInsideTheTransactionThatAltersAReleasedTable(t *testing.T) {
+	files := readMigrations(t)
+	released := releasedTables(files)
+	for _, file := range files {
+		if file.number <= lastReleasedMigration || !file.transactional {
+			continue
+		}
+		var altered []string
+		for _, match := range alterStatement.FindAllStringSubmatch(file.executed, -1) {
+			if released[strings.ToLower(match[1])] && !slices.Contains(altered, match[1]) {
+				altered = append(altered, match[1])
+			}
+		}
+		if len(altered) == 0 {
+			continue
+		}
+		for _, match := range updateStatement.FindAllStringSubmatch(file.executed, -1) {
+			if released[strings.ToLower(match[1])] {
+				t.Errorf("%s: updates the released table %s in the transaction that alters %s", file.name, match[1], strings.Join(altered, ", "))
+			}
+		}
+	}
+}
+
+func releasedTables(files []migrationFile) map[string]bool {
+	released := map[string]bool{}
+	for _, file := range files {
+		if file.number > lastReleasedMigration {
+			continue
+		}
+		for _, statement := range file.statements {
+			for _, match := range createdTable.FindAllStringSubmatch(statement, -1) {
+				released[strings.ToLower(match[1])] = true
+			}
+		}
+	}
+	return released
 }
 
 // The constant above follows the release: the newest v* tag without a pre-release suffix carries

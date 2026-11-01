@@ -111,7 +111,7 @@ expand/contract:
 
 Rules:
 
-* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. `test/architecture` holds every migration after the last release to it on the tables that release created.
+* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. A new column carries no inline `CHECK` or `REFERENCES` (it is checked against every row under the ALTER's lock; measured on postgres:16), and a transaction that alters a table updates no rows of one - its backfill is a file of its own (0329). `test/architecture` holds every migration after the last release to it on the tables that release created.
 * A backfill in a migration walks in batches, one transaction each, in a `NO TRANSACTION` file,
   and records where it stopped in `migration_cursor` in the transaction of each batch, deleting its
   row at the end: a run killed between batches resumes after the last batch it committed

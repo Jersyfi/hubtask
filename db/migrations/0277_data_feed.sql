@@ -3,10 +3,13 @@
 -- phone never reads a view's fields.
 --
 -- Expand only: a column with a default every older reader ignores and every older writer fills
--- (rule 12).
+-- (rule 12). The check is added NOT VALID and validated in 0328, outside a transaction: inline on
+-- the column it would scan the table under the ALTER's exclusive lock.
 -- +goose Up
 ALTER TABLE calendar_feed
-  ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'CALENDAR' CHECK (kind IN ('CALENDAR', 'DATA'));
+  ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'CALENDAR';
+ALTER TABLE calendar_feed DROP CONSTRAINT IF EXISTS calendar_feed_kind_check,
+  ADD CONSTRAINT calendar_feed_kind_check CHECK (kind IN ('CALENDAR', 'DATA')) NOT VALID;
 
 -- +goose Down
 -- +goose StatementBegin
