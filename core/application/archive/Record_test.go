@@ -6,6 +6,7 @@ package archive
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -468,6 +469,30 @@ func TestAReferenceByKeyNamesOneRowOfAnEarlierEntity(t *testing.T) {
 				t.Errorf("%s.%s is declared both by key and as a reference the remap rewrites",
 					entity.Table, named.Field)
 			}
+		}
+	}
+}
+
+// An entity the oldest archive in the repository does not carry must be Later: otherwise the
+// Reader refuses that archive - and every archive written before the entity was added - as one
+// somebody added a file to, and no backup from an earlier release restores. The full import is
+// test/backup's TestTheGoldenArchivesImport; this holds the rule without a container.
+func TestAnEntityTheOldestArchiveLacksIsMarkedLater(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "test", "backup", "golden", "v1", ManifestName))
+	if err != nil {
+		t.Fatalf("reading the golden manifest: %v", err)
+	}
+	manifest, err := ReadManifest(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("decoding the golden manifest: %v", err)
+	}
+	carried := map[string]bool{}
+	for _, file := range manifest.Files {
+		carried[file.Path] = true
+	}
+	for _, entity := range Entities() {
+		if !entity.Later && !entity.Optional && !carried[DataName(entity.Name)] {
+			t.Errorf("%s is not in the oldest archive and not Later: that archive no longer reads", entity.Name)
 		}
 	}
 }

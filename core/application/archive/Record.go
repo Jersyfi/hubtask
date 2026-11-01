@@ -398,10 +398,10 @@ var entities = []Entity{
 	// The workspace's own roles and where they are held (migration 0219, UC-ID-26). Whole: a role and a
 	// grant are removed without a marker. The roles precede their grants.
 	{
-		Name: "custom_roles", Table: "custom_role", Whole: true, Unmarked: true, Keys: []string{"id"},
+		Name: "custom_roles", Table: "custom_role", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"},
 	},
 	{
-		Name: "custom_role_grants", Table: "custom_role_grant", Whole: true, Keys: []string{"id"},
+		Name: "custom_role_grants", Table: "custom_role_grant", Whole: true, Later: true, Keys: []string{"id"},
 		References: []Reference{
 			{Field: "account_id", Table: "account"},
 			{Field: "group_id", Table: "account_group"},
@@ -442,7 +442,7 @@ var entities = []Entity{
 	// Whole: a type is deleted only while no entry carries it, and leaves no marker. A duplicate
 	// skips a key the workspace already holds, and its entries then name that type.
 	{
-		Name: "entry_types", Table: "entry_type", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "entry_types", Table: "entry_type", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
 		// `level` is the system type's own uniqueness (one per level); the key's skip already
 		// keeps every copy out, a system row included.
 		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}, {Field: "level", Rule: UniqueSkip}},
@@ -579,12 +579,12 @@ var entities = []Entity{
 	},
 	// The settings catalogue's entries of the workspace, its hubs, collections and people
 	// (migration 0208): the module switches among them, so that a restore keeps what was on.
-	{Name: "setting_values", Table: "setting_value", Keys: []string{"id"}},
+	{Name: "setting_values", Table: "setting_value", Later: true, Keys: []string{"id"}},
 	// The workspace's workflows and which hub or collection runs which (migration 0216, F-4).
 	// Whole: a workflow and a scheme row go without a marker. The workflows precede the scheme
 	// rows that name them by key; a duplicate skips a key the workspace holds.
 	{
-		Name: "workflows", Table: "workflow", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "workflows", Table: "workflow", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 		// A hub's own workflow (migration 0323) follows its hub; `copied_from` is a key kept as a
 		// word, not a reference (it outlives its source).
@@ -602,11 +602,11 @@ var entities = []Entity{
 	// a link is removed without a marker. The types precede the links that name them by key; a
 	// duplicate skips a key the workspace holds, and its links then name that type.
 	{
-		Name: "link_types", Table: "link_type", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "link_types", Table: "link_type", Whole: true, Later: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
 	},
 	{
-		Name: "entry_links", Table: "entry_link", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Name: "entry_links", Table: "entry_link", Whole: true, Later: true, Keys: []string{"id"}, Duplicable: true,
 		References: []Reference{
 			{Field: "source_id", Table: "work_item"},
 			{Field: "target_id", Table: "work_item"},
