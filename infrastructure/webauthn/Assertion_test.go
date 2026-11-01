@@ -201,6 +201,7 @@ func TestATestAuthenticatorsAssertionVerifies(t *testing.T) {
 	}
 }
 
+// UC-ID-21 check 3: an assertion made at another workspace's address is refused (auth_data.rp_id).
 func TestEveryCheckOfAnAssertionRefusesOnItsOwn(t *testing.T) {
 	s := newSigner(t)
 	cases := map[string]struct {

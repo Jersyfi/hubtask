@@ -236,6 +236,7 @@ func TestAVerifiedPasskeyOpensASessionAlone(t *testing.T) {
 }
 
 // UC-ID-21 check 4: every refusal is the wrong password's sentence and counts.
+// UC-ID-21 check 3: a passkey held for another address is not accepted.
 func TestEveryRefusalOfAPasskeyIsTheOneAnswerAndCounts(t *testing.T) {
 	cases := map[string]func(f *passkeySignInFixture) (usecase.Output, error){
 		"an unknown passkey": func(f *passkeySignInFixture) (usecase.Output, error) {
