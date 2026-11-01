@@ -63,6 +63,10 @@ type RunRetention struct {
 	AgentLedger   ExpiringRows
 	AgentRequests ExpiringRows
 	AgentJobs     ExpiringRows
+	// Timers and ConnectorRuns are the ended timers' and the connector runs' removers (TIMER,
+	// CONNECTOR_RUN): bookkeeping that would otherwise only grow.
+	Timers        ExpiringRows
+	ConnectorRuns ExpiringRows
 	// Documents are pages' and boards' trash, page versions and boards' history (TRASH,
 	// PAGE_VERSION, WHITEBOARD_HISTORY).
 	Documents DocumentSweep
@@ -355,7 +359,10 @@ func (h RunRetention) Execute(
 	for _, each := range []struct {
 		kind domain.DataKind
 		rows ExpiringRows
-	}{{domain.KindAgentLedger, h.AgentLedger}, {domain.KindAgentRequest, h.AgentRequests}, {domain.KindAgentJob, h.AgentJobs}} {
+	}{
+		{domain.KindAgentLedger, h.AgentLedger}, {domain.KindAgentRequest, h.AgentRequests}, {domain.KindAgentJob, h.AgentJobs},
+		{domain.KindTimer, h.Timers}, {domain.KindConnectorRun, h.ConnectorRuns},
+	} {
 		if each.rows == nil {
 			continue
 		}

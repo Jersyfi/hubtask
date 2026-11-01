@@ -390,3 +390,40 @@ ON CONFLICT DO NOTHING;
 -- name: ForgetCmdbIntakeDigests :exec
 DELETE FROM cmdb_intake_seen
 WHERE tenant_id = current_tenant_id() AND connector_id = sqlc.arg('connector_id') AND seen_at < sqlc.arg('before');
+
+-- name: DeleteExpiredConnectorRuns :execrows
+-- The retention run's batch of connector runs past the period (CONNECTOR_RUN). A connector's newest
+-- run stays whatever its age - it is what the hub shows of the connector - and so does a run with an
+-- item still held for review; the resolved holds go with their run.
+DELETE FROM cmdb_run
+WHERE id IN (
+  SELECT due.id FROM cmdb_run AS due
+  WHERE due.started_at < sqlc.arg('cutoff')
+    AND EXISTS (
+      SELECT 1 FROM cmdb_run AS newer
+      WHERE newer.tenant_id = due.tenant_id AND newer.hub_id = due.hub_id
+        AND newer.source_key = due.source_key AND newer.started_at > due.started_at
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM cmdb_hold AS h
+      WHERE h.tenant_id = due.tenant_id AND h.run_id = due.id AND h.resolved_at IS NULL
+    )
+  ORDER BY due.started_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountExpiredConnectorRuns :one
+SELECT count(*) FROM (
+  SELECT 1 FROM cmdb_run AS due
+  WHERE due.started_at < sqlc.arg('cutoff')
+    AND EXISTS (
+      SELECT 1 FROM cmdb_run AS newer
+      WHERE newer.tenant_id = due.tenant_id AND newer.hub_id = due.hub_id
+        AND newer.source_key = due.source_key AND newer.started_at > due.started_at
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM cmdb_hold AS h
+      WHERE h.tenant_id = due.tenant_id AND h.run_id = due.id AND h.resolved_at IS NULL
+    )
+  LIMIT sqlc.arg('ceiling')
+) AS due;

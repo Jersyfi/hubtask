@@ -41,7 +41,6 @@ var unindexedCascades = map[string]bool{
 	"cmdb_asset.cmdb_asset_request_fkey":                                   true,
 	"cmdb_asset.cmdb_asset_stockroom_fkey":                                 true,
 	"cmdb_ci_group.cmdb_ci_group_service_fkey":                             true,
-	"cmdb_hold.cmdb_hold_run_fkey":                                         true,
 	"code_link.code_link_hook_fkey":                                        true,
 	"file_store_authorization.file_store_authorization_account_fkey":       true,
 	"goal.goal_hub_fkey":                                                   true,

@@ -8274,6 +8274,8 @@
   "app.retention.kind.AGENT_LEDGER": "Protokoll der Agenten",
   "app.retention.kind.AGENT_REQUEST": "Zurückgehaltene Handlungen der Agenten",
   "app.retention.kind.AGENT_JOB": "Aufträge der Agenten",
+  "app.retention.kind.CONNECTOR_RUN": "Läufe der Konnektoren",
+  "app.retention.kind.TIMER": "Abgelaufene Zeitgeber",
   "app.retention.kind.PAGE_VERSION": "Seitenversionen",
   "app.retention.kind.WHITEBOARD_HISTORY": "Whiteboard-Verlauf",
   "app.retention.kind.REQUESTER": "Anfragende ohne Konto",

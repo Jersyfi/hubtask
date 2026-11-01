@@ -59,3 +59,20 @@ UPDATE durable_timer SET
   fire_attempts = fire_attempts + 1,
   updated_at    = sqlc.arg('now')::timestamptz
 WHERE id = sqlc.arg('id') AND state = 'RUNNING';
+
+-- The retention run's batch of timers that fired or were stopped before the cutoff (TIMER): nothing
+-- reads an ended timer again, its purpose recorded what it meant. A live timer never goes.
+-- name: DeleteEndedTimers :execrows
+DELETE FROM durable_timer
+WHERE id IN (
+  SELECT due.id FROM durable_timer AS due
+  WHERE due.state IN ('FIRED', 'STOPPED') AND due.updated_at < sqlc.arg('cutoff')
+  ORDER BY due.updated_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountEndedTimers :one
+SELECT count(*) FROM (
+  SELECT 1 FROM durable_timer
+  WHERE state IN ('FIRED', 'STOPPED') AND updated_at < sqlc.arg('cutoff') LIMIT sqlc.arg('ceiling')
+) AS due;

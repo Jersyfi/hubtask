@@ -1114,6 +1114,8 @@ func TestAPassSweepsTheAgentsRowsAtTheirPeriods(t *testing.T) {
 		{domain.KindAgentLedger, 397, func(h *runHarness, s *inboxStore) { h.run.AgentLedger = s }},
 		{domain.KindAgentRequest, 90, func(h *runHarness, s *inboxStore) { h.run.AgentRequests = s }},
 		{domain.KindAgentJob, 90, func(h *runHarness, s *inboxStore) { h.run.AgentJobs = s }},
+		{domain.KindTimer, 30, func(h *runHarness, s *inboxStore) { h.run.Timers = s }},
+		{domain.KindConnectorRun, 90, func(h *runHarness, s *inboxStore) { h.run.ConnectorRuns = s }},
 	} {
 		t.Run(string(c.kind), func(t *testing.T) {
 			h := newRunHarness()

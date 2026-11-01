@@ -361,7 +361,7 @@ func TestTheFirstBlockingReasonWins(t *testing.T) {
 // The catalogue is the document's, and every kind it names is here - with the ones nothing sweeps
 // marked rather than absent.
 func TestTheCatalogueNamesEveryKindTheDocumentDoes(t *testing.T) {
-	const documented = 28
+	const documented = 30
 	if len(domain.Catalogue()) != documented {
 		t.Fatalf("the catalogue has %d kinds, and data-retention.md §3 lists %d",
 			len(domain.Catalogue()), documented)

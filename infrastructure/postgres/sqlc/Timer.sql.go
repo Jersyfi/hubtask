@@ -11,6 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countEndedTimers = `-- name: CountEndedTimers :one
+SELECT count(*) FROM (
+  SELECT 1 FROM durable_timer
+  WHERE state IN ('FIRED', 'STOPPED') AND updated_at < $1 LIMIT $2
+) AS due
+`
+
+type CountEndedTimersParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountEndedTimers(ctx context.Context, arg CountEndedTimersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countEndedTimers, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deferTimer = `-- name: DeferTimer :execrows
 UPDATE durable_timer SET
   due_at        = $1::timestamptz
@@ -30,6 +49,31 @@ type DeferTimerParams struct {
 // attempt every six hours rather than the whole pass.
 func (q *Queries) DeferTimer(ctx context.Context, arg DeferTimerParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deferTimer, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteEndedTimers = `-- name: DeleteEndedTimers :execrows
+DELETE FROM durable_timer
+WHERE id IN (
+  SELECT due.id FROM durable_timer AS due
+  WHERE due.state IN ('FIRED', 'STOPPED') AND due.updated_at < $1
+  ORDER BY due.updated_at
+  LIMIT $2
+)
+`
+
+type DeleteEndedTimersParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch of timers that fired or were stopped before the cutoff (TIMER): nothing
+// reads an ended timer again, its purpose recorded what it meant. A live timer never goes.
+func (q *Queries) DeleteEndedTimers(ctx context.Context, arg DeleteEndedTimersParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteEndedTimers, arg.Cutoff, arg.Batch)
 	if err != nil {
 		return 0, err
 	}

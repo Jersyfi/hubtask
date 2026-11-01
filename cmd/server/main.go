@@ -4725,6 +4725,8 @@ func run() error {
 			// The agents' ledger thirteen months, their held acts and jobs ninety days (accepted.md B).
 			AgentLedger: postgres.AgentLedgerExpiry{}, AgentRequests: postgres.AgentRequestExpiry{},
 			AgentJobs: postgres.AgentJobExpiry{},
+			// Ended timers thirty days, connector runs ninety (data-retention.md §3).
+			Timers: postgres.EndedTimerExpiry{}, ConnectorRuns: postgres.ConnectorRunExpiry{},
 			// Requesters without an account, 24 months after their last contact (accepted.md B).
 			Requesters: postgres.RequesterRepository{IDs: ids},
 			// Their intake's "From:" line goes with them (third answers 2).

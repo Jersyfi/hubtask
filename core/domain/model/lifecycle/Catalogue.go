@@ -339,6 +339,20 @@ var catalogue = []Kind{
 		Blockable: []string{BlockedByLegalHold},
 	},
 	{
+		// Durable timers that fired or were stopped (domain-model.md §3.7), thirty days from their
+		// end: what each meant its purpose recorded; a live timer never.
+		Name: KindTimer, Anchor: AnchorEndedAt, DefaultDays: 30,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
+		// A connector's runs with their decisions and resolved holds (UC-CMD), ninety days from
+		// their start; each connector's newest run and a run with an item still held never.
+		Name: KindConnectorRun, Anchor: AnchorCreatedAt, DefaultDays: 90,
+		Actions:   []Action{ActionHardDelete},
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
 		// A page's versions thinned out (UC-DOC-06, accepted.md B): one past ninety days that is
 		// neither named nor the newest of its day (UTC) goes; a named version and each day's last
 		// stay for as long as the page. A hold on the workspace, the page's hub or an author keeps
@@ -401,6 +415,8 @@ const (
 	KindAgentLedger       DataKind = "AGENT_LEDGER"
 	KindAgentRequest      DataKind = "AGENT_REQUEST"
 	KindAgentJob          DataKind = "AGENT_JOB"
+	KindTimer             DataKind = "TIMER"
+	KindConnectorRun      DataKind = "CONNECTOR_RUN"
 	KindPageVersion       DataKind = "PAGE_VERSION"
 	KindWhiteboardHistory DataKind = "WHITEBOARD_HISTORY"
 

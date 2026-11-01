@@ -101,6 +101,9 @@ func DefaultPolicies() []Policy {
 		{DataKind: KindAgentLedger, RetainDays: 397, MinDays: 397},
 		{DataKind: KindAgentRequest, RetainDays: 90},
 		{DataKind: KindAgentJob, RetainDays: 90},
+		// Ended timers and connector runs: bookkeeping that only grew (data-retention.md §3).
+		{DataKind: KindTimer, RetainDays: 30},
+		{DataKind: KindConnectorRun, RetainDays: 90},
 		// Page versions thinned after ninety days and a requester without an account removed 24
 		// months after their last contact (accepted.md B). No lower bounds: a shorter period keeps
 		// less.

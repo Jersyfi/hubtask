@@ -8274,6 +8274,8 @@
   "app.retention.kind.AGENT_LEDGER": "Agents' ledger",
   "app.retention.kind.AGENT_REQUEST": "Agents' held acts",
   "app.retention.kind.AGENT_JOB": "Agents' jobs",
+  "app.retention.kind.CONNECTOR_RUN": "Connector runs",
+  "app.retention.kind.TIMER": "Ended timers",
   "app.retention.kind.PAGE_VERSION": "Page versions",
   "app.retention.kind.WHITEBOARD_HISTORY": "Whiteboard history",
   "app.retention.kind.REQUESTER": "Requesters without an account",

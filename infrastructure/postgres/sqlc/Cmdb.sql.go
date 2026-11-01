@@ -33,6 +33,35 @@ func (q *Queries) CountCmdbConnectors(ctx context.Context, hubID pgtype.UUID) (i
 	return count, err
 }
 
+const countExpiredConnectorRuns = `-- name: CountExpiredConnectorRuns :one
+SELECT count(*) FROM (
+  SELECT 1 FROM cmdb_run AS due
+  WHERE due.started_at < $1
+    AND EXISTS (
+      SELECT 1 FROM cmdb_run AS newer
+      WHERE newer.tenant_id = due.tenant_id AND newer.hub_id = due.hub_id
+        AND newer.source_key = due.source_key AND newer.started_at > due.started_at
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM cmdb_hold AS h
+      WHERE h.tenant_id = due.tenant_id AND h.run_id = due.id AND h.resolved_at IS NULL
+    )
+  LIMIT $2
+) AS due
+`
+
+type CountExpiredConnectorRunsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountExpiredConnectorRuns(ctx context.Context, arg CountExpiredConnectorRunsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredConnectorRuns, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteCmdbCiIdentifiers = `-- name: DeleteCmdbCiIdentifiers :exec
 DELETE FROM cmdb_ci_identifier
 WHERE tenant_id = current_tenant_id() AND ci_id = $1 AND name NOT LIKE 'source:%'
@@ -49,6 +78,41 @@ DELETE FROM cmdb_relation WHERE tenant_id = current_tenant_id() AND id = $1
 
 func (q *Queries) DeleteCmdbRelation(ctx context.Context, id pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteCmdbRelation, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteExpiredConnectorRuns = `-- name: DeleteExpiredConnectorRuns :execrows
+DELETE FROM cmdb_run
+WHERE id IN (
+  SELECT due.id FROM cmdb_run AS due
+  WHERE due.started_at < $1
+    AND EXISTS (
+      SELECT 1 FROM cmdb_run AS newer
+      WHERE newer.tenant_id = due.tenant_id AND newer.hub_id = due.hub_id
+        AND newer.source_key = due.source_key AND newer.started_at > due.started_at
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM cmdb_hold AS h
+      WHERE h.tenant_id = due.tenant_id AND h.run_id = due.id AND h.resolved_at IS NULL
+    )
+  ORDER BY due.started_at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredConnectorRunsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch of connector runs past the period (CONNECTOR_RUN). A connector's newest
+// run stays whatever its age - it is what the hub shows of the connector - and so does a run with an
+// item still held for review; the resolved holds go with their run.
+func (q *Queries) DeleteExpiredConnectorRuns(ctx context.Context, arg DeleteExpiredConnectorRunsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredConnectorRuns, arg.Cutoff, arg.Batch)
 	if err != nil {
 		return 0, err
 	}
