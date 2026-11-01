@@ -26,6 +26,7 @@ import (
 	"context"
 	"log/slog"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -68,6 +69,9 @@ type Runner struct {
 	// configuration where it is not: a job still running when its lease expires is a job two
 	// workers are doing.
 	JobTimeout time.Duration
+	// LongJobTimeout bounds one pass of a queue.LongRunning handler, whose lease is kept alive
+	// while it runs. Zero gives such a handler the ordinary JobTimeout.
+	LongJobTimeout time.Duration
 	// Lease is how long a claim holds. Long enough to outlast a job, short enough that a killed
 	// worker's jobs do not sit still for minutes.
 	Lease time.Duration
@@ -286,14 +290,25 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 	// already been claimed is finished rather than cut in half - which is what the pod's grace
 	// period is sized for (deployment.md §5). The deadline still bounds it, so a handler that
 	// ignores its context cannot hold the shutdown open indefinitely.
-	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), r.JobTimeout)
+	budget := r.JobTimeout
+	_, long := handler.(queue.LongRunning)
+	if long && r.LongJobTimeout > budget {
+		budget = r.LongJobTimeout
+	}
+	jobCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
 	defer cancel()
+
+	held := &heldJob{job: job}
+	if long && budget > r.JobTimeout {
+		r.keepLeased(jobCtx, cancel, held)
+		defer held.settle()
+	}
 
 	// The span covers the transaction, not just the handler: what the run cost includes what it
 	// took to record that the run happened.
 	err := r.observe(jobCtx, job.Kind.String(), func(obsCtx context.Context) error {
 		if _, detached := handler.(queue.Detached); detached {
-			return r.executeDetached(obsCtx, handler, job)
+			return r.executeDetached(obsCtx, handler, job, held)
 		}
 		return r.UnitOfWork.Within(obsCtx, scopeOf(job), func(txCtx context.Context) error {
 			result, err := run(txCtx, handler, job)
@@ -312,8 +327,9 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 			return r.Queue.Complete(txCtx, job, result.Outcome)
 		})
 	})
+	job = held.settle()
 	if err != nil {
-		if shared.AsError(err).DetailCode == leaseLost {
+		if shared.AsError(err).DetailCode == leaseLost || held.lost() {
 			r.letGo(ctx, job)
 			return
 		}
@@ -334,12 +350,14 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 // claimable again. That is why only an idempotent pass may declare itself detached - and why the
 // completion is a transaction of its own rather than an afterthought, so a failure to record it is
 // a failure the runner handles like any other.
-func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job queue.Job) error {
+func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job queue.Job, held *heldJob) error {
 	result, err := run(ctx, handler, job)
 	if err != nil {
 		return err
 	}
 	logCounts(ctx, job, result)
+	// The completion is fenced by the lease as it stands once the heartbeat has stopped moving it.
+	job = held.settle()
 
 	return r.UnitOfWork.Within(ctx, scopeOf(job), func(txCtx context.Context) error {
 		if result.Refusal != nil {
@@ -349,6 +367,90 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 			return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
 		}
 		return r.Queue.Complete(txCtx, job, result.Outcome)
+	})
+}
+
+// heldJob is the job as its lease currently stands: a long job's heartbeat moves the lease, and the
+// completion or failure has to be fenced by the moved one.
+type heldJob struct {
+	mu   sync.Mutex
+	job  queue.Job
+	gone bool
+	stop func()
+	once sync.Once
+}
+
+// settle stops the heartbeat, if there is one, and answers the job as its lease then stands.
+func (h *heldJob) settle() queue.Job {
+	h.once.Do(func() {
+		if h.stop != nil {
+			h.stop()
+		}
+	})
+	return h.get()
+}
+
+func (h *heldJob) get() queue.Job {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.job
+}
+
+func (h *heldJob) lost() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.gone
+}
+
+// keepLeased extends a long job's lease every third of a lease while it runs, so a killed worker's
+// pass is taken over within one lease instead of after the whole long budget. A lease another
+// worker took over cancels the pass (queue.lease_lost): two workers must never run it at once.
+// held.settle stops the heartbeat and waits for it.
+func (r Runner) keepLeased(ctx context.Context, cancel context.CancelFunc, held *heldJob) {
+	beatCtx, stopBeat := context.WithCancel(ctx)
+	stopped := make(chan struct{})
+	held.stop = func() {
+		stopBeat()
+		<-stopped
+	}
+	concurrency.Go(beatCtx, "worker.job_lease", func(beatCtx context.Context) {
+		defer close(stopped)
+		ticker := time.NewTicker(max(r.Lease/3, time.Millisecond))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-beatCtx.Done():
+				return
+			case <-ticker.C:
+			}
+			extendCtx, done := context.WithTimeout(context.WithoutCancel(beatCtx), bookkeepingTimeout)
+			current := held.get()
+			var extended queue.Job
+			err := r.UnitOfWork.Within(extendCtx, scopeOf(current), func(txCtx context.Context) error {
+				var err error
+				extended, err = r.Queue.Extend(txCtx, current, r.Clock.Now().Add(r.Lease))
+				return err
+			})
+			done()
+			if err == nil {
+				held.mu.Lock()
+				held.job = extended
+				held.mu.Unlock()
+				continue
+			}
+			if shared.AsError(err).DetailCode == leaseLost {
+				held.mu.Lock()
+				held.gone = true
+				held.mu.Unlock()
+				cancel()
+				return
+			}
+			// A database that did not answer this once: the lease still has two thirds left,
+			// and the next beat tries again.
+			slog.WarnContext(beatCtx, "extending a long job's lease failed",
+				slog.String("job_id", current.ID.String()),
+				slog.String("error", shared.AsError(err).Code))
+		}
 	})
 }
 

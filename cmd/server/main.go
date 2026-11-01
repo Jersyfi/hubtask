@@ -5153,9 +5153,11 @@ func run() error {
 			Concurrency:  jobConcurrency(ctx, cfg),
 			PollInterval: cfg.Queue.PollInterval,
 			JobTimeout:   cfg.Queue.JobTimeout,
-			Lease:        cfg.Queue.Lease(),
-			NextAttempt:  backoff.Delay,
-			Observe:      observer.Job,
+			// A backup, restore, export or import: the long budget, its lease kept alive.
+			LongJobTimeout: cfg.Queue.LongJobTimeout,
+			Lease:          cfg.Queue.Lease(),
+			NextAttempt:    backoff.Delay,
+			Observe:        observer.Job,
 			// The poll interval stays what it was. This shortens the wait when the notification
 			// arrives and changes nothing when it does not (ADR-0007).
 			Woken: jobListener.Woken(),

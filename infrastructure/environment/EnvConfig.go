@@ -149,6 +149,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			BatchSize:         getInt("HUBTASK_QUEUE_BATCH_SIZE", 10),
 			Concurrency:       getInt("HUBTASK_QUEUE_CONCURRENCY", 4),
 			JobTimeout:        getDuration("HUBTASK_JOB_TIMEOUT", 60*time.Second),
+			LongJobTimeout:    getDuration("HUBTASK_LONG_JOB_TIMEOUT", 6*time.Hour),
 			MaxAttempts:       getInt("HUBTASK_JOB_MAX_ATTEMPTS", 8),
 			RetryBase:         getDuration("HUBTASK_JOB_RETRY_BASE", 5*time.Second),
 			RetryMax:          getDuration("HUBTASK_JOB_RETRY_MAX", 15*time.Minute),
@@ -447,6 +448,7 @@ func validateQueue(q env.QueueConfig) []error {
 	for variable, d := range map[string]time.Duration{
 		"HUBTASK_QUEUE_POLL_INTERVAL":     q.PollInterval,
 		"HUBTASK_JOB_TIMEOUT":             q.JobTimeout,
+		"HUBTASK_LONG_JOB_TIMEOUT":        q.LongJobTimeout,
 		"HUBTASK_JOB_RETRY_BASE":          q.RetryBase,
 		"HUBTASK_JOB_RETRY_MAX":           q.RetryMax,
 		"HUBTASK_SCHEDULER_TICK_INTERVAL": q.SchedulerTick,

@@ -315,6 +315,9 @@ type QueueConfig struct {
 	// JobTimeout bounds one job. Every handler inherits it as a context deadline - no call
 	// without one (ADR-0016).
 	JobTimeout time.Duration
+	// LongJobTimeout bounds one pass of a long-running job - a backup, a restore, an export, an
+	// import - whose lease the worker keeps alive while it runs.
+	LongJobTimeout time.Duration
 	// MaxAttempts is how often a job is tried before it goes to the dead letter.
 	MaxAttempts int
 	// RetryBase and RetryMax are the exponential backoff between attempts, with full jitter.

@@ -24,6 +24,7 @@ holds about 1.7 million entries instead of 170 000.
 | P2 | Probe, 10⁶ entries over 200 workspaces - run again, because the 10⁶ evidence predates the mixed window and carries no `mixed` | `make capacity` | the owner's workstation | about 14 minutes, seed about 3 (measured 2026-10-31, the 10⁶ evidence) |
 | R1 | The capacity run, 10⁷ entries over 2 000 workspaces | `make capacity ITEMS=10000000 TENANTS=2000` | the owner's workstation (third answers 9) | **about 50 to 60 minutes**, of which the seed about 30, the vacuum and the indexes up to 10, the measuring 11 |
 | R2 | If R1 found and fixed anything: R1 again on the fix | the same | the same | the same |
+| B1 | Backup and workspace export of the largest workspace at 10⁶ entries: one backup run to a local and to a throttled S3 target, one tenant export, their durations against `HUBTASK_LONG_JOB_TIMEOUT` (6 h) | not built: the harness has no backup or export path yet | the owner's workstation | **unmeasured** - no backup or export duration at any size is on record |
 
 Why the durations are what they are, from the probes:
 

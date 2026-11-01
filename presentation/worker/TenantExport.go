@@ -25,12 +25,16 @@ type TenantExport struct {
 }
 
 var (
-	_ queue.Handler  = TenantExport{}
-	_ queue.Detached = TenantExport{}
+	_ queue.Handler     = TenantExport{}
+	_ queue.Detached    = TenantExport{}
+	_ queue.LongRunning = TenantExport{}
 )
 
 // OwnsItsTransactions is the assertion queue.Detached asks for.
 func (TenantExport) OwnsItsTransactions() {}
+
+// RunsLong is the declaration queue.LongRunning asks for: one pass may take hours.
+func (TenantExport) RunsLong() {}
 
 // Run writes the one archive the job names.
 func (h TenantExport) Run(ctx context.Context, job queue.Job) (queue.Result, error) {

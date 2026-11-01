@@ -34,9 +34,10 @@ type BackupRestore struct {
 }
 
 var (
-	_ queue.Handler  = BackupRestore{}
-	_ queue.Detached = BackupRestore{}
-	_ queue.Releaser = BackupRestore{}
+	_ queue.Handler     = BackupRestore{}
+	_ queue.Detached    = BackupRestore{}
+	_ queue.LongRunning = BackupRestore{}
+	_ queue.Releaser    = BackupRestore{}
 )
 
 // Release closes the restore row of a job the queue has given up on (queue.Releaser).
@@ -58,6 +59,9 @@ func (h BackupRestore) Release(ctx context.Context, job queue.Job) {
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
 func (h BackupRestore) OwnsItsTransactions() {}
+
+// RunsLong is the declaration queue.LongRunning asks for: one pass may take hours.
+func (BackupRestore) RunsLong() {}
 
 // Run reads one archive back.
 func (h BackupRestore) Run(ctx context.Context, job queue.Job) (queue.Result, error) {

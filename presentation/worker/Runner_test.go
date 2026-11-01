@@ -966,3 +966,58 @@ func (b *batchRecorder) Claim(ctx context.Context, lease queue.Lease) ([]queue.J
 	b.record(lease.Batch)
 	return b.queueDouble.Claim(ctx, lease)
 }
+
+type longHandler struct{ detachedHandler }
+
+func (longHandler) RunsLong() {}
+
+// A backup or an export runs past the ordinary job deadline: a long-running handler gets the long
+// budget, and its lease is kept alive while it works, so it succeeds instead of being cut off at
+// the minute and dead-lettered after eight attempts.
+func TestALongRunningJobOutlastsTheOrdinaryDeadline(t *testing.T) {
+	jobs := newQueue()
+	var cut bool
+	handler := longHandler{detachedHandler{handlerFunc(func(ctx context.Context, _ queue.Job) (queue.Result, error) {
+		select {
+		case <-ctx.Done():
+			cut = true
+			return queue.Result{}, ctx.Err()
+		case <-time.After(250 * time.Millisecond):
+			return queue.Result{}, nil
+		}
+	})}}
+	r := runner(jobs, &unitOfWork{}, handler, nil)
+	r.JobTimeout, r.Lease, r.LongJobTimeout = 20*time.Millisecond, 60*time.Millisecond, 5*time.Second
+
+	r.execute(t.Context(), job(1))
+
+	if cut {
+		t.Fatal("the long job was cut off at the ordinary deadline")
+	}
+	jobs.mu.Lock()
+	defer jobs.mu.Unlock()
+	if len(jobs.completed) != 1 || len(jobs.failures) != 0 {
+		t.Fatalf("completed %v, failures %v - want the job completed", jobs.completed, jobs.failures)
+	}
+	if len(jobs.extended) < 2 {
+		t.Errorf("the lease was extended %d times while the job ran, want it kept alive", len(jobs.extended))
+	}
+}
+
+// An ordinary detached handler keeps the ordinary deadline: the long budget is declared, not
+// inherited.
+func TestAnOrdinaryDetachedJobKeepsTheOrdinaryDeadline(t *testing.T) {
+	jobs := newQueue()
+	handler := detachedHandler{handlerFunc(func(ctx context.Context, _ queue.Job) (queue.Result, error) {
+		<-ctx.Done()
+		return queue.Result{}, ctx.Err()
+	})}
+	r := runner(jobs, &unitOfWork{}, handler, nil)
+	r.JobTimeout, r.Lease, r.LongJobTimeout = 20*time.Millisecond, 60*time.Millisecond, 5*time.Second
+
+	r.execute(t.Context(), job(1))
+
+	if len(jobs.failures) != 1 {
+		t.Fatalf("failures %v, want the job cut off at its deadline", jobs.failures)
+	}
+}

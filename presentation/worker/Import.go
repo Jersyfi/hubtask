@@ -27,12 +27,16 @@ type Import struct {
 }
 
 var (
-	_ queue.Handler  = Import{}
-	_ queue.Detached = Import{}
+	_ queue.Handler     = Import{}
+	_ queue.Detached    = Import{}
+	_ queue.LongRunning = Import{}
 )
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
 func (h Import) OwnsItsTransactions() {}
+
+// RunsLong is the declaration queue.LongRunning asks for: one pass may take hours.
+func (Import) RunsLong() {}
 
 // Run performs one import.
 func (h Import) Run(ctx context.Context, job queue.Job) (queue.Result, error) {

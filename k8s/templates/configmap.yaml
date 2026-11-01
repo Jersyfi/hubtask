@@ -31,6 +31,7 @@ data:
   # be killed while the process is still draining (deployment.md §5).
   HUBTASK_SHUTDOWN_GRACE_SECONDS: {{ .Values.config.shutdownGraceSeconds | quote }}
   HUBTASK_JOB_TIMEOUT: {{ .Values.config.jobTimeout | quote }}
+  HUBTASK_LONG_JOB_TIMEOUT: {{ .Values.config.longJobTimeout | quote }}
 
   HUBTASK_STORAGE_KIND: {{ .Values.storage.kind | quote }}
   {{- if eq .Values.storage.kind "s3" }}

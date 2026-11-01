@@ -676,6 +676,18 @@ type Detached interface {
 	OwnsItsTransactions()
 }
 
+// LongRunning is a detached handler whose one pass may take far longer than an ordinary job - a
+// backup, a restore, a workspace export, an import. The runner gives it the long budget instead of
+// the ordinary deadline and keeps its lease alive while it works, so a killed worker's pass is
+// still taken over within one lease rather than after the whole budget. Detached on purpose: a
+// pass of hours must not hold one transaction open for hours.
+type LongRunning interface {
+	Detached
+
+	// RunsLong is the declaration; its value is never read.
+	RunsLong()
+}
+
 // Releaser is a handler that holds a lock outside the job table - a run row, a claim - and has to
 // let it go when the queue gives up on the job.
 //

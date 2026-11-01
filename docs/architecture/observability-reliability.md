@@ -429,6 +429,9 @@ in PostgreSQL, and nothing else is required to run it.
   The composition root keeps it three below the background pool's size.
 * **A claim is a lease**: `HUBTASK_JOB_TIMEOUT` plus 30 seconds. A job outliving its lease is
   claimed again, so every job is **idempotent** and effects are guarded by `dedupe_key`.
+  A long-running handler (`queue.LongRunning`: backup run and restore, workspace and audit
+  export, import) runs under `HUBTASK_LONG_JOB_TIMEOUT` (6 h) instead, and the worker extends its
+  lease every third of a lease while it works; a lease another worker took over cancels the pass.
 * **Failures** retry with exponential backoff and full jitter, up to `HUBTASK_JOB_MAX_ATTEMPTS`;
   then the job goes to the dead letter with the code of its last failure, visible in the API and
   alerted as A-07.
