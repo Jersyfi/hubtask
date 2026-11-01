@@ -118,7 +118,9 @@ Rules:
   (0212, 0228; `TestAnInterruptedBackfillResumesWhereItStopped`). The first backfill that needs the
   ledger creates it (`CREATE TABLE IF NOT EXISTS`).
 * No destructive step in the same release as the code change that stops using the object.
-* The schema stays backwards compatible with the previous minor, which makes a rollback possible
+* The schema stays backwards compatible with the previous minor, which makes a rollback possible;
+  `make gate-upgrade` (CI job `upgrade`) runs the last release's binary and client on this build's
+  schema, during the migration and after a rollback
   ([deployment.md](./deployment.md) §5).
 * A migration assumes nothing but the schema it names: a lower number can merge after a higher one
   is applied, and the migrator applies it late (`goose` with missing migrations allowed). A number

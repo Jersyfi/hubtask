@@ -56,6 +56,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `api-compat` | `make gate-api-compat`: `api/openapi.yaml` against the newest `v*` tag through the pinned `oasdiff` (below) |
 | `compose` | `make gate-compose`: builds the image from this commit and starts the self-hosting stack until `/readyz` answers |
 | `e2e` | `make gate-e2e`: the `hubctl` session against the Compose stack (`scripts/hubctl-e2e.sh`), including `hubctl sync-conformance` |
+| `upgrade` | `make gate-upgrade`: the newest release's image, compose file and `hubctl` write; this build's migrator runs while that release serves; the old client reads and writes on the new schema, this build's reads it, and the release goes back on the new schema and writes again (`scripts/upgrade-session.sh`) |
 | `engine-session` | `make gate-engine-conformance`: the first-party sync engine against its own Compose stack, answering [offline-sync.md](./offline-sync.md) §9's eight client requirements by number |
 | `selftest` | `make gate-selftest`: one deliberate violation per configured rule, each expected to turn the build red |
 | `integration` | PostgreSQL 16 (`pgvector/pgvector:pg16`), `make migrate`, `make gate-integration` (object storage from `test/s3test`, one pinned SeaweedFS — [ADR-0067](../adr/ADR-0067-s3-test-fixture.md)), then **`make gate-contract`**: responses, events, closed sets, the router and the SDK examples against the contract |

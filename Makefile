@@ -845,6 +845,14 @@ gate-cli:
 gate-e2e: docker-build
 	scripts/hubctl-e2e.sh $(VERSION)
 
+## gate-upgrade: The last release and this build on one database, forward and back
+# The last release's stack and hubctl write; this build's migrator runs while the old application
+# serves; the old client reads and writes on the new schema, this build reads it, and the old
+# application goes back on the new schema (versioning-release.md §4, deployment.md §5).
+.PHONY: gate-upgrade
+gate-upgrade: docker-build
+	scripts/upgrade-session.sh $(VERSION)
+
 ## gate-engine-conformance: The sync engine's conformance run against the reference Compose stack
 # The client's half of the offline synchronisation's conformance: `hubctl sync-conformance` (a
 # section of gate-e2e) asks what the server owes a client, this asks whether the first-party

@@ -573,6 +573,24 @@ jobs:
       # about the paths and fields a client actually uses.
       - run: make gate-e2e
 
+  upgrade:
+    name: The upgrade from the last release and back (Compose)
+    needs: quick
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The release's tag, its compose file and its hubctl's source.
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      # The last release's image and client against this build's migrator and back: an expand
+      # step that breaks the previous release is red here, before an operator's rollback finds it.
+      - run: make gate-upgrade
+
   engine-session:
     name: The engine's session (Compose)
     needs: quick
@@ -1111,6 +1129,7 @@ jobs:
       - api-compat
       - compose
       - e2e
+      - upgrade
       - engine-session
       - selftest
       - integration
