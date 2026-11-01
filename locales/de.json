@@ -8592,6 +8592,7 @@
   "public_forms.work_invalid": "Die Prüfung deines Browsers ist nicht durchgegangen. Lade die Seite neu und sende das Formular noch einmal.",
   "public_forms.work_expired": "Das Formular war zu lange offen. Lade die Seite neu und sende es noch einmal.",
   "public_forms.work_spent": "Dieses Formular wurde schon gesendet. Lade die Seite neu, um eine weitere Anfrage zu senden.",
+  "public_forms.requester_limit": "Von dieser Mail-Adresse kamen in der letzten Stunde zu viele Anfragen. Versuch es später noch einmal.",
   "public_forms.requester_name_invalid": "Ein Name hat höchstens 200 Zeichen, in einer Zeile und ohne spitze Klammern.",
   "public_forms.requester_address_invalid": "Das ist keine Mail-Adresse.",
   "public_forms.requester_address_missing": "Gib mit deinem Namen eine Mail-Adresse an, damit das Team dir antworten kann.",

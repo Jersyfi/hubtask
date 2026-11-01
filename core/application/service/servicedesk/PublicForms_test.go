@@ -142,6 +142,28 @@ func (c *creations) Invoke(_ context.Context, name string, actor appshared.Actor
 
 type contacts struct{ addresses []string }
 
+// ContactsSince counts every recorded contact of the address: the scene's clock stands still.
+func (c *contacts) ContactsSince(_ context.Context, address string, _ time.Time) (int, error) {
+	n := 0
+	for _, each := range c.addresses {
+		if strings.HasSuffix(each, "<"+address+">") {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// ledger is the installation's record of spent challenges, one map shared by every "server".
+type ledger struct{ spent map[string]bool }
+
+func (l *ledger) Take(_ context.Context, nonce string, _, _ time.Time) (bool, error) {
+	if l.spent[nonce] {
+		return false, nil
+	}
+	l.spent[nonce] = true
+	return true, nil
+}
+
 func (c *contacts) RecordContact(_ context.Context, address, name string, _ shared.ID, _ time.Time) error {
 	c.addresses = append(c.addresses, name+" <"+address+">")
 	return nil
@@ -183,7 +205,7 @@ func newPublicScene() publicScene {
 				Desk: Desk{Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: ids},
 			},
 			Links: links, Settings: settings, Entropy: &fixedEntropy{}, Accounts: makerAccounts{status: identity.AccountActive},
-			Modules: deskModules{on: true}, Permits: may, Requesters: recorded, Signer: signer{}, Spent: NewSpentChallenges(),
+			Modules: deskModules{on: true}, Permits: may, Requesters: recorded, Signer: signer{}, Spent: &ledger{spent: map[string]bool{}}, History: recorded,
 		},
 		links: links, settings: settings, entries: entries, contacts: recorded, permits: may,
 	}
@@ -325,6 +347,62 @@ func TestAPublicRequestIsFiledOnceAsTheMakerForTheVisitor(t *testing.T) {
 	}
 	if len(s.contacts.addresses) != 1 {
 		t.Errorf("an anonymous request recorded a requester")
+	}
+}
+
+// UC-SVC-13 check 8: a challenge solved once files one request on whichever server it is sent
+// to, and one requester's address files at most PublicFormRequesterPerHour requests an hour.
+func TestAChallengeIsSpentOnceAcrossServersAndARequesterIsBounded(t *testing.T) {
+	ctx := context.Background()
+	first := newPublicScene()
+	token := first.mint(t)
+	second := first
+	second.forms.Spent = first.forms.Spent // a second replica, the same database
+	challenge, solution := solved(t, first, token)
+	request := PublicSubmission{EntryType: "feedback", Title: "Lob", Challenge: challenge, Solution: solution}
+	if err := (SubmitPublicForm{Forms: first.forms}).Execute(ctx, token, request); err != nil {
+		t.Fatal(err)
+	}
+	if err := (SubmitPublicForm{Forms: second.forms}).Execute(ctx, token, request); detailOf(err) != "public_forms.work_spent" {
+		t.Fatalf("a second server took the same challenge again: %v", err)
+	}
+
+	submit := SubmitPublicForm{Forms: first.forms}
+	for i := 0; i < domain.PublicFormRequesterPerHour; i++ {
+		c, sol := solved(t, first, token)
+		err := submit.Execute(ctx, token, PublicSubmission{
+			EntryType: "feedback", Title: "Lob", RequesterName: "Kaya", RequesterEmail: "kaya@example.org",
+			Challenge: c, Solution: sol,
+		})
+		if err != nil {
+			t.Fatalf("request %d: %v", i+1, err)
+		}
+	}
+	c, sol := solved(t, first, token)
+	filed := len(first.entries.calls)
+	err := submit.Execute(ctx, token, PublicSubmission{
+		EntryType: "feedback", Title: "Lob", RequesterName: "Kaya", RequesterEmail: "KAYA@example.org",
+		Challenge: c, Solution: sol,
+	})
+	if detailOf(err) != "public_forms.requester_limit" || !errors.Is(err, shared.ErrRateLimited) {
+		t.Fatalf("one address past its hour's bound: %v", err)
+	}
+	if len(first.entries.calls) != filed {
+		t.Errorf("the refused request was filed")
+	}
+	c, sol = solved(t, first, token)
+	if err := submit.Execute(ctx, token, PublicSubmission{
+		EntryType: "feedback", Title: "Lob", RequesterName: "Ilse", RequesterEmail: "ilse@example.org",
+		Challenge: c, Solution: sol,
+	}); err != nil {
+		t.Errorf("another address was bounded with the first: %v", err)
+	}
+
+	without := first.forms
+	without.Spent = nil
+	c, sol = solved(t, first, token)
+	if err := (SubmitPublicForm{Forms: without}).Execute(ctx, token, PublicSubmission{EntryType: "feedback", Title: "Lob", Challenge: c, Solution: sol}); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("without a ledger a request was filed: %v", err)
 	}
 }
 

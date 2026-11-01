@@ -8592,6 +8592,7 @@
   "public_forms.work_invalid": "Your browser's check did not go through. Reload the page and send the form again.",
   "public_forms.work_expired": "The form was open too long. Reload the page and send it again.",
   "public_forms.work_spent": "This form was already sent. Reload the page to send another request.",
+  "public_forms.requester_limit": "This mail address sent too many requests in the last hour. Try again later.",
   "public_forms.requester_name_invalid": "A name has at most 200 characters, on one line and without angle brackets.",
   "public_forms.requester_address_invalid": "That is not a mail address.",
   "public_forms.requester_address_missing": "Give a mail address with your name, so the team can answer you.",

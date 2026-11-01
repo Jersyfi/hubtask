@@ -46,6 +46,25 @@ func (q *Queries) CountExpiredRequesters(ctx context.Context, arg CountExpiredRe
 	return count, err
 }
 
+const countRequesterContactsSince = `-- name: CountRequesterContactsSince :one
+SELECT count(*) FROM requester_contact c
+JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
+WHERE r.address = lower($1::text) AND c.at >= $2
+`
+
+type CountRequesterContactsSinceParams struct {
+	Address string
+	Since   pgtype.Timestamptz
+}
+
+// The entries one address was recorded on since a moment (UC-SVC-13's bound per requester).
+func (q *Queries) CountRequesterContactsSince(ctx context.Context, arg CountRequesterContactsSinceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRequesterContactsSince, arg.Address, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteExpiredRequesters = `-- name: DeleteExpiredRequesters :execrows
 DELETE FROM requester
 WHERE id IN (

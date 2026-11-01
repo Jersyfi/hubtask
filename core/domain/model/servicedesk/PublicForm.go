@@ -132,6 +132,11 @@ const (
 	maxSolutionLength   = 20
 )
 
+// PublicFormRequesterPerHour bounds the requests one requester's mail address files through the
+// public forms in an hour, whatever client and network they come from: a script rotating
+// addresses cannot flood one person's address with acknowledgements and requests in their name.
+const PublicFormRequesterPerHour = 10
+
 // ChallengeNonceBytes is the randomness the caller draws for a challenge (rule 4).
 const ChallengeNonceBytes = challengeNonceBytes
 

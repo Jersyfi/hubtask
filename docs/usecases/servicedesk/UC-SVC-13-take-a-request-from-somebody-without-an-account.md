@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-11, P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/domain/model/integration/FormLinkToken_test.go, core/domain/model/servicedesk/PublicForm_test.go, core/application/service/servicedesk/PublicForms_test.go, presentation/rest/PublicFormController_test.go, test/integration/public_form_test.go, apps/webapp/src/lib/forms/work.test.ts, apps/webapp/src/lib/data/publicforms.test.ts, apps/webapp/src/lib/data/entryforms.test.ts]
+checked_by: [core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/domain/model/integration/FormLinkToken_test.go, core/domain/model/servicedesk/PublicForm_test.go, core/application/service/servicedesk/PublicForms_test.go, presentation/rest/PublicFormController_test.go, test/integration/public_form_test.go, test/integration/public_form_challenge_test.go, apps/webapp/src/lib/forms/work.test.ts, apps/webapp/src/lib/data/publicforms.test.ts, apps/webapp/src/lib/data/entryforms.test.ts]
 ---
 
 # Take a request from somebody without an account through a public form
@@ -57,6 +57,11 @@ that there is no form here.
    expiry reach; an anonymous request names nobody and records no requester.
 7. The address is never looked up among the workspace's accounts and nothing is mailed to it on
    submission: the answer is the same whoever the address belongs to.
+8. A challenge is answered once across every server of the installation: the spent challenges are
+   kept in the database until they expire, and the request's transaction spends it, so a request
+   refused there leaves it unspent. One requester's mail address files at most ten requests an
+   hour, whatever client and network they come from; the eleventh is answered 429
+   `public_forms.requester_limit` and nothing is filed.
 
 ## Where it ends
 
@@ -64,8 +69,6 @@ that there is no form here.
   their own and follows the request in their mailbox only.
 * An embedded form inside another site and a guest-only form are not built; the link opens the
   form on Hubtask's own card.
-* The challenges answered are remembered per server process; a replica that never saw a challenge
-  takes it once more, which the per-address and per-network budgets bound.
 * Files are not attached through a public form.
 * The panel that makes the link is shown in the portal to a workspace administrator; somebody who
   manages only the collection's members makes it through the API or hubctl.

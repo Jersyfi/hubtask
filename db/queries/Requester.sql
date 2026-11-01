@@ -117,3 +117,9 @@ WHERE token_hash = sqlc.arg('token_hash');
 -- Answers the link once: of two answers at the same moment, one finds it unused.
 UPDATE satisfaction_link SET used_at = sqlc.arg('at')
 WHERE token_hash = sqlc.arg('token_hash') AND used_at IS NULL AND expires_at > sqlc.arg('at');
+
+-- name: CountRequesterContactsSince :one
+-- The entries one address was recorded on since a moment (UC-SVC-13's bound per requester).
+SELECT count(*) FROM requester_contact c
+JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
+WHERE r.address = lower(sqlc.arg('address')::text) AND c.at >= sqlc.arg('since');

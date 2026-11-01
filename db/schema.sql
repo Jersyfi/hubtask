@@ -7578,4 +7578,19 @@ CREATE POLICY tenant_isolation ON satisfaction_link
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_link TO hubtask_app;
 
+-- Migration 0319: a public form's spent challenges (UC-SVC-13 check 8), kept until they expire so a
+-- challenge is answered once across every server.
+CREATE TABLE public_form_challenge (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  nonce      text NOT NULL CHECK (char_length(nonce) BETWEEN 1 AND 64),
+  expires_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, nonce)
+);
+CREATE INDEX public_form_challenge_expiry_idx ON public_form_challenge (tenant_id, expires_at);
+ALTER TABLE public_form_challenge ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public_form_challenge FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON public_form_challenge
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON public_form_challenge TO hubtask_app;
+
 COMMIT;

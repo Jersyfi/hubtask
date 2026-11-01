@@ -8,7 +8,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -83,52 +82,24 @@ type PublicForms struct {
 	Permits    Permitter
 	Requesters RequesterContacts
 	Signer     ChallengeSigner
-	// Spent remembers the challenges answered in this process, so one solved challenge files one
-	// request; nil remembers none and leaves the per-address limit as the only bound.
-	Spent *SpentChallenges
+	// Spent records the spent challenges for every server; without it nothing is filed.
+	Spent ChallengeLedger
+	// History bounds one requester's address (PublicFormRequesterPerHour); nil bounds none.
+	History RequesterHistory
 }
 
-// SpentChallenges is the set of challenges this process took, kept until they expire. Per process
-// as the rate limiter is: a replica that never saw a challenge takes it once more, which the
-// per-address limit bounds.
-type SpentChallenges struct {
-	mutex sync.Mutex
-	until map[string]time.Time
+// ChallengeLedger is the record of the challenges submissions spent (migration 0319), shared by
+// every server of the installation: a per-process set would let each replica take one solved
+// challenge once more.
+type ChallengeLedger interface {
+	// Take spends a challenge in the caller's transaction, forgetting the expired ones; false when
+	// it was spent already. A rolled-back transaction leaves it unspent.
+	Take(ctx context.Context, nonce string, expires, now time.Time) (bool, error)
 }
 
-// NewSpentChallenges starts an empty set.
-func NewSpentChallenges() *SpentChallenges {
-	return &SpentChallenges{until: map[string]time.Time{}}
-}
-
-// take reserves a challenge; false when it was taken already.
-func (s *SpentChallenges) take(key string, until, now time.Time) bool {
-	if s == nil {
-		return true
-	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	for each, expires := range s.until {
-		if !now.Before(expires) {
-			delete(s.until, each)
-		}
-	}
-	if _, taken := s.until[key]; taken {
-		return false
-	}
-	s.until[key] = until
-	return true
-}
-
-// release gives a reserved challenge back: a request refused for what it said may be corrected
-// and sent again with the same work.
-func (s *SpentChallenges) release(key string) {
-	if s == nil {
-		return
-	}
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	delete(s.until, key)
+// RequesterHistory answers how many entries an address was recorded on since a moment.
+type RequesterHistory interface {
+	ContactsSince(ctx context.Context, address string, since time.Time) (int, error)
 }
 
 // allowed resolves the workspace's switch inside the caller's transaction; without a settings
@@ -657,7 +628,7 @@ type SubmitPublicForm struct{ Forms PublicForms }
 
 // Execute files the request.
 func (h SubmitPublicForm) Execute(ctx context.Context, token integration.FormLinkToken, in PublicSubmission) error {
-	if h.Forms.Signer == nil {
+	if h.Forms.Signer == nil || h.Forms.Spent == nil {
 		return shared.ErrUnavailable.WithDetail("public_forms.unavailable")
 	}
 	now := h.Forms.Portal.Desk.Clock.Now()
@@ -665,20 +636,12 @@ func (h SubmitPublicForm) Execute(ctx context.Context, token integration.FormLin
 	if err != nil {
 		return err
 	}
-	if !h.Forms.Spent.take(nonce, now.Add(domain.PublicFormChallengeLife), now) {
-		return shared.ErrValidation.WithDetail("public_forms.work_spent").
-			WithFields(shared.FieldError{Path: "/challenge", Code: "public_forms.work_spent"})
-	}
-	if err := h.file(ctx, token, in, now); err != nil {
-		if !errors.Is(err, shared.ErrNotFound) {
-			h.Forms.Spent.release(nonce)
-		}
-		return err
-	}
-	return nil
+	return h.file(ctx, token, in, nonce, now)
 }
 
-func (h SubmitPublicForm) file(ctx context.Context, token integration.FormLinkToken, in PublicSubmission, now time.Time) error {
+func (h SubmitPublicForm) file(
+	ctx context.Context, token integration.FormLinkToken, in PublicSubmission, nonce string, now time.Time,
+) error {
 	requester, err := domain.NewRequester(in.RequesterName, in.RequesterEmail)
 	if err != nil {
 		return err
@@ -707,6 +670,19 @@ func (h SubmitPublicForm) file(ctx context.Context, token integration.FormLinkTo
 	actor := opened.maker
 	actor.ForSender = !requester.IsZero()
 	err = h.Forms.Portal.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The challenge is spent in the request's transaction: a request refused below leaves it
+		// unspent, so the visitor may correct it and send it again with the same work.
+		taken, err := h.Forms.Spent.Take(ctx, nonce, now.Add(domain.PublicFormChallengeLife), now)
+		if err != nil {
+			return err
+		}
+		if !taken {
+			return shared.ErrValidation.WithDetail("public_forms.work_spent").
+				WithFields(shared.FieldError{Path: "/challenge", Code: "public_forms.work_spent"})
+		}
+		if err := h.withinRequesterBound(ctx, requester, now); err != nil {
+			return err
+		}
 		out, err := h.Forms.Portal.Entries.Invoke(ctx, createEntryUseCase, actor, input)
 		if err != nil {
 			return err
@@ -727,4 +703,21 @@ func (h SubmitPublicForm) file(ctx context.Context, token integration.FormLinkTo
 		return linkGone()
 	}
 	return err
+}
+
+// withinRequesterBound refuses a requester's address that filed PublicFormRequesterPerHour
+// requests in the last hour, whatever client sent them.
+func (h SubmitPublicForm) withinRequesterBound(ctx context.Context, requester domain.Requester, now time.Time) error {
+	if requester.IsZero() || h.Forms.History == nil {
+		return nil
+	}
+	filed, err := h.Forms.History.ContactsSince(ctx, requester.Address, now.Add(-time.Hour))
+	if err != nil {
+		return err
+	}
+	if filed >= domain.PublicFormRequesterPerHour {
+		return shared.ErrRateLimited.WithDetail("public_forms.requester_limit").
+			WithFields(shared.FieldError{Path: "/requester_email", Code: "public_forms.requester_limit"})
+	}
+	return nil
 }

@@ -22489,9 +22489,11 @@ paths:
         held to the type's form on the PUBLIC channel. The challenge is answered by a decimal
         number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits`
         zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time
-        (`public_forms.work_expired`). A name and mail address are optional and are never looked
-        up: the answer is the same whoever the address belongs to, and nothing is mailed to it on
-        submission. Counted per client address.
+        (`public_forms.work_expired`), across every server of the installation. A name and mail
+        address are optional and are never looked up: the answer is the same whoever the address
+        belongs to, and nothing is mailed to it on submission. Counted per client address and per
+        network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a
+        bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
       requestBody:
         required: true
         content:

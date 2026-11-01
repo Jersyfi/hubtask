@@ -38128,7 +38128,7 @@ type ClientInterface interface {
 
 	// SubmitPublicFormWithBody Send a request through a public form
 	//
-	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38137,7 +38137,7 @@ type ClientInterface interface {
 
 	// SubmitPublicForm Send a request through a public form
 	//
-	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -58256,7 +58256,7 @@ func (c *Client) GetPublicForm(ctx context.Context, token string, reqEditors ...
 
 // SubmitPublicFormWithBody Send a request through a public form
 //
-// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 //
 // Takes any type of body and a specified content type.
 //
@@ -58275,7 +58275,7 @@ func (c *Client) SubmitPublicFormWithBody(ctx context.Context, token string, con
 
 // SubmitPublicForm Send a request through a public form
 //
-// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -110170,7 +110170,7 @@ type ClientWithResponsesInterface interface {
 
 	// SubmitPublicFormWithBodyWithResponse Send a request through a public form
 	//
-	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -110179,7 +110179,7 @@ type ClientWithResponsesInterface interface {
 
 	// SubmitPublicFormWithResponse Send a request through a public form
 	//
-	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+	// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -166620,7 +166620,7 @@ func (c *ClientWithResponses) GetPublicFormWithResponse(ctx context.Context, tok
 
 // SubmitPublicFormWithBodyWithResponse Send a request through a public form
 //
-// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -166635,7 +166635,7 @@ func (c *ClientWithResponses) SubmitPublicFormWithBodyWithResponse(ctx context.C
 
 // SubmitPublicFormWithResponse Send a request through a public form
 //
-// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`). A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address.
+// Files the request in the form's collection as the link's maker, on the visitor's behalf, held to the type's form on the PUBLIC channel. The challenge is answered by a decimal number whose SHA-256 together with it - `challenge + ":" + solution` - starts with `bits` zero bits; a challenge is answered once (`public_forms.work_spent`) and within its time (`public_forms.work_expired`), across every server of the installation. A name and mail address are optional and are never looked up: the answer is the same whoever the address belongs to, and nothing is mailed to it on submission. Counted per client address and per network origin (a /24 for IPv4, a /64 for IPv6); one requester's mail address files a bounded number of requests an hour, whatever the client (`public_forms.requester_limit`).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

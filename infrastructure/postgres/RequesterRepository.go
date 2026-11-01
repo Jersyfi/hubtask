@@ -50,6 +50,21 @@ func (r RequesterRepository) RecordContact(
 	return nil
 }
 
+// ContactsSince counts the entries the address was recorded on since the moment.
+func (RequesterRepository) ContactsSince(ctx context.Context, address string, since time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n, err := queries.CountRequesterContactsSince(ctx, sqlc.CountRequesterContactsSinceParams{
+		Address: strings.ToLower(strings.TrimSpace(address)), Since: timestampOf(since),
+	})
+	if err != nil {
+		return 0, requesterFailed("counting a requester's contacts", err)
+	}
+	return int(n), nil
+}
+
 // AddressesOn answers who the entry was filed for by mail, by address (UC-SVC-12).
 func (RequesterRepository) AddressesOn(ctx context.Context, itemID shared.ID) ([]servicedesk.RequesterAddress, error) {
 	queries, err := queriesFrom(ctx)

@@ -2642,6 +2642,12 @@ type PublicForm struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type PublicFormChallenge struct {
+	TenantID  pgtype.UUID
+	Nonce     string
+	ExpiresAt pgtype.Timestamptz
+}
+
 type QuotaReached struct {
 	TenantID  pgtype.UUID
 	Quota     string

@@ -1994,7 +1994,8 @@ func run() error {
 		Accounts: accounts, Modules: modules, Permits: authorizer,
 		Requesters: postgres.RequesterRepository{IDs: ids},
 		Signer:     security.NewPublicFormChallengeSigner(cfg.SecretKey),
-		Spent:      servicedeskservice.NewSpentChallenges(),
+		Spent:      postgres.PublicFormChallengeRepository{},
+		History:    postgres.RequesterRepository{IDs: ids},
 	}
 	// The satisfaction question by mail for a requester without an account (UC-SVC-07 check 6):
 	// links mailed on resolution, answered without signing in.
