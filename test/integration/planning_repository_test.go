@@ -50,6 +50,47 @@ func seedPlan(ctx context.Context, t *testing.T, tenant shared.ID) (shared.ID, s
 	return hub, collection, tasks
 }
 
+// UC-PLN-04 check 3: a plan's baselines list newest first, each with its name, when and by whom it
+// was taken, and how many entries it holds.
+func TestAPlansBaselinesListNewestFirst(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	baselines := postgres.NewPlanningRepository().Baselines()
+	hub, _, _ := seedPlan(ctx, t, tenantA)
+	first := time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)
+	for i, name := range []string{"Agreed", "Re-planned"} {
+		baseline, err := planning.NewBaseline(planning.NewBaselineInput{
+			ID: freshID(t), TenantID: tenantA, PlanID: hub, TakenBy: authorA, Name: name, Now: first.Add(time.Duration(i) * time.Hour),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := baselines.Take(ctx, baseline, planning.MaxBaselineEntries)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		listed, err := baselines.List(ctx, hub)
+		if err != nil {
+			return err
+		}
+		if len(listed) != 2 || listed[0].Name != "Re-planned" || listed[1].Name != "Agreed" {
+			t.Fatalf("listed %+v, want the newest first", listed)
+		}
+		for _, b := range listed {
+			if b.TakenBy != authorA || b.TakenAt.IsZero() || b.EntryCount != 2 {
+				t.Errorf("baseline %s reads by %s at %v holding %d", b.Name, b.TakenBy, b.TakenAt, b.EntryCount)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A plan's entries, their modes and its baselines stay in their workspace (migration 0244, M2,
 // UC-PLN-04 check 4).
 func TestAPlanStaysInItsWorkspace(t *testing.T) {

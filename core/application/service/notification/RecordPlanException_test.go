@@ -30,7 +30,7 @@ func (baselineStore) Find(_ context.Context, id shared.ID) (planning.Baseline, e
 	return planning.Baseline{ID: id, TenantID: tenant, PlanID: slippedPlan}, nil
 }
 
-// UC-PLN-04 check 6: a plan in exception is told to whoever decided its tolerance, once per
+// UC-PLN-04 check 8: a plan in exception is told to whoever decided its tolerance, once per
 // baseline - a second read of the same exception writes nothing - and never to the reader who is
 // looking at it.
 func TestAPlanInExceptionIsToldOnceToWhoeverDecidedItsTolerance(t *testing.T) {

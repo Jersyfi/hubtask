@@ -111,8 +111,9 @@ func (t *told) PlanExceeded(_ context.Context, _, _, recipient, _ shared.ID, _ t
 	return nil
 }
 
-// configuration.md §10 at the workspace: its tolerance, locked, reaches every hub and collection and
-// is not changed there, and the exception goes to the person who decided it - the level above.
+// UC-PLN-04 checks 7 and 8, configuration.md §10 at the workspace: its tolerance, locked, reaches
+// every hub and collection and is not changed there, and the exception goes to the person who
+// decided it - the level above.
 func TestTheWorkspacesToleranceReachesEveryPlanAndHearsItsException(t *testing.T) {
 	f := newFixture()
 	store := &settingStore{}

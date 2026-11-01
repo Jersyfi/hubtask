@@ -9,6 +9,7 @@ import (
 
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 )
 
@@ -67,5 +68,24 @@ func TestEveryHubAndCollectionSettingIsInTheHubsDocument(t *testing.T) {
 				t.Errorf("%s is decided by a %s and is in no section of the hub's document", key, level)
 			}
 		}
+	}
+}
+
+// UC-PLN-04 check 7: the tolerance every hub and collection inherits is the workspace's to decide,
+// and a block of the workspace's configuration document.
+func TestTheWorkspacesTimeToleranceIsABlockOfItsDocument(t *testing.T) {
+	catalogue, err := settingservice.Catalogue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	decided := false
+	for _, definition := range catalogue.At(setting.LevelWorkspace) {
+		decided = decided || definition.Key == planning.TimeToleranceKey
+	}
+	if !decided {
+		t.Fatalf("the workspace does not decide %s", planning.TimeToleranceKey)
+	}
+	if _, held := areaOf(string(planning.TimeToleranceKey)); !held {
+		t.Errorf("%s is in no area of the workspace's document", planning.TimeToleranceKey)
 	}
 }
