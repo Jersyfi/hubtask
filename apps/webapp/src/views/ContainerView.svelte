@@ -227,8 +227,13 @@
 
   // The workflow the collection runs for its tasks, where it runs one: the board is then one
   // column per status (UC-FLW-03 check 2), and the head names it with a link to where it is
-  // defined (UC-FLW-02 check 5).
-  $effect(() => untrack(() => workflows.open()));
+  // defined (UC-FLW-02 check 5). Read only where the module is on: elsewhere the server refuses the
+  // read, and every collection would log the refusal (run R3 at 10⁷ entries).
+  const workflowsOn = $derived(typesShown(manifest.value));
+  $effect(() => {
+    if (!workflowsOn) return;
+    return untrack(() => workflows.open());
+  });
   const workflowHere = $derived(
     container?.type === 'COLLECTION' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
   );
