@@ -50,6 +50,8 @@
     threadsOf, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { live } from '../data/live.svelte.ts';
+  import { isLiveUnreachable } from '../data/liveunreachable.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
@@ -86,6 +88,7 @@
   const session = new Facilitation(doc);
   let elements = $state<Element[]>(untrack(() => saved));
   let status = $state<LiveStatus | 'reading'>('connecting');
+  let failedAttempts = $state(0);
   // Local changes the server has not had yet, kept on the device meanwhile (unsentdocs.ts).
   let unsent = $state(0);
   let isLive = $state(false);
@@ -145,7 +148,10 @@
       connection = new LiveDocument(doc, {
         open: () => whiteboards.liveSocket(board.id) as unknown as LiveSocket,
         writable,
-        onStatus: (next) => (status = next),
+        onStatus: (next) => {
+          status = next;
+          failedAttempts = connection?.failedAttempts ?? 0;
+        },
         keep: writable ? liveKeeper('whiteboard', board.id) : undefined,
         onUnsent: (count) => {
           unsent = count;
@@ -1047,6 +1053,7 @@
   const statusText = $derived(
     status === 'refused' ? t('app.whiteboards.status_refused')
     : unsent > 0 ? t('app.whiteboards.status_unsent', { count: String(unsent) })
+    : isLiveUnreachable(status, failedAttempts, live.state) ? t('app.whiteboards.status_unreachable')
     : status === 'offline' ? t('app.whiteboards.status_offline')
     : !isLive ? t('app.whiteboards.status_connecting')
     : writable ? t('app.whiteboards.status_live')

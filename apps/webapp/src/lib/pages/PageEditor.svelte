@@ -35,6 +35,8 @@
   import { unsentDocuments } from '../data/unsentdocs.ts';
   import { liveKeeper } from '../data/unsentkeeper.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { live } from '../data/live.svelte.ts';
+  import { isLiveUnreachable } from '../data/liveunreachable.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import BoardView from '../whiteboards/BoardView.svelte';
   import PagePicture from './PagePicture.svelte';
@@ -73,6 +75,7 @@
   let status = $state<LiveStatus | 'reading'>('reading');
   // Local changes the server has not had yet, kept on the device meanwhile (unsentdocs.ts).
   let unsent = $state(0);
+  let failedAttempts = $state(0);
   let isLive = $state(false);
   let saving = $state<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   let saveRefusal = $state<string | undefined>(undefined);
@@ -250,7 +253,10 @@
       const connection: LiveDocument = new LiveDocument(doc, {
         open: () => pages.liveSocket(page.id) as unknown as LiveSocket,
         writable: true,
-        onStatus: (next) => (status = next),
+        onStatus: (next) => {
+          status = next;
+          failedAttempts = connection.failedAttempts;
+        },
         keep: liveKeeper('page', page.id),
         onUnsent: (count) => {
           unsent = count;
@@ -382,6 +388,7 @@
     : status === 'connected' && isLive ? (saving === 'saving' ? t('app.pages.status_saving') : t('app.pages.status_live'))
     : status === 'refused' ? t('app.pages.status_refused')
     : unsent > 0 ? t('app.pages.status_unsent', { count: String(unsent) })
+    : isLiveUnreachable(status, failedAttempts, live.state) ? t('app.pages.status_unreachable')
     : status === 'offline' ? t('app.pages.status_offline')
     : t('app.pages.status_connecting'),
   );

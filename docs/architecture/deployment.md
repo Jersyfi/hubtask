@@ -78,6 +78,17 @@ stack offers a documented `pg_dump` and the tenant archives beside it;
 [backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)
 says which guarantees that does not carry.
 
+**A reverse proxy in front** terminates TLS and must pass three things through to port 8080: the
+WebSocket upgrade of `/api/v1/realtime/` (pages and boards are edited live over it), the server-sent
+events of `/api/v1/stream` unbuffered, and long-lived connections on both. nginx forwards neither
+`Upgrade` nor `Connection` by default; its location for the application needs
+`proxy_http_version 1.1;`, `proxy_set_header Upgrade $http_upgrade;`,
+`proxy_set_header Connection $connection_upgrade;` (with the usual `map $http_upgrade
+$connection_upgrade { default upgrade; '' close; }`), `proxy_buffering off;` and a
+`proxy_read_timeout` of some minutes. Without the upgrade everything else works and every page and
+board opens read-only; after three connections that never opened while the event stream is live,
+the editor names the proxy as the likely cause.
+
 Updating: raise `HUBTASK_VERSION` in `.env`, then `docker compose pull && docker compose up -d`.
 The migration runs before the application starts; because migrations are expand/contract-safe
 ([versioning-release.md](./versioning-release.md) §4), the old version may still be running while

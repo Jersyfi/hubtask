@@ -174,6 +174,7 @@ The architecture's roles; the people who use the product are
 |---|---|---|---|
 | Public API and web app | HTTP/1.1 + HTTP/2, JSON | 8080 | TLS terminated at the ingress/reverse proxy |
 | Real-time updates | Server-sent events (`/api/v1/stream`) | 8080 | |
+| Live documents (pages, boards) | WebSocket (`/api/v1/realtime/documents/{kind}/{id}`) | 8080 | A reverse proxy must pass the upgrade ([deployment.md](./deployment.md) §2.1); without it every page and board is read-only, and the editor says so |
 | MCP | HTTP (streamable) | 8080 (`/mcp`) | Its own auth scope |
 | Operations | HTTP (Prometheus, health) | 9090 (`HUBTASK_OPS_ADDR`) | Not publicly exposed |
 | Database | PostgreSQL wire protocol | 5432 | Required |

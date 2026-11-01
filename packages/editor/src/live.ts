@@ -140,6 +140,15 @@ export class LiveDocument {
     return this.#status;
   }
 
+  /**
+   * How many connections in a row failed before they opened. Several while the rest of the API
+   * answers is the mark of a proxy that does not pass the upgrade: the reader is told so instead
+   * of a retry that never ends.
+   */
+  get failedAttempts(): number {
+    return this.#attempt;
+  }
+
   /** Whether the server's state has arrived on the current connection. */
   get synced(): boolean {
     return this.#synced;

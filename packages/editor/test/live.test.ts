@@ -225,3 +225,21 @@ test('words typed offline are kept, survive a reload, and are sent on the next c
   assert.deepEqual(store.kept, [], 'sent, nothing is kept');
   again.destroy();
 });
+
+test('connections that never open are counted, and one that opens clears the count', async () => {
+  const sockets = [new FakeSocket(), new FakeSocket(), new FakeSocket(), new FakeSocket()];
+  const opened = [...sockets];
+  let retry: () => void = () => {};
+  const live = new LiveDocument(new Y.Doc(), { open: () => opened.shift()!, writable: true, schedule: (run) => { retry = run; return () => {}; } });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (const socket of sockets.slice(0, 3)) {
+    // A proxy that does not pass the upgrade: the socket closes without ever opening.
+    socket.drop(1006);
+    retry();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  assert.equal(live.failedAttempts, 3);
+  sockets[3]!.open();
+  assert.equal(live.failedAttempts, 0);
+  live.destroy();
+});
