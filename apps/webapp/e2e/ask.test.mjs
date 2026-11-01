@@ -3,13 +3,13 @@
 
 // *Ask* (UC-AI-08), driven the way a person drives it, against the shared fixture:
 //
-// * check 1 - with AI the palette offers *Ask* for typed words; without it no such row and nothing
+// * UC-AI-08 check 1 - with AI the palette offers *Ask* for typed words; without it no such row and nothing
 //   about AI is drawn;
-// * check 2 - the answer is headed as a proposal, its sources are links (one the reader can no longer
+// * UC-AI-08 check 2 - the answer is headed as a proposal, its sources are links (one the reader can no longer
 //   open is left out), its provenance sits behind one collapsed line;
-// * check 4 - the filter it implies is chips, changed and removed, and *Save as view* saves what the
+// * UC-AI-08 check 4 - the filter it implies is chips, changed and removed, and *Save as view* saves what the
 //   chips hold; without a place the place chip is marked rather than the button switched off;
-// * check 5 - a second question is sent as nothing but its words, and nothing is applied: the only
+// * UC-AI-08 check 5 - a second question is sent as nothing but its words, and nothing is applied: the only
 //   writes are the question, the view the person saved, and *Dismiss*.
 //
 // Check 3, which entries are read, is the server's: `AskMaterial_test.go` and
