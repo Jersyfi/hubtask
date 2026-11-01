@@ -40,6 +40,8 @@ async function settled(inFlight, deadline) {
 const served = await serve(process.cwd() + '/dist');
 const browser = await chromium.launch();
 const events = [];
+// The aborts the walk made itself: the browser logs each as a console error without its URL.
+let walkAborts = 0;
 try {
   const context = await browser.newContext();
   await context.route('**/api/v1/**', async (route) => {
@@ -48,7 +50,10 @@ try {
     // Nor the snapshot: route.fetch holds a response whole before it hands it on, and the replica
     // of a million entries is a gigabyte the walk would hold instead of the screens it measures.
     // The engine then walks :pull page by page, which the walk forwards like any other request.
-    if (url.pathname.endsWith('/api/v1/stream') || url.pathname.endsWith('/api/v1/sync:snapshot')) return route.abort();
+    if (url.pathname.endsWith('/api/v1/stream') || url.pathname.endsWith('/api/v1/sync:snapshot')) {
+      walkAborts += 1;
+      return route.abort();
+    }
     try {
       const response = await route.fetch({ url: api + url.pathname + url.search, timeout: SETTLE_MS });
       return await route.fulfill({ response });
@@ -80,7 +85,14 @@ try {
   await served.close?.();
 }
 // The stream's and the snapshot's aborts are the walk's doing, not the page's.
-const rows = fold(events.filter((e) => !/\/api\/v1\/(stream\b|sync:snapshot)/.test(e.message)));
+const rows = fold(events.filter((e) => {
+  if (/\/api\/v1\/(stream\b|sync:snapshot)/.test(e.message)) return false;
+  if (walkAborts > 0 && e.message === 'Failed to load resource: net::ERR_FAILED') {
+    walkAborts -= 1;
+    return false;
+  }
+  return true;
+}));
 writeFileSync(out, JSON.stringify(rows, null, 2) + '\n');
 console.log(`${rows.length} browser rows over ${paths.length} screens`);
 for (const row of rows) console.log(`browser ${row.level} ×${row.count}: ${row.message}`);
