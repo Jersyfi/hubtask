@@ -186,7 +186,7 @@ security update remains available as long as the registry keeps it.
 | Point | Aim |
 |---|---|
 | Supported versions | The lines of the table above |
-| Upgrade path | From any version of the previous major; across two majors with an intermediate step |
+| Upgrade path | From any version of the previous major; across two majors with an intermediate step, which the migrator holds: it refuses a database whose newest migration is older than `db.UpgradeFrom` (`migrate.upgrade_path_skipped`) before it applies anything |
 | Downgrade | Not supported (restore from backup) |
 | Deprecation | At least two minor releases of notice: release notes, `Deprecation`/`Sunset` headers, the capability manifest |
 | Security updates | A patch on every supported major; an advisory with CVSS |
@@ -230,7 +230,9 @@ Three movements, in this order, for `1.0.0` and every major after it
    the major is tagged, a **golden archive** written by it is committed under
    `test/backup/golden/v<format-version>/` (none if the format did not change; none is ever
    removed), and BK-4 imports every directory there. Regenerating one is a deliberate act at a
-   release (`HUBTASK_WRITE_GOLDEN=1`), never what a test does when it disagrees.
+   release (`HUBTASK_WRITE_GOLDEN=1`), never what a test does when it disagrees. `db.UpgradeFrom`
+   is set to the newest migration the previous major's first release carried, so a database two
+   majors behind is refused rather than migrated past its intermediate step (§5).
 
 **A major is released when the server, the clients and the website are finished together, from one
 commit.** No client ships later under the same version.

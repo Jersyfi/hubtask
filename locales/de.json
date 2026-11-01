@@ -1984,6 +1984,7 @@
   "config.tenancy_invalid": "{variable} muss entweder single oder multi sein.",
   "config.roles_empty": "{variable} nennt keine Rolle. Mindestens eine von api, worker, scheduler, automation ist nötig.",
   "config.binary_older_than_schema": "Dieser Build ist älter, als das Datenbankschema zulässt. Einen neueren Build ausrollen oder die Datenbank wiederherstellen.",
+  "migrate.upgrade_path_skipped": "Diese Datenbank liegt mehr als eine Hauptversion hinter dieser Version. Aktualisiere zuerst über die vorige Hauptversion, dann auf diese.",
   "config.role_unknown": "{variable} nennt die unbekannte Rolle {value}.",
   "config.operators_invalid": "{variable} enthält den Eintrag {value}, der nicht die Form workspace:adresse hat – zum Beispiel acme:ada@acme.example. Eine bloße Adresse wird nur angenommen, wenn die Installation einen einzigen Arbeitsbereich hat.",
   "config.shutdown_grace_invalid": "{variable} muss größer als null sein.",

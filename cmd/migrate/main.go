@@ -206,6 +206,9 @@ func up(ctx context.Context, pool, guarded *sql.DB, files fs.FS, pause time.Dura
 	if err != nil {
 		return fmt.Errorf("reading the ledger: %w", err)
 	}
+	if err := refuseSkippedMajor(before, db.UpgradeFrom); err != nil {
+		return err
+	}
 	if err := dropLeftoverBackfillPolicies(ctx, pool); err != nil {
 		return err
 	}
@@ -342,6 +345,19 @@ func dropLeftoverBackfillPolicies(ctx context.Context, pool *sql.DB) error {
 		END $leftover$`)
 	if err != nil {
 		return fmt.Errorf("dropping a backfill's leftover policy: %w", err)
+	}
+	return nil
+}
+
+// refuseSkippedMajor refuses, before the schema is touched, a database that is two majors behind:
+// the upgrade path goes through the previous major (versioning-release.md §5), and the contract
+// steps between would otherwise run against a schema they were never written for. An empty
+// database (zero) is a new installation.
+func refuseSkippedMajor(before, floor int64) error {
+	if before > 0 && before < floor {
+		return fmt.Errorf("migrate.upgrade_path_skipped: the database's newest migration is %d, "+
+			"this release upgrades from %d on; upgrade through the previous major's release first",
+			before, floor)
 	}
 	return nil
 }

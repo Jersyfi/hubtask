@@ -174,6 +174,7 @@
   "config.tenancy_invalid": "{variable} must be either single or multi.",
   "config.roles_empty": "{variable} names no role. At least one of api, worker, scheduler, automation is required.",
   "config.binary_older_than_schema": "This build is older than the database schema allows. Deploy a newer build or restore the database.",
+  "migrate.upgrade_path_skipped": "This database is more than one major release behind this version. Upgrade through the previous major release first, then to this one.",
   "config.role_unknown": "{variable} names the unknown role {value}.",
   "config.operators_invalid": "{variable} has the entry {value}, which is not workspace:address - for example acme:ada@acme.example. A bare address is accepted only when the installation holds one workspace.",
   "config.shutdown_grace_invalid": "{variable} must be greater than zero.",
