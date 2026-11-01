@@ -218,6 +218,10 @@ func (h ReapplyErasures) reapply(
 		}
 		if !record.SubjectAccountID.IsZero() {
 			subjectPresent, err = h.Recovered.SubjectExists(ctx, record.SubjectAccountID)
+		} else {
+			// A requester without an account: the rewind brought back the record, the receipts,
+			// the jumble entries and the intake lines of the address, and they go again.
+			subjectPresent, err = h.Eraser.addressHeld(ctx, record.SubjectEmail)
 		}
 		return err
 	})
@@ -234,8 +238,8 @@ func (h ReapplyErasures) reapply(
 	}
 
 	if !subjectPresent {
-		// An account created after the recovery point went with the rewind, and an address case
-		// has nobody here: the case is answered, with nothing to erase.
+		// An account created after the recovery point went with the rewind, and an address nothing
+		// here names any more: the case is answered, with nothing to erase.
 		return h.complete(ctx, scope, record, "", ErasureSubjectAbsent, false)
 	}
 

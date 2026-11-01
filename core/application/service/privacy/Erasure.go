@@ -682,6 +682,32 @@ func (e Eraser) stripIntakeLines(ctx context.Context, actor appshared.ActorConte
 	return stripped, err
 }
 
+// addressHeld answers whether the workspace holds anything of an address: the requester record, a
+// receipt, a jumble entry, or an intake line naming it.
+func (e Eraser) addressHeld(ctx context.Context, subjectEmail string) (bool, error) {
+	address := strings.ToLower(strings.TrimSpace(subjectEmail))
+	if address == "" || e.Addresses == nil {
+		return false, nil
+	}
+	count, err := e.Addresses.CountAddress(ctx, address)
+	if err != nil || count > 0 {
+		return count > 0, err
+	}
+	if e.IntakeLines.Lines == nil {
+		return false, nil
+	}
+	lines, err := e.IntakeLines.Lines.IntakeLinesFrom(ctx, []string{address})
+	if err != nil {
+		return false, err
+	}
+	for _, line := range lines {
+		if _, named := stripAny(line.Text, []string{address}); named {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // eraseAddress erases a requester without an account: the record, the mail receipts and the
 // jumble entries of the address - removed in a full deletion, stripped of the address otherwise.
 // The entries an account filed on their behalf are the team's and stay. A hold on the workspace

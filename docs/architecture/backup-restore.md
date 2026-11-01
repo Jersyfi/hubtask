@@ -470,7 +470,7 @@ written again with its own identifier. Each case is completed at its own moment,
 |---|---|
 | `REAPPLIED` | The erasure was carried out again. |
 | `ALREADY_COMPLETED` | The case was already completed. A second run changes nothing, and the rewound job of a case that was open finishing first is the same answer. |
-| `SUBJECT_ABSENT` | There is nothing to erase: the account was created after the point, or the case was about an address. |
+| `SUBJECT_ABSENT` | There is nothing to erase: the account was created after the point, or the case was about an address the recovered workspace no longer names anywhere. A case by address whose requester record, receipts, jumble entries or intake lines came back with the rewind is `REAPPLIED`: they are erased again. |
 | `ERASURE_BLOCKED` | The erasure itself refused, with its code. For example, an automation still runs as the person because its re-pointing was rewound too. The case stays open for its owner. |
 | `CASE_REJECTED` | The recovered workspace holds the case as rejected. A person decides. |
 
