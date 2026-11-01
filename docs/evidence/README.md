@@ -52,6 +52,24 @@ a real server, because the fixture agrees with whatever the client sends.
 5. End the onboarding tour (`PATCH /accounts/{id}/preferences` with `onboarding_completed_at`), or it
    covers the first screen of every fresh account.
 
+**Demo data.** `scripts/seed-demo.sh` fills a new workspace with realistic content in every
+product, through the product's own operations (REST, never SQL): eight people with roles and three
+groups; the Scrum, Kanban, classic project and ITIL templates taken; stories, cards, deliverables,
+risks and incidents with types, fields, links, statuses and comments; sprints, releases, a Gantt
+plan with dependencies, milestones and a baseline; portal requests from two organisations, SLAs and
+an approved change; CIs with relations and a service; wiki pages with versions and an image;
+whiteboards; time records and timesheets; goals, portfolios and dashboards; two registered agents.
+`--empty` makes a workspace with nothing in it beside, with its first start and tour. It needs a
+multi-workspace installation (`HUBTASK_TENANCY_MODE=multi`), `HUBTASK_ADMIN_TOKEN` from
+`scripts/dev-workspace.sh --bootstrap`, `HUBTASK_DEMO_PASSWORD` (every demo person's password, not
+holding the slug) and, locally, a writable `HUBTASK_STORAGE_LOCAL_PATH` for the uploaded picture.
+A slug is provisioned once; the script lists any write the server refused and exits non-zero.
+
+```bash
+scripts/seed-demo.sh --api http://localhost:8080 --slug nordlicht
+scripts/seed-demo.sh --api http://localhost:8080 --slug leer --empty
+```
+
 One server per database: two both run the worker, and a job landing on the one whose local storage
 lacks the bytes fails with `media.object_missing`. Stop the old server before starting a rebuilt
 one — it keeps the port, the new one dies on `ops: bind`, and the page still answers from the old
