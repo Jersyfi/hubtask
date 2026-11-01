@@ -1333,6 +1333,19 @@ var generatedCommands = []door{
 			{Name: "connectionId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "glance", Verb: "open", OperationID: "listMyOpenEntries", Method: "GET", Path: "/glance/open-entries", Summary: "My open entries, for another product's dashboard",
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "kind"}},
+	{Group: "glance", Verb: "search", OperationID: "searchEverywhere", Method: "POST", Path: "/glance:search", Summary: "One search across entries and pages, for another product's search box",
+		Body: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "q", Kind: "string", Help: "", Required: true},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "kind"}},
 	{Group: "goal", Verb: "add", OperationID: "createGoal", Method: "POST", Path: "/goals", Summary: "Set a goal",
 		Body: []doorParam{
 			{Name: "description", Kind: "string", Help: "", Required: false},

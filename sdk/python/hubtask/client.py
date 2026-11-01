@@ -2763,6 +2763,14 @@ class Client:
         """Full-text search over the entries a caller may see"""
         return self._call("POST", "/search", {}, None, {}, body, "json", "application/json", "json")
 
+    def list_my_open_entries(self, *, query: dict[str, Any] | None = None) -> "GlancePage":
+        """My open entries, for another product's dashboard"""
+        return self._call("GET", "/glance/open-entries", {}, query, {}, None, "none", None, "json")
+
+    def search_everywhere(self, body: dict[str, Any]) -> "GlancePage":
+        """One search across entries and pages, for another product's search box"""
+        return self._call("POST", "/glance:search", {}, None, {}, body, "json", "application/json", "json")
+
     def reindex_search(self) -> "SearchReindex":
         """Bring the workspace's search documents current"""
         return self._call("POST", "/search:reindex", {}, None, {}, None, "none", None, "json")

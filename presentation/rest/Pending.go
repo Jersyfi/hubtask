@@ -2256,6 +2256,12 @@ func (pending) RaiseRequest(w http.ResponseWriter, r *http.Request, _ openapi.Ra
 func (pending) ReadMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
+func (pending) ListMyOpenEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListMyOpenEntriesParams) {
+	notAvailable(w, r)
+}
+func (pending) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
 func (pending) CommentOnMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentOnMyRequestParams) {
 	notAvailable(w, r)
 }

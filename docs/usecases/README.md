@@ -382,6 +382,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INT-17](./integration/UC-INT-17-pick-a-file-from-my-own-file-store.md) | Pick a file from my own Nextcloud, OneDrive or SharePoint | integration |
 | [UC-INT-18](./integration/UC-INT-18-answer-and-capture-from-a-matrix-room.md) | Answer links and capture tasks from a Matrix room | integration |
 | [UC-INT-19](./integration/UC-INT-19-answer-and-capture-from-slack-teams-and-mattermost.md) | Answer links and capture tasks from Slack, Teams and Mattermost | integration |
+| [UC-INT-20](./integration/UC-INT-20-see-my-entries-on-another-products-dashboard-and-search.md) | See my entries on another product's dashboard and in its search | integration |
 | [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification |

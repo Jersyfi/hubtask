@@ -35,6 +35,7 @@ import (
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
 	filestoreservice "github.com/Jersyfi/hubtask/core/application/service/filestore"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
+	glanceservice "github.com/Jersyfi/hubtask/core/application/service/glance"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	importservice "github.com/Jersyfi/hubtask/core/application/service/importer"
@@ -394,6 +395,8 @@ func Descriptors() []usecase.Descriptor {
 		calendarpushservice.CompleteCalendarPushAuthorization{}.Descriptor(),
 		calendarpushservice.DisconnectCalendarPush{}.Descriptor(),
 		filestoreservice.ListFileStoreConnections{}.Descriptor(),
+		glanceservice.ListMyOpenEntries{}.Descriptor(),
+		glanceservice.SearchEverywhere{}.Descriptor(),
 		chatbotservice.ListChatBots{}.Descriptor(),
 		chatbotservice.CreateChatBot{}.Descriptor(),
 		chatbotservice.UpdateChatBot{}.Descriptor(),

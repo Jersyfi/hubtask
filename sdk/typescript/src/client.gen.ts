@@ -3476,6 +3476,16 @@ export class HubtaskClient {
     return this.call("POST", "/search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** My open entries, for another product's dashboard */
+  listMyOpenEntries(options: CallOptions & { readonly query?: NonNullable<operations["listMyOpenEntries"]['parameters']['query']> } = {}): Promise<operations["listMyOpenEntries"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/glance/open-entries", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** One search across entries and pages, for another product's search box */
+  searchEverywhere(body: NonNullable<operations["searchEverywhere"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["searchEverywhere"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/glance:search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Bring the workspace's search documents current */
   reindexSearch(options: CallOptions = {}): Promise<operations["reindexSearch"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/search:reindex", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

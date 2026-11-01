@@ -4882,6 +4882,24 @@ func (e FilterNodeOp) Valid() bool {
 	}
 }
 
+// Defines values for GlanceLineKind.
+const (
+	GlanceLineKindENTRY GlanceLineKind = "ENTRY"
+	GlanceLineKindPAGE  GlanceLineKind = "PAGE"
+)
+
+// Valid indicates whether the value is a known member of the GlanceLineKind enum.
+func (e GlanceLineKind) Valid() bool {
+	switch e {
+	case GlanceLineKindENTRY:
+		return true
+	case GlanceLineKindPAGE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalStatus.
 const (
 	GoalStatusATRISK   GoalStatus = "AT_RISK"
@@ -16528,6 +16546,35 @@ type FilterNode struct {
 // FilterNodeOp defines model for FilterNode.Op.
 type FilterNodeOp string
 
+// GlanceLine One entry or page as another product lists it.
+type GlanceLine struct {
+	DueAt *time.Time `json:"due_at"`
+
+	// Excerpt A page's passage that matched, the words found between « and ».
+	Excerpt *string            `json:"excerpt"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Key An entry's ticket key, `EINKAUF-42`; null for a page or a collection without a handle.
+	Key  *string        `json:"key"`
+	Kind GlanceLineKind `json:"kind"`
+
+	// Link The entry or page in the web app.
+	Link      string    `json:"link"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GlanceLineKind defines model for GlanceLine.Kind.
+type GlanceLineKind string
+
+// GlancePage defines model for GlancePage.
+type GlancePage struct {
+	Data []GlanceLine `json:"data"`
+
+	// NextCursor The next page's cursor; null on the last.
+	NextCursor *string `json:"next_cursor"`
+}
+
 // Goal defines model for Goal.
 type Goal struct {
 	// CheckIns The latest 20, only on a goal read alone.
@@ -26277,6 +26324,19 @@ type SetEntryTypeFormParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListMyOpenEntriesParams defines parameters for ListMyOpenEntries.
+type ListMyOpenEntriesParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *int    `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// SearchEverywhereJSONBody defines parameters for SearchEverywhere.
+type SearchEverywhereJSONBody struct {
+	Cursor *string `json:"cursor,omitempty"`
+	Q      string  `json:"q"`
+	Size   *int    `json:"size,omitempty"`
+}
+
 // ChangeGoalPeriodParams defines parameters for ChangeGoalPeriod.
 type ChangeGoalPeriodParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28548,6 +28608,9 @@ type EvaluateEntryFormJSONRequestBody = EntryFormDraft
 
 // CopyEntryTypeHereJSONRequestBody defines body for CopyEntryTypeHere for application/json ContentType.
 type CopyEntryTypeHereJSONRequestBody = EntryTypeCopy
+
+// SearchEverywhereJSONRequestBody defines body for SearchEverywhere for application/json ContentType.
+type SearchEverywhereJSONRequestBody SearchEverywhereJSONBody
 
 // DefineGoalPeriodJSONRequestBody defines body for DefineGoalPeriod for application/json ContentType.
 type DefineGoalPeriodJSONRequestBody = GoalPeriodWrite
@@ -34323,6 +34386,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
 	UnlinkEntryFile(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyOpenEntries My open entries, for another product's dashboard
+	//
+	// The open entries assigned to the caller anywhere in the workspace, due first, each with its title, ticket key, due moment and a link into the web app - what a dashboard widget of another product, a Nextcloud dashboard for one, shows of Hubtask. Read as the caller through the same search the app uses, so it holds only what the caller may see and what the token's scopes admit; a page may be shorter than `size` where the caller may see fewer. At most 25 a page.
+	//
+	// Corresponds with GET /glance/open-entries (the `ListMyOpenEntries` operationId).
+	ListMyOpenEntries(ctx context.Context, params *ListMyOpenEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchEverywhereWithBody One search across entries and pages, for another product's search box
+	//
+	// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+	SearchEverywhereWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchEverywhere One search across entries and pages, for another product's search box
+	//
+	// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+	SearchEverywhere(ctx context.Context, body SearchEverywhereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListGoalPeriods The goal periods
 	//
@@ -49972,6 +50060,61 @@ func (c *Client) CopyEntryTypeHere(ctx context.Context, key string, body CopyEnt
 // Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
 func (c *Client) UnlinkEntryFile(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUnlinkEntryFileRequest(c.Server, linkId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMyOpenEntries My open entries, for another product's dashboard
+//
+// The open entries assigned to the caller anywhere in the workspace, due first, each with its title, ticket key, due moment and a link into the web app - what a dashboard widget of another product, a Nextcloud dashboard for one, shows of Hubtask. Read as the caller through the same search the app uses, so it holds only what the caller may see and what the token's scopes admit; a page may be shorter than `size` where the caller may see fewer. At most 25 a page.
+//
+// Corresponds with GET /glance/open-entries (the `ListMyOpenEntries` operationId).
+func (c *Client) ListMyOpenEntries(ctx context.Context, params *ListMyOpenEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyOpenEntriesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchEverywhereWithBody One search across entries and pages, for another product's search box
+//
+// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+func (c *Client) SearchEverywhereWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchEverywhereRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchEverywhere One search across entries and pages, for another product's search box
+//
+// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+func (c *Client) SearchEverywhere(ctx context.Context, body SearchEverywhereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchEverywhereRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -78287,6 +78430,112 @@ func NewUnlinkEntryFileRequest(server string, linkId openapi_types.UUID) (*http.
 	return req, nil
 }
 
+// NewListMyOpenEntriesRequest constructs an http.Request for the ListMyOpenEntries method
+func NewListMyOpenEntriesRequest(server string, params *ListMyOpenEntriesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/glance/open-entries")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSearchEverywhereRequest calls the generic SearchEverywhere builder with application/json body
+func NewSearchEverywhereRequest(server string, body SearchEverywhereJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSearchEverywhereRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSearchEverywhereRequestWithBody constructs an http.Request for the SearchEverywhere method, with any body, and a specified content type
+func NewSearchEverywhereRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/glance:search")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListGoalPeriodsRequest constructs an http.Request for the ListGoalPeriods method
 func NewListGoalPeriodsRequest(server string) (*http.Request, error) {
 	var err error
@@ -105966,6 +106215,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /file-links/{linkId} (the `UnlinkEntryFile` operationId).
 	UnlinkEntryFileWithResponse(ctx context.Context, linkId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnlinkEntryFileResult, error)
 
+	// ListMyOpenEntriesWithResponse My open entries, for another product's dashboard
+	//
+	// The open entries assigned to the caller anywhere in the workspace, due first, each with its title, ticket key, due moment and a link into the web app - what a dashboard widget of another product, a Nextcloud dashboard for one, shows of Hubtask. Read as the caller through the same search the app uses, so it holds only what the caller may see and what the token's scopes admit; a page may be shorter than `size` where the caller may see fewer. At most 25 a page.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /glance/open-entries (the `ListMyOpenEntries` operationId).
+	ListMyOpenEntriesWithResponse(ctx context.Context, params *ListMyOpenEntriesParams, reqEditors ...RequestEditorFn) (*ListMyOpenEntriesResult, error)
+
+	// SearchEverywhereWithBodyWithResponse One search across entries and pages, for another product's search box
+	//
+	// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+	SearchEverywhereWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchEverywhereResult, error)
+
+	// SearchEverywhereWithResponse One search across entries and pages, for another product's search box
+	//
+	// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+	SearchEverywhereWithResponse(ctx context.Context, body SearchEverywhereJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchEverywhereResult, error)
+
 	// ListGoalPeriodsWithResponse The goal periods
 	//
 	// The workspace's periods - quarters, years - the latest first, open and closed.
@@ -128734,6 +129010,102 @@ func (r UnlinkEntryFileResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UnlinkEntryFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListMyOpenEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GlancePage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMyOpenEntriesResult) GetJSON200() *GlancePage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListMyOpenEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMyOpenEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyOpenEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyOpenEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMyOpenEntriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SearchEverywhereResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GlancePage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchEverywhereResult) GetJSON200() *GlancePage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SearchEverywhereResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchEverywhereResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchEverywhereResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchEverywhereResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchEverywhereResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -159734,6 +160106,51 @@ func (c *ClientWithResponses) UnlinkEntryFileWithResponse(ctx context.Context, l
 	return ParseUnlinkEntryFileResult(rsp)
 }
 
+// ListMyOpenEntriesWithResponse My open entries, for another product's dashboard
+//
+// The open entries assigned to the caller anywhere in the workspace, due first, each with its title, ticket key, due moment and a link into the web app - what a dashboard widget of another product, a Nextcloud dashboard for one, shows of Hubtask. Read as the caller through the same search the app uses, so it holds only what the caller may see and what the token's scopes admit; a page may be shorter than `size` where the caller may see fewer. At most 25 a page.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /glance/open-entries (the `ListMyOpenEntries` operationId).
+func (c *ClientWithResponses) ListMyOpenEntriesWithResponse(ctx context.Context, params *ListMyOpenEntriesParams, reqEditors ...RequestEditorFn) (*ListMyOpenEntriesResult, error) {
+	rsp, err := c.ListMyOpenEntries(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyOpenEntriesResult(rsp)
+}
+
+// SearchEverywhereWithBodyWithResponse One search across entries and pages, for another product's search box
+//
+// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+func (c *ClientWithResponses) SearchEverywhereWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchEverywhereResult, error) {
+	rsp, err := c.SearchEverywhereWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchEverywhereResult(rsp)
+}
+
+// SearchEverywhereWithResponse One search across entries and pages, for another product's search box
+//
+// Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /glance:search (the `SearchEverywhere` operationId).
+func (c *ClientWithResponses) SearchEverywhereWithResponse(ctx context.Context, body SearchEverywhereJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchEverywhereResult, error) {
+	rsp, err := c.SearchEverywhere(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchEverywhereResult(rsp)
+}
+
 // ListGoalPeriodsWithResponse The goal periods
 //
 // The workspace's periods - quarters, years - the latest first, open and closed.
@@ -181887,6 +182304,72 @@ func ParseUnlinkEntryFileResult(rsp *http.Response) (*UnlinkEntryFileResult, err
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyOpenEntriesResult parses an HTTP response from a ListMyOpenEntriesWithResponse call
+func ParseListMyOpenEntriesResult(rsp *http.Response) (*ListMyOpenEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyOpenEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GlancePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchEverywhereResult parses an HTTP response from a SearchEverywhereWithResponse call
+func ParseSearchEverywhereResult(rsp *http.Response) (*SearchEverywhereResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchEverywhereResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GlancePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

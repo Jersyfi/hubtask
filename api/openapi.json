@@ -27891,6 +27891,104 @@
         }
       }
     },
+    "/glance/open-entries": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "listMyOpenEntries",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "glance open",
+        "summary": "My open entries, for another product's dashboard",
+        "description": "The open entries assigned to the caller anywhere in the workspace, due first, each with its title, ticket key, due moment and a link into the web app - what a dashboard widget of another product, a Nextcloud dashboard for one, shows of Hubtask. Read as the caller through the same search the app uses, so it holds only what the caller may see and what the token's scopes admit; a page may be shorter than `size` where the caller may see fewer. At most 25 a page.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 25,
+              "default": 7
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlancePage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/glance:search": {
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "searchEverywhere",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "glance search",
+        "summary": "One search across entries and pages, for another product's search box",
+        "description": "Entries and pages whose words match, best first, each with its title, the entry's ticket key or the page's passage that matched, and a link into the web app - the shape a search provider of another product, a Nextcloud unified search for one, lists. The entries come a page at a time by `next_cursor`; the pages, at most `size` of them, on the first page only. Read as the caller, so it holds only what the caller may see. A `POST` because what somebody looks for is their content.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "q"
+                ],
+                "properties": {
+                  "q": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 25,
+                    "default": 10
+                  },
+                  "cursor": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlancePage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/search:reindex": {
       "post": {
         "tags": [
@@ -46568,6 +46666,88 @@
             }
           }
         ]
+      },
+      "GlancePage": {
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GlanceLine"
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The next page's cursor; null on the last."
+          }
+        }
+      },
+      "GlanceLine": {
+        "type": "object",
+        "description": "One entry or page as another product lists it.",
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "key",
+          "due_at",
+          "excerpt",
+          "updated_at",
+          "link"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ENTRY",
+              "PAGE"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An entry's ticket key, `EINKAUF-42`; null for a page or a collection without a handle."
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "excerpt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A page's passage that matched, the words found between « and »."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "link": {
+            "type": "string",
+            "format": "uri",
+            "description": "The entry or page in the web app."
+          }
+        }
       },
       "PortalMergedRequest": {
         "type": "object",

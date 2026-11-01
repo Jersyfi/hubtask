@@ -370,6 +370,7 @@ var restDoors = map[string]restDoor{
 	"listMemberships":                   {UseCase: "ListMemberships", Status: 200, Query: []string{"cursor", "scope_id", "scope_type", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listModules":                       {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listMyApprovals":                   {UseCase: "ListMyApprovals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listMyOpenEntries":                 {UseCase: "ListMyOpenEntries", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listMyRequests":                    {UseCase: "ListMyRequests", Status: 200, Query: []string{"collection_id", "cursor", "scope", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listNotificationPreferences":       {UseCase: "ListNotificationPreferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listOauthClients":                  {UseCase: "ListOauthClients", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -632,6 +633,7 @@ var restDoors = map[string]restDoor{
 	"savePreset":                        {UseCase: "SavePreset", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"saveVoiceSettings":                 {UseCase: "SaveVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"installation_skill"}},
 	"saveWorkflowDraft":                 {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"searchEverywhere":                  {UseCase: "SearchEverywhere", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"searchItems":                       {UseCase: "SearchItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Flatten: map[string]map[string]string{"page": {"cursor": "cursor", "size": "size"}}},
 	"searchPages":                       {UseCase: "SearchPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"sendWebhook":                       {UseCase: "SendWebhook", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3138,6 +3140,12 @@ func (c *RestController) ListMyApprovals(w http.ResponseWriter, r *http.Request)
 	c.door(w, r, restDoors["listMyApprovals"], usecase.Input{}, nil, nil, &answer)
 }
 
+// ListMyOpenEntries answers GET /glance/open-entries by the generated mapping.
+func (c *RestController) ListMyOpenEntries(w http.ResponseWriter, r *http.Request, params openapi.ListMyOpenEntriesParams) {
+	var answer openapi.GlancePage
+	c.door(w, r, restDoors["listMyOpenEntries"], usecase.Input{}, params, nil, &answer)
+}
+
 // ListMyRequests answers GET /requests by the generated mapping.
 func (c *RestController) ListMyRequests(w http.ResponseWriter, r *http.Request, params openapi.ListMyRequestsParams) {
 	var answer openapi.PortalRequestPage
@@ -4761,6 +4769,13 @@ func (c *RestController) SaveWorkflowDraft(w http.ResponseWriter, r *http.Reques
 	var body openapi.SaveWorkflowDraftJSONRequestBody
 	var answer openapi.Workflow
 	c.door(w, r, restDoors["saveWorkflowDraft"], usecase.Input{"key": key}, params, &body, &answer)
+}
+
+// SearchEverywhere answers POST /glance:search by the generated mapping.
+func (c *RestController) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SearchEverywhereJSONRequestBody
+	var answer openapi.GlancePage
+	c.door(w, r, restDoors["searchEverywhere"], usecase.Input{}, nil, &body, &answer)
 }
 
 // SearchItems answers POST /search by the generated mapping.

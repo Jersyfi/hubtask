@@ -2264,6 +2264,21 @@ class PortalRequestDetail(TypedDict, total=False):
     sla: Required[list["EntrySlaGoal"]]
     merged_into: "PortalMergedRequest" | Any
 
+class GlancePage(TypedDict, total=False):
+    data: Required[list["GlanceLine"]]
+    next_cursor: Required[str | None]
+
+class GlanceLine(TypedDict, total=False):
+    """One entry or page as another product lists it."""
+    kind: Required[Literal["ENTRY", "PAGE"]]
+    id: Required[str]
+    title: Required[str]
+    key: Required[str | None]
+    due_at: Required[str | None]
+    excerpt: Required[str | None]
+    updated_at: Required[str]
+    link: Required[str]
+
 class PortalMergedRequest(TypedDict, total=False):
     """The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false."""
     id: Required[str]

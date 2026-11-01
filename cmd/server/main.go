@@ -50,6 +50,7 @@ import (
 	filelinkservice "github.com/Jersyfi/hubtask/core/application/service/filelink"
 	filestoreservice "github.com/Jersyfi/hubtask/core/application/service/filestore"
 	forgeservice "github.com/Jersyfi/hubtask/core/application/service/forge"
+	glanceservice "github.com/Jersyfi/hubtask/core/application/service/glance"
 	goalservice "github.com/Jersyfi/hubtask/core/application/service/goal"
 	"github.com/Jersyfi/hubtask/core/application/service/idempotency"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -2135,6 +2136,12 @@ func run() error {
 	// (UC-INT-18), a Slack, Teams or Mattermost app posts to its intake (UC-INT-19); either runs the
 	// entry use cases as whoever seated it, through the catalogue set below.
 	botEntries := &deferredCatalogue{}
+	// What another product's dashboard and search box show (UC-INT-20): the searches of the
+	// registry run as the reader, through the catalogue set below.
+	glanceSearches := &deferredCatalogue{}
+	glance := glanceservice.Glance{
+		Invoker: glanceSearches, Addresses: workspaceAddress(cfg), Containers: containers, UnitOfWork: unitOfWork,
+	}
 	chatBots := chatbotservice.Bots{
 		Store: postgres.NewChatBotRepository(), Containers: containers, Entries: entryLinks,
 		Room: chatbotadapter.Matrix{Client: outboundClient}, Invoker: botEntries, Texts: renderer,
@@ -2461,6 +2468,8 @@ func run() error {
 		calendarpushservice.CompleteCalendarPushAuthorization{Pushes: calendarPushes}.Descriptor(),
 		calendarpushservice.DisconnectCalendarPush{Pushes: calendarPushes}.Descriptor(),
 		filestoreservice.ListFileStoreConnections{Connections: fileStores}.Descriptor(),
+		glanceservice.ListMyOpenEntries{Glance: glance}.Descriptor(),
+		glanceservice.SearchEverywhere{Glance: glance}.Descriptor(),
 		chatbotservice.ListChatBots{Bots: chatBots}.Descriptor(),
 		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),
 		chatbotservice.UpdateChatBot{Bots: chatBots}.Descriptor(),
@@ -3641,6 +3650,7 @@ func run() error {
 	ruleCatalogue.catalogue = useCases
 	alertEntries.catalogue = useCases
 	botEntries.catalogue = useCases
+	glanceSearches.catalogue = useCases
 	agentCatalogue.catalogue = useCases
 	portalEntries.catalogue = useCases
 	approvalSteps.catalogue = useCases

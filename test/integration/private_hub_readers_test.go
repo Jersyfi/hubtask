@@ -13,7 +13,10 @@ import (
 	"testing"
 	"time"
 
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	"github.com/Jersyfi/hubtask/core/application/service/glance"
+	"github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -23,6 +26,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -90,6 +94,12 @@ func readerRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 		work.ListSavedViews{
 			Views: views, Containers: containers, Authorizer: authoriser, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		knowledge.SearchPages{Space: knowledge.Space{
+			Pages: postgres.NewPageRepository(), Containers: containers, Authorizer: authoriser, Reader: authoriser,
+			UnitOfWork: unitOfWork, Clock: fixed,
+		}, Searcher: postgres.NewPageRepository()}.Descriptor(),
+		glance.ListMyOpenEntries{Glance: glanceOf(catalogue, containers, unitOfWork)}.Descriptor(),
+		glance.SearchEverywhere{Glance: glanceOf(catalogue, containers, unitOfWork)}.Descriptor(),
 		suggestion.ListSuggestions{Cases: suggestion.Cases{
 			Suggestions: postgres.NewSuggestionRepository(pageCursors()),
 			Targets:     suggestion.EntryTargets{Catalogue: catalogue},
@@ -101,6 +111,15 @@ func readerRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 	}
 	catalogue.registry = registry
 	return registry
+}
+
+// fixedAddress is the workspace's address the glance's links begin with.
+type fixedAddress struct{}
+
+func (fixedAddress) Of(context.Context) (string, error) { return "https://hub.test/", nil }
+
+func glanceOf(catalogue *catalogueLater, containers workrepo.Containers, unitOfWork persistence.UnitOfWork) glance.Glance {
+	return glance.Glance{Invoker: catalogue, Addresses: fixedAddress{}, Containers: containers, UnitOfWork: unitOfWork}
 }
 
 // catalogueLater is the catalogue a reader inside it asks, set once the catalogue exists.
@@ -145,6 +164,9 @@ func readerCalls() []readerCall {
 			return usecase.Input{"collection_id": w.collection.String()}
 		}, false, notFound},
 		{work.SearchItemsName, func(w privateWorld) usecase.Input {
+			return usecase.Input{"q": w.title}
+		}, false, omitted},
+		{glance.SearchEverywhereName, func(w privateWorld) usecase.Input {
 			return usecase.Input{"q": w.title}
 		}, false, omitted},
 		{work.ListCommentsName, func(w privateWorld) usecase.Input {
@@ -446,5 +468,66 @@ func TestAiRunByOthersKeepsAPrivateHubFromOutsiders(t *testing.T) {
 		if sent := recorder.take(); len(sent) != 0 {
 			t.Errorf("%s's request reached the provider: %d inputs", who, len(sent))
 		}
+	}
+}
+
+// UC-INT-20 check 1: another product's dashboard lists the reader's open entries through the
+// search, so an entry assigned to somebody who may not read its private hub is not listed to them,
+// another workspace lists none of it, and the entry's line carries its title and absolute link.
+func TestTheOpenEntriesListKeepsAPrivateHubFromOutsiders(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	registry := readerRegistry(ctx, t)
+	otherOwner := ownerElsewhere(ctx, t)
+	as := func(tenant, account shared.ID) appshared.ActorContext {
+		actor := reader(tenant, account)
+		actor.Scopes = []string{"items:read", "search:read"}
+		return actor
+	}
+	assign := func(to shared.ID) {
+		t.Helper()
+		if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE work_item SET assignee_id = $1 WHERE id = $2`,
+			to.String(), w.item.String()); err != nil {
+			t.Fatalf("assigning: %v", err)
+		}
+	}
+	listed := func(actor appshared.ActorContext) []usecase.Output {
+		t.Helper()
+		var lines []usecase.Output
+		in := usecase.Input{"size": 25}
+		for {
+			out, err := registry.Invoke(ctx, glance.ListMyOpenEntriesName, actor, in)
+			if err != nil {
+				t.Fatalf("listing: %v", err)
+			}
+			lines = append(lines, out["data"].([]usecase.Output)...)
+			next, _ := out["next_cursor"].(string)
+			if next == "" {
+				return lines
+			}
+			in["cursor"] = next
+		}
+	}
+	find := func(lines []usecase.Output) usecase.Output {
+		for _, line := range lines {
+			if line["id"] == w.item.String() {
+				return line
+			}
+		}
+		return nil
+	}
+
+	assign(w.member)
+	line := find(listed(as(w.tenant, w.member)))
+	if line == nil || line["title"] != w.title || line["kind"] != "ENTRY" ||
+		line["link"] != "https://hub.test/items/"+w.item.String() {
+		t.Fatalf("the hub's member was listed %+v", line)
+	}
+	assign(w.administrator)
+	if line := find(listed(as(w.tenant, w.administrator))); line != nil {
+		t.Errorf("the workspace's owner, outside the private hub, was listed %+v", line)
+	}
+	if line := find(listed(as(tenantB, otherOwner))); line != nil {
+		t.Errorf("another workspace's owner was listed %+v", line)
 	}
 }

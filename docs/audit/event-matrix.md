@@ -554,6 +554,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `forge.hooks_read` | ListCodeHooks | `code_hook` | INFO | When refused |
 | `forge.links_read` | ListEntryCodeLinks | `work_item` | INFO | When refused |
 
+## Glance
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `glance.read` | ListMyOpenEntries | `glance` | INFO | When refused |
+| `glance.read` | SearchEverywhere | `glance` | INFO | When refused |
+
 ## Goal
 
 | Action | Use case | Target | Severity | Recorded |

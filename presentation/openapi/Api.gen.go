@@ -4876,6 +4876,24 @@ func (e FilterNodeOp) Valid() bool {
 	}
 }
 
+// Defines values for GlanceLineKind.
+const (
+	GlanceLineKindENTRY GlanceLineKind = "ENTRY"
+	GlanceLineKindPAGE  GlanceLineKind = "PAGE"
+)
+
+// Valid indicates whether the value is a known member of the GlanceLineKind enum.
+func (e GlanceLineKind) Valid() bool {
+	switch e {
+	case GlanceLineKindENTRY:
+		return true
+	case GlanceLineKindPAGE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalStatus.
 const (
 	GoalStatusATRISK   GoalStatus = "AT_RISK"
@@ -16522,6 +16540,35 @@ type FilterNode struct {
 // FilterNodeOp defines model for FilterNode.Op.
 type FilterNodeOp string
 
+// GlanceLine One entry or page as another product lists it.
+type GlanceLine struct {
+	DueAt *time.Time `json:"due_at"`
+
+	// Excerpt A page's passage that matched, the words found between « and ».
+	Excerpt *string            `json:"excerpt"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// Key An entry's ticket key, `EINKAUF-42`; null for a page or a collection without a handle.
+	Key  *string        `json:"key"`
+	Kind GlanceLineKind `json:"kind"`
+
+	// Link The entry or page in the web app.
+	Link      string    `json:"link"`
+	Title     string    `json:"title"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GlanceLineKind defines model for GlanceLine.Kind.
+type GlanceLineKind string
+
+// GlancePage defines model for GlancePage.
+type GlancePage struct {
+	Data []GlanceLine `json:"data"`
+
+	// NextCursor The next page's cursor; null on the last.
+	NextCursor *string `json:"next_cursor"`
+}
+
 // Goal defines model for Goal.
 type Goal struct {
 	// CheckIns The latest 20, only on a goal read alone.
@@ -26271,6 +26318,19 @@ type SetEntryTypeFormParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListMyOpenEntriesParams defines parameters for ListMyOpenEntries.
+type ListMyOpenEntriesParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *int    `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// SearchEverywhereJSONBody defines parameters for SearchEverywhere.
+type SearchEverywhereJSONBody struct {
+	Cursor *string `json:"cursor,omitempty"`
+	Q      string  `json:"q"`
+	Size   *int    `json:"size,omitempty"`
+}
+
 // ChangeGoalPeriodParams defines parameters for ChangeGoalPeriod.
 type ChangeGoalPeriodParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -28543,6 +28603,9 @@ type EvaluateEntryFormJSONRequestBody = EntryFormDraft
 // CopyEntryTypeHereJSONRequestBody defines body for CopyEntryTypeHere for application/json ContentType.
 type CopyEntryTypeHereJSONRequestBody = EntryTypeCopy
 
+// SearchEverywhereJSONRequestBody defines body for SearchEverywhere for application/json ContentType.
+type SearchEverywhereJSONRequestBody SearchEverywhereJSONBody
+
 // DefineGoalPeriodJSONRequestBody defines body for DefineGoalPeriod for application/json ContentType.
 type DefineGoalPeriodJSONRequestBody = GoalPeriodWrite
 
@@ -30594,6 +30657,12 @@ type ServerInterface interface {
 	// UnlinkEntryFile Take a file link off its entry
 	// (DELETE /file-links/{linkId})
 	UnlinkEntryFile(w http.ResponseWriter, r *http.Request, linkId openapi_types.UUID)
+	// ListMyOpenEntries My open entries, for another product's dashboard
+	// (GET /glance/open-entries)
+	ListMyOpenEntries(w http.ResponseWriter, r *http.Request, params ListMyOpenEntriesParams)
+	// SearchEverywhere One search across entries and pages, for another product's search box
+	// (POST /glance:search)
+	SearchEverywhere(w http.ResponseWriter, r *http.Request)
 	// ListGoalPeriods The goal periods
 	// (GET /goal-periods)
 	ListGoalPeriods(w http.ResponseWriter, r *http.Request)
@@ -42760,6 +42829,66 @@ func (siw *ServerInterfaceWrapper) UnlinkEntryFile(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UnlinkEntryFile(w, r, linkId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMyOpenEntries operation middleware
+func (siw *ServerInterfaceWrapper) ListMyOpenEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMyOpenEntriesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMyOpenEntries(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SearchEverywhere operation middleware
+func (siw *ServerInterfaceWrapper) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchEverywhere(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -59793,6 +59922,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:aggregate", wrapper.AggregateItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:export", wrapper.ExportItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/glance/open-entries", wrapper.ListMyOpenEntries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/glance:search", wrapper.SearchEverywhere)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
