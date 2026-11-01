@@ -200,9 +200,46 @@ func (r Runner) round(ctx context.Context) int {
 	}
 
 	for _, job := range jobs {
-		r.execute(ctx, job)
+		held, ok := r.leased(ctx, job)
+		if !ok {
+			continue
+		}
+		r.execute(ctx, held)
 	}
 	return len(jobs)
+}
+
+// leased makes sure a job of the batch starts with at least its own timeout of lease left.
+//
+// The batch shares one lease taken at the claim, and its jobs run one after another: behind two
+// jobs that each ran to their timeout, a third would start after its lease had run out - claimable
+// again, and run twice, its mail sent twice. Extending is fenced, so a job another worker took over
+// meanwhile is skipped rather than run (queue.lease_lost).
+func (r Runner) leased(ctx context.Context, job queue.Job) (queue.Job, bool) {
+	now := r.Clock.Now()
+	if now.Add(r.JobTimeout).Before(job.Lease) {
+		return job, true
+	}
+	extendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
+	defer cancel()
+	extended := job
+	err := r.UnitOfWork.Within(extendCtx, scopeOf(job), func(txCtx context.Context) error {
+		var err error
+		extended, err = r.Queue.Extend(txCtx, job, now.Add(r.Lease))
+		return err
+	})
+	if err != nil {
+		if shared.AsError(err).DetailCode == leaseLost {
+			r.letGo(ctx, job)
+		} else {
+			// Not run, and nothing written: the lease runs out and the next claim takes it.
+			slog.WarnContext(ctx, "extending a job's lease failed",
+				slog.String("job_id", job.ID.String()),
+				slog.String("error", shared.AsError(err).Code))
+		}
+		return job, false
+	}
+	return extended, true
 }
 
 // execute runs one job in one transaction, together with the record that it was run.

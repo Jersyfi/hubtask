@@ -331,6 +331,28 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) ([]pgtyp
 	return items, nil
 }
 
+const extendJobLease = `-- name: ExtendJobLease :execrows
+UPDATE job SET locked_until = $1
+WHERE id = $2 AND state = 'RUNNING' AND locked_until = $3
+`
+
+type ExtendJobLeaseParams struct {
+	LockedUntil pgtype.Timestamptz
+	ID          pgtype.UUID
+	Lease       pgtype.Timestamptz
+}
+
+// A claimed job's lease moved to a later moment, before the job starts: a batch runs one job after
+// another, and a job must not begin with less lease left than it may run. Fenced like every
+// statement here: a job another worker took over after the lease ran out is not extended.
+func (q *Queries) ExtendJobLease(ctx context.Context, arg ExtendJobLeaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, extendJobLease, arg.LockedUntil, arg.ID, arg.Lease)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findJob = `-- name: FindJob :one
 SELECT id, tenant_id, state, last_error, last_error_params, outcome, created_at, finished_at, progress
 FROM job

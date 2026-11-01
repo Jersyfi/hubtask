@@ -587,3 +587,45 @@ func TestOpenKeysNameEachLivingJobsWorkspaceAndKey(t *testing.T) {
 		t.Errorf("open keys = %+v, want %+v", keys, want)
 	}
 }
+
+// A batch's later job extends its lease before it starts: the extended lease holds the job against
+// another worker, and a worker whose job was taken over after the lease ran out extends nothing.
+func TestAnExtendedLeaseHoldsAndATakenOverJobIsNotExtended(t *testing.T) {
+	ctx := context.Background()
+	now := queueClock.Now()
+	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+
+	batch := claim(ctx, t, now, time.Second, 2)
+	if len(batch) != 2 {
+		t.Fatalf("%d jobs claimed, want two", len(batch))
+	}
+	var extended queue.Job
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		extended, err = jobQueue(t).Extend(ctx, batch[0], now.Add(time.Minute))
+		return err
+	}); err != nil {
+		t.Fatalf("extending: %v", err)
+	}
+	// Past the batch's lease: the extended job stays, the other is taken over.
+	taken := claim(ctx, t, now.Add(2*time.Second), time.Minute, 10)
+	if containsJob(taken, batch[0].ID) {
+		t.Error("a job whose lease was extended was claimed by another worker")
+	}
+	if !containsJob(taken, batch[1].ID) {
+		t.Fatal("the job whose lease ran out was not taken over")
+	}
+	err := systemWrite(ctx, t, func(ctx context.Context) error {
+		_, err := jobQueue(t).Extend(ctx, batch[1], now.Add(time.Minute))
+		return err
+	})
+	if err == nil || shared.AsError(err).DetailCode != "queue.lease_lost" {
+		t.Errorf("error %v, want the taken-over job's extension refused", err)
+	}
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Complete(ctx, extended, "")
+	}); err != nil {
+		t.Errorf("completing under the extended lease: %v", err)
+	}
+}

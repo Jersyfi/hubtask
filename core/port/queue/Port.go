@@ -789,6 +789,11 @@ type Queue interface {
 	// lose by missing a pull-forward.
 	Hold(ctx context.Context, job Job) error
 
+	// Extend moves a claimed job's lease to until and answers the job carrying it, refused with
+	// queue.lease_lost - like Complete - once the lease it carries no longer holds. The runner calls
+	// it before a job of a batch starts, so that no job begins with less lease left than it may run.
+	Extend(ctx context.Context, job Job, until time.Time) (Job, error)
+
 	// Complete finishes a job for good, with the outcome its handler answered (Result.Outcome,
 	// empty for none). Called in the same transaction as the handler's effect, and refused when the
 	// job's lease no longer holds.

@@ -193,6 +193,33 @@ func (q Queue) Hold(ctx context.Context, job queue.Job) error {
 	return nil
 }
 
+// Extend moves a claimed job's lease, fenced on the lease it carries.
+func (q Queue) Extend(ctx context.Context, job queue.Job, until time.Time) (queue.Job, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return job, err
+	}
+	id, lease, err := fence(job)
+	if err != nil {
+		return job, err
+	}
+	affected, err := queries.ExtendJobLease(ctx, sqlc.ExtendJobLeaseParams{
+		ID: id, Lease: lease, LockedUntil: timestampOf(until),
+	})
+	if err != nil {
+		return job, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("extending job %s: %w", job.ID, err))
+	}
+	if err := leaseHeld(affected, job); err != nil {
+		return job, err
+	}
+	// The stored moment, not the one asked for: the next fence compares against the column, and
+	// the column holds microseconds.
+	job.Lease = until.Truncate(time.Microsecond)
+	return job, nil
+}
+
 // Complete finishes a job for good, in the transaction that carries its effect.
 func (q Queue) Complete(ctx context.Context, job queue.Job, outcome string) error {
 	queries, err := queriesFrom(ctx)

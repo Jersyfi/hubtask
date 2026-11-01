@@ -105,6 +105,13 @@ SELECT id FROM job
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease')
 FOR UPDATE;
 
+-- A claimed job's lease moved to a later moment, before the job starts: a batch runs one job after
+-- another, and a job must not begin with less lease left than it may run. Fenced like every
+-- statement here: a job another worker took over after the lease ran out is not extended.
+-- name: ExtendJobLease :execrows
+UPDATE job SET locked_until = sqlc.arg('locked_until')
+WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
+
 -- The outcome is the handler's message code, or NULL where its kind has none to say (rule 10: a
 -- code, never content).
 -- name: CompleteJob :execrows

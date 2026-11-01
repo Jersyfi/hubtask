@@ -48,6 +48,9 @@ type queueDouble struct {
 	outcomes  []string
 	repeated  map[shared.ID]time.Time
 	failures  []queue.Failure
+	extended  []shared.ID
+	// taken marks jobs another worker claimed after their lease ran out.
+	taken map[shared.ID]bool
 
 	// mu and claimed exist for the two loop tests, which read the double from the test goroutine
 	// while the runner writes it from its own. Every other test here is single-goroutine and pays
@@ -57,7 +60,7 @@ type queueDouble struct {
 }
 
 func newQueue(jobs ...queue.Job) *queueDouble {
-	return &queueDouble{claimable: jobs, repeated: map[shared.ID]time.Time{}}
+	return &queueDouble{claimable: jobs, repeated: map[shared.ID]time.Time{}, taken: map[shared.ID]bool{}}
 }
 
 func (q *queueDouble) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
@@ -84,6 +87,15 @@ func (q *queueDouble) Claim(_ context.Context, lease queue.Lease) ([]queue.Job, 
 func (q *queueDouble) Hold(_ context.Context, job queue.Job) error {
 	q.held = append(q.held, job.ID)
 	return nil
+}
+
+func (q *queueDouble) Extend(_ context.Context, job queue.Job, until time.Time) (queue.Job, error) {
+	if q.taken[job.ID] {
+		return job, shared.ErrConflict.WithDetail(leaseLost)
+	}
+	q.extended = append(q.extended, job.ID)
+	job.Lease = until
+	return job, nil
 }
 
 func (q *queueDouble) Complete(_ context.Context, job queue.Job, outcome string) error {
@@ -788,5 +800,62 @@ func TestAJobNoLongerHeldEndsQuietly(t *testing.T) {
 				t.Errorf("a stop was counted: %v %v %v", signals.failed, signals.deadLetters, signals.finished)
 			}
 		})
+	}
+}
+
+// steppedClock is a clock a handler moves forward, as a job that runs to its timeout does.
+type steppedClock struct{ at time.Time }
+
+func (c *steppedClock) Now() time.Time { return c.at }
+
+// A batch of three on one lease, the first two each running to the job timeout: without a lease
+// of its own the third would start after the batch's lease ran out, while another worker may
+// already be running it. Each later job starts with its timeout of lease left, and one another
+// worker took over meanwhile does not start at all.
+func TestNoJobOfABatchStartsAfterItsLeaseRanOut(t *testing.T) {
+	const timeout = time.Minute
+	ids := []shared.ID{
+		"018f3a1c-0000-7000-8000-000000000011",
+		"018f3a1c-0000-7000-8000-000000000012",
+		"018f3a1c-0000-7000-8000-000000000013",
+	}
+	for _, takenOver := range []bool{false, true} {
+		clk := &steppedClock{at: now}
+		lease := now.Add(timeout + 30*time.Second)
+		batch := make([]queue.Job, 0, len(ids))
+		for _, id := range ids {
+			batch = append(batch, queue.Job{ID: id, TenantID: tenantID, Kind: queue.KindOutboxDispatch, Attempts: 1, MaxAttempts: 3, Lease: lease})
+		}
+		jobs := newQueue(batch...)
+		if takenOver {
+			jobs.taken[ids[2]] = true
+		}
+		var started []shared.ID
+		handler := handlerFunc(func(_ context.Context, job queue.Job) (queue.Result, error) {
+			if job.Lease.Sub(clk.Now()) < timeout {
+				t.Errorf("job %s started at %v with its lease ending %v, less than the timeout away", job.ID, clk.Now(), job.Lease)
+			}
+			started = append(started, job.ID)
+			clk.at = clk.at.Add(timeout)
+			return queue.Result{}, nil
+		})
+		r := runner(jobs, &unitOfWork{}, handler, nil)
+		r.Clock, r.JobTimeout, r.Lease, r.Batch = clk, timeout, timeout+30*time.Second, 3
+
+		r.round(t.Context())
+
+		want := 3
+		if takenOver {
+			want = 2
+		}
+		if len(started) != want {
+			t.Errorf("taken over %v: started %v, want %d jobs", takenOver, started, want)
+		}
+		if takenOver && len(started) == 3 {
+			t.Error("a job another worker took over ran here too")
+		}
+		if !takenOver && len(jobs.extended) != 2 {
+			t.Errorf("extended = %v, want the second and the third job", jobs.extended)
+		}
 	}
 }
