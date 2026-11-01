@@ -74,6 +74,15 @@ func (s *hubCalendarStore) Delete(_ context.Context, hubID shared.ID, key string
 	return shared.ErrNotFound
 }
 
+func (s *hubCalendarStore) KeyHeld(_ context.Context, key string) (bool, error) {
+	for _, row := range s.rows {
+		if row.Key == key {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // afternoons is a hub's own version of *office*: weekdays 12:00 to 18:00 UTC.
 func afternoons() calendar.Spec {
 	var week calendar.Week
@@ -97,7 +106,7 @@ func TestAHubsOwnCalendarIsWhatItsEntriesCountOn(t *testing.T) {
 	if _, err := (DefineHubCalendar{Desk: desk}).Execute(ctx, reader(), DefineHubCalendarCommand{
 		HubID: deskHub, Key: "nights", Name: "Nights", Spec: afternoons(),
 	}); !errors.Is(err, shared.ErrNotFound) {
-		t.Errorf("a hub's calendar under a key the workspace does not hold: %v", err)
+		t.Errorf("a hub's calendar under a key neither the workspace nor the installation holds: %v", err)
 	}
 	if _, err := (DefineHubCalendar{Desk: desk}).Execute(ctx, reader(), DefineHubCalendarCommand{
 		HubID: collection, Key: "office", Name: "Office", Spec: afternoons(),
@@ -123,5 +132,44 @@ func TestAHubsOwnCalendarIsWhatItsEntriesCountOn(t *testing.T) {
 
 	if err := (DeleteHubCalendar{Desk: desk}).Execute(ctx, reader(), deskHub, "office"); err != nil || len(hubs.rows) != 0 {
 		t.Errorf("DeleteHubCalendar: %v, %d left", err, len(hubs.rows))
+	}
+}
+
+// UC-SVC-01 check 5: a hub keeps its own version of a calendar the installation offers without a
+// workspace calendar of the key, and a workspace calendar a hub keeps a version of is not deleted
+// unless the installation offers the key.
+func TestAHubKeepsItsOwnVersionOfAnInstallationsCalendar(t *testing.T) {
+	f := newFixture(t)
+	offered, err := InstallationCalendars([]map[string]any{installationEntry("bavaria")}, text.Composing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	office := f.clocks.Calendars.(calendarStore).office
+	hubs := &hubCalendarStore{}
+	desk := Desk{
+		Calendars: calendarStore{office: office}, Offered: offered, Policies: policyStore{}, HubCalendars: hubs,
+		Containers: placedIn{}, Authorizer: &gate{allow: true}, Audit: discard{}, UnitOfWork: inline{},
+		Clock: at(monday), IDs: f.ids, Text: text.Composing{},
+	}
+	ctx := context.Background()
+	defined, err := (DefineHubCalendar{Desk: desk}).Execute(ctx, reader(), DefineHubCalendarCommand{
+		HubID: deskHub, Key: "bavaria", Name: "Bavaria (afternoons)", Spec: afternoons(),
+	})
+	if err != nil || defined.HubID != deskHub || defined.Key != "bavaria" {
+		t.Fatalf("a hub's version of the installation's calendar: %+v %v", defined, err)
+	}
+
+	if _, err := (DefineHubCalendar{Desk: desk}).Execute(ctx, reader(), DefineHubCalendarCommand{
+		HubID: deskHub, Key: "office", Name: "Office (afternoons)", Spec: afternoons(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	remove := DeleteBusinessCalendar{Desk: desk}
+	if err := remove.Execute(ctx, reader(), "office"); shared.AsError(err).DetailCode != "calendars.in_use" {
+		t.Fatalf("a workspace calendar a hub keeps a version of was deleted: %v", err)
+	}
+	desk.Offered = map[string]domain.Calendar{"office": office}
+	if err := (DeleteBusinessCalendar{Desk: desk}).Execute(ctx, reader(), "office"); err != nil {
+		t.Fatalf("a workspace calendar the installation also offers: %v", err)
 	}
 }

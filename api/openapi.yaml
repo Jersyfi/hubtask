@@ -3483,7 +3483,8 @@ paths:
       x-hubtask-cli: "business-calendar rm"
       summary: Delete an unused business calendar
       description: >
-        Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`.
+        Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is
+        refused with `calendars.in_use` unless the installation offers a calendar of the key.
         Needs STRUCTURE at the workspace.
       responses:
         "204":
@@ -3503,7 +3504,7 @@ paths:
       x-hubtask-cli: "business-calendar hub-ls"
       summary: A hub's own business calendars
       description: >
-        The hub's own versions of the workspace's calendars, by key: working hours per weekday,
+        The hub's own versions of the workspace's or the installation's calendars, by key: working hours per weekday,
         holidays and a time zone. Every SLA policy naming the key counts on the hub's version for
         the hub's entries. Needs READ on the hub and the service desk switched on.
       responses:
@@ -3533,8 +3534,8 @@ paths:
       summary: Keep a hub's own version of a business calendar
       description: >
         Keeps the hub's own working hours, holidays and time zone under the key of a calendar the
-        workspace holds, or replaces them; a key the workspace holds no calendar under is
-        `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a
+        workspace or the installation holds, or replaces them; a key neither holds a calendar under
+        is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a
         clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
       parameters:
         - $ref: "#/components/parameters/IfMatch"

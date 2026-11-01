@@ -19,9 +19,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
-// A hub's own calendars (UC-SVC-01 check 5): a hub keeps its own version of a workspace calendar
-// under the workspace's key - its working hours, holidays and zone -, and every SLA policy naming
-// that key counts on it for the hub's entries. Written with STRUCTURE at the hub, read with READ
+// A hub's own calendars (UC-SVC-01 check 5): a hub keeps its own version of a workspace or an
+// installation calendar under its key - its working hours, holidays and zone -, and every SLA
+// policy naming that key counts on it for the hub's entries. Written with STRUCTURE at the hub, read with READ
 // there.
 const (
 	ListHubCalendarsName  = "ListHubCalendars"
@@ -115,7 +115,8 @@ type DefineHubCalendarCommand struct {
 // already running keeps the calendar it was armed on.
 type DefineHubCalendar struct{ Desk Desk }
 
-// Execute defines it; a key the workspace holds no calendar under is `calendars.not_found`.
+// Execute defines it; a key neither the workspace nor the installation holds a calendar under is
+// `calendars.not_found`.
 func (h DefineHubCalendar) Execute(ctx context.Context, actor appshared.ActorContext, cmd DefineHubCalendarCommand) (domain.Calendar, error) {
 	if err := h.Desk.hub(ctx, actor, cmd.HubID, service.PermissionStructure, CalendarDefinedAction, deskWrite); err != nil {
 		return domain.Calendar{}, err
@@ -124,8 +125,10 @@ func (h DefineHubCalendar) Execute(ctx context.Context, actor appshared.ActorCon
 	now := h.Desk.Clock.Now()
 	var out domain.Calendar
 	err := h.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if _, err := h.Desk.Calendars.Find(ctx, key); err != nil {
-			return err
+		if _, offered := h.Desk.Offered[key]; !offered {
+			if _, err := h.Desk.Calendars.Find(ctx, key); err != nil {
+				return err
+			}
 		}
 		current, err := h.Desk.HubCalendars.Find(ctx, cmd.HubID, key)
 		switch {
@@ -167,14 +170,14 @@ func (h DefineHubCalendar) Execute(ctx context.Context, actor appshared.ActorCon
 func (h DefineHubCalendar) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineHubCalendarName,
-		Summary: "Keeps a hub's own version of a workspace business calendar under the workspace's key - working " +
+		Summary: "Keeps a hub's own version of a workspace or installation business calendar under its key - working " +
 			"hours per weekday, holidays and a time zone - or replaces it. Every SLA policy naming the key counts " +
 			"on it for the hub's entries; a clock already running keeps the calendar it was armed on.",
 		SideEffects: "Writes the hub's calendar and an audit entry.",
 		TokenScope:  deskWrite,
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
-			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The key of a calendar the workspace holds."},
+			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The key of a calendar the workspace or the installation holds."},
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "Up to 120 characters, on one line."},
 			{Name: "zone", Kind: usecase.KindString, Required: true, Description: "An IANA time zone, e.g. Europe/Berlin."},
 			{Name: "hours", Kind: usecase.KindList, Required: true, Description: "Working spans: {day: MONDAY … SUNDAY, from: HH:MM, to: HH:MM}, ordered and disjoint per day."},

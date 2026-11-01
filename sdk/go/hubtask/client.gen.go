@@ -33108,7 +33108,7 @@ type ClientInterface interface {
 
 	// DeleteBusinessCalendar Delete an unused business calendar
 	//
-	// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+	// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
 	//
 	// Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
 	DeleteBusinessCalendar(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -34870,7 +34870,7 @@ type ClientInterface interface {
 
 	// ListHubCalendars A hub's own business calendars
 	//
-	// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+	// The hub's own versions of the workspace's or the installation's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
 	//
 	// Corresponds with GET /hubs/{hubId}/business-calendars (the `ListHubCalendars` operationId).
 	ListHubCalendars(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -34884,7 +34884,7 @@ type ClientInterface interface {
 
 	// DefineHubCalendarWithBody Keep a hub's own version of a business calendar
 	//
-	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34893,7 +34893,7 @@ type ClientInterface interface {
 
 	// DefineHubCalendar Keep a hub's own version of a business calendar
 	//
-	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -47101,7 +47101,7 @@ func (c *Client) ListBusinessCalendars(ctx context.Context, reqEditors ...Reques
 
 // DeleteBusinessCalendar Delete an unused business calendar
 //
-// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
 //
 // Corresponds with DELETE /business-calendars/{calendarKey} (the `DeleteBusinessCalendar` operationId).
 func (c *Client) DeleteBusinessCalendar(ctx context.Context, calendarKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -51073,7 +51073,7 @@ func (c *Client) ListCiAssets(ctx context.Context, hubId openapi_types.UUID, par
 
 // ListHubCalendars A hub's own business calendars
 //
-// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+// The hub's own versions of the workspace's or the installation's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
 //
 // Corresponds with GET /hubs/{hubId}/business-calendars (the `ListHubCalendars` operationId).
 func (c *Client) ListHubCalendars(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -51107,7 +51107,7 @@ func (c *Client) DeleteHubCalendar(ctx context.Context, hubId openapi_types.UUID
 
 // DefineHubCalendarWithBody Keep a hub's own version of a business calendar
 //
-// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -51126,7 +51126,7 @@ func (c *Client) DefineHubCalendarWithBody(ctx context.Context, hubId openapi_ty
 
 // DefineHubCalendar Keep a hub's own version of a business calendar
 //
-// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -105726,7 +105726,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteBusinessCalendarWithResponse Delete an unused business calendar
 	//
-	// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+	// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -107666,7 +107666,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListHubCalendarsWithResponse A hub's own business calendars
 	//
-	// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+	// The hub's own versions of the workspace's or the installation's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -107684,7 +107684,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineHubCalendarWithBodyWithResponse Keep a hub's own version of a business calendar
 	//
-	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -107693,7 +107693,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineHubCalendarWithResponse Keep a hub's own version of a business calendar
 	//
-	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+	// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -159207,7 +159207,7 @@ func (c *ClientWithResponses) ListBusinessCalendarsWithResponse(ctx context.Cont
 
 // DeleteBusinessCalendarWithResponse Delete an unused business calendar
 //
-// Deletes a calendar no SLA policy names; one in use is refused with `calendars.in_use`. Needs STRUCTURE at the workspace.
+// Deletes a calendar no SLA policy names and no hub keeps its own version of; one in use is refused with `calendars.in_use` unless the installation offers a calendar of the key. Needs STRUCTURE at the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -162473,7 +162473,7 @@ func (c *ClientWithResponses) ListCiAssetsWithResponse(ctx context.Context, hubI
 
 // ListHubCalendarsWithResponse A hub's own business calendars
 //
-// The hub's own versions of the workspace's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
+// The hub's own versions of the workspace's or the installation's calendars, by key: working hours per weekday, holidays and a time zone. Every SLA policy naming the key counts on the hub's version for the hub's entries. Needs READ on the hub and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -162503,7 +162503,7 @@ func (c *ClientWithResponses) DeleteHubCalendarWithResponse(ctx context.Context,
 
 // DefineHubCalendarWithBodyWithResponse Keep a hub's own version of a business calendar
 //
-// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -162518,7 +162518,7 @@ func (c *ClientWithResponses) DefineHubCalendarWithBodyWithResponse(ctx context.
 
 // DefineHubCalendarWithResponse Keep a hub's own version of a business calendar
 //
-// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace holds, or replaces them; a key the workspace holds no calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
+// Keeps the hub's own working hours, holidays and time zone under the key of a calendar the workspace or the installation holds, or replaces them; a key neither holds a calendar under is `calendars.not_found`. The hub's entries count on it wherever a policy names the key; a clock already running keeps the calendar it was armed on. Needs STRUCTURE on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
