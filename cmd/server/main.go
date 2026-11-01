@@ -5297,6 +5297,8 @@ func run() error {
 			// Alert A-25's number: a snapshot or a session pinning vacuum.
 			Transactions: jobs,
 			Indexes:      jobs,
+			// Alert A-29's numbers, across workspaces through the door of migration 0344.
+			MailApps: postgres.NewMailboxRepository(),
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,

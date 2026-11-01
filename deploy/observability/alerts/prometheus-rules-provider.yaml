@@ -404,3 +404,25 @@ groups:
             An interrupted concurrent index build left an index that queries do not use and that,
             if unique, does not enforce its uniqueness. Find it in pg_index and build it again.
           runbook: RB-A28-invalid-index.md
+
+      # A-29. At least half of the mailboxes on one of the installation's own mail apps
+      # (HUBTASK_MAIL_OAUTH_*) have failed for over an hour - across workspaces, so the app itself
+      # is the likely cause: its client secret ran out or was withdrawn. Each workspace's
+      # administrators are told of their own mailbox and cannot fix it; the operator can. The
+      # mailbox's own hour of grace is already in the gauge; the 15 minutes ride out one tick.
+      - alert: HubtaskMailAppFailing
+        expr: |
+          max by (app) (hubtask_mail_app_mailboxes_failing) >= 1
+          and on (app)
+          max by (app) (hubtask_mail_app_mailboxes_failing) * 2 >= max by (app) (hubtask_mail_app_mailboxes)
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-29
+        annotations:
+          summary: "Most mailboxes on the installation's {{ $labels.app }} mail app fail"
+          description: >
+            At least half of the mailboxes that sign in through the installation's own
+            {{ $labels.app }} app have failed for over an hour. Check the app's client secret at
+            the provider and in HUBTASK_MAIL_OAUTH_*.
+          runbook: RB-A29-mail-app-failing.md

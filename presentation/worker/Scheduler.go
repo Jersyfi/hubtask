@@ -12,6 +12,7 @@ import (
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
@@ -55,6 +56,13 @@ type SchedulerSignals interface {
 	OldestTransaction(ctx context.Context, seconds float64)
 	// InvalidIndexes is how many indexes PostgreSQL holds invalid - alert A-28's number.
 	InvalidIndexes(ctx context.Context, count int64)
+	// MailApp is one installation mail app's mailboxes and the failing ones - alert A-29's numbers.
+	MailApp(ctx context.Context, app string, connected, failing int64)
+}
+
+// InstallationMailApps answers how the installation's own mail apps fare across workspaces.
+type InstallationMailApps interface {
+	InstallationApps(ctx context.Context) ([]mail.AppHealth, error)
 }
 
 // InvalidIndexes answers how many indexes PostgreSQL holds invalid.
@@ -179,6 +187,8 @@ type Scheduler struct {
 	Transactions OldestTransactions
 	// Indexes answers the indexes held invalid. Optional, like Backlog.
 	Indexes InvalidIndexes
+	// MailApps answers the installation mail apps' mailboxes. Optional, like Backlog.
+	MailApps InstallationMailApps
 
 	// InstanceBackups fires the schedules that belong to no tenant. Optional: an installation
 	// without it simply never has one, which is the state every installation is in today.
@@ -316,6 +326,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.sampleHeldScans(ctx)
 	s.sampleOldestTransaction(ctx)
 	s.sampleInvalidIndexes(ctx)
+	s.sampleMailApps(ctx)
 	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
@@ -812,6 +823,31 @@ func (s Scheduler) sampleInvalidIndexes(ctx context.Context) {
 		return
 	}
 	s.Signals.InvalidIndexes(ctx, count)
+}
+
+// sampleMailApps publishes each installation mail app's mailboxes and failing ones (A-29): when an
+// app's secret runs out every workspace's mailbox on it fails, and only the operator can fix it.
+func (s Scheduler) sampleMailApps(ctx context.Context) {
+	if s.Signals == nil || s.MailApps == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	var apps []mail.AppHealth
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		apps, err = s.MailApps.InstallationApps(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "counting the installation's mail apps failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	for _, app := range apps {
+		s.Signals.MailApp(ctx, app.App, app.Connected, app.Failing)
+	}
 }
 
 // sampleRetryBacklog publishes the webhook retries waiting out their backoff. The queue depth

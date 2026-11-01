@@ -492,3 +492,51 @@ tests:
       - eval_time: 90m
         alertname: HubtaskInvalidIndex
         exp_alerts: []
+
+  # A-29: every mailbox on the installation's google app fails - its secret ran out.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mail_app_mailboxes{app="google"}'
+        values: '4x30'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="google"}'
+        values: '4x30'
+      - series: 'hubtask_mail_app_mailboxes{app="microsoft"}'
+        values: '6x30'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="microsoft"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskMailAppFailing
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-29
+              app: google
+            exp_annotations:
+              summary: "Most mailboxes on the installation's google mail app fail"
+              description: "At least half of the mailboxes that sign in through the installation's own google app have failed for over an hour. Check the app's client secret at the provider and in HUBTASK_MAIL_OAUTH_*.\n"
+              runbook: RB-A29-mail-app-failing.md
+
+  # A-29 stays quiet for one workspace's mailbox of ten: that is its administrators' to fix.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mail_app_mailboxes{app="google"}'
+        values: '10x60'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="google"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskMailAppFailing
+        exp_alerts: []
+
+  # A-29 stays quiet for an app with no mailbox at all.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mail_app_mailboxes{app="microsoft"}'
+        values: '0x60'
+      - series: 'hubtask_mail_app_mailboxes_failing{app="microsoft"}'
+        values: '0x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: HubtaskMailAppFailing
+        exp_alerts: []

@@ -99,6 +99,8 @@ type Metrics struct {
 	mediaScanHeld     metric.Int64Gauge
 	oldestTransaction metric.Float64Gauge
 	invalidIndexes    metric.Int64Gauge
+	mailApps          metric.Int64Gauge
+	mailAppsFailing   metric.Int64Gauge
 	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
 	// dead letters waiting - alert A-21's number.
 	platformDeliveries  metric.Int64Counter
@@ -522,6 +524,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Reported by the scheduler leader only, like the queue depth."),
 	); err != nil {
 		return fmt.Errorf("invalid indexes gauge: %w", err)
+	}
+	if m.mailApps, err = meter.Int64Gauge(
+		namespace+"_mail_app_mailboxes",
+		metric.WithDescription("Enabled mailboxes, across every workspace, that sign in through one of the "+
+			"installation's own mail apps. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("mail app mailboxes gauge: %w", err)
+	}
+	if m.mailAppsFailing, err = meter.Int64Gauge(
+		namespace+"_mail_app_mailboxes_failing",
+		metric.WithDescription("Of those mailboxes, the ones that have failed for over an hour: when an "+
+			"app's secret runs out, all of them fail together. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("mail app failing gauge: %w", err)
 	}
 	if m.platformDeliveries, err = meter.Int64Counter(
 		namespace+"_platform_deliveries_total",
@@ -1254,6 +1270,13 @@ func (m *Metrics) OldestTransaction(ctx context.Context, seconds float64) {
 // InvalidIndexes publishes how many indexes PostgreSQL holds invalid.
 func (m *Metrics) InvalidIndexes(ctx context.Context, count int64) {
 	m.invalidIndexes.Record(ctx, count)
+}
+
+// MailApp publishes how many mailboxes sign in through one installation app, and how many fail.
+func (m *Metrics) MailApp(ctx context.Context, app string, connected, failing int64) {
+	attributes := metric.WithAttributes(attribute.String("app", app))
+	m.mailApps.Record(ctx, connected, attributes)
+	m.mailAppsFailing.Record(ctx, failing, attributes)
 }
 
 // MediaScanHeldWorkspaces publishes how many workspaces hold uploads waiting for a scan.

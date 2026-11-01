@@ -749,7 +749,10 @@ host, from where the page forwards the return to the workspace's host ([identity
 through the guarded client, signs in to IMAP with SASL XOAUTH2 and only then stores the mailbox
 with the refresh token sealed. Each read draws an access token first; a rotated refresh token is
 sealed in place, a withdrawn grant is the mailbox's failure (`mail.oauth_revoked`). The
-installation's own apps come from `HUBTASK_MAIL_OAUTH_{GOOGLE,MICROSOFT}_CLIENT_ID`/`_SECRET`.
+installation's own apps come from `HUBTASK_MAIL_OAUTH_{GOOGLE,MICROSOFT}_CLIENT_ID`/`_SECRET`. A
+mailbox failing for an hour is told to its workspace's administrators once; when most mailboxes on
+one of the installation's apps fail together - its secret ran out - the operator is alerted (A-29,
+`hubtask_mail_app_mailboxes{,_failing}`, counted across workspaces by `installation_mail_apps()`).
 
 **The parser is transport-independent**: bytes in; sender, subject, text, attachments, Message-ID
 and the header signals out. `ReceiveMail` behind it knows nothing about MIME.

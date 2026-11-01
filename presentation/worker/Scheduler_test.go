@@ -10,6 +10,7 @@ import (
 	"time"
 
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
+	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
@@ -77,6 +78,11 @@ type schedulerSignals struct {
 	auditDefaultAged []int64
 	oldest           []float64
 	invalidIndexes   []int64
+	mailApps         []mail.AppHealth
+}
+
+func (s *schedulerSignals) MailApp(_ context.Context, app string, connected, failing int64) {
+	s.mailApps = append(s.mailApps, mail.AppHealth{App: app, Connected: connected, Failing: failing})
 }
 
 func (s *schedulerSignals) InvalidIndexes(_ context.Context, count int64) {
@@ -651,5 +657,24 @@ func TestTheLeaderPublishesTheInvalidIndexes(t *testing.T) {
 	leader.tick(t.Context(), false, now)
 	if len(signals.invalidIndexes) != 1 || signals.invalidIndexes[0] != 2 {
 		t.Errorf("published %v, want [2]", signals.invalidIndexes)
+	}
+}
+
+// mailApps is the installation's mail apps as the door counts them.
+type mailApps []mail.AppHealth
+
+func (m mailApps) InstallationApps(context.Context) ([]mail.AppHealth, error) { return m, nil }
+
+// Alert A-29's numbers: every installation mail app's mailboxes and failing ones, published by the
+// leader on every tick, so a shared app's secret that ran out is seen across workspaces.
+func TestTheLeaderPublishesTheInstallationMailApps(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.MailApps = mailApps{{App: "google", Connected: 4, Failing: 4}, {App: "microsoft"}}
+
+	leader.tick(t.Context(), false, now)
+	want := []mail.AppHealth{{App: "google", Connected: 4, Failing: 4}, {App: "microsoft"}}
+	if len(signals.mailApps) != 2 || signals.mailApps[0] != want[0] || signals.mailApps[1] != want[1] {
+		t.Errorf("published %v, want %v", signals.mailApps, want)
 	}
 }
