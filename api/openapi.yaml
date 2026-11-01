@@ -20577,16 +20577,24 @@ paths:
       x-hubtask-rest-answer: customFieldResponse
       description: >
         The custom field definitions in force, by key. Naming a collection answers the ones that
-        apply inside it: its own, and the workspace-wide ones above it. Naming none answers the
-        workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in
-        the entries and stop being visible, which is what makes the deletion undoable.
+        apply inside it: its own, its hub's and the workspace-wide ones above them. Naming a hub
+        answers the hub's own and the workspace-wide ones. Naming none answers the workspace-wide
+        ones alone. Deleted definitions are not in the answer - their values stay in the entries
+        and stop being visible, which is what makes the deletion undoable.
       parameters:
         - name: collection_id
           in: query
           required: false
           description: >
-            The collection whose definitions are wanted, together with the workspace-wide ones.
-            Omitted answers the workspace-wide ones alone.
+            The collection whose definitions are wanted, together with its hub's and the
+            workspace-wide ones. Omitted answers the workspace-wide ones alone.
+          schema: { type: string, format: uuid }
+        - name: hub_id
+          in: query
+          required: false
+          description: >
+            The hub whose own definitions are wanted, together with the workspace-wide ones. Not
+            together with `collection_id`.
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -20610,7 +20618,10 @@ paths:
         of each other's and of the workspace-wide ones - and it is an identifier rather than a
         label: lower case, digits and underscores, and it never changes afterwards. Which types
         carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has
-        no custom fields, so naming one is refused.
+        no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub:
+        the entries of the hub's collections carry it, a collection's own field under the key wins
+        over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A
+        `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -20680,6 +20691,45 @@ paths:
       responses:
         "204":
           description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /custom-fields/{fieldId}:copy-here:
+    parameters:
+      - $ref: "#/components/parameters/CustomFieldId"
+    post:
+      tags: [structure]
+      operationId: copyCustomFieldHere
+      x-hubtask-cli: "field copy-here"
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: customFieldResponse
+      x-hubtask-rest-path:
+        fieldId: source_id
+      summary: Make a copy of a shared custom field at a hub
+      description: >
+        A field shared from the workspace is read-only at a hub; a hub that needs it different
+        makes a copy of its own under the same key, with everything of the source and the source's
+        identifier in `copied_from`. In the hub's collections the copy is the field in force under
+        the key from then on, and the values already written under the source stay visible; the
+        source does not change. Only a field of the whole workspace is copied: a collection's or a
+        hub's is `fields.not_found`, and a hub that already has its own field under the key is
+        `conflict`. Needs STRUCTURE at the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomFieldCopy"
+      responses:
+        "201":
+          description: The copy
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomFieldDefinition"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -35087,9 +35137,21 @@ components:
           type: [string, "null"]
           format: uuid
           description: >
-            The collection the definition belongs to, or null for the whole workspace. Always
-            present: absent would say this server does not know about scopes, which is a different
-            statement from "this one is workspace-wide".
+            The collection the definition belongs to, or null for a hub's or the whole workspace's.
+            Always present: absent would say this server does not know about scopes, which is a
+            different statement from "this one is workspace-wide".
+        hub_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The hub the definition belongs to, whose collections' entries carry it; absent or null
+            for a collection's or the whole workspace's.
+        copied_from:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The identifier of the shared definition this one was copied from; absent or null for
+            one made from scratch. Not a reference: it stays when the source is deleted.
         key:
           type: string
           pattern: "^[a-z][a-z0-9_]{0,49}$"
@@ -35176,7 +35238,11 @@ components:
         collection_id:
           type: [string, "null"]
           format: uuid
-          description: Omitted or null defines the field for the whole workspace.
+          description: Omitted or null defines the field for the whole workspace, or with `hub_id` for a hub.
+        hub_id:
+          type: [string, "null"]
+          format: uuid
+          description: Defines the field for this hub's collections; not together with `collection_id`.
         key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
         kind: { $ref: "#/components/schemas/CustomFieldKind" }
         options:
@@ -35205,6 +35271,12 @@ components:
           type: array
           description: Omitted means TASK alone, which is the column's default.
           items: { $ref: "#/components/schemas/ItemType" }
+
+    CustomFieldCopy:
+      type: object
+      required: [hub_id]
+      properties:
+        hub_id: { type: string, format: uuid, description: "The hub the copy belongs to." }
 
     CustomFieldDefinitionUpdate:
       type: object

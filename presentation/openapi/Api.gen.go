@@ -15081,21 +15081,33 @@ type CoverInput struct {
 // CoverInputKind defines model for CoverInput.Kind.
 type CoverInputKind string
 
+// CustomFieldCopy defines model for CustomFieldCopy.
+type CustomFieldCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+}
+
 // CustomFieldDefinition One field a workspace or a collection adds to its entries. The values live on the entry itself, in `custom_fields`; this is what says which keys exist, what they may hold and which types carry them.
 type CustomFieldDefinition struct {
 	// AppliesTo The item types that carry the field, bounded by the CUSTOM_FIELDS capability. Never empty - a definition no type carries is one nothing could ever hold.
 	AppliesTo []ItemType `json:"applies_to"`
 
-	// CollectionId The collection the definition belongs to, or null for the whole workspace. Always present: absent would say this server does not know about scopes, which is a different statement from "this one is workspace-wide".
+	// CollectionId The collection the definition belongs to, or null for a hub's or the whole workspace's. Always present: absent would say this server does not know about scopes, which is a different statement from "this one is workspace-wide".
 	CollectionId *openapi_types.UUID `json:"collection_id"`
-	CreatedAt    *time.Time          `json:"created_at,omitempty"`
+
+	// CopiedFrom The identifier of the shared definition this one was copied from; absent or null for one made from scratch. Not a reference: it stays when the source is deleted.
+	CopiedFrom *openapi_types.UUID `json:"copied_from,omitempty"`
+	CreatedAt  *time.Time          `json:"created_at,omitempty"`
 
 	// Currency The ISO 4217 code every amount of a MONEY field is in, and null for every other kind. Fixed once defined, like the kind.
 	Currency *string `json:"currency"`
 
 	// Formula The expression a CALCULATED field's value is computed with, and null for every other kind. It reads the entry's own fields as `entry.custom_fields.<key>` - a NUMBER, MONEY, DURATION or BOOL field defined where the calculated one is - and produces a number. The server recomputes the value whenever the entry's values are written; a value it cannot compute, because a field it reads is empty, is absent. Fixed once defined, like the kind: a changed formula would rewrite every entry's value at once.
-	Formula *string            `json:"formula,omitempty"`
-	Id      openapi_types.UUID `json:"id"`
+	Formula *string `json:"formula,omitempty"`
+
+	// HubId The hub the definition belongs to, whose collections' entries carry it; absent or null for a collection's or the whole workspace's.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Id    openapi_types.UUID  `json:"id"`
 
 	// IsRequired Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.
 	IsRequired bool `json:"is_required"`
@@ -15125,16 +15137,19 @@ type CustomFieldDefinitionCreate struct {
 	// AppliesTo Omitted means TASK alone, which is the column's default.
 	AppliesTo *[]ItemType `json:"applies_to,omitempty"`
 
-	// CollectionId Omitted or null defines the field for the whole workspace.
+	// CollectionId Omitted or null defines the field for the whole workspace, or with `hub_id` for a hub.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
 	// Currency Required for MONEY and refused for every other kind.
 	Currency *string `json:"currency,omitempty"`
 
 	// Formula Required for CALCULATED and refused for every other kind. One that does not compile, names a field that is not a number of the scope, or does not produce a number is refused with `validation_failed`, the detail `fields.formula_invalid` and the position.
-	Formula    *string `json:"formula,omitempty"`
-	IsRequired *bool   `json:"is_required,omitempty"`
-	Key        string  `json:"key"`
+	Formula *string `json:"formula,omitempty"`
+
+	// HubId Defines the field for this hub's collections; not together with `collection_id`.
+	HubId      *openapi_types.UUID `json:"hub_id,omitempty"`
+	IsRequired *bool               `json:"is_required,omitempty"`
+	Key        string              `json:"key"`
 
 	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
 	Kind    CustomFieldKind `json:"kind"`
@@ -26336,8 +26351,11 @@ type ChangeCostRateParams struct {
 
 // ListCustomFieldsParams defines parameters for ListCustomFields.
 type ListCustomFieldsParams struct {
-	// CollectionId The collection whose definitions are wanted, together with the workspace-wide ones. Omitted answers the workspace-wide ones alone.
+	// CollectionId The collection whose definitions are wanted, together with its hub's and the workspace-wide ones. Omitted answers the workspace-wide ones alone.
 	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
+
+	// HubId The hub whose own definitions are wanted, together with the workspace-wide ones. Not together with `collection_id`.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
 // DefineCustomFieldParams defines parameters for DefineCustomField.
@@ -28675,6 +28693,9 @@ type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 // UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
 type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
 
+// CopyCustomFieldHereJSONRequestBody defines body for CopyCustomFieldHere for application/json ContentType.
+type CopyCustomFieldHereJSONRequestBody = CustomFieldCopy
+
 // CreateDashboardJSONRequestBody defines body for CreateDashboard for application/json ContentType.
 type CreateDashboardJSONRequestBody = DashboardCreate
 
@@ -30711,6 +30732,9 @@ type ServerInterface interface {
 	// PreviewCustomFieldReach What removing or hiding a field would stop showing
 	// (GET /custom-fields/{fieldId}/reach)
 	PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId)
+	// CopyCustomFieldHere Make a copy of a shared custom field at a hub
+	// (POST /custom-fields/{fieldId}:copy-here)
+	CopyCustomFieldHere(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId)
 	// ListDashboards The dashboards the caller sees
 	// (GET /dashboards)
 	ListDashboards(w http.ResponseWriter, r *http.Request, params ListDashboardsParams)
@@ -42207,6 +42231,19 @@ func (siw *ServerInterfaceWrapper) ListCustomFields(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCustomFields(w, r, params)
 	}))
@@ -42376,6 +42413,32 @@ func (siw *ServerInterfaceWrapper) PreviewCustomFieldReach(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PreviewCustomFieldReach(w, r, fieldId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CopyCustomFieldHere operation middleware
+func (siw *ServerInterfaceWrapper) CopyCustomFieldHere(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "fieldId" -------------
+	var fieldId CustomFieldId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "fieldId", r.PathValue("fieldId"), &fieldId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "fieldId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyCustomFieldHere(w, r, fieldId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60371,6 +60434,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/custom-fields", wrapper.DefineCustomField)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/custom-fields/{fieldId}", wrapper.DeleteCustomField)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/custom-fields/{fieldId}", wrapper.UpdateCustomField)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/custom-fields/{fieldId}:copy-here", wrapper.CopyCustomFieldHere)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/custom-fields/{fieldId}/reach", wrapper.PreviewCustomFieldReach)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/custom-fields/{key}", wrapper.SetCustomField)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cover", wrapper.ClearCover)

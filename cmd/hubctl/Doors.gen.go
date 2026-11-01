@@ -1303,9 +1303,18 @@ var generatedCommands = []door{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "title", "status", "version"}},
+	{Group: "field", Verb: "copy-here", OperationID: "copyCustomFieldHere", Method: "POST", Path: "/custom-fields/{fieldId}:copy-here", Summary: "Make a copy of a shared custom field at a hub",
+		PathParams: []doorParam{
+			{Name: "fieldId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "key", "kind", "version"}},
 	{Group: "field", Verb: "ls", OperationID: "listCustomFields", Method: "GET", Path: "/custom-fields", Summary: "The custom field definitions in force, by key",
 		Query: []doorParam{
-			{Name: "collection_id", Kind: "uuid", Help: "The collection whose definitions are wanted, together with the workspace-wide ones", Required: false},
+			{Name: "collection_id", Kind: "uuid", Help: "The collection whose definitions are wanted, together with its hub's and the workspace-wide ones", Required: false},
+			{Name: "hub_id", Kind: "uuid", Help: "The hub whose own definitions are wanted, together with the workspace-wide ones", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "kind", "collection_id", "is_required"}},
 	{Group: "file", Verb: "add", OperationID: "linkEntryFile", Method: "POST", Path: "/items/{itemId}/file-links", Summary: "Link a file in a store on an entry",

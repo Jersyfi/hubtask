@@ -4325,6 +4325,8 @@ class CustomFieldDefinition(TypedDict, total=False):
     """One field a workspace or a collection adds to its entries. The values live on the entry itself, in `custom_fields`; this is what says which keys exist, what they may hold and which types carry them."""
     id: Required[str]
     collection_id: Required[str | None]
+    hub_id: str | None
+    copied_from: str | None
     key: Required[str]
     kind: Required["CustomFieldKind"]
     options: Required[list[str]]
@@ -4342,6 +4344,7 @@ CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "B
 
 class CustomFieldDefinitionCreate(TypedDict, total=False):
     collection_id: str | None
+    hub_id: str | None
     key: Required[str]
     kind: Required["CustomFieldKind"]
     options: list[str]
@@ -4351,6 +4354,9 @@ class CustomFieldDefinitionCreate(TypedDict, total=False):
     restricted: bool
     read_restricted: bool
     applies_to: list["ItemType"]
+
+class CustomFieldCopy(TypedDict, total=False):
+    hub_id: Required[str]
 
 class CustomFieldDefinitionUpdate(TypedDict, total=False):
     """JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them."""

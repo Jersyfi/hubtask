@@ -2987,6 +2987,10 @@ class Client:
         """DELETE /custom-fields/{fieldId}"""
         return self._call("DELETE", "/custom-fields/{fieldId}", {"fieldId": field_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
+    def copy_custom_field_here(self, field_id: str, body: "CustomFieldCopy") -> "CustomFieldDefinition":
+        """Make a copy of a shared custom field at a hub"""
+        return self._call("POST", "/custom-fields/{fieldId}:copy-here", {"fieldId": field_id}, None, {}, body, "json", "application/json", "json")
+
     def preview_custom_field_reach(self, field_id: str) -> "CustomFieldReach":
         """What removing or hiding a field would stop showing"""
         return self._call("GET", "/custom-fields/{fieldId}/reach", {"fieldId": field_id}, None, {}, None, "none", None, "json")

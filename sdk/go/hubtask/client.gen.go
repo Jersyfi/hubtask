@@ -15087,21 +15087,33 @@ type CoverInput struct {
 // CoverInputKind defines model for CoverInput.Kind.
 type CoverInputKind string
 
+// CustomFieldCopy defines model for CustomFieldCopy.
+type CustomFieldCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+}
+
 // CustomFieldDefinition One field a workspace or a collection adds to its entries. The values live on the entry itself, in `custom_fields`; this is what says which keys exist, what they may hold and which types carry them.
 type CustomFieldDefinition struct {
 	// AppliesTo The item types that carry the field, bounded by the CUSTOM_FIELDS capability. Never empty - a definition no type carries is one nothing could ever hold.
 	AppliesTo []ItemType `json:"applies_to"`
 
-	// CollectionId The collection the definition belongs to, or null for the whole workspace. Always present: absent would say this server does not know about scopes, which is a different statement from "this one is workspace-wide".
+	// CollectionId The collection the definition belongs to, or null for a hub's or the whole workspace's. Always present: absent would say this server does not know about scopes, which is a different statement from "this one is workspace-wide".
 	CollectionId *openapi_types.UUID `json:"collection_id"`
-	CreatedAt    *time.Time          `json:"created_at,omitempty"`
+
+	// CopiedFrom The identifier of the shared definition this one was copied from; absent or null for one made from scratch. Not a reference: it stays when the source is deleted.
+	CopiedFrom *openapi_types.UUID `json:"copied_from,omitempty"`
+	CreatedAt  *time.Time          `json:"created_at,omitempty"`
 
 	// Currency The ISO 4217 code every amount of a MONEY field is in, and null for every other kind. Fixed once defined, like the kind.
 	Currency *string `json:"currency"`
 
 	// Formula The expression a CALCULATED field's value is computed with, and null for every other kind. It reads the entry's own fields as `entry.custom_fields.<key>` - a NUMBER, MONEY, DURATION or BOOL field defined where the calculated one is - and produces a number. The server recomputes the value whenever the entry's values are written; a value it cannot compute, because a field it reads is empty, is absent. Fixed once defined, like the kind: a changed formula would rewrite every entry's value at once.
-	Formula *string            `json:"formula,omitempty"`
-	Id      openapi_types.UUID `json:"id"`
+	Formula *string `json:"formula,omitempty"`
+
+	// HubId The hub the definition belongs to, whose collections' entries carry it; absent or null for a collection's or the whole workspace's.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Id    openapi_types.UUID  `json:"id"`
 
 	// IsRequired Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.
 	IsRequired bool `json:"is_required"`
@@ -15131,16 +15143,19 @@ type CustomFieldDefinitionCreate struct {
 	// AppliesTo Omitted means TASK alone, which is the column's default.
 	AppliesTo *[]ItemType `json:"applies_to,omitempty"`
 
-	// CollectionId Omitted or null defines the field for the whole workspace.
+	// CollectionId Omitted or null defines the field for the whole workspace, or with `hub_id` for a hub.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
 	// Currency Required for MONEY and refused for every other kind.
 	Currency *string `json:"currency,omitempty"`
 
 	// Formula Required for CALCULATED and refused for every other kind. One that does not compile, names a field that is not a number of the scope, or does not produce a number is refused with `validation_failed`, the detail `fields.formula_invalid` and the position.
-	Formula    *string `json:"formula,omitempty"`
-	IsRequired *bool   `json:"is_required,omitempty"`
-	Key        string  `json:"key"`
+	Formula *string `json:"formula,omitempty"`
+
+	// HubId Defines the field for this hub's collections; not together with `collection_id`.
+	HubId      *openapi_types.UUID `json:"hub_id,omitempty"`
+	IsRequired *bool               `json:"is_required,omitempty"`
+	Key        string              `json:"key"`
 
 	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
 	Kind    CustomFieldKind `json:"kind"`
@@ -26342,8 +26357,11 @@ type ChangeCostRateParams struct {
 
 // ListCustomFieldsParams defines parameters for ListCustomFields.
 type ListCustomFieldsParams struct {
-	// CollectionId The collection whose definitions are wanted, together with the workspace-wide ones. Omitted answers the workspace-wide ones alone.
+	// CollectionId The collection whose definitions are wanted, together with its hub's and the workspace-wide ones. Omitted answers the workspace-wide ones alone.
 	CollectionId *openapi_types.UUID `form:"collection_id,omitempty" json:"collection_id,omitempty"`
+
+	// HubId The hub whose own definitions are wanted, together with the workspace-wide ones. Not together with `collection_id`.
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
 }
 
 // DefineCustomFieldParams defines parameters for DefineCustomField.
@@ -28680,6 +28698,9 @@ type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 
 // UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
 type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
+
+// CopyCustomFieldHereJSONRequestBody defines body for CopyCustomFieldHere for application/json ContentType.
+type CopyCustomFieldHereJSONRequestBody = CustomFieldCopy
 
 // CreateDashboardJSONRequestBody defines body for CreateDashboard for application/json ContentType.
 type CreateDashboardJSONRequestBody = DashboardCreate
@@ -34253,19 +34274,19 @@ type ClientInterface interface {
 
 	// ListCustomFields performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 	//
-	// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
+	// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, its hub's and the workspace-wide ones above them. Naming a hub answers the hub's own and the workspace-wide ones. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
 	ListCustomFields(ctx context.Context, params *ListCustomFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DefineCustomFieldWithBody performs a POST /custom-fields (the `DefineCustomField` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 	DefineCustomFieldWithBody(ctx context.Context, params *DefineCustomFieldParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DefineCustomField performs a POST /custom-fields (the `DefineCustomField` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 	DefineCustomField(ctx context.Context, params *DefineCustomFieldParams, body DefineCustomFieldJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteCustomField performs a DELETE /custom-fields/{fieldId} (the `DeleteCustomField` operationId) request.
@@ -34291,6 +34312,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
 	PreviewCustomFieldReach(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyCustomFieldHereWithBody Make a copy of a shared custom field at a hub
+	//
+	// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+	CopyCustomFieldHereWithBody(ctx context.Context, fieldId CustomFieldId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyCustomFieldHere Make a copy of a shared custom field at a hub
+	//
+	// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+	CopyCustomFieldHere(ctx context.Context, fieldId CustomFieldId, body CopyCustomFieldHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListDashboards The dashboards the caller sees
 	//
@@ -49728,7 +49767,7 @@ func (c *Client) ChangeCostRate(ctx context.Context, rateId openapi_types.UUID, 
 
 // ListCustomFields performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 //
-// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
+// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, its hub's and the workspace-wide ones above them. Naming a hub answers the hub's own and the workspace-wide ones. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
 func (c *Client) ListCustomFields(ctx context.Context, params *ListCustomFieldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCustomFieldsRequest(c.Server, params)
 	if err != nil {
@@ -49744,7 +49783,7 @@ func (c *Client) ListCustomFields(ctx context.Context, params *ListCustomFieldsP
 // DefineCustomFieldWithBody performs a POST /custom-fields (the `DefineCustomField` operationId) request,
 // with any type of body and a specified content type.
 //
-// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 func (c *Client) DefineCustomFieldWithBody(ctx context.Context, params *DefineCustomFieldParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDefineCustomFieldRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
@@ -49760,7 +49799,7 @@ func (c *Client) DefineCustomFieldWithBody(ctx context.Context, params *DefineCu
 // DefineCustomField performs a POST /custom-fields (the `DefineCustomField` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 func (c *Client) DefineCustomField(ctx context.Context, params *DefineCustomFieldParams, body DefineCustomFieldJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDefineCustomFieldRequest(c.Server, params, body)
 	if err != nil {
@@ -49827,6 +49866,44 @@ func (c *Client) UpdateCustomFieldWithApplicationMergePatchPlusJSONBody(ctx cont
 // Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
 func (c *Client) PreviewCustomFieldReach(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPreviewCustomFieldReachRequest(c.Server, fieldId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyCustomFieldHereWithBody Make a copy of a shared custom field at a hub
+//
+// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+func (c *Client) CopyCustomFieldHereWithBody(ctx context.Context, fieldId CustomFieldId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyCustomFieldHereRequestWithBody(c.Server, fieldId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyCustomFieldHere Make a copy of a shared custom field at a hub
+//
+// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+func (c *Client) CopyCustomFieldHere(ctx context.Context, fieldId CustomFieldId, body CopyCustomFieldHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyCustomFieldHereRequest(c.Server, fieldId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -77912,6 +77989,18 @@ func NewListCustomFieldsRequest(server string, params *ListCustomFieldsParams) (
 
 		}
 
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -78122,6 +78211,53 @@ func NewPreviewCustomFieldReachRequest(server string, fieldId CustomFieldId) (*h
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewCopyCustomFieldHereRequest calls the generic CopyCustomFieldHere builder with application/json body
+func NewCopyCustomFieldHereRequest(server string, fieldId CustomFieldId, body CopyCustomFieldHereJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCopyCustomFieldHereRequestWithBody(server, fieldId, "application/json", bodyReader)
+}
+
+// NewCopyCustomFieldHereRequestWithBody constructs an http.Request for the CopyCustomFieldHere method, with any body, and a specified content type
+func NewCopyCustomFieldHereRequestWithBody(server string, fieldId CustomFieldId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "fieldId", fieldId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/custom-fields/%s:copy-here", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -106880,7 +107016,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCustomFieldsWithResponse performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 	//
-	// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
+	// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, its hub's and the workspace-wide ones above them. Naming a hub answers the hub's own and the workspace-wide ones. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ListCustomFieldsWithResponse(ctx context.Context, params *ListCustomFieldsParams, reqEditors ...RequestEditorFn) (*ListCustomFieldsResult, error)
@@ -106888,7 +107024,7 @@ type ClientWithResponsesInterface interface {
 	// DefineCustomFieldWithBodyWithResponse performs a POST /custom-fields (the `DefineCustomField` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DefineCustomFieldWithBodyWithResponse(ctx context.Context, params *DefineCustomFieldParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCustomFieldResult, error)
@@ -106896,7 +107032,7 @@ type ClientWithResponsesInterface interface {
 	// DefineCustomFieldWithResponse performs a POST /custom-fields (the `DefineCustomField` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+	// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 	DefineCustomFieldWithResponse(ctx context.Context, params *DefineCustomFieldParams, body DefineCustomFieldJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCustomFieldResult, error)
 
 	// DeleteCustomFieldWithResponse performs a DELETE /custom-fields/{fieldId} (the `DeleteCustomField` operationId) request.
@@ -106928,6 +107064,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /custom-fields/{fieldId}/reach (the `PreviewCustomFieldReach` operationId).
 	PreviewCustomFieldReachWithResponse(ctx context.Context, fieldId CustomFieldId, reqEditors ...RequestEditorFn) (*PreviewCustomFieldReachResult, error)
+
+	// CopyCustomFieldHereWithBodyWithResponse Make a copy of a shared custom field at a hub
+	//
+	// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+	CopyCustomFieldHereWithBodyWithResponse(ctx context.Context, fieldId CustomFieldId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyCustomFieldHereResult, error)
+
+	// CopyCustomFieldHereWithResponse Make a copy of a shared custom field at a hub
+	//
+	// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+	CopyCustomFieldHereWithResponse(ctx context.Context, fieldId CustomFieldId, body CopyCustomFieldHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyCustomFieldHereResult, error)
 
 	// ListDashboardsWithResponse The dashboards the caller sees
 	//
@@ -129220,6 +129374,61 @@ func (r PreviewCustomFieldReachResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r PreviewCustomFieldReachResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// CopyCustomFieldHereResult201Headers the declared response headers of an HTTP 201 response for CopyCustomFieldHere
+type CopyCustomFieldHereResult201Headers struct {
+	ETag *string
+}
+
+type CopyCustomFieldHereResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *CustomFieldDefinition
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CopyCustomFieldHereResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CopyCustomFieldHereResult) GetJSON201() *CustomFieldDefinition {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopyCustomFieldHereResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopyCustomFieldHereResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopyCustomFieldHereResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopyCustomFieldHereResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopyCustomFieldHereResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -161188,7 +161397,7 @@ func (c *ClientWithResponses) ChangeCostRateWithResponse(ctx context.Context, ra
 
 // ListCustomFieldsWithResponse performs a GET /custom-fields (the `ListCustomFields` operationId) request.
 //
-// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, and the workspace-wide ones above it. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
+// The custom field definitions in force, by key. Naming a collection answers the ones that apply inside it: its own, its hub's and the workspace-wide ones above them. Naming a hub answers the hub's own and the workspace-wide ones. Naming none answers the workspace-wide ones alone. Deleted definitions are not in the answer - their values stay in the entries and stop being visible, which is what makes the deletion undoable.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ListCustomFieldsWithResponse(ctx context.Context, params *ListCustomFieldsParams, reqEditors ...RequestEditorFn) (*ListCustomFieldsResult, error) {
@@ -161202,7 +161411,7 @@ func (c *ClientWithResponses) ListCustomFieldsWithResponse(ctx context.Context, 
 // DefineCustomFieldWithBodyWithResponse performs a POST /custom-fields (the `DefineCustomField` operationId) request,
 // with any type of body and a specified content type.
 //
-// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DefineCustomFieldWithBodyWithResponse(ctx context.Context, params *DefineCustomFieldParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCustomFieldResult, error) {
@@ -161216,7 +161425,7 @@ func (c *ClientWithResponses) DefineCustomFieldWithBodyWithResponse(ctx context.
 // DefineCustomFieldWithResponse performs a POST /custom-fields (the `DefineCustomField` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused.
+// Defines a custom field. The key has to be free in its scope - a collection's keys are free of each other's and of the workspace-wide ones - and it is an identifier rather than a label: lower case, digits and underscores, and it never changes afterwards. Which types carry the field is `applies_to`, bounded by the CUSTOM_FIELDS capability: an activity has no custom fields, so naming one is refused. With `hub_id` the field belongs to that hub: the entries of the hub's collections carry it, a collection's own field under the key wins over it and it wins over the workspace's, and it needs STRUCTURE at the hub. A `collection_id` and a `hub_id` together are `fields.scope_ambiguous`.
 func (c *ClientWithResponses) DefineCustomFieldWithResponse(ctx context.Context, params *DefineCustomFieldParams, body DefineCustomFieldJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCustomFieldResult, error) {
 	rsp, err := c.DefineCustomField(ctx, params, body, reqEditors...)
 	if err != nil {
@@ -161277,6 +161486,36 @@ func (c *ClientWithResponses) PreviewCustomFieldReachWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParsePreviewCustomFieldReachResult(rsp)
+}
+
+// CopyCustomFieldHereWithBodyWithResponse Make a copy of a shared custom field at a hub
+//
+// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+func (c *ClientWithResponses) CopyCustomFieldHereWithBodyWithResponse(ctx context.Context, fieldId CustomFieldId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyCustomFieldHereResult, error) {
+	rsp, err := c.CopyCustomFieldHereWithBody(ctx, fieldId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyCustomFieldHereResult(rsp)
+}
+
+// CopyCustomFieldHereWithResponse Make a copy of a shared custom field at a hub
+//
+// A field shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own under the same key, with everything of the source and the source's identifier in `copied_from`. In the hub's collections the copy is the field in force under the key from then on, and the values already written under the source stay visible; the source does not change. Only a field of the whole workspace is copied: a collection's or a hub's is `fields.not_found`, and a hub that already has its own field under the key is `conflict`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /custom-fields/{fieldId}:copy-here (the `CopyCustomFieldHere` operationId).
+func (c *ClientWithResponses) CopyCustomFieldHereWithResponse(ctx context.Context, fieldId CustomFieldId, body CopyCustomFieldHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyCustomFieldHereResult, error) {
+	rsp, err := c.CopyCustomFieldHere(ctx, fieldId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyCustomFieldHereResult(rsp)
 }
 
 // ListDashboardsWithResponse The dashboards the caller sees
@@ -183506,6 +183745,52 @@ func ParsePreviewCustomFieldReachResult(rsp *http.Response) (*PreviewCustomField
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseCopyCustomFieldHereResult parses an HTTP response from a CopyCustomFieldHereWithResponse call
+func ParseCopyCustomFieldHereResult(rsp *http.Response) (*CopyCustomFieldHereResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopyCustomFieldHereResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest CustomFieldDefinition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CopyCustomFieldHereResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil

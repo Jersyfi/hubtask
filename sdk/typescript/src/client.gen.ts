@@ -3756,6 +3756,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/custom-fields/{fieldId}", { "fieldId": fieldId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Make a copy of a shared custom field at a hub */
+  copyCustomFieldHere(fieldId: string, body: NonNullable<operations["copyCustomFieldHere"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["copyCustomFieldHere"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/custom-fields/{fieldId}:copy-here", { "fieldId": fieldId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** What removing or hiding a field would stop showing */
   previewCustomFieldReach(fieldId: string, options: CallOptions = {}): Promise<operations["previewCustomFieldReach"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/custom-fields/{fieldId}/reach", { "fieldId": fieldId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

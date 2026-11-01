@@ -1795,6 +1795,10 @@ func (pending) EvaluateEntryForm(w http.ResponseWriter, r *http.Request, _ strin
 	notAvailable(w, r)
 }
 
+func (pending) CopyCustomFieldHere(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId) {
+	notAvailable(w, r)
+}
+
 func (pending) PreviewCustomFieldReach(w http.ResponseWriter, r *http.Request, _ openapi.CustomFieldId) {
 	notAvailable(w, r)
 }

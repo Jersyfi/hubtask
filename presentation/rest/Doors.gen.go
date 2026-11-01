@@ -115,6 +115,7 @@ var restDoors = map[string]restDoor{
 	"connectFileStore":                  {UseCase: "ConnectFileStore", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"connectMailbox":                    {UseCase: "ConnectMailbox", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"port"}},
 	"convertJumbleEntry":                {UseCase: "ConvertJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"copyCustomFieldHere":               {UseCase: "CopyCustomFieldHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyEntryTypeHere":                 {UseCase: "CopyEntryTypeHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyPage":                          {UseCase: "CopyPage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
 	"copySlaPolicyHere":                 {UseCase: "CopySlaPolicyHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -339,7 +340,7 @@ var restDoors = map[string]restDoor{
 	"listConsents":                      {UseCase: "ListConsents", Status: 200, Query: []string{"purpose"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listContainers":                    {UseCase: "ListContainers", Status: 200, Query: []string{"cursor", "include_archived", "parent_id", "size", "type"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listCostRates":                     {UseCase: "ListCostRates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listCustomFields":                  {UseCase: "ListCustomFields", Status: 200, Query: []string{"collection_id", "hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listDashboards":                    {UseCase: "ListDashboards", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listDataSubjectRequests":           {UseCase: "ListDataSubjectRequests", Status: 200, Query: []string{"cursor", "due_within_days", "include_closed", "kind", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"due_within_days", "size"}},
 	"listEmergencyNotices":              {UseCase: "ListEmergencyNotices", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1445,6 +1446,12 @@ func (c *RestController) ConnectMailbox(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.ConvertJumbleEntryParams) {
 	var body openapi.ConvertJumbleEntryJSONRequestBody
 	c.door(w, r, restDoors["convertJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, &body, answerBy(jumbleEntryResponse))
+}
+
+// CopyCustomFieldHere answers POST /custom-fields/{fieldId}:copy-here by the generated mapping.
+func (c *RestController) CopyCustomFieldHere(w http.ResponseWriter, r *http.Request, fieldId openapi.CustomFieldId) {
+	var body openapi.CopyCustomFieldHereJSONRequestBody
+	c.door(w, r, restDoors["copyCustomFieldHere"], usecase.Input{"source_id": fieldId.String()}, nil, &body, answerBy(customFieldResponse))
 }
 
 // CopyEntryTypeHere answers POST /entry-types/{key}:copy-here by the generated mapping.
