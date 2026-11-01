@@ -25,14 +25,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	// The pgx driver in its database/sql form: goose speaks database/sql, and a second driver for
 	// the same database would be a second set of connection semantics to reason about.
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
 	"github.com/Jersyfi/hubtask/db"
@@ -43,12 +47,23 @@ import (
 // make a migration wait for a scheduler.
 const migrationLock int64 = 8_010_002
 
-// timeouts. The lock wait is long because waiting is the correct behaviour during a rollout; the
-// run itself is bounded so that a migration blocked on a lock held by a long-running query fails
-// visibly rather than hanging a deployment forever.
+// timeouts. The wait for the advisory lock is long because waiting is the correct behaviour during
+// a rollout; the run itself is bounded so that a migration that cannot finish fails visibly rather
+// than hanging a deployment forever (HUBTASK_MIGRATE_TIMEOUT).
+//
+// A statement of a transactional migration waits at most tableLockTimeout for a table lock
+// (HUBTASK_MIGRATE_LOCK_TIMEOUT). Waiting longer is the outage: PostgreSQL queues every later
+// query on the table behind the waiting ALTER, reads included, so a constraint change that takes
+// milliseconds would hold the table for as long as some report runs. The file is retried instead,
+// lockRetries times with a growing pause. A NO TRANSACTION file - CREATE INDEX CONCURRENTLY, a
+// batched backfill - takes locks writes pass, and runs without the bound: interrupted, a
+// concurrent build leaves an invalid index its retry's IF NOT EXISTS would keep.
 const (
-	lockTimeout = 5 * time.Minute
-	runTimeout  = 30 * time.Minute
+	lockTimeout       = 5 * time.Minute
+	defaultRunTimeout = 30 * time.Minute
+	tableLockTimeout  = 5 * time.Second
+	lockRetries       = 5
+	lockRetryPause    = 2 * time.Second
 )
 
 func main() {
@@ -78,8 +93,13 @@ func run(args []string) error {
 		return errors.New("the connection string could not be read")
 	}
 	defer func() { _ = pool.Close() }()
+	guarded, err := openGuarded(dsn, durationFrom("HUBTASK_MIGRATE_LOCK_TIMEOUT", tableLockTimeout))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = guarded.Close() }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), runTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), durationFrom("HUBTASK_MIGRATE_TIMEOUT", defaultRunTimeout))
 	defer cancel()
 
 	if err := waitForDatabase(ctx, pool, connectWait()); err != nil {
@@ -100,7 +120,7 @@ func run(args []string) error {
 
 	switch command {
 	case "up":
-		if err := up(ctx, pool); err != nil {
+		if err := up(ctx, pool, guarded, migrationFiles(), lockRetryPause); err != nil {
 			return err
 		}
 		return grantAppLogin(ctx, pool)
@@ -179,20 +199,45 @@ func appPassword() (string, error) {
 	return "", nil
 }
 
-func up(ctx context.Context, pool *sql.DB) error {
+func up(ctx context.Context, pool, guarded *sql.DB, files fs.FS, pause time.Duration) error {
 	before, err := goose.GetDBVersionContext(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("reading the ledger: %w", err)
+	}
+	if err := dropLeftoverBackfillPolicies(ctx, pool); err != nil {
+		return err
 	}
 
 	// A migration merged after a higher-numbered one is applied rather than refused. Numbers are
 	// taken when a branch is cut and the branches merge in whatever order review finishes them, so
 	// a database that took 0091 before 0090 existed is the ordinary outcome of two pull requests,
-	// not a corrupted ledger. Goose's default refuses that case to
-	// protect a migration that assumes its predecessors; ADR-0003's are expand-only and assume
-	// nothing but the schema they name, and the test beside this proves the case applies.
-	if err := goose.UpContext(ctx, pool, "migrations", goose.WithAllowMissing()); err != nil {
-		return fmt.Errorf("applying: %w", err)
+	// not a corrupted ledger. ADR-0003's migrations are expand-only and assume nothing but the
+	// schema they name, and the test beside this proves the case applies. Each pending file runs
+	// on its own, so that a transactional one gets the bounded lock wait and a NO TRANSACTION one
+	// does not.
+	plain, err := goose.NewProvider(goose.DialectPostgres, pool, files, goose.WithAllowOutofOrder(true))
+	if err != nil {
+		return fmt.Errorf("reading the migrations: %w", err)
+	}
+	bounded, err := goose.NewProvider(goose.DialectPostgres, guarded, files, goose.WithAllowOutofOrder(true))
+	if err != nil {
+		return fmt.Errorf("reading the migrations: %w", err)
+	}
+	states, err := plain.Status(ctx)
+	if err != nil {
+		return fmt.Errorf("reading the ledger: %w", err)
+	}
+	for _, state := range states {
+		if state.State != goose.StatePending {
+			continue
+		}
+		provider := bounded
+		if outsideTransaction(files, state.Source.Path) {
+			provider = plain
+		}
+		if err := applyWithRetry(ctx, pool, provider, state.Source.Version, pause); err != nil {
+			return fmt.Errorf("applying %d: %w", state.Source.Version, err)
+		}
 	}
 
 	after, err := goose.GetDBVersionContext(ctx, pool)
@@ -207,6 +252,140 @@ func up(ctx context.Context, pool *sql.DB) error {
 		slog.Int64("to", after),
 		slog.Bool("changed", after != before))
 	return nil
+}
+
+// applyWithRetry runs one file, and again after a pause while it gave up waiting for a table lock.
+func applyWithRetry(ctx context.Context, pool *sql.DB, provider *goose.Provider, version int64, pause time.Duration) error {
+	for attempt := 0; ; attempt++ {
+		_, err := provider.ApplyVersion(ctx, version, true)
+		if err == nil || !isLockTimeout(err) || attempt >= lockRetries {
+			return err
+		}
+		logBlockers(ctx, pool, version, attempt+1)
+		if !sleep(ctx, pause<<attempt) {
+			return err
+		}
+	}
+}
+
+// isLockTimeout is SQLSTATE 55P03, lock_not_available.
+func isLockTimeout(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "55P03"
+}
+
+// logBlockers names the open transactions a retry waited behind: their process, kind and the
+// first word of their statement - never the statement, which may quote a row (rule 10).
+func logBlockers(ctx context.Context, pool *sql.DB, version int64, attempt int) {
+	rows, err := pool.QueryContext(ctx, `
+		SELECT pid, backend_type, upper(split_part(ltrim(query), ' ', 1)),
+		       extract(epoch FROM now() - xact_start)::bigint
+		FROM pg_stat_activity
+		WHERE datname = current_database() AND pid <> pg_backend_pid() AND xact_start IS NOT NULL
+		ORDER BY xact_start LIMIT 5`)
+	if err != nil {
+		slog.Warn("a migration waited too long for a table lock; retrying",
+			slog.Int64("version", version), slog.Int("attempt", attempt))
+		return
+	}
+	defer func() { _ = rows.Close() }()
+	var blockers []string
+	for rows.Next() {
+		var (
+			pid             int64
+			kind, statement string
+			seconds         int64
+		)
+		if rows.Scan(&pid, &kind, &statement, &seconds) == nil {
+			blockers = append(blockers, fmt.Sprintf("%d:%s:%s:%ds", pid, kind, statementClass(statement), seconds))
+		}
+	}
+	slog.Warn("a migration waited too long for a table lock; retrying",
+		slog.Int64("version", version), slog.Int("attempt", attempt),
+		slog.String("open_transactions", strings.Join(blockers, ",")))
+}
+
+// statementClass keeps a statement's first word only where it is a keyword's shape.
+func statementClass(word string) string {
+	for _, r := range word {
+		if r < 'A' || r > 'Z' {
+			return "OTHER"
+		}
+	}
+	if word == "" {
+		return "IDLE"
+	}
+	return word
+}
+
+// dropLeftoverBackfillPolicies removes the policy a batched backfill gives itself (0019, 0212,
+// 0228), left behind by a run killed between its batches: the file's next run would otherwise
+// fail on CREATE POLICY for ever. Under the advisory lock no backfill is running, so every such
+// policy present is a leftover.
+func dropLeftoverBackfillPolicies(ctx context.Context, pool *sql.DB) error {
+	_, err := pool.ExecContext(ctx, `
+		DO $leftover$
+		DECLARE p record;
+		BEGIN
+		  FOR p IN SELECT schemaname, tablename, policyname FROM pg_policies
+		           WHERE policyname LIKE '%\_backfill' LOOP
+		    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', p.policyname, p.schemaname, p.tablename);
+		  END LOOP;
+		END $leftover$`)
+	if err != nil {
+		return fmt.Errorf("dropping a backfill's leftover policy: %w", err)
+	}
+	return nil
+}
+
+// outsideTransaction reports whether a migration file asks to run without a transaction.
+func outsideTransaction(files fs.FS, path string) bool {
+	content, err := fs.ReadFile(files, path)
+	return err == nil && strings.Contains(string(content), "-- +goose NO TRANSACTION")
+}
+
+// migrationFiles is the embedded directory, rooted where the files are.
+func migrationFiles() fs.FS {
+	files, err := fs.Sub(db.Migrations, "migrations")
+	if err != nil {
+		return db.Migrations
+	}
+	return files
+}
+
+// openGuarded is a second pool on the same database whose sessions wait at most wait for a lock.
+func openGuarded(dsn string, wait time.Duration) (*sql.DB, error) {
+	config, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, errors.New("the connection string could not be read")
+	}
+	config.RuntimeParams["lock_timeout"] = strconv.FormatInt(wait.Milliseconds(), 10)
+	return stdlib.OpenDB(*config), nil
+}
+
+func sleep(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+// durationFrom reads a positive duration, or answers the fallback.
+func durationFrom(variable string, fallback time.Duration) time.Duration {
+	raw := os.Getenv(variable)
+	if raw == "" {
+		return fallback
+	}
+	value, err := time.ParseDuration(raw)
+	if err != nil || value <= 0 {
+		slog.Warn("not a positive duration - taking the default", slog.String("variable", variable), slog.String("value", raw))
+		return fallback
+	}
+	return value
 }
 
 func status(ctx context.Context, pool *sql.DB) error {

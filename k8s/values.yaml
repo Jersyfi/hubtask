@@ -194,6 +194,9 @@ migration:
   # connections; whether the sync waited for it is the platform's knowledge, so the migrator does
   # not depend on it (deployment.md §2.2). Empty: one attempt, as before.
   connectWait: 5m
+  # The bound on one migration run. `helm upgrade --timeout` (or a sync's own) must allow at least
+  # this much, or it kills a long backfill the migrator would have finished.
+  timeout: 30m
   # The key holding the password for hubtask_app. Set it and the migrator grants that role its
   # login after migrating, so the application never has to connect as the owner
   # (multi-tenancy.md §2.1). Leave it

@@ -109,6 +109,8 @@ advisory lock for the run, so two migrators never run at once.
   copied by hand. `migration.appPasswordSecretKey` grants `hubtask_app` its login after migrating.
 * **The migrator waits for the database** (`migration.connectWait`, `HUBTASK_DB_CONNECT_WAIT`)
   rather than trusting the sync wave.
+* **The run's bound is the chart's** (`migration.timeout`, `HUBTASK_MIGRATE_TIMEOUT`): a
+  `helm upgrade --timeout` shorter than it kills a migration the migrator would have finished.
 * **A migration whose number is lower than one already applied is applied late**
   ([versioning-release.md](./versioning-release.md) §4).
 
@@ -305,6 +307,8 @@ breaks: search stays lexical and `/meta/capabilities` answers `semantic_search: 
 | `HUBTASK_DB_DSN` (`_FILE`) | The connection **as the database owner** — never the application's DSN |
 | `HUBTASK_DB_APP_PASSWORD` (`_FILE`) | Grants `hubtask_app` its login after the migrations. URL-safe characters (it travels inside the application's DSN). Empty where the cluster manages database roles itself |
 | `HUBTASK_DB_CONNECT_WAIT` | How long to keep trying to reach the database. Unset: one attempt |
+| `HUBTASK_MIGRATE_TIMEOUT` | The bound on the whole run, `30m` by default. Whatever runs the migrator (`helm --timeout`, a job deadline) must allow at least this long, or it kills a run the migrator would have finished; a killed run is resumed by the next one, which drops a backfill's leftover policy first |
+| `HUBTASK_MIGRATE_LOCK_TIMEOUT` | How long a statement of a transactional migration waits for a table lock, `5s` by default; the file is then retried five times with a growing pause and the open transactions it waited behind are logged (process, kind, first word of the statement). A `NO TRANSACTION` file runs without the bound |
 
 The restore drill's variables (`HUBTASK_DRILL_*`) are set by the chart
 ([backup-restore.md](./backup-restore.md) §8.5).
