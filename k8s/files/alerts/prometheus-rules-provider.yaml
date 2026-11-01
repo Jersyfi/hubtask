@@ -346,3 +346,43 @@ groups:
             and indexes grow while it stays open. Find it in pg_stat_activity; a backup or export
             of a large workspace is the usual one.
           runbook: RB-A25-long-transaction.md
+
+      # A-26. Live connections are refused at a workspace's or a pod's cap (HUBTASK_STREAM_PER_*):
+      # the server is fine, but the refused clients get no live updates and fall back to pulling
+      # the changes at a slowing interval. A client over its own cap is its loop, not capacity, and
+      # is left out.
+      - alert: HubtaskStreamCapacityReached
+        expr: sum(increase(hubtask_stream_refused_total{reason=~"tenant|process"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          alert_id: A-26
+        annotations:
+          summary: "Live connections are refused at the stream cap"
+          description: >
+            A workspace or a pod holds as many live connections as allowed, so new ones are
+            refused and those clients work without live updates. Raise HUBTASK_STREAM_PER_TENANT
+            or HUBTASK_STREAM_PER_PROCESS, or add a replica.
+          runbook: RB-A26-stream-capacity-reached.md
+
+      # A-27. A data kind's retention passes ran this week and none has completed for two days:
+      # the per-workspace sweep (hourly by default) stopped, so data stays past its period. The
+      # run histogram is written on a completed pass only, zero rows included. A kind with no
+      # pass in the week (never installed, or switched off long ago) has nothing to compare and
+      # stays quiet; one switched off within the week fires until it ages out.
+      - alert: HubtaskRetentionStalled
+        expr: |
+          sum by (data_kind) (increase(hubtask_retention_run_duration_seconds_count[7d])) > 0
+          unless on (data_kind)
+          sum by (data_kind) (increase(hubtask_retention_run_duration_seconds_count[48h])) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-27
+        annotations:
+          summary: "No retention pass of {{ $labels.data_kind }} has completed in 48 hours"
+          description: >
+            The retention sweep ran this week and has stopped: data of this kind stays past its
+            period. Look for dead letters of retention.sweep and for a scheduler that does not
+            run.
+          runbook: RB-A27-retention-stalled.md

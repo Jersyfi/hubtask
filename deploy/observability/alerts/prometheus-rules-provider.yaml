@@ -364,3 +364,25 @@ groups:
             refused and those clients work without live updates. Raise HUBTASK_STREAM_PER_TENANT
             or HUBTASK_STREAM_PER_PROCESS, or add a replica.
           runbook: RB-A26-stream-capacity-reached.md
+
+      # A-27. A data kind's retention passes ran this week and none has completed for two days:
+      # the per-workspace sweep (hourly by default) stopped, so data stays past its period. The
+      # run histogram is written on a completed pass only, zero rows included. A kind with no
+      # pass in the week (never installed, or switched off long ago) has nothing to compare and
+      # stays quiet; one switched off within the week fires until it ages out.
+      - alert: HubtaskRetentionStalled
+        expr: |
+          sum by (data_kind) (increase(hubtask_retention_run_duration_seconds_count[7d])) > 0
+          unless on (data_kind)
+          sum by (data_kind) (increase(hubtask_retention_run_duration_seconds_count[48h])) > 0
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-27
+        annotations:
+          summary: "No retention pass of {{ $labels.data_kind }} has completed in 48 hours"
+          description: >
+            The retention sweep ran this week and has stopped: data of this kind stays past its
+            period. Look for dead letters of retention.sweep and for a scheduler that does not
+            run.
+          runbook: RB-A27-retention-stalled.md

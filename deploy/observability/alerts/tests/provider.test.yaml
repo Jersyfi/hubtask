@@ -427,3 +427,41 @@ tests:
       - eval_time: 15m
         alertname: HubtaskStreamCapacityReached
         exp_alerts: []
+
+  # A-27: trash passes completed hourly for three days, then stopped for three days.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_retention_run_duration_seconds_count{data_kind="trash"}'
+        values: '0+1x72 72x72'
+    alert_rule_test:
+      - eval_time: 124h
+        alertname: HubtaskRetentionStalled
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-27
+              data_kind: trash
+            exp_annotations:
+              summary: "No retention pass of trash has completed in 48 hours"
+              description: "The retention sweep ran this week and has stopped: data of this kind stays past its period. Look for dead letters of retention.sweep and for a scheduler that does not run.\n"
+              runbook: RB-A27-retention-stalled.md
+
+  # A-27 stays quiet while the passes go on, across a restart that reset the counter.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_retention_run_duration_seconds_count{data_kind="trash"}'
+        values: '0+1x72 0+1x72'
+    alert_rule_test:
+      - eval_time: 140h
+        alertname: HubtaskRetentionStalled
+        exp_alerts: []
+
+  # A-27 stays quiet for a kind that has not run all week.
+  - interval: 1h
+    input_series:
+      - series: 'hubtask_retention_run_duration_seconds_count{data_kind="comment"}'
+        values: '5x200'
+    alert_rule_test:
+      - eval_time: 190h
+        alertname: HubtaskRetentionStalled
+        exp_alerts: []

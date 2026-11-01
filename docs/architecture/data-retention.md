@@ -206,6 +206,8 @@ Evaluated in this order; the first that applies wins:
   never every object. A rule set aside because its condition could not be evaluated (§2) is a log
   line with the rule and the code, and its `last_failure` is written in a transaction of its own
   beside the pass, so a pass that rolls back afterwards keeps it.
+* **Stopped passes alert:** a data kind whose passes completed during the week and not once in 48
+  hours raises A-27 (`hubtask_retention_run_duration_seconds_count`, written per completed pass).
 * **Finished jobs** go seven days after they ended, in every terminal state, dead letters included
   (the data catalogue's period; a payload names people by identifier). The `job` table has no
   tenant, so the scheduler's leader removes them installation-wide, on the first tick of each hour,
