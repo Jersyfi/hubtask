@@ -189,10 +189,10 @@ func (noJobs) Hold(context.Context, queue.Job) error                     { retur
 func (noJobs) Extend(_ context.Context, job queue.Job, _ time.Time) (queue.Job, error) {
 	return job, nil
 }
-func (noJobs) Complete(context.Context, queue.Job, string) error         { return nil }
-func (noJobs) Repeat(context.Context, queue.Job, time.Time) error        { return nil }
-func (noJobs) Fail(context.Context, queue.Failure) error                 { return nil }
-func (noJobs) Depth(context.Context) ([]queue.Depth, error)              { return nil, nil }
+func (noJobs) Complete(context.Context, queue.Job, string) error  { return nil }
+func (noJobs) Repeat(context.Context, queue.Job, time.Time) error { return nil }
+func (noJobs) Fail(context.Context, queue.Failure) error          { return nil }
+func (noJobs) Depth(context.Context) ([]queue.Depth, error)       { return nil, nil }
 
 // slugFor turns an identifier into something the slug constraint accepts: lower case, no separators
 // beyond the hyphen, and at most forty characters. A UUID with its hyphens kept is already all of

@@ -77,10 +77,10 @@ func (p *passQueue) Hold(context.Context, queue.Job) error                   { r
 func (p *passQueue) Extend(_ context.Context, job queue.Job, _ time.Time) (queue.Job, error) {
 	return job, nil
 }
-func (p *passQueue) Complete(context.Context, queue.Job, string) error       { return nil }
-func (p *passQueue) Repeat(context.Context, queue.Job, time.Time) error      { return nil }
-func (p *passQueue) Fail(context.Context, queue.Failure) error               { return nil }
-func (p *passQueue) Depth(context.Context) ([]queue.Depth, error)            { return nil, nil }
+func (p *passQueue) Complete(context.Context, queue.Job, string) error  { return nil }
+func (p *passQueue) Repeat(context.Context, queue.Job, time.Time) error { return nil }
+func (p *passQueue) Fail(context.Context, queue.Failure) error          { return nil }
+func (p *passQueue) Depth(context.Context) ([]queue.Depth, error)       { return nil, nil }
 
 // expander is the recurrence port, answering a fixed step so that a test states the moments rather
 // than the library does. The library's own answers are the golden files' subject

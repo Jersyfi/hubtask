@@ -88,8 +88,8 @@ func TestARequestsReaderSeesTheRequestersAssetsTheyMayRead(t *testing.T) {
 		{ID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000006a4"), HubID: hubID, Class: "laptop", Name: "Someone else's", Stage: cmdb.StageInUse, Compliance: cmdb.Compliance{OwnerAccount: handlerID}},
 	}
 	read := ReadEntryRequester{
-		Desk:  Desk{Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Visibility: readsDeskHub{}},
-		Items: &itemStore{item: work.WorkItem{ID: itemID, TenantID: tenantID, CollectionID: itemID, CreatedBy: requesterID}},
+		Desk:       Desk{Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Visibility: readsDeskHub{}},
+		Items:      &itemStore{item: work.WorkItem{ID: itemID, TenantID: tenantID, CollectionID: itemID, CreatedBy: requesterID}},
 		Containers: containerStore{}, Accounts: addressBook{emails: map[shared.ID]string{}},
 		Assets: owned, Modules: assetsAt{off: assetsOff},
 	}

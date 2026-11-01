@@ -154,10 +154,10 @@ func (noJobs) Hold(context.Context, queue.Job) error                     { retur
 func (noJobs) Extend(_ context.Context, job queue.Job, _ time.Time) (queue.Job, error) {
 	return job, nil
 }
-func (noJobs) Complete(context.Context, queue.Job, string) error         { return nil }
-func (noJobs) Repeat(context.Context, queue.Job, time.Time) error        { return nil }
-func (noJobs) Fail(context.Context, queue.Failure) error                 { return nil }
-func (noJobs) Depth(context.Context) ([]queue.Depth, error)              { return nil, nil }
+func (noJobs) Complete(context.Context, queue.Job, string) error  { return nil }
+func (noJobs) Repeat(context.Context, queue.Job, time.Time) error { return nil }
+func (noJobs) Fail(context.Context, queue.Failure) error          { return nil }
+func (noJobs) Depth(context.Context) ([]queue.Depth, error)       { return nil, nil }
 
 // pull is the pull as the server wires it, over this package's cursors.
 func (s *suite) pull(t *testing.T) syncservice.PullChanges {
