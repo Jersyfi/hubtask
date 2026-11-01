@@ -140,3 +140,31 @@ func TestTheSelfHostingStackRunsAPinnedRelease(t *testing.T) {
 		t.Errorf(".env.example sets HUBTASK_VERSION=%s, a floating tag", v)
 	}
 }
+
+// An upgrade migrates only after a recovery point exists: the migration waits for the dump to have
+// completed, and the dump runs pg_dump of the database's own major (backup-restore.md §8.6).
+func TestTheSelfHostingStackDumpsBeforeItMigrates(t *testing.T) {
+	compose := string(readFile(t, "../../deploy/docker/compose.yaml"))
+	service := func(name string) string {
+		start := strings.Index(compose, "\n  "+name+":\n")
+		if start < 0 {
+			t.Fatalf("compose.yaml has no %s service", name)
+		}
+		rest := compose[start+1:]
+		if end := regexp.MustCompile(`\n  [a-z][a-z-]*:\n|\n[a-z]`).FindStringIndex(rest[1:]); end != nil {
+			return rest[:end[0]+1]
+		}
+		return rest
+	}
+	migrate, dump, db := service("migrate"), service("upgrade-dump"), service("db")
+	if !regexp.MustCompile(`upgrade-dump:\s*\n\s*condition: service_completed_successfully`).MatchString(migrate) {
+		t.Error("migrate does not wait for upgrade-dump to complete successfully")
+	}
+	image := regexp.MustCompile(`(?m)^\s+image:\s*(\S+)`)
+	if a, b := image.FindStringSubmatch(dump), image.FindStringSubmatch(db); a == nil || b == nil || a[1] != b[1] {
+		t.Errorf("upgrade-dump's image %v is not db's %v: pg_dump must match the server's major", a, b)
+	}
+	if !strings.Contains(dump, "pg_dump -Fc") {
+		t.Error("upgrade-dump does not dump the database")
+	}
+}

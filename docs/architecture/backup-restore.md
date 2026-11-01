@@ -517,8 +517,22 @@ docker compose exec -T db pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --cle
   < hubtask-20260907T020000Z.dump
 ```
 
-It gives a consistent snapshot of the whole installation, restorable onto the same PostgreSQL major
-version — not what §8.5 gives:
+Before an upgrade the stack takes one itself: the `upgrade-dump` service dumps the database before
+`migrate` runs a release it has not run yet, into the `upgrade-dumps` volume, keeping the last three
+(`HUBTASK_UPGRADE_DUMPS_KEPT`). A dump that fails stops the upgrade. It covers the database only, not
+the media, and lies on the same host — a way back from a failed upgrade, not a backup:
+
+```bash
+docker compose run --rm --entrypoint ls upgrade-dump -1t /dumps     # newest first
+docker compose stop app
+docker compose run --rm --entrypoint sh upgrade-dump -c \
+  'pg_restore --clean --if-exists -d "$PGDATABASE" /dumps/hubtask-20261101T020000Z-before-v1.1.0.dump'
+```
+
+Then set `HUBTASK_VERSION` back to the release named before, and start it.
+
+A dump gives a consistent snapshot of the whole installation, restorable onto the same PostgreSQL
+major version — not what §8.5 gives:
 
 * **No point in time but the ones you took**: the RPO of ≤ 5 minutes in
   [observability-reliability.md §2](./observability-reliability.md#2-service-level-objectives) needs

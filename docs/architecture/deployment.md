@@ -92,7 +92,11 @@ board opens read-only; after three connections that never opened while the event
 the editor names the proxy as the likely cause.
 
 Updating: raise `HUBTASK_VERSION` in `.env`, then `docker compose pull && docker compose up -d`.
-The migration runs before the application starts; because migrations are expand/contract-safe
+Before the migration runs a release this database has not run yet, `upgrade-dump` dumps the
+database into the `upgrade-dumps` volume and keeps the last `HUBTASK_UPGRADE_DUMPS_KEPT` (3); a dump
+that fails stops the upgrade before any migration ran, so an upgrade never starts without a
+recovery point (`HUBTASK_UPGRADE_DUMP=false` for a database backed up otherwise; backup-restore.md
+§8.6). The migration runs before the application starts; because migrations are expand/contract-safe
 ([versioning-release.md](./versioning-release.md) §4), the old version may still be running while
 it does.
 

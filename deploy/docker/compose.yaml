@@ -31,6 +31,45 @@ services:
       retries: 10
     # Not published externally: the database is not a public interface.
 
+  # A recovery point before an upgrade migrates (backup-restore.md §8.6). Migrations are forward
+  # only and a failed one is undone by a restore, so the database is dumped before `migrate` runs a
+  # release it has not run yet: a fresh database and a restart of the same release dump nothing.
+  # The same image as `db`, so pg_dump matches the server's major. A dump that fails stops the
+  # upgrade before any migration ran. The last HUBTASK_UPGRADE_DUMPS_KEPT dumps are kept in the
+  # upgrade-dumps volume; HUBTASK_UPGRADE_DUMP=false is for an installation backed up otherwise.
+  upgrade-dump:
+    image: pgvector/pgvector:pg16
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-hubtask}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-hubtask}
+      RELEASE: ${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
+      ENABLED: ${HUBTASK_UPGRADE_DUMP:-true}
+      KEPT: ${HUBTASK_UPGRADE_DUMPS_KEPT:-3}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ "$$ENABLED" = "false" ]; then echo "upgrade dump switched off"; exit 0; fi
+        # Assigned first: under -e a database that cannot be reached stops here, never reads as new.
+        migrated=$$(psql -tAc "SELECT to_regclass('public.goose_db_version') IS NOT NULL")
+        if [ "$$migrated" != "t" ]; then echo "a new database: nothing to dump"; exit 0; fi
+        last=$$(cat /dumps/release 2>/dev/null || true)
+        if [ "$$last" = "$$RELEASE" ]; then echo "$$RELEASE has run on this database: nothing to dump"; exit 0; fi
+        file="/dumps/hubtask-$$(date -u +%Y%m%dT%H%M%SZ)-before-$$RELEASE.dump"
+        pg_dump -Fc -f "$$file.partial"
+        mv "$$file.partial" "$$file"
+        echo "$$RELEASE" > /dumps/release
+        ls -1t /dumps/hubtask-*.dump | tail -n +$$((KEPT + 1)) | xargs -r rm -f --
+        echo "dumped before $$RELEASE: $$file"
+    volumes:
+      - upgrade-dumps:/dumps
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   migrate:
     image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
     entrypoint: ["/usr/local/bin/hubtask-migrate", "up"]
@@ -63,6 +102,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      upgrade-dump:
+        condition: service_completed_successfully
     restart: "no"          # the migration runs once, not continuously (ADR-0016)
 
   app:
@@ -182,3 +223,4 @@ volumes:
   db-data:
   media:
   backups:
+  upgrade-dumps:
