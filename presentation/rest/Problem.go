@@ -135,7 +135,27 @@ func ProblemFrom(err error, requestID string) Problem {
 // WriteProblem sends the error as RFC 9457. It never fails visibly: at that point the status is
 // already written, and a broken response body is a log entry, not a second error.
 func WriteProblem(w http.ResponseWriter, err error, requestID string) {
+	noteProblem(w, err)
 	writeProblem(w, ProblemFrom(err, requestID))
+}
+
+// problemNoter is the observability middleware's writer, which logs the cause of a 5xx that no use
+// case logged.
+type problemNoter interface{ noteProblem(err error) }
+
+// noteProblem hands err to the observability writer beneath w, through any wrapper that unwraps.
+func noteProblem(w http.ResponseWriter, err error) {
+	for w != nil {
+		if noter, ok := w.(problemNoter); ok {
+			noter.noteProblem(err)
+			return
+		}
+		unwrapper, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return
+		}
+		w = unwrapper.Unwrap()
+	}
 }
 
 // WriteMethodNotAllowed answers a request that reached a route but not one of its methods. The

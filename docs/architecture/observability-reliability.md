@@ -62,6 +62,10 @@ Structured JSON through `log/slog`. Mandatory fields: `ts`, `level`, `msg`, `ser
   clear text (hashed, or the account ID).
 * Levels: `ERROR` only for states that require human action, otherwise `WARN`. Expected business
   errors (validation, `404`) are `INFO`.
+* **Every 5xx is one line with its request ID.** A use case dispatched through the registry logs
+  its own failure; for a route that calls its service directly (sync, SAML, SCIM, media, public
+  forms, the stream) the REST middleware writes it — `route`, `status`, `error_code` and the
+  cause — so a reference a user quotes always leads to a cause, and never to two lines.
 
 ### 3.2 Metrics
 
