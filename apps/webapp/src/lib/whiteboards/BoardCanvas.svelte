@@ -35,6 +35,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import EntryPicker from '../entries/EntryPicker.svelte';
+  import { keyboardTool, sizeOf, tabTarget } from './keys.ts';
   import BoardComments from './BoardComments.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -87,6 +88,7 @@
   let draft = $state('');
   let view = $state<Viewport>({ x: -80, y: -80, zoom: 1, width: 1, height: 1 });
   let surface = $state<SVGSVGElement | undefined>(undefined);
+  let toolbar = $state<HTMLDivElement | undefined>(undefined);
   let cards = $state<Map<string, ReferenceTarget>>(new Map());
   let isPickingEntry = $state(false);
   let picked = $state<WorkItem | undefined>(undefined);
@@ -453,10 +455,12 @@
   function key(event: KeyboardEvent) {
     if (editing) return;
     const order = elements.filter((e) => e.kind !== 'CONNECTOR');
-    if (event.key === 'Tab' && order.length > 0) {
+    if (event.key === 'Tab') {
+      const nextId = tabTarget(order.map((e) => e.id), selected[0], event.shiftKey);
+      // Past the last object (or before the first) Tab is the page's again: focus leaves the board.
+      if (nextId === undefined) return;
       event.preventDefault();
-      const at = order.findIndex((e) => e.id === selected[0]);
-      const next = order[(at + (event.shiftKey ? order.length - 1 : 1) + (at < 0 && event.shiftKey ? 1 : 0)) % order.length];
+      const next = byId.get(nextId);
       if (next) {
         selected = [next.id];
         choose([next.id]);
@@ -468,9 +472,22 @@
       }
       return;
     }
-    if (event.key === 'Escape') { selected = []; tool = 'select'; following = undefined; return; }
-    if (!writable) return;
+    if (event.key === 'Escape') {
+      // A second Escape, with nothing chosen, takes focus out of the board to its tools.
+      if (selected.length === 0 && tool === 'select') toolbar?.querySelector<HTMLElement>('button, select, input')?.focus();
+      selected = []; tool = 'select'; following = undefined; return;
+    }
     const mod = event.ctrlKey || event.metaKey;
+    if (mod && (event.key === 'a' || event.key === 'A') && order.length > 0) {
+      event.preventDefault();
+      choose(order.map((e) => e.id));
+      announcer.say(t('app.whiteboards.chose_all', { count: String(selected.length) }));
+      return;
+    }
+    if (event.key === 'Enter' && chosen?.kind === 'CARD') { event.preventDefault(); openCard(chosen); return; }
+    if (event.key === 'Enter' && chosen?.kind === 'FILE') { event.preventDefault(); void openFile(chosen.media_id); return; }
+    if (!writable) return;
+    if (event.key === ' ' && chosen?.kind === 'CARD') { event.preventDefault(); void tick(chosen); return; }
     if (mod && (event.key === 'd' || event.key === 'D') && selected.length > 0) {
       event.preventDefault();
       duplicate();
@@ -485,6 +502,50 @@
     if (mod) return;
     if ((event.key === 'v' || event.key === 'V') && chosen && voting?.open) { event.preventDefault(); vote(chosen.id); return; }
     if (event.key === 'n' || event.key === 'N') { event.preventDefault(); const id = put('STICKY', centre()); if (id) edit(id); }
+  }
+
+  /** Opens a card's entry, which is what its ↗ does for a pointer. */
+  function openCard(e: Element) {
+    const target = cardOf(e);
+    if (target?.available) onnavigate(`/items/${target.id}`);
+  }
+
+  /**
+   * Chooses a tool. Pressed with a pointer it waits for the board to be pressed; pressed from the
+   * keyboard (a click with no pointer behind it) it acts at once, at the centre of the view.
+   */
+  function pickTool(next: Tool, byKeyboard: boolean) {
+    tool = next;
+    if (!byKeyboard) return;
+    const action = keyboardTool(next);
+    if (action === 'place') {
+      const id = put(next as ElementKind, centre());
+      tool = 'select';
+      if (id && (model.get(id)?.kind ?? '') !== 'FRAME') edit(id);
+      else surface?.focus();
+    } else if (action === 'link') {
+      linkAt = centre();
+      linkDraft = '';
+      isLinking = true;
+      tool = 'select';
+    } else if (action === 'connect') {
+      tool = 'select';
+      announcer.say(t('app.whiteboards.connect_hint'));
+    }
+  }
+
+  /** Draws a connector between the chosen object and another, as dragging from one to the other does. */
+  function connectTo(from: string, to: string) {
+    if (!to || to === from) return;
+    model.add({ id: elementId(), kind: 'CONNECTOR', from, to, route: 'STRAIGHT', start: 'NONE', end: 'ARROW', x: 0, y: 0, width: 0, height: 0 });
+    announcer.say(t('app.whiteboards.connected'));
+  }
+
+  /** The objects a picker in the side panel offers: every one but connectors, strokes and those left out. */
+  function others(leaveOut: readonly string[]) {
+    return elements
+      .filter((e) => e.kind !== 'CONNECTOR' && e.kind !== 'STROKE' && !leaveOut.includes(e.id))
+      .map((e) => ({ value: e.id, label: `${t(`app.whiteboards.kind_${e.kind.toLowerCase()}`)}: ${wordsOf(e)}` }));
   }
 
   function remove() {
@@ -948,14 +1009,21 @@
   const drafting = $derived(gesture?.kind === 'draw' ? gesture.points : undefined);
 </script>
 
+{#snippet addToSelection()}
+  <!-- Shift+click's keyboard way: what grouping and duplicating several objects start from. -->
+  {#if others(selected).length > 0}
+    <Select size="sm" label={t('app.whiteboards.add_to_selection')} placeholder={t('app.whiteboards.connect_to_choose')} value="" options={others(selected)} onchange={(event: Event) => { const select = event.currentTarget as HTMLSelectElement; if (select.value) choose([...selected, select.value]); select.value = ''; }} />
+  {/if}
+{/snippet}
+
 <svelte:window oncopy={(event) => copied(event, false)} oncut={(event) => copied(event, true)} onpaste={pasted} />
 
 <div class="board">
-  <div class="bar" role="toolbar" aria-label={t('app.whiteboards.tools')}>
+  <div class="bar" role="toolbar" aria-label={t('app.whiteboards.tools')} bind:this={toolbar}>
     <Inline gap="050" align="center">
       {#if writable}
         {#each tools as each (each.tool)}
-          <Button size="sm" tone={tool === each.tool ? 'primary' : 'subtle'} icon={each.icon} aria-pressed={tool === each.tool} onclick={() => (tool = each.tool)}>
+          <Button size="sm" tone={tool === each.tool ? 'primary' : 'subtle'} icon={each.icon} aria-pressed={tool === each.tool} onclick={(event: MouseEvent) => pickTool(each.tool, event.detail === 0)}>
             {t(`app.whiteboards.tool_${each.tool.toLowerCase()}`)}
           </Button>
         {/each}
@@ -1202,6 +1270,20 @@
       {#if chosen}
         <Stack gap="100">
           <h3 class="heading">{t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`)}</h3>
+          {#if chosen.kind === 'CARD' && cardOf(chosen)?.available}
+            {@const card = cardOf(chosen)}
+            <Inline gap="050">
+              <Button size="sm" tone="secondary" icon="arrow-right" onclick={() => openCard(chosen)}>{t('app.whiteboards.card_open_entry')}</Button>
+              {#if writable}
+                <Button size="sm" tone="subtle" icon="square-check" aria-pressed={card?.completed ?? false} onclick={() => void tick(chosen)}>
+                  {t(card?.completed ? 'app.whiteboards.card_undone' : 'app.whiteboards.card_done')}
+                </Button>
+              {/if}
+            </Inline>
+          {/if}
+          {#if chosen.kind === 'FILE' && chosen.media_id}
+            <Button size="sm" tone="secondary" icon="file-text" onclick={() => void openFile(chosen.media_id)}>{t('app.whiteboards.file_open_button')}</Button>
+          {/if}
           {#if writable && !chosen.locked}
             {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || chosen.kind === 'STROKE'}
               <div class="swatches" role="radiogroup" aria-label={t('app.whiteboards.colour')}>
@@ -1217,6 +1299,15 @@
                   ></button>
                 {/each}
               </div>
+            {/if}
+            {#if chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE'}
+              <Inline gap="050">
+                <Input size="sm" type="number" min="24" label={t('app.whiteboards.width')} value={String(chosen.width)} onchange={(event: Event) => { const width = sizeOf((event.currentTarget as HTMLInputElement).value); if (width) model.update(chosen.id, { width }); }} />
+                <Input size="sm" type="number" min="24" label={t('app.whiteboards.height')} value={String(chosen.height)} onchange={(event: Event) => { const height = sizeOf((event.currentTarget as HTMLInputElement).value); if (height) model.update(chosen.id, { height }); }} />
+              </Inline>
+              {#if others([chosen.id]).length > 0}
+                <Select size="sm" label={t('app.whiteboards.connect_to')} placeholder={t('app.whiteboards.connect_to_choose')} value="" options={others([chosen.id])} onchange={(event: Event) => { const select = event.currentTarget as HTMLSelectElement; connectTo(chosen.id, select.value); select.value = ''; }} />
+              {/if}
             {/if}
             {#if chosen.kind === 'SHAPE'}
               <Select size="sm" label={t('app.whiteboards.shape')} value={chosen.shape ?? 'RECTANGLE'} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { shape: (event.currentTarget as HTMLSelectElement).value as Shape })} />
@@ -1253,6 +1344,7 @@
               <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
             </Inline>
           {/if}
+          {@render addToSelection()}
           {#if writable}
             <Button size="sm" tone="subtle" icon="lock" onclick={() => model.update(chosen.id, { locked: !chosen.locked })}>
               {t(chosen.locked ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')}
@@ -1262,6 +1354,7 @@
       {:else if selected.length > 1}
         <Stack gap="100">
           <h3 class="heading">{t('app.whiteboards.several', { count: String(selected.length) })}</h3>
+          {@render addToSelection()}
           {#if writable}
             <Inline gap="050">
               {#if isGrouped}
