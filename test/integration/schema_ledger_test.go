@@ -72,3 +72,16 @@ func TestTheLedgerReadsBeforeAndAfterItsReaderOnAManagedDatabase(t *testing.T) {
 		t.Errorf("after the migration: older %v, applied %v", older, applied)
 	}
 }
+
+// The application role reads the compatibility floor (migration 0337); no contract step has raised
+// it yet, so it holds this build back from nothing.
+func TestTheApplicationRoleReadsTheCompatibilityFloor(t *testing.T) {
+	ctx := context.Background()
+	floor, err := postgres.SchemaLedger{UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t))}.Floor(ctx)
+	if err != nil {
+		t.Fatalf("reading the floor as the application role: %v", err)
+	}
+	if floor > slices.Max(dbfiles.Versions()) {
+		t.Fatalf("the floor %d is above this build's newest migration", floor)
+	}
+}

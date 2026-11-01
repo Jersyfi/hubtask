@@ -60,7 +60,10 @@ type Report struct {
 type MigrationState struct {
 	Applied  int
 	Expected int
-	Status   string // ok | behind | ahead
+	// CompatibleFrom is the schema's compatibility floor: the oldest binary, by its newest
+	// migration, that still works on it. 0 where no contract step raised it.
+	CompatibleFrom int
+	Status         string // ok | behind | ahead | too_old
 }
 
 type DependencyReport struct {

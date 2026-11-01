@@ -3,6 +3,10 @@
 -- function because the ledger is closed to the application role; it answers numbers only.
 SELECT applied_schema_versions()::bigint[] AS versions;
 
+-- name: SchemaCompatibilityFloor :one
+-- The oldest binary, by its newest migration, that works on this schema (deployment.md §5).
+SELECT schema_compatibility_floor()::bigint AS floor;
+
 -- name: ReadInstanceSettings :many
 -- The installation's own level (ADR-0070 §2).
 --

@@ -206,14 +206,15 @@ who runs `helm`.
 | Readiness gate + a PodDisruptionBudget per role (`minAvailable: 1`) | No pod disappears before its replacement is ready |
 | Migration before the rollout, expand/contract | The old and new versions run simultaneously without harm |
 | Migration versions watched across pods | `hubtask_migration_version` per pod; alert A-13 fires when pods disagree for more than 15 minutes |
-| Readiness compares the schema | A pod is ready only when every migration it embeds is applied (`/readyz` answers `migration:behind` otherwise, and the health report's `migration` says `behind`); a database migrated further is `ahead` and fine — the expand step of the next release. Read through `applied_schema_versions()`, numbers only; the ledger stays closed to the application role. `/startupz` does not compare: a failing startup probe restarts a pod that is only waiting for its migration. Behind, a worker claims no job and a scheduler neither takes nor keeps leadership, until the migration has run |
+| Readiness compares the schema | A pod is ready only when every migration it embeds is applied (`/readyz` answers `migration:behind` otherwise, and the health report's `migration` says `behind`); a database migrated further is `ahead` and fine — the expand step of the next release — unless it passed a contract step this binary predates: its compatibility floor (`schema_compatibility_floor()`, raised by each contract migration) above the binary's newest migration answers `migration:too_old`, the report's `migration` says `too_old` with `compatible_from`, and the binary refuses to start (`config.binary_older_than_schema`). Read through `applied_schema_versions()`, numbers only; the ledger stays closed to the application role. `/startupz` does not compare: a failing startup probe restarts a pod that is only waiting for its migration. Behind, a worker claims no job and a scheduler neither takes nor keeps leadership, until the migration has run |
 | Graceful shutdown | On `SIGTERM` the process marks itself not ready, keeps serving for `HUBTASK_SHUTDOWN_DEREGISTER_SECONDS`, then drains in-flight requests within `HUBTASK_SHUTDOWN_GRACE_SECONDS` and releases job leases |
 | `terminationGracePeriodSeconds` (120) ≥ the job timeout plus the drain budget | No job is cut off mid-work |
 
 **Rollback:** deploy the previous chart version — `helm rollback` for `integration`, the previous
 tag in the Argo CD Application for production. That works only because the schema stays backwards
 compatible for at least one minor version; a rollback across a contract migration needs a restore
-from backup ([backup-restore.md](./backup-restore.md)).
+from backup ([backup-restore.md](./backup-restore.md)), and the older binary refuses to start rather
+than serve on a schema it cannot use.
 
 ---
 

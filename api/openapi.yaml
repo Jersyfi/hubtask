@@ -38726,7 +38726,12 @@ components:
           properties:
             applied: { type: integer }
             expected: { type: integer }
-            status: { type: string, enum: [ok, behind, ahead] }
+            compatible_from:
+              type: integer
+              description: >
+                The oldest build, by its newest migration, that still works on this schema; 0
+                until a contract step raises it. A build below it is `too_old`.
+            status: { type: string, enum: [ok, behind, ahead, too_old] }
         dependencies:
           type: array
           items: { $ref: "#/components/schemas/DependencyHealth" }

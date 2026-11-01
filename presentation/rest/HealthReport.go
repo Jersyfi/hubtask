@@ -32,9 +32,10 @@ type healthReport struct {
 }
 
 type migrationState struct {
-	Applied  int    `json:"applied"`
-	Expected int    `json:"expected"`
-	Status   string `json:"status"`
+	Applied        int    `json:"applied"`
+	Expected       int    `json:"expected"`
+	CompatibleFrom int    `json:"compatible_from"`
+	Status         string `json:"status"`
 }
 
 type dependencyHealth struct {
@@ -78,9 +79,10 @@ func healthReportJSON(report health.Report) healthReport {
 
 	if report.Migration != (health.MigrationState{}) {
 		out.Migration = &migrationState{
-			Applied:  report.Migration.Applied,
-			Expected: report.Migration.Expected,
-			Status:   report.Migration.Status,
+			Applied:        report.Migration.Applied,
+			Expected:       report.Migration.Expected,
+			CompatibleFrom: report.Migration.CompatibleFrom,
+			Status:         report.Migration.Status,
 		}
 	}
 	if report.Backlogs != (health.Backlogs{}) {

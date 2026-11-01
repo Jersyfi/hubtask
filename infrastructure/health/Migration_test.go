@@ -134,3 +134,56 @@ func TestTheLedgerIsReadAgainOnlyWhileBehind(t *testing.T) {
 		t.Errorf("a kept state was not read again after %s", migrationKept)
 	}
 }
+
+// deployment.md §5: a rollback across a contract step - the schema's compatibility floor above the
+// binary's newest migration - is not ready and reports too_old, although every migration the binary
+// embeds is applied and the schema merely reads as ahead. Up to the floor, ahead stays fine; an
+// unreadable floor holds nothing back.
+func TestABinaryBelowTheCompatibilityFloorIsNotReady(t *testing.T) {
+	embedded := []int64{1, 2, 3, 5}
+	applied := []int64{1, 2, 3, 5, 6, 7}
+	cases := []struct {
+		name      string
+		floor     int64
+		floorErr  error
+		ready     bool
+		reason    string
+		migration port.MigrationState
+	}{
+		{name: "past a contract step", floor: 6, ready: false, reason: "migration:too_old",
+			migration: port.MigrationState{Applied: 7, Expected: 5, CompatibleFrom: 6, Status: MigrationTooOld}},
+		{name: "at the floor", floor: 5, ready: true,
+			migration: port.MigrationState{Applied: 7, Expected: 5, CompatibleFrom: 5, Status: MigrationAhead}},
+		{name: "no contract step yet", floor: 0, ready: true,
+			migration: port.MigrationState{Applied: 7, Expected: 5, Status: MigrationAhead}},
+		{name: "the floor cannot be read", floorErr: errors.New("permission denied"), ready: true,
+			migration: port.MigrationState{Applied: 7, Expected: 5, Status: MigrationAhead}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			registry := migratedRegistry(embedded, &ledgerAnswer{applied: applied})
+			floorReads := 0
+			registry.SetCompatibilityFloor(func(context.Context) (int64, error) {
+				floorReads++
+				return tc.floor, tc.floorErr
+			})
+			ready, reason := registry.Ready(t.Context())
+			if ready != tc.ready || reason != tc.reason {
+				t.Errorf("ready = %v %q, want %v %q", ready, reason, tc.ready, tc.reason)
+			}
+			report := registry.Report(t.Context())
+			if report.Migration != tc.migration {
+				t.Errorf("migration %+v, want %+v", report.Migration, tc.migration)
+			}
+			if wantDown := !tc.ready; (report.Status == port.StatusDown) != wantDown {
+				t.Errorf("report status %q with ready %v", report.Status, tc.ready)
+			}
+			if Unserviceable(report.Migration) == tc.ready {
+				t.Errorf("Unserviceable disagrees with readiness for %+v", report.Migration)
+			}
+			if floorReads == 0 {
+				t.Error("the floor was never read")
+			}
+		})
+	}
+}

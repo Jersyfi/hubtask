@@ -150,6 +150,13 @@ a step that moves its writers lands one release before the drop:
   the suite's while a query on that list other than `CountFigureFlow` remains, and the release
   after that while no later migration drops `work_item_side_rows`.
 
+**A contract step raises the compatibility floor.** The migration that drops what an older binary
+names also replaces `schema_compatibility_floor()` (migration 0337) with the number of the first
+migration of the release that stopped naming it — never with a lower one. A binary whose newest
+migration is below the floor is `migration:too_old`: not ready, and it refuses to start
+(`config.binary_older_than_schema`), instead of passing readiness and failing every write on a
+dropped column ([deployment.md](./deployment.md) §5).
+
 ---
 
 ## 5. Support and upgrade policy

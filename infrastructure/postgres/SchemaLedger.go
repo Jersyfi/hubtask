@@ -53,3 +53,27 @@ func (l SchemaLedger) Applied(ctx context.Context) (applied []int64, older bool,
 	}
 	return applied, false, nil
 }
+
+// Floor answers the schema's compatibility floor (migration 0337): the oldest binary, by its newest
+// embedded migration, that still works on it. A database from before 0337 has no floor, which is 0.
+func (l SchemaLedger) Floor(ctx context.Context) (int64, error) {
+	var floor int64
+	err := l.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		queries, err := queriesFrom(ctx)
+		if err != nil {
+			return err
+		}
+		floor, err = queries.SchemaCompatibilityFloor(ctx)
+		return err
+	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == undefinedFunction {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the compatibility floor: %w", err))
+	}
+	return floor, nil
+}

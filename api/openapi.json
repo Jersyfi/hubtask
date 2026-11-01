@@ -64056,12 +64056,17 @@
               "expected": {
                 "type": "integer"
               },
+              "compatible_from": {
+                "type": "integer",
+                "description": "The oldest build, by its newest migration, that still works on this schema; 0 until a contract step raises it. A build below it is `too_old`.\n"
+              },
               "status": {
                 "type": "string",
                 "enum": [
                   "ok",
                   "behind",
-                  "ahead"
+                  "ahead",
+                  "too_old"
                 ]
               }
             }

@@ -22,6 +22,10 @@ const (
 	// MigrationAhead is a database migrated past this binary - the next release's expand step,
 	// which an older binary runs against by design.
 	MigrationAhead = "ahead"
+	// MigrationTooOld is a database past a contract step this binary predates: its compatibility
+	// floor is above the binary's newest migration, so the binary would name a dropped column. It
+	// is not ready and does not start (deployment.md §5).
+	MigrationTooOld = "too_old"
 
 	// migrationReadTimeout bounds one read of the ledger (rule 7).
 	migrationReadTimeout = 2 * time.Second
@@ -37,6 +41,23 @@ const (
 // An error means the ledger could not be read, and says nothing about the schema.
 type MigrationLedger func(ctx context.Context) (applied []int64, older bool, err error)
 
+// CompatibilityFloor reads the oldest binary, by its newest migration, that works on the schema.
+type CompatibilityFloor func(ctx context.Context) (int64, error)
+
+// SetCompatibilityFloor has the comparison also hold the binary to the schema's floor.
+func (r *Registry) SetCompatibilityFloor(floor CompatibilityFloor) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.floor = floor
+	r.migrationAt = time.Time{}
+}
+
+// Unserviceable reports whether the schema state forbids this binary to serve: behind it, or past
+// a contract step it predates.
+func Unserviceable(state port.MigrationState) bool {
+	return state.Status == MigrationBehind || state.Status == MigrationTooOld
+}
+
 // SetMigration has readiness and the report compare the database's migrations with the ones this
 // binary embeds. Without it, or with nothing embedded, neither compares anything.
 func (r *Registry) SetMigration(embedded []int64, ledger MigrationLedger) {
@@ -51,13 +72,13 @@ func (r *Registry) SetMigration(embedded []int64, ledger MigrationLedger) {
 // or the ledger could not be read - the database probe speaks for the database then.
 func (r *Registry) Migration(ctx context.Context) (port.MigrationState, bool) {
 	r.mu.RLock()
-	embedded, ledger := r.embedded, r.ledger
+	embedded, ledger, floorOf := r.embedded, r.ledger, r.floor
 	cached, at := r.migrationState, r.migrationAt
 	r.mu.RUnlock()
 	if ledger == nil || len(embedded) == 0 {
 		return port.MigrationState{}, false
 	}
-	if !at.IsZero() && cached.Status != MigrationBehind && r.now().Sub(at) < migrationKept {
+	if !at.IsZero() && !Unserviceable(cached) && r.now().Sub(at) < migrationKept {
 		return cached, true
 	}
 
@@ -70,7 +91,16 @@ func (r *Registry) Migration(ctx context.Context) (port.MigrationState, bool) {
 			slog.String("error", err.Error()))
 		return port.MigrationState{}, false
 	}
-	state := compareMigrations(embedded, applied, older)
+	floor := int64(0)
+	if floorOf != nil && !older {
+		if floor, err = floorOf(ctx); err != nil {
+			// Unread, the floor holds nothing back: the ledger's comparison still stands.
+			slog.WarnContext(ctx, "the compatibility floor could not be read for readiness",
+				slog.String("error", err.Error()))
+			floor = 0
+		}
+	}
+	state := compareMigrations(embedded, applied, older, floor)
 
 	r.mu.Lock()
 	r.migrationState, r.migrationAt = state, r.now()
@@ -87,8 +117,9 @@ func versionNumber(version int64) int {
 	return int(version)
 }
 
-// compareMigrations is the rule: every embedded migration applied, or the binary is behind.
-func compareMigrations(embedded, applied []int64, older bool) port.MigrationState {
+// compareMigrations is the rule: every embedded migration applied, or the binary is behind; and the
+// binary's newest at least the schema's floor, or it is too old.
+func compareMigrations(embedded, applied []int64, older bool, floor int64) port.MigrationState {
 	expected := slices.Max(embedded)
 	if older {
 		return port.MigrationState{Applied: 0, Expected: versionNumber(expected), Status: MigrationBehind}
@@ -99,7 +130,12 @@ func compareMigrations(embedded, applied []int64, older bool) port.MigrationStat
 		held[version] = true
 		highest = max(highest, version)
 	}
-	state := port.MigrationState{Applied: versionNumber(highest), Expected: versionNumber(expected), Status: MigrationOK}
+	state := port.MigrationState{Applied: versionNumber(highest), Expected: versionNumber(expected),
+		CompatibleFrom: versionNumber(floor), Status: MigrationOK}
+	if floor > expected {
+		state.Status = MigrationTooOld
+		return state
+	}
 	for _, version := range embedded {
 		if !held[version] {
 			state.Status = MigrationBehind

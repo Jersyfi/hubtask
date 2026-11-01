@@ -44,6 +44,7 @@ type Registry struct {
 	// kept for migrationKept unless it was behind.
 	embedded       []int64
 	ledger         MigrationLedger
+	floor          CompatibilityFloor
 	migrationState port.MigrationState
 	migrationAt    time.Time
 	now            func() time.Time
@@ -118,8 +119,8 @@ func (r *Registry) Ready(ctx context.Context) (bool, string) {
 	}
 	// After the database: a database that cannot be reached says so first, and the comparison
 	// needs it anyway.
-	if state, known := r.Migration(ctx); known && state.Status == MigrationBehind {
-		return false, "migration:" + MigrationBehind
+	if state, known := r.Migration(ctx); known && Unserviceable(state) {
+		return false, "migration:" + state.Status
 	}
 	return true, ""
 }
@@ -181,11 +182,11 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 		}
 	}
 
-	// A schema behind the binary is an outage of this process, not a degradation: it is not
+	// A schema behind the binary, or past a contract step it predates, is an outage of this process, not a degradation: it is not
 	// ready, and it does not serve (deployment.md §5).
 	if state, known := r.Migration(ctx); known {
 		rep.Migration = state
-		if state.Status == MigrationBehind {
+		if Unserviceable(state) {
 			rep.Status = port.StatusDown
 		}
 	}

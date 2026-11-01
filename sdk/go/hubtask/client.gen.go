@@ -5079,6 +5079,7 @@ const (
 	HealthReportMigrationStatusAhead  HealthReportMigrationStatus = "ahead"
 	HealthReportMigrationStatusBehind HealthReportMigrationStatus = "behind"
 	HealthReportMigrationStatusOk     HealthReportMigrationStatus = "ok"
+	HealthReportMigrationStatusTooOld HealthReportMigrationStatus = "too_old"
 )
 
 // Valid indicates whether the value is a known member of the HealthReportMigrationStatus enum.
@@ -5089,6 +5090,8 @@ func (e HealthReportMigrationStatus) Valid() bool {
 	case HealthReportMigrationStatusBehind:
 		return true
 	case HealthReportMigrationStatusOk:
+		return true
+	case HealthReportMigrationStatusTooOld:
 		return true
 	default:
 		return false
@@ -16903,9 +16906,12 @@ type HealthReport struct {
 	DegradedFeatures *[]DegradedFeature  `json:"degraded_features,omitempty"`
 	Dependencies     *[]DependencyHealth `json:"dependencies,omitempty"`
 	Migration        *struct {
-		Applied  *int                         `json:"applied,omitempty"`
-		Expected *int                         `json:"expected,omitempty"`
-		Status   *HealthReportMigrationStatus `json:"status,omitempty"`
+		Applied *int `json:"applied,omitempty"`
+
+		// CompatibleFrom The oldest build, by its newest migration, that still works on this schema; 0 until a contract step raises it. A build below it is `too_old`.
+		CompatibleFrom *int                         `json:"compatible_from,omitempty"`
+		Expected       *int                         `json:"expected,omitempty"`
+		Status         *HealthReportMigrationStatus `json:"status,omitempty"`
 	} `json:"migration,omitempty"`
 	Role     *[]HealthReportRole `json:"role,omitempty"`
 	Status   HealthStatus        `json:"status"`

@@ -4382,6 +4382,16 @@ $$;
 REVOKE ALL ON FUNCTION applied_schema_versions() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION applied_schema_versions() TO hubtask_app;
 
+-- The oldest binary, by its newest embedded migration, that still works on this schema
+-- (migration 0337): a contract migration raises it, readiness compares it (deployment.md §5).
+CREATE OR REPLACE FUNCTION schema_compatibility_floor()
+RETURNS bigint
+LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, pg_temp AS $$
+  SELECT 0::bigint;
+$$;
+REVOKE ALL ON FUNCTION schema_compatibility_floor() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION schema_compatibility_floor() TO hubtask_app;
+
 -- The oldest open transaction's age in seconds, the caller's own left out, for alert A-25
 -- (migration 0331): the application role sees its own sessions' transactions.
 CREATE OR REPLACE FUNCTION oldest_transaction_seconds()
