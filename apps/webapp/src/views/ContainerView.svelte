@@ -134,6 +134,7 @@
     HandleField: () => import('../lib/mail/HandleField.svelte'),
     ContainerEditDialog: () => import('../lib/workspace/ContainerEditDialog.svelte'),
     HubCalendars: () => import('../lib/servicedesk/HubCalendars.svelte'),
+    HubSlaPolicies: () => import('../lib/servicedesk/HubSlaPolicies.svelte'),
     TemplatesGallery: () => import('../lib/settings/TemplatesGallery.svelte'),
     SampleEntries: () => import('../lib/settings/SampleEntries.svelte'),
     CodeHooks: () => import('../lib/code/CodeHooks.svelte'),
@@ -1247,6 +1248,7 @@
         {/snippet}
         {#snippet calendarsTab()}
           <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />
+          <LazyView load={settingsParts.HubSlaPolicies} props={{ hubId: container.id, mayShape }} />
         {/snippet}
         {#snippet codeTab()}
           <LazyView load={settingsParts.CodeHooks} props={{ hubId: container.id }} />

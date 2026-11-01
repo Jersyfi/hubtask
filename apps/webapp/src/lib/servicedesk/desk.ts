@@ -80,6 +80,25 @@ export interface HubCalendarRow {
   own: BusinessCalendar | undefined;
 }
 
+/**
+ * A hub's settings: the SLA policies shared with it, read-only there, and its own (UC-SVC-02
+ * check 11) - never another hub's, which measures none of this hub's entries.
+ */
+export function policiesAtHub<P extends { readonly hub_id?: string | null }>(policies: readonly P[], hub: string): { readonly shared: readonly P[]; readonly own: readonly P[] } {
+  return { shared: policies.filter((p) => !p.hub_id), own: policies.filter((p) => p.hub_id === hub) };
+}
+
+/** A key free in the workspace for a copy of the policy: `<key>_copy`, then `_2`, `_3`, … */
+export function policyCopyKey(policies: readonly { readonly key: string }[], key: string): string {
+  const taken = new Set(policies.map((p) => p.key));
+  const stem = `${key}_copy`.slice(0, 44);
+  if (!taken.has(stem)) return stem;
+  for (let n = 2; ; n++) {
+    const candidate = `${stem}_${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 /** The workspace's calendars by key, each with the hub's own version where it keeps one. */
 export function hubCalendarRows(workspace: readonly BusinessCalendar[], own: readonly BusinessCalendar[]): HubCalendarRow[] {
   const byKey = new Map(own.map((row) => [row.key, row]));

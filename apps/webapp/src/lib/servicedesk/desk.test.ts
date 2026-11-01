@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byPriorityOf, byPriorityText, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policyDefinitionOf, reportRows } from './desk.ts';
+import { byPriorityOf, byPriorityText, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policiesAtHub, policyCopyKey, policyDefinitionOf, reportRows } from './desk.ts';
 
 test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
   const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
@@ -74,4 +74,15 @@ test('a policy keeps the group that makes it an OLA, and an OLA names no organis
   const ola = policyDefinitionOf({ ...form, group: '0192f000-0000-7000-8000-00000000000a' }, goals);
   assert.equal(ola.assignee_group, '0192f000-0000-7000-8000-00000000000a');
   assert.deepEqual(ola.organisations, []);
+});
+
+test('a hub’s settings show the shared SLA policies apart from its own, never another hub’s (UC-SVC-02 check 11)', () => {
+  const policies = [
+    { key: 'incidents' }, { key: 'desk', hub_id: 'hub-1', copied_from: 'incidents' }, { key: 'sales', hub_id: 'hub-2' },
+  ] as never[];
+  const atHub = policiesAtHub(policies, 'hub-1');
+  assert.deepEqual(atHub.shared.map((p: { key: string }) => p.key), ['incidents']);
+  assert.deepEqual(atHub.own.map((p: { key: string }) => p.key), ['desk']);
+  assert.equal(policyCopyKey(policies, 'incidents'), 'incidents_copy');
+  assert.equal(policyCopyKey([...policies, { key: 'incidents_copy' } as never], 'incidents'), 'incidents_copy_2');
 });
