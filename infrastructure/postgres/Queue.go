@@ -428,8 +428,24 @@ func (q Queue) UnsettledDuties(ctx context.Context, kind queue.Kind) (int, error
 // maxOpenKeys bounds one listing of open jobs' keys.
 const maxOpenKeys = 10_000
 
-// OpenKeys answers the workspace and dedupe key of up to limit open jobs of one kind, oldest
-// first: for a kind with one job per thing while it lives, the things that live now.
+// OpenKeyCount counts the open jobs of one kind OpenKeys could answer.
+func (q Queue) OpenKeyCount(ctx context.Context, kind queue.Kind) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountOpenJobKeys(ctx, string(kind))
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the open jobs' keys: %w", err))
+	}
+	return count, nil
+}
+
+// OpenKeys answers the workspace and dedupe key of up to limit open jobs of one kind, by turns -
+// each workspace's oldest first: for a kind with one job per thing while it lives, the things
+// that live now.
 func (q Queue) OpenKeys(ctx context.Context, kind queue.Kind, limit int) ([]queue.OpenKey, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

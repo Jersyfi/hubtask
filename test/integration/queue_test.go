@@ -724,3 +724,44 @@ func kindsOf(jobs []queue.Job) []queue.Kind {
 	}
 	return kinds
 }
+
+// A limit below the open jobs lists every workspace's oldest before any workspace's second: the
+// workspace whose mailboxes were connected later is not left out by an older one that has several.
+func TestOpenKeysTakeTurnsByWorkspace(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.turns." + freshID(t).String())
+	older, newer := freshID(t), freshID(t)
+	now := queueClock.Now()
+	for _, request := range []queue.Request{
+		{Kind: kind, TenantID: older, DedupeKey: "o1", RunAt: now},
+		{Kind: kind, TenantID: older, DedupeKey: "o2", RunAt: now},
+		{Kind: kind, TenantID: older, DedupeKey: "o3", RunAt: now},
+		{Kind: kind, TenantID: newer, DedupeKey: "n1", RunAt: now},
+	} {
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			_, err := jobQueue(t).Enqueue(ctx, request)
+			return err
+		}); err != nil {
+			t.Fatalf("enqueueing: %v", err)
+		}
+	}
+	var keys []queue.OpenKey
+	var count int64
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		var err error
+		if keys, err = jobQueue(t).OpenKeys(ctx, kind, 2); err != nil {
+			return err
+		}
+		count, err = jobQueue(t).OpenKeyCount(ctx, kind)
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	want := []queue.OpenKey{{TenantID: older, DedupeKey: "o1"}, {TenantID: newer, DedupeKey: "n1"}}
+	if len(keys) != 2 || keys[0] != want[0] || keys[1] != want[1] {
+		t.Errorf("open keys = %+v, want %+v", keys, want)
+	}
+	if count != 4 {
+		t.Errorf("open key count = %d, want 4", count)
+	}
+}

@@ -246,6 +246,20 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 	return result.RowsAffected(), nil
 }
 
+const countOpenJobKeys = `-- name: CountOpenJobKeys :one
+SELECT count(*)::bigint FROM job
+WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
+  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+`
+
+// How many open jobs of one kind OpenJobKeys could answer, beyond any limit.
+func (q *Queries) CountOpenJobKeys(ctx context.Context, kind string) (int64, error) {
+	row := q.db.QueryRow(ctx, countOpenJobKeys, kind)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const databaseHorizon = `-- name: DatabaseHorizon :one
 SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age
 `
@@ -693,10 +707,14 @@ func (q *Queries) OpenJobCount(ctx context.Context, kind string) (int64, error) 
 }
 
 const openJobKeys = `-- name: OpenJobKeys :many
-SELECT tenant_id, dedupe_key::text AS dedupe_key FROM job
-WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
-  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
-ORDER BY created_at, id
+SELECT open_key.tenant_id, open_key.dedupe_key FROM (
+  SELECT tenant_id, dedupe_key::text AS dedupe_key, created_at, id,
+         row_number() OVER (PARTITION BY tenant_id ORDER BY created_at, id) AS turn
+  FROM job
+  WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
+    AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+) AS open_key
+ORDER BY open_key.turn, open_key.created_at, open_key.id
 LIMIT $2
 `
 
@@ -710,9 +728,10 @@ type OpenJobKeysRow struct {
 	DedupeKey string
 }
 
-// The workspace and key of each open job of one kind, oldest first: for a kind with one job per
-// thing while it lives (mail.mailbox_poll, keyed by the mailbox), the things that live now. No
-// payload: the caller loads each under its own workspace.
+// The workspace and key of each open job of one kind, by turns: every workspace's oldest before
+// any workspace's second, so a limit below the total leaves no workspace out while another holds
+// several (mail.mailbox_poll, keyed by the mailbox: the things that live now). No payload: the
+// caller loads each under its own workspace.
 func (q *Queries) OpenJobKeys(ctx context.Context, arg OpenJobKeysParams) ([]OpenJobKeysRow, error) {
 	rows, err := q.db.Query(ctx, openJobKeys, arg.Kind, arg.LimitCount)
 	if err != nil {

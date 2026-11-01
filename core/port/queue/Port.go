@@ -868,8 +868,13 @@ type OpenKey struct {
 // OpenKeys lists the open jobs of one kind by workspace and key, across every tenant, within the
 // caller's unit of work. For a kind with one job per thing while it lives - a mailbox's read - it
 // answers which things live without reading a table that has a tenant boundary.
+//
+// The listing goes by turns - every workspace's oldest before any workspace's second - so that a
+// limit below the total leaves no workspace out while another is listed several times.
 type OpenKeys interface {
 	OpenKeys(ctx context.Context, kind Kind, limit int) ([]OpenKey, error)
+	// OpenKeyCount is how many OpenKeys could answer, beyond any limit.
+	OpenKeyCount(ctx context.Context, kind Kind) (int64, error)
 }
 
 // Leadership is the "exactly one" of ADR-0008: the scheduler role may run in several replicas so

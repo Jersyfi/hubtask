@@ -69,6 +69,18 @@ func (w WatchMailbox) Targets(ctx context.Context, limit int) ([]WatchTarget, er
 	return out, nil
 }
 
+// Wanted is how many mailboxes' reads live, beyond any limit: what a watch holding fewer leaves to
+// the minute's read.
+func (w WatchMailbox) Wanted(ctx context.Context) (int64, error) {
+	var wanted int64
+	err := w.Boxes.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		var err error
+		wanted, err = w.Keys.OpenKeyCount(ctx, queue.KindMailboxPoll)
+		return err
+	})
+	return wanted, err
+}
+
 // Hold holds one mailbox for up to hold and answers what it came to; an error comes with
 // WatchFailed and is coded, never the server's words.
 func (w WatchMailbox) Hold(ctx context.Context, target WatchTarget, hold time.Duration) (string, error) {

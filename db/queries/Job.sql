@@ -230,15 +230,26 @@ WHERE duty.kind = 'media.scan'
       WHERE later.kind = duty.kind AND later.dedupe_key = duty.dedupe_key
         AND later.state = 'SUCCEEDED' AND later.finished_at > duty.finished_at)));
 
--- The workspace and key of each open job of one kind, oldest first: for a kind with one job per
--- thing while it lives (mail.mailbox_poll, keyed by the mailbox), the things that live now. No
--- payload: the caller loads each under its own workspace.
+-- The workspace and key of each open job of one kind, by turns: every workspace's oldest before
+-- any workspace's second, so a limit below the total leaves no workspace out while another holds
+-- several (mail.mailbox_poll, keyed by the mailbox: the things that live now). No payload: the
+-- caller loads each under its own workspace.
 -- name: OpenJobKeys :many
-SELECT tenant_id, dedupe_key::text AS dedupe_key FROM job
-WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
-  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
-ORDER BY created_at, id
+SELECT open_key.tenant_id, open_key.dedupe_key FROM (
+  SELECT tenant_id, dedupe_key::text AS dedupe_key, created_at, id,
+         row_number() OVER (PARTITION BY tenant_id ORDER BY created_at, id) AS turn
+  FROM job
+  WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
+    AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+) AS open_key
+ORDER BY open_key.turn, open_key.created_at, open_key.id
 LIMIT sqlc.arg('limit_count');
+
+-- How many open jobs of one kind OpenJobKeys could answer, beyond any limit.
+-- name: CountOpenJobKeys :one
+SELECT count(*)::bigint FROM job
+WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
+  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL;
 
 -- What a caller polls, and the only two statements here that are asked on somebody's behalf
 -- rather than by a worker. They therefore carry the tenant condition themselves - the job table

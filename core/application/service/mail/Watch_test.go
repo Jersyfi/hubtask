@@ -28,6 +28,8 @@ func (s *idleServer) Watch(_ context.Context, connection mailboxport.Connection,
 
 type openKeys []queue.OpenKey
 
+func (k openKeys) OpenKeyCount(context.Context, queue.Kind) (int64, error) { return int64(len(k)), nil }
+
 func (k openKeys) OpenKeys(_ context.Context, kind queue.Kind, _ int) ([]queue.OpenKey, error) {
 	if kind != queue.KindMailboxPoll {
 		return nil, nil
