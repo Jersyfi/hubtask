@@ -19,7 +19,7 @@ never shape:
 | | Backup run | Tenant export |
 |---|---|---|
 | Mode | `FULL` or `INCREMENTAL` | Always `FULL` |
-| Encryption | The target's configuration | **Always `NONE`** — the receiver reads it without this installation's keys |
+| Encryption | The target's configuration | **`NONE`** — the receiver reads it without this installation's keys; the owner's download alone may be encrypted to a passphrase the owner gives (below) |
 | Media | `include_media` flag | Always included |
 | Audit entries | `include_audit` flag | Always included — a workspace's trail is part of what it owns |
 | Name at the target | `hubtask-backup-<tenant>-<UTC>-full\|incremental` | `hubtask-export-<tenant>-<UTC>` |
@@ -29,6 +29,15 @@ The distinct prefix keeps an export out of the backup **generation pruning**, wh
 `hubtask-backup-<tenant>-`, and out of the **restore listing** of the workspace's own backups. An
 export is still importable: a restore names its archive by path (`source_archive`), whatever the
 prefix.
+
+**The passphrase mode** is the owner's choice on the direct download (`POST
+/backups:download-workspace`, UC-BAK-07 check 7): every member but the manifest is AES-256-GCM in
+the stream format of [backup-restore.md](./backup-restore.md) §4, under a key derived from the
+passphrase with Argon2id; the manifest's `encryption` is `{"mode": "AES256_GCM", "key_id":
+"passphrase", "kdf": "argon2id", "salt", "passes", "memory_kib", "parallelism", "key_length"}`
+(the salt base64). It still needs none of this installation's keys - the passphrase opens it
+anywhere - and it is stored nowhere, so without it the archive is unreadable. A restore names it as
+`decryption_passphrase`.
 
 The export works for `ACTIVE`, `SUSPENDED` and `PENDING_DELETION` workspaces alike — the suspended
 and the leaving are exactly who needs it (multi-tenancy.md §5).
@@ -82,7 +91,7 @@ Rules an importer may rely on:
 | `scope` | object | `{"kind": "TENANT", "id": "<tenant-uuid>"}` — whose data this is. |
 | `period` | object | `{"to": <RFC 3339>}` — the snapshot moment; `from` appears only on incrementals. |
 | `snapshot_at` | RFC 3339 | The consistent read moment: every data file describes the database at this one instant (one `REPEATABLE READ` snapshot). |
-| `encryption` | object | `{"mode": "NONE"}` for every tenant export. |
+| `encryption` | object | `{"mode": "NONE"}` for every tenant export but a download encrypted to a passphrase (§1). |
 | `counts` | object | Entity name → number of records in its data file — **what a verifier compares against the line counts and the source database**. |
 | `media_count` | int | How many objects sit under `media/`. |
 | `media_bytes` | int | Their summed size. Media are counted, never listed. |
@@ -414,7 +423,7 @@ GDPR — and Hubtask supplies what the operator needs to meet it.
 | Law | What it asks of the operator | What Hubtask supplies | Not Hubtask's |
 |---|---|---|---|
 | GDPR Art. 20 | A person's own data, machine-readable | The data subject export, JSON Lines with the schema ([data-protection.md](./data-protection.md) §4) | — |
-| Data Act Art. 23–26 (since 2025-09-12) | All exportable data and digital assets of a customer, in a structured, commonly used, machine-readable format, with information on what is exported and how | This format: the whole workspace — its structure, entries, comments, files, people and groups, roles, custom field definitions, templates, views, rules and the trail — documented here and readable without Hubtask (§2), never encrypted (§1), credentials left out (§9) | The notice period (at most two months), the transition (30 days), the retrieval window (at least 30 days): contract terms |
+| Data Act Art. 23–26 (since 2025-09-12) | All exportable data and digital assets of a customer, in a structured, commonly used, machine-readable format, with information on what is exported and how | This format: the whole workspace — its structure, entries, comments, files, people and groups, roles, custom field definitions, templates, views, rules and the trail — documented here and readable without Hubtask (§2), unencrypted unless the owner chooses a passphrase for the download (§1), credentials left out (§9) | The notice period (at most two months), the transition (30 days), the retrieval window (at least 30 days): contract terms |
 | Data Act Art. 29 (zero charges from 2027-01-12) | Switching without charges | The export costs nothing in the software; nothing gates it behind a plan or an entitlement | The provider's prices |
 | Data Act Art. 30 (SaaS) | Open interfaces, compatibility with open specifications | The public OpenAPI contract, this versioned format (§11) | — |
 | DORA Art. 28(8), Art. 30 | An exit strategy; return of the data on termination | The same export; and, as the last exit, the same software self-hosted ([UC-BAK-07](../usecases/backup/UC-BAK-07-take-the-workspace-to-another-installation.md)) | The exit plan, the transition period |

@@ -103,8 +103,17 @@ BK-4; one is added at a major release ([versioning-release.md](./versioning-rele
   both, a new installation lists the archives at the target and restores one as a new workspace
   (§8.2). Without the key an archive names, a restore is refused before anything is read
   (`backup.archive_key_unknown`, naming the key).
-* **A passphrase is not available**: `encryption_passphrase` on a target and `decryption_passphrase`
-  on a restore are refused (`backup.encryption_passphrase_not_available`) rather than ignored.
+* **A target takes no passphrase**: `encryption_passphrase` on a target is refused
+  (`backup.encryption_passphrase_not_available`) rather than ignored.
+* **The owner's download may be encrypted to a passphrase** (UC-BAK-07 check 7,
+  [tenant-export.md](./tenant-export.md) §1): the members under a key derived with Argon2id
+  (RFC 9106's second set, `infrastructure/crypto.Passphrase`), whose salt and cost the manifest
+  carries with `kdf: argon2id` and `key_id: passphrase`. A restore of it takes `decryption_passphrase`:
+  sealed under the master key and bound to its run (`restore_run.passphrase_enc`, migration 0320),
+  held only while the run goes - the job reads the archive later, in another process - and emptied
+  by the statement that ends the run, whatever its outcome. Without it the restore is refused
+  (`backup.archive_passphrase_required`), with a wrong one too (`backup.archive_passphrase_wrong`),
+  and one given for an archive not encrypted to one (`backup.archive_passphrase_unused`).
 * The master key can be rotated; old archives stay readable (the key ID is in the manifest). An
   archive is never rewritten, so a re-seal cannot move it: the key census counts the archives still
   kept under each key ([security.md](./security.md) §8.1), and a key stays in the ring until the
