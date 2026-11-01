@@ -306,4 +306,3 @@ func (h SearchEverywhere) Descriptor() usecase.Descriptor {
 		}),
 	}
 }
-
