@@ -143,10 +143,17 @@ func Stats(pool *pgxpool.Pool) PoolStats {
 // JIT is off: on a generic plan whose row estimates are large, PostgreSQL compiles the statement
 // for some 200 ms before it runs it in 30 - the capacity run at 10⁶ entries saw a hub's figures
 // jump to that tail (observability-reliability.md §13.2). Short statements never repay it.
+//
+// Every statement is planned for its own arguments. The queries spell an optional argument as
+// `narg IS NULL OR …`, which only a custom plan folds away; after five executions PostgreSQL may
+// switch to a generic plan that keeps both branches, and at 10⁷ entries ListWorkItems' generic plan
+// read a 300 000-entry level whole and sorted it for a page of fifty (known-traps.md). The planning
+// it costs is a fraction of a millisecond per statement.
 func sessionParams(params map[string]string, statementTimeout time.Duration, role env.Role) {
 	params["statement_timeout"] = strconv.FormatInt(statementTimeout.Milliseconds(), 10)
 	// Visible in pg_stat_activity, which is where an operator looks first when one role is
 	// holding connections.
 	params["application_name"] = "hubtask/" + string(role)
 	params["jit"] = "off"
+	params["plan_cache_mode"] = "force_custom_plan"
 }
