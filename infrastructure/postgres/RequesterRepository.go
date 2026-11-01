@@ -103,6 +103,21 @@ func (RequesterRepository) DeleteExpired(ctx context.Context, cutoff time.Time, 
 	return int(n), nil
 }
 
+// DeleteExpiredAmong removes the requesters past REQUESTER's period among these addresses.
+func (RequesterRepository) DeleteExpiredAmong(ctx context.Context, cutoff time.Time, addresses []string) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n, err := queries.DeleteExpiredRequestersAmong(ctx, sqlc.DeleteExpiredRequestersAmongParams{
+		Cutoff: timestampOf(cutoff), Addresses: addresses,
+	})
+	if err != nil {
+		return 0, requesterFailed("removing expired requesters", err)
+	}
+	return int(n), nil
+}
+
 // CountExpired counts the requesters past the period, up to ceiling.
 func (RequesterRepository) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
 	queries, err := queriesFrom(ctx)

@@ -77,6 +77,9 @@ func TestTheRequesterRecordStaysInItsWorkspace(t *testing.T) {
 		if n, err := store.DeleteExpired(ctx, cutoff, 100); err != nil || n != 0 {
 			t.Errorf("another workspace removed %d (%v)", n, err)
 		}
+		if n, err := store.DeleteExpiredAmong(ctx, cutoff, []string{address}); err != nil || n != 0 {
+			t.Errorf("another workspace removed %d by address (%v)", n, err)
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -86,8 +89,12 @@ func TestTheRequesterRecordStaysInItsWorkspace(t *testing.T) {
 		if n, err := store.CountAddress(ctx, address); err != nil || n != 1 {
 			t.Errorf("counted %d of the address (%v)", n, err)
 		}
-		n, err := store.DeleteExpired(ctx, cutoff, 100)
-		if err != nil || n < 1 {
+		// Among other addresses only, the requester stays: its lines did not all go.
+		if n, err := store.DeleteExpiredAmong(ctx, cutoff, []string{"other@shop.test"}); err != nil || n != 0 {
+			t.Errorf("removed %d requesters not among the cleared (%v)", n, err)
+		}
+		n, err := store.DeleteExpiredAmong(ctx, cutoff, []string{address})
+		if err != nil || n != 1 {
 			t.Errorf("the workspace's sweep removed %d (%v)", n, err)
 		}
 		return nil

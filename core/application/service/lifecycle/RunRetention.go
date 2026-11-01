@@ -1008,9 +1008,15 @@ func (h RunRetention) sweepHeldByTenant(
 	return h.sweepHeldUntil(ctx, started, kind, cutoff, rows)
 }
 
-// RequesterLines removes the intake's lines of the requesters the next REQUESTER batch removes.
+// RequesterLines removes the intake's lines of the requesters the next REQUESTER batch removes, and
+// answers the addresses whose lines are all gone.
 type RequesterLines interface {
-	BeforeExpiry(ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int) error
+	BeforeExpiry(ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int) ([]string, error)
+}
+
+// ExpiringRequesters removes expired requesters by address: the ones whose intake lines are gone.
+type ExpiringRequesters interface {
+	DeleteExpiredAmong(ctx context.Context, cutoff time.Time, addresses []string) (int, error)
 }
 
 // requesterRows strips the batch's intake lines before the batch goes, in the same transaction and
@@ -1025,11 +1031,21 @@ func (r requesterRows) CountExpired(ctx context.Context, cutoff time.Time, ceili
 	return r.rows.CountExpired(ctx, cutoff, ceiling)
 }
 
+// DeleteExpired removes only the requesters whose lines all went: one still named on an entry that
+// cannot be changed now stays, so the address is never left in a note with no record of it.
 func (r requesterRows) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
-	if err := r.lines.BeforeExpiry(ctx, r.tenantID, cutoff, batch); err != nil {
+	cleared, err := r.lines.BeforeExpiry(ctx, r.tenantID, cutoff, batch)
+	if err != nil {
 		return 0, err
 	}
-	return r.rows.DeleteExpired(ctx, cutoff, batch)
+	among, ok := r.rows.(ExpiringRequesters)
+	if !ok {
+		return r.rows.DeleteExpired(ctx, cutoff, batch)
+	}
+	if len(cleared) == 0 {
+		return 0, nil
+	}
+	return among.DeleteExpiredAmong(ctx, cutoff, cleared)
 }
 
 // tenantCutoff is the cutoff of a kind with a default period: the workspace's TENANT-scope rule

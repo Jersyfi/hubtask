@@ -48,10 +48,15 @@ type invoked struct {
 type entryCatalogue struct {
 	calls       []invoked
 	refuseFiler bool
+	// archived answers the edit of this comment as its collection's: archived, so read-only.
+	archived string
 }
 
 func (c *entryCatalogue) Invoke(_ context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	c.calls = append(c.calls, invoked{name, actor, in})
+	if c.archived != "" && in.String("comment_id") == c.archived {
+		return nil, shared.ErrConflict.WithDetail("items.collection_archived")
+	}
 	if c.refuseFiler && actor.Kind == appshared.ActorAutomation {
 		return nil, shared.ErrForbidden.WithDetail("access.not_permitted")
 	}
@@ -138,10 +143,55 @@ func TestExpiryRemovesTheIntakeLinesAndARefusalDoesNotStopIt(t *testing.T) {
 	lines.expired = []string{"kunde@shop.test"}
 	entries := &entryCatalogue{refuseFiler: true}
 	strip := StripIntakeLines{Lines: lines, Entries: entries}
-	if err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10); err != nil {
+	cleared, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
+	if err != nil {
 		t.Fatalf("a refused edit stopped the expiry: %v", err)
+	}
+	if len(cleared) != 0 {
+		t.Errorf("a requester whose lines stay was cleared to go: %v", cleared)
 	}
 	if len(entries.calls) != 3 || len(lines.asked) != 1 || lines.asked[0] != "kunde@shop.test" {
 		t.Errorf("asked %v and edited %+v", lines.asked, entries.calls)
+	}
+}
+
+// A line in an archived (or trashed) collection cannot be changed now: the expiry neither fails
+// nor lets that requester go, while the requester whose lines all went may; the other lines of the
+// kept address still go.
+func TestExpiryKeepsARequesterNamedInAnArchivedCollection(t *testing.T) {
+	lines := intakeLines()
+	lines.expired = []string{"kunde@shop.test", "someone@else.test"}
+	entries := &entryCatalogue{archived: lineNote.String()}
+	strip := StripIntakeLines{Lines: lines, Entries: entries}
+	cleared, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
+	if err != nil {
+		t.Fatalf("an archived collection failed the expiry: %v", err)
+	}
+	if len(cleared) != 1 || cleared[0] != "someone@else.test" {
+		t.Errorf("cleared %v, want only the address whose lines all went", cleared)
+	}
+	edited := map[string]bool{}
+	for _, call := range entries.calls {
+		edited[call.name+" "+call.in.String("comment_id")] = true
+	}
+	if !edited[updateWorkItemName+" "] || !edited[deleteCommentName+" "+lineAlone.String()] {
+		t.Errorf("the kept address's other lines were not removed: %+v", entries.calls)
+	}
+}
+
+// An erasure by address whose line sits in an archived collection stays open, and says why; the
+// lines that could go went.
+func TestAnErasureWithALineInAnArchivedCollectionStaysOpen(t *testing.T) {
+	h := newErasureHarness()
+	entries := &entryCatalogue{archived: lineNote.String()}
+	eraser := h.eraser()
+	eraser.Addresses = &addressStore{held: 1}
+	eraser.IntakeLines = StripIntakeLines{Lines: intakeLines(), Entries: entries}
+	_, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize))
+	if shared.AsError(err).DetailCode != "items.collection_archived" {
+		t.Fatalf("erasing answered %v, want the archived collection's refusal", err)
+	}
+	if len(entries.calls) < 3 {
+		t.Errorf("the other lines were not removed: %+v", entries.calls)
 	}
 }

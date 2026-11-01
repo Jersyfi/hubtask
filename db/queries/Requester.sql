@@ -28,6 +28,12 @@ WHERE id IN (
   LIMIT sqlc.arg('batch')
 );
 
+-- name: DeleteExpiredRequestersAmong :execrows
+-- The REQUESTER batch's requesters whose intake lines all went: one still named on an entry that
+-- cannot be changed now stays (privacy.StripIntakeLines.BeforeExpiry).
+DELETE FROM requester
+WHERE last_contact_at < sqlc.arg('cutoff') AND address = ANY(sqlc.arg('addresses')::text[]);
+
 -- name: CountExpiredRequesters :one
 SELECT count(*) FROM (
   SELECT 1 FROM requester WHERE last_contact_at < sqlc.arg('cutoff') LIMIT sqlc.arg('ceiling')

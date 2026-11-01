@@ -668,6 +668,7 @@ func (e Eraser) stripIntakeLines(ctx context.Context, actor appshared.ActorConte
 		return 0, nil
 	}
 	stripped := 0
+	var refusal error
 	err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		holds, err := e.Holds.Active(ctx)
 		if err != nil {
@@ -677,9 +678,18 @@ func (e Eraser) stripIntakeLines(ctx context.Context, actor appshared.ActorConte
 			return nil
 		}
 		stripped, err = e.IntakeLines.Strip(ctx, actor.TenantID, []string{address}, actor)
+		if err != nil && refused(err) {
+			// The lines that went stay gone: one that cannot be changed now leaves the case open,
+			// and must not take the others back with it.
+			refusal = err
+			return nil
+		}
 		return err
 	})
-	return stripped, err
+	if err != nil {
+		return stripped, err
+	}
+	return stripped, refusal
 }
 
 // addressHeld answers whether the workspace holds anything of an address: the requester record, a

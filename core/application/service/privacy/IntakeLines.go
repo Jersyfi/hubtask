@@ -82,30 +82,39 @@ func (s StripIntakeLines) Strip(
 	return changed, refusal
 }
 
-// BeforeExpiry removes the lines of the requesters the next REQUESTER batch removes. A line that
-// cannot be changed is logged and left, so that one entry nobody may edit any more stops neither
-// the expiry nor the rest of the pass.
+// BeforeExpiry removes the lines of the requesters the next REQUESTER batch removes, and answers
+// the addresses whose lines are all gone: only those requesters may go. A line that cannot be
+// changed - nobody may edit it, or its collection is archived or trashed - stops neither the expiry
+// nor the rest of the pass; its requester stays, so the record of where the address still is
+// outlives no line, and the next pass tries again.
 func (s StripIntakeLines) BeforeExpiry(
 	ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int,
-) error {
+) ([]string, error) {
 	if s.Lines == nil || s.Entries == nil {
-		return nil
+		return nil, nil
 	}
 	addresses, err := s.Lines.ExpiredAddresses(ctx, cutoff, batch)
 	if err != nil || len(addresses) == 0 {
-		return err
+		return nil, err
 	}
+	cleared := make([]string, 0, len(addresses))
+	kept := 0
 	for _, address := range addresses {
 		if _, err := s.Strip(ctx, tenantID, []string{address}, appshared.ActorContext{}); err != nil {
 			if !refused(err) {
-				return err
+				return nil, err
 			}
-			// The code only: the address is personal data (rule 10).
-			slog.WarnContext(ctx, "an expiring requester's intake line could not be removed",
-				slog.String("code", shared.AsError(err).Code))
+			kept++
+			continue
 		}
+		cleared = append(cleared, address)
 	}
-	return nil
+	if kept > 0 {
+		// A count only: the addresses are personal data (rule 10).
+		slog.WarnContext(ctx, "expiring requesters kept while an intake line naming them cannot be changed",
+			slog.Int("kept", kept))
+	}
+	return cleared, nil
 }
 
 func stripAny(text string, addresses []string) (string, bool) {
@@ -131,7 +140,9 @@ func lineChange(line repository.IntakeLine, text string) (string, usecase.Input)
 	return editCommentName, in
 }
 
-// refused is an edit the actor may not make, or of something gone meanwhile.
+// refused is an edit that cannot be made now: the actor may not make it, its subject is gone, or
+// its collection is archived or trashed and so read-only (I-C3). The line stays and is retried.
 func refused(err error) bool {
-	return errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound)
+	return errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) ||
+		errors.Is(err, shared.ErrConflict)
 }

@@ -90,6 +90,26 @@ func (q *Queries) DeleteExpiredRequesters(ctx context.Context, arg DeleteExpired
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredRequestersAmong = `-- name: DeleteExpiredRequestersAmong :execrows
+DELETE FROM requester
+WHERE last_contact_at < $1 AND address = ANY($2::text[])
+`
+
+type DeleteExpiredRequestersAmongParams struct {
+	Cutoff    pgtype.Timestamptz
+	Addresses []string
+}
+
+// The REQUESTER batch's requesters whose intake lines all went: one still named on an entry that
+// cannot be changed now stays (privacy.StripIntakeLines.BeforeExpiry).
+func (q *Queries) DeleteExpiredRequestersAmong(ctx context.Context, arg DeleteExpiredRequestersAmongParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredRequestersAmong, arg.Cutoff, arg.Addresses)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMailReceiptsFrom = `-- name: DeleteMailReceiptsFrom :execrows
 DELETE FROM mail_receipt
 WHERE tenant_id = current_tenant_id() AND lower(sender) = lower($1::text)
