@@ -7,7 +7,7 @@ deployments: [D3, D4, D6, D7]
 serves: [P-01, P-02, P-12, P-16]
 state: verified
 tasks: []
-checked_by: [core/domain/model/identity/SamlProvider_test.go, infrastructure/saml/Provider_test.go, core/application/service/identity/SamlSignIn_test.go, presentation/rest/SamlController_test.go]
+checked_by: [core/domain/model/identity/SamlProvider_test.go, infrastructure/saml/Provider_test.go, core/application/service/identity/SamlSignIn_test.go, core/application/service/identity/SamlSignInOnly_test.go, presentation/rest/SamlController_test.go]
 ---
 
 # Sign in through our SAML directory
