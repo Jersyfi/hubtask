@@ -120,10 +120,11 @@ func Rows(search repository.ItemSearch, boundary Boundary, probe int) (Statement
 
 // Groups compiles the board projection: the first entries of every distinct value of one field.
 //
-// A window function rather than a query per group, because the number of groups is data - a board
-// has as many columns as somebody made - and a query per column is a round trip per column. The
-// row number is computed in the same order the entries are returned in, so a group's page is the
-// beginning of that group in that order, and its cursor continues it.
+// One statement whatever the number of groups, because that number is data - a board has as many
+// columns as somebody made - and a query per column is a round trip per column. A field whose type
+// names its values is read per column in that statement (columns); any other is numbered by a
+// window function (numbered). Either way a group's page is the beginning of that group in the
+// order the entries are returned in, and its cursor continues it.
 func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	groupField := search.Spec.GroupBy.Field
 	_, customGroup := view.CustomField(groupField.Name)
@@ -152,21 +153,13 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 		b.customValue(groupField)
 		b.write(` AS `, groupAlias)
 	}
-	// The row numbers are drawn over the identifiers alone and only the chosen rows are read
-	// whole: numbering every row of a large collection with all its columns sorted them all,
-	// spilling to disk at tens of thousands of entries (observability-reliability.md §13.2).
-	b.write(` FROM work_item wi`, retentionJoin, ` WHERE wi.id = ANY (ARRAY(SELECT r.id FROM (SELECT wi.id, row_number() OVER (PARTITION BY `)
-	if customGroup {
-		b.customValue(groupField)
+	// Only the chosen rows are read whole; the choosing reads identifiers.
+	b.write(` FROM work_item wi`, retentionJoin, ` WHERE wi.id = ANY (ARRAY(`)
+	if known := knownValues(groupField); known != nil {
+		b.columns(search, group, known, probe)
 	} else {
-		b.write(group)
+		b.numbered(search, group, customGroup, probe)
 	}
-	b.write(` ORDER BY `)
-	b.ordering(search.Spec.Sort, itemPrefix)
-	b.write(`, wi.id) AS rn FROM work_item wi WHERE `)
-	b.predicates(search)
-	b.write(`) r WHERE r.rn <= `)
-	b.param(int64(probe))
 	b.write(`))) g ORDER BY `)
 
 	// The groups come in the grouping field's own order, and the entries that have no value at all
@@ -181,6 +174,67 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	b.write(`, id`)
 
 	return b.statement()
+}
+
+// numbered chooses each group's first rows by numbering every row the filter keeps. Numbering the
+// identifiers alone, not whole rows: whole rows of a large collection spilled their sort to disk
+// at tens of thousands of entries (observability-reliability.md §13.2).
+func (b *builder) numbered(search repository.ItemSearch, group string, customGroup bool, probe int) {
+	b.write(`SELECT r.id FROM (SELECT wi.id, row_number() OVER (PARTITION BY `)
+	if customGroup {
+		b.customValue(search.Spec.GroupBy.Field)
+	} else {
+		b.write(group)
+	}
+	b.write(` ORDER BY `)
+	b.ordering(search.Spec.Sort, itemPrefix)
+	b.write(`, wi.id) AS rn FROM work_item wi WHERE `)
+	b.predicates(search)
+	b.write(`) r WHERE r.rn <= `)
+	b.param(int64(probe))
+}
+
+// columns chooses each group's first rows one column at a time, where the field's type names every
+// value it can hold: each column is an ordered page that stops at probe, so an index on the order
+// or on the value serves it, where numbering reads and sorts every row of the scope. A value no
+// entry holds is an empty branch, and so no group, as numbering would answer.
+func (b *builder) columns(search repository.ItemSearch, group string, known []view.Value, probe int) {
+	for index, value := range known {
+		if index > 0 {
+			b.write(` UNION ALL `)
+		}
+		b.write(`(SELECT wi.id FROM work_item wi WHERE `)
+		b.predicates(search)
+		b.write(` AND `, group, ` = `)
+		b.value(search.Spec.GroupBy.Field, value)
+		b.write(` ORDER BY `)
+		b.ordering(search.Spec.Sort, itemPrefix)
+		b.write(`, wi.id LIMIT `)
+		b.param(int64(probe))
+		b.write(`)`)
+	}
+}
+
+// knownValues is every value a field can hold when its type alone says so - a flag, an enum that
+// is never absent - and nil for any field whose values are data.
+func knownValues(field view.Field) []view.Value {
+	if field.Nullable {
+		return nil
+	}
+	switch field.Kind {
+	case view.KindBool:
+		return []view.Value{{Kind: view.KindBool, Bool: false}, {Kind: view.KindBool, Bool: true}}
+	case view.KindEnum:
+		if len(field.Values) == 0 {
+			return nil
+		}
+		values := make([]view.Value, 0, len(field.Values))
+		for _, text := range field.Values {
+			values = append(values, view.Value{Kind: view.KindEnum, Text: text})
+		}
+		return values
+	}
+	return nil
 }
 
 // Count compiles the second pass an exact count costs: the same filter, without order, page or

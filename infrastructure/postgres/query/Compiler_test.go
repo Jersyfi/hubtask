@@ -399,6 +399,51 @@ func TestGroupsAreOneWindowedQuery(t *testing.T) {
 	}
 }
 
+// A field whose type names every value it can hold is read a column at a time, each column its own
+// ordered page, so a large collection is never numbered whole (observability-reliability.md §13.2).
+func TestAGroupWhoseTypeNamesItsValuesIsReadPerColumn(t *testing.T) {
+	tests := map[string]struct {
+		field    string
+		branches []string
+	}{
+		"done and open": {"is_completed", []string{
+			`wi.is_completed = $2::boolean ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $3)`,
+			`wi.is_completed = $5::boolean ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $6)`,
+		}},
+		"an item type": {"type", []string{
+			`wi.type = $2::item_type ORDER BY`, `wi.type = $5::item_type ORDER BY`,
+			`wi.type = $8::item_type ORDER BY`,
+		}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			group, err := view.ParseGroupBy(map[string]any{"field": test.field}, "/group_by")
+			if err != nil {
+				t.Fatalf("the grammar refused the grouping: %v", err)
+			}
+			statement, err := Groups(searchOf(t, nil, view.Spec{GroupBy: group}), 51)
+			if err != nil {
+				t.Fatalf("compilation failed: %v", err)
+			}
+			if strings.Contains(statement.SQL, "row_number()") {
+				t.Errorf("a column of a known value was numbered with the others:\n  %s", statement.SQL)
+			}
+			if got := strings.Count(statement.SQL, " UNION ALL "); got != len(test.branches)-1 {
+				t.Errorf("%d columns joined by %d UNION ALL, want %d", len(test.branches), got,
+					len(test.branches)-1)
+			}
+			for _, want := range test.branches {
+				if !strings.Contains(statement.SQL, want) {
+					t.Errorf("compiled to\n  %s\nand should contain\n  %s", statement.SQL, want)
+				}
+			}
+			if !strings.Contains(statement.SQL, ` ORDER BY `+test.field+` ASC NULLS LAST, order_key`) {
+				t.Errorf("the columns do not come in the field's order:\n  %s", statement.SQL)
+			}
+		})
+	}
+}
+
 func TestTheCountIsTheSameFilterWithoutThePage(t *testing.T) {
 	plain, err := Count(searchOf(t, map[string]any{
 		"field": "is_completed", "op": "EQ", "value": true,
