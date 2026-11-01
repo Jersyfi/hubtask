@@ -103,6 +103,18 @@ class Roles {
     if (state.status === 'failed') throw state.error;
     return state.status === 'ready' ? state.data : undefined;
   }
+
+  /**
+   * Whether a person may do `action` to one entry, and why: the decision a request meets there
+   * (`entry` in the answer). Omitting the person asks about the reader, which anybody may.
+   */
+  async explainEntry(entryId: string, action: 'READ' | 'CHANGE' | 'COMMENT', accountId?: string): Promise<AccessExplanation | undefined> {
+    const query = new URLSearchParams({ scope_type: 'ITEM', scope_id: entryId, action });
+    if (accountId) query.set('account_id', accountId);
+    const state = await engine.refresh<AccessExplanation>({ path: `/access/explain?${query.toString()}` });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data : undefined;
+  }
 }
 
 export const roles = new Roles();

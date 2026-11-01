@@ -47,6 +47,7 @@
   import { people, type Path, type Scope } from '../data/people.svelte.ts';
   import { grantableOf, mayIssueWayIn, mayRevoke, ownershipOf, type Holder } from '../data/people.ts';
   import RevokeDialog from './RevokeDialog.svelte';
+  import EntryAccessCheck from './EntryAccessCheck.svelte';
   import { inviteWay } from './invitation.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -350,6 +351,10 @@
     {/if}
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+
+    {#if scope.scopeType === 'ITEM' && scope.scopeId}
+      <EntryAccessCheck entryId={scope.scopeId} people={people.candidates(path)} />
+    {/if}
   </Stack>
 </PanelOrDialog>
 
