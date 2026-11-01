@@ -101,7 +101,8 @@ func repairInvalidIndexes(ctx context.Context, pool *sql.DB, files fs.FS) error 
 			slog.Warn("an invalid index no migration builds was left as it is", slog.String("index", name))
 			continue
 		}
-		drop := "DROP INDEX CONCURRENTLY IF EXISTS " + pgx.Identifier{"public", name}.Sanitize()
+		// DDL takes no parameter; the name is the catalogue's, quoted, and one a migration builds.
+		drop := "DROP INDEX CONCURRENTLY IF EXISTS " + pgx.Identifier{"public", name}.Sanitize() //nolint:gosec // G202, see above
 		if _, err := pool.ExecContext(ctx, drop); err != nil {
 			return fmt.Errorf("dropping the invalid index %s: %w", name, err)
 		}
