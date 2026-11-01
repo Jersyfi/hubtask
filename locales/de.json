@@ -9153,6 +9153,8 @@
   "app.whiteboards.template": "Vorlage",
   "app.whiteboards.template_brainstorm": "Brainstorming",
   "app.whiteboards.template_choose": "Mit einer Vorlage beginnen …",
+  "app.whiteboards.template_put_button": "Auf das Board legen",
+  "app.whiteboards.template_choose_first": "Wähle zuerst eine Vorlage",
   "app.whiteboards.template_flowchart": "Flussdiagramm",
   "app.whiteboards.template_kanban": "Kanban-Board",
   "app.whiteboards.template_put": "Die Vorlage „{name}“ liegt auf dem Whiteboard.",

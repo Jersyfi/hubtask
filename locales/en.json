@@ -9153,6 +9153,8 @@
   "app.whiteboards.template": "Template",
   "app.whiteboards.template_brainstorm": "Brainstorm",
   "app.whiteboards.template_choose": "Start from a template…",
+  "app.whiteboards.template_put_button": "Put on board",
+  "app.whiteboards.template_choose_first": "Choose a template first",
   "app.whiteboards.template_flowchart": "Flowchart",
   "app.whiteboards.template_kanban": "Kanban board",
   "app.whiteboards.template_put": "The template “{name}” is on the whiteboard.",

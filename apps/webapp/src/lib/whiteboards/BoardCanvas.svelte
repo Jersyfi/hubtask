@@ -1106,14 +1106,22 @@
           <span>{isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}</span>
           <input type="file" disabled={isUploading} onchange={(event) => void putFile(event)} />
         </label>
+        <!-- Chosen, then put: a closed native select changes on every arrow key, and a template
+             put on each would fill the shared board (SC 3.2.2). -->
         <Select
           size="sm"
           label={t('app.whiteboards.template')}
           placeholder={t('app.whiteboards.template_choose')}
           bind:value={chosenTemplate}
           options={TEMPLATES.map((each) => ({ value: each, label: t(`app.whiteboards.template_${each.toLowerCase()}`) }))}
-          onchange={(event: Event) => { const name = (event.currentTarget as HTMLSelectElement).value; if (name) putTemplate(name as TemplateName); }}
         />
+        <Button
+          size="sm"
+          tone="subtle"
+          data-put-template
+          disabledReason={chosenTemplate ? undefined : t('app.whiteboards.template_choose_first')}
+          onclick={() => { if (chosenTemplate) putTemplate(chosenTemplate as TemplateName); }}
+        >{t('app.whiteboards.template_put_button')}</Button>
       {/if}
       {#if writable}
         <Button size="sm" tone="subtle" icon="rotate-ccw" aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo}>{t('app.whiteboards.undo')}</Button>
