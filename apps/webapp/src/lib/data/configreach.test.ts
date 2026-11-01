@@ -16,6 +16,8 @@ test('every count of a plan is a line of its reach', () => {
     { path: 'fields.cost', hidden_values: 7 },
     { path: 'roles.lead', accounts: 5, groups: 1, gained: ['STRUCTURE'], lost: [] },
     { path: 'modules.TIME', people: 12 },
+    { path: 'modules.WORKFLOWS', people: 3, rules: 2 },
+    { path: 'modules.GOALS', people: 1, rules: 0 },
   ]);
   assert.deepEqual(lines.map(({ code }) => code), [
     'app.changes.reach_entries',
@@ -23,10 +25,14 @@ test('every count of a plan is a line of its reach', () => {
     'app.changes.reach_values',
     'app.changes.reach_people',
     'app.changes.reach_module',
+    'app.changes.reach_module',
+    'app.changes.reach_rules',
+    'app.changes.reach_module',
   ]);
   assert.deepEqual(lines[2]?.params, { path: 'fields.cost', count: 7 });
   assert.deepEqual(lines[3]?.params, { path: 'roles.lead', accounts: 5, groups: 1, gained: 1, lost: 0 });
   assert.deepEqual(lines[4]?.params, { path: 'modules.TIME', count: 12 });
+  assert.deepEqual(lines[6]?.params, { path: 'modules.WORKFLOWS', count: 2 });
 });
 
 test('a reach withheld from the reader is said once and counts nothing', () => {

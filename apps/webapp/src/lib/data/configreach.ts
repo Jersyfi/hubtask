@@ -41,6 +41,9 @@ export function reachLines(reach: readonly ConfigReach[] | null | undefined): Re
     if (each.people !== undefined) {
       lines.push({ code: 'app.changes.reach_module', params: { path, count: each.people } });
     }
+    if (each.rules) {
+      lines.push({ code: 'app.changes.reach_rules', params: { path, count: each.rules } });
+    }
   }
   return lines;
 }
