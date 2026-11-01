@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { REFRESH_KEY, TOKEN_KEY, tokenStore, type TokenStorage } from './tokenStore.ts';
+import { HELD_UNSENT_KEY, REFRESH_KEY, TOKEN_KEY, heldUnsent, tokenStore, type TokenStorage } from './tokenStore.ts';
 
 function fakeStorage(initial: Record<string, string> = {}): TokenStorage & { values: Record<string, string> } {
   const values = { ...initial };
@@ -138,4 +138,15 @@ test('a refresh keeps the elevation, because it is the same session\'s next pair
   assert.equal(reloaded.read(), 'access-2', 'the rotated pair was not kept');
   assert.equal(reloaded.readRefresh(), 'refresh-2');
   assert.equal(reloaded.readElevatedUntil(), '2026-10-12T10:00:00Z', 'a refresh dropped the hour');
+});
+
+test('the account whose unsent changes were kept outlives the pair and is answered once', () => {
+  const storage = fakeStorage();
+  const store = tokenStore(storage);
+  const held = heldUnsent(storage);
+  held.holdUnsentOf('acc-1');
+  store.clear();
+  assert.equal(storage.values[HELD_UNSENT_KEY], 'acc-1', 'clearing the pair keeps the mark');
+  assert.equal(held.takeHeldUnsent(), 'acc-1');
+  assert.equal(held.takeHeldUnsent(), undefined, 'the next sign-in decided; nothing is held after it');
 });

@@ -35,6 +35,7 @@
   import { jumbleWritable, liveCollections, mayCaptureHere, openLevels, openRoles } from '../capture/places.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
   import HelpDialog from './HelpDialog.svelte';
+  import UnsentChangesDialog from './UnsentChangesDialog.svelte';
   import AskDialog from '../ask/AskDialog.svelte';
   import { offersAsk } from '../ask/answer.ts';
   import NoticeMark from './NoticeMark.svelte';
@@ -367,8 +368,12 @@
   );
 
   /** The account's two verbs, wherever they are chosen - the menu, the palette or a key. */
+  let unsentCount = $state(0);
+
   function accountVerb(action: 'help' | 'sign-out') {
     if (action === 'help') isHelpOpen = true;
+    // Changes not sent yet are never discarded on one press (offline-sync.md §9.6).
+    else if (session.unsent > 0) unsentCount = session.unsent;
     else void session.signOut();
   }
 
@@ -677,6 +682,7 @@
   {/if}
   {#if isHelpOpen}
     <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
+    <UnsentChangesDialog count={unsentCount} onClose={() => (unsentCount = 0)} />
   {/if}
   {#if isAskOpen && asking !== undefined && actor.account}
     {#key asking}

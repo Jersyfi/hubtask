@@ -410,7 +410,7 @@ Binding for every client, including third-party implementations:
 3. After `ACCESS_REVOKED` or `sync.gone`, local data is deleted.
 4. On `sync.cursor_too_old`, a full resynchronisation follows.
 5. Server responses overwrite local predictions; rejected mutations are shown to the user.
-6. Local storage is encrypted and discarded completely on sign-out.
+6. Local storage is encrypted and discarded completely on sign-out. Changes not sent yet are never discarded unasked: a sign-out with a non-empty queue first asks *send first* or *discard*, and a session that ends without one - expired, ended by an administrator, a refused credential - deletes the copy and keeps the queue, the refused changes and the device in the account's store, pushed when the same account signs in again and deleted when a different one does.
 7. Unknown fields and enum values are tolerated and written back unchanged (forward compatibility).
 8. Nothing in the right-hand column of §1 is offered offline.
 9. A document the replica assembled from field records carries no version the server confirmed: a read answered from the local copy carries no `ETag`, a direct write made from it sends no `If-Match`, and a queued mutation's `base_version` is the version of the last whole object received (the initial synchronisation or a full-object record).

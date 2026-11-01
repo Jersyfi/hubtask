@@ -4,7 +4,7 @@
 import { IndexedDbStorage, databaseNameFor } from '@hubtask/sync-engine';
 
 import type { Platform } from './index.ts';
-import { browserStorage, tokenStore } from './tokenStore.ts';
+import { browserStorage, heldUnsent, lastingStorage, tokenStore } from './tokenStore.ts';
 
 /**
  * The browser: the primary target (ADR-0033), and the one with the narrowest promises — offline
@@ -17,6 +17,7 @@ import { browserStorage, tokenStore } from './tokenStore.ts';
  * that has to change for that (ADR-0031).
  */
 const store = tokenStore(browserStorage());
+const held = heldUnsent(lastingStorage());
 
 /**
  * The browser's name, from what it says about itself. Coarse on purpose: this is a label a person
@@ -81,7 +82,17 @@ export const platform: Platform = {
     }
   },
 
-  rememberAccount: (id) => store.rememberAccount(id),
+  rememberAccount: (id) => {
+    const previous = held.takeHeldUnsent();
+    if (previous && previous !== id) {
+      // Somebody else signs in on this browser: the changes the last one left unsent are theirs,
+      // and they go with their store rather than waiting in it for a sign-in that is not coming.
+      void new IndexedDbStorage(databaseNameFor(window.location.origin, previous)).clear().catch(() => {});
+    }
+    store.rememberAccount(id);
+  },
+
+  holdUnsentOf: (id) => held.holdUnsentOf(id),
 
   rememberElevation: (until) => store.rememberElevatedUntil(until),
 

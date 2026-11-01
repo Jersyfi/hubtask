@@ -439,3 +439,41 @@ test('an entry deleted offline is queued once: a deletion predicts no document a
   await engine.mutate('DELETE', `/items/${ITEM}`, undefined, { invalidates: ['/items'] });
   assert.equal(engine.queueState.count, 1, 'queued once, not queued and then queued again after a failed send');
 });
+
+test('§9.6: a refused credential keeps the queue, and the same account signing in again pushes it', async () => {
+  const storage = new MemoryStorage();
+  const { transport, engine } = await synced(storage);
+  transport.down = true;
+  await engine.mutate('PATCH', `/items/${ITEM}`, { title: 'Done in the field' });
+  assert.equal(engine.queueState.count, 1);
+
+  // The session ended while offline: the copy goes, what the person did stays.
+  assert.equal(await engine.release(), 1, 'one change kept');
+  assert.equal(engine.queueState.count, 0, 'nothing is shown for an account that is not signed in');
+  assert.equal(await item(storage), undefined, 'the copy is gone');
+  assert.equal((await storage.all(QUEUE)).length, 1, 'the queue is still in the account\'s store');
+  const device = await storage.get<{ id: string }>('meta', 'device');
+  assert.ok(device, 'and the device with it');
+
+  // The same account signs in again: its store is attached, and the first turn pushes the queue.
+  const again = new PushingTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-2' }).streamSessions({ open: true });
+  again.answer('/sync:pull', { changes: [], cursor: 'c-2', has_more: false });
+  const signedIn = new SyncEngine({ transport: again, clock: new FixedClock(1_700_000_100_000), mutationFor });
+  await signedIn.attach(storage, { platform: 'web', displayName: 'test' });
+  assert.equal(signedIn.queueState.count, 1, 'the kept change is waiting again');
+  const stop = signedIn.listen({ pathsFor, wait: async () => {} });
+  await settle(20);
+  stop();
+  assert.equal(again.applied.size, 1, 'the kept change was pushed');
+  const pushed = again.pushes[0] as { device_id: string; mutations: SyncMutation[] };
+  assert.equal(pushed.device_id, device.id, 'under the same device');
+  assert.equal(pushed.mutations[0]?.kind, 'ITEM_PATCH');
+  assert.equal(signedIn.queueState.count, 0);
+});
+
+test('§9.6: with nothing owed, an ended session deletes the store as sign-out does', async () => {
+  const storage = new MemoryStorage();
+  const { engine } = await synced(storage);
+  assert.equal(await engine.release(), 0);
+  assert.equal((await storage.collections()).length, 0, 'nothing is left behind');
+});

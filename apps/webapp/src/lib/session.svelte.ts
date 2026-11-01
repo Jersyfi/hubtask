@@ -236,7 +236,7 @@ class Session {
     if (this.#signingIn || this.#status === 'signed-out') return;
     this.#paused = {};
     this.#problem = undefined;
-    this.#discard();
+    this.#discard({ keepUnsent: true });
   }
 
   /** Whether step one is back because the second step's time ran out. Cleared by the next attempt. */
@@ -587,7 +587,7 @@ class Session {
           : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
       }
       if (error instanceof TransportError) options.onRefusal?.(error);
-      this.#discard();
+      this.#discard({ keepUnsent: true });
       return false;
     } finally {
       this.#signingIn = false;
@@ -603,9 +603,11 @@ class Session {
    * session listing is where ending one elsewhere is a thing somebody can act on.
    *
    * `offline-sync.md` §9.6 — "local storage is discarded completely on sign-out" — is why
-   * `engine.reset()` is in `#discard` and not a to-do.
+   * `engine.reset()` is in `#discard` and not a to-do. Changes not sent yet are discarded only
+   * once the person was asked (`unsent`, below); `keepUnsent` holds them for the same account's
+   * next sign-in instead, for a sign-out that could not ask.
    */
-  async signOut(): Promise<void> {
+  async signOut(options: { keepUnsent?: boolean } = {}): Promise<void> {
     this.#problem = undefined;
     this.#intended = undefined;
     this.#owed = undefined;
@@ -621,7 +623,18 @@ class Session {
     } catch {
       // Already expired, already revoked, or unreachable. All three end the same way here.
     }
-    this.#discard();
+    this.#discard(options);
+  }
+
+  /** The changes this device has not sent yet - what a sign-out asks about before discarding them. */
+  get unsent(): number {
+    return engine.queueState.count;
+  }
+
+  /** Sends what is waiting now, and answers what is still waiting afterwards. */
+  async sendUnsent(): Promise<number> {
+    await engine.push().catch(() => {});
+    return engine.queueState.count;
   }
 
   /**
@@ -640,7 +653,7 @@ class Session {
     // person who was in the middle of something.
     this.#ended = true;
     this.#problem = undefined;
-    this.#discard();
+    this.#discard({ keepUnsent: true });
   }
 
   /** Takes the remembered path, once. A path that navigated twice is a path that fights the reader. */
@@ -657,14 +670,24 @@ class Session {
    * nothing and hold a credential the reader has just given up — and the per-credential cap counts
    * connections, not intentions.
    */
-  #discard(): void {
+  #discard({ keepUnsent = false }: { keepUnsent?: boolean } = {}): void {
     // The elevation belongs to the session that proved for it (ADR-0070 §4), and this store is a
     // module singleton whose clock outlived one. Signing out and back in inside one page load left
     // the countdown running for whoever signed in next.
     instance.forget();
     live.stop();
+    // An end nobody chose keeps what the person did: the copy goes, the queue stays in the
+    // account's store and is pushed when that account signs in again; another account signing in
+    // deletes it (offline-sync.md §9.6).
+    const account = platform.lastAccount();
     platform.releaseBearer();
-    engine.reset();
+    if (keepUnsent && account) {
+      void engine.release().then((kept) => {
+        if (kept > 0) platform.holdUnsentOf(account);
+      }).catch(() => {});
+    } else {
+      void engine.reset();
+    }
     // A passing message - an *Undo* least of all - belongs to the account that caused it.
     toast.clear();
     // What this device remembered of the person who was signed in. Both hold their content - the

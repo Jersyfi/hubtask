@@ -215,3 +215,48 @@ export function browserStorage(): TokenStorage | undefined {
     return undefined;
   }
 }
+
+/**
+ * Which account's store still holds changes not sent yet after its session ended without a
+ * sign-out (offline-sync.md §9.6). In `localStorage` rather than beside the pair: it has to outlive
+ * the tab, or a different person signing in tomorrow would leave the last one's changes waiting in
+ * a store nobody opens. An account id, never content.
+ */
+export const HELD_UNSENT_KEY = 'hubtask.held_unsent';
+
+export interface HeldUnsent {
+  holdUnsentOf(accountId: string): void;
+  /** The account held, once: the next sign-in decides, and then nothing is held. */
+  takeHeldUnsent(): string | undefined;
+}
+
+export function heldUnsent(storage: TokenStorage | undefined): HeldUnsent {
+  return {
+    holdUnsentOf(accountId: string): void {
+      try {
+        storage?.setItem(HELD_UNSENT_KEY, accountId);
+      } catch {
+        // A browser that refuses storage keeps the changes in the store all the same; only the
+        // clean-up for a different account is lost.
+      }
+    },
+    takeHeldUnsent(): string | undefined {
+      try {
+        const held = storage?.getItem(HELD_UNSENT_KEY) ?? undefined;
+        storage?.removeItem(HELD_UNSENT_KEY);
+        return held || undefined;
+      } catch {
+        return undefined;
+      }
+    },
+  };
+}
+
+/** `window.localStorage`, or nothing where it cannot be reached. */
+export function lastingStorage(): TokenStorage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}

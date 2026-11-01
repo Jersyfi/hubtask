@@ -121,6 +121,13 @@ export interface Platform {
   lastAccount(): string | undefined;
 
   /**
+   * Marks an account's store as holding changes not sent yet when its session ended without a
+   * sign-out (offline-sync.md §9.6). Outlives the pair: `rememberAccount` reads it, keeps the store
+   * for the same account and deletes it when a different one signs in.
+   */
+  holdUnsentOf(accountId: string): void;
+
+  /**
    * When this session's elevation to the control plane ends, and where it is remembered
    * (ADR-0070 §4).
    *

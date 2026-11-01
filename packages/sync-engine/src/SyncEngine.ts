@@ -976,6 +976,33 @@ export class SyncEngine {
   }
 
   /**
+   * Forgets what was read and keeps what was done: an end of the session nobody chose - expired,
+   * ended by an administrator, a credential refused. The copy and the cursor go as at `reset`; the
+   * queue, what was refused and the device stay in the account's store, so that the same account
+   * signing in again pushes them under the same device (`offline-sync.md` §9.6). With nothing owed
+   * the store is deleted whole, as at sign-out. Answers how many changes - queued or refused - were
+   * kept.
+   */
+  async release(): Promise<number> {
+    const { count, rejected, conflicts } = this.#queueState;
+    const owed = count + rejected.length + conflicts.length;
+    const replica = this.#replica;
+    if (owed === 0 || !replica) {
+      await this.reset();
+      return 0;
+    }
+    for (const entry of this.#resources.values()) entry.listeners.clear();
+    this.#resources.clear();
+    this.#replica = undefined;
+    this.#device = undefined;
+    this.#hlc = undefined;
+    this.#queue = undefined;
+    this.#queueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
+    await replica.empty();
+    return owed;
+  }
+
+  /**
    * The delta since the held cursor, page by page until the server says there is no more - or
    * the initial synchronisation where the store holds no cursor. What the loop runs on start and
    * on every reconnect, and what a push runs after itself. Answers the cursor the store

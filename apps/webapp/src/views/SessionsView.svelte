@@ -114,7 +114,9 @@
     failure = undefined;
     try {
       await sessions.end(id);
-      if (isCurrent) await session.signOut();
+      // This session is over at the server, so nothing can be sent under it any more: what is
+      // waiting is kept for this account's next sign-in rather than discarded unasked.
+      if (isCurrent) await session.signOut({ keepUnsent: true });
       else announcer.say(t('app.sessions.ended_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
