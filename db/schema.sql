@@ -3085,7 +3085,9 @@ CREATE TABLE job (
   -- The parameters of the refusal a job ended with, beside its code (migration 0151).
   last_error_params jsonb,
   -- How a job that succeeded ended, where its kind says more: a message code only (migration 0171).
-  outcome      text
+  outcome      text,
+  -- How often a dead duty was revived since its last round that worked (migration 0330).
+  revivals     integer NOT NULL DEFAULT 0
 );
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
@@ -4320,6 +4322,18 @@ END;
 $$;
 REVOKE ALL ON FUNCTION applied_schema_versions() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION applied_schema_versions() TO hubtask_app;
+
+-- The oldest open transaction's age in seconds, the caller's own left out, for alert A-25
+-- (migration 0331): the application role sees its own sessions' transactions.
+CREATE OR REPLACE FUNCTION oldest_transaction_seconds()
+RETURNS double precision
+LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
+  SELECT coalesce(extract(epoch FROM max(now() - xact_start)), 0)::double precision
+  FROM pg_catalog.pg_stat_activity
+  WHERE datname = current_database() AND xact_start IS NOT NULL AND pid <> pg_backend_pid();
+$$;
+REVOKE ALL ON FUNCTION oldest_transaction_seconds() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION oldest_transaction_seconds() TO hubtask_app;
 
 -- ============ The instance's own journal ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
