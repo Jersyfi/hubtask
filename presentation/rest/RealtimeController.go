@@ -42,7 +42,7 @@ func (c RealtimeController) OpenRealtimeDocument(
 	}
 	slot, refusal := c.Registry.AdmitSide(stream.Credential(r), actor.TenantID.String(), stream.Accounts(actor)...)
 	if refusal != stream.RefusedNone {
-		w.Header().Set("Retry-After", strconv.Itoa(streamRefusalRetryAfter))
+		w.Header().Set("Retry-After", strconv.Itoa(refusalRetryAfter()))
 		WriteProblem(w, shared.ErrUnavailable.WithDetail("sync.stream_unavailable").
 			WithParams(map[string]string{"reason": refusal.String()}), requestID)
 		return

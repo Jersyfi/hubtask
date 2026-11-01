@@ -5,6 +5,7 @@ package rest
 
 import (
 	"context"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"time"
@@ -29,14 +30,18 @@ const (
 	// round after it; the idle poll bounds a round, so a revoked session ends within about a minute.
 	streamCredentialRecheck = 30 * time.Second
 	streamCredentialTimeout = 5 * time.Second
-	// streamRetry is the reconnection delay the stream suggests to a browser's EventSource, in
-	// milliseconds. Longer than the default of a few hundred milliseconds: a client that
-	// reconnects to a pod that is shutting down should not spend the rollout in a tight loop.
-	streamRetry = 3000
-	// streamRefusalRetryAfter is what a refused connection is told to wait, in seconds. A cap is
-	// reached because something else is holding the slots, and the shortest useful answer is one
-	// that does not have every refused client come back together.
+	// streamRetryMin and streamRetrySpread bound the reconnection delay the stream suggests, in
+	// milliseconds: drawn per connection between one and ten seconds, so that the streams a
+	// draining pod ends together do not come back to the surviving pods in the same second, each
+	// with a catch-up pull. Never below a second: a client reconnecting to a pod that is shutting
+	// down should not spend the rollout in a tight loop.
+	streamRetryMin    = 1000
+	streamRetrySpread = 9000
+	// streamRefusalRetryAfter and streamRefusalSpread bound what a refused connection is told to
+	// wait, in seconds: five to ten, drawn per refusal. A cap is reached because something else is
+	// holding the slots; one fixed answer would have every refused client come back together.
 	streamRefusalRetryAfter = 5
+	streamRefusalSpread     = 6
 	// streamIdlePoll is the longest a round waits before reading the log again without having
 	// been woken. The safety net under LISTEN/NOTIFY rather than the mechanism: when the listener
 	// is connected this timer almost never fires, and when it is not, the stream is correct and
@@ -106,7 +111,7 @@ func (c StreamController) StreamChanges(
 		c.report(r.Context(), func(ctx context.Context, s StreamSignals) {
 			s.StreamRefused(ctx, refusal.String())
 		})
-		w.Header().Set("Retry-After", strconv.Itoa(streamRefusalRetryAfter))
+		w.Header().Set("Retry-After", strconv.Itoa(refusalRetryAfter()))
 		WriteProblem(w, shared.ErrUnavailable.
 			WithDetail("sync.stream_unavailable").
 			WithParams(map[string]string{"reason": refusal.String()}), requestID)
@@ -161,7 +166,7 @@ func (c StreamController) serve(
 	w.WriteHeader(http.StatusOK)
 
 	events := stream.NewWriter(w)
-	if err := events.Retry(streamRetry); err != nil {
+	if err := events.Retry(streamRetry()); err != nil {
 		return
 	}
 	c.report(r.Context(), func(ctx context.Context, s StreamSignals) { s.StreamOpened(ctx) })
@@ -300,4 +305,15 @@ func cursorOf(params openapi.StreamChangesParams) string {
 		return ""
 	}
 	return *params.LastEventID
+}
+
+// streamRetry draws one connection's suggested reconnection delay, in milliseconds. A schedule's
+// spread, not a secret: math/rand is enough.
+func streamRetry() int {
+	return streamRetryMin + rand.IntN(streamRetrySpread) //nolint:gosec // spreads reconnections, identifies nothing
+}
+
+// refusalRetryAfter draws one refusal's Retry-After, in seconds.
+func refusalRetryAfter() int {
+	return streamRefusalRetryAfter + rand.IntN(streamRefusalSpread) //nolint:gosec // spreads retries, identifies nothing
 }

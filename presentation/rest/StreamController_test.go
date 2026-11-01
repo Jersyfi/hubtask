@@ -425,3 +425,20 @@ func TestARevocationEndsTheStreamAtOnce(t *testing.T) {
 		t.Errorf("the stream did not end on its credential:\n%s", recorder.Body.String())
 	}
 }
+
+// The streams a draining pod ends together come back spread over seconds rather than in the same
+// one: each connection is told its own delay, and each refusal its own Retry-After.
+func TestReconnectionDelaysAreSpreadPerConnection(t *testing.T) {
+	retries, afters := map[int]bool{}, map[int]bool{}
+	for range 200 {
+		retry, after := streamRetry(), refusalRetryAfter()
+		if retry < 1000 || retry >= 10000 || after < 5 || after > 10 {
+			t.Fatalf("drew retry %d ms and Retry-After %d s, outside their bounds", retry, after)
+		}
+		retries[retry/1000] = true
+		afters[after] = true
+	}
+	if len(retries) < 5 || len(afters) < 3 {
+		t.Errorf("200 draws fell into %d seconds of retry and %d Retry-After values: not spread", len(retries), len(afters))
+	}
+}

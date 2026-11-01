@@ -81,7 +81,7 @@ func (c SyncController) SyncSnapshot(w http.ResponseWriter, r *http.Request) {
 		if c.StreamSignals != nil {
 			c.StreamSignals.StreamRefused(r.Context(), refusal.String())
 		}
-		w.Header().Set("Retry-After", strconv.Itoa(streamRefusalRetryAfter))
+		w.Header().Set("Retry-After", strconv.Itoa(refusalRetryAfter()))
 		WriteProblem(w, shared.ErrUnavailable.
 			WithDetail("sync.stream_unavailable").
 			WithParams(map[string]string{"reason": refusal.String()}), requestID)
