@@ -822,7 +822,10 @@ holds one open; a failure keeps the cursor of the last page written. A scheduled
 job per connector (`cmdb.connector_pull`, deduplicated by the connector), seeded by the definition
 and rescheduling itself to the connector's next moment; it runs with the rights of the person who
 last defined the connector, as an automation with the item scopes only, and switches itself off
-after ten failed runs in a row. A run that fails or fetches nothing fires the hub's one alert about
+after ten failed runs in a row - which the workspace's and the hub's administrators are told once
+by e-mail (`INTEGRATION`, subject `notification.cmdb_connector_id`, migration 0342), in the run's
+transaction. A calendar push its provider refuses for good (UC-INT-16) is told to its owner the
+same way (`notification.calendar_push_id`). A run that fails or fetches nothing fires the hub's one alert about
 that connector's runs (key `hubtask.connector_run`, its title the failure's message code or
 `connector.run_empty`), in the run's transaction; a run that fetches resolves it, and a dry run
 leaves it alone (research itsm-cmdb-ai C8). It names no CI and opens no entry: a pull has no

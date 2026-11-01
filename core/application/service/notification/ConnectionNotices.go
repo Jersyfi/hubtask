@@ -15,13 +15,14 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// TellAdministrators records what the workspace's administrators have to fix before people notice:
-// a connected mailbox that has refused for over an hour (ADR-0094), and a SAML provider whose
-// certificates end soon (identity.md §26.1).
+// ConnectionNotices records what a connection that stopped, or is about to, has to tell whoever can
+// fix it before people notice: the workspace's administrators of a mailbox that has refused for over
+// an hour (ADR-0094), a SAML provider whose certificates end soon (identity.md §26.1) and a CMDB
+// connector that switched itself off; a calendar push's owner of the push its provider refused.
 //
 // The integration category: what an integration has to tell its owner, on the switch somebody set
 // for exactly that. No event, like a disabled webhook: a state that was found is what caused it.
-type TellAdministrators struct {
+type ConnectionNotices struct {
 	Notifications repository.Notifications
 	Accounts      identityrepo.Accounts
 	Memberships   identityrepo.Memberships
@@ -34,20 +35,37 @@ type TellAdministrators struct {
 // MailboxFailing tells that a mailbox refused for over an hour: mail sent to the desk through it
 // is not arriving. Told once, when the mailbox turns failing - the poll keeps trying every minute
 // and a message each time would be noise.
-func (r TellAdministrators) MailboxFailing(ctx context.Context, tenantID, mailboxID shared.ID) error {
+func (r ConnectionNotices) MailboxFailing(ctx context.Context, tenantID, mailboxID shared.ID) error {
 	return r.tell(ctx, domain.NewInput{TenantID: tenantID, MailboxID: mailboxID})
 }
 
 // SAMLCertificateEnding tells that a SAML provider's last certificate ends soon: from then on
 // nobody signs in through it. The watch calls it once per warning.
-func (r TellAdministrators) SAMLCertificateEnding(ctx context.Context, tenantID, providerID shared.ID) error {
+func (r ConnectionNotices) SAMLCertificateEnding(ctx context.Context, tenantID, providerID shared.ID) error {
 	return r.tell(ctx, domain.NewInput{TenantID: tenantID, IdentityProviderID: providerID})
+}
+
+// ConnectorSwitchedOff tells the workspace's and the hub's administrators that a CMDB connector
+// stopped after its failures in a row: nothing is pulled until somebody switches it on again.
+func (r ConnectionNotices) ConnectorSwitchedOff(ctx context.Context, tenantID, hubID, connectorID shared.ID) error {
+	return r.tellAt(ctx, domain.NewInput{TenantID: tenantID, ConnectorID: connectorID},
+		[]identity.Scope{identity.TenantScope(), identity.HubScope(hubID)})
+}
+
+// CalendarPushStopped tells a calendar push's owner that its provider refused it for good: the
+// calendar is not updated until they connect it again.
+func (r ConnectionNotices) CalendarPushStopped(ctx context.Context, tenantID, ownerID, pushID shared.ID) error {
+	return r.one(ctx, domain.NewInput{TenantID: tenantID, CalendarPushID: pushID}, ownerID)
 }
 
 // tell records one message per administrator and queues its delivery, inside the caller's
 // transaction, so the message commits with the check that found the state.
-func (r TellAdministrators) tell(ctx context.Context, subject domain.NewInput) error {
-	administrators, err := r.Memberships.Administrators(ctx, []identity.Scope{identity.TenantScope()})
+func (r ConnectionNotices) tell(ctx context.Context, subject domain.NewInput) error {
+	return r.tellAt(ctx, subject, []identity.Scope{identity.TenantScope()})
+}
+
+func (r ConnectionNotices) tellAt(ctx context.Context, subject domain.NewInput, path []identity.Scope) error {
+	administrators, err := r.Memberships.Administrators(ctx, path)
 	if err != nil {
 		return err
 	}
@@ -59,7 +77,7 @@ func (r TellAdministrators) tell(ctx context.Context, subject domain.NewInput) e
 	return nil
 }
 
-func (r TellAdministrators) one(ctx context.Context, subject domain.NewInput, recipientID shared.ID) error {
+func (r ConnectionNotices) one(ctx context.Context, subject domain.NewInput, recipientID shared.ID) error {
 	subject.ID, subject.RecipientID, subject.At = r.IDs.NewID(), recipientID, r.Clock.Now()
 	subject.Category, subject.Channel = domain.CategoryIntegration, domain.ChannelEmail
 	written, err := domain.New(subject)

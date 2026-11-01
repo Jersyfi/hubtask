@@ -232,6 +232,12 @@ type Notification struct {
 	// IdentityProviderID is the SAML provider whose certificates end within 30, 7 or 1 days, told
 	// to the workspace's administrators once per warning (identity.md §26.1).
 	IdentityProviderID shared.ID
+	// CalendarPushID is the calendar push its provider refused for good, told to its owner once
+	// when it stops (UC-INT-16).
+	CalendarPushID shared.ID
+	// ConnectorID is the CMDB connector that switched itself off after its failures, told to the
+	// workspace's and the hub's administrators once when it does.
+	ConnectorID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -266,6 +272,8 @@ type NewInput struct {
 	BaselineID         shared.ID
 	MailboxID          shared.ID
 	IdentityProviderID shared.ID
+	CalendarPushID     shared.ID
+	ConnectorID        shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -316,6 +324,8 @@ func New(in NewInput) (Notification, error) {
 		BaselineID:         in.BaselineID,
 		MailboxID:          in.MailboxID,
 		IdentityProviderID: in.IdentityProviderID,
+		CalendarPushID:     in.CalendarPushID,
+		ConnectorID:        in.ConnectorID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -323,7 +333,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID, in.CalendarPushID, in.ConnectorID} {
 		if !id.IsZero() {
 			named++
 		}

@@ -66,7 +66,7 @@ const findNotification = `-- name: FindNotification :one
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
        event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id,
        private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id,
-       mailbox_id, identity_provider_id
+       mailbox_id, identity_provider_id, calendar_push_id, cmdb_connector_id
 FROM notification
 WHERE id = $1
 `
@@ -99,6 +99,8 @@ func (q *Queries) FindNotification(ctx context.Context, id pgtype.UUID) (Notific
 		&i.BaselineID,
 		&i.MailboxID,
 		&i.IdentityProviderID,
+		&i.CalendarPushID,
+		&i.CmdbConnectorID,
 	)
 	return i, err
 }
@@ -138,7 +140,7 @@ INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
   event_id, item_id, actor_id, created_at, rule_id, subscription_id, private_hub_access_id,
   membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id, mailbox_id,
-  identity_provider_id
+  identity_provider_id, calendar_push_id, cmdb_connector_id
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
@@ -146,7 +148,7 @@ INSERT INTO notification (
   $11, $12, $13,
   $14, $15, $16, $17,
   $18, $19, $20,
-  $21
+  $21, $22, $23
 )
 ON CONFLICT DO NOTHING
 `
@@ -173,6 +175,8 @@ type InsertNotificationParams struct {
 	BaselineID         pgtype.UUID
 	MailboxID          pgtype.UUID
 	IdentityProviderID pgtype.UUID
+	CalendarPushID     pgtype.UUID
+	CmdbConnectorID    pgtype.UUID
 }
 
 // The notification record and what people have said about being told (arc42 §5.2).
@@ -208,6 +212,8 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		arg.BaselineID,
 		arg.MailboxID,
 		arg.IdentityProviderID,
+		arg.CalendarPushID,
+		arg.CmdbConnectorID,
 	)
 	if err != nil {
 		return 0, err

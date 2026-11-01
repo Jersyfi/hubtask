@@ -122,6 +122,14 @@ type Pushes struct {
 	UnitOfWork  persistence.UnitOfWork
 	Clock       clock.Clock
 	IDs         clock.IDGenerator
+	// Stopped tells a push's owner once its provider refused it for good. Optional: nil tells
+	// nobody, and the page still says it.
+	Stopped StoppedNotice
+}
+
+// StoppedNotice is the message a push that stopped leaves for its owner.
+type StoppedNotice interface {
+	CalendarPushStopped(ctx context.Context, tenantID, ownerID, pushID shared.ID) error
 }
 
 // Job is a push's run: one per push, rescheduling itself.
@@ -501,7 +509,16 @@ func (p Pushes) Run(ctx context.Context, tenantID, pushID shared.ID) (time.Time,
 	failure, permanent := p.push(run, tenantID, push, sealed, written)
 	now := p.Clock.Now()
 	push.Pushed(now, failure, permanent)
-	if err := p.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error { return p.Store.Record(ctx, push) }); err != nil {
+	stopped := push.State != integration.PushActive
+	if err := p.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		if err := p.Store.Record(ctx, push); err != nil {
+			return err
+		}
+		if stopped && p.Stopped != nil {
+			return p.Stopped.CalendarPushStopped(ctx, tenantID, push.AccountID, push.ID)
+		}
+		return nil
+	}); err != nil {
 		return time.Time{}, err
 	}
 	if push.State != integration.PushActive {

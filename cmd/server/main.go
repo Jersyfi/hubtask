@@ -2118,6 +2118,12 @@ func run() error {
 	// Its connectors (research itsm-cmdb-ai §6.3): every pull through the guarded client and the
 	// inventory's reconciliation, a breaker per connector; an alert's entry through the registry.
 	alertEntries := &deferredCatalogue{}
+	// Whoever can fix a connection that stopped, told once it does (a connector switched off, a
+	// calendar push refused for good).
+	connectionNotices := notification.ConnectionNotices{
+		Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
+		Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+	}
 	connectors := cmdbservice.Connectors{
 		Inventory: inventory, Store: postgres.NewCmdbConnectorRepository(),
 		Pullers: connectoradapter.Pullers{
@@ -2132,6 +2138,7 @@ func run() error {
 			}},
 		},
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Jobs: jobs, Entries: alertEntries,
+		SwitchedOff: connectionNotices,
 	}
 	// The code on an entry (UC-INT-13): a forge's hooks, their secrets derived from the
 	// installation key, an entry's key resolved as the mail intake resolves it.
@@ -2168,7 +2175,7 @@ func run() error {
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{}, Apps: calendarPushApps(cfg.Mail.OAuth),
 		RedirectURL: strings.TrimSuffix(cfg.BaseURL, "/") + "/profile/calendars",
 		Addresses:   workspaceAddress(cfg), Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Stopped: connectionNotices,
 	}
 	// A hub's chat bot: a Matrix bot reads its room through the guarded client every minute
 	// (UC-INT-18), a Slack, Teams or Mattermost app posts to its intake (UC-INT-19); either runs the
@@ -4518,7 +4525,9 @@ func run() error {
 			Mailboxes: mailboxAddresses{postgres.NewMailboxRepository()},
 			// The SAML provider whose certificates end, and when.
 			SAMLProviders: samlProviderEnds{postgres.NewIdentityProviderRepository()},
-			Boards:        postgres.NewWhiteboardRepository(),
+			// The calendar push or connector that stopped, by the name it is known by.
+			Connections: connectionNames{pushes: postgres.NewCalendarPushRepository(), connectors: postgres.NewCmdbConnectorRepository()},
+			Boards:      postgres.NewWhiteboardRepository(),
 			// The approval a message is about, and through it the entry.
 			Approvals: serviceDeskStore.Approvals(),
 			// The baseline a plan slipped from, and through it the plan's place.
@@ -4939,10 +4948,7 @@ func run() error {
 		queueport.KindMailboxPoll: mailservice.PollMailbox{
 			Boxes: mailBoxes, Receive: receiveMail,
 			// The workspace's administrators told once a mailbox has refused for an hour.
-			Failing: notification.TellAdministrators{
-				Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
-				Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
-			},
+			Failing: connectionNotices,
 			Parse: func(raw []byte, _ string) (jumbleservice.ReceivedMail, error) {
 				return intake.Parsed(raw, nil, intake.MailLimits{})
 			},
@@ -5172,11 +5178,8 @@ func run() error {
 		// certificates end (identity.md §26.1).
 		queueport.KindSAMLCertificateWatch: worker.SAMLCertificateWatch{
 			Watch: identity.WatchSAMLCertificates{
-				Watches: postgres.NewIdentityProviderRepository(),
-				Tell: notification.TellAdministrators{
-					Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
-					Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
-				},
+				Watches:    postgres.NewIdentityProviderRepository(),
+				Tell:       connectionNotices,
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			Queue: jobs, Clock: clockadapter.System{},
@@ -5541,6 +5544,23 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 func runsBackgroundWork(cfg envport.Config) bool {
 	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
 		cfg.HasRole(envport.RoleAutomation)
+}
+
+// connectionNames names a stopped calendar push by its address at the provider and a switched-off
+// connector by its key.
+type connectionNames struct {
+	pushes     postgres.CalendarPushRepository
+	connectors postgres.CmdbConnectorRepository
+}
+
+func (c connectionNames) CalendarPushName(ctx context.Context, id shared.ID) (string, error) {
+	push, _, err := c.pushes.Find(ctx, id)
+	return push.Address, err
+}
+
+func (c connectionNames) ConnectorName(ctx context.Context, id shared.ID) (string, error) {
+	connector, err := c.connectors.FindConnector(ctx, id, false)
+	return connector.Key, err
 }
 
 // samlProviderEnds names a SAML provider and the end of its last certificate for the warning.

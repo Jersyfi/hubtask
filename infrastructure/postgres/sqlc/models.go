@@ -2291,6 +2291,8 @@ type Notification struct {
 	BaselineID         pgtype.UUID
 	MailboxID          pgtype.UUID
 	IdentityProviderID pgtype.UUID
+	CalendarPushID     pgtype.UUID
+	CmdbConnectorID    pgtype.UUID
 }
 
 type NotificationPreference struct {

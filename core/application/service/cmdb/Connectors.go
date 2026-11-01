@@ -83,6 +83,22 @@ type Connectors struct {
 	Jobs      Enqueuer
 	// Entries opens and closes an alert's entry; nil records alerts only.
 	Entries Invoker
+	// SwitchedOff tells the hub's and the workspace's administrators once a scheduled connector
+	// switched itself off after its failures. Optional: nil tells nobody, and the run alert stays.
+	SwitchedOff SwitchedOffNotice
+}
+
+// SwitchedOffNotice is the message a connector that switched itself off leaves.
+type SwitchedOffNotice interface {
+	ConnectorSwitchedOff(ctx context.Context, tenantID, hubID, connectorID shared.ID) error
+}
+
+// tellSwitchedOff tells, inside the run's transaction, that the run switched the connector off.
+func (s Connectors) tellSwitchedOff(ctx context.Context, tenantID shared.ID, before, after domain.Connector) error {
+	if s.SwitchedOff == nil || !before.Enabled || after.Enabled {
+		return nil
+	}
+	return s.SwitchedOff.ConnectorSwitchedOff(ctx, tenantID, after.HubID, after.ID)
 }
 
 // PullJob is a connector's scheduled pull: one job per connector, rescheduling itself.
@@ -508,6 +524,9 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 		if err := s.runAlert(ctx, actor.TenantID, next); err != nil {
 			return err
 		}
+		if err := s.tellSwitchedOff(ctx, actor.TenantID, c, next); err != nil {
+			return err
+		}
 		if err := s.schedule(ctx, actor.TenantID, next); err != nil {
 			return err
 		}
@@ -656,7 +675,10 @@ func (s Connectors) RunScheduled(ctx context.Context, tenantID, id shared.ID) (t
 			if err := s.Store.RecordRun(ctx, next); err != nil {
 				return err
 			}
-			return s.runAlert(ctx, tenantID, next)
+			if err := s.runAlert(ctx, tenantID, next); err != nil {
+				return err
+			}
+			return s.tellSwitchedOff(ctx, tenantID, c, next)
 		})
 	}
 	out, err := s.pull(ctx, actor, c, false, false)

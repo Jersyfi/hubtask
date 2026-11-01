@@ -802,3 +802,57 @@ func TestASAMLCertificateEndingIsSaidWithItsEnd(t *testing.T) {
 		t.Errorf("body %q", sent.Body)
 	}
 }
+
+type connectionNames struct{}
+
+func (connectionNames) CalendarPushName(context.Context, shared.ID) (string, error) {
+	return "ada@example.org", nil
+}
+
+func (connectionNames) ConnectorName(context.Context, shared.ID) (string, error) {
+	return "netbox", nil
+}
+
+// A stopped calendar push and a connector that switched itself off are each said in their own
+// words, by the name they are known by, with the page where they are connected again.
+func TestAStoppedConnectionIsSaidInItsOwnWords(t *testing.T) {
+	cases := []struct {
+		name  string
+		input domain.NewInput
+		code  string
+		title string
+		page  string
+	}{
+		{name: "calendar push", input: domain.NewInput{CalendarPushID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fb")},
+			code: "email.calendar_push_stopped.subject", title: "ada@example.org", page: "/profile/calendars"},
+		{name: "connector", input: domain.NewInput{ConnectorID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fc")},
+			code: "email.connector_switched_off.subject", title: "netbox", page: "/administration/configuration-items"},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := delivery(t, domain.CategoryIntegration, false)
+			in := tc.input
+			in.ID = shared.ID("01936f2a-7c1e-7000-8000-0000000001f" + string(rune('0'+i)))
+			in.TenantID, in.RecipientID, in.At = tenant, bert, now
+			in.Category, in.Channel = domain.CategoryIntegration, domain.ChannelEmail
+			record, err := domain.New(in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+				t.Fatal(err)
+			}
+			fixture.delivery.Connections = connectionNames{}
+			if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+				t.Fatalf("delivering: %v", err)
+			}
+			sent := fixture.mailbox.sent[0]
+			if !strings.Contains(sent.Subject, tc.code) || !strings.Contains(sent.Subject, tc.title) {
+				t.Errorf("subject %q", sent.Subject)
+			}
+			if !strings.Contains(sent.Body, "link="+mainBase+tc.page) {
+				t.Errorf("body %q", sent.Body)
+			}
+		})
+	}
+}

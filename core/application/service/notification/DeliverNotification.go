@@ -88,6 +88,12 @@ const (
 	// A SAML provider whose last certificate ends within 30, 7 or 1 days (identity.md §26.1).
 	subjectSAMLCertificateEnding = "email.saml_certificate_ending.subject"
 	bodySAMLCertificateEnding    = "email.saml_certificate_ending.body"
+	// A calendar push its provider refused for good (UC-INT-16), told to its owner.
+	subjectCalendarPushStopped = "email.calendar_push_stopped.subject"
+	bodyCalendarPushStopped    = "email.calendar_push_stopped.body"
+	// A CMDB connector that switched itself off after its failures in a row.
+	subjectConnectorSwitchedOff = "email.connector_switched_off.subject"
+	bodyConnectorSwitchedOff    = "email.connector_switched_off.body"
 	// A person a whiteboard's comment named (UC-CNV-09): COMMENT's category, its own sentence - the
 	// subject is a board, not an entry.
 	subjectWhiteboardMention = "email.whiteboard_mention.subject"
@@ -156,6 +162,9 @@ type DeliverNotification struct {
 	// SAMLProviders names the SAML provider whose certificates end and says when. Optional: nil
 	// leaves both out.
 	SAMLProviders SAMLProviderReader
+	// Connections names the calendar push or the CMDB connector that stopped. Optional: nil leaves
+	// its name out.
+	Connections ConnectionReader
 	// Boards names the whiteboard a comment named the recipient on. Optional: nil leaves its title
 	// out.
 	Boards BoardReader
@@ -220,6 +229,13 @@ type PlaceReader interface {
 // PageReader answers a page by its identifier - the knowledge repository's Find.
 type PageReader interface {
 	Find(ctx context.Context, id shared.ID) (knowledge.Page, error)
+}
+
+// ConnectionReader answers the name a stopped connection is known by: a calendar push's address
+// at its provider, a connector's key.
+type ConnectionReader interface {
+	CalendarPushName(ctx context.Context, id shared.ID) (string, error)
+	ConnectorName(ctx context.Context, id shared.ID) (string, error)
 }
 
 // SAMLProviderReader answers a SAML provider's name and when its last certificate ends.
@@ -495,6 +511,18 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.title, loaded.samlEnd = name, end
+		case !record.CalendarPushID.IsZero() && d.Connections != nil:
+			name, err := d.Connections.CalendarPushName(ctx, record.CalendarPushID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = name
+		case !record.ConnectorID.IsZero() && d.Connections != nil:
+			name, err := d.Connections.ConnectorName(ctx, record.ConnectorID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = name
 		case !record.MailboxID.IsZero() && d.Mailboxes != nil:
 			address, err := d.Mailboxes.MailboxAddress(ctx, record.MailboxID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -614,6 +642,12 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	}
 	if !loaded.record.IdentityProviderID.IsZero() {
 		subjectCode, bodyCode = subjectSAMLCertificateEnding, bodySAMLCertificateEnding
+	}
+	if !loaded.record.CalendarPushID.IsZero() {
+		subjectCode, bodyCode = subjectCalendarPushStopped, bodyCalendarPushStopped
+	}
+	if !loaded.record.ConnectorID.IsZero() {
+		subjectCode, bodyCode = subjectConnectorSwitchedOff, bodyConnectorSwitchedOff
 	}
 	if !loaded.record.WhiteboardID.IsZero() {
 		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
@@ -775,6 +809,10 @@ func link(loaded subject) string {
 		return base + "/administration/mail"
 	case !record.IdentityProviderID.IsZero():
 		return base + "/administration/sign-in"
+	case !record.CalendarPushID.IsZero():
+		return base + "/profile/calendars"
+	case !record.ConnectorID.IsZero():
+		return base + "/administration/configuration-items"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.ApprovalID.IsZero():

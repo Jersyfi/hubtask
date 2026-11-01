@@ -474,3 +474,34 @@ func code(err error) string {
 	}
 	return ""
 }
+
+type switchedOff struct{ told []shared.ID }
+
+func (s *switchedOff) ConnectorSwitchedOff(_ context.Context, _, hubID, connectorID shared.ID) error {
+	if hubID != hub {
+		return errors.New("told for another hub")
+	}
+	s.told = append(s.told, connectorID)
+	return nil
+}
+
+// A scheduled connector that switches itself off after its failures in a row tells its hub's and
+// workspace's administrators once: nothing is pulled any more, and the run alert alone is seen
+// only by whoever opens the hub's alerts.
+func TestAConnectorThatSwitchesItselfOffIsToldOnce(t *testing.T) {
+	f := newConnectorFixture()
+	told := &switchedOff{}
+	f.c.SwitchedOff = told
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "hz", "kind": "HETZNER", "source": "netbox",
+		"base_url": "https://api.hetzner.example", "every_minutes": 30}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	f.src.fail = shared.ErrUnavailable.WithDetail(connectorport.CodeUnauthorised)
+	for range domain.MaxConnectorFailures {
+		if _, err := call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(told.told) != 1 || told.told[0] != id {
+		t.Errorf("told %v, want [%v] once", told.told, id)
+	}
+}

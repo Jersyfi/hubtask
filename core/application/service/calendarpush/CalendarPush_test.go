@@ -367,3 +367,31 @@ func TestARevokedGrantStopsThePush(t *testing.T) {
 type base string
 
 func (b base) Of(context.Context) (string, error) { return string(b), nil }
+
+type stoppedPushes struct{ told []shared.ID }
+
+func (s *stoppedPushes) CalendarPushStopped(_ context.Context, _, ownerID, pushID shared.ID) error {
+	if ownerID != owner {
+		return errors.New("told somebody other than the push's owner")
+	}
+	s.told = append(s.told, pushID)
+	return nil
+}
+
+// A push its provider refused for good is told to its owner once, when it stops: the calendar is
+// not updated any more and nothing else says so until somebody opens the page.
+func TestAStoppedPushIsToldToItsOwnerOnce(t *testing.T) {
+	f := newFixture(true)
+	told := &stoppedPushes{}
+	f.pushes.Stopped = told
+	id := shared.ID(connect(t, f)["id"].(string))
+	if _, err := f.pushes.Run(context.Background(), tenant, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pushes.Run(context.Background(), tenant, id); err != nil {
+		t.Fatal(err)
+	}
+	if len(told.told) != 1 || told.told[0] != id {
+		t.Errorf("told %v, want [%v]", told.told, id)
+	}
+}

@@ -108,6 +108,14 @@ func (r NotificationRepository) Insert(
 	if err != nil {
 		return false, err
 	}
+	pushID, err := optionalUUID(record.CalendarPushID)
+	if err != nil {
+		return false, err
+	}
+	connectorID, err := optionalUUID(record.ConnectorID)
+	if err != nil {
+		return false, err
+	}
 
 	written, err := queries.InsertNotification(ctx, sqlc.InsertNotificationParams{
 		ID:                 id,
@@ -129,6 +137,8 @@ func (r NotificationRepository) Insert(
 		BaselineID:         baselineID,
 		MailboxID:          mailboxID,
 		IdentityProviderID: providerID,
+		CalendarPushID:     pushID,
+		CmdbConnectorID:    connectorID,
 		ActorID:            actorID,
 		CreatedAt:          timestampOf(record.CreatedAt),
 	})
@@ -401,6 +411,14 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 	if err != nil {
 		return domain.Notification{}, err
 	}
+	pushID, err := optionalID(row.CalendarPushID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
+	connectorID, err := optionalID(row.CmdbConnectorID)
+	if err != nil {
+		return domain.Notification{}, err
+	}
 
 	var reason string
 	if row.Reason != nil {
@@ -427,6 +445,8 @@ func notificationFrom(row sqlc.Notification) (domain.Notification, error) {
 		BaselineID:         baselineID,
 		MailboxID:          mailboxID,
 		IdentityProviderID: providerID,
+		CalendarPushID:     pushID,
+		ConnectorID:        connectorID,
 		ActorID:            actorID,
 		CreatedAt:          row.CreatedAt.Time.UTC(),
 		SentAt:             optionalTime(row.SentAt),

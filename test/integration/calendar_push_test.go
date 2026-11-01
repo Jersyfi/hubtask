@@ -13,6 +13,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/calendarpush"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	notificationdomain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -137,5 +138,53 @@ func TestACalendarPushStaysInItsWorkspace(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The notice that a push stopped is stored with the push as its subject (migration 0342) and goes
+// with it when its owner disconnects it.
+func TestAStoppedPushNoticeNamesItsPushAndGoesWithIt(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	saved := savedViewIn(tenantA, authorA, collection, freshID(t), freshName(t))
+	feed := feedIn(t, tenantA, authorA, saved.ID)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := viewRepo().Insert(ctx, saved); err != nil {
+			return err
+		}
+		return feedRepo().Insert(ctx, feed, mintFeedToken(t, tenantA, 0x21))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	repo := postgres.NewCalendarPushRepository()
+	push, err := domain.NewCalendarPush(freshID(t), tenantA, authorA, feed, domain.PushGoogle, "ada@example.org", created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := repo.Connect(ctx, push, crypto.Sealed{KeyID: "k1", Ciphertext: []byte("grant")})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	record, err := notificationdomain.New(notificationdomain.NewInput{
+		ID: freshID(t), TenantID: tenantA, RecipientID: authorA,
+		Category: notificationdomain.CategoryIntegration, Channel: notificationdomain.ChannelEmail,
+		CalendarPushID: push.ID, At: created,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !insertNotification(ctx, t, tenantA, record) {
+		t.Fatal("the first write reported an existing record")
+	}
+	if stored, err := findNotification(ctx, t, tenantA, record.ID); err != nil || stored.CalendarPushID != push.ID {
+		t.Fatalf("read back push %v, %v", stored.CalendarPushID, err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return repo.Disconnect(ctx, push.ID) }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := findNotification(ctx, t, tenantA, record.ID); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the notice outlived its push: %v", err)
 	}
 }
