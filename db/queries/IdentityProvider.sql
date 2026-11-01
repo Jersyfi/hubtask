@@ -320,7 +320,8 @@ WHERE id = sqlc.arg('id') AND client_secret_key_id = sqlc.arg('expected_key_id')
 -- name: ListSamlCertificateWatches :many
 -- This workspace's SAML providers with what their administrators were last told about the
 -- certificates' end (identity.md §26.1). The installation's rows are never SAML.
-SELECT id, display_name, enabled, saml_certificate, saml_expiry_told_for, saml_expiry_told_days
+SELECT id, display_name, enabled, saml_certificate, saml_expiry_told_for, saml_expiry_told_days,
+       saml_certificates_end
 FROM identity_provider
 WHERE tenant_id = current_tenant_id() AND kind = 'SAML'
 ORDER BY id;
@@ -331,3 +332,15 @@ UPDATE identity_provider SET
   saml_expiry_told_for  = sqlc.arg('told_for'),
   saml_expiry_told_days = sqlc.arg('told_days')
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND kind = 'SAML';
+
+-- name: RecordSamlCertificatesEnd :execrows
+-- The certificates' end the watch found, kept for the installation's count (0348).
+UPDATE identity_provider SET saml_certificates_end = sqlc.arg('certificates_end')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND kind = 'SAML';
+
+-- name: SamlCertificatesEnding :one
+-- Across workspaces through the door (0348): the enabled SAML providers whose end is known, those
+-- ending within 30 and 7 days, and those ended. Numbers, no rows.
+SELECT providers::bigint AS providers, within_30_days::bigint AS within_30_days,
+       within_7_days::bigint AS within_7_days, ended::bigint AS ended
+FROM saml_certificates_ending();

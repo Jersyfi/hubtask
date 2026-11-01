@@ -192,6 +192,19 @@ type SAMLWatch struct {
 	Certificate string
 	ToldFor     time.Time
 	ToldDays    int
+	// RecordedEnd is the certificates' end the watch last kept on the provider, zero before the
+	// first pass: the installation counts ending certificates by it without reading one.
+	RecordedEnd time.Time
+}
+
+// SAMLCertificateCount is how the installation's SAML sign-in fares across workspaces: the enabled
+// SAML providers whose certificates' end is known, those ending within 30 and 7 days, and those
+// whose last certificate ended - nobody signs in through them. Numbers, never a provider.
+type SAMLCertificateCount struct {
+	Providers    int64
+	Within30Days int64
+	Within7Days  int64
+	Ended        int64
 }
 
 // Owed answers the warning to give at now, 0 for none, and when to look again (zero: no warning

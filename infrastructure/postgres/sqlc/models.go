@@ -1935,15 +1935,16 @@ type IdentityProvider struct {
 	Provisioning        string
 	Position            int32
 	// The provider's own identifiers for the organisations this row admits: Microsoft tid, Google hd. Empty under DOMAINS with a preset that has a directory claim admits nobody (ADR-0071 §2).
-	AllowedDirectories []string
-	OfferedWorkspaces  int32
-	WithdrawAt         pgtype.Timestamptz
-	NewcomerRole       *MembershipRole
-	NewcomerGroupID    pgtype.UUID
-	SamlSsoUrl         *string
-	SamlCertificate    *string
-	SamlExpiryToldFor  pgtype.Timestamptz
-	SamlExpiryToldDays *int16
+	AllowedDirectories  []string
+	OfferedWorkspaces   int32
+	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
+	SamlSsoUrl          *string
+	SamlCertificate     *string
+	SamlExpiryToldFor   pgtype.Timestamptz
+	SamlExpiryToldDays  *int16
+	SamlCertificatesEnd pgtype.Timestamptz
 }
 
 type ImportRun struct {

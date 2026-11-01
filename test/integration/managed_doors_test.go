@@ -242,6 +242,36 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
+	// The SAML providers' certificate ends across both workspaces (identity.md §26.1): ended, within
+	// a week, within the month, far off, and one switched off that nobody signs in through.
+	t.Run("the SAML providers' certificate ends are counted across workspaces", func(t *testing.T) {
+		saml := func(id, tenant, enabled, end string) string {
+			return `INSERT INTO identity_provider (id, tenant_id, kind, issuer, client_id, client_secret_enc,
+				client_secret_key_id, saml_sso_url, saml_certificate, enabled, saml_certificates_end, created_at)
+				VALUES ('` + id + `', '` + tenant + `', 'SAML', 'https://idp.door.example/` + id[len(id)-4:] + `',
+				'hubtask', '\x00', 'k', 'https://idp.door.example/sso', 'pem', ` + enabled + `, now() + interval '` + end + `', now())`
+		}
+		for _, statement := range []string{
+			saml("01936f2a-7c1e-7000-8000-000000145671", tenantA, "true", "-1 day"),
+			saml("01936f2a-7c1e-7000-8000-000000145672", tenantB, "true", "3 days"),
+			saml("01936f2a-7c1e-7000-8000-000000145673", tenantB, "true", "20 days"),
+			saml("01936f2a-7c1e-7000-8000-000000145674", tenantA, "true", "200 days"),
+			saml("01936f2a-7c1e-7000-8000-000000145675", tenantA, "false", "-1 day"),
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding a SAML provider: %v", err)
+			}
+		}
+		var providers, within30, within7, ended int64
+		if err := app.QueryRow(ctx, `SELECT providers, within_30_days, within_7_days, ended FROM saml_certificates_ending()`).
+			Scan(&providers, &within30, &within7, &ended); err != nil {
+			t.Fatalf("saml_certificates_ending: %v", err)
+		}
+		if providers != 4 || within30 != 2 || within7 != 1 || ended != 1 {
+			t.Errorf("saml_certificates_ending answered %d, %d, %d, %d; want 4, 2, 1, 1", providers, within30, within7, ended)
+		}
+	})
+
 	// The health report's backlogs (P-11): the outbox counted across workspaces through its door,
 	// and a dead-lettered job among the figures, as the application role reads them.
 	t.Run("the health report's backlogs count every workspace and the dead letters", func(t *testing.T) {

@@ -837,19 +837,21 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 }
 
 const listSamlCertificateWatches = `-- name: ListSamlCertificateWatches :many
-SELECT id, display_name, enabled, saml_certificate, saml_expiry_told_for, saml_expiry_told_days
+SELECT id, display_name, enabled, saml_certificate, saml_expiry_told_for, saml_expiry_told_days,
+       saml_certificates_end
 FROM identity_provider
 WHERE tenant_id = current_tenant_id() AND kind = 'SAML'
 ORDER BY id
 `
 
 type ListSamlCertificateWatchesRow struct {
-	ID                 pgtype.UUID
-	DisplayName        string
-	Enabled            bool
-	SamlCertificate    *string
-	SamlExpiryToldFor  pgtype.Timestamptz
-	SamlExpiryToldDays *int16
+	ID                  pgtype.UUID
+	DisplayName         string
+	Enabled             bool
+	SamlCertificate     *string
+	SamlExpiryToldFor   pgtype.Timestamptz
+	SamlExpiryToldDays  *int16
+	SamlCertificatesEnd pgtype.Timestamptz
 }
 
 // This workspace's SAML providers with what their administrators were last told about the
@@ -870,6 +872,7 @@ func (q *Queries) ListSamlCertificateWatches(ctx context.Context) ([]ListSamlCer
 			&i.SamlCertificate,
 			&i.SamlExpiryToldFor,
 			&i.SamlExpiryToldDays,
+			&i.SamlCertificatesEnd,
 		); err != nil {
 			return nil, err
 		}
@@ -956,6 +959,25 @@ func (q *Queries) ProviderIdentityHolders(ctx context.Context, providerID pgtype
 	return items, nil
 }
 
+const recordSamlCertificatesEnd = `-- name: RecordSamlCertificatesEnd :execrows
+UPDATE identity_provider SET saml_certificates_end = $1
+WHERE id = $2 AND tenant_id = current_tenant_id() AND kind = 'SAML'
+`
+
+type RecordSamlCertificatesEndParams struct {
+	CertificatesEnd pgtype.Timestamptz
+	ID              pgtype.UUID
+}
+
+// The certificates' end the watch found, kept for the installation's count (0348).
+func (q *Queries) RecordSamlCertificatesEnd(ctx context.Context, arg RecordSamlCertificatesEndParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordSamlCertificatesEnd, arg.CertificatesEnd, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const rewrapIdentityProviderSecret = `-- name: RewrapIdentityProviderSecret :execrows
 UPDATE identity_provider
 SET client_secret_enc = $1, client_secret_key_id = $2
@@ -982,6 +1004,33 @@ func (q *Queries) RewrapIdentityProviderSecret(ctx context.Context, arg RewrapId
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const samlCertificatesEnding = `-- name: SamlCertificatesEnding :one
+SELECT providers::bigint AS providers, within_30_days::bigint AS within_30_days,
+       within_7_days::bigint AS within_7_days, ended::bigint AS ended
+FROM saml_certificates_ending()
+`
+
+type SamlCertificatesEndingRow struct {
+	Providers    int64
+	Within30Days int64
+	Within7Days  int64
+	Ended        int64
+}
+
+// Across workspaces through the door (0348): the enabled SAML providers whose end is known, those
+// ending within 30 and 7 days, and those ended. Numbers, no rows.
+func (q *Queries) SamlCertificatesEnding(ctx context.Context) (SamlCertificatesEndingRow, error) {
+	row := q.db.QueryRow(ctx, samlCertificatesEnding)
+	var i SamlCertificatesEndingRow
+	err := row.Scan(
+		&i.Providers,
+		&i.Within30Days,
+		&i.Within7Days,
+		&i.Ended,
+	)
+	return i, err
 }
 
 const setProviderWithdrawal = `-- name: SetProviderWithdrawal :one

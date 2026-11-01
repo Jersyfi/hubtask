@@ -45,6 +45,9 @@ func (IdentityProviderRepository) SAMLWatches(ctx context.Context) ([]identity.S
 		if row.SamlExpiryToldDays != nil {
 			watch.ToldDays = int(*row.SamlExpiryToldDays)
 		}
+		if row.SamlCertificatesEnd.Valid {
+			watch.RecordedEnd = row.SamlCertificatesEnd.Time.UTC()
+		}
 		watches = append(watches, watch)
 	}
 	return watches, nil
@@ -76,4 +79,46 @@ func (IdentityProviderRepository) MarkSAMLExpiryTold(ctx context.Context, id sha
 		return shared.ErrNotFound.WithDetail("identity_provider.not_found")
 	}
 	return nil
+}
+
+// RecordSAMLCertificatesEnd keeps the certificates' end the watch found on the provider.
+func (IdentityProviderRepository) RecordSAMLCertificatesEnd(ctx context.Context, id shared.ID, end time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	recorded, err := queries.RecordSamlCertificatesEnd(ctx, sqlc.RecordSamlCertificatesEndParams{
+		ID: key, CertificatesEnd: timestampOf(end),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the SAML certificates' end: %w", err))
+	}
+	if recorded == 0 {
+		return shared.ErrNotFound.WithDetail("identity_provider.not_found")
+	}
+	return nil
+}
+
+// SAMLCertificatesEnding counts the installation's SAML providers by their certificates' end, across
+// every workspace, through the door that names none of them (migration 0348).
+func (IdentityProviderRepository) SAMLCertificatesEnding(ctx context.Context) (identity.SAMLCertificateCount, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.SAMLCertificateCount{}, err
+	}
+	row, err := queries.SamlCertificatesEnding(ctx)
+	if err != nil {
+		return identity.SAMLCertificateCount{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the SAML certificates' ends: %w", err))
+	}
+	return identity.SAMLCertificateCount{
+		Providers: row.Providers, Within30Days: row.Within30Days, Within7Days: row.Within7Days, Ended: row.Ended,
+	}, nil
 }

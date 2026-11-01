@@ -15,7 +15,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-type samlWatchStore struct{ watches []domain.SAMLWatch }
+type samlWatchStore struct {
+	watches  []domain.SAMLWatch
+	recorded int
+}
 
 func (s *samlWatchStore) SAMLWatches(context.Context) ([]domain.SAMLWatch, error) {
 	return append([]domain.SAMLWatch(nil), s.watches...), nil
@@ -25,6 +28,17 @@ func (s *samlWatchStore) MarkSAMLExpiryTold(_ context.Context, id shared.ID, end
 	for i := range s.watches {
 		if s.watches[i].ProviderID == id {
 			s.watches[i].ToldFor, s.watches[i].ToldDays = end, days
+			return nil
+		}
+	}
+	return shared.ErrNotFound
+}
+
+func (s *samlWatchStore) RecordSAMLCertificatesEnd(_ context.Context, id shared.ID, end time.Time) error {
+	for i := range s.watches {
+		if s.watches[i].ProviderID == id {
+			s.watches[i].RecordedEnd = end
+			s.recorded++
 			return nil
 		}
 	}
@@ -93,5 +107,29 @@ func TestSavingASAMLProviderSeedsTheCertificateWatch(t *testing.T) {
 	}
 	if !seeded {
 		t.Errorf("no watch was seeded: %+v", jobs.requests)
+	}
+}
+
+// The installation's count of ending certificates reads the end the watch keeps on every SAML
+// provider (identity.md §26.1): written when it changes - a new certificate pasted moves it - and
+// left alone while it does not.
+func TestTheWatchKeepsEveryProvidersCertificateEnd(t *testing.T) {
+	at := time.Date(2026, 10, 30, 10, 0, 0, 0, time.UTC)
+	end := at.AddDate(1, 0, 0)
+	providerID := shared.ID("01936f2a-7c1e-7000-8000-0000000000c2")
+	store := &samlWatchStore{watches: []domain.SAMLWatch{{
+		ProviderID: providerID, Certificate: samlTestCertificateUntil(t, at, end),
+	}}}
+	actor := appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: tenant}
+	watch := WatchSAMLCertificates{Watches: store, Tell: &samlTold{}, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(at)}
+
+	if _, err := watch.Execute(t.Context(), actor); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := store.watches[0].CertificatesEnd(); !store.watches[0].RecordedEnd.Equal(got) || store.recorded != 1 {
+		t.Fatalf("recorded %v (%d writes), want %v", store.watches[0].RecordedEnd, store.recorded, got)
+	}
+	if _, err := watch.Execute(t.Context(), actor); err != nil || store.recorded != 1 {
+		t.Errorf("an unchanged end was written again: %d writes, %v", store.recorded, err)
 	}
 }

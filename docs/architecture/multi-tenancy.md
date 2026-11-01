@@ -92,6 +92,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
 | `instance_census()` | Five counts, no rows | The instance overview |
 | `installation_mail_apps()` | Per mail preset, how many enabled mailboxes sign in through the installation's own app and how many have failed for over an hour - numbers, no mailbox and no workspace | The scheduler's leader, for alert A-29 |
+| `saml_certificates_ending()` | The enabled SAML providers whose certificates' end is known, those ending within 30 and 7 days, and those ended - numbers, no provider and no workspace | The scheduler's leader, for `hubtask_saml_providers_ending` ([identity.md](./identity.md) §26.1) |
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |

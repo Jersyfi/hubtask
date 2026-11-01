@@ -181,4 +181,7 @@ type SAMLCertificateWatches interface {
 	// MarkSAMLExpiryTold records the warning given for the end, or an error wrapping
 	// shared.ErrNotFound where the provider is gone.
 	MarkSAMLExpiryTold(ctx context.Context, id shared.ID, end time.Time, days int) error
+	// RecordSAMLCertificatesEnd keeps the certificates' end on the provider, or answers an error
+	// wrapping shared.ErrNotFound where the provider is gone.
+	RecordSAMLCertificatesEnd(ctx context.Context, id shared.ID, end time.Time) error
 }

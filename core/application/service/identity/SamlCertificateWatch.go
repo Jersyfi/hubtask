@@ -26,7 +26,8 @@ type SAMLExpiryNotice interface {
 
 // WatchSAMLCertificates tells a workspace's administrators 30, 7 and 1 days before the last
 // certificate of one of its SAML providers ends (identity.md §26.1): from then on every answer is
-// refused and nobody signs in through it.
+// refused and nobody signs in through it. It keeps each provider's end on its row as well, which
+// the installation counts across workspaces (saml_certificates_ending, migration 0348).
 type WatchSAMLCertificates struct {
 	Watches    repository.SAMLCertificateWatches
 	Tell       SAMLExpiryNotice
@@ -47,6 +48,11 @@ func (w WatchSAMLCertificates) Execute(ctx context.Context, actor appshared.Acto
 		}
 		found = len(watches) > 0
 		for _, watch := range watches {
+			if end, ok := watch.CertificatesEnd(); ok && !end.Equal(watch.RecordedEnd) {
+				if err := w.Watches.RecordSAMLCertificatesEnd(ctx, watch.ProviderID, end); err != nil {
+					return err
+				}
+			}
 			days, at := watch.Owed(now)
 			if !at.IsZero() && at.Before(next) {
 				next = at

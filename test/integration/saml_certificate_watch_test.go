@@ -83,6 +83,9 @@ func TestTheSAMLCertificateWatchReadsAndMarksOnlyItsWorkspace(t *testing.T) {
 		if days, _ := watch.Owed(now); days != 30 {
 			t.Errorf("owed %d, want 30", days)
 		}
+		if err := providers.RecordSAMLCertificatesEnd(ctx, configured.ID, end); err != nil {
+			t.Fatalf("recording the end: %v", err)
+		}
 		return providers.MarkSAMLExpiryTold(ctx, configured.ID, end, 30)
 	})
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
@@ -91,6 +94,9 @@ func TestTheSAMLCertificateWatchReadsAndMarksOnlyItsWorkspace(t *testing.T) {
 			t.Fatal(err)
 		}
 		watch, _ := watchOf(watches)
+		if !watch.RecordedEnd.Equal(end) {
+			t.Errorf("recorded end %v, want %v", watch.RecordedEnd, end)
+		}
 		if watch.ToldDays != 30 || !watch.ToldFor.Equal(end) {
 			t.Errorf("recorded %d days for %v, want 30 for %v", watch.ToldDays, watch.ToldFor, end)
 		}
@@ -110,6 +116,9 @@ func TestTheSAMLCertificateWatchReadsAndMarksOnlyItsWorkspace(t *testing.T) {
 		}
 		if err := providers.MarkSAMLExpiryTold(ctx, configured.ID, end, 7); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("B marked A's provider: %v", err)
+		}
+		if err := providers.RecordSAMLCertificatesEnd(ctx, configured.ID, end); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("B recorded A's provider's end: %v", err)
 		}
 		return nil
 	})
