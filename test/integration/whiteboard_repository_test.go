@@ -117,7 +117,7 @@ func TestABoardIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 }
 
 // A board's history keeps its versions, folds a session's into one, names one, and another
-// workspace reads, folds, names and adds none (migration 0234).
+// workspace reads, folds, names and adds none (migration 0234, UC-CNV-06 check 4).
 func TestABoardsHistoryStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, board, _ := seedBoard(ctx, t)
@@ -221,7 +221,7 @@ func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 }
 
 // A board's comments are read as they were written, pinned where they were put, and the workspace
-// next door neither finds nor writes them (migration 0266, UC-CNV-09).
+// next door neither finds nor writes them (migration 0266, UC-CNV-09 check 4).
 func TestABoardsCommentsStayInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, board, _ := seedBoard(ctx, t)

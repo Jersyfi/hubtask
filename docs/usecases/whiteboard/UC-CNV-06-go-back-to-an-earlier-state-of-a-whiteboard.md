@@ -5,7 +5,7 @@ context: whiteboard
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/whiteboard/Version_test.go, core/domain/model/lifecycle/Rule_test.go, core/application/service/lifecycle/DocumentRetention_test.go, test/integration/document_retention_test.go, core/application/service/whiteboard/Boards_test.go, test/integration/whiteboard_repository_test.go, packages/whiteboard/test/tools.test.ts, packages/whiteboard/test/scene.test.ts, apps/webapp/src/lib/whiteboards/restore.test.ts]
 ---

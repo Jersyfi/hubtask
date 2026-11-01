@@ -5,9 +5,12 @@ package whiteboard
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/archive"
+	"github.com/Jersyfi/hubtask/core/application/service/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -179,5 +182,21 @@ func TestACommentIsResolvedByAWriterAndChangedByItsAuthor(t *testing.T) {
 	}
 	if _, err := (ListWhiteboardComments{Studio: s}).Descriptor().Handler.Invoke(ctx, actor(bert), usecase.Input{"whiteboard_id": privateBoard["id"]}); err == nil {
 		t.Fatal("somebody outside the hub read its board's comments")
+	}
+}
+
+// UC-CNV-09 check 4: a board's comments go whole into the workspace's archive and come back with
+// its restore, and their author finds them in the copy of their data.
+func TestBoardCommentsTravelWithTheArchiveAndThePersonsCopy(t *testing.T) {
+	entity, ok := archive.FindEntityByTable("whiteboard_comment")
+	if !ok || !entity.Whole {
+		t.Fatalf("whiteboard_comment is archived: %v, whole: %v", ok, entity.Whole)
+	}
+	if _, skipped := archive.NotRestored()[entity.Table]; skipped {
+		t.Errorf("a restore leaves the board comments out")
+	}
+	byPerson, _, _ := privacy.SubjectTables()
+	if !slices.Contains(byPerson["whiteboard_comment"], "author_id") {
+		t.Errorf("the person's copy reads board comments by %v, not by their author", byPerson["whiteboard_comment"])
 	}
 }
