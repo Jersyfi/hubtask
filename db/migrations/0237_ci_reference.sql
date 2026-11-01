@@ -3,7 +3,9 @@
 -- CI lists what points at it (ListCiBacklinks) and a reference resolves to it.
 --
 -- Expand only (rule 12): the three reference tables' target kind CHECKs widen by `CI` - added NOT
--- VALID and validated after, so the old rows are read without a long lock - and the address
+-- VALID and validated in this file, which holds the table's lock through the scan; that is safe
+-- only because the three tables came with this release (0213, 0231, 0233) and hold no row a
+-- released version wrote - and the address
 -- grammar `entry_references_of` learns the kind. Older code never writes `CI`; a CI address it
 -- keeps in a text is found when the text is next written.
 
