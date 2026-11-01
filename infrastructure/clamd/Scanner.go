@@ -18,7 +18,6 @@ import (
 	"io"
 	"net"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
@@ -112,23 +111,7 @@ func (s Scanner) dial(ctx context.Context, network, address string) (net.Conn, e
 	if s.Guard == nil {
 		return nil, errors.New("no outbound guard is wired")
 	}
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return nil, fmt.Errorf("the address is not host:port: %w", err)
-	}
-	if err := s.Guard.CheckHost(host); err != nil {
-		return nil, err
-	}
-	if _, err := s.Guard.Resolve(ctx, host); err != nil {
-		return nil, err
-	}
-	dialer := &net.Dialer{
-		Timeout: connectTimeout,
-		Control: func(network, address string, _ syscall.RawConn) error {
-			return s.Guard.CheckControl(network, address)
-		},
-	}
-	return dialer.DialContext(ctx, network, address)
+	return httpclient.NewGuardedDialer(s.Guard, connectTimeout).DialContext(ctx, network, address)
 }
 
 // stream writes the content in length-prefixed chunks and the zero-length chunk that ends it.

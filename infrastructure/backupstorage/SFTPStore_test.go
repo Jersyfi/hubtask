@@ -4,7 +4,9 @@
 package backupstorage_test
 
 import (
+	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -158,5 +160,27 @@ func TestATargetOnALinkLocalAddressIsBlocked(t *testing.T) {
 	}
 	if !httpclient.IsBlocked(err) {
 		t.Fatalf("it was refused for the wrong reason: %v", err)
+	}
+}
+
+// The egress allowlist applies to an SFTP target as to an HTTP one (backup-restore.md §2): with
+// tenant targets open, a host the operator did not list is never dialled, whoever configured it.
+func TestATargetHostOffTheEgressAllowlistIsRefused(t *testing.T) {
+	listed := permissive()
+	listed.AllowedHosts = []string{"backup.operator.example"}
+
+	store, err := backupstorage.NewSFTPStore(
+		httpclient.NewGuard(listed).WithResolver(func(context.Context, string) ([]netip.Addr, error) {
+			t.Fatal("a host off the allowlist was resolved")
+			return nil, nil
+		}),
+		sftpSpec(), time.Second)
+	if err != nil {
+		t.Fatalf("opening the target: %v", err)
+	}
+
+	_, err = store.Stat(t.Context(), "a.hbk")
+	if !httpclient.IsBlocked(err) {
+		t.Fatalf("a host off the allowlist was not refused by the guard: %v", err)
 	}
 }

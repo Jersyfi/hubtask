@@ -18,7 +18,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
@@ -98,24 +97,8 @@ func (i IMAP) dial(ctx context.Context, address, host string) (net.Conn, error) 
 	if i.Guard == nil {
 		return nil, shared.ErrInternal.WithDetail("mail.mailbox_unwired")
 	}
-	// The same checks the HTTP adapters get from GuardedClient, applied by hand because IMAP is not
-	// HTTP: the allowlist, then resolution, then the address at dial time, which cannot be raced.
-	if err := i.Guard.CheckHost(host); err != nil {
-		return nil, err
-	}
-	if _, err := i.Guard.Resolve(ctx, host); err != nil {
-		return nil, err
-	}
-	dialer := &tls.Dialer{
-		NetDialer: &net.Dialer{
-			Timeout: dialTimeout,
-			Control: func(network, address string, _ syscall.RawConn) error {
-				return i.Guard.CheckControl(network, address)
-			},
-		},
-		Config: &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12},
-	}
-	conn, err := dialer.DialContext(ctx, "tcp", address)
+	conn, err := httpclient.NewGuardedDialer(i.Guard, dialTimeout).
+		DialTLSContext(ctx, "tcp", address, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
 	if err != nil {
 		return nil, unreachable(err)
 	}

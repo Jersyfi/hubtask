@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -209,21 +208,7 @@ func (d Directory) dial(ctx context.Context, address, host string) (net.Conn, er
 	if d.Guard == nil {
 		return nil, shared.ErrInternal.WithDetail("directory.ldap_unwired")
 	}
-	// The checks GuardedClient makes for HTTP, by hand because LDAP is not HTTP: the allowlist,
-	// resolution, and the address at dial time, which cannot be raced (rule 6).
-	if err := d.Guard.CheckHost(host); err != nil {
-		return nil, err
-	}
-	if _, err := d.Guard.Resolve(ctx, host); err != nil {
-		return nil, err
-	}
-	dialer := &net.Dialer{
-		Timeout: dialTimeout,
-		Control: func(network, address string, _ syscall.RawConn) error {
-			return d.Guard.CheckControl(network, address)
-		},
-	}
-	conn, err := dialer.DialContext(ctx, "tcp", address)
+	conn, err := httpclient.NewGuardedDialer(d.Guard, dialTimeout).DialContext(ctx, "tcp", address)
 	if err != nil {
 		return nil, unreachable(err)
 	}
