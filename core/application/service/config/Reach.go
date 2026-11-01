@@ -9,9 +9,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // reach is what one change touches beyond the configuration (configuration.md §2): the
@@ -35,6 +37,9 @@ type reach struct {
 	// switched-on rules it quiets; Switches says the row is one.
 	People, Rules int
 	Switches      bool
+	// Intake is a form's change: per unattended door, the fields it now requires that the door
+	// does not send - every creation of the type through it is refused until it does.
+	Intake []work.IntakeGap
 	// Withheld says the reach was not counted: the preview it comes from refused this reader (a
 	// token without the preview's scope, a module off). The plan holds; what it touches is
 	// unknown to this reader, and the plan says so rather than nothing.
@@ -148,6 +153,16 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				r.Moves = []any{}
 			}
 			p.Reach = append(p.Reach, r)
+		case change.Section == sectionTypes && change.Op == domain.OpChange && slices.Contains(change.Fields, "form"):
+			// A form the plan cannot read is the apply's to refuse, with its path.
+			before, errBefore := workflow.FormFromInput(change.Before["form"])
+			after, errAfter := workflow.FormFromInput(change.After["form"])
+			if errBefore != nil || errAfter != nil {
+				continue
+			}
+			if gaps := work.IntakeGaps(before, after); len(gaps) > 0 {
+				p.Reach = append(p.Reach, reach{Path: change.Path(), Intake: gaps})
+			}
 		case change.Section == sectionRoles && change.Op != domain.OpAdd:
 			if !grantsRead {
 				grantsRead = true
@@ -322,6 +337,13 @@ func ReachOutput(rows []reach) []usecase.Output {
 		if r.Switches {
 			row["people"] = r.People
 			row["rules"] = r.Rules
+		}
+		if len(r.Intake) > 0 {
+			doors := make([]usecase.Output, 0, len(r.Intake))
+			for _, gap := range r.Intake {
+				doors = append(doors, usecase.Output{"channel": string(gap.Channel), "fields": gap.Fields})
+			}
+			row["intake"] = doors
 		}
 		if r.Withheld {
 			row["withheld"] = true

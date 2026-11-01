@@ -618,3 +618,56 @@ func CheckFormStep(f Form, item WorkItem, without, with FormState) error {
 		WithParams(map[string]string{"count": strconv.Itoa(len(problems))}).
 		WithFields(problems...)
 }
+
+// IntakeGap is a door nobody fills a form at that a form's change leaves refusing every creation
+// of the type: the fields it now requires that the door neither sends nor presets.
+type IntakeGap struct {
+	Channel FormChannel
+	Fields  []string
+}
+
+// unattendedChannels are the doors where no person sees the form while an entry is created - a
+// rule's action, an import's row, a mail - so a newly required field refuses them rather than
+// asks. A person at the others is shown the field.
+var unattendedChannels = []FormChannel{ChannelRule, ChannelImport, ChannelMail}
+
+// IntakeGaps answers, per unattended door left open, the fields after requires always - no
+// condition, no default, no preset of the door - that before did not. A condition is not judged:
+// whether it holds depends on the entry.
+func IntakeGaps(before, after Form) []IntakeGap {
+	var gaps []IntakeGap
+	for _, channel := range unattendedChannels {
+		rule := after.Channel(channel)
+		if rule.Closed {
+			continue
+		}
+		var fields []string
+		for _, field := range after.Fields {
+			if !unfilledAt(field, rule) || sentBy(channel, field.Key) {
+				continue
+			}
+			if was, held := before.Field(field.Key); held && unfilledAt(was, before.Channel(channel)) {
+				continue
+			}
+			fields = append(fields, field.Key)
+		}
+		if len(fields) > 0 {
+			gaps = append(gaps, IntakeGap{Channel: channel, Fields: fields})
+		}
+	}
+	return gaps
+}
+
+// unfilledAt says the field is required always and the door's narrowing leaves it empty.
+func unfilledAt(field FormField, rule FormChannelRule) bool {
+	if !field.Required || field.Default != nil {
+		return false
+	}
+	_, preset := rule.Presets[field.Key]
+	return !preset
+}
+
+// sentBy says the door always sends the field: every door a title, mail its body as the notes.
+func sentBy(channel FormChannel, key string) bool {
+	return key == FormKeyTitle || (channel == ChannelMail && key == FormKeyNotes)
+}

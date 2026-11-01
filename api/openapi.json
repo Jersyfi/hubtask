@@ -50245,6 +50245,33 @@
             "type": "integer",
             "description": "Switched-on rules at the plan's place that use the module and go quiet while it is off: an action of it is skipped, a trigger of it never fires. The rules stay on.\n"
           },
+          "intake": {
+            "type": "array",
+            "description": "A type's form that now always requires a value, without a default, which a door nobody fills the form at does not send: per such door - a rule's action, an import's row, a mail - the fields it lacks. Every creation of the type through it is refused until the door sends them or the form presets them for it; a mail goes to the jumble instead. A field required only under a condition is not judged.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "channel",
+                "fields"
+              ],
+              "properties": {
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "RULE",
+                    "IMPORT",
+                    "MAIL"
+                  ]
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
           "withheld": {
             "type": "boolean",
             "description": "True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.\n"

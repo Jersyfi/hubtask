@@ -2745,6 +2745,7 @@ class ConfigReach(TypedDict, total=False):
     lost: list[str]
     people: int
     rules: int
+    intake: list[dict[str, Any]]
     withheld: bool
 
 class ModuleReach(TypedDict, total=False):

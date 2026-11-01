@@ -44,6 +44,12 @@ export function reachLines(reach: readonly ConfigReach[] | null | undefined): Re
     if (each.rules) {
       lines.push({ code: 'app.changes.reach_rules', params: { path, count: each.rules } });
     }
+    for (const door of each.intake ?? []) {
+      lines.push({
+        code: `app.changes.reach_intake_${door.channel.toLowerCase()}`,
+        params: { path, fields: door.fields.join(', ') },
+      });
+    }
   }
   return lines;
 }

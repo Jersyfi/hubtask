@@ -52,7 +52,9 @@ too. One mechanism serves all three.
 **A plan says what a person needs to decide,** in the order a person reads it: what changes (by
 key, before → after), what it reaches (entries moving status, entries whose fields become hidden,
 people who gain or lose a permission, people a module switched off (or left to a level above that has it off) leaves without it, rules
-paused - among them the switched-on rules such a module quiets, which stay on -, forms changed), what is refused and why (a
+paused - among them the switched-on rules such a module quiets, which stay on -, forms changed, and
+per door nobody fills a form at - a rule's action, an import's row, a mail - the fields a form now
+always requires that the door does not send, so every creation through it would be refused), what is refused and why (a
 message code, the key path and, where it exists, the allowed values — machine-readable, so an agent
 can correct itself), and what is irreversible (none, by design: narrowing hides, a deletion of a
 block in use is refused: a custom role still granted or addressed by a rule (`roles.in_use`), a

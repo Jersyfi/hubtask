@@ -35,6 +35,16 @@ test('every count of a plan is a line of its reach', () => {
   assert.deepEqual(lines[6]?.params, { path: 'modules.WORKFLOWS', count: 2 });
 });
 
+test('a form that closes an unattended door says which door and which fields', () => {
+  const lines = reachLines([
+    { path: 'types.incident', intake: [{ channel: 'RULE', fields: ['custom_fields.severity', 'due_date'] }, { channel: 'MAIL', fields: ['due_date'] }] },
+  ]);
+  assert.deepEqual(lines, [
+    { code: 'app.changes.reach_intake_rule', params: { path: 'types.incident', fields: 'custom_fields.severity, due_date' } },
+    { code: 'app.changes.reach_intake_mail', params: { path: 'types.incident', fields: 'due_date' } },
+  ]);
+});
+
 test('a reach withheld from the reader is said once and counts nothing', () => {
   const lines = reachLines([{ path: 'workflows.service.shape', withheld: true, entries: 4 }]);
   assert.deepEqual(lines, [{ code: 'app.changes.reach_withheld', params: { path: 'workflows.service.shape' } }]);

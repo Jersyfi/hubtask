@@ -221,3 +221,36 @@ func TestAPlanCountsThePeopleAModuleSwitchedOffLeaves(t *testing.T) {
 		t.Errorf("a withheld count was answered %v", reached)
 	}
 }
+
+// configuration.md §2: a form that newly requires a value the unattended doors do not send - a
+// rule's action, an import's row, a mail - is said at the plan, per door and field, before those
+// doors start refusing every creation of the type.
+func TestAPlanNamesTheDoorsANewlyRequiredFieldCloses(t *testing.T) {
+	f := newFixture()
+	f.world.fields = map[string]map[string]any{"severity": {
+		"id": "0190a8f0-0000-7000-8000-0000000000c1", "key": "severity", "kind": "TEXT", "options": []any{},
+		"applies_to": []any{"TASK"},
+	}}
+	f.world.types["incident"] = map[string]any{"key": "incident", "level": "TASK", "name": "Incident",
+		"form": map[string]any{"sections": []any{}, "fields": []any{}, "validations": []any{}, "channels": []any{}}}
+	form := map[string]any{"sections": []any{}, "validations": []any{},
+		"fields": []any{map[string]any{"key": "custom_fields.severity", "required": true}},
+		"channels": []any{map[string]any{"channel": "MAIL", "closed": true, "hidden": []any{}, "presets": map[string]any{}}}}
+	document := map[string]any{"types": map[string]any{"incident": map[string]any{"form": form}}}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})
+
+	reached, _ := plan["reach"].([]usecase.Output)
+	if len(reached) != 1 || reached[0]["path"] != "types.incident" {
+		t.Fatalf("reach %v, refusals %v", reached, plan["refusals"])
+	}
+	intake, _ := reached[0]["intake"].([]usecase.Output)
+	if len(intake) != 2 || intake[0]["channel"] != "RULE" || intake[1]["channel"] != "IMPORT" {
+		t.Fatalf("intake %v, want the rule and the import door, mail being closed", intake)
+	}
+	if fields := intake[0]["fields"].([]string); len(fields) != 1 || fields[0] != "custom_fields.severity" {
+		t.Errorf("fields %v", fields)
+	}
+	if plan["plan_hash"] == nil {
+		t.Errorf("a door's gap refused the plan: %v", plan["refusals"])
+	}
+}

@@ -3409,6 +3409,27 @@ func (e ConfigProposalState) Valid() bool {
 	}
 }
 
+// Defines values for ConfigReachIntakeChannel.
+const (
+	ConfigReachIntakeChannelIMPORT ConfigReachIntakeChannel = "IMPORT"
+	ConfigReachIntakeChannelMAIL   ConfigReachIntakeChannel = "MAIL"
+	ConfigReachIntakeChannelRULE   ConfigReachIntakeChannel = "RULE"
+)
+
+// Valid indicates whether the value is a known member of the ConfigReachIntakeChannel enum.
+func (e ConfigReachIntakeChannel) Valid() bool {
+	switch e {
+	case ConfigReachIntakeChannelIMPORT:
+		return true
+	case ConfigReachIntakeChannelMAIL:
+		return true
+	case ConfigReachIntakeChannelRULE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigSandboxRequestMode.
 const (
 	ConfigSandboxRequestModeMERGE   ConfigSandboxRequestMode = "MERGE"
@@ -14640,8 +14661,14 @@ type ConfigReach struct {
 	HiddenEntries *int `json:"hidden_entries,omitempty"`
 
 	// HiddenValues Entries whose field values a hub's new structure, or a field removed or hidden from readers, would hide.
-	HiddenValues *int      `json:"hidden_values,omitempty"`
-	Lost         *[]string `json:"lost,omitempty"`
+	HiddenValues *int `json:"hidden_values,omitempty"`
+
+	// Intake A type's form that now always requires a value, without a default, which a door nobody fills the form at does not send: per such door - a rule's action, an import's row, a mail - the fields it lacks. Every creation of the type through it is refused until the door sends them or the form presets them for it; a mail goes to the jumble instead. A field required only under a condition is not judged.
+	Intake *[]struct {
+		Channel ConfigReachIntakeChannel `json:"channel"`
+		Fields  []string                 `json:"fields"`
+	} `json:"intake,omitempty"`
+	Lost *[]string `json:"lost,omitempty"`
 
 	// Moves Per collection and entry type, the status entries move from and to, and how many (as WorkflowPreview).
 	Moves *[]map[string]interface{} `json:"moves,omitempty"`
@@ -14660,6 +14687,9 @@ type ConfigReach struct {
 	// Withheld True where the reach was not counted because the reader may not see what the change touches - a token without the scope the preview needs, or a module that is off. The plan still holds; only the counts are missing.
 	Withheld *bool `json:"withheld,omitempty"`
 }
+
+// ConfigReachIntakeChannel defines model for ConfigReach.Intake.Channel.
+type ConfigReachIntakeChannel string
 
 // ConfigRefusal defines model for ConfigRefusal.
 type ConfigRefusal struct {
