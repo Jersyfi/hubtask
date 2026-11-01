@@ -523,7 +523,7 @@ func TestAChangedModelStopsItsAgentsUntilApprovedAgain(t *testing.T) {
 	}
 }
 
-// UC-AGT-04 checks 1 … 3: an agent asking for an evaluation goes live only after a run on its
+// UC-AGT-04 checks 1-3: an agent asking for an evaluation goes live only after a run on its
 // model reached its bar; the server scores the answers, and the agent answers its set itself.
 func TestAnAgentGoesLiveOnlyAfterPassingItsEvaluation(t *testing.T) {
 	f := newFixture()
@@ -672,5 +672,46 @@ func TestATriageAnswersTheLabelsOfItsOwnSet(t *testing.T) {
 		"agent_id": triage.ID.String(), "hub_id": hubID.String(), "collection_id": "nope",
 	}); err == nil {
 		t.Fatalf("an unreadable collection = %v", err)
+	}
+}
+
+// UC-AGT-03 checks 1 and 2: a model is registered with its key, name, source, name at the provider,
+// region and retention, the registering person and the moment its consent; a source the
+// workspace's AI does not allow, a region below the minimum and a model the installation does not
+// offer are refused.
+func TestAModelIsRegisteredAsTheWorkspacesAIAllows(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	rule := usecase.Output{"sources": "EITHER", "min_jurisdiction": "EEA", "offered": []usecase.Output{{"id": "01936f2a-7c1e-7000-8000-0000000009a1"}}}
+	f.desk.Sources = usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+		return rule, nil
+	})
+	register := RegisterAgentModel{Desk: f.desk}.Descriptor().Handler
+	out, err := register.Invoke(ctx, person(admin), usecase.Input{
+		"key": "local", "name": "Local", "source": "OWN", "model": "m1", "region": "SELF_HOSTED", "retention_days": 30,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := f.store.models[shared.ID(out.String("id"))]
+	if m.Key != "local" || m.Name != "Local" || m.Source != domain.SourceOwn || m.Model != "m1" || m.Region != "SELF_HOSTED" ||
+		m.RetentionDays == nil || *m.RetentionDays != 30 || m.ConsentBy != admin || !m.ConsentAt.Equal(noon) {
+		t.Fatalf("registered %+v", m)
+	}
+	if _, err := register.Invoke(ctx, person(admin), usecase.Input{
+		"key": "cheap", "name": "Cheap", "source": "OWN", "model": "m1", "region": "ANY",
+	}); code(err) != "agent_models.region_below_minimum" {
+		t.Errorf("a region below the minimum: %v", err)
+	}
+	if _, err := register.Invoke(ctx, person(admin), usecase.Input{
+		"key": "gone", "name": "Gone", "source": "OFFERED", "offered_id": "01936f2a-7c1e-7000-8000-0000000009a2", "model": "m1", "region": "EEA",
+	}); code(err) != "agent_models.offered_unknown" {
+		t.Errorf("a model the installation does not offer: %v", err)
+	}
+	rule["sources"] = "OFFERED"
+	if _, err := register.Invoke(ctx, person(admin), usecase.Input{
+		"key": "own", "name": "Own", "source": "OWN", "model": "m1", "region": "SELF_HOSTED",
+	}); code(err) != "ai.source_not_allowed" {
+		t.Errorf("a source the workspace's AI does not allow: %v", err)
 	}
 }

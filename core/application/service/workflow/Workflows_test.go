@@ -146,7 +146,7 @@ func serviceShape(withWaiting bool) work.WorkflowShape {
 	return work.WorkflowShape{Statuses: statuses}
 }
 
-// UC-FLW-02 checks 3 and 8, UC-FLW-05 checks 1 … 5: a draft changes nothing; publishing one that
+// UC-FLW-02 checks 3 and 8, UC-FLW-05 checks 1-5: a draft changes nothing; publishing one that
 // removes a status in use asks where its entries go, then moves them in one change, writes each
 // one's history and the counts to the trail.
 func TestPublishingADraftMovesTheEntriesOfARemovedStatus(t *testing.T) {
@@ -188,6 +188,11 @@ func TestPublishingADraftMovesTheEntriesOfARemovedStatus(t *testing.T) {
 	last := f.trail.entries[len(f.trail.entries)-1]
 	if last.Action != workflow.WorkflowPublishedAction {
 		t.Fatalf("the trail records the publish: %+v", last)
+	}
+	// UC-FLW-05 check 5: who published it and the counts, never an entry's title.
+	moves, _ := last.Changes["entries_moved"].(map[string]any)
+	if last.ActorID != lena || moves["to"] != "12" {
+		t.Errorf("the trail names %s and %v moved", last.ActorID, moves)
 	}
 
 	f.auth.refuse = true
