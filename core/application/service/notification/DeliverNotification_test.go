@@ -725,3 +725,40 @@ func TestAPersonalRulesAndAnAgentsNoticeLinkToTheProfile(t *testing.T) {
 		})
 	}
 }
+
+type mailboxAddresses map[shared.ID]string
+
+func (m mailboxAddresses) MailboxAddress(_ context.Context, id shared.ID) (string, error) {
+	if address, ok := m[id]; ok {
+		return address, nil
+	}
+	return "", shared.ErrNotFound
+}
+
+// A mailbox that turned failing is said in its own words, names the mailbox and links to the mail
+// page, never as "Hubtask stopped calling" a webhook.
+func TestAFailingMailboxIsSaidInItsOwnWords(t *testing.T) {
+	mailboxID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f7")
+	fixture := delivery(t, domain.CategoryIntegration, false)
+	record, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000f8"), TenantID: tenant, RecipientID: bert,
+		Category: domain.CategoryIntegration, Channel: domain.ChannelEmail, MailboxID: mailboxID, At: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+		t.Fatal(err)
+	}
+	fixture.delivery.Mailboxes = mailboxAddresses{mailboxID: "support@example.org"}
+	if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	sent := fixture.mailbox.sent[0]
+	if !strings.Contains(sent.Subject, "email.mailbox_failing.subject") || !strings.Contains(sent.Subject, "support@example.org") {
+		t.Errorf("subject %q", sent.Subject)
+	}
+	if !strings.Contains(sent.Body, "link="+mainBase+"/administration/mail") {
+		t.Errorf("body %q", sent.Body)
+	}
+}

@@ -2287,6 +2287,7 @@ type Notification struct {
 	WhiteboardID       pgtype.UUID
 	ApprovalID         pgtype.UUID
 	BaselineID         pgtype.UUID
+	MailboxID          pgtype.UUID
 }
 
 type NotificationPreference struct {

@@ -275,3 +275,44 @@ func TestAReadFilesWhatArrivedAndComesBackInAMinute(t *testing.T) {
 		t.Error("a malformed job repeats")
 	}
 }
+
+type movingClock struct{ at *time.Time }
+
+func (c movingClock) Now() time.Time { return *c.at }
+
+type failingNotices struct{ told []shared.ID }
+
+func (f *failingNotices) MailboxFailing(_ context.Context, _, mailboxID shared.ID) error {
+	f.told = append(f.told, mailboxID)
+	return nil
+}
+
+// A mailbox whose password expired refuses every minute; the administrators are told once, when
+// it has refused for an hour, and not again while it keeps refusing.
+func TestAMailboxRefusingForAnHourIsToldOnce(t *testing.T) {
+	b, store, server, _ := boxes(&authorizer{})
+	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"preset": "gmail", "address": "familie@gmail.com", "secret": "app-pw"}); err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
+	b.Writer.Clock = movingClock{at: &at}
+	told := &failingNotices{}
+	poll := PollMailbox{Boxes: b, Receive: &receiver{}, Failing: told, Parse: func(raw []byte, _ string) (jumbleservice.ReceivedMail, error) {
+		return jumbleservice.ReceivedMail{Subject: string(raw)}, nil
+	}}
+	job := queue.Job{TenantID: tenant, Payload: map[string]any{"mailbox_id": boxID.String()}}
+	server.password = "expired"
+	for _, after := range []time.Duration{0, 30 * time.Minute, 61 * time.Minute, 62 * time.Minute, 3 * time.Hour} {
+		at = time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC).Add(after)
+		if _, err := poll.Run(context.Background(), job); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(told.told) != 1 || told.told[0] != boxID {
+		t.Errorf("told %v, want the mailbox once", told.told)
+	}
+	if !store.boxes[boxID].Failing(at) {
+		t.Error("the mailbox is not failing after three hours of refusals")
+	}
+}

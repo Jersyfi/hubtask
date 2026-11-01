@@ -4513,6 +4513,8 @@ func run() error {
 			Pages: postgres.NewPageRepository(),
 			// The agent its owner is told of.
 			Agents: agentStore,
+			// The connected mailbox its administrators are told has refused for an hour.
+			Mailboxes: mailboxAddresses{postgres.NewMailboxRepository()},
 			Boards: postgres.NewWhiteboardRepository(),
 			// The approval a message is about, and through it the entry.
 			Approvals: serviceDeskStore.Approvals(),
@@ -4933,6 +4935,11 @@ func run() error {
 		// A connected mailbox read into the intake, a minute at a time (ADR-0094).
 		queueport.KindMailboxPoll: mailservice.PollMailbox{
 			Boxes: mailBoxes, Receive: receiveMail,
+			// The workspace's administrators told once a mailbox has refused for an hour.
+			Failing: notification.RecordMailboxFailing{
+				Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
+				Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+			},
 			Parse: func(raw []byte, _ string) (jumbleservice.ReceivedMail, error) {
 				return intake.Parsed(raw, nil, intake.MailLimits{})
 			},
@@ -5517,6 +5524,14 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 func runsBackgroundWork(cfg envport.Config) bool {
 	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
 		cfg.HasRole(envport.RoleAutomation)
+}
+
+// mailboxAddresses names a connected mailbox by its address for the notice that it turned failing.
+type mailboxAddresses struct{ boxes postgres.MailboxRepository }
+
+func (m mailboxAddresses) MailboxAddress(ctx context.Context, id shared.ID) (string, error) {
+	box, _, err := m.boxes.Find(ctx, id)
+	return box.Address, err
 }
 
 // moduleObjects finds the hub of a page, a board, a configuration item or a goal, so that an operation naming only one is

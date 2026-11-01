@@ -341,6 +341,14 @@ type PollMailbox struct {
 	// Parse turns the raw bytes into what the intake reads; the presentation's parser, injected so
 	// the application knows nothing about MIME.
 	Parse func(raw []byte, mailbox string) (jumbleservice.ReceivedMail, error)
+	// Failing tells the workspace's administrators once a mailbox has refused for an hour.
+	// Optional: nil tells nobody, and the mail page still says it.
+	Failing FailingNotice
+}
+
+// FailingNotice is the message a mailbox that turned failing leaves for its administrators.
+type FailingNotice interface {
+	MailboxFailing(ctx context.Context, tenantID, mailboxID shared.ID) error
 }
 
 // Receiver is the intake's use case.
@@ -388,9 +396,19 @@ func (p PollMailbox) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 		taken, failure = p.read(ctx, box, password)
 	}
 	now := b.Writer.Clock.Now()
+	// Failing as of the previous check, not now: an hour since the first refusal would otherwise
+	// already count as failing before this check, and nobody would ever be told.
+	wasFailing := box.CheckedAt != nil && box.Failing(*box.CheckedAt)
 	box = box.Checked(now, failure)
+	turnedFailing := !wasFailing && box.Failing(now)
 	if err := b.Writer.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		return b.Mailboxes.RecordCheck(ctx, box)
+		if err := b.Mailboxes.RecordCheck(ctx, box); err != nil {
+			return err
+		}
+		if turnedFailing && p.Failing != nil {
+			return p.Failing.MailboxFailing(ctx, job.TenantID, box.ID)
+		}
+		return nil
 	}); err != nil {
 		return queue.Result{}, err
 	}

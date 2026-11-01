@@ -226,6 +226,9 @@ type Notification struct {
 	// BaselineID is the baseline a plan slipped past by more than its time tolerance, told to whoever
 	// decided the tolerance (configuration.md §10): the message reads the plan's place at delivery.
 	BaselineID shared.ID
+	// MailboxID is the connected mailbox that has refused for over an hour, told to the
+	// workspace's administrators once when it turns failing (ADR-0094).
+	MailboxID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -258,6 +261,7 @@ type NewInput struct {
 	WhiteboardID       shared.ID
 	ApprovalID         shared.ID
 	BaselineID         shared.ID
+	MailboxID          shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -306,6 +310,7 @@ func New(in NewInput) (Notification, error) {
 		WhiteboardID:       in.WhiteboardID,
 		ApprovalID:         in.ApprovalID,
 		BaselineID:         in.BaselineID,
+		MailboxID:          in.MailboxID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -313,7 +318,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID} {
 		if !id.IsZero() {
 			named++
 		}

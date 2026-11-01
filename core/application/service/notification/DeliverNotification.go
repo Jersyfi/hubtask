@@ -82,6 +82,9 @@ const (
 	// An agent that did what its policy lets it do with its owner told (UC-AGT-02, NOTIFY).
 	subjectAgentNotice = "email.agent_notice.subject"
 	bodyAgentNotice    = "email.agent_notice.body"
+	// A connected mailbox that has refused for over an hour (ADR-0094).
+	subjectMailboxFailing = "email.mailbox_failing.subject"
+	bodyMailboxFailing    = "email.mailbox_failing.body"
 	// A person a whiteboard's comment named (UC-CNV-09): COMMENT's category, its own sentence - the
 	// subject is a board, not an entry.
 	subjectWhiteboardMention = "email.whiteboard_mention.subject"
@@ -144,6 +147,9 @@ type DeliverNotification struct {
 	Pages PageReader
 	// Agents names the agent its owner is told of. Optional: nil leaves its name out.
 	Agents AgentReader
+	// Mailboxes names the connected mailbox that turned failing by its address. Optional: nil
+	// leaves it out.
+	Mailboxes MailboxReader
 	// Boards names the whiteboard a comment named the recipient on. Optional: nil leaves its title
 	// out.
 	Boards BoardReader
@@ -208,6 +214,11 @@ type PlaceReader interface {
 // PageReader answers a page by its identifier - the knowledge repository's Find.
 type PageReader interface {
 	Find(ctx context.Context, id shared.ID) (knowledge.Page, error)
+}
+
+// MailboxReader answers a connected mailbox's address by its identifier.
+type MailboxReader interface {
+	MailboxAddress(ctx context.Context, id shared.ID) (string, error)
 }
 
 // AgentReader answers an agent's name by its identifier - the agents' store.
@@ -464,6 +475,12 @@ func (d DeliverNotification) load(
 					loaded.plan, loaded.title = place, place.Name
 				}
 			}
+		case !record.MailboxID.IsZero() && d.Mailboxes != nil:
+			address, err := d.Mailboxes.MailboxAddress(ctx, record.MailboxID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title = address
 		case !record.AgentID.IsZero() && d.Agents != nil:
 			name, err := d.Agents.AgentName(ctx, record.AgentID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -571,6 +588,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	}
 	if !loaded.record.AgentID.IsZero() {
 		subjectCode, bodyCode = subjectAgentNotice, bodyAgentNotice
+	}
+	if !loaded.record.MailboxID.IsZero() {
+		subjectCode, bodyCode = subjectMailboxFailing, bodyMailboxFailing
 	}
 	if !loaded.record.WhiteboardID.IsZero() {
 		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
@@ -725,6 +745,8 @@ func link(loaded subject) string {
 		return base + "/pages/" + url.PathEscape(record.PageID.String())
 	case !record.AgentID.IsZero():
 		return base + "/profile/agents"
+	case !record.MailboxID.IsZero():
+		return base + "/administration/mail"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.ApprovalID.IsZero():
