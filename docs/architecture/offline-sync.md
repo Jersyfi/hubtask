@@ -506,7 +506,12 @@ it, order it and decide who may touch it.
   revoked, signed out or expired since, a disabled account, or a credential that now names another
   person closes it with `4401` and the code of the refusal - the client renews its pair then, as
   for a refused call, so its reconnect carries a fresh bearer, and a pair it cannot renew ends the
-  session; a view as somebody (UC-ID-29) closes at its end. The change stream asks the same at its next round after thirty seconds, and an agent's MCP
+  session; a view as somebody (UC-ID-29) closes at its end. **A byte budget** bounds what is
+  written: a connection's updates and snapshots refill at 2 MiB a minute after a burst of one
+  snapshot and one update, and a workspace's connections on one process share 16 MiB a minute after
+  64 MiB (`presentation/realtime/Budget.go`, per process like the REST rate limit). The message past
+  either is not stored; the connection closes with `4429` and `realtime.too_fast:<seconds>`, and the
+  client reconnects no sooner, its words kept in the document meanwhile. The change stream asks the same at its next round after thirty seconds, and an agent's MCP
   stream every thirty seconds; both end with the comment `credential`. A session, access token or
   OAuth grant revoked, an account's status or a workspace's status changed rings
   `hubtask_credential` (migration 0332, `tenant/account` or `tenant`), and every process asks the

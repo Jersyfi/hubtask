@@ -16,14 +16,14 @@ class FakeSocket implements LiveSocket {
   readyState = 0;
   onopen: ((event: unknown) => void) | null = null;
   onmessage: ((event: { data: unknown }) => void) | null = null;
-  onclose: ((event: { code: number }) => void) | null = null;
+  onclose: ((event: { code: number; reason?: string }) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
   readonly sent: Uint8Array[] = [];
   send(data: Uint8Array) { this.sent.push(data); }
   close() { this.readyState = 3; }
   open() { this.readyState = 1; this.onopen?.({}); }
   push(message: Uint8Array) { this.onmessage?.({ data: message.buffer.slice(message.byteOffset, message.byteOffset + message.byteLength) }); }
-  drop(code = 1006) { this.readyState = 3; this.onclose?.({ code }); }
+  drop(code = 1006, reason = '') { this.readyState = 3; this.onclose?.({ code, reason }); }
 }
 
 /** The server's state vector request (sync step one with an empty vector), as presentation/realtime sends it. */
@@ -165,4 +165,19 @@ test('a reconnecting writer sends only what the server lacks (offline-sync.md SY
   assert.ok(largest < 200, `the largest reconnect sent ${largest} bytes`);
   assert.ok(appended < writers * 200, `the log grew by ${appended} bytes for ${writers} reconnects`);
   for (let writer = 0; writer < writers; writer += 2) assert.match(server.getText('t').toString(), new RegExp(`w${writer} `, 'u'));
+});
+
+test('a writer told it writes too fast reconnects no sooner than the server says', async () => {
+  const socket = new FakeSocket();
+  const waits: number[] = [];
+  const live = new LiveDocument(new Y.Doc(), {
+    open: () => socket,
+    writable: true,
+    schedule: (_run, ms) => { waits.push(ms); return () => {}; },
+  });
+  await flush();
+  socket.open();
+  socket.drop(4429, 'realtime.too_fast:45');
+  assert.deepEqual(waits, [45_000]);
+  live.destroy();
 });

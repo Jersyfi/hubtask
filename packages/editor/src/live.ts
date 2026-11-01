@@ -36,6 +36,8 @@ const RECONNECT_MAX_MS = 30_000;
 
 /** The close code the server ends a connection with when access ends while connected. */
 export const CLOSE_ACCESS_ENDED = 4403;
+/** The close code of a writer past its byte budget; the reason names the seconds to wait. */
+export const CLOSE_TOO_FAST = 4429;
 
 /** The part of a WebSocket the provider uses, so a test can hand in a fake. */
 export interface LiveSocket {
@@ -43,7 +45,7 @@ export interface LiveSocket {
   readonly readyState: number;
   onopen: ((event: unknown) => void) | null;
   onmessage: ((event: { data: unknown }) => void) | null;
-  onclose: ((event: { code: number }) => void) | null;
+  onclose: ((event: { code: number; reason?: string }) => void) | null;
   onerror: ((event: unknown) => void) | null;
   send(data: Uint8Array): void;
   close(code?: number): void;
@@ -152,15 +154,21 @@ export class LiveDocument {
         this.#setStatus('refused');
         return;
       }
+      if (event.code === CLOSE_TOO_FAST) {
+        // Reconnecting sooner would be refused again; what was written meanwhile waits in the doc.
+        const seconds = Number(event.reason?.split(':')[1]);
+        this.#retry(Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : RECONNECT_MAX_MS);
+        return;
+      }
       this.#retry();
     };
     socket.onerror = () => {};
   }
 
-  #retry(): void {
+  #retry(atLeast = 0): void {
     if (this.#destroyed) return;
     this.#setStatus('offline');
-    const wait = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.#attempt++);
+    const wait = Math.max(atLeast, Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.#attempt++));
     const schedule = this.#options.schedule ?? ((run, ms) => {
       const handle = setTimeout(run, ms);
       return () => clearTimeout(handle);

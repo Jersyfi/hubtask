@@ -3878,7 +3878,10 @@ func run() error {
 				Wakeups:         changeListener,
 				DocumentWakeups: changeListener,
 				Relay:           liveRelay,
-				Signals:         metrics,
+				// A workspace's live documents write within one budget on this process, so one
+				// script cannot saturate the shared database's writes for every tenant.
+				Workspaces: realtimeadapter.NewBudget(realtimeadapter.DefaultWorkspaceBytes),
+				Signals:    metrics,
 			},
 			Registry: streams,
 		}

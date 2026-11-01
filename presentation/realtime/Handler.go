@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/coder/websocket"
@@ -49,7 +51,13 @@ const (
 	closeUnauthenticated websocket.StatusCode = 4401
 	closeForbidden       websocket.StatusCode = 4403
 	closeNotFound        websocket.StatusCode = 4404
+	// closeTooFast is a writer past its byte budget; the client reconnects no sooner than the
+	// seconds its reason names.
+	closeTooFast websocket.StatusCode = 4429
 )
+
+// tooFastCode is the reason closeTooFast carries, with the seconds to wait after a colon.
+const tooFastCode = "realtime.too_fast"
 
 // Documents is the whole of what the adapter may do with a document: the realtime service.
 type Documents interface {
@@ -83,6 +91,11 @@ type Handler struct {
 	// CredentialEvery is how often a held connection asks its credential again; zero is
 	// credentialRecheck.
 	CredentialEvery time.Duration
+	// ConnectionBytes is the byte budget of one connection's updates and snapshots; zero is
+	// DefaultConnectionBytes. Workspaces is the one budget each workspace's connections on this
+	// process share; nil bounds none.
+	ConnectionBytes BudgetRate
+	Workspaces      *Budget
 }
 
 // credentialRecheck bounds how long a revoked session, a disabled account or a signed-out device
@@ -129,9 +142,13 @@ func (h Handler) Serve(
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
+	rate := h.ConnectionBytes
+	if rate.Burst <= 0 {
+		rate = DefaultConnectionBytes
+	}
 	c := &connection{
 		h: h, conn: conn, actor: actor, ref: ref, writable: opened.Writable, own: map[int64]bool{},
-		credential: credential,
+		credential: credential, budget: NewBudget(rate),
 	}
 	status, reason := c.run(ctx, opened, closing)
 	_ = conn.Close(status, reason)
@@ -156,6 +173,28 @@ type connection struct {
 	pending []byte
 	sentAt  time.Time
 	flush   <-chan time.Time
+	// budget bounds the bytes this connection writes; h.Workspaces, its workspace's.
+	budget *Budget
+}
+
+// errTooFast is a writer past a byte budget; wait is how long until it may write again.
+type errTooFast struct{ wait time.Duration }
+
+func (e errTooFast) Error() string { return tooFastCode }
+
+// spend charges a message's bytes to the connection's and the workspace's budget before it is
+// stored: past either, nothing is stored and the connection ends.
+func (c *connection) spend(n int) error {
+	now := time.Now()
+	if wait := c.budget.Spend("", n, now); wait > 0 {
+		return errTooFast{wait: wait}
+	}
+	if c.h.Workspaces != nil {
+		if wait := c.h.Workspaces.Spend(string(c.actor.TenantID), n, now); wait > 0 {
+			return errTooFast{wait: wait}
+		}
+	}
+	return nil
 }
 
 func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, closing <-chan struct{}) (websocket.StatusCode, string) {
@@ -349,6 +388,9 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 		if !c.writable {
 			return shared.ErrForbidden.WithDetail("realtime.read_only")
 		}
+		if err := c.spend(len(message.Payload)); err != nil {
+			return err
+		}
 		appended, err := c.h.Documents.Append(ctx, c.actor, c.ref, message.Payload)
 		if coded := (*shared.Error)(nil); errors.As(err, &coded) && coded.DetailCode == "realtime.compaction_overdue" {
 			// Not the connection's end: the writer's snapshot is its whole state, these words
@@ -385,6 +427,9 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 		}
 		return nil
 	case message.Type == messageCompact:
+		if err := c.spend(len(message.Payload)); err != nil {
+			return err
+		}
 		err := c.h.Documents.Compact(ctx, c.actor, c.ref, int64(message.Seq), message.Payload) //nolint:gosec // bounded by the head
 		if errors.Is(err, shared.ErrVersionConflict) {
 			// Another writer's snapshot came first; this one is not needed.
@@ -474,7 +519,10 @@ func (c *connection) subscribe() (<-chan struct{}, func()) {
 // this side. The reason is a message code, never a sentence (rule 8).
 func (c *connection) ending(err error) (websocket.StatusCode, string) {
 	var coded *shared.Error
+	var tooFast errTooFast
 	switch {
+	case errors.As(err, &tooFast):
+		return closeTooFast, tooFastCode + ":" + strconv.Itoa(int(math.Ceil(tooFast.wait.Seconds())))
 	case websocket.CloseStatus(err) != -1:
 		return websocket.StatusNormalClosure, ""
 	case errors.Is(err, context.Canceled):
