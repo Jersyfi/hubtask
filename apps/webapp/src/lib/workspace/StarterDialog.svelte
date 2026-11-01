@@ -5,12 +5,13 @@
   // workspace (`starter_offered` on `GET /tenant`), what it is used for - for myself, our
   // household, my clients, our team -, and answered with a hub and collections on matching presets.
   //
-  // **Closed first, then created.** `POST /tenant/starter:close` goes before the first hub, so an
-  // interruption leaves a partial set rather than a second one; a skip - or dismissing the
-  // dialog - closes it the same way. Nobody is asked twice.
+  // **One command, whole or nothing.** `POST /tenant/starter:apply` makes the hub and collections
+  // and closes the question in one transaction: a failure leaves nothing and the question open, and
+  // a retry under the same key replays rather than making a second set. A skip - or dismissing the
+  // dialog - closes it with `POST /tenant/starter:close`. Nobody is asked twice.
   //
-  // **Everything made is ordinary.** The hubs and collections are created through the same
-  // `POST /containers` as any other, so each can be renamed, changed or removed; the dialog says so.
+  // **Everything made is ordinary.** The hubs and collections are ordinary ones, so each can be
+  // renamed, changed or removed; the dialog says so.
 
   import { untrack } from 'svelte';
 
@@ -18,7 +19,6 @@
   import type { TransportError } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
-  import { containers } from '../data/containers.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -65,22 +65,27 @@
     }
   }
 
+  // One key per answer, kept across retries: a repeat after a lost answer replays the set.
+  const keys: Partial<Record<Purpose, string>> = {};
+
   async function start() {
     if (isBusy) return;
     isBusy = true;
     failure = undefined;
-    const set = STARTER_SETS[purpose];
+    const chosen = purpose;
+    const set = STARTER_SETS[chosen];
+    keys[chosen] ??= crypto.randomUUID();
     try {
+      const hub = await workspace.applyStarter(
+        {
+          hub_name: t(set.hub.name),
+          hub_preset: set.hub.preset,
+          collections: set.collections.map((each) => ({ name: t(each.name), ...(each.preset ? { preset: each.preset } : {}) })),
+        },
+        keys[chosen],
+      );
       isClosing = true;
-      await workspace.closeStarter();
       isAnswered = true;
-      const hub = await containers.create({ type: 'HUB', name: t(set.hub.name), preset: set.hub.preset }, crypto.randomUUID());
-      for (const collection of set.collections) {
-        await containers.create(
-          { type: 'COLLECTION', parent_id: hub.id, name: t(collection.name), ...(collection.preset ? { preset: collection.preset } : {}) },
-          crypto.randomUUID(),
-        );
-      }
       announcer.say(t('app.starter.done'));
       isOpen = false;
       onstarted?.(hub.id);

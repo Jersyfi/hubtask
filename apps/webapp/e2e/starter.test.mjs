@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // A workspace's first start (UC-WRK-30 check 5), walked on Home: whoever `GET /tenant` offers it
-// to is asked what the workspace is used for; the answer closes the question first and then
-// creates a hub and its collections on matching presets; a skip closes it and creates nothing;
+// to is asked what the workspace is used for; the answer is one command that makes a hub and its
+// collections on matching presets and closes the question, retried under the same key after a
+// failure; a skip closes it and creates nothing;
 // where it is not offered nobody is asked. Chromium only; who is offered it is the server's tests'.
 
 import { test } from 'node:test';
@@ -23,10 +24,11 @@ test.after(() => served.close());
 /** This walk's own identifiers: no other fixture record uses them. */
 const STARTED_HUB = '01a0e2e0-0000-7000-8000-0000000028a1';
 
-async function as(browser, offered) {
+async function as(browser, offered, { failFirstApply = false } = {}) {
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   const sent = [];
   let closed = false;
+  let applies = 0;
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -39,11 +41,19 @@ async function as(browser, offered) {
       closed = true;
       return route.fulfill({ status: 204, body: '' });
     }
-    if (path === '/containers' && request.method() === 'POST') {
+    if (path === '/tenant/starter:apply' && request.method() === 'POST') {
       const body = request.postDataJSON();
-      sent.push({ path, body });
-      const id = body.type === 'HUB' ? STARTED_HUB : `01a0e2e0-0000-7000-8000-0000000028b${sent.length}`;
-      return route.fulfill({ status: 201, json: { ...HUB, id, type: body.type, parent_id: body.parent_id ?? null, name: body.name } });
+      sent.push({ path, body, key: request.headers()['idempotency-key'] });
+      applies += 1;
+      if (failFirstApply && applies === 1) {
+        return route.fulfill({ status: 503, contentType: 'application/problem+json', json: { type: 'about:blank', title: 'Unavailable', status: 503, code: 'service.unavailable' } });
+      }
+      closed = true;
+      return route.fulfill({ status: 201, json: { ...HUB, id: STARTED_HUB, type: 'HUB', parent_id: null, name: body.hub_name } });
+    }
+    if (path === '/containers' && request.method() === 'POST') {
+      sent.push({ path, body: request.postDataJSON() });
+      return route.fulfill({ status: 500, json: {} });
     }
     return stub(route);
   });
@@ -52,7 +62,7 @@ async function as(browser, offered) {
 
 const dialogOf = (page) => page.locator('[data-starter]');
 
-test('chromium: the first start - asked once, closed first, then a hub and collections on presets', async (t) => {
+test('chromium: the first start - asked once, answered by one command making a hub and collections on presets', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, context, sent } = await as(browser, true);
@@ -68,19 +78,40 @@ test('chromium: the first start - asked once, closed first, then a hub and colle
   await page.getByRole('button', { name: 'Set up' }).click();
   await page.waitForURL(`**/hubs/${STARTED_HUB}`, { timeout: 10_000 });
 
-  assert.deepEqual(sent[0], { path: '/tenant/starter:close' }, 'the question was not closed before anything was made');
-  const made = sent.slice(1).map((write) => write.body);
-  assert.deepEqual(made[0], { type: 'HUB', name: 'Home', preset: 'TASKS' });
-  assert.deepEqual(made.slice(1), [
-    { type: 'COLLECTION', parent_id: STARTED_HUB, name: 'Shopping', preset: 'LIST' },
-    { type: 'COLLECTION', parent_id: STARTED_HUB, name: 'Chores' },
-    { type: 'COLLECTION', parent_id: STARTED_HUB, name: 'Projects', preset: 'PROJECT' },
-  ]);
+  assert.equal(sent.length, 1, `one command makes the set, not ${sent.length} writes`);
+  assert.equal(sent[0].path, '/tenant/starter:apply');
+  assert.match(sent[0].key ?? '', /^[0-9a-f-]{36}$/, 'the set is sent without an Idempotency-Key');
+  assert.deepEqual(sent[0].body, {
+    hub_name: 'Home',
+    hub_preset: 'TASKS',
+    collections: [{ name: 'Shopping', preset: 'LIST' }, { name: 'Chores' }, { name: 'Projects', preset: 'PROJECT' }],
+  });
   // Not asked again.
   await page.goto(`${served.origin}/`);
   await page.waitForTimeout(1200);
   assert.equal(await dialogOf(page).isVisible(), false, 'asked a second time');
   assert.deepEqual(failures, []);
+});
+
+test('chromium: the first start failed once - the retry sends the same key and makes one set', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, sent } = await as(browser, true, { failFirstApply: true });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/`);
+  const dialog = dialogOf(page);
+  await dialog.waitFor({ timeout: 10_000 });
+  await dialog.getByRole('radio', { name: 'Our team' }).check();
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await dialog.getByRole('alert').waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.waitForURL(`**/hubs/${STARTED_HUB}`, { timeout: 10_000 });
+
+  const applied = sent.filter((write) => write.path === '/tenant/starter:apply');
+  assert.equal(applied.length, 2);
+  assert.equal(applied[0].key, applied[1].key, 'the retry was sent under a new key, which could make a second set');
+  assert.deepEqual(sent.filter((write) => write.path !== '/tenant/starter:apply'), [], 'something besides the one command was written');
 });
 
 test('chromium: the first start skipped - closed, nothing made', async (t) => {

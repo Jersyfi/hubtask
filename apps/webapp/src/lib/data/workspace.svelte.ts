@@ -15,11 +15,18 @@
  * (ADR-0025), which is what the `If-Match` here is for.
  */
 
-import type { ResourceState, WorkspaceStructure, WorkspaceStructureChange } from '@hubtask/sync-engine';
+import type { Container, ResourceState, WorkspaceStructure, WorkspaceStructureChange } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
 const PATH = '/tenant';
+
+/** The first start's set, as `StarterSet` takes it: names in the reader's language. */
+export interface StarterSetBody {
+  readonly hub_name: string;
+  readonly hub_preset: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
+  readonly collections: readonly { readonly name: string; readonly preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' }[];
+}
 
 /** The workspace, as `Workspace` answers it. */
 export interface Workspace {
@@ -116,6 +123,18 @@ class WorkspaceStore {
    */
   async closeStarter(): Promise<void> {
     await engine.mutate<void>('POST', `${PATH}/starter:close`, undefined, { invalidates: [PATH] });
+  }
+
+  /**
+   * The first start answered with its set (UC-WRK-30 check 5): the hub, its collections and the
+   * close land in one transaction or not at all. The same key on a retry replays the hub rather
+   * than making a second set; the answer is the hub.
+   */
+  async applyStarter(body: StarterSetBody, idempotencyKey: string): Promise<Container> {
+    return engine.mutate<Container>('POST', `${PATH}/starter:apply`, body, {
+      idempotencyKey,
+      invalidates: [PATH, '/containers'],
+    });
   }
 
   async change(body: WorkspaceChange): Promise<Workspace> {
