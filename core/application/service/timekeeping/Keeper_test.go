@@ -415,6 +415,36 @@ func TestAPersonRecordsTimeWhereTheWorkIs(t *testing.T) {
 	}
 }
 
+// UC-TIM-01 checks 4 and 5: a person changes and removes only their own records - another
+// person's answers not found -, and the trail holds the day, the minutes, the kind, the entry and
+// the billable flag, never the note.
+func TestOnlyTheOwnerChangesARecordAndTheTrailKeepsItsFacts(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	r := f.log(t, ana, checkout, "2026-11-02", 90)
+	recorded := f.audit.entries[len(f.audit.entries)-1]
+	to := func(field string) any {
+		change, _ := recorded.Changes[field].(map[string]any)
+		return change["to"]
+	}
+	if to("day") != "2026-11-02" || to("minutes") != "90" || to("work_type") != "development" ||
+		to("entry_id") != checkout.String() || to("billable") != "true" {
+		t.Errorf("the trail holds %v", recorded.Changes)
+	}
+	if strings.Contains(fmt.Sprint(recorded.Changes), "private words") {
+		t.Errorf("the note reached the trail: %v", recorded.Changes)
+	}
+	if _, err := (UpdateTimeRecord{Keeper: f.keeper}).Execute(ctx, as(ben), r.ID, 1, RecordFields{Day: r.Day, Minutes: 5}, time.UTC); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("somebody else changed the record: %v", err)
+	}
+	if err := (DeleteTimeRecord{Keeper: f.keeper}).Execute(ctx, as(ben), r.ID, 1); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("somebody else removed the record: %v", err)
+	}
+	if err := (DeleteTimeRecord{Keeper: f.keeper}).Execute(ctx, as(ana), r.ID, 1); err != nil {
+		t.Errorf("the owner did not remove her record: %v", err)
+	}
+}
+
 func ptr[T any](v T) *T { return &v }
 
 // UC-TIM-01 check 3: one timer per person; stopped, it is a record of the day it started.
@@ -526,6 +556,11 @@ func TestAnApproverDecidesTheWeek(t *testing.T) {
 	rejected, err := RejectTimesheet{Keeper: f.keeper}.Execute(ctx, as(lead), ana, r.Day, "Tuesday is missing")
 	if err != nil || rejected.State != domain.SheetRejected {
 		t.Fatalf("reject %+v %v", rejected, err)
+	}
+	// UC-TIM-02 check 5: the week sent back carries the approver's reason, and the person changes it
+	// and hands it in again.
+	if back, err := (ReadTimesheet{Keeper: f.keeper}).Execute(ctx, as(ana), "", r.Day); err != nil || back.Sheet.Reason != "Tuesday is missing" {
+		t.Fatalf("the week sent back reads %+v %v", back.Sheet, err)
 	}
 	f.log(t, ana, payment, "2026-11-03", 60)
 	if _, err := (SubmitTimesheet{Keeper: f.keeper}).Execute(ctx, as(ana), r.Day); err != nil {

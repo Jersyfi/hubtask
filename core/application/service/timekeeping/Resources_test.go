@@ -304,6 +304,15 @@ func TestAnAbsenceIsRecordedOnceAndSharedByKind(t *testing.T) {
 	if err := (RemoveAbsence{Keeper: f.keeper}).Execute(ctx, as(ben), leave.ID, 2); !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("ben removes ana's absence: %v", err)
 	}
+	// UC-TIM-07 check 4: a change or a removal is held to the version read.
+	if _, err := (UpdateAbsence{Keeper: f.keeper}).Execute(ctx, as(ana), domain.Absence{
+		ID: leave.ID, From: day(t, "2026-11-10"), To: day(t, "2026-11-11"), Kind: domain.AbsenceLeave,
+	}, 1); !errors.Is(err, shared.ErrVersionConflict) {
+		t.Fatalf("a change on a stale version: %v", err)
+	}
+	if err := (RemoveAbsence{Keeper: f.keeper}).Execute(ctx, as(ana), leave.ID, 1); !errors.Is(err, shared.ErrVersionConflict) {
+		t.Fatalf("a removal on a stale version: %v", err)
+	}
 	if err := (RemoveAbsence{Keeper: f.keeper}).Execute(ctx, as(ana), leave.ID, 2); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
