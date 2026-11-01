@@ -554,6 +554,32 @@ func (CmdbRepository) ListCIs(ctx context.Context, hubID shared.ID, classes []st
 	return out, nil
 }
 
+// CIsOwnedBy answers up to limit CIs the account owns across the workspace's hubs, by name.
+func (CmdbRepository) CIsOwnedBy(ctx context.Context, accountID shared.ID, limit int) ([]cmdb.CI, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var k cmdbKeys
+	params := sqlc.ListCmdbCisOwnedByParams{OwnerAccountID: k.of(accountID), Batch: int32(limit)} //nolint:gosec // bounded by the caller
+	if k.err != nil {
+		return nil, k.err
+	}
+	rows, err := q.ListCmdbCisOwnedBy(ctx, params)
+	if err != nil {
+		return nil, cmdbFailed("listing owned CIs", err)
+	}
+	out := make([]cmdb.CI, 0, len(rows))
+	for _, r := range rows {
+		ci, err := cmdbCIFrom(sqlc.FindCmdbCiRow(r))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ci)
+	}
+	return out, nil
+}
+
 // CIsByID answers the CIs named, in no order.
 func (CmdbRepository) CIsByID(ctx context.Context, list []shared.ID) ([]cmdb.CI, error) {
 	if len(list) == 0 {

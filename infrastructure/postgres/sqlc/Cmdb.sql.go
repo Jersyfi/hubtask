@@ -849,6 +849,90 @@ func (q *Queries) ListCmdbCisByIDs(ctx context.Context, ids []pgtype.UUID) ([]Li
 	return items, nil
 }
 
+const listCmdbCisOwnedBy = `-- name: ListCmdbCisOwnedBy :many
+SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
+       location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
+       created_by, created_at, updated_by, updated_at, version
+FROM cmdb_ci
+WHERE tenant_id = current_tenant_id() AND owner_account_id = $1::uuid
+  AND merged_into IS NULL AND stage <> 'DISPOSED'
+ORDER BY name COLLATE hubtask_name, id
+LIMIT $2
+`
+
+type ListCmdbCisOwnedByParams struct {
+	OwnerAccountID pgtype.UUID
+	Batch          int32
+}
+
+type ListCmdbCisOwnedByRow struct {
+	ID             pgtype.UUID
+	HubID          pgtype.UUID
+	ClassKey       string
+	Name           string
+	Stage          string
+	Status         string
+	Attributes     []byte
+	Provenance     []byte
+	OwnerAccountID pgtype.UUID
+	OwnerGroupID   pgtype.UUID
+	LocationCiID   pgtype.UUID
+	Protection     []byte
+	ReviewDue      pgtype.Date
+	Quantity       int32
+	LastSeenAt     pgtype.Timestamptz
+	MergedInto     pgtype.UUID
+	CreatedBy      pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+// The CIs an account owns across the workspace's hubs, the living ones, by name; merged and
+// disposed ones left out. Served by cmdb_ci_owner_account_idx.
+func (q *Queries) ListCmdbCisOwnedBy(ctx context.Context, arg ListCmdbCisOwnedByParams) ([]ListCmdbCisOwnedByRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbCisOwnedBy, arg.OwnerAccountID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbCisOwnedByRow{}
+	for rows.Next() {
+		var i ListCmdbCisOwnedByRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.ClassKey,
+			&i.Name,
+			&i.Stage,
+			&i.Status,
+			&i.Attributes,
+			&i.Provenance,
+			&i.OwnerAccountID,
+			&i.OwnerGroupID,
+			&i.LocationCiID,
+			&i.Protection,
+			&i.ReviewDue,
+			&i.Quantity,
+			&i.LastSeenAt,
+			&i.MergedInto,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCmdbClasses = `-- name: ListCmdbClasses :many
 
 SELECT id, key, parent_key, name, icon, abstract, attributes, rules, required, staleness_days,

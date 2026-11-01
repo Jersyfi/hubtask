@@ -98,6 +98,18 @@ WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
 ORDER BY id
 LIMIT sqlc.arg('batch');
 
+-- name: ListCmdbCisOwnedBy :many
+-- The CIs an account owns across the workspace's hubs, the living ones, by name; merged and
+-- disposed ones left out. Served by cmdb_ci_owner_account_idx.
+SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
+       location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
+       created_by, created_at, updated_by, updated_at, version
+FROM cmdb_ci
+WHERE tenant_id = current_tenant_id() AND owner_account_id = sqlc.arg('owner_account_id')::uuid
+  AND merged_into IS NULL AND stage <> 'DISPOSED'
+ORDER BY name COLLATE hubtask_name, id
+LIMIT sqlc.arg('batch');
+
 -- name: ListCmdbCisByIDs :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,

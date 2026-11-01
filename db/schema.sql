@@ -5498,6 +5498,8 @@ CREATE TABLE cmdb_ci (
     REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX cmdb_ci_hub_idx ON cmdb_ci (tenant_id, hub_id, class_key, id);
+CREATE INDEX cmdb_ci_owner_account_idx ON cmdb_ci (tenant_id, owner_account_id)
+  WHERE owner_account_id IS NOT NULL AND merged_into IS NULL;
 
 CREATE TABLE cmdb_ci_identifier (
   tenant_id uuid NOT NULL,

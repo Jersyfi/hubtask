@@ -37,6 +37,8 @@ type Store interface {
 	// ListCIs answers a hub's CIs in identifier order after a cursor; classes narrow when given.
 	ListCIs(ctx context.Context, hubID shared.ID, classes []string, after shared.ID, limit int) ([]cmdb.CI, error)
 	CIsByID(ctx context.Context, ids []shared.ID) ([]cmdb.CI, error)
+	// CIsOwnedBy answers up to limit living, unmerged CIs the account owns across the hubs, by name.
+	CIsOwnedBy(ctx context.Context, accountID shared.ID, limit int) ([]cmdb.CI, error)
 	CountCIs(ctx context.Context, hubID shared.ID) (int, error)
 
 	// PutIdentifiers replaces a CI's identifiers; a source's own key, once set, stays.

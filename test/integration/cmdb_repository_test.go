@@ -113,6 +113,46 @@ func TestACIIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 	}
 }
 
+// The CIs an account owns are read across its workspace's hubs by name, merged and disposed ones
+// left out, and never in the workspace next door (UC-SVC-03 check 9, migration 0326).
+func TestTheCIsAnAccountOwnsStayInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	hub, app, _ := seedCIs(ctx, t)
+	repo := postgres.NewCmdbRepository()
+	owner := freshID(t)
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	laptop, disposed, merged := freshID(t), freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, ci := range []cmdb.CI{
+			{ID: laptop, Name: "B laptop", Stage: cmdb.StageInUse},
+			{ID: disposed, Name: "A old laptop", Stage: cmdb.StageDisposed},
+			{ID: merged, Name: "A duplicate", Stage: cmdb.StageInUse, MergedInto: app},
+		} {
+			ci.HubID, ci.Class, ci.Status = hub, "laptop", cmdb.StatusOK
+			ci.Compliance = cmdb.Compliance{Quantity: 1, OwnerAccount: owner}
+			ci.CreatedBy, ci.CreatedAt, ci.UpdatedBy, ci.UpdatedAt, ci.Version = authorA, at, authorA, at, 1
+			if err := repo.InsertCI(ctx, ci); err != nil {
+				return err
+			}
+		}
+		list, err := repo.CIsOwnedBy(ctx, owner, 10)
+		if err != nil || len(list) != 1 || list[0].ID != laptop {
+			t.Errorf("owned %+v, %v; want the living laptop alone", list, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if list, _ := repo.CIsOwnedBy(ctx, owner, 10); len(list) != 0 {
+			t.Error("the workspace next door read the CIs the account owns")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A text's `hubtask:ci/<id>` is a reference the database keeps, as reference.Extract reads it
 // (migration 0237), and a reference table takes the kind.
 func TestACIAddressIsAReferenceOfTheText(t *testing.T) {
