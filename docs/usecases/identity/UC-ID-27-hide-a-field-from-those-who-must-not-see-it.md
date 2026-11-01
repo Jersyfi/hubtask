@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin, PE-member, PE-agent]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11]
-state: built
+state: verified
 tasks: []
-checked_by: [core/application/service/work/FormGate_test.go, core/application/service/work/FieldSight_test.go, core/domain/service/PermissionCatalogue_test.go, core/domain/model/work/CustomField_test.go, test/integration/custom_field_test.go, apps/webapp/src/lib/data/roles.test.ts]
+checked_by: [core/application/service/work/FormGate_test.go, core/application/service/work/FieldSight_test.go, core/application/service/work/FieldRestriction_test.go, core/domain/service/PermissionCatalogue_test.go, core/domain/model/work/CustomField_test.go, test/integration/custom_field_test.go, apps/webapp/src/lib/data/roles.test.ts]
 ---
 
 # Hide a field from those who must not see it
