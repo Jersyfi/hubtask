@@ -55,6 +55,8 @@ func placed(t *testing.T, r Result, id string) Placement {
 	return Placement{}
 }
 
+// UC-PLN-02 check 2: an automatic entry is placed as early as its predecessor allows, on working
+// days, its duration in working days kept.
 func TestScheduleMovesAutomaticSuccessorsByKindAndLag(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -107,6 +109,7 @@ func TestScheduleSkipsHolidays(t *testing.T) {
 	}
 }
 
+// UC-PLN-02 check 2: a manual entry stays where it stands.
 func TestScheduleKeepsManualEntriesAndNamesTheConflict(t *testing.T) {
 	r, err := Schedule(Plan{
 		Calendar: weekdays{},
@@ -130,6 +133,7 @@ func TestScheduleKeepsManualEntriesAndNamesTheConflict(t *testing.T) {
 	}
 }
 
+// UC-PLN-02 check 2: a finished entry never moves.
 func TestScheduleNeverMovesDoneEntries(t *testing.T) {
 	done := entry(t, "b", Automatic, "2026-11-03", "2026-11-03")
 	done.Done = true
@@ -178,6 +182,7 @@ func TestScheduleFindsTheCriticalPathAndFloat(t *testing.T) {
 	}
 }
 
+// UC-PLN-02 check 6: a loop of dependencies is refused with planning.cycle.
 func TestScheduleRefusesALoop(t *testing.T) {
 	_, err := Schedule(Plan{
 		Calendar: weekdays{},

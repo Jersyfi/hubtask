@@ -82,6 +82,7 @@ func TestAPlanStaysInItsWorkspace(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		// UC-PLN-02 check 2: an entry nobody set a mode for is manual.
 		if len(entries) != 2 || entries[1].Mode != planning.Automatic || entries[0].Mode != planning.Manual {
 			t.Errorf("entries = %+v", entries)
 		}

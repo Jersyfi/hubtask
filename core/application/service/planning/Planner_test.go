@@ -11,13 +11,16 @@ import (
 	"time"
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
+	deskrepo "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/planning"
+	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -259,8 +262,9 @@ func entryOf(t *testing.T, out usecase.Output, id shared.ID) usecase.Output {
 	return nil
 }
 
-// PLN-02 check 3, PLN-03 checks 1 and 2: the plan proposes the automatic moves, keeps the manual
-// entry, measures the float and names the critical path - without the entry the reader may not see.
+// UC-PLN-02 check 3, UC-PLN-03 checks 1 and 2: the plan proposes the automatic moves, keeps the
+// manual entry, measures the float and names the critical path - without the entry the reader may
+// not see.
 func TestAPlanIsScheduledForItsReader(t *testing.T) {
 	f := newFixture()
 	read := ReadPlanSchedule{Planner: f.planner}
@@ -295,7 +299,55 @@ func TestAPlanIsScheduledForItsReader(t *testing.T) {
 	}
 }
 
-// PLN-02 check 4: only the accepted moves are applied, each through UpdateWorkItem with the
+type namedCalendars struct {
+	deskrepo.Calendars
+	rows map[string]servicedesk.Calendar
+}
+
+func (c namedCalendars) Find(_ context.Context, key string) (servicedesk.Calendar, error) {
+	found, ok := c.rows[key]
+	if !ok {
+		return servicedesk.Calendar{}, shared.ErrNotFound
+	}
+	return found, nil
+}
+
+// UC-PLN-02 check 2: an automatic entry is placed on the working days of the business calendar
+// the plan names - its holiday skipped, its duration in working days kept -, and on Monday to
+// Friday when it names none.
+func TestAPlanCountsOnTheCalendarItNames(t *testing.T) {
+	var week calendar.Week
+	for _, day := range []time.Weekday{time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday} {
+		week[day] = []calendar.Span{{From: 8 * 60, To: 18 * 60}}
+	}
+	office, err := calendar.New(calendar.Spec{Zone: "UTC", Week: week, Holidays: []calendar.Date{{Year: 2026, Month: time.November, Day: 5}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := newFixture()
+	f.planner.Calendars = namedCalendars{rows: map[string]servicedesk.Calendar{"office": {Key: "office", Calendar: office}}}
+	read := ReadPlanSchedule{Planner: f.planner}
+
+	plain, err := read.Execute(context.Background(), actor(), ScheduleQuery{PlanID: hubID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := entryOf(t, plain.Output(), build); b["start"] != "2026-11-05" || b["finish"] != "2026-11-06" {
+		t.Errorf("on Monday to Friday build = %v, want Thursday and Friday", b)
+	}
+	named, err := read.Execute(context.Background(), actor(), ScheduleQuery{PlanID: hubID, Calendar: "office"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := entryOf(t, named.Output(), build); b["start"] != "2026-11-06" || b["finish"] != "2026-11-09" || b["duration_days"] != 2 {
+		t.Errorf("on the office calendar build = %v, want Friday and Monday, two working days", b)
+	}
+	if _, err := read.Execute(context.Background(), actor(), ScheduleQuery{PlanID: hubID, Calendar: "nowhere"}); err == nil {
+		t.Error("a calendar the workspace does not hold was counted on")
+	}
+}
+
+// UC-PLN-02 check 4: only the accepted moves are applied, each through UpdateWorkItem with the
 // version read.
 func TestOnlyAcceptedMovesAreApplied(t *testing.T) {
 	f := newFixture()
@@ -323,8 +375,8 @@ func TestOnlyAcceptedMovesAreApplied(t *testing.T) {
 	}
 }
 
-// PLN-02 check 1: a dependency takes a kind and a lag; a link nobody waits on takes none, and the
-// waiting entry's writer sets it.
+// UC-PLN-02 check 1: a dependency takes a kind and a lag; a link nobody waits on takes none, and
+// the waiting entry's writer sets it.
 func TestADependencysTimingIsSetOnTheWaitingEnd(t *testing.T) {
 	f := newFixture()
 	set := SetDependencyTiming{Planner: f.planner}
@@ -364,7 +416,7 @@ type hlc struct{}
 
 func (hlc) Next() shared.HLC { return shared.HLC{} }
 
-// PLN-02 check 2 offline: an entry's new mode is filed for offline devices under its collection.
+// UC-PLN-02 check 2 offline: an entry's new mode is filed for offline devices under its collection.
 func TestAnEntrysModeIsToldToOfflineDevices(t *testing.T) {
 	f := newFixture()
 	log := &changes{}
@@ -382,7 +434,7 @@ func TestAnEntrysModeIsToldToOfflineDevices(t *testing.T) {
 	}
 }
 
-// PLN-05 check 1: an entry is made a milestone and automatic; what is left out stays.
+// UC-PLN-05 check 1: an entry is made a milestone and automatic; what is left out stays.
 func TestAnEntrysModeAndMilestoneAreSet(t *testing.T) {
 	f := newFixture()
 	set := SetEntryScheduling{Planner: f.planner}
@@ -400,7 +452,7 @@ func TestAnEntrysModeAndMilestoneAreSet(t *testing.T) {
 	}
 }
 
-// PLN-04 checks 1 and 2: a baseline is taken under a name up to the limit, and compared without
+// UC-PLN-04 checks 1 and 2: a baseline is taken under a name up to the limit, and compared without
 // the entries the reader may not see.
 func TestABaselineIsTakenAndComparedForItsReader(t *testing.T) {
 	f := newFixture()
