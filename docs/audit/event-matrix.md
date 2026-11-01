@@ -258,7 +258,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `chatbot.created` | CreateChatBot | `chat_bot` | NOTICE | Every time |
 | `chatbot.deleted` | DeleteChatBot | `chat_bot` | NOTICE | Every time |
+| `chatbot.link_started` | LinkChatAccount | `chat_bot` | NOTICE | Every time |
 | `chatbot.read` | ListChatBots | `chat_bot` | INFO | When refused |
+| `chatbot.unlinked` | UnlinkChatAccount | `chat_bot` | NOTICE | Every time |
 | `chatbot.updated` | UpdateChatBot | `chat_bot` | NOTICE | Every time |
 
 ## Cmdb
