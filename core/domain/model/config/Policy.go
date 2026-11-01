@@ -72,6 +72,11 @@ func AgentApplyOf(r setting.Resolution) AgentApply {
 
 // Revision is one configuration version: the document in force after an apply, who applied it,
 // who proposed it where that was an agent, and the counts of what changed - never content (rule 10).
+// ActorDirect is a version's actor kind for what changed outside a plan since the version before
+// - on a screen, through REST or `hubctl` -, recorded before the next apply: who made each change
+// is the audit trail's, not the version's.
+const ActorDirect shared.ActorKind = "DIRECT"
+
 type Revision struct {
 	TenantID shared.ID
 	Version  int

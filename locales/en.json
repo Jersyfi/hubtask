@@ -2437,6 +2437,7 @@
   "app.changes.no_versions": "No change has been applied through the configuration document yet.",
   "app.changes.version": "Version {version}",
   "app.changes.by_agent": "applied by an agent",
+  "app.changes.by_direct": "changed directly on the screens, recorded before the next apply",
   "app.changes.by_person": "applied by a person",
   "app.changes.was_proposed": "proposed by an agent",
   "app.changes.rollback_of": "back to version {version}",

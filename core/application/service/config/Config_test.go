@@ -394,12 +394,15 @@ func (s *store) Find(_ context.Context, version int) (domain.Revision, error) {
 	return domain.Revision{}, shared.ErrNotFound.WithDetail("config.version_unknown")
 }
 
-func (s *store) List(_ context.Context, hub shared.ID, _, _ int) ([]domain.Revision, error) {
+func (s *store) List(_ context.Context, hub shared.ID, before, limit int) ([]domain.Revision, error) {
 	var out []domain.Revision
-	for _, r := range s.revisions {
-		if r.HubID == hub {
+	for i := len(s.revisions) - 1; i >= 0; i-- {
+		if r := s.revisions[i]; r.HubID == hub && (before == 0 || r.Version < before) {
 			out = append(out, r)
 		}
+	}
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
 	}
 	return out, nil
 }

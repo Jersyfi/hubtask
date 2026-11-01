@@ -100,7 +100,12 @@ procedure (no other product's name in the implementation).
 ## 5. The same thing without an agent
 
 The administration's *Changes* group shows versions, compares two, and offers *View as file* on
-every settings page, so the document is never a hidden second representation. *Describe and draft*
+every settings page, so the document is never a hidden second representation. A change made
+outside a plan - on a screen, through REST or `hubctl` - since a scope's latest version becomes a
+version of its own before the next apply (actor kind `DIRECT`, its counts against that version, the
+sections the applier reads; who made each change is the audit trail's), so an apply's version holds
+only its own changes and applier, and the state the screens left can be compared and rolled back
+to. A scope never applied has no version yet: its first apply is version one. *Describe and draft*
 (today for rules, UC-AUT-10) becomes the same pipeline for any configuration: a description becomes
 a plan, a plan becomes a preview, a person applies it — AI optional (P-14).
 

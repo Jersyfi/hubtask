@@ -721,6 +721,40 @@ func chainedInput(in usecase.Input, previous usecase.Output, field string) useca
 	return out
 }
 
+// drifted records the configuration as an apply finds it, where it moved since its scope's latest
+// version outside a plan, as a version of its own (ActorDirect): the apply's version then holds
+// only its own changes and applier, and the state left by the screens can be compared and rolled
+// back to. A section the reader does not read now is left out of the comparison, so what another
+// reader saw is not counted as changed.
+func (d Desk) drifted(ctx context.Context, actor appshared.ActorContext, now current, at time.Time) error {
+	listed, err := d.Store.List(ctx, now.Hub, 0, 1)
+	if err != nil || len(listed) == 0 {
+		return err
+	}
+	latest, err := d.Store.Find(ctx, listed[0].Version)
+	if err != nil {
+		return err
+	}
+	before := domain.Document{}
+	for name, section := range latest.Document {
+		if _, read := now.Document[name]; read {
+			before[name] = section
+		}
+	}
+	changes := domain.Diff(before, now.Document)
+	if len(changes) == 0 {
+		return nil
+	}
+	overall, _, err := d.Store.Latest(ctx)
+	if err != nil {
+		return err
+	}
+	return d.Store.Insert(ctx, domain.Revision{
+		TenantID: actor.TenantID, Version: overall.Version + 1, Document: now.Document, Hash: now.hash(),
+		ActorKind: domain.ActorDirect, Counts: domain.CountsOf(changes), At: at, HubID: now.Hub,
+	})
+}
+
 // applied writes the version after an apply and its trail entry: who, the counts, never content.
 func (d Desk) applied(
 	ctx context.Context, actor appshared.ActorContext, p plan, proposedBy shared.ID, rolledBackTo int,

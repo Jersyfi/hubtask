@@ -652,6 +652,9 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 		if p.Flags.Any() && !in.Bool("acknowledge") {
 			return domain.ErrNotAcknowledged()
 		}
+		if err := d.drifted(ctx, actor, now, d.Clock.Now()); err != nil {
+			return err
+		}
 		if err := d.run(ctx, actor, p.Ops, in.String("step_up_token")); err != nil {
 			return err
 		}
@@ -907,6 +910,9 @@ func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id share
 		}
 		if p.Flags.Any() && !acknowledge {
 			return domain.ErrNotAcknowledged()
+		}
+		if err := d.drifted(ctx, actor, now, at); err != nil {
+			return err
 		}
 		if err := d.run(ctx, actor, p.Ops, stepUp); err != nil {
 			return err

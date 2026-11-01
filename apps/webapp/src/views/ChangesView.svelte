@@ -297,7 +297,7 @@
             <div class="identity">
               <span class="name">{t('app.changes.version', { version: version.version })}</span>
               <span class="note">{at(version.created_at)}</span>
-              <span class="note">{t(version.actor_kind === 'AI_AGENT' ? 'app.changes.by_agent' : 'app.changes.by_person')}</span>
+              <span class="note">{t(version.actor_kind === 'AI_AGENT' ? 'app.changes.by_agent' : version.actor_kind === 'DIRECT' ? 'app.changes.by_direct' : 'app.changes.by_person')}</span>
               {#if version.proposed_by}<span class="note">{t('app.changes.was_proposed')}</span>{/if}
               <span class="note">{counts(version)}</span>
               {#if version.template}<code class="note">{version.template}</code>{/if}
