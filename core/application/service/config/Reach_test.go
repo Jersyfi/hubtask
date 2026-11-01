@@ -160,8 +160,8 @@ func TestAPlanCountsWhatTheWorkspacesStructureWouldStopShowing(t *testing.T) {
 	}
 }
 
-// S-09's gap: a plan that switches a module off says how many people it leaves without it, asked
-// at the plan's place; a switch on is not counted.
+// S-09's gap: a plan that switches a module off says how many people it leaves without it and how
+// many switched-on rules go quiet, asked at the plan's place; a switch on is not counted.
 func TestAPlanCountsThePeopleAModuleSwitchedOffLeaves(t *testing.T) {
 	f := newFixture()
 	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
@@ -169,7 +169,8 @@ func TestAPlanCountsThePeopleAModuleSwitchedOffLeaves(t *testing.T) {
 	})
 
 	reached, _ := plan["reach"].([]usecase.Output)
-	if len(reached) != 1 || reached[0]["path"] != "modules.workflows" || reached[0]["people"] != 7 {
+	if len(reached) != 1 || reached[0]["path"] != "modules.workflows" || reached[0]["people"] != 7 ||
+		reached[0]["rules"] != 2 {
 		t.Fatalf("reach %v", reached)
 	}
 	asked := f.world.inputs["PreviewModuleReach"]

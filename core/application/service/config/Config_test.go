@@ -154,7 +154,7 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		if w.previewWithheld {
 			return nil, shared.ErrForbidden.WithDetail("auth.scope_insufficient")
 		}
-		return usecase.Output{"module": in["module"], "on": true, "people": 7}, nil
+		return usecase.Output{"module": in["module"], "on": true, "people": 7, "rules": 2}, nil
 	case "ListRoles":
 		return usecase.Output{"custom": rowsOf(w.roles), "grants": w.grants}, nil
 	case "ListWorkflows":

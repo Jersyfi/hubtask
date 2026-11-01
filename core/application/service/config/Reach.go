@@ -31,10 +31,10 @@ type reach struct {
 	// stop showing, and the entries whose field values would be hidden. Hidden, never deleted.
 	HiddenEntries, HiddenValues int
 	Hides                       bool
-	// People is how many people a module switched off leaves without it; Switches says the row
-	// is one.
-	People   int
-	Switches bool
+	// People is how many people a module switched off leaves without it, Rules how many
+	// switched-on rules it quiets; Switches says the row is one.
+	People, Rules int
+	Switches      bool
 	// Withheld says the reach was not counted: the preview it comes from refused this reader (a
 	// token without the preview's scope, a module off). The plan holds; what it touches is
 	// unknown to this reader, and the plan says so rather than nothing.
@@ -81,7 +81,9 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				return err
 			}
 			counted, _ := normal.(map[string]any)
-			p.Reach = append(p.Reach, reach{Path: change.Path(), Switches: true, People: whole(counted["people"])})
+			p.Reach = append(p.Reach, reach{
+				Path: change.Path(), Switches: true, People: whole(counted["people"]), Rules: whole(counted["rules"]),
+			})
 		case change.Section == sectionStructure:
 			if change.Op == domain.OpRemove {
 				reset = append(reset, change.Key)
@@ -311,6 +313,7 @@ func ReachOutput(rows []reach) []usecase.Output {
 		}
 		if r.Switches {
 			row["people"] = r.People
+			row["rules"] = r.Rules
 		}
 		if r.Withheld {
 			row["withheld"] = true
