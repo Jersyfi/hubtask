@@ -72,6 +72,7 @@
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { typesShown } from '../lib/data/entrytypes.ts';
+  import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -226,11 +227,25 @@
 
   const container = $derived(containers.find(id));
 
+  // The modules on where this place is (UC-INS-21 check 3): a hub narrows the workspace's, so its
+  // screens are drawn for its own set, read beside the place; the workspace's until it answers.
+  let placeModules = $state<readonly string[] | undefined>(undefined);
+  $effect(() => {
+    const at = id;
+    placeModules = undefined;
+    if (!at) return;
+    return untrack(() => modules.here(at, (next) => {
+      if (next.status === 'ready') placeModules = next.data.modules_on;
+    }));
+  });
+  const modulesOn = $derived(modulesHere(manifest.value?.modules_on, placeModules));
+  const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
+
   // The workflow the collection runs for its tasks, where it runs one: the board is then one
   // column per status (UC-FLW-03 check 2), and the head names it with a link to where it is
   // defined (UC-FLW-02 check 5). Read only where the module is on: elsewhere the server refuses the
   // read, and every collection would log the refusal (run R3 at 10⁷ entries).
-  const workflowsOn = $derived(typesShown(manifest.value));
+  const workflowsOn = $derived(typesShown(placeManifest));
   $effect(() => {
     if (!workflowsOn) return;
     return untrack(() => workflows.open());
@@ -443,7 +458,7 @@
       carriesDue: carriedHere('DUE_DATE'),
       carriesPeople: carriedHere('ASSIGNMENT') || carriedHere('MEMBERS'),
       carriesLabels: carriedHere('LABELS'),
-      showsTypes: typesShown(manifest.value),
+      showsTypes: typesShown(placeManifest),
     };
   });
   /** The arrangement in force: what the device kept for this collection, else the template's. */
@@ -869,7 +884,7 @@
    */
   const moduleActions = $derived.by<PageAction[]>(() => {
     if (!container) return [];
-    const on = manifest.value?.modules_on ?? [];
+    const on = modulesOn;
     const actions: PageAction[] = [];
     if (on.includes('PLANNING')) {
       const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
@@ -1281,7 +1296,7 @@
               : [
                   { id: 'modules', label: t('app.modules.title'), body: modulesTab },
                   // A hub's own working hours, where the service desk is on (UC-SVC-01 check 5).
-                  ...(manifest.value?.modules_on?.includes('SERVICE_DESK')
+                  ...(modulesOn.includes('SERVICE_DESK')
                     ? [{ id: 'calendars', label: t('app.desk.hub_section'), body: calendarsTab }]
                     : []),
                   // The forges that post its code (UC-INT-13 check 1).

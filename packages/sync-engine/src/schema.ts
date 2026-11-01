@@ -191,6 +191,7 @@ export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
 export type ViewAs = components['schemas']['ViewAs'];
 /** The suite's modules at a place, each on or off with where that comes from (UC-INS-21). */
 export type ModuleList = components['schemas']['ModuleList'];
+export type ModulesOn = components['schemas']['ModulesOn'];
 export type ModuleState = components['schemas']['ModuleState'];
 export type ModuleSwitch = components['schemas']['ModuleSwitch'];
 /** The configuration document and its plans, versions and proposals (F-6). */

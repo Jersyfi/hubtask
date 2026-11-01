@@ -71,6 +71,7 @@
   import { definitionsFor, valueText } from '../lib/data/customfields.ts';
   import { hasForm, panelRows } from '../lib/data/entryforms.ts';
   import { droppedBy, entryTypes, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import TypeDropsDialog from '../lib/entries/TypeDropsDialog.svelte';
   import type { EntryFormState } from '@hubtask/sync-engine';
   import { formatDecimal } from '../lib/i18n/number.ts';
@@ -366,15 +367,31 @@
   );
   const definitions = $derived(item ? definitionsFor(customFields.of(item.collection_id), item.type as string) : []);
 
+  // The modules on where this place is (UC-INS-21 check 3): a hub narrows the workspace's, so its
+  // screens are drawn for its own set, read beside the place; the workspace's until it answers.
+  // The collection alone, so that a new version of the entry does not read the set again.
+  const placeId = $derived(item?.collection_id);
+  let placeModules = $state<readonly string[] | undefined>(undefined);
+  $effect(() => {
+    const at = placeId;
+    placeModules = undefined;
+    if (!at) return;
+    return untrack(() => modules.here(at, (next) => {
+      if (next.status === 'ready') placeModules = next.data.modules_on;
+    }));
+  });
+  const modulesOn = $derived(modulesHere(manifest.value?.modules_on, placeModules));
+  const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
+
   // The entry's type's form, in edit mode (UC-FLW-01 check 2): its custom fields in the form's
   // sections and order, a hidden one left out, a read-only one opening nothing. The server answers
   // the conditions for the entry as it is stored, again whenever its version moves.
   $effect(() => {
-    if (!typesShown(manifest.value)) return;
+    if (!typesShown(placeManifest)) return;
     return untrack(() => entryTypes.open());
   });
   const itemType = $derived(
-    item && typesShown(manifest.value) ? typeOf(entryTypes.all, item.type as string, item.entry_type ?? undefined) : undefined,
+    item && typesShown(placeManifest) ? typeOf(entryTypes.all, item.type as string, item.entry_type ?? undefined) : undefined,
   );
   const itemForm = $derived(itemType && hasForm(itemType.form) ? itemType.form : undefined);
   // The entry's type, changed in place (UC-FLW-01 check 4): the types of its level still offered,
@@ -1355,13 +1372,13 @@
         {/if}
 
         <!-- The reader's timer on this entry, where the time module is on (UC-TIM-01 check 8). -->
-        {#if manifest.value?.modules_on?.includes('TIME')}
+        {#if modulesOn.includes('TIME')}
           {#key item.id}<EntryTimer itemId={item.id} onnavigate={(path) => onnavigate?.(path)} />{/key}
         {/if}
         <!-- The entry's status and the steps the reader may take (UC-FLW-03). -->
         {#key item.id}<StepControl {item} />{/key}
         <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
-        {#if manifest.value?.modules_on?.includes('SERVICE_DESK')}
+        {#if modulesOn.includes('SERVICE_DESK')}
           <!-- Its promised times (UC-SVC-02 check 6). -->
           {#key item.id}<EntrySla itemId={item.id} />{/key}
           <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7). -->
@@ -1372,7 +1389,7 @@
              each entry reads its own. -->
         {#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}
         <!-- The configuration items it is about, where the assets module is on (UC-AST-09 check 6). -->
-        {#if manifest.value?.modules_on?.includes('ASSETS')}
+        {#if modulesOn.includes('ASSETS')}
           {#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} />{/key}
         {/if}
         <!-- Its commits, branches and pull requests, where a forge named its key (UC-INT-13 check 3). -->
@@ -1382,7 +1399,7 @@
         <!-- Which of its values came from AI, where any did (UC-AGT-05 check 5). -->
         {#key item.id}<EntryProvenance itemId={item.id} />{/key}
         <!-- The goals the entry serves, where the goals module is on (UC-GOL-01 check 4). -->
-        {#if manifest.value?.modules_on?.includes('GOALS')}
+        {#if modulesOn.includes('GOALS')}
           {#key item.id}<EntryGoals itemId={item.id} />{/key}
         {/if}
 
@@ -1407,7 +1424,7 @@
               <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
             {/if}
             <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
-              isDesk={manifest.value?.modules_on?.includes('SERVICE_DESK') ?? false} />
+              isDesk={modulesOn.includes('SERVICE_DESK')} />
           {:else}
             <Stack gap="150">
               {#if historyFailure}

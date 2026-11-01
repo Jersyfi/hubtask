@@ -8,14 +8,16 @@
  * every other screen asks.
  */
 
-import type { ModuleList, ModuleState, ModuleSwitch, ResourceState } from '@hubtask/sync-engine';
+import type { ModuleList, ModulesOn, ModuleState, ModuleSwitch, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
-export { asksFirst, isSetHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
+export { asksFirst, isSetHere, modulesHere, moduleCodes, unavailableBecause, type ModulePlace } from './modules.ts';
 
 const PATH = '/tenant/modules';
 const CAPABILITIES = '/meta/capabilities';
+// Every place's own set, which a switch at the workspace or a hub can change.
+const PLACES = '/containers/*/modules';
 
 const pathAt = (hubId?: string) => (hubId ? `${PATH}?hub_id=${encodeURIComponent(hubId)}` : PATH);
 
@@ -28,12 +30,20 @@ class Modules {
     return engine.subscribe<ModuleList>({ path: pathAt(hubId) }, onNext);
   }
 
+  /**
+   * Reads the modules on at a hub, or at the hub a collection is in, for anybody who may read the
+   * place: what its screens are drawn for. **From `untrack`**.
+   */
+  here(containerId: string, onNext: (state: ResourceState<ModulesOn>) => void): () => void {
+    return engine.subscribe<ModulesOn>({ path: `/containers/${encodeURIComponent(containerId)}/modules` }, onNext);
+  }
+
   /** Switches one module on, off, or back to the level above. */
   async switch(module: ModuleState['module'], to: ModuleSwitch['switch'], hubId?: string): Promise<ModuleList> {
     const body: ModuleSwitch = hubId ? { switch: to, hub_id: hubId } : { switch: to };
     return engine.mutate<ModuleList>('PUT', `${PATH}/${encodeURIComponent(module)}`, body, {
       idempotencyKey: crypto.randomUUID(),
-      invalidates: [PATH, CAPABILITIES],
+      invalidates: [PATH, CAPABILITIES, PLACES],
     });
   }
 }

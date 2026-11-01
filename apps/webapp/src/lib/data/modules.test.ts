@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { ModuleState } from '@hubtask/sync-engine';
 
-import { asksFirst, isSetHere, moduleCodes, unavailableBecause } from './modules.ts';
+import { asksFirst, isSetHere, modulesHere, moduleCodes, unavailableBecause } from './modules.ts';
 
 const state = (over: Partial<ModuleState>): ModuleState => ({ module: 'PLANNING', on: false, source: 'DEFAULT', ...over });
 
@@ -35,4 +35,11 @@ test('only a value set here is handed back to the level above', () => {
   assert.deepEqual(moduleCodes(state({ module: 'SERVICE_DESK' })), {
     name: 'app.modules.name_service_desk', hint: 'app.modules.hint_service_desk',
   });
+});
+
+test("a place's screens are drawn for its hub's set, never wider than the workspace's (UC-INS-21 check 3)", () => {
+  assert.deepEqual(modulesHere(['PLANNING', 'TIME'], ['TIME']), ['TIME']);
+  assert.deepEqual(modulesHere(['TIME'], ['PLANNING', 'TIME']), ['TIME']);
+  assert.deepEqual(modulesHere(['PLANNING', 'TIME'], undefined), ['PLANNING', 'TIME']);
+  assert.deepEqual(modulesHere(undefined, undefined), []);
 });

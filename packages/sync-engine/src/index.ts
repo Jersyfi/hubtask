@@ -74,6 +74,7 @@ export type {
   PrivateHubAccess,
   ViewAs,
   ModuleList,
+  ModulesOn,
   ModuleState,
   ModuleSwitch,
   ConfigCheck,

@@ -40,3 +40,14 @@ export function moduleCodes(state: ModuleState): { readonly name: string; readon
   const key = state.module.toLowerCase();
   return { name: `app.modules.name_${key}`, hint: `app.modules.hint_${key}` };
 }
+
+/**
+ * The modules a hub's or a collection's screens are drawn for: the place's own set once it is read,
+ * never wider than the workspace's (check 3), and the workspace's until then.
+ */
+export function modulesHere<K extends string>(
+  workspace: readonly K[] | undefined, place: readonly string[] | undefined,
+): K[] {
+  const outer = [...(workspace ?? [])];
+  return place ? outer.filter((key) => place.includes(key)) : outer;
+}
