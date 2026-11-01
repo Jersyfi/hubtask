@@ -220,3 +220,30 @@ and changes least for people who do not use it.
 13. **The performance plan** (`test/load/PLAN.md`) as written, with R3 (the browser walk counting
     console errors) added: P2 at 10⁶ (about 14 minutes), R1 at 10⁷ (about 50 to 60 minutes), R3
     (about 40 minutes plus the walk), R2 only after a fix.
+
+## The owner's fifth answers — 2026-11-01
+
+Owner items from the third coverage round and the role reviews. The owner asked the orchestrating
+session for sensible proposals and accepted them (2026-10-31); each keeps data safest and changes
+least.
+
+1. **The owner's workspace download** stays in the documented, openable export format, protected
+   by TLS in transit (UC-BAK-07 check 2). An optional passphrase encrypts it (Argon2id, from the
+   `x/crypto` already in `go.mod`, the manifest's KDF fields), asked again at restore.
+2. **The browser's replica in a very large workspace.** Above 100 000 entries the browser
+   replicates the hubs the person is a member of, opened in the last 30 days or pinned, up to
+   about 100 000 entries, and reads the rest online; the app shows which hubs are available
+   offline. The shells keep the whole replica. offline-sync.md §1 changes by this decision, and
+   the largest workspace's snapshot joins `test/load/PLAN.md`.
+3. **A figure under steady writes** shows the last kept count for up to 60 seconds after a
+   change, marked "as of <time>", while the late count runs (UC-WRK-29 by this decision).
+4. **Use case changes made under concept mode** are confirmed: UC-SVC-03 check 9, UC-SVC-01
+   check 5's wording, UC-JUM-11 check 10 and its *Where it ends* on IDLE.
+5. **A self-hoster locked out without mail.** A machine-side command beside `hubtask operator add`,
+   `hubtask account reset-link --workspace <short> --email <addr>`, prints a short-lived one-time
+   reset link (hash stored, journalled as the machine's); the no-mail sign-in text names it.
+6. **Lost second factor and recovery codes.** An administrator with `MANAGE_MEMBERS`, after their
+   own step-up and within the role ceiling, can reset a person's second factor: audited, the
+   person is mailed, their sessions end, and enrolment is forced at the next sign-in where the
+   workspace requires a factor. An owner's factor is reset only by another owner. No sign-in ever
+   skips a factor (P-02); identity.md changes by this decision.
