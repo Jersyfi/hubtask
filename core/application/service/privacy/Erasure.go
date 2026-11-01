@@ -676,35 +676,63 @@ func pseudonymFor(accountID shared.ID) string {
 	return fmt.Sprintf("%s%s", pseudonymPrefix, digest)
 }
 
+// stripRounds bounds how often the erasure passes over the lines again because a line naming the
+// address arrived while it worked.
+const stripRounds = 3
+
 // stripIntakeLines removes the intake's lines naming the address unless a hold on the workspace
-// stands.
+// stands. Each page commits on its own, so an erasure of thousands of lines holds no transaction
+// past its timeout, and a retry finds only the lines still left. The case completes only when a
+// final read finds no line naming the address.
 func (e Eraser) stripIntakeLines(ctx context.Context, actor appshared.ActorContext, address string) (int, error) {
 	if e.IntakeLines.Lines == nil {
 		return 0, nil
 	}
+	addresses := []string{address}
 	stripped := 0
-	var refusal error
-	err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		holds, err := e.Holds.Active(ctx)
-		if err != nil {
+	for round := 0; round < stripRounds; round++ {
+		var refusal error
+		step := StripStep{More: true}
+		for step.More {
+			held := false
+			err := e.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				holds, err := e.Holds.Active(ctx)
+				if err != nil {
+					return err
+				}
+				if _, held = holds.OnTenant(); held {
+					return nil
+				}
+				// The lines that went stay gone: one that cannot be changed now leaves the case
+				// open, and must not take the others back with it.
+				step, err = e.IntakeLines.StripPage(ctx, actor.TenantID, addresses, actor, step.Next)
+				return err
+			})
+			if err != nil {
+				return stripped, err
+			}
+			if held {
+				return stripped, nil
+			}
+			stripped += step.Changed
+			if step.Refusal != nil {
+				refusal = step.Refusal
+			}
+		}
+		if refusal != nil {
+			return stripped, refusal
+		}
+		var left bool
+		err := e.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			left, err = anyNamed(ctx, e.IntakeLines.Lines, addresses)
 			return err
+		})
+		if err != nil || !left {
+			return stripped, err
 		}
-		if _, held := holds.OnTenant(); held {
-			return nil
-		}
-		stripped, err = e.IntakeLines.Strip(ctx, actor.TenantID, []string{address}, actor)
-		if err != nil && refused(err) {
-			// The lines that went stay gone: one that cannot be changed now leaves the case open,
-			// and must not take the others back with it.
-			refusal = err
-			return nil
-		}
-		return err
-	})
-	if err != nil {
-		return stripped, err
 	}
-	return stripped, refusal
+	return stripped, shared.ErrConflict.WithDetail(domain.CodeIntakeLinesRemain)
 }
 
 // addressHeld answers whether the workspace holds anything of an address: the requester record, a
@@ -721,16 +749,7 @@ func (e Eraser) addressHeld(ctx context.Context, subjectEmail string) (bool, err
 	if e.IntakeLines.Lines == nil {
 		return false, nil
 	}
-	lines, err := e.IntakeLines.Lines.IntakeLinesFrom(ctx, []string{address})
-	if err != nil {
-		return false, err
-	}
-	for _, line := range lines {
-		if _, named := stripAny(line.Text, []string{address}); named {
-			return true, nil
-		}
-	}
-	return false, nil
+	return anyNamed(ctx, e.IntakeLines.Lines, []string{address})
 }
 
 // keptOfAddress answers whether a workspace hold is in force and what it keeps of the address -

@@ -39,23 +39,60 @@ type StripIntakeLines struct {
 	Entries Invoker
 }
 
-// Strip removes the lines naming the addresses, in the caller's transaction where there is one.
-// Each is changed as the account that filed it, which wrote the line; where that account may no
-// longer, as fallback when it is a person; a refusal is answered after the other lines went. It
-// answers how many it changed.
+// IntakeLinePage is how many lines one read answers. A requester who wrote for years has more
+// lines than one read holds; the next read starts after the last line of the page.
+const IntakeLinePage = 500
+
+// StripStep is what one page of Strip did: the lines it changed, the cursor after the page, whether
+// a page may follow, and the last refusal among its lines.
+type StripStep struct {
+	Changed int
+	Next    repository.IntakeCursor
+	More    bool
+	Refusal error
+}
+
+// Strip removes every line naming the addresses, page by page in the caller's transaction where
+// there is one. It answers how many it changed and, after the others went, a refusal.
 func (s StripIntakeLines) Strip(
 	ctx context.Context, tenantID shared.ID, addresses []string, fallback appshared.ActorContext,
 ) (int, error) {
-	if s.Lines == nil || s.Entries == nil || len(addresses) == 0 {
-		return 0, nil
-	}
-	lines, err := s.Lines.IntakeLinesFrom(ctx, addresses)
-	if err != nil {
-		return 0, err
-	}
 	changed := 0
 	var refusal error
+	step := StripStep{More: true}
+	for step.More {
+		var err error
+		step, err = s.StripPage(ctx, tenantID, addresses, fallback, step.Next)
+		changed += step.Changed
+		if err != nil {
+			return changed, err
+		}
+		if step.Refusal != nil {
+			refusal = step.Refusal
+		}
+	}
+	return changed, refusal
+}
+
+// StripPage removes the lines of one page after the cursor. Each is changed as the account that
+// filed it, which wrote the line; where that account may no longer, as fallback when it is a
+// person. A refused line is passed over: the cursor moves on, so it never blocks the lines behind
+// it, and the refusal is answered in the step.
+func (s StripIntakeLines) StripPage(
+	ctx context.Context, tenantID shared.ID, addresses []string, fallback appshared.ActorContext,
+	after repository.IntakeCursor,
+) (StripStep, error) {
+	step := StripStep{Next: after}
+	if s.Lines == nil || s.Entries == nil || len(addresses) == 0 {
+		return step, nil
+	}
+	lines, err := s.Lines.IntakeLinesFrom(ctx, addresses, after, IntakeLinePage)
+	if err != nil {
+		return step, err
+	}
+	step.More = len(lines) == IntakeLinePage
 	for _, line := range lines {
+		step.Next = line.After()
 		text, stripped := stripAny(line.Text, addresses)
 		if !stripped {
 			continue
@@ -70,16 +107,52 @@ func (s StripIntakeLines) Strip(
 			_, err = s.Entries.Invoke(ctx, name, fallback, in)
 		}
 		if err != nil && !refused(err) {
-			return changed, err
+			return step, err
 		}
 		if err != nil {
-			// The others still go; the refusal is answered once they have.
-			refusal = err
+			step.Refusal = err
 			continue
 		}
-		changed++
+		step.Changed++
 	}
-	return changed, refusal
+	return step, nil
+}
+
+// AllIntakeLines answers every line whose first line names one of the addresses, read page by page.
+func AllIntakeLines(ctx context.Context, lines repository.IntakeLines, addresses []string) ([]repository.IntakeLine, error) {
+	var all []repository.IntakeLine
+	var after repository.IntakeCursor
+	for {
+		page, err := lines.IntakeLinesFrom(ctx, addresses, after, IntakeLinePage)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page...)
+		if len(page) < IntakeLinePage {
+			return all, nil
+		}
+		after = page[len(page)-1].After()
+	}
+}
+
+// anyNamed answers whether a line still names one of the addresses exactly.
+func anyNamed(ctx context.Context, lines repository.IntakeLines, addresses []string) (bool, error) {
+	var after repository.IntakeCursor
+	for {
+		page, err := lines.IntakeLinesFrom(ctx, addresses, after, IntakeLinePage)
+		if err != nil {
+			return false, err
+		}
+		for _, line := range page {
+			if _, named := stripAny(line.Text, addresses); named {
+				return true, nil
+			}
+		}
+		if len(page) < IntakeLinePage {
+			return false, nil
+		}
+		after = page[len(page)-1].After()
+	}
 }
 
 // expiryReadPages bounds how many pages of kept requesters one expiry reads past: the retention

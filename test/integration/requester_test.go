@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -158,9 +159,24 @@ func TestTheIntakeLinesOfAnAddressStayInTheirWorkspace(t *testing.T) {
 	}
 	store := postgres.RequesterRepository{IDs: freshIDs{t}}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		lines, err := store.IntakeLinesFrom(ctx, []string{address})
+		lines, err := store.IntakeLinesFrom(ctx, []string{address}, privacyrepo.IntakeCursor{}, 500)
 		if err != nil {
 			return err
+		}
+		// A page of one, then the cursor past it: the second line, then nothing.
+		first, err := store.IntakeLinesFrom(ctx, []string{address}, privacyrepo.IntakeCursor{}, 1)
+		if err != nil {
+			return err
+		}
+		if len(first) != 1 {
+			t.Fatalf("a page of one answered %d lines", len(first))
+		}
+		rest, err := store.IntakeLinesFrom(ctx, []string{address}, first[0].After(), 500)
+		if err != nil {
+			return err
+		}
+		if len(rest) != 1 || rest[0].ID == first[0].ID {
+			t.Errorf("the page after the cursor answered %+v", rest)
 		}
 		if len(lines) != 2 {
 			t.Fatalf("found %d lines, want this workspace's notes and comment: %+v", len(lines), lines)
@@ -170,7 +186,7 @@ func TestTheIntakeLinesOfAnAddressStayInTheirWorkspace(t *testing.T) {
 				t.Errorf("a line of another entry or without its filer: %+v", line)
 			}
 		}
-		if other, err := store.IntakeLinesFrom(ctx, []string{"nobody@shop.test"}); err != nil || len(other) != 0 {
+		if other, err := store.IntakeLinesFrom(ctx, []string{"nobody@shop.test"}, privacyrepo.IntakeCursor{}, 500); err != nil || len(other) != 0 {
 			t.Errorf("another address found %d lines (%v)", len(other), err)
 		}
 		due, err := store.ExpiredAddresses(ctx, time.Now().UTC().AddDate(0, 0, -730), 0, 100)

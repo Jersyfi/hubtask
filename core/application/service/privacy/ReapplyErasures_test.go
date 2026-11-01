@@ -365,7 +365,7 @@ func TestAnErasureByAddressTheRewindUndidIsCarriedOutAgain(t *testing.T) {
 	addresses := &addressStore{held: 3}
 	lines, entries := intakeLines(), &entryCatalogue{}
 	f.handler.Eraser.Addresses = addresses
-	f.handler.Eraser.IntakeLines = StripIntakeLines{Lines: lines, Entries: entries}
+	f.handler.Eraser.IntakeLines = stripWith(lines, entries)
 	record := lostCase(domain.ModeFullDelete)
 	record.SubjectAccountID, record.SubjectEmail = "", "Kunde@Shop.test"
 
@@ -389,7 +389,7 @@ func TestIntakeLinesAloneMakeTheAddressPresent(t *testing.T) {
 	f := newReapplyFixture()
 	entries := &entryCatalogue{}
 	f.handler.Eraser.Addresses = &addressStore{}
-	f.handler.Eraser.IntakeLines = StripIntakeLines{Lines: intakeLines(), Entries: entries}
+	f.handler.Eraser.IntakeLines = stripWith(intakeLines(), entries)
 	record := lostCase(domain.ModeAnonymize)
 	record.SubjectAccountID, record.SubjectEmail = "", "kunde@shop.test"
 
@@ -403,7 +403,7 @@ func TestAnAddressNothingNamesIsAbsent(t *testing.T) {
 	f := newReapplyFixture()
 	addresses := &addressStore{}
 	f.handler.Eraser.Addresses = addresses
-	f.handler.Eraser.IntakeLines = StripIntakeLines{Lines: &lineStore{}, Entries: &entryCatalogue{}}
+	f.handler.Eraser.IntakeLines = stripWith(&lineStore{}, &entryCatalogue{})
 	record := lostCase(domain.ModeFullDelete)
 	record.SubjectAccountID, record.SubjectEmail = "", "kunde@shop.test"
 

@@ -26,6 +26,9 @@ const (
 	CodeReasonTooLong           = "privacy.reason_too_long"
 	CodeRejectionReasonRequired = "privacy.rejection_reason_required"
 	CodeErasureModeRequired     = "privacy.erasure_mode_required"
+	// CodeIntakeLinesRemain: lines naming the address kept arriving while the erasure removed them;
+	// the case stays open and the next attempt removes the rest.
+	CodeIntakeLinesRemain       = "privacy.intake_lines_remain"
 	CodeExportTargetRequired    = "privacy.export_target_required"
 	CodeTransitionRefused       = "privacy.transition_refused"
 	CodeRequestNotFound         = "privacy.request_not_found"

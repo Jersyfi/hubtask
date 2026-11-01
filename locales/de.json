@@ -2238,6 +2238,7 @@
   "privacy.restriction_status_refused": "{status, select, INVITED {Dieses Konto ist noch eine Einladung, daher lässt sich seine Verarbeitung weder einschränken noch wieder aufnehmen. Die Daten der Person bewahrt eine Sperre auf dem Konto.} DISABLED {Dieses Konto ist deaktiviert, daher lässt sich seine Verarbeitung weder einschränken noch wieder aufnehmen. Die Daten der Person bewahrt eine Sperre auf dem Konto.} ANONYMIZED {Dieses Konto wurde anonymisiert: Es ist niemand mehr da, dessen Verarbeitung eingeschränkt oder wieder aufgenommen werden könnte.} other {Nur bei einem aktiven Konto lässt sich die Verarbeitung einschränken, und nur bei einem eingeschränkten wieder aufnehmen.}}",
   "privacy.not_an_erasure": "Diese Anfrage ist keine Löschung – eine Sperre kann also nichts davon bewahren.",
   "privacy.erasure_mode_required": "Wähle, wie die Löschung ausgeführt werden soll, bevor du sie startest: anonymisieren oder vollständig löschen.",
+  "privacy.intake_lines_remain": "Während die Löschung lief, kamen weitere Einträge mit dem Namen dieser Person hinzu. Der Fall bleibt offen; starte die Löschung erneut, um den Rest zu entfernen.",
   "privacy.export_target_required": "Ein Export braucht ein Sicherungsziel, in das das Archiv geschrieben wird.",
   "privacy.transition_refused": "Eine Anfrage kann nicht von {from} zu {to} wechseln.",
   "privacy.request_not_found": "Diese Betroffenenanfrage gibt es nicht.",

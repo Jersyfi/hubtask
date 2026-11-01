@@ -6,8 +6,11 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
@@ -175,15 +178,30 @@ func (RequesterRepository) EraseAddress(ctx context.Context, address string, ful
 }
 
 // IntakeLinesFrom answers the entries and comments whose first line names one of the addresses.
-func (RequesterRepository) IntakeLinesFrom(ctx context.Context, addresses []string) ([]privacyrepo.IntakeLine, error) {
-	if len(addresses) == 0 {
+func (RequesterRepository) IntakeLinesFrom(
+	ctx context.Context, addresses []string, after privacyrepo.IntakeCursor, limit int,
+) ([]privacyrepo.IntakeLine, error) {
+	if len(addresses) == 0 || limit <= 0 {
 		return nil, nil
 	}
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListIntakeLinesFrom(ctx, addresses)
+	// '' sorts before both kinds and the nil id before every id: the zero cursor is the start.
+	params := sqlc.ListIntakeLinesFromParams{Addresses: addresses, PageSize: int32(min(limit, math.MaxInt32))}
+	if after.Started {
+		params.AfterKind = "ITEM"
+		if after.Comment {
+			params.AfterKind = "COMMENT"
+		}
+		if params.AfterID, err = uuidOf(after.ID); err != nil {
+			return nil, err
+		}
+	} else {
+		params.AfterID = pgtype.UUID{Valid: true}
+	}
+	rows, err := queries.ListIntakeLinesFrom(ctx, params)
 	if err != nil {
 		return nil, requesterFailed("reading the intake's lines of an address", err)
 	}

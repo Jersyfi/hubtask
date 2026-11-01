@@ -5,6 +5,9 @@ package privacy
 
 import (
 	"context"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,17 +24,58 @@ var (
 	lineItem  = shared.MustParseID("0192f000-0000-7000-8000-0000000000a2")
 	lineNote  = shared.MustParseID("0192f000-0000-7000-8000-0000000000a3")
 	lineAlone = shared.MustParseID("0192f000-0000-7000-8000-0000000000a4")
+	lineOther = shared.MustParseID("0192f000-0000-7000-8000-0000000000a5")
 )
 
 type lineStore struct {
 	lines   []repository.IntakeLine
 	asked   []string
 	expired []string
+	reads   int
 }
 
-func (s *lineStore) IntakeLinesFrom(_ context.Context, addresses []string) ([]repository.IntakeLine, error) {
-	s.asked = append(s.asked, addresses...)
-	return s.lines, nil
+// IntakeLinesFrom answers the store's lines in the query's key order - comments before entries,
+// each by id - after the cursor, as a page of at most limit.
+func (s *lineStore) IntakeLinesFrom(
+	_ context.Context, addresses []string, after repository.IntakeCursor, limit int,
+) ([]repository.IntakeLine, error) {
+	if !after.Started {
+		s.asked = append(s.asked, addresses...)
+	}
+	s.reads++
+	sorted := slices.Clone(s.lines)
+	slices.SortStableFunc(sorted, func(a, b repository.IntakeLine) int { return compareLine(a.After(), b.After()) })
+	page := []repository.IntakeLine{}
+	for _, line := range sorted {
+		if after.Started && compareLine(line.After(), after) <= 0 {
+			continue
+		}
+		if len(page) == limit {
+			break
+		}
+		page = append(page, line)
+	}
+	return page, nil
+}
+
+func compareLine(a, b repository.IntakeCursor) int {
+	if a.Comment != b.Comment {
+		if a.Comment {
+			return -1
+		}
+		return 1
+	}
+	return strings.Compare(a.ID.String(), b.ID.String())
+}
+
+// edited drops the line an edit changed, as the database no longer answers it.
+func (s *lineStore) edited(id string) {
+	s.lines = slices.DeleteFunc(s.lines, func(l repository.IntakeLine) bool { return l.ID.String() == id })
+}
+
+func stripWith(lines *lineStore, entries *entryCatalogue) StripIntakeLines {
+	entries.store = lines
+	return StripIntakeLines{Lines: lines, Entries: entries}
 }
 
 func (s *lineStore) ExpiredAddresses(_ context.Context, _ time.Time, skip, batch int) ([]string, error) {
@@ -53,6 +97,7 @@ type entryCatalogue struct {
 	refuseFiler bool
 	// archived answers the edit of this comment as its collection's: archived, so read-only.
 	archived string
+	store    *lineStore
 }
 
 func (c *entryCatalogue) Invoke(_ context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -63,6 +108,13 @@ func (c *entryCatalogue) Invoke(_ context.Context, name string, actor appshared.
 	if c.refuseFiler && actor.Kind == appshared.ActorAutomation {
 		return nil, shared.ErrForbidden.WithDetail("access.not_permitted")
 	}
+	if c.store != nil {
+		id := in.String("comment_id")
+		if id == "" {
+			id = in.String("item_id")
+		}
+		c.store.edited(id)
+	}
 	return usecase.Output{}, nil
 }
 
@@ -71,7 +123,7 @@ func intakeLines() *lineStore {
 		{ID: lineItem, ItemID: lineItem, WrittenBy: filerID, Text: "From: Erika Muster <kunde@shop.test>\n\nThe printer"},
 		{Comment: true, ID: lineNote, ItemID: lineItem, WrittenBy: filerID, Text: "From: kunde@shop.test\n\nStill broken"},
 		{Comment: true, ID: lineAlone, ItemID: lineItem, WrittenBy: filerID, Text: "From: kunde@shop.test"},
-		{Comment: true, ID: lineAlone, ItemID: lineItem, WrittenBy: filerID, Text: "From: someone@else.test\n\nHi"},
+		{Comment: true, ID: lineOther, ItemID: lineItem, WrittenBy: filerID, Text: "From: someone@else.test\n\nHi"},
 	}}
 }
 
@@ -83,7 +135,7 @@ func TestAnErasureByAddressRemovesTheIntakesFromLine(t *testing.T) {
 	lines, entries := intakeLines(), &entryCatalogue{}
 	eraser := h.eraser()
 	eraser.Addresses = &addressStore{held: 1}
-	eraser.IntakeLines = StripIntakeLines{Lines: lines, Entries: entries}
+	eraser.IntakeLines = stripWith(lines, entries)
 	erased, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize))
 	if err != nil {
 		t.Fatalf("erasing: %v", err)
@@ -91,10 +143,11 @@ func TestAnErasureByAddressRemovesTheIntakesFromLine(t *testing.T) {
 	if len(entries.calls) != 3 {
 		t.Fatalf("%d edits, want 3: %+v", len(entries.calls), entries.calls)
 	}
+	// In the read's key order: comments before entries.
 	want := []struct{ name, field, text string }{
-		{updateWorkItemName, "notes", "The printer"},
 		{editCommentName, "body", "Still broken"},
 		{deleteCommentName, "body", ""},
+		{updateWorkItemName, "notes", "The printer"},
 	}
 	for i, w := range want {
 		call := entries.calls[i]
@@ -117,7 +170,7 @@ func TestAnIntakeLineFallsBackToTheEraserAndAHoldKeepsIt(t *testing.T) {
 	entries := &entryCatalogue{refuseFiler: true}
 	eraser := h.eraser()
 	eraser.Addresses = &addressStore{held: 1}
-	eraser.IntakeLines = StripIntakeLines{Lines: intakeLines(), Entries: entries}
+	eraser.IntakeLines = stripWith(intakeLines(), entries)
 	if _, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize)); err != nil {
 		t.Fatalf("erasing: %v", err)
 	}
@@ -130,7 +183,7 @@ func TestAnIntakeLineFallsBackToTheEraserAndAHoldKeepsIt(t *testing.T) {
 	entries = &entryCatalogue{}
 	eraser = h.eraser()
 	eraser.Addresses = &addressStore{held: 1}
-	eraser.IntakeLines = StripIntakeLines{Lines: intakeLines(), Entries: entries}
+	eraser.IntakeLines = stripWith(intakeLines(), entries)
 	if _, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize)); err != nil {
 		t.Fatalf("erasing: %v", err)
 	}
@@ -145,7 +198,7 @@ func TestExpiryRemovesTheIntakeLinesAndARefusalDoesNotStopIt(t *testing.T) {
 	lines := intakeLines()
 	lines.expired = []string{"kunde@shop.test"}
 	entries := &entryCatalogue{refuseFiler: true}
-	strip := StripIntakeLines{Lines: lines, Entries: entries}
+	strip := stripWith(lines, entries)
 	cleared, _, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
 	if err != nil {
 		t.Fatalf("a refused edit stopped the expiry: %v", err)
@@ -165,7 +218,7 @@ func TestExpiryKeepsARequesterNamedInAnArchivedCollection(t *testing.T) {
 	lines := intakeLines()
 	lines.expired = []string{"kunde@shop.test", "someone@else.test"}
 	entries := &entryCatalogue{archived: lineNote.String()}
-	strip := StripIntakeLines{Lines: lines, Entries: entries}
+	strip := stripWith(lines, entries)
 	cleared, _, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
 	if err != nil {
 		t.Fatalf("an archived collection failed the expiry: %v", err)
@@ -189,7 +242,7 @@ func TestAnErasureWithALineInAnArchivedCollectionStaysOpen(t *testing.T) {
 	entries := &entryCatalogue{archived: lineNote.String()}
 	eraser := h.eraser()
 	eraser.Addresses = &addressStore{held: 1}
-	eraser.IntakeLines = StripIntakeLines{Lines: intakeLines(), Entries: entries}
+	eraser.IntakeLines = stripWith(intakeLines(), entries)
 	_, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize))
 	if shared.AsError(err).DetailCode != "items.collection_archived" {
 		t.Fatalf("erasing answered %v, want the archived collection's refusal", err)
@@ -205,7 +258,7 @@ func TestExpiryReadsPastKeptRequesters(t *testing.T) {
 	lines := intakeLines()
 	lines.expired = []string{"kunde@shop.test", "kunde@shop.test", "someone@else.test", "free@shop.test"}
 	entries := &entryCatalogue{archived: lineNote.String()}
-	strip := StripIntakeLines{Lines: lines, Entries: entries}
+	strip := stripWith(lines, entries)
 	cleared, kept, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 2)
 	if err != nil {
 		t.Fatalf("expiry: %v", err)
@@ -215,5 +268,51 @@ func TestExpiryReadsPastKeptRequesters(t *testing.T) {
 	}
 	if kept != 2 {
 		t.Errorf("kept %d, want 2", kept)
+	}
+}
+
+// A requester who wrote for years has more lines than one read holds: the erasure pages through
+// all of them, each page in a transaction of its own, and completes only once none is left.
+func TestAnErasureRemovesMoreLinesThanOnePageHolds(t *testing.T) {
+	const filed = IntakeLinePage*2 + 400
+	lines := &lineStore{}
+	for i := range filed {
+		lines.lines = append(lines.lines, repository.IntakeLine{
+			Comment: true, ID: shared.MustParseID(fmt.Sprintf("0192f000-0000-7000-8000-%012d", i+1)),
+			ItemID: lineItem, WrittenBy: filerID, Text: "From: kunde@shop.test\n\nAgain",
+		})
+	}
+	h := newErasureHarness()
+	entries := &entryCatalogue{}
+	eraser := h.eraser()
+	eraser.Addresses = &addressStore{held: 1}
+	eraser.IntakeLines = stripWith(lines, entries)
+	erased, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize))
+	if err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if len(entries.calls) != filed || len(lines.lines) != 0 {
+		t.Fatalf("%d edits and %d lines left, want %d edits and none left", len(entries.calls), len(lines.lines), filed)
+	}
+	if erased.Intake != filed+1 {
+		t.Errorf("the erasure counted %d, want the record and %d lines", erased.Intake, filed)
+	}
+	if lines.reads < 3 {
+		t.Errorf("%d reads for %d lines, want a page each", lines.reads, filed)
+	}
+}
+
+// A line that keeps naming the address after every pass leaves the case open rather than
+// completed.
+func TestAnErasureStaysOpenWhileALineStillNamesTheAddress(t *testing.T) {
+	lines := intakeLines()
+	h := newErasureHarness()
+	eraser := h.eraser()
+	eraser.Addresses = &addressStore{held: 1}
+	// The edits succeed but the store keeps the lines: what a line arriving during each pass looks like.
+	eraser.IntakeLines = StripIntakeLines{Lines: lines, Entries: &entryCatalogue{}}
+	_, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize))
+	if shared.AsError(err).DetailCode != domain.CodeIntakeLinesRemain {
+		t.Fatalf("erasing answered %v, want the case kept open", err)
 	}
 }

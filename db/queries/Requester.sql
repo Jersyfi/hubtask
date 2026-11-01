@@ -92,26 +92,30 @@ ORDER BY r.address
 LIMIT 20;
 
 -- name: ListIntakeLinesFrom :many
--- The live entries and comments whose first line is the intake's "From:" line naming one of these
--- addresses (third answers 2): what an account filed on a requester's behalf. The prefix test is
--- the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine).
-SELECT 'ITEM'::text AS kind, w.id, w.id AS item_id, w.created_by AS written_by, coalesce(w.notes, '') AS text
-FROM work_item w
-WHERE w.tenant_id = current_tenant_id() AND w.deleted_at IS NULL AND w.notes LIKE 'From: %'
-  AND EXISTS (
-    SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
-    WHERE position(lower(a.address) IN lower(split_part(w.notes, E'\n', 1))) > 0
-  )
-UNION ALL
-SELECT 'COMMENT'::text, c.id, c.item_id, c.author_id, c.body
-FROM comment c
-WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.kind = 'USER' AND c.body LIKE 'From: %'
-  AND EXISTS (
-    SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
-    WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
-  )
-ORDER BY 1, 2
-LIMIT 1000;
+-- A page of the live entries and comments whose first line is the intake's "From:" line naming one
+-- of these addresses (third answers 2): what an account filed on a requester's behalf. The prefix
+-- test is the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine). Keyed
+-- by (kind, id) after the cursor, so a caller pages through every line, however many there are.
+SELECT l.kind, l.id, l.item_id, l.written_by, l.text FROM (
+  SELECT 'ITEM'::text AS kind, w.id, w.id AS item_id, w.created_by AS written_by, coalesce(w.notes, '') AS text
+  FROM work_item w
+  WHERE w.tenant_id = current_tenant_id() AND w.deleted_at IS NULL AND w.notes LIKE 'From: %'
+    AND EXISTS (
+      SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
+      WHERE position(lower(a.address) IN lower(split_part(w.notes, E'\n', 1))) > 0
+    )
+  UNION ALL
+  SELECT 'COMMENT'::text, c.id, c.item_id, c.author_id, c.body
+  FROM comment c
+  WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.kind = 'USER' AND c.body LIKE 'From: %'
+    AND EXISTS (
+      SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
+      WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
+    )
+) AS l
+WHERE (l.kind, l.id) > (sqlc.arg('after_kind')::text, sqlc.arg('after_id')::uuid)
+ORDER BY l.kind, l.id
+LIMIT sqlc.arg('page_size')::int;
 
 -- name: ListExpiredRequesterAddresses :many
 -- A page of the requesters past the period, oldest first: their intake lines go before them. The

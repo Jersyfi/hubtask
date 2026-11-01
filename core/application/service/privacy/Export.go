@@ -257,7 +257,7 @@ func (e Exporter) writeOne(
 	err := e.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
 		var lines map[string]map[string]bool
 		if address := strings.ToLower(strings.TrimSpace(in.email)); address != "" && e.IntakeLines != nil {
-			found, err := e.IntakeLines.IntakeLinesFrom(snapshotCtx, []string{address})
+			found, err := AllIntakeLines(snapshotCtx, e.IntakeLines, []string{address})
 			if err != nil {
 				return err
 			}

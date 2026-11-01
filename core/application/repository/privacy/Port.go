@@ -381,11 +381,25 @@ type IntakeLine struct {
 	Text      string
 }
 
+// IntakeCursor is where a page of intake lines ends: comments come before entries, each by id. The
+// zero cursor is before the first line.
+type IntakeCursor struct {
+	Started bool
+	Comment bool
+	ID      shared.ID
+}
+
+// After is the cursor just past the line.
+func (l IntakeLine) After() IntakeCursor {
+	return IntakeCursor{Started: true, Comment: l.Comment, ID: l.ID}
+}
+
 // IntakeLines finds the intake's lines naming a requester's address (third answers 2).
 type IntakeLines interface {
-	// IntakeLinesFrom answers the live entries and comments whose first line names one of the
-	// addresses, at most a thousand; the caller judges the exact line.
-	IntakeLinesFrom(ctx context.Context, addresses []string) ([]IntakeLine, error)
+	// IntakeLinesFrom answers a page of at most limit live entries and comments whose first line
+	// names one of the addresses, in key order after the cursor (the zero cursor starts at the
+	// first); the caller judges the exact line.
+	IntakeLinesFrom(ctx context.Context, addresses []string, after IntakeCursor, limit int) ([]IntakeLine, error)
 	// ExpiredAddresses answers a page of the addresses of requesters past the cutoff, oldest
 	// first, past the first skip of them.
 	ExpiredAddresses(ctx context.Context, cutoff time.Time, skip, batch int) ([]string, error)

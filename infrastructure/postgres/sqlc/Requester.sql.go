@@ -214,24 +214,34 @@ func (q *Queries) ListExpiredRequesterAddresses(ctx context.Context, arg ListExp
 }
 
 const listIntakeLinesFrom = `-- name: ListIntakeLinesFrom :many
-SELECT 'ITEM'::text AS kind, w.id, w.id AS item_id, w.created_by AS written_by, coalesce(w.notes, '') AS text
-FROM work_item w
-WHERE w.tenant_id = current_tenant_id() AND w.deleted_at IS NULL AND w.notes LIKE 'From: %'
-  AND EXISTS (
-    SELECT 1 FROM unnest($1::text[]) AS a(address)
-    WHERE position(lower(a.address) IN lower(split_part(w.notes, E'\n', 1))) > 0
-  )
-UNION ALL
-SELECT 'COMMENT'::text, c.id, c.item_id, c.author_id, c.body
-FROM comment c
-WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.kind = 'USER' AND c.body LIKE 'From: %'
-  AND EXISTS (
-    SELECT 1 FROM unnest($1::text[]) AS a(address)
-    WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
-  )
-ORDER BY 1, 2
-LIMIT 1000
+SELECT l.kind, l.id, l.item_id, l.written_by, l.text FROM (
+  SELECT 'ITEM'::text AS kind, w.id, w.id AS item_id, w.created_by AS written_by, coalesce(w.notes, '') AS text
+  FROM work_item w
+  WHERE w.tenant_id = current_tenant_id() AND w.deleted_at IS NULL AND w.notes LIKE 'From: %'
+    AND EXISTS (
+      SELECT 1 FROM unnest($1::text[]) AS a(address)
+      WHERE position(lower(a.address) IN lower(split_part(w.notes, E'\n', 1))) > 0
+    )
+  UNION ALL
+  SELECT 'COMMENT'::text, c.id, c.item_id, c.author_id, c.body
+  FROM comment c
+  WHERE c.tenant_id = current_tenant_id() AND c.deleted_at IS NULL AND c.kind = 'USER' AND c.body LIKE 'From: %'
+    AND EXISTS (
+      SELECT 1 FROM unnest($1::text[]) AS a(address)
+      WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
+    )
+) AS l
+WHERE (l.kind, l.id) > ($2::text, $3::uuid)
+ORDER BY l.kind, l.id
+LIMIT $4::int
 `
+
+type ListIntakeLinesFromParams struct {
+	Addresses []string
+	AfterKind string
+	AfterID   pgtype.UUID
+	PageSize  int32
+}
 
 type ListIntakeLinesFromRow struct {
 	Kind      string
@@ -241,11 +251,17 @@ type ListIntakeLinesFromRow struct {
 	Text      string
 }
 
-// The live entries and comments whose first line is the intake's "From:" line naming one of these
-// addresses (third answers 2): what an account filed on a requester's behalf. The prefix test is
-// the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine).
-func (q *Queries) ListIntakeLinesFrom(ctx context.Context, addresses []string) ([]ListIntakeLinesFromRow, error) {
-	rows, err := q.db.Query(ctx, listIntakeLinesFrom, addresses)
+// A page of the live entries and comments whose first line is the intake's "From:" line naming one
+// of these addresses (third answers 2): what an account filed on a requester's behalf. The prefix
+// test is the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine). Keyed
+// by (kind, id) after the cursor, so a caller pages through every line, however many there are.
+func (q *Queries) ListIntakeLinesFrom(ctx context.Context, arg ListIntakeLinesFromParams) ([]ListIntakeLinesFromRow, error) {
+	rows, err := q.db.Query(ctx, listIntakeLinesFrom,
+		arg.Addresses,
+		arg.AfterKind,
+		arg.AfterID,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}

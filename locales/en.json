@@ -1678,6 +1678,7 @@
   "privacy.restriction_status_refused": "{status, select, INVITED {This account is still an invitation, so its processing cannot be restricted or resumed. To keep the person's data, place a legal hold on the account.} DISABLED {This account is disabled, so its processing cannot be restricted or resumed. To keep the person's data, place a legal hold on the account.} ANONYMIZED {This account has been anonymised: nobody is left whose processing could be restricted or resumed.} other {Only an active account's processing can be restricted, and only a restricted one's resumed.}}",
   "privacy.not_an_erasure": "That request is not an erasure, so there is nothing a hold could keep from it.",
   "privacy.erasure_mode_required": "Choose how the erasure is to be carried out before starting it: anonymise, or delete in full.",
+  "privacy.intake_lines_remain": "Names of this requester kept arriving while the erasure removed them. The case stays open; start the erasure again to remove the rest.",
   "privacy.export_target_required": "An export needs a backup target to write the archive to.",
   "privacy.transition_refused": "A request cannot go from {from} to {to}.",
   "privacy.request_not_found": "There is no such data subject request.",
