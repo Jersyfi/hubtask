@@ -228,8 +228,8 @@ export interface ListenOptions {
    */
   readonly onConnection?: (isOpen: boolean, reason?: ConnectionPause) => void;
   /**
-   * A number in [0, 1) that spreads the waits after a refusal at the server's stream cap, injected
-   * so a test can fix it. The default is `Math.random`: it schedules, it identifies nothing.
+   * A number in [0, 1) that spreads the waits before a reconnection - after a drain, a failure or
+   * a refusal at the server's stream cap - injected so a test can fix it. The default is `Math.random`: it schedules, it identifies nothing.
    */
   readonly random?: () => number;
   /**
@@ -942,7 +942,9 @@ export class SyncEngine {
         // The server closed the stream: a deployment, a drain, an idle proxy. Come back when it
         // asked to be come back to.
         if (turn.signal.aborted) continue;
-        pause = suggested ?? RECONNECT_BASE_MS;
+        // Spread around the server's word: a drain ends every stream of a pod at once, and the
+        // tabs must not reach the surviving pods in the same second.
+        pause = spread(suggested ?? RECONNECT_BASE_MS, options.random ?? Math.random);
       } catch (cause) {
         // Ended here rather than by the server: not a failure, and nothing to wait for.
         if (turn.signal.aborted && !signal.aborted) continue;
@@ -979,7 +981,7 @@ export class SyncEngine {
           ? // The server's word is the floor; past it the wait grows and spreads, so a full pod is
             // not asked again by every refused tab at the same second, each with a catch-up pull.
             Math.max(error.retryAfterMs ?? 0, backoff(attempt - 1)) * (1 + 0.5 * (options.random ?? Math.random)())
-          : (error.retryAfterMs ?? backoff(attempt - 1));
+          : spread(error.retryAfterMs ?? backoff(attempt - 1), options.random ?? Math.random);
         // An attempt failed and the next one is a wait away: the caller is told, once per change,
         // so that what it draws says what is true rather than what last arrived through it.
         options.onConnection?.(false, refused ? 'refused' : undefined);
@@ -1494,6 +1496,11 @@ function recordOf(data: string): ChangeRecord | undefined {
 }
 
 /** Doubling, to a ceiling. Deterministic, because a test that cannot predict the wait cannot assert it. */
+/** A wait spread over half to one and a half of itself, so waits begun together end apart. */
+function spread(ms: number, random: () => number): number {
+  return ms * (0.5 + random());
+}
+
 function backoff(attempt: number): number {
   return Math.min(RECONNECT_BASE_MS * 2 ** attempt, RECONNECT_MAX_MS);
 }

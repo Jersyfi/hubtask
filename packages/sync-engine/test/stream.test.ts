@@ -252,12 +252,32 @@ test('a stream refused at the cap is paused, not lost: the waits grow past the s
   assert.deepEqual(later.seen, [6_250], 'the wait is spread above the floor');
 });
 
+test('a hundred tabs whose streams a drain ended come back spread, not in the same second', async () => {
+  // A rolling update ends every stream of a pod at once. The server suggests its delay; each tab
+  // spreads it, so the surviving pods are not met by the whole herd and its catch-up pulls at once.
+  const waits: number[] = [];
+  for (let tab = 0; tab < 100; tab += 1) {
+    const transport = new FakeTransport().streamSessions({ events: [{ data: '', retryMs: 3_000 }] }, { open: true });
+    const engine = new SyncEngine({ transport });
+    const pause = pauses(1);
+    pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+    await settle();
+    pause.end();
+    waits.push(...pause.seen);
+  }
+  assert.equal(waits.length, 100);
+  assert.ok(waits.every((ms) => ms >= 1_500 && ms < 4_500), `a wait outside half to one and a half of 3 s: ${waits}`);
+  const seconds = new Set(waits.map((ms) => Math.floor(ms / 250)));
+  assert.ok(seconds.size >= 8, `100 waits fell into ${seconds.size} quarter-seconds: not spread`);
+});
+
 test('a connection that will not open backs off, doubling', async () => {
   const transport = new FakeTransport().streamSessions({ refuse: new TransportError('offline') });
   const engine = new SyncEngine({ transport });
   const pause = pauses(3);
 
-  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  // The spread's middle is the wait itself.
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0.5 }));
   await settle(12);
   pause.end();
 
@@ -281,7 +301,7 @@ test('a cursor older than the tombstone window empties the engine and starts aga
   await settle();
   const before = transport.calls.length;
 
-  pause.hold(engine.listen({ pathsFor, wait: pause.wait }));
+  pause.hold(engine.listen({ pathsFor, wait: pause.wait, random: () => 0.5 }));
   await settle(10);
   pause.end();
 
@@ -437,7 +457,7 @@ test('the connection says when it is attached, and when an attempt failed', asyn
   const clock = pauses();
   const seen: boolean[] = [];
 
-  const stop = engine.listen({ pathsFor, wait: clock.wait, onConnection: (isOpen) => seen.push(isOpen) });
+  const stop = engine.listen({ pathsFor, wait: clock.wait, random: () => 0.5, onConnection: (isOpen) => seen.push(isOpen) });
   clock.hold(stop);
   await settle(10);
 
