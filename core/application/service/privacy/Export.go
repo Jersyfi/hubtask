@@ -70,8 +70,11 @@ type Exporter struct {
 	Accounts Accounts
 	// Kudos is the one section a person's copy carries beyond the archive filtered: the kudos they
 	// gave and received, which no workspace archive holds (UC-WRK-29 check 6).
-	Kudos   repository.OwnKudos
-	Targets TargetStore
+	Kudos repository.OwnKudos
+	// IntakeLines finds what a requester's mail became on entries an account filed: in the copy
+	// of an address (data-protection.md §4.1). Nil leaves them out.
+	IntakeLines repository.IntakeLines
+	Targets     TargetStore
 	// Rows is the tenant's rows as the archive writer needs them - the same reader a backup uses,
 	// because this is the same archive.
 	Rows       backuprepo.Export
@@ -249,7 +252,16 @@ func (e Exporter) writeOne(
 
 	var pending archive.Pending
 	err := e.Snapshot.WithinSnapshot(ctx, scope, func(snapshotCtx context.Context, at time.Time) error {
+		var lines map[string]map[string]bool
+		if address := strings.ToLower(strings.TrimSpace(in.email)); address != "" && e.IntakeLines != nil {
+			found, err := e.IntakeLines.IntakeLinesFrom(snapshotCtx, []string{address})
+			if err != nil {
+				return err
+			}
+			lines = intakeRecords(found, address)
+		}
 		source := subjectSource{
+			lines: lines,
 			// Redacted for the tenant export's reason (tenant-export.md §9): this archive
 			// leaves unencrypted, and a person's own password hash is still a credential of
 			// this installation - handing it out invites offline guessing against it.

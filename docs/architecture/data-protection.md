@@ -125,7 +125,10 @@ practice. Rules:
   follow; a comment holding nothing else is deleted. `REQUESTER` expiry removes the line the same
   way, and a line nobody may edit any more is logged and left. A hold on the workspace keeps it
   all, recorded as kept, and the remainder erases it when the hold is released; no
-  narrower hold reaches what an address sent.
+  narrower hold reaches what an address sent. The same person's Art. 15 copy carries, beside
+  the record and their jumble entries, the entries and comments whose `From:` line names the
+  address exactly: their own mail, though an account filed it. Their mail receipts and
+  satisfaction links are in no archive, so not in the copy either.
   The record's one other use is answering the person: a public reply on an entry filed for them is
   mailed to the address, one mail per address (UC-SVC-12); the queued job names the comment only,
   so an address erased while it waits is mailed nothing.

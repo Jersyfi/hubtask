@@ -15,6 +15,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
@@ -587,5 +588,37 @@ func TestAnExportWithNoTargetIsRefused(t *testing.T) {
 	}
 	if len(target.opened) != 0 {
 		t.Error("a target was opened for an export that could not be written")
+	}
+}
+
+// A requester who wrote in by mail and has no account: the entry their mail created and the comment
+// their reply became were filed by an agent, so only their intake line names them - and those are
+// in their copy, while the agent's own comment on the same entry is not.
+func TestAnAddressCopyCarriesTheEntriesAndCommentsTheirMailBecame(t *testing.T) {
+	agent := shared.MustParseID("0192f000-0000-7000-8000-0000000000a9")
+	item := shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+	reply := shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000b3")
+	lines := intakeRecords([]repository.IntakeLine{
+		{ID: item, ItemID: item, WrittenBy: agent, Text: "From: Anna <anna@example.org>\n\nMy printer is broken."},
+		{Comment: true, ID: reply, ItemID: item, WrittenBy: agent, Text: "From: Anna <anna@example.org>\n\nStill broken."},
+		// The prefix test of the query matched, the exact line does not: another address.
+		{Comment: true, ID: other, ItemID: item, WrittenBy: agent, Text: "From: Bert <banna@example.org.evil>\n\nhi"},
+	}, "anna@example.org")
+	inner := &rowsOfEntity{rows: map[string][]archive.Record{
+		"work_item": {upsert(item.String(), map[string]any{"created_by": agent.String()})},
+		"comment": {
+			upsert(reply.String(), map[string]any{"author_id": agent.String()}),
+			upsert(other.String(), map[string]any{"author_id": agent.String()}),
+			upsert("c-team", map[string]any{"author_id": agent.String()}),
+		},
+	}}
+	source := subjectSource{inner: inner, email: "anna@example.org", lines: lines}
+
+	if kept := collect(t, source, "work_item"); len(kept) != 1 || kept[0].ID != item.String() {
+		t.Errorf("the entries came out as %v", kept)
+	}
+	if kept := collect(t, source, "comment"); len(kept) != 1 || kept[0].ID != reply.String() {
+		t.Errorf("the comments came out as %v", kept)
 	}
 }

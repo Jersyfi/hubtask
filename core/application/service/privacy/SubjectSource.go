@@ -255,6 +255,30 @@ type subjectSource struct {
 	counted *int
 	// kudos reads the person's kudos section; the archive's own source never carries any.
 	kudos repository.OwnKudos
+	// lines is, per table, the rows whose intake line names the address: the entries a requester's
+	// mail created and the comments their replies became, which an account filed and which name
+	// them by nothing else (data-protection.md §4.1).
+	lines map[string]map[string]bool
+}
+
+// intakeRecords keeps the lines whose first line names the address exactly - the query's prefix
+// test is only the cheap filter - as the rows they are in.
+func intakeRecords(lines []repository.IntakeLine, address string) map[string]map[string]bool {
+	out := map[string]map[string]bool{}
+	for _, line := range lines {
+		if _, named := stripAny(line.Text, []string{address}); !named {
+			continue
+		}
+		table := "work_item"
+		if line.Comment {
+			table = "comment"
+		}
+		if out[table] == nil {
+			out[table] = map[string]bool{}
+		}
+		out[table][line.ID.String()] = true
+	}
+	return out
 }
 
 var _ archive.Source = subjectSource{}
@@ -277,7 +301,7 @@ func (s subjectSource) Records(
 	}
 
 	return s.inner.Records(ctx, entity, since, func(record archive.Record) error {
-		if !s.owns(record, byID, byEmail) {
+		if !s.owns(record, byID, byEmail) && !s.lines[entity.Table][record.ID] {
 			return nil
 		}
 		if s.counted != nil {
