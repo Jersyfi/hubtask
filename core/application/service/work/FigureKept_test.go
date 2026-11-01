@@ -258,6 +258,10 @@ func TestOnlyOneLateCountRunsPerFigure(t *testing.T) {
 	if len(held) != 1 {
 		t.Fatalf("%d late counts started for one figure", len(held))
 	}
+	// The reads while it runs do not count at all: each would wait out the deadline for the mark.
+	if asked := len(reader.Figures.(*figureStore).asked); asked != 1 {
+		t.Fatalf("%d counts while the late one ran, want the first only", asked)
+	}
 	held[0](context.Background())
 	reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
 	if len(held) != 2 {

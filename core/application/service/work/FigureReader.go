@@ -142,6 +142,12 @@ func (r FigureReader) Count(
 			answered[request.CollectionID] = counts
 			continue
 		}
+		// Being counted late already: counting it here as well would only wait out the deadline
+		// for the same mark, beside the count that will answer the next read.
+		if _, running := lateCounts.Load(lateCount{tenant: actor.TenantID, key: keptKey(request, window)}); running {
+			figures[request.CollectionID] = domain.UnavailableFigure(request, window)
+			continue
+		}
 		missing = append(missing, request)
 	}
 	if len(missing) > 0 {
