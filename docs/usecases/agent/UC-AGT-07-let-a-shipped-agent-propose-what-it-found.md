@@ -5,9 +5,9 @@ context: agent
 actors: [PE-admin, PE-member, PE-agent, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: built
+state: verified
 tasks: []
-checked_by: [core/domain/model/agent/Job_test.go, core/application/service/agent/Runner_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts]
+checked_by: [core/domain/model/agent/Job_test.go, core/application/service/agent/Runner_test.go, test/integration/agent_repository_test.go, apps/webapp/src/lib/data/agents.test.ts, test/architecture/doorsalike_test.go]
 ---
 
 # Let a shipped agent propose what it found, for a person to apply

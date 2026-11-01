@@ -5,9 +5,9 @@ context: planning
 actors: [PE-planner, PE-member, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-04, P-05, P-11, P-18]
-state: built
+state: verified
 tasks: []
-checked_by: [core/domain/model/planning/ProjectFile_test.go, core/application/service/planning/Import_test.go, apps/webapp/src/lib/data/planning.test.ts]
+checked_by: [core/domain/model/planning/ProjectFile_test.go, core/application/service/planning/Import_test.go, apps/webapp/src/lib/data/planning.test.ts, test/architecture/doorsalike_test.go]
 ---
 
 # Bring a plan in from a project file
