@@ -24723,25 +24723,44 @@ type WorkTypeList struct {
 
 // Workflow How a workspace's work moves - statuses in categories and the steps between them.
 type Workflow struct {
-	Draft *WorkflowShape `json:"draft"`
+	// CopiedFrom The key of the workflow this one was copied from; absent or null for one made from scratch.
+	CopiedFrom *string        `json:"copied_from,omitempty"`
+	Draft      *WorkflowShape `json:"draft"`
 
 	// EntriesMoved On a publish: how many entries it moved.
-	EntriesMoved *int          `json:"entries_moved,omitempty"`
-	Key          string        `json:"key"`
-	Name         *string       `json:"name"`
-	Published    WorkflowShape `json:"published"`
-	PublishedAt  *time.Time    `json:"published_at"`
+	EntriesMoved *int `json:"entries_moved,omitempty"`
+
+	// HubId The hub the workflow is defined at, which alone may use it; absent or null for a workflow of the whole workspace.
+	HubId       *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key         string              `json:"key"`
+	Name        *string             `json:"name"`
+	Published   WorkflowShape       `json:"published"`
+	PublishedAt *time.Time          `json:"published_at"`
 
 	// System The shipped workflow, keyed default; never deleted.
 	System  bool `json:"system"`
 	Version int  `json:"version"`
 }
 
+// WorkflowCopy defines model for WorkflowCopy.
+type WorkflowCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Key The copy's own key, free in the workspace; not default.
+	Key string `json:"key"`
+
+	// Name The copy's name; unset keeps the source's. The shipped workflow's words are a client's own, so it is copied by adding a workflow at the hub with its shape and the client's words; copied here it answers `workflows.name_empty`.
+	Name *string `json:"name,omitempty"`
+}
+
 // WorkflowCreate defines model for WorkflowCreate.
 type WorkflowCreate struct {
-	Key   string        `json:"key"`
-	Name  string        `json:"name"`
-	Shape WorkflowShape `json:"shape"`
+	// HubId Defines the workflow at this hub, which alone may use it; unset is the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
+	Shape WorkflowShape       `json:"shape"`
 }
 
 // WorkflowDraft defines model for WorkflowDraft.
@@ -29313,6 +29332,9 @@ type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
 // TryWorkflowStepJSONRequestBody defines body for TryWorkflowStep for application/json ContentType.
 type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
 
+// CopyWorkflowHereJSONRequestBody defines body for CopyWorkflowHere for application/json ContentType.
+type CopyWorkflowHereJSONRequestBody = WorkflowCopy
+
 // PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
 type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
 
@@ -32174,6 +32196,9 @@ type ServerInterface interface {
 	// TryWorkflowStep Try a step against an entry
 	// (POST /workflows/{key}/steps/{step}:try)
 	TryWorkflowStep(w http.ResponseWriter, r *http.Request, key string, step string)
+	// CopyWorkflowHere Make a copy of a shared workflow at a hub
+	// (POST /workflows/{key}:copy-here)
+	CopyWorkflowHere(w http.ResponseWriter, r *http.Request, key string)
 	// PreviewWorkflowPublish Show what publishing the draft would do
 	// (POST /workflows/{key}:preview-publish)
 	PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request, key string)
@@ -59350,6 +59375,32 @@ func (siw *ServerInterfaceWrapper) TryWorkflowStep(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CopyWorkflowHere operation middleware
+func (siw *ServerInterfaceWrapper) CopyWorkflowHere(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopyWorkflowHere(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PreviewWorkflowPublish operation middleware
 func (siw *ServerInterfaceWrapper) PreviewWorkflowPublish(w http.ResponseWriter, r *http.Request) {
 
@@ -60147,6 +60198,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows", wrapper.CreateWorkflow)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/workflows/{key}", wrapper.DeleteWorkflow)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/workflows/{key}", wrapper.SaveWorkflowDraft)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:copy-here", wrapper.CopyWorkflowHere)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:preview-publish", wrapper.PreviewWorkflowPublish)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}:publish", wrapper.PublishWorkflow)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/workflows/{key}/steps/{step}:try", wrapper.TryWorkflowStep)

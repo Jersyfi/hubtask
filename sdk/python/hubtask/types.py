@@ -2434,6 +2434,8 @@ class Workflow(TypedDict, total=False):
     published_at: Required[str | None]
     version: Required[int]
     entries_moved: int
+    hub_id: str | None
+    copied_from: str | None
 
 class WorkflowList(TypedDict, total=False):
     data: Required[list["Workflow"]]
@@ -2443,6 +2445,12 @@ class WorkflowCreate(TypedDict, total=False):
     key: Required[str]
     name: Required[str]
     shape: Required["WorkflowShape"]
+    hub_id: str
+
+class WorkflowCopy(TypedDict, total=False):
+    hub_id: Required[str]
+    key: Required[str]
+    name: str
 
 class WorkflowDraft(TypedDict, total=False):
     name: str

@@ -118,6 +118,7 @@ var restDoors = map[string]restDoor{
 	"copyEntryTypeHere":                 {UseCase: "CopyEntryTypeHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyPage":                          {UseCase: "CopyPage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
 	"copyTimesheetWeek":                 {UseCase: "CopyTimesheetWeek", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"copyWorkflowHere":                  {UseCase: "CopyWorkflowHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"correctTimeRecord":                 {UseCase: "CorrectTimeRecord", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
 	"countAccountsWithoutProvider":      {UseCase: "CountAccountsWithoutProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createAccessToken":                 {UseCase: "CreateAccessToken", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "/auth/tokens/{id}", NullClears: false, Integers: []string(nil), ShownOnce: "token"},
@@ -1462,6 +1463,13 @@ func (c *RestController) CopyPage(w http.ResponseWriter, r *http.Request, pageId
 // CopyTimesheetWeek answers POST /timesheets/{week}:copy-previous by the generated mapping.
 func (c *RestController) CopyTimesheetWeek(w http.ResponseWriter, r *http.Request, week openapi.WeekOfTimesheet) {
 	c.door(w, r, restDoors["copyTimesheetWeek"], usecase.Input{"week": week.String()}, nil, nil, nil)
+}
+
+// CopyWorkflowHere answers POST /workflows/{key}:copy-here by the generated mapping.
+func (c *RestController) CopyWorkflowHere(w http.ResponseWriter, r *http.Request, key string) {
+	var body openapi.CopyWorkflowHereJSONRequestBody
+	var answer openapi.Workflow
+	c.door(w, r, restDoors["copyWorkflowHere"], usecase.Input{"source_key": key}, nil, &body, &answer)
 }
 
 // CorrectTimeRecord answers POST /time-records/{recordId}:correct by the generated mapping.

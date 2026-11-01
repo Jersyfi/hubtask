@@ -24917,7 +24917,7 @@
         "x-hubtask-cli": "workflow ls",
         "x-hubtask-rest": "generated",
         "summary": "List the workflows and the scheme",
-        "description": "The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.\n",
+        "description": "The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them. A workflow defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; only that hub and its collections may use it.\n",
         "responses": {
           "200": {
             "description": "The workflows and the scheme",
@@ -24942,7 +24942,7 @@
         "x-hubtask-cli": "workflow create",
         "x-hubtask-rest": "generated",
         "summary": "Add a workflow",
-        "description": "Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.\n",
+        "description": "Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -24997,7 +24997,7 @@
         "x-hubtask-cli": "workflow draft",
         "x-hubtask-rest": "generated",
         "summary": "Save a draft, rename, or discard the draft",
-        "description": "Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.\n",
+        "description": "Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -25044,10 +25044,68 @@
         "x-hubtask-cli": "workflow rm",
         "x-hubtask-rest": "generated",
         "summary": "Delete an unused workflow",
-        "description": "Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.\n",
+        "description": "Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.\n",
         "responses": {
           "204": {
             "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/workflows/{key}:copy-here": {
+      "parameters": [
+        {
+          "name": "key",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "copyWorkflowHere",
+        "x-hubtask-cli": "workflow copy-here",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "key": "source_key"
+        },
+        "summary": "Make a copy of a shared workflow at a hub",
+        "description": "A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowCopy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The copy",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workflow"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -25123,7 +25181,7 @@
         "x-hubtask-cli": "workflow publish",
         "x-hubtask-rest": "generated",
         "summary": "Publish the draft",
-        "description": "Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.\n",
+        "description": "Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -25242,7 +25300,7 @@
         "x-hubtask-cli": "workflow scheme set",
         "x-hubtask-rest": "generated",
         "summary": "Use a workflow in a hub or collection",
-        "description": "Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.\n",
+        "description": "Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -48075,6 +48133,21 @@
           "entries_moved": {
             "type": "integer",
             "description": "On a publish: how many entries it moved."
+          },
+          "hub_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The hub the workflow is defined at, which alone may use it; absent or null for a workflow of the whole workspace."
+          },
+          "copied_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key of the workflow this one was copied from; absent or null for one made from scratch."
           }
         }
       },
@@ -48139,6 +48212,36 @@
           },
           "shape": {
             "$ref": "#/components/schemas/WorkflowShape"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Defines the workflow at this hub, which alone may use it; unset is the whole workspace."
+          }
+        }
+      },
+      "WorkflowCopy": {
+        "type": "object",
+        "required": [
+          "hub_id",
+          "key"
+        ],
+        "properties": {
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub the copy belongs to."
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+            "description": "The copy's own key, free in the workspace; not default."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "The copy's name; unset keeps the source's. The shipped workflow's words are a client's own, so it is copied by adding a workflow at the hub with its shape and the client's words; copied here it answers `workflows.name_empty`."
           }
         }
       },

@@ -24729,25 +24729,44 @@ type WorkTypeList struct {
 
 // Workflow How a workspace's work moves - statuses in categories and the steps between them.
 type Workflow struct {
-	Draft *WorkflowShape `json:"draft"`
+	// CopiedFrom The key of the workflow this one was copied from; absent or null for one made from scratch.
+	CopiedFrom *string        `json:"copied_from,omitempty"`
+	Draft      *WorkflowShape `json:"draft"`
 
 	// EntriesMoved On a publish: how many entries it moved.
-	EntriesMoved *int          `json:"entries_moved,omitempty"`
-	Key          string        `json:"key"`
-	Name         *string       `json:"name"`
-	Published    WorkflowShape `json:"published"`
-	PublishedAt  *time.Time    `json:"published_at"`
+	EntriesMoved *int `json:"entries_moved,omitempty"`
+
+	// HubId The hub the workflow is defined at, which alone may use it; absent or null for a workflow of the whole workspace.
+	HubId       *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key         string              `json:"key"`
+	Name        *string             `json:"name"`
+	Published   WorkflowShape       `json:"published"`
+	PublishedAt *time.Time          `json:"published_at"`
 
 	// System The shipped workflow, keyed default; never deleted.
 	System  bool `json:"system"`
 	Version int  `json:"version"`
 }
 
+// WorkflowCopy defines model for WorkflowCopy.
+type WorkflowCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Key The copy's own key, free in the workspace; not default.
+	Key string `json:"key"`
+
+	// Name The copy's name; unset keeps the source's. The shipped workflow's words are a client's own, so it is copied by adding a workflow at the hub with its shape and the client's words; copied here it answers `workflows.name_empty`.
+	Name *string `json:"name,omitempty"`
+}
+
 // WorkflowCreate defines model for WorkflowCreate.
 type WorkflowCreate struct {
-	Key   string        `json:"key"`
-	Name  string        `json:"name"`
-	Shape WorkflowShape `json:"shape"`
+	// HubId Defines the workflow at this hub, which alone may use it; unset is the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
+	Shape WorkflowShape       `json:"shape"`
 }
 
 // WorkflowDraft defines model for WorkflowDraft.
@@ -29318,6 +29337,9 @@ type SaveWorkflowDraftJSONRequestBody = WorkflowDraft
 
 // TryWorkflowStepJSONRequestBody defines body for TryWorkflowStep for application/json ContentType.
 type TryWorkflowStepJSONRequestBody TryWorkflowStepJSONBody
+
+// CopyWorkflowHereJSONRequestBody defines body for CopyWorkflowHere for application/json ContentType.
+type CopyWorkflowHereJSONRequestBody = WorkflowCopy
 
 // PreviewWorkflowPublishJSONRequestBody defines body for PreviewWorkflowPublish for application/json ContentType.
 type PreviewWorkflowPublishJSONRequestBody = WorkflowPublishPreview
@@ -40488,7 +40510,7 @@ type ClientInterface interface {
 
 	// SetWorkflowSchemeWithBody Use a workflow in a hub or collection
 	//
-	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40497,7 +40519,7 @@ type ClientInterface interface {
 
 	// SetWorkflowScheme Use a workflow in a hub or collection
 	//
-	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -40524,14 +40546,14 @@ type ClientInterface interface {
 
 	// ListWorkflows List the workflows and the scheme
 	//
-	// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+	// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them. A workflow defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; only that hub and its collections may use it.
 	//
 	// Corresponds with GET /workflows (the `ListWorkflows` operationId).
 	ListWorkflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateWorkflowWithBody Add a workflow
 	//
-	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40540,7 +40562,7 @@ type ClientInterface interface {
 
 	// CreateWorkflow Add a workflow
 	//
-	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -40549,14 +40571,14 @@ type ClientInterface interface {
 
 	// DeleteWorkflow Delete an unused workflow
 	//
-	// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+	// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Corresponds with DELETE /workflows/{key} (the `DeleteWorkflow` operationId).
 	DeleteWorkflow(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SaveWorkflowDraftWithBody Save a draft, rename, or discard the draft
 	//
-	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40565,7 +40587,7 @@ type ClientInterface interface {
 
 	// SaveWorkflowDraft Save a draft, rename, or discard the draft
 	//
-	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -40590,6 +40612,24 @@ type ClientInterface interface {
 	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
 	TryWorkflowStep(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CopyWorkflowHereWithBody Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHereWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopyWorkflowHere Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHere(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// PreviewWorkflowPublishWithBody Show what publishing the draft would do
 	//
 	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -40610,7 +40650,7 @@ type ClientInterface interface {
 
 	// PublishWorkflowWithBody Publish the draft
 	//
-	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40619,7 +40659,7 @@ type ClientInterface interface {
 
 	// PublishWorkflow Publish the draft
 	//
-	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -63157,7 +63197,7 @@ func (c *Client) RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardI
 
 // SetWorkflowSchemeWithBody Use a workflow in a hub or collection
 //
-// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63176,7 +63216,7 @@ func (c *Client) SetWorkflowSchemeWithBody(ctx context.Context, contentType stri
 
 // SetWorkflowScheme Use a workflow in a hub or collection
 //
-// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -63233,7 +63273,7 @@ func (c *Client) PreviewWorkflowScheme(ctx context.Context, body PreviewWorkflow
 
 // ListWorkflows List the workflows and the scheme
 //
-// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them. A workflow defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; only that hub and its collections may use it.
 //
 // Corresponds with GET /workflows (the `ListWorkflows` operationId).
 func (c *Client) ListWorkflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -63250,7 +63290,7 @@ func (c *Client) ListWorkflows(ctx context.Context, reqEditors ...RequestEditorF
 
 // CreateWorkflowWithBody Add a workflow
 //
-// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63269,7 +63309,7 @@ func (c *Client) CreateWorkflowWithBody(ctx context.Context, contentType string,
 
 // CreateWorkflow Add a workflow
 //
-// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -63288,7 +63328,7 @@ func (c *Client) CreateWorkflow(ctx context.Context, body CreateWorkflowJSONRequ
 
 // DeleteWorkflow Delete an unused workflow
 //
-// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Corresponds with DELETE /workflows/{key} (the `DeleteWorkflow` operationId).
 func (c *Client) DeleteWorkflow(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -63305,7 +63345,7 @@ func (c *Client) DeleteWorkflow(ctx context.Context, key string, reqEditors ...R
 
 // SaveWorkflowDraftWithBody Save a draft, rename, or discard the draft
 //
-// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63324,7 +63364,7 @@ func (c *Client) SaveWorkflowDraftWithBody(ctx context.Context, key string, para
 
 // SaveWorkflowDraft Save a draft, rename, or discard the draft
 //
-// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -63379,6 +63419,44 @@ func (c *Client) TryWorkflowStep(ctx context.Context, key string, step string, b
 	return c.Client.Do(req)
 }
 
+// CopyWorkflowHereWithBody Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *Client) CopyWorkflowHereWithBody(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyWorkflowHereRequestWithBody(c.Server, key, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopyWorkflowHere Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *Client) CopyWorkflowHere(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopyWorkflowHereRequest(c.Server, key, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // PreviewWorkflowPublishWithBody Show what publishing the draft would do
 //
 // Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -63419,7 +63497,7 @@ func (c *Client) PreviewWorkflowPublish(ctx context.Context, key string, body Pr
 
 // PublishWorkflowWithBody Publish the draft
 //
-// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63438,7 +63516,7 @@ func (c *Client) PublishWorkflowWithBody(ctx context.Context, key string, params
 
 // PublishWorkflow Publish the draft
 //
-// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -101720,6 +101798,53 @@ func NewTryWorkflowStepRequestWithBody(server string, key string, step string, c
 	return req, nil
 }
 
+// NewCopyWorkflowHereRequest calls the generic CopyWorkflowHere builder with application/json body
+func NewCopyWorkflowHereRequest(server string, key string, body CopyWorkflowHereJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCopyWorkflowHereRequestWithBody(server, key, "application/json", bodyReader)
+}
+
+// NewCopyWorkflowHereRequestWithBody constructs an http.Request for the CopyWorkflowHere method, with any body, and a specified content type
+func NewCopyWorkflowHereRequestWithBody(server string, key string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/workflows/%s:copy-here", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewPreviewWorkflowPublishRequest calls the generic PreviewWorkflowPublish builder with application/json body
 func NewPreviewWorkflowPublishRequest(server string, key string, body PreviewWorkflowPublishJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -113533,7 +113658,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
 	//
-	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113542,7 +113667,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetWorkflowSchemeWithResponse Use a workflow in a hub or collection
 	//
-	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+	// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113569,7 +113694,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListWorkflowsWithResponse List the workflows and the scheme
 	//
-	// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+	// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them. A workflow defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; only that hub and its collections may use it.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113578,7 +113703,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateWorkflowWithBodyWithResponse Add a workflow
 	//
-	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113587,7 +113712,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateWorkflowWithResponse Add a workflow
 	//
-	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+	// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113596,7 +113721,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteWorkflowWithResponse Delete an unused workflow
 	//
-	// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+	// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -113605,7 +113730,7 @@ type ClientWithResponsesInterface interface {
 
 	// SaveWorkflowDraftWithBodyWithResponse Save a draft, rename, or discard the draft
 	//
-	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113614,7 +113739,7 @@ type ClientWithResponsesInterface interface {
 
 	// SaveWorkflowDraftWithResponse Save a draft, rename, or discard the draft
 	//
-	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+	// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113639,6 +113764,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /workflows/{key}/steps/{step}:try (the `TryWorkflowStep` operationId).
 	TryWorkflowStepWithResponse(ctx context.Context, key string, step string, body TryWorkflowStepJSONRequestBody, reqEditors ...RequestEditorFn) (*TryWorkflowStepResult, error)
 
+	// CopyWorkflowHereWithBodyWithResponse Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHereWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error)
+
+	// CopyWorkflowHereWithResponse Make a copy of a shared workflow at a hub
+	//
+	// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+	CopyWorkflowHereWithResponse(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error)
+
 	// PreviewWorkflowPublishWithBodyWithResponse Show what publishing the draft would do
 	//
 	// Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -113659,7 +113802,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishWorkflowWithBodyWithResponse Publish the draft
 	//
-	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113668,7 +113811,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishWorkflowWithResponse Publish the draft
 	//
-	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+	// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -153173,6 +153316,61 @@ func (r TryWorkflowStepResult) ContentType() string {
 	return ""
 }
 
+// CopyWorkflowHereResult201Headers the declared response headers of an HTTP 201 response for CopyWorkflowHere
+type CopyWorkflowHereResult201Headers struct {
+	ETag *string
+}
+
+type CopyWorkflowHereResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Workflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CopyWorkflowHereResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CopyWorkflowHereResult) GetJSON201() *Workflow {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopyWorkflowHereResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopyWorkflowHereResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopyWorkflowHereResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopyWorkflowHereResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopyWorkflowHereResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type PreviewWorkflowPublishResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -172040,7 +172238,7 @@ func (c *ClientWithResponses) RestoreWhiteboardWithResponse(ctx context.Context,
 
 // SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
 //
-// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172055,7 +172253,7 @@ func (c *ClientWithResponses) SetWorkflowSchemeWithBodyWithResponse(ctx context.
 
 // SetWorkflowSchemeWithResponse Use a workflow in a hub or collection
 //
-// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. Needs STRUCTURE where the container is.
+// Names the workflow a hub or collection runs for a type - or for every type when `entry_type` is left out - or, with no `workflow`, removes the row. Existing entries take the status the preview showed. Refused with `workflows.confirmation_required` unless `confirm` is true. A workflow defined at a hub runs only in that hub and its collections; elsewhere it is refused with `workflows.hub_bound`. Needs STRUCTURE where the container is.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172100,7 +172298,7 @@ func (c *ClientWithResponses) PreviewWorkflowSchemeWithResponse(ctx context.Cont
 
 // ListWorkflowsWithResponse List the workflows and the scheme
 //
-// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them.
+// The workspace's workflows - the shipped one, keyed `default`, and its own - each with the shape in force and any draft, and the scheme: which hub or collection runs which workflow for which type. Any member may read them; a board draws its columns from them. A workflow defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub; only that hub and its collections may use it.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -172115,7 +172313,7 @@ func (c *ClientWithResponses) ListWorkflowsWithResponse(ctx context.Context, req
 
 // CreateWorkflowWithBodyWithResponse Add a workflow
 //
-// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172130,7 +172328,7 @@ func (c *ClientWithResponses) CreateWorkflowWithBodyWithResponse(ctx context.Con
 
 // CreateWorkflowWithResponse Add a workflow
 //
-// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace.
+// Adds a workflow of the workspace's own, in force nowhere until a hub or collection uses it. Needs STRUCTURE at the workspace; with `hub_id`, the workflow belongs to that hub, only the hub and its collections may use it, and it needs STRUCTURE there instead.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172145,7 +172343,7 @@ func (c *ClientWithResponses) CreateWorkflowWithResponse(ctx context.Context, bo
 
 // DeleteWorkflowWithResponse Delete an unused workflow
 //
-// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`.
+// Deletes a workflow of the workspace's own that no hub or collection uses; one in use is refused with `workflows.in_use`, the shipped one with `workflows.system_kept`. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -172160,7 +172358,7 @@ func (c *ClientWithResponses) DeleteWorkflowWithResponse(ctx context.Context, ke
 
 // SaveWorkflowDraftWithBodyWithResponse Save a draft, rename, or discard the draft
 //
-// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172175,7 +172373,7 @@ func (c *ClientWithResponses) SaveWorkflowDraftWithBodyWithResponse(ctx context.
 
 // SaveWorkflowDraftWithResponse Save a draft, rename, or discard the draft
 //
-// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace.
+// Saves a draft beside the shape in force, which stays in force until the draft is published; renames the workflow; or discards its draft. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172218,6 +172416,36 @@ func (c *ClientWithResponses) TryWorkflowStepWithResponse(ctx context.Context, k
 	return ParseTryWorkflowStepResult(rsp)
 }
 
+// CopyWorkflowHereWithBodyWithResponse Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *ClientWithResponses) CopyWorkflowHereWithBodyWithResponse(ctx context.Context, key string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error) {
+	rsp, err := c.CopyWorkflowHereWithBody(ctx, key, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyWorkflowHereResult(rsp)
+}
+
+// CopyWorkflowHereWithResponse Make a copy of a shared workflow at a hub
+//
+// A workflow shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with the source's shape in force - not its draft - and the source's key in `copied_from`. Only the hub and its collections may use the copy, and nothing changes where the source is used. The source must be a workflow of the workspace or of the same hub; another hub's is `workflows.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /workflows/{key}:copy-here (the `CopyWorkflowHere` operationId).
+func (c *ClientWithResponses) CopyWorkflowHereWithResponse(ctx context.Context, key string, body CopyWorkflowHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopyWorkflowHereResult, error) {
+	rsp, err := c.CopyWorkflowHere(ctx, key, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopyWorkflowHereResult(rsp)
+}
+
 // PreviewWorkflowPublishWithBodyWithResponse Show what publishing the draft would do
 //
 // Answers, changing nothing, which statuses in use the draft removes with their counts, how many entries move from which status to which in each collection, and the board's columns before and after. Given `shape`, it answers for that shape instead of the stored draft - what a configuration plan shows before anything is saved.
@@ -172250,7 +172478,7 @@ func (c *ClientWithResponses) PreviewWorkflowPublishWithResponse(ctx context.Con
 
 // PublishWorkflowWithBodyWithResponse Publish the draft
 //
-// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172265,7 +172493,7 @@ func (c *ClientWithResponses) PublishWorkflowWithBodyWithResponse(ctx context.Co
 
 // PublishWorkflowWithResponse Publish the draft
 //
-// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run.
+// Puts the draft in force. Every removed status that entries are in needs a target in `mapping` on the same side of completion (`workflows.mapping_required`, `workflows.mapping_changes_completion`); the entries move in the same change, each with a history entry, and no step's conditions or actions run. Needs STRUCTURE at the workspace, or at the hub for a workflow defined there.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -200210,6 +200438,52 @@ func ParseTryWorkflowStepResult(rsp *http.Response) (*TryWorkflowStepResult, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseCopyWorkflowHereResult parses an HTTP response from a CopyWorkflowHereWithResponse call
+func ParseCopyWorkflowHereResult(rsp *http.Response) (*CopyWorkflowHereResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopyWorkflowHereResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Workflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CopyWorkflowHereResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil

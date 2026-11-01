@@ -3107,8 +3107,19 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
 	{Group: "work-type", Verb: "ls", OperationID: "listWorkTypes", Method: "GET", Path: "/time-work-types", Summary: "The workspace's kinds of work",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
+	{Group: "workflow", Verb: "copy-here", OperationID: "copyWorkflowHere", Method: "POST", Path: "/workflows/{key}:copy-here", Summary: "Make a copy of a shared workflow at a hub",
+		PathParams: []doorParam{
+			{Name: "key", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},
+			{Name: "key", Kind: "string", Help: "The copy's own key, free in the workspace; not default", Required: true},
+			{Name: "name", Kind: "string", Help: "The copy's name; unset keeps the source's", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
 	{Group: "workflow", Verb: "create", OperationID: "createWorkflow", Method: "POST", Path: "/workflows", Summary: "Add a workflow",
 		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "Defines the workflow at this hub, which alone may use it; unset is the whole workspace", Required: false},
 			{Name: "key", Kind: "string", Help: "", Required: true},
 			{Name: "name", Kind: "string", Help: "", Required: true},
 			{Name: "shape", Kind: "json", Help: "", Required: true},
