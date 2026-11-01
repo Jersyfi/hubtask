@@ -4,8 +4,9 @@
 -- content (rule 10), and a page purged before then takes its record along.
 --
 -- Expand only (rule 12): a purpose and a nullable column nothing of the previous release writes,
--- and constraints every stored row satisfies. NOT VALID and then VALIDATE, so checking the rows
--- takes no lock that stops writes.
+-- and constraints every stored row satisfies. Not yet free of write-stopping locks: in one
+-- transaction the ADD's lock is held through the VALIDATE's scan, and the index is built without
+-- CONCURRENTLY (test/architecture, notYetConcurrent).
 -- +goose Up
 ALTER TABLE durable_timer DROP CONSTRAINT IF EXISTS durable_timer_purpose_check;
 ALTER TABLE durable_timer ADD CONSTRAINT durable_timer_purpose_check

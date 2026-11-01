@@ -111,7 +111,7 @@ expand/contract:
 
 Rules:
 
-* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE`.
+* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. `test/architecture` holds every migration after the last release to it on the tables that release created.
 * No destructive step in the same release as the code change that stops using the object.
 * The schema stays backwards compatible with the previous minor, which makes a rollback possible
   ([deployment.md](./deployment.md) §5).
