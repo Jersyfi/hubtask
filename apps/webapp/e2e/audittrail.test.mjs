@@ -100,6 +100,7 @@ test('chromium: a sensitive field set for the first time reads as changed', asyn
   assert.doesNotMatch(text, /name became/);
 });
 
+// UC-AUD-01 check 8: the list continues on request, with no page numbers.
 test('chromium: the next page of the trail is announced, and its end is said', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

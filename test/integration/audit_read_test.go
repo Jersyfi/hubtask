@@ -442,6 +442,7 @@ func TestThePagesOfTheTrailDoNotOverlap(t *testing.T) {
 
 // The cross-tenant negative test the rules ask of every new repository method: what one tenant
 // reads is its own trail, whatever it asks for.
+// UC-AUD-01 check 4: one workspace never reads another's trail.
 func TestOneTenantCannotReadAnothersTrail(t *testing.T) {
 	ctx := context.Background()
 	mine, theirs := auditTenant(ctx, t), auditTenant(ctx, t)
