@@ -655,7 +655,8 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 		rows := make([]walkRow, 0, len(types))
 		for _, entryType := range types {
 			rows = append(rows, walkRow{
-				entity: entityEntryType, entityID: entryType.ID,
+				// A hub's own type is filed under its hub, so its words reach only who reads it.
+				entity: entityEntryType, entityID: entryType.ID, containerID: entryType.HubID,
 				payload: workflowservice.EntryTypeOutput(entryType), key: entryType.ID.String(),
 			})
 		}
@@ -681,7 +682,7 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 		rows := make([]walkRow, 0, len(workflows))
 		for _, workflow := range workflows {
 			rows = append(rows, walkRow{
-				entity: entityWorkflow, entityID: workflow.ID,
+				entity: entityWorkflow, entityID: workflow.ID, containerID: workflow.HubID,
 				payload: workflowservice.WorkflowOutput(workflow), key: workflow.ID.String(),
 			})
 		}

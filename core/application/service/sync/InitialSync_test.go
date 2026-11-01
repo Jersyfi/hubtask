@@ -42,6 +42,7 @@ type snapshotStore struct {
 	recurrences []repository.InCollection[work.RecurrenceRule]
 	templates   []work.Template
 	workflows   []work.Workflow
+	entryTypes  []work.EntryType
 	schemes     []work.WorkflowScheme
 	linkTypes   []work.LinkType
 	links       []repository.LinkBetween
@@ -162,8 +163,8 @@ func (s *snapshotStore) Recurrences(
 		after.String(), batch), nil
 }
 
-func (s *snapshotStore) EntryTypes(context.Context, shared.ID, int) ([]work.EntryType, error) {
-	return nil, nil
+func (s *snapshotStore) EntryTypes(_ context.Context, after shared.ID, batch int) ([]work.EntryType, error) {
+	return pageAfter(s.entryTypes, func(t work.EntryType) string { return t.ID.String() }, after.String(), batch), nil
 }
 
 func (s *snapshotStore) Templates(_ context.Context, after shared.ID, batch int) ([]work.Template, error) {
