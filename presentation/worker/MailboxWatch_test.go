@@ -253,3 +253,54 @@ func TestTheMailboxesBeyondTheLimitAreCounted(t *testing.T) {
 		t.Fatalf("unheld %v, want 3", signals.unheld)
 	}
 }
+
+// stuckHolds is a hold that does not hear its cancellation until let go.
+type stuckHolds struct {
+	*holds
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (s stuckHolds) Hold(context.Context, mailservice.WatchTarget, time.Duration) (string, error) {
+	s.entered <- struct{}{}
+	<-s.release
+	return mailservice.WatchQuiet, nil
+}
+
+// A hold that ignores its cancellation costs the loop a bounded wait, not the hold's 25 minutes:
+// a lost lock, a removed mailbox and a shutdown go on.
+func TestAStuckHoldDoesNotHoldUpTheWatch(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stuck := stuckHolds{holds: newHolds(boxOne), entered: make(chan struct{}, 4), release: make(chan struct{})}
+	defer close(stuck.release)
+	watch := MailboxWatch{
+		Holds: stuck, Leadership: &leadership{lock: &lock{}, name: "a"}, Release: 50 * time.Millisecond,
+	}.withDefaults()
+	holders := map[mailservice.WatchTarget]*mailboxHolder{}
+	watch.tick(ctx, holders)
+	if len(holders) != 1 {
+		t.Fatalf("%d mailboxes held, want one", len(holders))
+	}
+	<-stuck.entered
+
+	started := time.Now()
+	watch.stopAll(holders)
+	if took := time.Since(started); took > time.Second {
+		t.Errorf("letting go of a stuck hold took %s", took)
+	}
+	if len(holders) != 0 {
+		t.Errorf("%d holds left after letting go", len(holders))
+	}
+
+	watch.tick(ctx, holders)
+	<-stuck.entered
+	stuck.mu.Lock()
+	stuck.targets = nil
+	stuck.mu.Unlock()
+	started = time.Now()
+	watch.tick(ctx, holders)
+	if took := time.Since(started); took > time.Second {
+		t.Errorf("a removed mailbox's stuck hold held up the tick for %s", took)
+	}
+}

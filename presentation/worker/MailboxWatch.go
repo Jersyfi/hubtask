@@ -44,6 +44,10 @@ const (
 	mailboxWatchRetry   = time.Hour
 	mailboxWatchBackoff = 5 * time.Second
 	mailboxWatchCeiling = 5 * time.Minute
+	// mailboxWatchRelease bounds the wait for holds to end once let go: a hold that does not hear
+	// its cancellation is logged and left to its connection's deadline rather than stopping the
+	// loop, a lost lock or a shutdown for up to a hold.
+	mailboxWatchRelease = 10 * time.Second
 )
 
 // MailboxWatch holds the connected IMAP mailboxes open (IDLE) so mail reaches the desk in seconds
@@ -58,10 +62,10 @@ type MailboxWatch struct {
 	Signals    MailboxWatchSignals
 	// SchemaBehind stands the watch by while the database lacks migrations this build needs.
 	SchemaBehind func(ctx context.Context) bool
-	// Tick, Hold, Limit, Rest, Retry, Backoff and Ceiling default to the constants above; tests
-	// shorten them.
-	Tick, Hold, Rest, Retry, Backoff, Ceiling time.Duration
-	Limit                                     int
+	// Tick, Hold, Limit, Rest, Retry, Backoff, Ceiling and Release default to the constants above;
+	// tests shorten them.
+	Tick, Hold, Rest, Retry, Backoff, Ceiling, Release time.Duration
+	Limit                                              int
 }
 
 type mailboxHolder struct {
@@ -100,6 +104,7 @@ func (m MailboxWatch) withDefaults() MailboxWatch {
 	}{
 		{&m.Tick, mailboxWatchTick}, {&m.Hold, mailboxWatchHold}, {&m.Rest, mailboxWatchRest},
 		{&m.Retry, mailboxWatchRetry}, {&m.Backoff, mailboxWatchBackoff}, {&m.Ceiling, mailboxWatchCeiling},
+		{&m.Release, mailboxWatchRelease},
 	}
 	for _, d := range defaults {
 		if *d.value <= 0 {
@@ -137,13 +142,14 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 	for _, target := range targets {
 		wanted[target] = true
 	}
+	gone := map[mailservice.WatchTarget]*mailboxHolder{}
 	for target, holder := range holders {
 		if !wanted[target] {
-			holder.cancel()
-			<-holder.done
+			gone[target] = holder
 			delete(holders, target)
 		}
 	}
+	m.letGo(ctx, gone)
 	now := time.Now()
 	for _, target := range targets {
 		if holder, ok := holders[target]; ok {
@@ -229,10 +235,37 @@ func (m MailboxWatch) backoff(failures int) time.Duration {
 }
 
 func (m MailboxWatch) stopAll(holders map[mailservice.WatchTarget]*mailboxHolder) {
-	for target, holder := range holders {
+	m.letGo(context.Background(), holders)
+	clear(holders)
+}
+
+// letGo cancels every hold, then waits for them together, for Release at most. A hold still running
+// then is counted in the log and left: its context is cancelled, so it ends at its own deadline.
+func (m MailboxWatch) letGo(ctx context.Context, holders map[mailservice.WatchTarget]*mailboxHolder) {
+	for _, holder := range holders {
 		holder.cancel()
-		<-holder.done
-		delete(holders, target)
+	}
+	timer := time.NewTimer(m.Release)
+	defer timer.Stop()
+	stuck := 0
+	for _, holder := range holders {
+		if stuck > 0 {
+			select {
+			case <-holder.done:
+			default:
+				stuck++
+			}
+			continue
+		}
+		select {
+		case <-holder.done:
+		case <-timer.C:
+			stuck++
+		}
+	}
+	if stuck > 0 {
+		slog.WarnContext(ctx, "mailbox holds did not end when let go",
+			slog.String("error", "queue.mailbox_watch_hold_stuck"), slog.Int("holds", stuck))
 	}
 }
 
