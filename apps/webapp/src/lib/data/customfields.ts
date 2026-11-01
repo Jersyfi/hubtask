@@ -34,9 +34,27 @@ export function isValidKey(key: string): boolean {
   return KEY.test(key);
 }
 
-/** A definition that belongs to no collection applies to the whole workspace. */
+/** A definition that belongs to no collection and no hub applies to the whole workspace. */
 export function isWorkspaceWide(definition: CustomFieldDefinition): boolean {
-  return definition.collection_id === null || definition.collection_id === undefined;
+  return !definition.collection_id && !definition.hub_id;
+}
+
+/** A definition of a hub, carried by the entries of its collections (UC-WRK-12 check 9). */
+export function isHubs(definition: CustomFieldDefinition): boolean {
+  return !!definition.hub_id;
+}
+
+/**
+ * A hub's settings: the workspace's fields shared with it, read-only there, and its own. A shared
+ * field the hub has already copied under its key is offered no second copy - the key is taken.
+ */
+export function fieldsAtHub(
+  list: readonly CustomFieldDefinition[],
+  hub: string,
+): { readonly shared: readonly CustomFieldDefinition[]; readonly own: readonly CustomFieldDefinition[] } {
+  const own = list.filter((definition) => definition.hub_id === hub);
+  const taken = new Set(own.map((definition) => definition.key));
+  return { shared: list.filter((definition) => isWorkspaceWide(definition) && !taken.has(definition.key)), own };
 }
 
 /** Whether a type carries the field. Never empty on the wire — "a definition no type carries". */

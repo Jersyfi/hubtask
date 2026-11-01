@@ -15,6 +15,8 @@ import {
   isValidCurrency,
   isValidKey,
   isWorkspaceWide,
+  isHubs,
+  fieldsAtHub,
   operatorsFor,
   sortsBy,
   queryFieldsFor,
@@ -53,6 +55,18 @@ test('a key is an identifier, and the pattern is the contract’s', () => {
 test('a definition with no collection is the workspace’s', () => {
   assert.equal(isWorkspaceWide(definition({ collection_id: null })), true);
   assert.equal(isWorkspaceWide(definition()), false);
+  assert.equal(isWorkspaceWide(definition({ collection_id: null, hub_id: 'h-1' })), false);
+  assert.equal(isHubs(definition({ collection_id: null, hub_id: 'h-1' })), true);
+});
+
+test('a hub offers the shared fields it has not copied, and lists its own (UC-WRK-12 check 9)', () => {
+  const region = definition({ id: 'f-w1', key: 'region', collection_id: null });
+  const budget = definition({ id: 'f-w2', key: 'budget', collection_id: null });
+  const copied = definition({ id: 'f-h1', key: 'region', collection_id: null, hub_id: 'h-1', copied_from: 'f-w1' });
+  const elsewhere = definition({ id: 'f-h2', key: 'dock', collection_id: null, hub_id: 'h-2' });
+  const atHub = fieldsAtHub([region, budget, copied, elsewhere], 'h-1');
+  assert.deepEqual(atHub.shared.map((d) => d.id), ['f-w2']);
+  assert.deepEqual(atHub.own.map((d) => d.id), ['f-h1']);
 });
 
 test('a type carries only the fields that name it', () => {

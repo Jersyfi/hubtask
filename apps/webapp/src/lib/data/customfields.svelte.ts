@@ -36,8 +36,8 @@ import { ANY_ENTRY_DOCUMENT, CONFIG_CHECK, ENTRY_LISTS, touchesOf } from './touc
  * the same one with a missing argument — and the engine keys a resource on the path, so the two
  * are two subscriptions rather than one that changes its mind.
  */
-export const definitionsPath = (collectionId?: string) =>
-  collectionId ? `/custom-fields?collection_id=${collectionId}` : '/custom-fields';
+export const definitionsPath = (collectionId?: string, hubId?: string) =>
+  collectionId ? `/custom-fields?collection_id=${collectionId}` : hubId ? `/custom-fields?hub_id=${hubId}` : '/custom-fields';
 
 /**
  * What a definition write invalidates.
@@ -55,6 +55,28 @@ class CustomFields {
   of(collectionId?: string): readonly CustomFieldDefinition[] {
     const state = this.#scopes[definitionsPath(collectionId)];
     return state?.status === 'ready' ? state.data : [];
+  }
+
+  /** A hub's own definitions and the workspace's, empty until they have been read. */
+  atHub(hubId: string): readonly CustomFieldDefinition[] {
+    const state = this.#scopes[definitionsPath(undefined, hubId)];
+    return state?.status === 'ready' ? state.data : [];
+  }
+
+  /** Starts a hub's list. **From `untrack`**, like `open`. */
+  openHub(hubId: string): () => void {
+    const path = definitionsPath(undefined, hubId);
+    return engine.subscribe<readonly CustomFieldDefinition[]>({ path }, (next) => {
+      this.#scopes = { ...this.#scopes, [path]: next };
+    });
+  }
+
+  /** Makes a hub's own copy of a workspace-wide field under its key (UC-WRK-12 check 9). */
+  async copyHere(fieldId: string, hubId: string): Promise<CustomFieldDefinition> {
+    return engine.mutate<CustomFieldDefinition>('POST', `/custom-fields/${fieldId}:copy-here`, { hub_id: hubId }, {
+      idempotencyKey: crypto.randomUUID(),
+      invalidates: TOUCHES,
+    });
   }
 
   stateOf(collectionId?: string): ResourceState<readonly CustomFieldDefinition[]> | undefined {

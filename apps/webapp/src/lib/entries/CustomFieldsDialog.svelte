@@ -35,7 +35,7 @@
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { cascadingOptionFault, isCalculated, isValidCurrency, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
+  import { cascadingOptionFault, isCalculated, isValidCurrency, isHubs, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -245,14 +245,16 @@
                 <span class="key">{definition.key}</span>
                 <span class="meta">
                   {kindLabel(definition.kind)}{#if definition.currency} ({definition.currency}){/if} ·
-                  {isWorkspaceWide(definition)
-                    ? t('app.fields.workspace_wide')
-                    : t('app.fields.this_collection')}
+                  {isHubs(definition)
+                    ? t('app.fields.this_hub')
+                    : isWorkspaceWide(definition)
+                      ? t('app.fields.workspace_wide')
+                      : t('app.fields.this_collection')}
                 </span>
               </div>
               <!-- A definition is changed where it was defined. The workspace-wide ones are listed
                    here because they apply here, and their controls are not. -->
-              {#if !isWorkspaceWide(definition) && mayShape}
+              {#if !isWorkspaceWide(definition) && !isHubs(definition) && mayShape}
                 <Inline gap="050">
                   <Button size="sm" tone="secondary" onclick={() => startEdit(definition)}>
                     {t('app.fields.edit')}

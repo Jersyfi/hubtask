@@ -21,13 +21,14 @@
   import { untrack, type Snippet } from 'svelte';
 
   import { Button, CheckboxGroup, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
-  import type { Container, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
+  import type { Container, CustomFieldDefinition, StructureChange, StructurePreview, StructureSettings, Workflow } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
+  import { fieldsAtHub } from '../data/customfields.ts';
   import { copyKeyFor, entryTypes, offeredTypes as typesOfLevel, typesAtHub, typesShown } from '../data/entrytypes.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
@@ -113,7 +114,7 @@
     const id = container.id;
     const hub = isHub;
     return untrack(() => {
-      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [workflows.open()] : [customFields.open(id)])];
+      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [workflows.open(), customFields.openHub(id)] : [customFields.open(id)])];
       return () => {
         for (const stop of stops) stop();
       };
@@ -270,6 +271,20 @@
     failure = undefined;
     try {
       await entryTypes.copyHere(type.key, container.id, copyKeyFor(entryTypes.all, type.key), type.name ?? levelName(type.level));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    } finally {
+      copying = undefined;
+    }
+  }
+
+  /** A shared field made the hub's own under its key (UC-WRK-12 check 9). */
+  async function copyFieldHere(definition: CustomFieldDefinition) {
+    if (copying !== undefined) return;
+    copying = `field:${definition.id}`;
+    failure = undefined;
+    try {
+      await customFields.copyHere(definition.id, container.id);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -705,6 +720,29 @@
                     {/each}
                   </ul>
                 </div>
+                {@const fieldsHere = fieldsAtHub(customFields.atHub(container.id), container.id)}
+                {#if fieldsHere.shared.length + fieldsHere.own.length > 0}
+                  <div class="hub-types" data-hub-fields>
+                    <p class="hint">{t('app.structure.hub_fields_hint')}</p>
+                    <ul>
+                      {#each fieldsHere.shared as definition (definition.id)}
+                        <li>
+                          <span>{definition.key}</span>
+                          <span class="source">{t('app.structure.hub_types_shared')}</span>
+                          {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `field:${definition.id}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyFieldHere(definition)}>
+                            {t('app.structure.hub_types_copy')}
+                          </Button>{/if}
+                        </li>
+                      {/each}
+                      {#each fieldsHere.own as definition (definition.id)}
+                        <li>
+                          <span>{definition.key}</span>
+                          <span class="source">{definition.copied_from ? t('app.structure.hub_fields_copied') : t('app.structure.hub_types_own')}</span>
+                        </li>
+                      {/each}
+                    </ul>
+                  </div>
+                {/if}
                 {#if workflows.list}
                   {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
                   <div class="hub-types" data-hub-workflows>
