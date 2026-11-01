@@ -143,10 +143,11 @@ func (h AuthorizeMailbox) invoke(ctx context.Context, actor appshared.ActorConte
 		ID: b.IDs.NewID(), TenantID: actor.TenantID, AccountID: actor.AccountID, Client: client,
 		Host: host, Port: port, LoginHint: in.String("address"), ExpiresAt: now.Add(domain.PendingTTL),
 	}
-	state, err := b.draw(stateBytes)
+	handle, err := b.draw(stateBytes)
 	if err != nil {
 		return nil, err
 	}
+	state := shared.ReturnState(actor.TenantID, handle)
 	verifier, err := b.draw(verifierBytes)
 	if err != nil {
 		return nil, err

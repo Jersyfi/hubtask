@@ -221,6 +221,9 @@ func connectNextcloud(t *testing.T, f fixture) shared.ID {
 	if started["authorize_url"] != "https://cloud.example.org/login/v2/flow/x" || started["state"] == "" {
 		t.Fatalf("started = %v", started)
 	}
+	if named, ok := shared.TenantOfReturnState(started["state"].(string)); !ok || named != tenant {
+		t.Errorf("state %v names no workspace or another", started["state"])
+	}
 	f.files.granted = true
 	done, err := call(CompleteFileStoreConnection{f.conns}.Descriptor(), actorOf(owner), map[string]any{"state": started["state"]})
 	if err != nil {

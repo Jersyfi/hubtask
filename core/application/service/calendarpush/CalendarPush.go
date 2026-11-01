@@ -266,10 +266,11 @@ func (h AuthorizeCalendarPush) invoke(ctx context.Context, actor appshared.Actor
 		return nil, err
 	}
 	now := p.Clock.Now()
-	state, err := p.draw(stateBytes)
+	handle, err := p.draw(stateBytes)
 	if err != nil {
 		return nil, err
 	}
+	state := shared.ReturnState(actor.TenantID, handle)
 	verifier, err := p.draw(verifierBytes)
 	if err != nil {
 		return nil, err

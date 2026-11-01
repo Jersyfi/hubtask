@@ -311,10 +311,11 @@ func (h ConnectFileStore) invoke(ctx context.Context, actor appshared.ActorConte
 		return nil, err
 	}
 	now := c.Clock.Now()
-	state, err := c.draw(stateBytes)
+	handle, err := c.draw(stateBytes)
 	if err != nil {
 		return nil, err
 	}
+	state := shared.ReturnState(actor.TenantID, handle)
 	pending := repository.Pending{ID: c.IDs.NewID(), AccountID: actor.AccountID, Kind: kind, ExpiresAt: now.Add(pendingTTL)}
 	out := usecase.Output{"expires_at": pending.ExpiresAt.UTC()}
 	var hidden secret.Secret

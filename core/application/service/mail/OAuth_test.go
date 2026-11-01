@@ -105,8 +105,13 @@ func authorize(t *testing.T, b Boxes, actor appshared.ActorContext, in usecase.I
 	if query.Get("code_challenge_method") != "S256" || query.Get("code_challenge") == "" {
 		t.Errorf("no PKCE in %s", parsed)
 	}
-	// The fixed entropy draws the same bytes for the state and the verifier.
-	return query.Get("state"), query.Get("state")
+	// The state names the workspace, so a return on the installation's host can be located
+	// (multi-tenancy.md §3); the fixed entropy draws the same bytes for its handle and the verifier.
+	state := query.Get("state")
+	if tenant, ok := shared.TenantOfReturnState(state); !ok || tenant != actor.TenantID {
+		t.Errorf("state %q names no workspace or another", state)
+	}
+	return state, strings.TrimPrefix(state, actor.TenantID.String()+".")
 }
 
 func TestGoogleConnectsWithTheInstallationsAppAndKeepsOnlyTheRefreshToken(t *testing.T) {
@@ -250,7 +255,7 @@ func TestMicrosoftGraphConnectsThroughTheInstallationsMicrosoftApp(t *testing.T)
 	if query.Get("client_id") != "ms-id" || !strings.Contains(query.Get("scope"), "https://graph.microsoft.com/Mail.ReadWrite") {
 		t.Fatalf("authorize at %s", parsed)
 	}
-	tokens.verifier = query.Get("state")
+	tokens.verifier = strings.TrimPrefix(query.Get("state"), person.TenantID.String()+".")
 	connected, err := CompleteMailboxAuthorization{Boxes: b}.Descriptor().Handler.Invoke(context.Background(), person,
 		usecase.Input{"state": query.Get("state"), "code": "code-1"})
 	if err != nil {

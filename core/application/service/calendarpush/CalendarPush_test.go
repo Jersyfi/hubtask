@@ -258,6 +258,9 @@ func connect(t *testing.T, f fixture) usecase.Output {
 	if !strings.Contains(query.Get("scope"), "calendar.events") || strings.Contains(query.Get("scope"), "mail.google") || strings.Contains(query.Get("scope"), "IMAP") || query.Get("code_challenge") == "" {
 		t.Errorf("the consent asks for %q", query.Get("scope"))
 	}
+	if named, ok := shared.TenantOfReturnState(query.Get("state")); !ok || named != tenant {
+		t.Errorf("state %q names no workspace or another", query.Get("state"))
+	}
 	done, err := call(t, CompleteCalendarPushAuthorization{Pushes: f.pushes}.Descriptor(), actorOf(owner), map[string]any{"state": query.Get("state"), "code": "c1"})
 	if err != nil {
 		t.Fatal(err)
