@@ -2108,6 +2108,8 @@ class SlaPolicy(TypedDict, total=False):
     position: Required[int]
     enabled: Required[bool]
     version: Required[int]
+    hub_id: str | None
+    copied_from: str | None
 
 class SlaPolicyList(TypedDict, total=False):
     data: Required[list["SlaPolicy"]]
@@ -2122,6 +2124,12 @@ class SlaPolicyDefine(TypedDict, total=False):
     goals: Required[list["SlaGoal"]]
     position: int
     enabled: bool
+    hub_id: str
+
+class SlaPolicyCopy(TypedDict, total=False):
+    hub_id: Required[str]
+    key: Required[str]
+    name: str
 
 class EntrySlaGoal(TypedDict, total=False):
     goal: Required[Literal["FIRST_RESPONSE", "NEXT_RESPONSE", "RESOLUTION"]]

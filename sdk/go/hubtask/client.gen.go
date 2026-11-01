@@ -22644,12 +22644,18 @@ type SlaPolicy struct {
 	AssigneeGroup *openapi_types.UUID `json:"assignee_group"`
 
 	// Calendar A business calendar's key; null counts around the clock.
-	Calendar   *string   `json:"calendar"`
+	Calendar *string `json:"calendar"`
+
+	// CopiedFrom The key of the policy this one was copied from; absent or null for one made from scratch.
+	CopiedFrom *string   `json:"copied_from,omitempty"`
 	Enabled    bool      `json:"enabled"`
 	EntryTypes []string  `json:"entry_types"`
 	Goals      []SlaGoal `json:"goals"`
-	Key        string    `json:"key"`
-	Name       string    `json:"name"`
+
+	// HubId The hub the policy is defined at, whose entries alone it measures; absent or null for a policy of the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
 
 	// Organisations The requester organisations' keys whose requests the policy measures; empty measures every requester's.
 	Organisations []string `json:"organisations"`
@@ -22658,6 +22664,18 @@ type SlaPolicy struct {
 	// PriorityField The custom field whose option value picks a goal's target.
 	PriorityField *string `json:"priority_field"`
 	Version       int     `json:"version"`
+}
+
+// SlaPolicyCopy defines model for SlaPolicyCopy.
+type SlaPolicyCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Key The copy's own key, free in the workspace.
+	Key string `json:"key"`
+
+	// Name The copy's name; unset keeps the source's.
+	Name *string `json:"name,omitempty"`
 }
 
 // SlaPolicyDefine defines model for SlaPolicyDefine.
@@ -22672,7 +22690,10 @@ type SlaPolicyDefine struct {
 	Enabled    *bool     `json:"enabled,omitempty"`
 	EntryTypes []string  `json:"entry_types"`
 	Goals      []SlaGoal `json:"goals"`
-	Name       string    `json:"name"`
+
+	// HubId Defines the policy at this hub, whose entries alone it measures; unset is the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Name  string              `json:"name"`
 
 	// Organisations The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's. A requester without an account belongs to none.
 	Organisations *[]string `json:"organisations,omitempty"`
@@ -29190,6 +29211,9 @@ type SearchItemsJSONRequestBody = ItemSearchQuery
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
+
+// CopySlaPolicyHereJSONRequestBody defines body for CopySlaPolicyHere for application/json ContentType.
+type CopySlaPolicyHereJSONRequestBody = SlaPolicyCopy
 
 // DefineSoftwareAliasJSONRequestBody defines body for DefineSoftwareAlias for application/json ContentType.
 type DefineSoftwareAliasJSONRequestBody = SoftwareAliasDefine
@@ -39272,21 +39296,21 @@ type ClientInterface interface {
 
 	// ListSlaPolicies The workspace's SLA policies
 	//
-	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
+	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. A policy defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub. Needs READ at the workspace.
 	//
 	// Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
 	ListSlaPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSlaPolicy Delete an SLA policy
 	//
-	// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+	// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace, or at the hub for a policy defined there.
 	//
 	// Corresponds with DELETE /sla-policies/{policyKey} (the `DeleteSlaPolicy` operationId).
 	DeleteSlaPolicy(ctx context.Context, policyKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DefineSlaPolicyWithBody Add or replace an SLA policy
 	//
-	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -39295,12 +39319,30 @@ type ClientInterface interface {
 
 	// DefineSlaPolicy Add or replace an SLA policy
 	//
-	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
 	DefineSlaPolicy(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopySlaPolicyHereWithBody Make a copy of a shared SLA policy at a hub
+	//
+	// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+	CopySlaPolicyHereWithBody(ctx context.Context, policyKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CopySlaPolicyHere Make a copy of a shared SLA policy at a hub
+	//
+	// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+	CopySlaPolicyHere(ctx context.Context, policyKey string, body CopySlaPolicyHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReportSla How the SLA goals of a period stood
 	//
@@ -60539,7 +60581,7 @@ func (c *Client) ReadSettingsCatalogue(ctx context.Context, reqEditors ...Reques
 
 // ListSlaPolicies The workspace's SLA policies
 //
-// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
+// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. A policy defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub. Needs READ at the workspace.
 //
 // Corresponds with GET /sla-policies (the `ListSlaPolicies` operationId).
 func (c *Client) ListSlaPolicies(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -60556,7 +60598,7 @@ func (c *Client) ListSlaPolicies(ctx context.Context, reqEditors ...RequestEdito
 
 // DeleteSlaPolicy Delete an SLA policy
 //
-// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace, or at the hub for a policy defined there.
 //
 // Corresponds with DELETE /sla-policies/{policyKey} (the `DeleteSlaPolicy` operationId).
 func (c *Client) DeleteSlaPolicy(ctx context.Context, policyKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -60573,7 +60615,7 @@ func (c *Client) DeleteSlaPolicy(ctx context.Context, policyKey string, reqEdito
 
 // DefineSlaPolicyWithBody Add or replace an SLA policy
 //
-// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -60592,13 +60634,51 @@ func (c *Client) DefineSlaPolicyWithBody(ctx context.Context, policyKey string, 
 
 // DefineSlaPolicy Add or replace an SLA policy
 //
-// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
 func (c *Client) DefineSlaPolicy(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDefineSlaPolicyRequest(c.Server, policyKey, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopySlaPolicyHereWithBody Make a copy of a shared SLA policy at a hub
+//
+// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+func (c *Client) CopySlaPolicyHereWithBody(ctx context.Context, policyKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopySlaPolicyHereRequestWithBody(c.Server, policyKey, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CopySlaPolicyHere Make a copy of a shared SLA policy at a hub
+//
+// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+func (c *Client) CopySlaPolicyHere(ctx context.Context, policyKey string, body CopySlaPolicyHereJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCopySlaPolicyHereRequest(c.Server, policyKey, body)
 	if err != nil {
 		return nil, err
 	}
@@ -96973,6 +97053,53 @@ func NewDefineSlaPolicyRequestWithBody(server string, policyKey string, params *
 	return req, nil
 }
 
+// NewCopySlaPolicyHereRequest calls the generic CopySlaPolicyHere builder with application/json body
+func NewCopySlaPolicyHereRequest(server string, policyKey string, body CopySlaPolicyHereJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCopySlaPolicyHereRequestWithBody(server, policyKey, "application/json", bodyReader)
+}
+
+// NewCopySlaPolicyHereRequestWithBody constructs an http.Request for the CopySlaPolicyHere method, with any body, and a specified content type
+func NewCopySlaPolicyHereRequestWithBody(server string, policyKey string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "policyKey", policyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sla-policies/%s:copy-here", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReportSlaRequest constructs an http.Request for the ReportSla method
 func NewReportSlaRequest(server string, params *ReportSlaParams) (*http.Request, error) {
 	var err error
@@ -112300,7 +112427,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListSlaPoliciesWithResponse The workspace's SLA policies
 	//
-	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
+	// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. A policy defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub. Needs READ at the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -112309,7 +112436,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteSlaPolicyWithResponse Delete an SLA policy
 	//
-	// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+	// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace, or at the hub for a policy defined there.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -112318,7 +112445,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineSlaPolicyWithBodyWithResponse Add or replace an SLA policy
 	//
-	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -112327,12 +112454,30 @@ type ClientWithResponsesInterface interface {
 
 	// DefineSlaPolicyWithResponse Add or replace an SLA policy
 	//
-	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+	// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /sla-policies/{policyKey} (the `DefineSlaPolicy` operationId).
 	DefineSlaPolicyWithResponse(ctx context.Context, policyKey string, params *DefineSlaPolicyParams, body DefineSlaPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineSlaPolicyResult, error)
+
+	// CopySlaPolicyHereWithBodyWithResponse Make a copy of a shared SLA policy at a hub
+	//
+	// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+	CopySlaPolicyHereWithBodyWithResponse(ctx context.Context, policyKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopySlaPolicyHereResult, error)
+
+	// CopySlaPolicyHereWithResponse Make a copy of a shared SLA policy at a hub
+	//
+	// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+	CopySlaPolicyHereWithResponse(ctx context.Context, policyKey string, body CopySlaPolicyHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopySlaPolicyHereResult, error)
 
 	// ReportSlaWithResponse How the SLA goals of a period stood
 	//
@@ -148441,6 +148586,54 @@ func (r DefineSlaPolicyResult) ContentType() string {
 	return ""
 }
 
+type CopySlaPolicyHereResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SlaPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CopySlaPolicyHereResult) GetJSON201() *SlaPolicy {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CopySlaPolicyHereResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CopySlaPolicyHereResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CopySlaPolicyHereResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CopySlaPolicyHereResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CopySlaPolicyHereResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReportSlaResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -170028,7 +170221,7 @@ func (c *ClientWithResponses) ReadSettingsCatalogueWithResponse(ctx context.Cont
 
 // ListSlaPoliciesWithResponse The workspace's SLA policies
 //
-// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.
+// Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. A policy defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub. Needs READ at the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170043,7 +170236,7 @@ func (c *ClientWithResponses) ListSlaPoliciesWithResponse(ctx context.Context, r
 
 // DeleteSlaPolicyWithResponse Delete an SLA policy
 //
-// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.
+// Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace, or at the hub for a policy defined there.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170058,7 +170251,7 @@ func (c *ClientWithResponses) DeleteSlaPolicyWithResponse(ctx context.Context, p
 
 // DefineSlaPolicyWithBodyWithResponse Add or replace an SLA policy
 //
-// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170073,7 +170266,7 @@ func (c *ClientWithResponses) DefineSlaPolicyWithBodyWithResponse(ctx context.Co
 
 // DefineSlaPolicyWithResponse Add or replace an SLA policy
 //
-// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.
+// Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170084,6 +170277,36 @@ func (c *ClientWithResponses) DefineSlaPolicyWithResponse(ctx context.Context, p
 		return nil, err
 	}
 	return ParseDefineSlaPolicyResult(rsp)
+}
+
+// CopySlaPolicyHereWithBodyWithResponse Make a copy of a shared SLA policy at a hub
+//
+// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+func (c *ClientWithResponses) CopySlaPolicyHereWithBodyWithResponse(ctx context.Context, policyKey string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CopySlaPolicyHereResult, error) {
+	rsp, err := c.CopySlaPolicyHereWithBody(ctx, policyKey, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopySlaPolicyHereResult(rsp)
+}
+
+// CopySlaPolicyHereWithResponse Make a copy of a shared SLA policy at a hub
+//
+// A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /sla-policies/{policyKey}:copy-here (the `CopySlaPolicyHere` operationId).
+func (c *ClientWithResponses) CopySlaPolicyHereWithResponse(ctx context.Context, policyKey string, body CopySlaPolicyHereJSONRequestBody, reqEditors ...RequestEditorFn) (*CopySlaPolicyHereResult, error) {
+	rsp, err := c.CopySlaPolicyHere(ctx, policyKey, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCopySlaPolicyHereResult(rsp)
 }
 
 // ReportSlaWithResponse How the SLA goals of a period stood
@@ -196956,6 +197179,39 @@ func ParseDefineSlaPolicyResult(rsp *http.Response) (*DefineSlaPolicyResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCopySlaPolicyHereResult parses an HTTP response from a CopySlaPolicyHereWithResponse call
+func ParseCopySlaPolicyHereResult(rsp *http.Response) (*CopySlaPolicyHereResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CopySlaPolicyHereResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SlaPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

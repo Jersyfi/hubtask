@@ -2582,6 +2582,16 @@ var generatedCommands = []door{
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "current", "created_at", "last_used_at", "user_agent", "ip_class"}},
 	{Group: "setting", Verb: "catalogue", OperationID: "readSettingsCatalogue", Method: "GET", Path: "/settings/catalogue", Summary: "Every setting the product declares",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "sla", Verb: "copy-here", OperationID: "copySlaPolicyHere", Method: "POST", Path: "/sla-policies/{policyKey}:copy-here", Summary: "Make a copy of a shared SLA policy at a hub",
+		PathParams: []doorParam{
+			{Name: "policyKey", Kind: "string", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},
+			{Name: "key", Kind: "string", Help: "The copy's own key, free in the workspace", Required: true},
+			{Name: "name", Kind: "string", Help: "The copy's name; unset keeps the source's", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
 	{Group: "sla", Verb: "define", OperationID: "defineSlaPolicy", Method: "PUT", Path: "/sla-policies/{policyKey}", Summary: "Add or replace an SLA policy",
 		PathParams: []doorParam{
 			{Name: "policyKey", Kind: "string", Help: "", Required: true},
@@ -2592,6 +2602,7 @@ var generatedCommands = []door{
 			{Name: "enabled", Kind: "boolean", Help: "True when absent", Required: false},
 			{Name: "entry_types", Kind: "strings", Help: "", Required: true},
 			{Name: "goals", Kind: "json", Help: "", Required: true},
+			{Name: "hub_id", Kind: "uuid", Help: "Defines the policy at this hub, whose entries alone it measures; unset is the whole workspace", Required: false},
 			{Name: "name", Kind: "string", Help: "", Required: true},
 			{Name: "organisations", Kind: "strings", Help: "The requester organisations' keys whose requests the policy measures; absent or empty measures …", Required: false},
 			{Name: "position", Kind: "integer", Help: "", Required: false},

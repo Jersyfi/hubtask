@@ -699,6 +699,10 @@ class Client:
         """Delete an SLA policy"""
         return self._call("DELETE", "/sla-policies/{policyKey}", {"policyKey": policy_key}, None, {}, None, "none", None, "void")
 
+    def copy_sla_policy_here(self, policy_key: str, body: "SlaPolicyCopy") -> "SlaPolicy":
+        """Make a copy of a shared SLA policy at a hub"""
+        return self._call("POST", "/sla-policies/{policyKey}:copy-here", {"policyKey": policy_key}, None, {}, body, "json", "application/json", "json")
+
     def report_sla(self, *, query: dict[str, Any] | None = None) -> "SlaReport":
         """How the SLA goals of a period stood"""
         return self._call("GET", "/sla-report", {}, query, {}, None, "none", None, "json")

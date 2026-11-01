@@ -117,6 +117,7 @@ var restDoors = map[string]restDoor{
 	"convertJumbleEntry":                {UseCase: "ConvertJumbleEntry", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyEntryTypeHere":                 {UseCase: "CopyEntryTypeHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyPage":                          {UseCase: "CopyPage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "/pages/{id}", NullClears: false, Integers: []string(nil)},
+	"copySlaPolicyHere":                 {UseCase: "CopySlaPolicyHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyTimesheetWeek":                 {UseCase: "CopyTimesheetWeek", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"copyWorkflowHere":                  {UseCase: "CopyWorkflowHere", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"correctTimeRecord":                 {UseCase: "CorrectTimeRecord", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
@@ -1458,6 +1459,13 @@ func (c *RestController) CopyPage(w http.ResponseWriter, r *http.Request, pageId
 	var body openapi.CopyPageJSONRequestBody
 	var answer openapi.Page
 	c.door(w, r, restDoors["copyPage"], usecase.Input{"page_id": pageId.String()}, nil, &body, &answer)
+}
+
+// CopySlaPolicyHere answers POST /sla-policies/{policyKey}:copy-here by the generated mapping.
+func (c *RestController) CopySlaPolicyHere(w http.ResponseWriter, r *http.Request, policyKey string) {
+	var body openapi.CopySlaPolicyHereJSONRequestBody
+	var answer openapi.SlaPolicy
+	c.door(w, r, restDoors["copySlaPolicyHere"], usecase.Input{"source_key": policyKey}, nil, &body, &answer)
 }
 
 // CopyTimesheetWeek answers POST /timesheets/{week}:copy-previous by the generated mapping.

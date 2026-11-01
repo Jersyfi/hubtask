@@ -22638,12 +22638,18 @@ type SlaPolicy struct {
 	AssigneeGroup *openapi_types.UUID `json:"assignee_group"`
 
 	// Calendar A business calendar's key; null counts around the clock.
-	Calendar   *string   `json:"calendar"`
+	Calendar *string `json:"calendar"`
+
+	// CopiedFrom The key of the policy this one was copied from; absent or null for one made from scratch.
+	CopiedFrom *string   `json:"copied_from,omitempty"`
 	Enabled    bool      `json:"enabled"`
 	EntryTypes []string  `json:"entry_types"`
 	Goals      []SlaGoal `json:"goals"`
-	Key        string    `json:"key"`
-	Name       string    `json:"name"`
+
+	// HubId The hub the policy is defined at, whose entries alone it measures; absent or null for a policy of the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
 
 	// Organisations The requester organisations' keys whose requests the policy measures; empty measures every requester's.
 	Organisations []string `json:"organisations"`
@@ -22652,6 +22658,18 @@ type SlaPolicy struct {
 	// PriorityField The custom field whose option value picks a goal's target.
 	PriorityField *string `json:"priority_field"`
 	Version       int     `json:"version"`
+}
+
+// SlaPolicyCopy defines model for SlaPolicyCopy.
+type SlaPolicyCopy struct {
+	// HubId The hub the copy belongs to.
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Key The copy's own key, free in the workspace.
+	Key string `json:"key"`
+
+	// Name The copy's name; unset keeps the source's.
+	Name *string `json:"name,omitempty"`
 }
 
 // SlaPolicyDefine defines model for SlaPolicyDefine.
@@ -22666,7 +22684,10 @@ type SlaPolicyDefine struct {
 	Enabled    *bool     `json:"enabled,omitempty"`
 	EntryTypes []string  `json:"entry_types"`
 	Goals      []SlaGoal `json:"goals"`
-	Name       string    `json:"name"`
+
+	// HubId Defines the policy at this hub, whose entries alone it measures; unset is the whole workspace.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Name  string              `json:"name"`
 
 	// Organisations The requester organisations' keys whose requests the policy measures; absent or empty measures every requester's. A requester without an account belongs to none.
 	Organisations *[]string `json:"organisations,omitempty"`
@@ -29185,6 +29206,9 @@ type SearchItemsJSONRequestBody = ItemSearchQuery
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
 
+// CopySlaPolicyHereJSONRequestBody defines body for CopySlaPolicyHere for application/json ContentType.
+type CopySlaPolicyHereJSONRequestBody = SlaPolicyCopy
+
 // DefineSoftwareAliasJSONRequestBody defines body for DefineSoftwareAlias for application/json ContentType.
 type DefineSoftwareAliasJSONRequestBody = SoftwareAliasDefine
 
@@ -31893,6 +31917,9 @@ type ServerInterface interface {
 	// DefineSlaPolicy Add or replace an SLA policy
 	// (PUT /sla-policies/{policyKey})
 	DefineSlaPolicy(w http.ResponseWriter, r *http.Request, policyKey string, params DefineSlaPolicyParams)
+	// CopySlaPolicyHere Make a copy of a shared SLA policy at a hub
+	// (POST /sla-policies/{policyKey}:copy-here)
+	CopySlaPolicyHere(w http.ResponseWriter, r *http.Request, policyKey string)
 	// ReportSla How the SLA goals of a period stood
 	// (GET /sla-report)
 	ReportSla(w http.ResponseWriter, r *http.Request, params ReportSlaParams)
@@ -56044,6 +56071,32 @@ func (siw *ServerInterfaceWrapper) DefineSlaPolicy(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// CopySlaPolicyHere operation middleware
+func (siw *ServerInterfaceWrapper) CopySlaPolicyHere(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "policyKey" -------------
+	var policyKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "policyKey", r.PathValue("policyKey"), &policyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "policyKey", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CopySlaPolicyHere(w, r, policyKey)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReportSla operation middleware
 func (siw *ServerInterfaceWrapper) ReportSla(w http.ResponseWriter, r *http.Request) {
 
@@ -59746,6 +59799,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-policies", wrapper.ListSlaPolicies)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DeleteSlaPolicy)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sla-policies/{policyKey}:copy-here", wrapper.CopySlaPolicyHere)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/requester", wrapper.ReadEntryRequester)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)

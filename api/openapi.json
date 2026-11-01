@@ -6498,7 +6498,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "sla ls",
         "summary": "The workspace's SLA policies",
-        "description": "Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. Needs READ at the workspace.\n",
+        "description": "Every SLA policy of the workspace, by position and key: the entry types it measures, its goals with targets in working minutes per priority, the statuses that pause a goal, the share at which a goal is at risk, and its calendar. A policy defined at a hub carries its `hub_id` and is listed only to a caller who may read that hub. Needs READ at the workspace.\n",
         "responses": {
           "200": {
             "description": "The policies",
@@ -6539,7 +6539,7 @@
         },
         "x-hubtask-cli": "sla define",
         "summary": "Add or replace an SLA policy",
-        "description": "Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. Needs STRUCTURE at the workspace.\n",
+        "description": "Creates the policy under the key, or replaces the one there. An entry is measured by the first enabled policy, by position and then key, that covers its type: its goals are armed when it appears or takes such a type, counted on the calendar, paused in the statuses a goal names, the first response met by a comment of somebody other than who raised the entry, every goal met by its completion. Entries already measured keep their clocks. A calendar the workspace does not hold is refused with `sla_policies.calendar_unknown`. With `hub_id`, the policy belongs to that hub: it measures only the entries inside it, is tried before the workspace's there, and needs STRUCTURE at the hub instead of the workspace. A policy's hub never changes (`sla_policies.hub_fixed`). Needs STRUCTURE at the workspace.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -6582,10 +6582,61 @@
         },
         "x-hubtask-cli": "sla rm",
         "summary": "Delete an SLA policy",
-        "description": "Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace.\n",
+        "description": "Deletes the policy. The entries it measured keep the record of how their goals stood. Needs STRUCTURE at the workspace, or at the hub for a policy defined there.\n",
         "responses": {
           "204": {
             "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/sla-policies/{policyKey}:copy-here": {
+      "parameters": [
+        {
+          "name": "policyKey",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "servicedesk"
+        ],
+        "operationId": "copySlaPolicyHere",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "policyKey": "source_key"
+        },
+        "x-hubtask-cli": "sla copy-here",
+        "summary": "Make a copy of a shared SLA policy at a hub",
+        "description": "A policy shared from the workspace is read-only at a hub; a hub that needs it different makes a copy of its own, under a new key, with everything of the source and the source's key in `copied_from`. The copy measures only the hub's entries and is tried there before the workspace's; the source does not change. The source must be a policy of the workspace or of the same hub; another hub's is `sla_policies.not_found`. Needs STRUCTURE at the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlaPolicyCopy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The copy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlaPolicy"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -46027,6 +46078,21 @@
           },
           "version": {
             "type": "integer"
+          },
+          "hub_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The hub the policy is defined at, whose entries alone it measures; absent or null for a policy of the whole workspace."
+          },
+          "copied_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key of the policy this one was copied from; absent or null for one made from scratch."
           }
         }
       },
@@ -46098,6 +46164,36 @@
           "enabled": {
             "type": "boolean",
             "description": "True when absent."
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Defines the policy at this hub, whose entries alone it measures; unset is the whole workspace."
+          }
+        }
+      },
+      "SlaPolicyCopy": {
+        "type": "object",
+        "required": [
+          "hub_id",
+          "key"
+        ],
+        "properties": {
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub the copy belongs to."
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,49}$",
+            "description": "The copy's own key, free in the workspace."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "The copy's name; unset keeps the source's."
           }
         }
       },

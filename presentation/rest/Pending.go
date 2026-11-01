@@ -2227,6 +2227,9 @@ func (pending) ListSlaPolicies(w http.ResponseWriter, r *http.Request) { notAvai
 
 //nolint:revive // var-naming: the contract's operationId
 func (pending) DeleteSlaPolicy(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+func (pending) CopySlaPolicyHere(w http.ResponseWriter, r *http.Request, _ string) {
+	notAvailable(w, r)
+}
 
 //nolint:revive // var-naming: the contract's operationId
 func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string, _ openapi.DefineSlaPolicyParams) {

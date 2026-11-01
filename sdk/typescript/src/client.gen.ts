@@ -856,6 +856,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/sla-policies/{policyKey}", { "policyKey": policyKey }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Make a copy of a shared SLA policy at a hub */
+  copySlaPolicyHere(policyKey: string, body: NonNullable<operations["copySlaPolicyHere"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["copySlaPolicyHere"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/sla-policies/{policyKey}:copy-here", { "policyKey": policyKey }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** How the SLA goals of a period stood */
   reportSla(options: CallOptions & { readonly query?: NonNullable<operations["reportSla"]['parameters']['query']> } = {}): Promise<operations["reportSla"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/sla-report", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
