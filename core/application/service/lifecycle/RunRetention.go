@@ -1008,10 +1008,16 @@ func (h RunRetention) sweepHeldByTenant(
 	return h.sweepHeldUntil(ctx, started, kind, cutoff, rows)
 }
 
-// RequesterLines removes the intake's lines of the requesters the next REQUESTER batch removes, and
-// answers the addresses whose lines are all gone.
+// RequesterLines removes the intake's lines of up to a batch of expired requesters, and answers the
+// addresses whose lines are all gone and how many requesters it kept.
 type RequesterLines interface {
-	BeforeExpiry(ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int) ([]string, error)
+	BeforeExpiry(ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int) ([]string, int, error)
+}
+
+// holdingRows are expiring rows some of which a pass keeps for a reason the next pass meets again:
+// they answer how many, which the pass counts as held (RunRetention.Exhausted).
+type holdingRows interface {
+	DeleteExpiredHolding(ctx context.Context, cutoff time.Time, batch int) (removed, held int, err error)
 }
 
 // ExpiringRequesters removes expired requesters by address: the ones whose intake lines are gone.
@@ -1034,18 +1040,26 @@ func (r requesterRows) CountExpired(ctx context.Context, cutoff time.Time, ceili
 // DeleteExpired removes only the requesters whose lines all went: one still named on an entry that
 // cannot be changed now stays, so the address is never left in a note with no record of it.
 func (r requesterRows) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
-	cleared, err := r.lines.BeforeExpiry(ctx, r.tenantID, cutoff, batch)
+	removed, _, err := r.DeleteExpiredHolding(ctx, cutoff, batch)
+	return removed, err
+}
+
+// DeleteExpiredHolding is DeleteExpired that also answers how many requesters stayed.
+func (r requesterRows) DeleteExpiredHolding(ctx context.Context, cutoff time.Time, batch int) (int, int, error) {
+	cleared, kept, err := r.lines.BeforeExpiry(ctx, r.tenantID, cutoff, batch)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	among, ok := r.rows.(ExpiringRequesters)
 	if !ok {
-		return r.rows.DeleteExpired(ctx, cutoff, batch)
+		removed, err := r.rows.DeleteExpired(ctx, cutoff, batch)
+		return removed, 0, err
 	}
 	if len(cleared) == 0 {
-		return 0, nil
+		return 0, kept, nil
 	}
-	return among.DeleteExpiredAmong(ctx, cutoff, cleared)
+	removed, err := among.DeleteExpiredAmong(ctx, cutoff, cleared)
+	return removed, kept, err
 }
 
 // tenantCutoff is the cutoff of a kind with a default period: the workspace's TENANT-scope rule
@@ -1125,14 +1139,26 @@ func (h RunRetention) sweepHeldUntil(
 		return outcome, nil
 	}
 
-	removed, sweepErr := rows.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	var removed, held int
+	var sweepErr error
+	if holding, ok := rows.(holdingRows); ok {
+		removed, held, sweepErr = holding.DeleteExpiredHolding(ctx, cutoff, h.Purger.BatchSize)
+		// Held only while the pass could not fill its batch: past kept rows to a full one, more
+		// may wait and the job comes straight back.
+		held = min(held, max(matched-removed, 0))
+		if removed >= h.Purger.BatchSize {
+			held = 0
+		}
+	} else {
+		removed, sweepErr = rows.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	}
 
 	finished := h.Clock.Now()
 	status := repository.RunSucceeded
 	if sweepErr != nil {
 		status = repository.RunFailed
 	}
-	outcome := Outcome{Matched: matched, Removed: removed}
+	outcome := Outcome{Matched: matched, Removed: removed, Held: held}
 	if err := h.Runs.Finish(ctx, runID, repository.RunResult{
 		Matched: outcome.Matched, Removed: outcome.Removed,
 		Status: status, FinishedAt: finished,

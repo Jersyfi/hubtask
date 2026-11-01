@@ -34,8 +34,11 @@ func (s *lineStore) IntakeLinesFrom(_ context.Context, addresses []string) ([]re
 	return s.lines, nil
 }
 
-func (s *lineStore) ExpiredAddresses(context.Context, time.Time, int) ([]string, error) {
-	return s.expired, nil
+func (s *lineStore) ExpiredAddresses(_ context.Context, _ time.Time, skip, batch int) ([]string, error) {
+	if skip >= len(s.expired) {
+		return nil, nil
+	}
+	return s.expired[skip:min(skip+batch, len(s.expired))], nil
 }
 
 type invoked struct {
@@ -143,7 +146,7 @@ func TestExpiryRemovesTheIntakeLinesAndARefusalDoesNotStopIt(t *testing.T) {
 	lines.expired = []string{"kunde@shop.test"}
 	entries := &entryCatalogue{refuseFiler: true}
 	strip := StripIntakeLines{Lines: lines, Entries: entries}
-	cleared, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
+	cleared, _, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
 	if err != nil {
 		t.Fatalf("a refused edit stopped the expiry: %v", err)
 	}
@@ -163,7 +166,7 @@ func TestExpiryKeepsARequesterNamedInAnArchivedCollection(t *testing.T) {
 	lines.expired = []string{"kunde@shop.test", "someone@else.test"}
 	entries := &entryCatalogue{archived: lineNote.String()}
 	strip := StripIntakeLines{Lines: lines, Entries: entries}
-	cleared, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
+	cleared, _, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 10)
 	if err != nil {
 		t.Fatalf("an archived collection failed the expiry: %v", err)
 	}
@@ -193,5 +196,24 @@ func TestAnErasureWithALineInAnArchivedCollectionStaysOpen(t *testing.T) {
 	}
 	if len(entries.calls) < 3 {
 		t.Errorf("the other lines were not removed: %+v", entries.calls)
+	}
+}
+
+// A batch of kept requesters does not hide the ones behind it: the expiry reads on, page by page,
+// until it holds a batch that may go or has read its budget, and answers how many stay.
+func TestExpiryReadsPastKeptRequesters(t *testing.T) {
+	lines := intakeLines()
+	lines.expired = []string{"kunde@shop.test", "kunde@shop.test", "someone@else.test", "free@shop.test"}
+	entries := &entryCatalogue{archived: lineNote.String()}
+	strip := StripIntakeLines{Lines: lines, Entries: entries}
+	cleared, kept, err := strip.BeforeExpiry(context.Background(), filerID, time.Now(), 2)
+	if err != nil {
+		t.Fatalf("expiry: %v", err)
+	}
+	if len(cleared) != 2 || cleared[0] != "someone@else.test" || cleared[1] != "free@shop.test" {
+		t.Errorf("cleared %v, want the two behind the kept page", cleared)
+	}
+	if kept != 2 {
+		t.Errorf("kept %d, want 2", kept)
 	}
 }

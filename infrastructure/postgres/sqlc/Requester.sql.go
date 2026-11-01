@@ -180,19 +180,21 @@ func (q *Queries) FindSatisfactionLinkByHash(ctx context.Context, tokenHash []by
 const listExpiredRequesterAddresses = `-- name: ListExpiredRequesterAddresses :many
 SELECT due.address FROM requester AS due
 WHERE due.last_contact_at < $1
-ORDER BY due.last_contact_at
-LIMIT $2
+ORDER BY due.last_contact_at, due.id
+OFFSET $2
+LIMIT $3
 `
 
 type ListExpiredRequesterAddressesParams struct {
 	Cutoff pgtype.Timestamptz
+	Skip   int32
 	Batch  int32
 }
 
-// The addresses of the next batch DeleteExpiredRequesters removes, in its order: their intake
-// lines go first.
+// A page of the requesters past the period, oldest first: their intake lines go before them. The
+// expiry reads past the ones it keeps by skipping them; nothing is deleted until it has read.
 func (q *Queries) ListExpiredRequesterAddresses(ctx context.Context, arg ListExpiredRequesterAddressesParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, listExpiredRequesterAddresses, arg.Cutoff, arg.Batch)
+	rows, err := q.db.Query(ctx, listExpiredRequesterAddresses, arg.Cutoff, arg.Skip, arg.Batch)
 	if err != nil {
 		return nil, err
 	}

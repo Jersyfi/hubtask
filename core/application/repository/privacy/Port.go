@@ -383,7 +383,7 @@ type IntakeLines interface {
 	// IntakeLinesFrom answers the live entries and comments whose first line names one of the
 	// addresses, at most a thousand; the caller judges the exact line.
 	IntakeLinesFrom(ctx context.Context, addresses []string) ([]IntakeLine, error)
-	// ExpiredAddresses answers the addresses of the next batch of requesters past the cutoff, in
-	// the order the retention run removes them.
-	ExpiredAddresses(ctx context.Context, cutoff time.Time, batch int) ([]string, error)
+	// ExpiredAddresses answers a page of the addresses of requesters past the cutoff, oldest
+	// first, past the first skip of them.
+	ExpiredAddresses(ctx context.Context, cutoff time.Time, skip, batch int) ([]string, error)
 }

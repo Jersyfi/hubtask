@@ -173,7 +173,7 @@ func TestTheIntakeLinesOfAnAddressStayInTheirWorkspace(t *testing.T) {
 		if other, err := store.IntakeLinesFrom(ctx, []string{"nobody@shop.test"}); err != nil || len(other) != 0 {
 			t.Errorf("another address found %d lines (%v)", len(other), err)
 		}
-		due, err := store.ExpiredAddresses(ctx, time.Now().UTC().AddDate(0, 0, -730), 100)
+		due, err := store.ExpiredAddresses(ctx, time.Now().UTC().AddDate(0, 0, -730), 0, 100)
 		if err != nil {
 			return err
 		}

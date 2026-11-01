@@ -206,14 +206,14 @@ func (RequesterRepository) IntakeLinesFrom(ctx context.Context, addresses []stri
 	return lines, nil
 }
 
-// ExpiredAddresses answers the addresses of the next batch DeleteExpired removes.
-func (RequesterRepository) ExpiredAddresses(ctx context.Context, cutoff time.Time, batch int) ([]string, error) {
+// ExpiredAddresses answers a page of the expired requesters' addresses, oldest first.
+func (RequesterRepository) ExpiredAddresses(ctx context.Context, cutoff time.Time, skip, batch int) ([]string, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	addresses, err := queries.ListExpiredRequesterAddresses(ctx, sqlc.ListExpiredRequesterAddressesParams{
-		Cutoff: timestampOf(cutoff), Batch: boundedInt32(batch),
+		Cutoff: timestampOf(cutoff), Skip: boundedInt32(skip), Batch: boundedInt32(batch),
 	})
 	if err != nil {
 		return nil, requesterFailed("reading the expired requesters' addresses", err)

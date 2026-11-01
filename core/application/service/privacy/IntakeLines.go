@@ -82,39 +82,52 @@ func (s StripIntakeLines) Strip(
 	return changed, refusal
 }
 
-// BeforeExpiry removes the lines of the requesters the next REQUESTER batch removes, and answers
-// the addresses whose lines are all gone: only those requesters may go. A line that cannot be
-// changed - nobody may edit it, or its collection is archived or trashed - stops neither the expiry
-// nor the rest of the pass; its requester stays, so the record of where the address still is
-// outlives no line, and the next pass tries again.
+// expiryReadPages bounds how many pages of kept requesters one expiry reads past: the retention
+// read budget of ten batches (data-retention.md §5).
+const expiryReadPages = 10
+
+// BeforeExpiry removes the lines of up to a batch of expired requesters, oldest first, and answers
+// the addresses whose lines are all gone - only those requesters may go - and how many it kept. A
+// line that cannot be changed - nobody may edit it, or its collection is archived or trashed -
+// stops neither the expiry nor the rest of the pass; its requester stays, so the record of where
+// the address still is outlives no line, and the next pass tries again. The expiry reads past kept
+// requesters, so a batch of them does not hide the ones behind it.
 func (s StripIntakeLines) BeforeExpiry(
 	ctx context.Context, tenantID shared.ID, cutoff time.Time, batch int,
-) ([]string, error) {
-	if s.Lines == nil || s.Entries == nil {
-		return nil, nil
+) ([]string, int, error) {
+	if s.Lines == nil || s.Entries == nil || batch <= 0 {
+		return nil, 0, nil
 	}
-	addresses, err := s.Lines.ExpiredAddresses(ctx, cutoff, batch)
-	if err != nil || len(addresses) == 0 {
-		return nil, err
-	}
-	cleared := make([]string, 0, len(addresses))
+	cleared := make([]string, 0, batch)
 	kept := 0
-	for _, address := range addresses {
-		if _, err := s.Strip(ctx, tenantID, []string{address}, appshared.ActorContext{}); err != nil {
-			if !refused(err) {
-				return nil, err
-			}
-			kept++
-			continue
+	for page := 0; page < expiryReadPages && len(cleared) < batch; page++ {
+		addresses, err := s.Lines.ExpiredAddresses(ctx, cutoff, page*batch, batch)
+		if err != nil {
+			return nil, 0, err
 		}
-		cleared = append(cleared, address)
+		for _, address := range addresses {
+			if len(cleared) == batch {
+				break
+			}
+			if _, err := s.Strip(ctx, tenantID, []string{address}, appshared.ActorContext{}); err != nil {
+				if !refused(err) {
+					return nil, 0, err
+				}
+				kept++
+				continue
+			}
+			cleared = append(cleared, address)
+		}
+		if len(addresses) < batch {
+			break
+		}
 	}
 	if kept > 0 {
 		// A count only: the addresses are personal data (rule 10).
 		slog.WarnContext(ctx, "expiring requesters kept while an intake line naming them cannot be changed",
 			slog.Int("kept", kept))
 	}
-	return cleared, nil
+	return cleared, kept, nil
 }
 
 func stripAny(text string, addresses []string) (string, bool) {

@@ -98,11 +98,12 @@ ORDER BY 1, 2
 LIMIT 1000;
 
 -- name: ListExpiredRequesterAddresses :many
--- The addresses of the next batch DeleteExpiredRequesters removes, in its order: their intake
--- lines go first.
+-- A page of the requesters past the period, oldest first: their intake lines go before them. The
+-- expiry reads past the ones it keeps by skipping them; nothing is deleted until it has read.
 SELECT due.address FROM requester AS due
 WHERE due.last_contact_at < sqlc.arg('cutoff')
-ORDER BY due.last_contact_at
+ORDER BY due.last_contact_at, due.id
+OFFSET sqlc.arg('skip')
 LIMIT sqlc.arg('batch');
 
 -- name: PutSatisfactionLink :exec
