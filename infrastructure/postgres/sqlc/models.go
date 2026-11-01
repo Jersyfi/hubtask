@@ -2255,6 +2255,12 @@ type Membership struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type MigrationCursor struct {
+	Name      string
+	Position  string
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Notification struct {
 	ID                 pgtype.UUID
 	TenantID           pgtype.UUID
