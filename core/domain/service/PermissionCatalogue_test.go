@@ -219,6 +219,43 @@ func TestNobodyHandsOutAPermissionTheyDoNotHold(t *testing.T) {
 	}
 }
 
+// The shipped templates bring roles with COMMENT (product owner, project board, CAB member): the
+// owner who takes one holds what those roles hand out, through the shipped rows of ItemAccess.go.
+func TestAShippedRoleHoldsCommentAndWriteAssignedByItsItemRows(t *testing.T) {
+	tenant := []identity.Scope{identity.TenantScope()}
+	for _, role := range []identity.Role{identity.RoleOwner, identity.RoleAdmin} {
+		held := []identity.Membership{grant(identity.TenantScope(), role)}
+		if !service.MayHandOut(held, tenant, service.SharedPath, []string{"READ", "COMMENT", "WRITE_ITEMS"}) {
+			t.Errorf("%s may not hand out a product owner's READ, COMMENT, WRITE_ITEMS", role)
+		}
+	}
+	// Beside MANAGE_MEMBERS, held by a role whose rows reach that far and by no other.
+	cases := []struct {
+		role       identity.Role
+		permission string
+		want       bool
+	}{
+		{identity.RoleMember, "COMMENT", true},
+		{identity.RoleGuest, "COMMENT", true},
+		{identity.RoleContributor, "COMMENT", false},
+		{identity.RoleViewer, "COMMENT", false},
+		{identity.RoleAuditor, "COMMENT", false},
+		{identity.RoleContributor, "WRITE_ASSIGNED", true},
+		{identity.RoleGuest, "WRITE_ASSIGNED", false},
+		{identity.RoleViewer, "WRITE_ASSIGNED", false},
+		{identity.RoleOwner, "REQUEST", false},
+	}
+	for _, c := range cases {
+		held := []identity.Membership{grant(identity.TenantScope(), c.role), custom(identity.TenantScope(), "people", service.PermissionManageMembers)}
+		if got := service.MayHandOut(held, tenant, service.SharedPath, []string{c.permission}); got != c.want {
+			t.Errorf("%s hands out %s: %v, want %v", c.role, c.permission, got, c.want)
+		}
+	}
+	if service.MayHandOut([]identity.Membership{grant(identity.HubScope(hub), identity.RoleOwner)}, tenant, service.SharedPath, []string{"COMMENT"}) {
+		t.Error("a hub's owner hands out COMMENT on the workspace")
+	}
+}
+
 // D-05's property: over random schemes, what a grant under MayHandOut gives the grantee never
 // reaches beyond what the granter holds there - no scheme is a ladder to more rights.
 func TestNoRandomSchemeLetsAGrantReachBeyondTheGranter(t *testing.T) {
@@ -264,7 +301,9 @@ func TestNoRandomSchemeLetsAGrantReachBeyondTheGranter(t *testing.T) {
 		}
 		grantee := []identity.Membership{{AccountID: otherID, Scope: at, Custom: "given", Permissions: offered}}
 		for _, p := range permissions {
-			if service.Allows(grantee, path, service.SharedPath, p) && !service.Allows(granter, path, service.SharedPath, p) {
+			// What the granter reaches: Allows, and the item rows COMMENT and WRITE_ASSIGNED spell.
+			reaches := service.Allows(granter, path, service.SharedPath, p) || service.MayHandOut(granter, path, service.SharedPath, []string{string(p)})
+			if service.Allows(grantee, path, service.SharedPath, p) && !reaches {
 				t.Fatalf("round %d: the grant reaches %s, which the granter lacks at %v", round, p, at)
 			}
 		}

@@ -212,7 +212,7 @@ func MayHandOut(
 		return false
 	}
 	for _, name := range permissions {
-		if !Allows(memberships, path, privacy, Permission(name)) {
+		if !holdsToHandOut(memberships, path, privacy, Permission(name)) {
 			return false
 		}
 	}
@@ -226,11 +226,31 @@ func Lacking(
 ) []string {
 	lacking := []string{}
 	for _, name := range permissions {
-		if !Allows(memberships, path, privacy, Permission(name)) {
+		if !holdsToHandOut(memberships, path, privacy, Permission(name)) {
 			lacking = append(lacking, name)
 		}
 	}
 	return lacking
+}
+
+// holdsToHandOut is Allows, and for COMMENT and WRITE_ASSIGNED also a shipped role whose rows in
+// ItemAccess.go reach that far: those two spell the rows as permissions, which a shipped role is
+// not told it holds (Held), yet the owner who takes a template bringing a role with COMMENT holds
+// everything that role gives.
+func holdsToHandOut(memberships []identity.Membership, path []identity.Scope, privacy Privacy, permission Permission) bool {
+	if Allows(memberships, path, privacy, permission) {
+		return true
+	}
+	action, spelled := map[Permission]ItemAction{PermissionComment: ItemComment, PermissionWriteAssigned: ItemCreate}[permission]
+	if !spelled {
+		return false
+	}
+	for _, membership := range memberships {
+		if !membership.IsCustom() && counts(membership, path, privacy) && ItemAccessOf(membership.Role, action) == AccessAll {
+			return true
+		}
+	}
+	return false
 }
 
 // customAllows is whether a custom role's permissions carry the one asked for.
