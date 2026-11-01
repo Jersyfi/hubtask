@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -934,6 +935,9 @@ var notAFailure = map[string]bool{
 	// sending a webhook on a plan without webhooks rests that action, and must not switch itself
 	// off by a streak of failures the plan caused.
 	entitlement.NotIncludedCode: true,
+	// And an action whose module is switched off where it acts (UC-INS-21): switched on again, the
+	// rule must still be on.
+	module.OffCode: true,
 }
 
 // rulesRest answers whether the workspace's plan leaves the rules out, in the transaction the
