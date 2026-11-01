@@ -113,6 +113,8 @@ type Steward struct {
 	// Schedules is the planning module's ReadPlanSchedule, run as the reader for a roadmap's bars;
 	// nil draws lanes without bars.
 	Schedules usecase.Handler
+	// Public is a portfolio roadmap's public link (UC-GOL-03 check 15); its nil Links offers none.
+	Public RoadmapLinking
 	// Jobs schedules a dashboard digest's mail; nil schedules none.
 	Jobs Enqueuer
 	// Changes and HLC tell offline devices of periods, goals, check-ins and dashboards; a nil

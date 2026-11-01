@@ -69,6 +69,9 @@ func allows(actor shared.ID, p service.Permission, path []identity.Scope) bool {
 	if p == service.PermissionManageCosts {
 		return actor == ana
 	}
+	if p == service.PermissionManageMembers {
+		return actor == ana || actor == admin
+	}
 	return p != service.PermissionStructure || actor == admin
 }
 

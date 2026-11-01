@@ -11,6 +11,7 @@ import (
 	"time"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -74,4 +75,17 @@ type Store interface {
 	DeleteDigest(ctx context.Context, dashboard, account shared.ID) (bool, error)
 	// DigestSent records a digest sent (or skipped, sent nil) and the next moment it is owed.
 	DigestSent(ctx context.Context, id shared.ID, sent *time.Time, next time.Time) error
+}
+
+// RoadmapLinks stores a portfolio roadmap's public link by its token's hash (migration 0322); the
+// hashing is the adapter's, whose pepper it is.
+type RoadmapLinks interface {
+	// Put writes the link, replacing the portfolio's previous one.
+	Put(ctx context.Context, link domain.RoadmapLink, token integration.RoadmapLinkToken) error
+	// Find answers the portfolio's link, and false where it has none.
+	Find(ctx context.Context, portfolio shared.ID) (domain.RoadmapLink, bool, error)
+	// FindByToken answers the link a token names, not found for any other.
+	FindByToken(ctx context.Context, token integration.RoadmapLinkToken) (domain.RoadmapLink, error)
+	// Delete takes the portfolio's link away and answers whether there was one.
+	Delete(ctx context.Context, portfolio shared.ID) (bool, error)
 }
