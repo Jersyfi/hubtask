@@ -64,3 +64,14 @@ func TestUncitedChecksOfAVerifiedUseCase(t *testing.T) {
 		t.Fatalf("uncited %v, want [2] - check 2 is cited only for another use case", got)
 	}
 }
+
+// A file proving several checks may name them in one list - `checks 1, 2 and 3`; each counts.
+func TestAListOfChecksCitesEachOfThem(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "a.test.mjs"), []byte("// (UC-ID-16 checks 1, 2 and 3, design.md)\n// UC-ID-17 checks 4 and 5\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := uncitedChecks(root, "UC-ID-16", map[int]bool{1: true, 2: true, 3: true, 4: true}, []string{"a.test.mjs"}); len(got) != 1 || got[0] != 4 {
+		t.Fatalf("uncited %v, want [4] - checks 1 to 3 are named in one list, check 4 only for another use case", got)
+	}
+}
