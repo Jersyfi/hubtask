@@ -51,12 +51,12 @@ func (q *Queries) DeleteWorkflowScheme(ctx context.Context, arg DeleteWorkflowSc
 const insertWorkflow = `-- name: InsertWorkflow :exec
 INSERT INTO workflow (
   id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   normalize($4::text, NFC), $5::jsonb, $6::jsonb,
   $7, $8, $9,
-  $9, 1
+  $9, 1, $10::uuid, $11::text
 )
 `
 
@@ -70,6 +70,8 @@ type InsertWorkflowParams struct {
 	PublishedAt pgtype.Timestamptz
 	PublishedBy pgtype.UUID
 	CreatedAt   pgtype.Timestamptz
+	HubID       pgtype.UUID
+	CopiedFrom  *string
 }
 
 func (q *Queries) InsertWorkflow(ctx context.Context, arg InsertWorkflowParams) error {
@@ -83,6 +85,8 @@ func (q *Queries) InsertWorkflow(ctx context.Context, arg InsertWorkflowParams) 
 		arg.PublishedAt,
 		arg.PublishedBy,
 		arg.CreatedAt,
+		arg.HubID,
+		arg.CopiedFrom,
 	)
 	return err
 }
@@ -123,7 +127,7 @@ func (q *Queries) ListWorkflowSchemes(ctx context.Context) ([]ListWorkflowScheme
 const listWorkflows = `-- name: ListWorkflows :many
 
 SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 FROM workflow
 WHERE tenant_id = current_tenant_id()
 ORDER BY key
@@ -153,6 +157,8 @@ func (q *Queries) ListWorkflows(ctx context.Context) ([]Workflow, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.HubID,
+			&i.CopiedFrom,
 		); err != nil {
 			return nil, err
 		}
@@ -270,7 +276,7 @@ type UpdateWorkflowParams struct {
 }
 
 // The whole row as the application decided it, under the optimistic lock (api-guidelines.md §5).
-// The key and whether it is the shipped one never change.
+// The key, whether it is the shipped one, its hub and its source never change.
 func (q *Queries) UpdateWorkflow(ctx context.Context, arg UpdateWorkflowParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateWorkflow,
 		arg.Name,

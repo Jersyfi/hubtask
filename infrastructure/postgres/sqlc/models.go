@@ -3536,6 +3536,8 @@ type Workflow struct {
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
 	Version     int32
+	HubID       pgtype.UUID
+	CopiedFrom  *string
 }
 
 type WorkflowScheme struct {

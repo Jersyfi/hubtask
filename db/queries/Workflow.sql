@@ -3,7 +3,7 @@
 
 -- name: ListWorkflows :many
 SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 FROM workflow
 WHERE tenant_id = current_tenant_id()
 ORDER BY key;
@@ -11,17 +11,17 @@ ORDER BY key;
 -- name: InsertWorkflow :exec
 INSERT INTO workflow (
   id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('key'), sqlc.arg('system'),
   normalize(sqlc.arg('name')::text, NFC), sqlc.arg('published')::jsonb, sqlc.narg('draft')::jsonb,
   sqlc.narg('published_at'), sqlc.narg('published_by'), sqlc.arg('created_at'),
-  sqlc.arg('created_at'), 1
+  sqlc.arg('created_at'), 1, sqlc.narg('hub_id')::uuid, sqlc.narg('copied_from')::text
 );
 
 -- name: UpdateWorkflow :execrows
 -- The whole row as the application decided it, under the optimistic lock (api-guidelines.md §5).
--- The key and whether it is the shipped one never change.
+-- The key, whether it is the shipped one, its hub and its source never change.
 UPDATE workflow SET
   name         = normalize(sqlc.arg('name')::text, NFC),
   published    = sqlc.arg('published')::jsonb,

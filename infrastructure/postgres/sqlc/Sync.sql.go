@@ -3583,7 +3583,7 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 
 const snapshotWorkflows = `-- name: SnapshotWorkflows :many
 SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 FROM workflow
 WHERE tenant_id = current_tenant_id() AND id > $1
 ORDER BY id
@@ -3618,6 +3618,8 @@ func (q *Queries) SnapshotWorkflows(ctx context.Context, arg SnapshotWorkflowsPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.HubID,
+			&i.CopiedFrom,
 		); err != nil {
 			return nil, err
 		}

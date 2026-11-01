@@ -345,7 +345,7 @@ RETURNING sync_epoch;
 -- name: SnapshotWorkflows :many
 -- The workspace's workflow rows (migration 0215); the shipped one it never used is the domain's.
 SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 FROM workflow
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
 ORDER BY id

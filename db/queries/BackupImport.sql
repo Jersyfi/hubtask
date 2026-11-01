@@ -2049,11 +2049,12 @@ DELETE FROM entry_link;
 -- name: ImportWorkflow :execrows
 INSERT INTO workflow (
   id, tenant_id, key, system, name, published, draft, published_at, published_by,
-  created_at, updated_at, version
+  created_at, updated_at, version, hub_id, copied_from
 )
 SELECT
+  -- An archive from before 0323 carries no hub: the workflow is then the whole workspace's.
   r.id, r.tenant_id, r.key, r.system, r.name, r.published, r.draft, r.published_at, r.published_by,
-  r.created_at, r.updated_at, r.version
+  r.created_at, r.updated_at, r.version, r.hub_id, r.copied_from
 FROM jsonb_populate_record(
   NULL::workflow,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2065,7 +2066,9 @@ ON CONFLICT (id) DO UPDATE SET
   published_at = EXCLUDED.published_at,
   published_by = EXCLUDED.published_by,
   updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  hub_id = EXCLUDED.hub_id,
+  copied_from = EXCLUDED.copied_from
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWorkflow :one

@@ -212,7 +212,12 @@ func (r WorkflowRepository) Insert(ctx context.Context, workflow work.Workflow) 
 	if err != nil {
 		return err
 	}
+	hub, err := optionalUUID(workflow.HubID)
+	if err != nil {
+		return err
+	}
 	err = queries.InsertWorkflow(ctx, sqlc.InsertWorkflowParams{
+		HubID: hub, CopiedFrom: optionalText(workflow.CopiedFrom),
 		ID: id, Key: workflow.Key, System: workflow.System, Name: workflow.Name,
 		Published: published, Draft: draft, PublishedAt: optionalTimestamp(workflow.PublishedAt),
 		PublishedBy: by, CreatedAt: timestampOf(workflow.CreatedAt),
@@ -427,7 +432,12 @@ func workflowFrom(row sqlc.Workflow) (work.Workflow, error) {
 	if err != nil {
 		return work.Workflow{}, err
 	}
+	hub, err := optionalID(row.HubID)
+	if err != nil {
+		return work.Workflow{}, err
+	}
 	workflow := work.Workflow{
+		HubID: hub, CopiedFrom: textFrom(row.CopiedFrom),
 		ID: id, TenantID: tenantID, Key: row.Key, System: row.System, Name: row.Name,
 		Published: published, PublishedAt: optionalTime(row.PublishedAt), PublishedBy: by,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt), Version: int(row.Version),

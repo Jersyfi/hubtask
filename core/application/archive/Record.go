@@ -585,8 +585,12 @@ var entities = []Entity{
 	// rows that name them by key; a duplicate skips a key the workspace holds.
 	{
 		Name: "workflows", Table: "workflow", Whole: true, Unmarked: true, Keys: []string{"id"}, Duplicable: true,
-		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip}},
-		References: []Reference{{Field: "published_by", Table: "account", Clearable: true}},
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+		// A hub's own workflow (migration 0323) follows its hub; `copied_from` is a key kept as a
+		// word, not a reference (it outlives its source).
+		References: []Reference{
+			{Field: "published_by", Table: "account", Clearable: true}, {Field: "hub_id", Table: "container"},
+		},
 	},
 	{
 		Name: "workflow_schemes", Table: "workflow_scheme", Whole: true, Later: true, Duplicable: true,
