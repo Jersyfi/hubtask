@@ -19,6 +19,12 @@ type PlatformSweep struct {
 
 var _ queue.Handler = PlatformSweep{}
 
+var _ queue.Perpetual = PlatformSweep{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (PlatformSweep) RepeatsForever() {}
+
 // Run sweeps one pass.
 func (h PlatformSweep) Run(ctx context.Context, _ queue.Job) (queue.Result, error) {
 	removed, err := h.Sweep.Run(ctx)

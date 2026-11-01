@@ -24,6 +24,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sort"
 	"sync"
@@ -504,6 +505,9 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause erro
 	if !job.LastAttempt() {
 		retryAt = r.Clock.Now().Add(r.NextAttempt(job.Attempts))
 		attemptClass = "retry"
+	} else if _, duty := r.Handlers[job.Kind].(queue.Perpetual); duty && transient(cause) {
+		r.holdDuty(ctx, job, code, cause)
+		return
 	}
 
 	if r.Signals != nil {
@@ -550,6 +554,53 @@ func (r Runner) fail(ctx context.Context, job queue.Job, code string, cause erro
 	if err != nil {
 		// Nothing more to do about it here. The job keeps its lease, and the next worker to come
 		// past after it expires tries again - at-least-once covers this too.
+		slog.WarnContext(ctx, "recording a job failure failed",
+			slog.String("job_id", job.ID.String()),
+			slog.String("error", shared.AsError(err).Code))
+	}
+}
+
+// transient is a failure that may answer differently later: the dependency's, a rate limit, or an
+// untyped transport or deadline error. A typed refusal, a missing thing or a defect will not.
+func transient(cause error) bool {
+	if cause == nil {
+		return false
+	}
+	var typed *shared.Error
+	if !errors.As(cause, &typed) {
+		return true
+	}
+	return typed.Category == shared.CategoryUnavailable || typed.Category == shared.CategoryRateLimited
+}
+
+// holdDuty sends a duty's last failed attempt (queue.Perpetual) to its next round at the backoff's
+// ceiling, with its attempts cleared, instead of to the dead letter. Counted as a retry, so the
+// failure stays visible on the job metrics; logged like a failure, code and identifiers only.
+func (r Runner) holdDuty(ctx context.Context, job queue.Job, code string, cause error) {
+	if r.Signals != nil {
+		r.Signals.JobFailed(ctx, job.Kind.String(), "retry")
+	}
+	attrs := []slog.Attr{
+		slog.String("job_kind", job.Kind.String()),
+		slog.String("job_id", job.ID.String()),
+		slog.Int("attempt", job.Attempts),
+		slog.String("error_code", code),
+		slog.Bool("dead_letter", false),
+		slog.Bool("duty_held", true),
+	}
+	if r.Diagnose != nil {
+		attrs = append(attrs, r.Diagnose(cause)...)
+	}
+	slog.LogAttrs(ctx, slog.LevelWarn, "job failed", attrs...)
+
+	holdCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
+	defer cancel()
+	next := r.Clock.Now().Add(r.NextAttempt(job.Attempts))
+	err := r.UnitOfWork.Within(holdCtx, scopeOf(job), func(txCtx context.Context) error {
+		return r.Queue.Repeat(txCtx, job, next)
+	})
+	if err != nil {
+		// As in fail: the job keeps its lease, and the next worker after it expires tries again.
 		slog.WarnContext(ctx, "recording a job failure failed",
 			slog.String("job_id", job.ID.String()),
 			slog.String("error", shared.AsError(err).Code))

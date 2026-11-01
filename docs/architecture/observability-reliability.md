@@ -434,7 +434,10 @@ in PostgreSQL, and nothing else is required to run it.
   lease every third of a lease while it works; a lease another worker took over cancels the pass.
 * **Failures** retry with exponential backoff and full jitter, up to `HUBTASK_JOB_MAX_ATTEMPTS`;
   then the job goes to the dead letter with the code of its last failure, visible in the API and
-  alerted as A-07.
+  alerted as A-07. A duty kept as one row (`queue.Perpetual`: a mailbox poll, a connector or
+  directory pull, a workspace's sweeps) never dies of a transient failure: its last attempt on an
+  unavailable dependency, a rate limit or an untyped transport error is its next round at the
+  backoff's ceiling, attempts cleared; only a permanent answer or a defect dead-letters it.
 * **The scheduler** runs in exactly one active process: the `scheduler` role elects a leader with
   `pg_try_advisory_lock`, acts every `HUBTASK_SCHEDULER_TICK_INTERVAL`, and distributes the work
   itself as jobs. A standby takes over within a tick of the leader's lock being released.

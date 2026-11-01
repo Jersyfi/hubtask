@@ -34,6 +34,12 @@ type RecurrenceMaterialisation struct {
 
 var _ queue.Handler = RecurrenceMaterialisation{}
 
+var _ queue.Perpetual = RecurrenceMaterialisation{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (RecurrenceMaterialisation) RepeatsForever() {}
+
 // Run materialises what the tenant the job names owes.
 func (m RecurrenceMaterialisation) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	if job.TenantID.IsZero() {

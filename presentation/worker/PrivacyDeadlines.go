@@ -31,6 +31,12 @@ type PrivacyDeadlines struct {
 
 var _ queue.Handler = PrivacyDeadlines{}
 
+var _ queue.Perpetual = PrivacyDeadlines{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (PrivacyDeadlines) RepeatsForever() {}
+
 // Run looks at what the tenant owes.
 func (d PrivacyDeadlines) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	if job.TenantID.IsZero() {

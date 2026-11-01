@@ -354,6 +354,12 @@ var _ queue.Detached = PollMailbox{}
 // transaction open; a read that runs twice takes nothing twice (the receipts).
 func (PollMailbox) OwnsItsTransactions() {}
 
+var _ queue.Perpetual = PollMailbox{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (PollMailbox) RepeatsForever() {}
+
 // Run reads the mailbox once.
 func (p PollMailbox) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	b := p.Boxes

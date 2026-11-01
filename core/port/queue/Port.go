@@ -676,6 +676,19 @@ type Detached interface {
 	OwnsItsTransactions()
 }
 
+// Perpetual is a handler whose job is a duty kept as one row - a mailbox's poll, a connector's
+// pull, a workspace's sweep - that schedules its own next round (Result.Repeat) and that nothing
+// else re-seeds reliably. Its last attempt on a transient failure (unavailable, rate-limited, an
+// untyped transport or deadline error) is its next round at the backoff's ceiling rather than a
+// dead letter: a database away for twenty minutes must not end mail intake for good. A permanent
+// answer still dead-letters it.
+type Perpetual interface {
+	Handler
+
+	// RepeatsForever is the declaration; its value is never read.
+	RepeatsForever()
+}
+
 // LongRunning is a detached handler whose one pass may take far longer than an ordinary job - a
 // backup, a restore, a workspace export, an import. The runner gives it the long budget instead of
 // the ordinary deadline and keeps its lease alive while it works, so a killed worker's pass is

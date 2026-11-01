@@ -35,6 +35,13 @@ content (rule 10). The codes and what they mean:
 | `dependency.unavailable` | Something the job needs stayed down through every retry | Fix the dependency, then requeue |
 | `outbox.dispatch_without_tenant` | A malformed job row | A defect; keep the row for the issue |
 
+A duty kept as one row - a connected mailbox's poll, a CMDB connector's or LDAP directory's
+pull, a workspace's retention, recurrence, privacy-deadline or backup-schedule pass, the platform
+sweep - is not here for a transient failure (`dependency.unavailable`, a timeout, a rate limit): its
+last attempt becomes its next round at the backoff's ceiling (`queue.Perpetual`), logged as
+`job failed` with `duty_held=true` and counted as a retry. Such a duty is here only for a permanent
+answer or a defect.
+
 A job that met a refusal — an AI suggestion whose workspace spent its budget or switched AI off
 before the job ran — is never here: it ends `FAILED` at once with the refusal's code, for the
 person who asked, and counts toward no alert.
@@ -46,8 +53,12 @@ UPDATE job SET state = 'PENDING', attempts = 0, run_at = now(), last_error = NUL
 WHERE id = '<the job id>';
 ```
 
-Safe for every job kind in this project: handlers write their effect in the same transaction that
-completes the job, so a re-run either happens completely or not at all (test RT-3).
+Safe for every job kind in this project, for one of two reasons. Most handlers write their effect
+in the same transaction that completes the job, so a re-run either happens completely or not at all
+(test RT-3). A detached handler (`queue.Detached`: mail delivery, backup, export, import, polls)
+commits its own writes before the job is completed, so part of its work may already be done; each
+declares itself safe to run twice - receipts, dedupe keys and run rows make the second pass take
+nothing twice - which is the assertion the interface asks for.
 
 ## Diagnostic queries
 

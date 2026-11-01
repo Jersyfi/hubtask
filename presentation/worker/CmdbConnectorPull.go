@@ -36,6 +36,12 @@ var (
 // OwnsItsTransactions marks the handler detached.
 func (CmdbConnectorPull) OwnsItsTransactions() {}
 
+var _ queue.Perpetual = CmdbConnectorPull{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (CmdbConnectorPull) RepeatsForever() {}
+
 // Run pulls the connector the job names, when it is due.
 func (h CmdbConnectorPull) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	raw, _ := job.Payload["connector_id"].(string)

@@ -1021,3 +1021,43 @@ func TestAnOrdinaryDetachedJobKeepsTheOrdinaryDeadline(t *testing.T) {
 		t.Fatalf("failures %v, want the job cut off at its deadline", jobs.failures)
 	}
 }
+
+type dutyHandler struct{ handlerFunc }
+
+func (dutyHandler) RepeatsForever() {}
+
+// A duty kept as one row - a mailbox's poll, a connector's pull - does not die of a database that
+// was away for twenty minutes: its last attempt on a transient failure is its next round at the
+// backoff's ceiling, not a dead letter nothing re-seeds. A permanent answer still ends it.
+func TestADutyIsNotDeadLetteredByATransientFailure(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err        error
+		repeated   bool
+		deadLetter bool
+	}{
+		"unavailable": {err: shared.ErrUnavailable.WithDetail("postgres.query_failed"), repeated: true},
+		"untyped":     {err: context.DeadlineExceeded, repeated: true},
+		"permanent":   {err: shared.ErrValidation.WithDetail("cmdb.connector_kind_unknown"), deadLetter: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			jobs := newQueue()
+			signals := &signalsDouble{}
+			handler := dutyHandler{handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+				return queue.Result{}, tc.err
+			})}
+
+			runner(jobs, &unitOfWork{}, handler, signals).execute(t.Context(), job(3))
+
+			_, repeated := jobs.repeated[jobID]
+			if repeated != tc.repeated {
+				t.Errorf("repeated = %v, want %v", repeated, tc.repeated)
+			}
+			if got := len(signals.deadLetters) == 1; got != tc.deadLetter {
+				t.Errorf("dead letters %v, want dead-lettered = %v", signals.deadLetters, tc.deadLetter)
+			}
+			if tc.repeated && len(jobs.failures) != 0 {
+				t.Errorf("failures %v recorded for a duty that comes back", jobs.failures)
+			}
+		})
+	}
+}

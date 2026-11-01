@@ -348,6 +348,12 @@ func (h SyncLdapDirectory) invoke(ctx context.Context, actor appshared.ActorCont
 	return runOutput(run, dry), nil
 }
 
+var _ queue.Perpetual = LdapSyncJob{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (LdapSyncJob) RepeatsForever() {}
+
 // Run is the scheduled run, as the configured service account: it answers when it comes back.
 // Only a failure of this installation's own (the database) is an error for the queue to retry; a
 // directory that refuses, is down or answers wrong is the run's outcome, recorded, and the job comes

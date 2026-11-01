@@ -37,6 +37,12 @@ type BackupScheduling struct {
 
 var _ queue.Handler = BackupScheduling{}
 
+var _ queue.Perpetual = BackupScheduling{}
+
+// RepeatsForever: the job is a duty kept as one row, which nothing else re-seeds reliably
+// (queue.Perpetual).
+func (BackupScheduling) RepeatsForever() {}
+
 // Run does one round for the tenant the job names.
 func (h BackupScheduling) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
 	if job.TenantID.IsZero() {
