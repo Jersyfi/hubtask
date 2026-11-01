@@ -229,7 +229,16 @@ type Workflow struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Version     int
+	// HubID is the hub the workflow is defined at, which alone runs it; zero for one of the whole
+	// workspace (configuration model §1).
+	HubID shared.ID
+	// CopiedFrom is the key of the workflow this one was copied from; empty for one made from
+	// scratch.
+	CopiedFrom string
 }
+
+// UsableIn reports whether the hub, or a collection inside it, may run the workflow.
+func (w Workflow) UsableIn(hub shared.ID) bool { return w.HubID.IsZero() || w.HubID == hub }
 
 // Stored reports whether the workflow has a row.
 func (w Workflow) Stored() bool { return !w.ID.IsZero() }
@@ -290,6 +299,18 @@ func (ws Workflows) Started() []string {
 	return out
 }
 
+// Within is the set the hub and its collections choose from: the workspace's workflows and the
+// hub's own, never another hub's. A zero hub is the workspace's workflows alone.
+func (ws Workflows) Within(hub shared.ID) Workflows {
+	within := make(Workflows, 0, len(ws))
+	for _, w := range ws {
+		if w.UsableIn(hub) {
+			within = append(within, w)
+		}
+	}
+	return within
+}
+
 // Find answers a workflow by key.
 func (ws Workflows) Find(key string) (Workflow, bool) {
 	for _, w := range ws {
@@ -310,6 +331,8 @@ type NewWorkflowInput struct {
 	By       shared.ID
 	Now      time.Time
 	Text     text.Normalizer
+	// HubID defines the workflow at that hub; zero is the whole workspace.
+	HubID shared.ID
 }
 
 // NewWorkflow builds a workspace's own workflow, published as it is made: a new workflow is in
@@ -337,7 +360,47 @@ func NewWorkflow(in NewWorkflowInput) (Workflow, error) {
 	return Workflow{
 		ID: in.ID, TenantID: in.TenantID, Key: key, Name: name, Published: shape,
 		PublishedAt: &now, PublishedBy: in.By, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
+		HubID: in.HubID,
 	}, nil
+}
+
+// WorkflowCopy is what making a copy of a workflow at a hub takes.
+type WorkflowCopy struct {
+	ID       shared.ID
+	TenantID shared.ID
+	HubID    shared.ID
+	Key      string
+	// Name is the copy's own name; nil keeps the source's.
+	Name *string
+	By   shared.ID
+	Now  time.Time
+	Text text.Normalizer
+}
+
+// CopyAt makes a hub's own workflow from w: the shape in force under a new key, with the key it
+// came from (configuration model §2, "shared means referenced, never overridden"). A draft is
+// somebody's unfinished change of the source and stays with it.
+func (w Workflow) CopyAt(in WorkflowCopy) (Workflow, error) {
+	if in.HubID.IsZero() {
+		return Workflow{}, workflowInvalid("/hub_id", "workflows.hub_required", nil)
+	}
+	tenantID := in.TenantID
+	if tenantID.IsZero() {
+		tenantID = w.TenantID
+	}
+	name := w.Name
+	if in.Name != nil {
+		name = *in.Name
+	}
+	copied, err := NewWorkflow(NewWorkflowInput{
+		ID: in.ID, TenantID: tenantID, Key: in.Key, Name: name, Shape: w.Published,
+		By: in.By, Now: in.Now, Text: in.Text, HubID: in.HubID,
+	})
+	if err != nil {
+		return Workflow{}, err
+	}
+	copied.CopiedFrom = w.Key
+	return copied, nil
 }
 
 // Renamed answers the workflow under a new name; empty is allowed only on the system workflow.
