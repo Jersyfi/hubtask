@@ -270,6 +270,43 @@
     void act(() => planning.setTiming(planId, zone, linkId, draft.kind as 'FS' | 'SS' | 'FF' | 'SF', lag), t('app.planning.timing_saved'));
   }
 
+  // A dependency added from the keyboard (SC 2.1.1, 2.5.7): what the chart's knob draws, chosen
+  // here instead, its kind and lag written straight after when they are not the default.
+  let newWaiting = $state('');
+  let newWaited = $state('');
+  let newKind = $state<string>('FS');
+  let newLag = $state('0');
+  function addDependency() {
+    const waiting = newWaiting;
+    const waited = newWaited;
+    const lag = lagOf(newLag);
+    const drawn = waiting && waited ? dependencyDrawn(waited, waiting) : undefined;
+    if (!drawn) {
+      failure = t('app.planning.choose_two');
+      return;
+    }
+    if (lag === undefined) {
+      failure = t('planning.lag_out_of_range', { maximum: '999' });
+      return;
+    }
+    const kind = newKind as 'FS' | 'SS' | 'FF' | 'SF';
+    void act(async () => {
+      const made = await planning.link(planId, zone, drawn.sourceId, drawn.targetId, drawn.type);
+      if (kind !== 'FS' || lag !== 0) await planning.setTiming(planId, zone, made.id, kind, lag);
+      newWaiting = '';
+      newWaited = '';
+      newKind = 'FS';
+      newLag = '0';
+    }, t('app.planning.linked', { waiting: titleOf(waiting), waited: titleOf(waited) }));
+  }
+  function removeDependency(linkId: string, waitingId: string, waitedId: string) {
+    void act(
+      () => planning.unlink(planId, zone, linkId, waitingId, waitedId),
+      t('app.planning.unlinked', { waiting: titleOf(waitingId), waited: titleOf(waitedId) }),
+    );
+  }
+  const linkable = $derived(rows.filter((row) => !row.entry.external && !row.entry.summary).map((row) => ({ value: row.id, label: row.title })));
+
   let isTaking = $state(false);
   let isImporting = $state(false);
 
@@ -333,6 +370,7 @@
     { id: 'kind', label: t('app.planning.col_kind') },
     { id: 'lag', label: t('app.planning.col_lag') },
     { id: 'save', label: t('app.planning.col_save'), isLabelHidden: true },
+    ...(mayWrite ? [{ id: 'remove', label: t('app.planning.col_remove'), isLabelHidden: true }] : []),
   ]);
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
 </script>
@@ -565,27 +603,49 @@
       </Table>
     </section>
 
-    {#if schedule.dependencies.length > 0}
+    {#if schedule.dependencies.length > 0 || (mayWrite && linkable.length > 1)}
       <section aria-labelledby="plan-dependencies" class="block">
         <h2 id="plan-dependencies" class="heading">{t('app.timeline.dependencies')}</h2>
-        <Table label={t('app.timeline.dependencies')} isLabelHidden columns={dependencyColumns}>
-          {#each schedule.dependencies as each (each.link_id)}
-            {@const draft = timing[each.link_id]}
-            <tr>
-              <th scope="row">{titleOf(each.successor_id)}</th>
-              <td>{titleOf(each.predecessor_id)}</td>
-              {#if mayWrite && draft}
-                <td><Select label={t('app.planning.kind_of', { title: titleOf(each.successor_id) })} size="sm" bind:value={draft.kind} options={kinds} /></td>
-                <td><Input label={t('app.planning.lag_of', { title: titleOf(each.successor_id) })} size="sm" bind:value={draft.lag} inputmode="numeric" /></td>
-                <td><Button size="sm" tone="secondary" onclick={() => saveTiming(each.link_id)}>{t('app.planning.save_timing')}</Button></td>
-              {:else}
-                <td>{t(`app.planning.kind_${each.dependency_kind}`)}</td>
-                <td>{each.lag_days}</td>
-                <td></td>
-              {/if}
-            </tr>
-          {/each}
-        </Table>
+        {#if schedule.dependencies.length > 0}
+          <Table label={t('app.timeline.dependencies')} isLabelHidden columns={dependencyColumns}>
+            {#each schedule.dependencies as each (each.link_id)}
+              {@const draft = timing[each.link_id]}
+              <tr data-dependency-row={each.link_id}>
+                <th scope="row">{titleOf(each.successor_id)}</th>
+                <td>{titleOf(each.predecessor_id)}</td>
+                {#if mayWrite && draft}
+                  <td><Select label={t('app.planning.kind_of', { title: titleOf(each.successor_id) })} size="sm" bind:value={draft.kind} options={kinds} /></td>
+                  <td><Input label={t('app.planning.lag_of', { title: titleOf(each.successor_id) })} size="sm" bind:value={draft.lag} inputmode="numeric" /></td>
+                  <td><Button size="sm" tone="secondary" onclick={() => saveTiming(each.link_id)}>{t('app.planning.save_timing')}</Button></td>
+                {:else}
+                  <td>{t(`app.planning.kind_${each.dependency_kind}`)}</td>
+                  <td>{each.lag_days}</td>
+                  <td></td>
+                {/if}
+                {#if mayWrite}
+                  <td>
+                    <Button
+                      size="sm"
+                      tone="subtle"
+                      icon="trash"
+                      aria-label={t('app.planning.remove_dependency_of', { waiting: titleOf(each.successor_id), waited: titleOf(each.predecessor_id) })}
+                      onclick={() => removeDependency(each.link_id, each.successor_id, each.predecessor_id)}
+                    >{t('app.planning.remove_dependency')}</Button>
+                  </td>
+                {/if}
+              </tr>
+            {/each}
+          </Table>
+        {/if}
+        {#if mayWrite && linkable.length > 1}
+          <div class="controls" role="group" aria-label={t('app.planning.add_dependency')} data-add-dependency>
+            <Select label={t('app.planning.new_waiting')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
+            <Select label={t('app.planning.new_waited')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
+            <Select label={t('app.planning.col_kind')} size="sm" bind:value={newKind} options={kinds} />
+            <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" />
+            <Button size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
+          </div>
+        {/if}
       </section>
     {/if}
 

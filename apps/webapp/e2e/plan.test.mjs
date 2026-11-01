@@ -78,6 +78,10 @@ async function plan(browser) {
     if (linked && method === 'POST') {
       return route.fulfill({ status: 201, json: { id: DRAWN, type: body.type, source_id: linked[1], target_id: body.target_id, created_at: `${today}T09:00:00Z`, waits: 'SOURCE', dependency_kind: 'FS', lag_days: 0 } });
     }
+    if (path === `/links/${DRAWN}/timing` && method === 'PUT') {
+      return route.fulfill({ json: { id: DRAWN, type: 'depends_on', source_id: THIRD.id, target_id: FIRST.id, created_at: `${today}T09:00:00Z`, waits: 'SOURCE', ...body } });
+    }
+    if (path === `/links/${LINK}` && method === 'DELETE') return route.fulfill({ status: 204 });
     if (path === `/links/${LINK}/timing` && method === 'PUT') {
       return route.fulfill({ json: { id: LINK, type: 'depends_on', source_id: SECOND.id, target_id: FIRST.id, created_at: `${today}T09:00:00Z`, waits: 'SOURCE', ...body } });
     }
@@ -221,6 +225,38 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   await page.waitForTimeout(300);
   const applied = written.find((each) => each.method === 'POST' && each.path === `/plans/${COLLECTION.id}/schedule:apply`);
   assert.deepEqual(applied?.body?.item_ids, [THIRD.id]);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: 1280 px — a dependency is added and removed without a pointer (SC 2.1.1, 2.5.7)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, written, close, unstubbed } = await plan(browser);
+  t.after(close);
+
+  // The knob the chart draws has no key bindings; the table beside it is the keyboard's way.
+  const adding = page.locator('[data-add-dependency]');
+  await adding.getByLabel('Waiting entry').selectOption(THIRD.id);
+  await adding.getByLabel('Waits for').selectOption(FIRST.id);
+  await adding.getByLabel('Kind').selectOption('SS');
+  await adding.getByLabel('Lag (working days)').fill('2');
+  await adding.getByRole('button', { name: 'Add a dependency' }).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(400);
+
+  const link = written.find((each) => each.method === 'POST' && each.path === `/items/${THIRD.id}/links`);
+  assert.deepEqual(link?.body, { target_id: FIRST.id, type: 'depends_on' }, `wrote ${JSON.stringify(written.map((each) => `${each.method} ${each.path}`))}`);
+  const timing = written.find((each) => each.method === 'PUT' && each.path === `/links/${DRAWN}/timing`);
+  assert.deepEqual(timing?.body, { dependency_kind: 'SS', lag_days: 2 });
+
+  // Each dependency the table lists can be taken back from it.
+  await page.getByRole('button', { name: `Remove the dependency of ${SECOND.title} on ${FIRST.title}` }).focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  assert.ok(written.some((each) => each.method === 'DELETE' && each.path === `/links/${LINK}`), 'the dependency was not removed');
+  await page.getByRole('status').filter({ hasText: `${SECOND.title} no longer waits for ${FIRST.title}.` }).first().waitFor({ timeout: 5_000 });
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);

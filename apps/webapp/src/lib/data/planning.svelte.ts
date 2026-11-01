@@ -70,6 +70,13 @@ class Planning {
     });
   }
 
+  /** A dependency taken back: the waiting entry no longer waits for the other. */
+  async unlink(planId: string, zone: string, linkId: string, waitingId: string, waitedId: string): Promise<void> {
+    await engine.mutate<void>('DELETE', `/links/${linkId}`, undefined, {
+      invalidates: [schedulePath(planId, zone), `/items/${waitingId}/links`, `/items/${waitedId}/links`],
+    });
+  }
+
   /** Keeps the plan as it is agreed now (PLN-04). */
   takeBaseline(planId: string, name: string): Promise<PlanBaseline> {
     return engine.mutate<PlanBaseline>('POST', baselinesPath(planId), { name }, {
