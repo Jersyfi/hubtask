@@ -131,7 +131,12 @@ services:
   app:
     image: ${HUBTASK_IMAGE:-ghcr.io/jersyfi/hubtask}:${HUBTASK_VERSION:?set HUBTASK_VERSION in .env to a release tag such as v0.9.1}
     restart: unless-stopped
+    # A memory limit comes with GOMEMLIMIT at about 90 % of it, or the runtime grows the heap until
+    # the kernel kills the process (deployment.md §2, "Memory"). The pair below is that section's
+    # example, not a measured recommendation - support-matrix.md §8 has what is measured.
+    # mem_limit: 1g
     environment:
+      # GOMEMLIMIT: 921MiB
       HUBTASK_ROLES: api,worker,scheduler,automation
       # The application role, not the owner: no SUPERUSER, no BYPASSRLS, not an owner - which is
       # what makes row level security the last, unbypassable boundary here too (ADR-0010).
