@@ -412,6 +412,20 @@ func (q *Queries) FindSlaPolicy(ctx context.Context, key string) (SlaPolicy, err
 	return i, err
 }
 
+const hubCalendarKeyHeld = `-- name: HubCalendarKeyHeld :one
+SELECT EXISTS (
+  SELECT 1 FROM hub_business_calendar WHERE tenant_id = current_tenant_id() AND key = $1
+) AS held
+`
+
+// Whether any hub keeps its own version of the key; served by hub_business_calendar_key_idx.
+func (q *Queries) HubCalendarKeyHeld(ctx context.Context, key string) (bool, error) {
+	row := q.db.QueryRow(ctx, hubCalendarKeyHeld, key)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const insertApproval = `-- name: InsertApproval :exec
 INSERT INTO approval (id, tenant_id, item_id, workflow_key, step_key, item_version, levels, decline_to,
                       due_hours, current_level, state, requested_by, requested_at, level_since, version)

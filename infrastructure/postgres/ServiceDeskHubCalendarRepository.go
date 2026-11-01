@@ -44,7 +44,7 @@ func (ServiceDeskHubCalendars) Insert(ctx context.Context, cal servicedesk.Calen
 		case isUniqueViolation(err):
 			return shared.ErrConflict.WithDetail("calendars.key_taken").WithParams(map[string]string{"key": cal.Key})
 		case isForeignKeyViolation(err):
-			// The workspace holds no calendar of the key, or the hub is gone.
+			// The hub is gone; the key is the use case's to check (migration 0327).
 			return shared.ErrNotFound.WithDetail("calendars.not_found")
 		}
 		return queryFailed("writing a hub's business calendar", err)
@@ -144,4 +144,17 @@ func (ServiceDeskHubCalendars) Delete(ctx context.Context, hubID shared.ID, key 
 		return shared.ErrNotFound.WithDetail("calendars.not_found")
 	}
 	return nil
+}
+
+// KeyHeld answers whether any hub of the workspace keeps its own version of the key.
+func (ServiceDeskHubCalendars) KeyHeld(ctx context.Context, key string) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	held, err := queries.HubCalendarKeyHeld(ctx, key)
+	if err != nil {
+		return false, queryFailed("reading whether a hub keeps a calendar", err)
+	}
+	return held, nil
 }

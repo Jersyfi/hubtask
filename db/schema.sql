@@ -7118,9 +7118,7 @@ CREATE TABLE hub_business_calendar (
   UNIQUE (tenant_id, id),
   CONSTRAINT hub_business_calendar_key_uq UNIQUE (tenant_id, hub_id, key),
   CONSTRAINT hub_business_calendar_hub_fkey
-    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
-  CONSTRAINT hub_business_calendar_key_fkey
-    FOREIGN KEY (tenant_id, key) REFERENCES business_calendar (tenant_id, key)
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX hub_business_calendar_key_idx ON hub_business_calendar (tenant_id, key);
 ALTER TABLE hub_business_calendar ENABLE ROW LEVEL SECURITY;

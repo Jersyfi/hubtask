@@ -243,6 +243,12 @@ FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') AND key = sqlc.arg(
 SELECT id, tenant_id, hub_id, key, name, spec, created_at, updated_at, version
 FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') ORDER BY key;
 
+-- name: HubCalendarKeyHeld :one
+-- Whether any hub keeps its own version of the key; served by hub_business_calendar_key_idx.
+SELECT EXISTS (
+  SELECT 1 FROM hub_business_calendar WHERE tenant_id = current_tenant_id() AND key = sqlc.arg('key')
+) AS held;
+
 -- name: DeleteHubCalendar :execrows
 DELETE FROM hub_business_calendar WHERE hub_id = sqlc.arg('hub_id') AND key = sqlc.arg('key');
 

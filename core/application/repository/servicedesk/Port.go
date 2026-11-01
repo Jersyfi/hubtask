@@ -38,6 +38,9 @@ type HubCalendars interface {
 	// OfHub answers the hub's calendars by key.
 	OfHub(ctx context.Context, hubID shared.ID) ([]servicedesk.Calendar, error)
 	Delete(ctx context.Context, hubID shared.ID, key string) error
+	// KeyHeld answers whether any hub keeps its own version of the key. The key itself is the
+	// use case's to check: the installation's calendars are no rows (migration 0327).
+	KeyHeld(ctx context.Context, key string) (bool, error)
 }
 
 // Policies stores the workspace's SLA policies.

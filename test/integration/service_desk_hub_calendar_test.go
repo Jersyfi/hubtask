@@ -18,9 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A hub keeps its own version of a workspace calendar under the workspace's key (migration 0270,
-// UC-SVC-01 check 5): stored and read back, refused under a key the workspace does not hold, the
-// workspace's calendar then in use, and the workspace next door reads none of it.
+// A hub keeps its own version of a calendar under its key (migrations 0270, 0327, UC-SVC-01 check
+// 5): stored and read back, under a key the workspace does not hold too - an installation's, which
+// the use case checks -, the key then held, and the workspace next door reads none of it.
 func TestAHubsCalendarStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -50,29 +50,35 @@ func TestAHubsCalendarStaysInItsWorkspace(t *testing.T) {
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return repo.HubCalendars().Insert(ctx, define(hub.ID, key+"x"))
-	}); !errors.Is(err, shared.ErrNotFound) {
-		t.Errorf("a hub's calendar under a key the workspace does not hold: %v", err)
+	}); err != nil {
+		t.Errorf("a hub's version of a calendar the installation offers: %v", err)
 	}
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		found, err := repo.HubCalendars().Find(ctx, hub.ID, key)
 		if err != nil || found.HubID != hub.ID || found.Calendar.Spec().Zone != officeCalendar(t).Spec().Zone {
 			return errors.Join(err, errors.New("the hub's calendar read back wrong"))
 		}
-		if list, err := repo.HubCalendars().OfHub(ctx, hub.ID); err != nil || len(list) != 1 {
+		if list, err := repo.HubCalendars().OfHub(ctx, hub.ID); err != nil || len(list) != 2 {
 			return errors.Join(err, errors.New("the hub lists its calendars wrong"))
 		}
 		return nil
 	}); err != nil {
 		t.Error(err)
 	}
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Calendars().Delete(ctx, key)
-	}); !errors.Is(err, shared.ErrConflict) {
-		t.Errorf("a workspace calendar a hub keeps its own version of was deleted: %v", err)
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		if held, err := repo.HubCalendars().KeyHeld(ctx, key); err != nil || !held {
+			return errors.Join(err, errors.New("the key a hub keeps a version of reads as not held"))
+		}
+		return nil
+	}); err != nil {
+		t.Error(err)
 	}
 	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if _, err := repo.HubCalendars().Find(ctx, hub.ID, key); !errors.Is(err, shared.ErrNotFound) {
 			return errors.Join(err, errors.New("the hub's calendar crossed the workspace"))
+		}
+		if held, err := repo.HubCalendars().KeyHeld(ctx, key); err != nil || held {
+			return errors.Join(err, errors.New("the workspace next door reads the key as held"))
 		}
 		return nil
 	}); err != nil {
@@ -81,6 +87,9 @@ func TestAHubsCalendarStaysInItsWorkspace(t *testing.T) {
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := repo.HubCalendars().Delete(ctx, hub.ID, key); err != nil {
 			return err
+		}
+		if held, err := repo.HubCalendars().KeyHeld(ctx, key); err != nil || held {
+			return errors.Join(err, errors.New("a key no hub keeps any more reads as held"))
 		}
 		return repo.Calendars().Delete(ctx, key)
 	}); err != nil {
