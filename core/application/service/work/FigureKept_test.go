@@ -178,3 +178,90 @@ func TestTheRecountRepairsADriftedFigure(t *testing.T) {
 type driftSignals struct{ count int64 }
 
 func (d *driftSignals) FigureDrifted(_ context.Context, count int64) { d.count += count }
+
+// slowFigures runs past the read's deadline on its first count and answers on the next, as a count
+// over a collection of hundreds of thousands of entries does; it remembers each count's deadline.
+type slowFigures struct {
+	figureStore
+	deadlines []time.Duration
+}
+
+func (s *slowFigures) Count(
+	ctx context.Context, requests []domain.FigureRequest, window domain.FigureWindow,
+) (map[shared.ID]domain.FigureCounts, error) {
+	deadline, _ := ctx.Deadline()
+	s.deadlines = append(s.deadlines, time.Until(deadline).Round(time.Second))
+	if len(s.deadlines) == 1 {
+		return nil, context.DeadlineExceeded
+	}
+	return s.figureStore.Count(ctx, requests, window)
+}
+
+// A count the read's deadline cut off is counted once more outside the read, under a deadline of its
+// own, and kept: the next read answers from it instead of paying the deadline and the mark again,
+// which at 10⁷ entries every read of the largest hub did (capacity-10000000-2026-11-01.md).
+func TestACountTheReadCouldNotWaitForIsCountedAfterwardsAndKept(t *testing.T) {
+	collection := countedCollection(collectionID)
+	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureProgress, domain.ItemTask, domain.ItemWorkPackage)}
+	store := &slowFigures{figureStore: figureStore{counts: map[shared.ID]domain.FigureCounts{collection.ID: {Done: 3, Total: 9}}}}
+	kept := &keptStore{changes: map[shared.ID]int64{collection.ID: 7}, kept: map[repository.KeptFigureKey]repository.KeptFigure{}}
+	jobs := &jobsAsked{}
+	var spawned []string
+	reader := FigureReader{
+		Figures: store, Clock: clock.Fixed(now), Profiles: &profiles{rows: seededProfiles()},
+		Kept: kept, Jobs: jobs,
+		Spawn: func(ctx context.Context, component string, fn func(context.Context)) {
+			spawned = append(spawned, component)
+			fn(ctx)
+		},
+	}
+
+	first := reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	if out := figureOutput(first[collection.ID]); out["unavailable"] != true {
+		t.Fatalf("the cut-off read answered %v", out)
+	}
+	if len(spawned) != 1 || len(store.deadlines) != 2 || store.deadlines[1] != figureCountDeadline {
+		t.Fatalf("spawned %v, deadlines %v", spawned, store.deadlines)
+	}
+	if len(kept.kept) != 1 {
+		t.Fatalf("the late count was not kept: %+v", kept.kept)
+	}
+	for _, figure := range kept.kept {
+		if figure.Changes != 7 || figure.Counts.Done != 3 {
+			t.Fatalf("kept %+v", figure)
+		}
+	}
+
+	second := reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	if len(store.deadlines) != 2 || second[collection.ID].Counts.Done != 3 {
+		t.Fatalf("the next read counted again (%d counts) or answered %+v", len(store.deadlines), second)
+	}
+}
+
+// While one late count for a figure runs, another cut-off read starts none: eight callers on a slow
+// hub would otherwise run eight counts of it at once.
+func TestOnlyOneLateCountRunsPerFigure(t *testing.T) {
+	collection := countedCollection(collectionID)
+	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureProgress, domain.ItemTask, domain.ItemWorkPackage)}
+	kept := &keptStore{changes: map[shared.ID]int64{collection.ID: 7}, kept: map[repository.KeptFigureKey]repository.KeptFigure{}}
+	var held []func(context.Context)
+	reader := FigureReader{
+		Figures:  &figureStore{err: context.DeadlineExceeded},
+		Clock:    clock.Fixed(now),
+		Profiles: &profiles{rows: seededProfiles()},
+		Kept:     kept, Jobs: &jobsAsked{},
+		Spawn: func(_ context.Context, _ string, fn func(context.Context)) { held = append(held, fn) },
+	}
+	for range 3 {
+		reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	}
+	if len(held) != 1 {
+		t.Fatalf("%d late counts started for one figure", len(held))
+	}
+	held[0](context.Background())
+	reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	if len(held) != 2 {
+		t.Fatalf("a finished late count left its figure blocked: %d started", len(held))
+	}
+	held[1](context.Background())
+}

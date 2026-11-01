@@ -6,6 +6,8 @@ package work
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"sync"
 	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
@@ -16,11 +18,25 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
 
 // figureDeadline bounds the figure statements of one read (rule 7). A figure that cannot be counted
 // in it is answered as unavailable; the read it rides on is never held up past it.
 const figureDeadline = 300 * time.Millisecond
+
+// figureCountDeadline bounds a count the read's deadline cut off, run again after the read (rule 7):
+// long enough for a collection of a million entries, short enough that a stuck one is let go.
+const figureCountDeadline = 20 * time.Second
+
+// lateCounts are the figures being counted after a read in this process, by workspace and kept key:
+// one late count per figure at a time, however many reads were cut off on it.
+var lateCounts sync.Map
+
+type lateCount struct {
+	tenant shared.ID
+	key    repository.KeptFigureKey
+}
 
 // FigureReader counts what counts in the collections a container read answers (UC-WRK-29; the
 // server counts, the client draws - domain-model.md §2). Called after the permission question and
@@ -40,6 +56,9 @@ type FigureReader struct {
 	Profiles metarepo.CapabilityProfiles
 	Kept     repository.KeptFigures
 	Jobs     FigureJobs
+	// Spawn runs a late count beside the read; concurrency.Go when unset, a test's own runner
+	// otherwise.
+	Spawn func(ctx context.Context, component string, fn func(context.Context))
 }
 
 // FigureJobs is the slice of the queue a read schedules the recount through.
@@ -136,6 +155,12 @@ func (r FigureReader) Count(
 			for _, request := range missing {
 				figures[request.CollectionID] = domain.UnavailableFigure(request, window)
 			}
+			// Cut off by the read's deadline, nothing would be kept, and every next read would
+			// pay the deadline again for the same mark: the count is run once more beside the
+			// read, under a deadline of its own, and what it counts kept.
+			if states != nil && (errors.Is(err, context.DeadlineExceeded) || bounded.Err() != nil) {
+				r.countLate(ctx, actor, uow, missing, window, states)
+			}
 			missing = nil
 		}
 		for _, request := range missing {
@@ -187,18 +212,76 @@ func keptAnswer(
 	return state.Kept.Counts, true
 }
 
+// countLate counts the requests a read was cut off on, outside the read and its deadline, and keeps
+// what it counted; a figure already being counted late in this process is left to that count.
+func (r FigureReader) countLate(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	requests []domain.FigureRequest, window domain.FigureWindow,
+	states map[repository.KeptFigureKey]repository.KeptFigureState,
+) {
+	var claimed []domain.FigureRequest
+	var keys []lateCount
+	for _, request := range requests {
+		key := lateCount{tenant: actor.TenantID, key: keptKey(request, window)}
+		if _, running := lateCounts.LoadOrStore(key, struct{}{}); running {
+			continue
+		}
+		claimed, keys = append(claimed, request), append(keys, key)
+	}
+	if len(claimed) == 0 {
+		return
+	}
+	spawn := r.Spawn
+	if spawn == nil {
+		spawn = concurrency.Go
+	}
+	spawn(context.WithoutCancel(ctx), "figure-late-count", func(ctx context.Context) {
+		defer func() {
+			for _, key := range keys {
+				lateCounts.Delete(key)
+			}
+		}()
+		bounded, cancel := context.WithTimeout(ctx, figureCountDeadline)
+		defer cancel()
+		var counted map[shared.ID]domain.FigureCounts
+		err := uow.WithinReadOnly(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			counted, err = r.Figures.Count(ctx, claimed, window)
+			return err
+		})
+		if err != nil {
+			return
+		}
+		// Stored at once: the read whose transaction keep would wait for has ended long since.
+		if figures := keptOf(claimed, window, states, counted); len(figures) > 0 {
+			r.store(ctx, actor, uow, figures, window)
+		}
+	})
+}
+
 // figureRecountAfter is how soon after a count was first kept the workspace's recount runs; the job
 // reschedules itself from then on (FigureRecount).
 const figureRecountAfter = 10 * time.Minute
 
 // keep stores what this read had to count, at the numbers of changes read before counting, once the
-// read's transaction has ended; and schedules the workspace's recount in the same transaction. Best
-// effort: a count that is not kept is counted again by the next read.
+// read's transaction has ended (store).
 func (r FigureReader) keep(
 	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
 	counted []domain.FigureRequest, window domain.FigureWindow,
 	states map[repository.KeptFigureKey]repository.KeptFigureState, counts map[shared.ID]domain.FigureCounts,
 ) {
+	figures := keptOf(counted, window, states, counts)
+	if len(figures) == 0 {
+		return
+	}
+	persistence.After(ctx, func(ctx context.Context) { r.store(ctx, actor, uow, figures, window) })
+}
+
+// keptOf is what may be kept of the counts: each at the number of changes read before counting.
+func keptOf(
+	counted []domain.FigureRequest, window domain.FigureWindow,
+	states map[repository.KeptFigureKey]repository.KeptFigureState, counts map[shared.ID]domain.FigureCounts,
+) []repository.KeptFigure {
 	figures := make([]repository.KeptFigure, 0, len(counted))
 	for _, request := range counted {
 		key := keptKey(request, window)
@@ -211,22 +294,26 @@ func (r FigureReader) keep(
 			Counts: counts[request.CollectionID], CountedAt: window.Now, Present: true,
 		})
 	}
-	if len(figures) == 0 {
-		return
-	}
-	persistence.After(ctx, func(ctx context.Context) {
-		bounded, cancel := context.WithTimeout(ctx, figureDeadline)
-		defer cancel()
-		_ = uow.Within(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
-			if err := r.Kept.Keep(ctx, figures); err != nil {
-				return err
-			}
-			if r.Jobs == nil {
-				return nil
-			}
-			_, err := r.Jobs.Enqueue(ctx, queue.FigureRecount(actor.TenantID, window.Now.Add(figureRecountAfter)))
+	return figures
+}
+
+// store keeps the figures and schedules the workspace's recount in the same transaction. Best
+// effort: a count that is not kept is counted again by the next read.
+func (r FigureReader) store(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	figures []repository.KeptFigure, window domain.FigureWindow,
+) {
+	bounded, cancel := context.WithTimeout(ctx, figureDeadline)
+	defer cancel()
+	_ = uow.Within(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := r.Kept.Keep(ctx, figures); err != nil {
 			return err
-		})
+		}
+		if r.Jobs == nil {
+			return nil
+		}
+		_, err := r.Jobs.Enqueue(ctx, queue.FigureRecount(actor.TenantID, window.Now.Add(figureRecountAfter)))
+		return err
 	})
 }
 

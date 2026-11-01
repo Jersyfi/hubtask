@@ -241,7 +241,10 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   collection's number of changes is the one it was counted at (migration 0292): every write to an
   entry, a board column or a custom field definition moves that number by trigger in its own
   transaction, a workspace-wide definition every collection's; `FLOW` and `RHYTHM`, which the clock
-  moves, answer from a kept count for a minute at most. The workspace's `figure.recount` folds the
+  moves, answer from a kept count for a minute at most. A count the read's deadline cuts off is
+  marked `unavailable` on that read and counted once more beside it, under a deadline of its own and
+  one at a time per figure, and kept: the next read answers from it instead of paying the deadline
+  again. The workspace's `figure.recount` folds the
   recorded changes, drops what no read can be answered from and recounts the kept counts, writing
   the fresh count over one a write outside the workspace's context left wrong
   (`hubtask_figure_drift_total`). `FLOW` counts the top-level entries completed in the seven days up to the read, the average
