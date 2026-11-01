@@ -39,6 +39,8 @@ export interface RenderedProblem {
    * can copy it - an internal error without its reference is a support thread nobody can trace.
    */
   readonly reference?: string;
+  /** The request id whenever there is one, in the sentence or not: what a copy control copies. */
+  readonly requestId?: string;
   /** Whether this is the server's fault. What decides whether a retry is offered as the answer. */
   readonly isServerFault: boolean;
 }
@@ -118,7 +120,7 @@ export function renderProblem(error: TransportError, messages: Messages): Render
   const isServerFault = error.kind !== 'problem' || (error.status ?? 0) >= 500;
   const reference = error.requestId && !message.includes(error.requestId) ? error.requestId : undefined;
 
-  return { message, fields, reference, isServerFault };
+  return { message, fields, reference, requestId: error.requestId, isServerFault };
 }
 
 /** A refusal a job ended with: the code and parameters `GET /jobs/{id}` answers. */

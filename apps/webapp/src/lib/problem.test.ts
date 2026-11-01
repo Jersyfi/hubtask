@@ -81,6 +81,16 @@ test('a reference the sentence does not carry is handed to the frame', () => {
   assert.equal(rendered.reference, 'r-77');
 });
 
+// The copy control copies the reference itself, whether the sentence carries it or the frame does.
+test('the reference is handed over for copying whether or not the sentence carries it', () => {
+  const said = renderProblem(new TransportError('problem', { status: 403, code: 'forbidden', requestId: 'r-77' }), messages);
+  const beside = renderProblem(new TransportError('problem', { status: 404, code: 'not_found', requestId: 'r-78' }), messages);
+  const none = renderProblem(new TransportError('timeout'), messages);
+  assert.equal(said.requestId, 'r-77');
+  assert.equal(beside.requestId, 'r-78');
+  assert.equal(none.requestId, undefined);
+});
+
 test('a failure that never reached the server still says something true', () => {
   for (const [kind, expected] of [
     ['offline', 'Hubtask cannot reach the server. Check the connection and try again.'],
