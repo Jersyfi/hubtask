@@ -4887,6 +4887,7 @@
   "app.backup.download": "Download workspace",
   "app.backup.downloading": "Preparing the download…",
   "app.backup.download_done": "The workspace was downloaded.",
+  "app.backup.download_incomplete": "The download broke off before the archive was complete, so the file was discarded. Download it again.",
   "app.backup.no_targets": "No target is configured, so nothing is being backed up.",
   "app.backup.add_target": "Add a target",
   "app.backup.add": "Add",

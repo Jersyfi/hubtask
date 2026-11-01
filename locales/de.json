@@ -4261,6 +4261,7 @@
   "app.backup.download": "Arbeitsbereich herunterladen",
   "app.backup.downloading": "Der Download wird vorbereitet …",
   "app.backup.download_done": "Der Arbeitsbereich wurde heruntergeladen.",
+  "app.backup.download_incomplete": "Der Download brach ab, bevor das Archiv vollständig war; die Datei wurde verworfen. Lade den Arbeitsbereich erneut herunter.",
   "app.backup.no_targets": "Kein Ziel ist eingerichtet, darum wird nichts gesichert.",
   "app.backup.add_target": "Ziel hinzufügen",
   "app.backup.add": "Hinzufügen",

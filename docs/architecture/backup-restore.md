@@ -215,7 +215,10 @@ data:
 * One route hands an archive to a caller: the owner's download of the whole workspace
   (`POST /backups:download-workspace`, `hubctl backup download --out <file>`; UC-BAK-07 check 7),
   once in 24 hours, audited as `tenant.exported` with `download` as its target. `hubctl` keeps the
-  file only once its ZIP directory reads, so a cut transfer leaves nothing behind. MCP has no door
+  file only once its ZIP directory reads, so a cut transfer leaves nothing behind. The web app writes
+  it to a place the person picks as it arrives where the browser has a save picker, and keeps it
+  only when it ends with the ZIP's end record (`zipComplete`); a browser without one holds the whole
+  file in the tab's memory before handing it over. MCP has no door
   for it: a tool's answer is a message, not a stream of a whole workspace. Each download holds a
   pool connection and its snapshot while the data files stream (the media follow after it ends),
   so one process streams at most

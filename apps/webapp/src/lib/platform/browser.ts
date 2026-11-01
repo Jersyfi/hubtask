@@ -111,4 +111,24 @@ export const platform: Platform = {
     link.remove();
     URL.revokeObjectURL(url);
   },
+
+  saveStream: async (fileName) => {
+    // The File System Access picker, where the browser has one; the DOM library does not type it.
+    const picker = (window as { showSaveFilePicker?: (options: { suggestedName: string }) => Promise<SavePick> })
+      .showSaveFilePicker;
+    if (typeof picker !== 'function') return undefined;
+    try {
+      const handle = await picker.call(window, { suggestedName: fileName });
+      return await handle.createWritable();
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return null;
+      // Refused for another reason (no press left, a policy): the file is still owed, by saveFile.
+      return undefined;
+    }
+  },
 };
+
+/** The part of a picked file handle this seam uses. */
+interface SavePick {
+  createWritable(): Promise<WritableStream<Uint8Array>>;
+}

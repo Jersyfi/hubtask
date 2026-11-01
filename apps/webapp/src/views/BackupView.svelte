@@ -42,6 +42,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
+  import { zipComplete } from '../lib/data/zipComplete.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -236,11 +237,29 @@
   /** Encrypts the file to it when given; stored nowhere, so it is the one key to the file. */
   let downloadPassphrase = $state('');
   async function downloadWorkspace(): Promise<void> {
+    // The picker first, while the press still counts: a whole workspace goes to the disk as it
+    // arrives where the browser offers that, and through memory only where it does not.
+    const target = await platform.saveStream('hubtask-export.zip');
+    if (target === null) return;
     isDownloading = true;
     await attempt(async () => {
-      const file = await stepUp.around((token) => backup.downloadWorkspace(token, downloadPassphrase));
-      downloadPassphrase = '';
-      platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
+      if (target === undefined) {
+        const file = await stepUp.around((token) => backup.downloadWorkspace(token, downloadPassphrase));
+        downloadPassphrase = '';
+        platform.saveFile(file.body, file.fileName ?? 'hubtask-export.zip');
+        return;
+      }
+      // Kept only when whole: an archive the server broke off is discarded, not left looking saved.
+      const sink = zipComplete(target);
+      let isWritten = false;
+      try {
+        await stepUp.around((token) => backup.downloadWorkspaceTo(sink, token, downloadPassphrase));
+        isWritten = true;
+        downloadPassphrase = '';
+      } finally {
+        // A refusal or a closed proof prompt never touched the file; it is discarded all the same.
+        if (!isWritten) await sink.abort().catch(() => undefined);
+      }
     }, t('app.backup.download_done'));
     isDownloading = false;
   }
