@@ -59,6 +59,7 @@ func (f *resetFixture) mintedFor(t *testing.T, at time.Time, purpose domain.Pend
 const resetRowID = shared.ID("018f2a1b-0000-7000-8000-00000000cc01")
 
 // The link sets the password, ends every session, and answers a session of its own.
+// UC-ID-04 check 4: an account without a second factor is signed in after setting the password.
 func TestAResetSetsThePasswordAndOpensASession(t *testing.T) {
 	fixture := newResetFixture(now)
 	token := fixture.mintedFor(t, now, domain.PendingReset)
