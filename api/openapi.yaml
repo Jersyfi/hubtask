@@ -24042,7 +24042,12 @@ components:
       type: object
       required: [status, code]
       properties:
-        type: { type: string, format: uri }
+        type:
+          type: string
+          format: uri
+          description: >
+            The problem type's identifier. It is stable; a client tells problems apart by `code`,
+            never by parsing this value.
         title: { type: string }
         status: { type: integer }
         code:
@@ -24066,7 +24071,12 @@ components:
                 type: object
                 additionalProperties: true
         request_id: { type: string }
-        docs: { type: string, format: uri }
+        docs:
+          type: string
+          format: uri
+          description: >
+            A page that explains `code`: what it means and what to do next
+            (`https://hubtask.eu/errors/<code>/`).
 
     PageInfo:
       type: object

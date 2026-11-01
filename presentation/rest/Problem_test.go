@@ -48,8 +48,13 @@ func TestEveryCategoryMapsToItsDocumentedStatus(t *testing.T) {
 			if got.Title != tc.code {
 				t.Errorf("title = %q, want the code %q", got.Title, tc.code)
 			}
-			if got.Docs != "https://docs.hubtask.dev/errors/"+tc.code {
+			// docs is the page the website builds per code (apps/website, /errors/<code>/);
+			// type stays the identifier it has always been.
+			if got.Docs != "https://hubtask.eu/errors/"+tc.code+"/" {
 				t.Errorf("docs = %q", got.Docs)
+			}
+			if got.Type != "https://docs.hubtask.dev/errors/"+tc.code {
+				t.Errorf("type = %q", got.Type)
 			}
 			if got.RequestID != "01J9" {
 				t.Errorf("request_id = %q, want 01J9", got.RequestID)

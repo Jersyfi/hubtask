@@ -340,9 +340,13 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
   "params": { "item_type": "ACTIVITY", "capability": "COVER" },
   "field_errors": [ { "path": "/cover", "code": "not_allowed" } ],
   "request_id": "01J9…",
-  "docs": "https://docs.hubtask.dev/errors/capability_not_supported"
+  "docs": "https://hubtask.eu/errors/capability_not_supported/"
 }
 ```
+
+* `type` is the problem type's identifier and stays as published; `docs` is the website's page for
+  the code (`apps/website`, `/errors/<code>/`), one per wire code, held to them by
+  `test/architecture/errorpages_test.go`.
 
 * `code` is stable and machine-readable (part of the contract, SemVer-relevant).
 * `detail_code` plus `params` let the client localise without server-side prose

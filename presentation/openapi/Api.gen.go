@@ -21174,7 +21174,9 @@ type Problem struct {
 	Code string `json:"code"`
 
 	// DetailCode The message code for localisation in the client.
-	DetailCode  *string `json:"detail_code,omitempty"`
+	DetailCode *string `json:"detail_code,omitempty"`
+
+	// Docs A page that explains `code`: what it means and what to do next (`https://hubtask.eu/errors/<code>/`).
 	Docs        *string `json:"docs,omitempty"`
 	FieldErrors *[]struct {
 		Code   *string                 `json:"code,omitempty"`
@@ -21185,7 +21187,9 @@ type Problem struct {
 	RequestId *string                 `json:"request_id,omitempty"`
 	Status    int                     `json:"status"`
 	Title     *string                 `json:"title,omitempty"`
-	Type      *string                 `json:"type,omitempty"`
+
+	// Type The problem type's identifier. It is stable; a client tells problems apart by `code`, never by parsing this value.
+	Type *string `json:"type,omitempty"`
 }
 
 // ProcessingRestriction defines model for ProcessingRestriction.

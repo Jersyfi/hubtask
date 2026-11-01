@@ -35201,7 +35201,8 @@
         "properties": {
           "type": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "description": "The problem type's identifier. It is stable; a client tells problems apart by `code`, never by parsing this value.\n"
           },
           "title": {
             "type": "string"
@@ -35249,7 +35250,8 @@
           },
           "docs": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "description": "A page that explains `code`: what it means and what to do next (`https://hubtask.eu/errors/<code>/`).\n"
           }
         }
       },
