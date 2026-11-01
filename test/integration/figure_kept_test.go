@@ -153,8 +153,14 @@ func TestAKeptFigureMovesWithEveryWriteInItsWorkspace(t *testing.T) {
 		t.Fatalf("the fold moved changes from %d to %d", settled, got)
 	}
 
-	// Another workspace sees neither the kept count nor the changes, and its passes leave them.
-	if foreign := keptState(ctx, t, tenantA, key); foreign.Kept.Present || foreign.Changes != 0 {
+	// Another workspace sees neither the kept count nor the changes, and its passes leave them. Its
+	// own workspace-wide definitions count in every key it asks about, so what it sees of this
+	// collection is what it sees of one it has never written to - however many such definitions
+	// other tests left there.
+	nowhere := key
+	nowhere.CollectionID = freshID(t)
+	if foreign := keptState(ctx, t, tenantA, key); foreign.Kept.Present ||
+		foreign.Changes != keptState(ctx, t, tenantA, nowhere).Changes {
 		t.Fatalf("tenant A sees %+v", foreign)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
