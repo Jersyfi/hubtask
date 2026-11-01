@@ -4079,8 +4079,9 @@ paths:
       description: >
         Where the request stands, the public replies - never an internal note -, how its SLA
         goals stand and the caller's own satisfaction score. A request somebody else raised is not
-        found, unless they are of the caller's organisation and it shares its requests. Needs
-        REQUEST at its collection.
+        found, unless they are of the caller's organisation and it shares its requests. A request
+        merged into another names the surviving one in `merged_into`, with its standing and public
+        replies where the caller holds REQUEST at its collection. Needs REQUEST at its collection.
       responses:
         "200":
           description: The request
@@ -29340,6 +29341,49 @@ components:
                   mine: { type: boolean }
                   by_requester: { type: boolean, description: "Whether whoever raised the request wrote it; false for the team." }
             sla: { type: array, items: { $ref: "#/components/schemas/EntrySlaGoal" } }
+            merged_into:
+              description: >
+                The request this one was merged into, which carries the answer from then on; null
+                when it was not merged.
+              oneOf:
+                - $ref: "#/components/schemas/PortalMergedRequest"
+                - type: "null"
+
+    PortalMergedRequest:
+      type: object
+      description: >
+        The request a requester's own was merged into, as its requester reads it: where it stands,
+        the team's public replies and its SLA goals - never an internal note, the team's fields or
+        what its own requester wrote. When the
+        caller may not raise requests where it now is, only its number is given and `readable` is
+        false.
+      required: [id, number, readable, title, status, is_completed, completed_at, comments, sla]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: integer, format: int64 }
+        readable: { type: boolean }
+        title: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        is_completed: { type: boolean }
+        completed_at: { type: [string, "null"], format: date-time }
+        comments:
+          type: array
+          description: The team's public replies, oldest first; at most 200, the newest.
+          items: { $ref: "#/components/schemas/PortalReply" }
+        sla: { type: array, items: { $ref: "#/components/schemas/EntrySlaGoal" } }
+
+    PortalReply:
+      type: object
+      description: A public reply on a request as its requester reads it.
+      required: [id, author_id, body, created_at, parent_comment_id, mine]
+      properties:
+        id: { type: string, format: uuid }
+        author_id: { type: string, format: uuid }
+        body: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        parent_comment_id: { type: [string, "null"], format: uuid }
+        mine: { type: boolean }
+        by_requester: { type: boolean, description: "Whether whoever raised the request wrote it; false for the team." }
 
     EntrySlaList:
       type: object

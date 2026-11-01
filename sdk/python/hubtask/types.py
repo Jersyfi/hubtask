@@ -2262,6 +2262,29 @@ class PortalRequestDetail(TypedDict, total=False):
     satisfaction: Required["RequestSatisfaction" | Any]
     comments: Required[list[dict[str, Any]]]
     sla: Required[list["EntrySlaGoal"]]
+    merged_into: "PortalMergedRequest" | Any
+
+class PortalMergedRequest(TypedDict, total=False):
+    """The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false."""
+    id: Required[str]
+    number: Required[int]
+    readable: Required[bool]
+    title: Required[str | None]
+    status: Required[str | None]
+    is_completed: Required[bool]
+    completed_at: Required[str | None]
+    comments: Required[list["PortalReply"]]
+    sla: Required[list["EntrySlaGoal"]]
+
+class PortalReply(TypedDict, total=False):
+    """A public reply on a request as its requester reads it."""
+    id: Required[str]
+    author_id: Required[str]
+    body: Required[str | None]
+    created_at: Required[str]
+    parent_comment_id: Required[str | None]
+    mine: Required[bool]
+    by_requester: bool
 
 class EntrySlaList(TypedDict, total=False):
     data: Required[list["EntrySlaGoal"]]

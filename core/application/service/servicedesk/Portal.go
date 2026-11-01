@@ -6,6 +6,7 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"slices"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/servicedesk"
@@ -74,6 +75,12 @@ type Portal struct {
 	Accounts identityrepo.Accounts
 	// Logos answers the desk's own logo (UC-SVC-05 check 9); nil draws every desk by its icon.
 	Logos repository.DeskLogos
+	// Links finds the request a requester's own was merged into (UC-SVC-05 check 10); nil
+	// follows no merge.
+	Links MergeLinks
+	// Permits asks, without recording a refusal, whether the reader may raise requests where the
+	// surviving request lies; nil reads it only in the merged request's own collection.
+	Permits Permitter
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
@@ -557,10 +564,22 @@ type MyRequest struct {
 	Goals    []domain.EntrySLA
 	// Rating is the requester's own score, nil while they have given none (UC-SVC-07).
 	Rating *domain.Rating
+	// MergedInto is the request this one was merged into, nil when it was not.
+	MergedInto *MergedRequest
+}
+
+// MergedRequest is the surviving request of a merge as the merged request's requester reads it:
+// its public discussion and goals when Readable, its number alone otherwise.
+type MergedRequest struct {
+	Item     workdomain.WorkItem
+	Readable bool
+	Comments []workdomain.Comment
+	Goals    []domain.EntrySLA
 }
 
 // ReadMyRequest answers one of the actor's requests: where it stands, the public replies and
-// never an internal note, and its SLA goals (UC-SVC-05 check 4, UC-SVC-04 check 2).
+// never an internal note, and its SLA goals (UC-SVC-05 check 4, UC-SVC-04 check 2); a merged
+// request names the one it was merged into with the same view (check 10).
 type ReadMyRequest struct{ Portal Portal }
 
 // Execute answers the request.
@@ -569,24 +588,13 @@ func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 	if err != nil {
 		return MyRequest{}, err
 	}
-	answer := MyRequest{Item: item, Comments: []workdomain.Comment{}}
+	answer := MyRequest{Item: item}
+	var survivor shared.ID
 	err = h.Portal.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		cursor := ""
-		for {
-			page, err := h.Portal.Comments.List(ctx, itemID, workrepo.Page{Cursor: cursor, Size: maxRequestPage})
-			if err != nil {
-				return err
-			}
-			answer.Comments = append(answer.Comments, PublicComments(page.Comments)...)
-			if !page.Info.HasMore || len(answer.Comments) >= MaxPortalComments {
-				break
-			}
-			cursor = page.Info.NextCursor
+		if answer.Comments, answer.Goals, err = h.Portal.publicView(ctx, itemID); err != nil {
+			return err
 		}
-		if len(answer.Comments) > MaxPortalComments {
-			answer.Comments = answer.Comments[len(answer.Comments)-MaxPortalComments:]
-		}
-		if answer.Goals, err = h.Portal.Desk.Records.OfItem(ctx, itemID); err != nil {
+		if survivor, err = h.Portal.mergedInto(ctx, itemID); err != nil {
 			return err
 		}
 		// The score is its requester's own; a colleague reads the request without it.
@@ -603,7 +611,106 @@ func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 		answer.Rating = &rating
 		return nil
 	})
+	if err != nil || survivor.IsZero() {
+		return answer, err
+	}
+	answer.MergedInto, err = h.Portal.survivor(ctx, actor, item, survivor)
 	return answer, err
+}
+
+// publicView reads what a requester reads of a request: its public replies, the newest
+// MaxPortalComments, and its SLA goals. Inside the caller's transaction.
+func (p Portal) publicView(ctx context.Context, itemID shared.ID) ([]workdomain.Comment, []domain.EntrySLA, error) {
+	comments := []workdomain.Comment{}
+	cursor := ""
+	for {
+		page, err := p.Comments.List(ctx, itemID, workrepo.Page{Cursor: cursor, Size: maxRequestPage})
+		if err != nil {
+			return nil, nil, err
+		}
+		comments = append(comments, PublicComments(page.Comments)...)
+		if !page.Info.HasMore || len(comments) >= MaxPortalComments {
+			break
+		}
+		cursor = page.Info.NextCursor
+	}
+	if len(comments) > MaxPortalComments {
+		comments = comments[len(comments)-MaxPortalComments:]
+	}
+	goals, err := p.Desk.Records.OfItem(ctx, itemID)
+	return comments, goals, err
+}
+
+// mergedInto answers the target of the request's own outgoing duplicates link - the request it
+// was merged into (MergeWorkItems) -, zero for none. Inside the caller's transaction.
+func (p Portal) mergedInto(ctx context.Context, itemID shared.ID) (shared.ID, error) {
+	if p.Links == nil {
+		return "", nil
+	}
+	links, err := p.Links.Of(ctx, itemID, maxLinksForMerges)
+	if err != nil {
+		return "", err
+	}
+	for _, link := range links {
+		if link.Type == workdomain.LinkTypeDuplicates && link.SourceID == itemID && link.TargetID != itemID {
+			return link.TargetID, nil
+		}
+	}
+	return "", nil
+}
+
+// survivor reads the request a merged one went into for the merged one's reader. Its standing and
+// public replies are read only where the reader may raise requests - its own collection, or one
+// where Permits answers REQUEST -, so a merge across desks reveals nothing but a number; of its
+// replies the team's alone, never what its own requester wrote. A trashed survivor is not named.
+func (p Portal) survivor(
+	ctx context.Context, actor appshared.ActorContext, merged workdomain.WorkItem, survivorID shared.ID,
+) (*MergedRequest, error) {
+	var (
+		answer     MergedRequest
+		collection workdomain.Container
+	)
+	err := p.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := p.Items.Find(ctx, survivorID)
+		if err != nil {
+			return err
+		}
+		answer.Item = found
+		if found.DeletedAt != nil || found.CollectionID == merged.CollectionID {
+			return nil
+		}
+		collection, err = p.Containers.Find(ctx, found.CollectionID)
+		return err
+	})
+	switch {
+	case errors.Is(err, shared.ErrNotFound):
+		return nil, nil
+	case err != nil:
+		return nil, err
+	case answer.Item.DeletedAt != nil:
+		return nil, nil
+	}
+	answer.Readable = answer.Item.CollectionID == merged.CollectionID
+	if !answer.Readable && p.Permits != nil {
+		if answer.Readable, err = p.Permits.Permits(ctx, actor, access.Request{
+			Permission: service.PermissionRequest, Path: service.ContainerScopes(collection),
+			Action: RequestsReadAction, TokenScope: deskRead, TargetType: requestTarget, TargetID: survivorID,
+		}); err != nil {
+			return nil, err
+		}
+	}
+	if !answer.Readable {
+		return &answer, nil
+	}
+	err = p.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		answer.Comments, answer.Goals, err = p.publicView(ctx, survivorID)
+		return err
+	})
+	// The team's replies: what the survivor's own requester wrote is theirs, not the reader's.
+	answer.Comments = slices.DeleteFunc(answer.Comments, func(c workdomain.Comment) bool {
+		return c.AuthorID == answer.Item.CreatedBy && c.AuthorID != actor.AccountID
+	})
+	return &answer, err
 }
 
 // PublicComments keeps what a requester reads: what somebody wrote and did not mark internal.
@@ -638,31 +745,69 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			out := requestOutputFor(answer.Item, actor.AccountID)
-			comments := make([]usecase.Output, 0, len(answer.Comments))
-			for _, comment := range answer.Comments {
-				body := any(nil)
-				if comment.DeletedAt == nil {
-					body = comment.Body
-				}
-				reply := usecase.Output{
-					"id": comment.ID.String(), "author_id": comment.AuthorID.String(), "body": body,
-					"created_at": comment.CreatedAt.UTC(), "parent_comment_id": nil,
-					"mine": comment.AuthorID == actor.AccountID, "by_requester": comment.AuthorID == answer.Item.CreatedBy,
-				}
-				if !comment.ParentCommentID.IsZero() {
-					reply["parent_comment_id"] = comment.ParentCommentID.String()
-				}
-				comments = append(comments, reply)
-			}
-			goals := make([]usecase.Output, 0, len(answer.Goals))
-			for _, goal := range answer.Goals {
-				goals = append(goals, RecordOutput(goal))
-			}
-			out["comments"], out["sla"] = comments, goals
+			out["comments"] = repliesOutput(answer.Comments, actor.AccountID, answer.Item.CreatedBy)
+			out["sla"] = goalsOutput(answer.Goals)
+			out["merged_into"] = mergedOutput(answer.MergedInto, actor.AccountID)
 			out["satisfaction"] = RatingOutput(answer.Rating)
 			return out, nil
 		}),
 	}, requestTarget)
+}
+
+// repliesOutput is the public replies as the contract names them (schema PortalReply).
+func repliesOutput(replies []workdomain.Comment, reader, requester shared.ID) []usecase.Output {
+	out := make([]usecase.Output, 0, len(replies))
+	for _, comment := range replies {
+		body := any(nil)
+		if comment.DeletedAt == nil {
+			body = comment.Body
+		}
+		reply := usecase.Output{
+			"id": comment.ID.String(), "author_id": comment.AuthorID.String(), "body": body,
+			"created_at": comment.CreatedAt.UTC(), "parent_comment_id": nil,
+			"mine": comment.AuthorID == reader, "by_requester": comment.AuthorID == requester,
+		}
+		if !comment.ParentCommentID.IsZero() {
+			reply["parent_comment_id"] = comment.ParentCommentID.String()
+		}
+		out = append(out, reply)
+	}
+	return out
+}
+
+func goalsOutput(goals []domain.EntrySLA) []usecase.Output {
+	out := make([]usecase.Output, 0, len(goals))
+	for _, goal := range goals {
+		out = append(out, RecordOutput(goal))
+	}
+	return out
+}
+
+// mergedOutput is the surviving request (schema PortalMergedRequest), nil when not merged. Its
+// replies say "by requester" of the merged request's reader: to them the survivor's requester is
+// somebody else, whose words read as anybody's.
+func mergedOutput(merged *MergedRequest, reader shared.ID) any {
+	if merged == nil {
+		return nil
+	}
+	out := usecase.Output{
+		"id": merged.Item.ID.String(), "number": merged.Item.Number, "readable": merged.Readable,
+		"title": nil, "status": nil, "is_completed": false, "completed_at": nil,
+		"comments": []usecase.Output{}, "sla": []usecase.Output{},
+	}
+	if !merged.Readable {
+		return out
+	}
+	out["title"], out["is_completed"] = merged.Item.Title, merged.Item.Completion.IsCompleted
+	if merged.Item.Status != "" {
+		out["status"] = merged.Item.Status
+	}
+	if merged.Item.Completion.CompletedAt != nil {
+		out["completed_at"] = merged.Item.Completion.CompletedAt.UTC()
+	}
+	out["comments"] = repliesOutput(merged.Comments, reader, reader)
+	out["sla"] = goalsOutput(merged.Goals)
+	return out
 }
 
 // CommentOnMyRequest answers on one of the actor's requests (UC-SVC-05 check 5): a public

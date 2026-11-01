@@ -20471,10 +20471,37 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PortalMergedRequest The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false.
+type PortalMergedRequest struct {
+	// Comments The team's public replies, oldest first; at most 200, the newest.
+	Comments    []PortalReply      `json:"comments"`
+	CompletedAt *time.Time         `json:"completed_at"`
+	Id          openapi_types.UUID `json:"id"`
+	IsCompleted bool               `json:"is_completed"`
+	Number      int64              `json:"number"`
+	Readable    bool               `json:"readable"`
+	Sla         []EntrySlaGoal     `json:"sla"`
+	Status      *string            `json:"status"`
+	Title       *string            `json:"title"`
+}
+
 // PortalOrganisation The organisation a requester belongs to, as the portal names it.
 type PortalOrganisation struct {
 	Name           string `json:"name"`
 	SharesRequests bool   `json:"shares_requests"`
+}
+
+// PortalReply A public reply on a request as its requester reads it.
+type PortalReply struct {
+	AuthorId openapi_types.UUID `json:"author_id"`
+	Body     *string            `json:"body"`
+
+	// ByRequester Whether whoever raised the request wrote it; false for the team.
+	ByRequester     *bool               `json:"by_requester,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
+	Id              openapi_types.UUID  `json:"id"`
+	Mine            bool                `json:"mine"`
+	ParentCommentId *openapi_types.UUID `json:"parent_comment_id"`
 }
 
 // PortalRequest A request as the person who raised it reads it - never the team's fields.
@@ -20518,9 +20545,12 @@ type PortalRequestDetail struct {
 	IsCompleted bool               `json:"is_completed"`
 
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
-	IsOwn  *bool   `json:"is_own,omitempty"`
-	Notes  *string `json:"notes"`
-	Number int64   `json:"number"`
+	IsOwn *bool `json:"is_own,omitempty"`
+
+	// MergedInto The request this one was merged into, which carries the answer from then on; null when it was not merged.
+	MergedInto *PortalMergedRequest `json:"merged_into,omitempty"`
+	Notes      *string              `json:"notes"`
+	Number     int64                `json:"number"`
 
 	// Satisfaction The caller's own score of the resolved request; null while they gave none.
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`

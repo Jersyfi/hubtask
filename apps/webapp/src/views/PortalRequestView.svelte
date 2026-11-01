@@ -3,7 +3,8 @@
 <script lang="ts">
   // One of the reader's own requests (UC-SVC-05 checks 4 and 5, UC-SVC-07 check 1): where it
   // stands, how its promised times stand, the team's public replies - never an internal note -,
-  // an answer of their own, and once it is resolved how satisfied they were.
+  // an answer of their own, and once it is resolved how satisfied they were. A request merged into
+  // another shows the surviving one's standing and public replies (check 10).
 
   import { untrack } from 'svelte';
   import { Badge, Button, ErrorState, PageHeader, Radio, Skeleton, Stack, Textarea } from '@hubtask/design-system/components';
@@ -85,6 +86,36 @@
     </div>
     {#if detail.notes}<p class="notes">{detail.notes}</p>{/if}
 
+    {#if detail.merged_into}
+      {@const into = detail.merged_into}
+      <section class="merged" aria-labelledby="portal-merged">
+        <Stack gap="100">
+          <div class="standing">
+            <h2 class="heading" id="portal-merged">{t('app.portal.merged_title', { number: into.number })}</h2>
+            {#if into.readable}
+              <Badge tone={into.is_completed ? 'success' : 'info'} size="sm">
+                {into.is_completed ? t('app.portal.resolved') : (into.status ?? t('app.portal.open'))}
+              </Badge>
+            {/if}
+          </div>
+          {#if into.readable}
+            <p class="quiet">{t('app.portal.merged_body')}</p>
+            {#if into.title}<p class="notes">{into.title}</p>{/if}
+            <h3 class="heading">{t('app.portal.merged_replies', { number: into.number })}</h3>
+            {#if into.comments.length === 0}<p class="quiet">{t('app.portal.replies_none')}</p>{/if}
+            <ol class="replies">
+              {#each into.comments as comment (comment.id)}
+                <li><span class="who">{t('app.portal.team')} · {at(comment.created_at)}</span>
+                  <p class="body">{comment.body ?? ''}</p></li>
+              {/each}
+            </ol>
+          {:else}
+            <p class="quiet">{t('app.portal.merged_unreadable', { number: into.number })}</p>
+          {/if}
+        </Stack>
+      </section>
+    {/if}
+
     {#if detail.sla.length > 0}
       <section aria-labelledby="portal-goals">
         <Stack gap="050">
@@ -161,4 +192,5 @@
   .replies li { padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); }
   .replies li.mine { border-color: var(--border-default); }
   .who { color: var(--text-secondary); font-size: var(--fs-075); }
+  .merged { padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); }
 </style>
