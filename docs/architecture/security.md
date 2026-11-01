@@ -160,7 +160,10 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   a mail's attachment is scanned before it is stored. A malicious file is refused with
   `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an
   error reply - is held `PENDING_SCAN`: it may be attached, is never downloaded, and the
-  `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). The job
+  `media.scan` job scans it again until it is READY or `INFECTED` (bytes removed at once). The
+  confirmation's scan stops five seconds before the request's deadline (`HUBTASK_REQUEST_TIMEOUT`)
+  and the hold is written past it, so a file slower to scan than the request is held, never an
+  error; `HUBTASK_CLAMD_TIMEOUT` bounds every scan inside its caller's own deadline. The job
   is a duty (`queue.Perpetual`): a pass failing for a storage or database error is its next round,
   and a dead letter is revived hourly, counted as held until a later pass succeeds. A scanner
   that is down never stops an upload and never lets an unscanned file out; files held for an hour

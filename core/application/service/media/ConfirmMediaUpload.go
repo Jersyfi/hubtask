@@ -101,6 +101,10 @@ func (h ConfirmMediaUpload) Execute(
 		return media.Object{}, err
 	}
 
+	// A hold must be written even when the scan used up the request: an answer the person never
+	// gets is one upload lost, a hold is one scanned later (security.md §4).
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), sealWriteTimeout)
+	defer cancel()
 	now := h.Clock.Now()
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Objects.Seal(ctx, sealed); err != nil {
@@ -180,8 +184,16 @@ func (h ConfirmMediaUpload) judge(ctx context.Context, object media.Object) (jud
 	return judgement{contentType: inspection.ContentType, size: stored.Size}, nil
 }
 
+// sealWriteTimeout bounds the seal's write, which runs past the request's own deadline.
+const sealWriteTimeout = 10 * time.Second
+
+// scanMargin is what the scan leaves of the request's deadline for writing the outcome.
+const scanMargin = 5 * time.Second
+
 // scan reads the whole object through the installation's scanner, outside any transaction, and
-// reports whether it is to be held: the scanner could not answer. A malicious file is refused.
+// reports whether it is to be held: the scanner could not answer in time. A malicious file is
+// refused. The scan stops scanMargin before the request's deadline, so a slow scanner ends as a
+// hold the scan job settles rather than as a request cut off (the job has its own, longer bound).
 func (h ConfirmMediaUpload) scan(ctx context.Context, object media.Object) (bool, error) {
 	if h.Scanner == nil {
 		return false, nil
@@ -191,9 +203,15 @@ func (h ConfirmMediaUpload) scan(ctx context.Context, object media.Object) (bool
 		return false, err
 	}
 	defer func() { _ = stored.Content.Close() }()
-	verdict, err := h.Scanner.Scan(ctx, stored.Content)
+	scanning, cancel := ctx, context.CancelFunc(func() {})
+	if deadline, ok := ctx.Deadline(); ok {
+		scanning, cancel = context.WithDeadline(ctx, deadline.Add(-scanMargin))
+	}
+	defer cancel()
+	verdict, err := h.Scanner.Scan(scanning, stored.Content)
 	if err != nil {
-		if errors.Is(err, shared.ErrUnavailable) {
+		if errors.Is(err, shared.ErrUnavailable) || errors.Is(err, context.DeadlineExceeded) ||
+			scanning.Err() != nil {
 			slog.WarnContext(ctx, "the upload scanner did not answer; the file is held",
 				slog.String("media_id", object.ID.String()), slog.String("error", err.Error()))
 			return true, nil

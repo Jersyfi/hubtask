@@ -12,6 +12,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -273,5 +274,49 @@ func TestAConfirmationRefusesAFileTooLargeToScan(t *testing.T) {
 	_, err := handler.Execute(t.Context(), actor(mediaWrite), ConfirmCommand{MediaID: mintedID})
 	if !domain.IsTooLargeToScan(err) || len(records.sealed) != 0 || len(bytesOf.deleted) != 1 {
 		t.Fatalf("answered %v, sealed %v, removed %v", err, records.sealed, bytesOf.deleted)
+	}
+}
+
+// slowScanner answers only when its context ends, as clamd does when its connection deadline
+// passes mid-stream, and notes the deadline it was given.
+type slowScanner struct{ deadline time.Time }
+
+func (s *slowScanner) Scan(ctx context.Context, _ io.Reader) (storage.Verdict, error) {
+	s.deadline, _ = ctx.Deadline()
+	<-ctx.Done()
+	return storage.Verdict{}, scannerDown
+}
+
+// strictUnitOfWork refuses a context that has ended, as a database connection does.
+type strictUnitOfWork struct{ unitOfWork }
+
+func (u *strictUnitOfWork) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	if err := ctx.Err(); err != nil {
+		return shared.ErrUnavailable.WithCause(err)
+	}
+	return u.unitOfWork.Within(ctx, scope, fn)
+}
+
+// A scan that outlasts the request is held, not lost: the scan stops short of the request's
+// deadline, and the hold is written even so (security.md §4).
+func TestAScanSlowerThanTheRequestHoldsTheFile(t *testing.T) {
+	handler, records, bytesOf, _, _ := confirmHarness(1 << 20)
+	jobs, slow := &enqueued{}, &slowScanner{}
+	handler.Scanner, handler.Jobs, handler.UnitOfWork = slow, jobs, &strictUnitOfWork{}
+	staged(records, bytesOf, "image/png", int64(len(pngBytes)), pngBytes)
+
+	request, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+	deadline, _ := request.Deadline()
+	held, err := handler.Execute(request, actor(mediaWrite), ConfirmCommand{MediaID: mintedID})
+	if err != nil || held.Status != domain.StatusPendingScan {
+		t.Fatalf("a scan slower than the request was answered %+v, %v", held, err)
+	}
+	if !slow.deadline.Before(deadline) {
+		t.Errorf("the scan was bounded at %v, not before the request's deadline %v", slow.deadline, deadline)
+	}
+	if len(records.sealed) != 1 || len(jobs.requests) != 1 {
+		t.Errorf("sealed %d, scan asked for %d times; want the hold written and the scan asked for",
+			len(records.sealed), len(jobs.requests))
 	}
 }
