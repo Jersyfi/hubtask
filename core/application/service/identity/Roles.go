@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -787,6 +788,14 @@ type ExplainAccess struct {
 	Containers ContainerFinder
 	Items      ItemFinder
 	Entries    EntryExplainer
+	// Agents names the person an agent's account acts for, so its entry decision is also asked of
+	// them (G2); nil explains every account by its own decision alone.
+	Agents AgentFinder
+}
+
+// AgentFinder answers the agent acting as an account, ErrNotFound for any other account.
+type AgentFinder interface {
+	FindAgentByAccount(ctx context.Context, account shared.ID) (agentdomain.Agent, error)
 }
 
 // EntryExplainer is the authoriser's per-entry decision for an account, recorded nowhere
@@ -906,8 +915,38 @@ func (h ExplainAccess) explainEntry(
 	if !reached {
 		return access.EntryExplained{}, notReachable(scope)
 	}
-	return h.Entries.ExplainEntry(ctx, actor, accountID, path,
-		access.ItemSubject{Does: does, ID: item.ID, Assignee: item.AssigneeID})
+	subject := access.ItemSubject{Does: does, ID: item.ID, Assignee: item.AssigneeID}
+	explained, err := h.Entries.ExplainEntry(ctx, actor, accountID, path, subject)
+	if err != nil || !explained.Permitted || h.Agents == nil {
+		return explained, err
+	}
+	owner, err := h.ownerOf(ctx, actor, accountID)
+	if err != nil || owner.IsZero() {
+		return explained, err
+	}
+	// The second question Authorize asks of an agent's request (delegatorAllows), here by name.
+	byOwner, err := h.Entries.ExplainEntry(ctx, actor, owner, path, subject)
+	if err != nil {
+		return access.EntryExplained{}, err
+	}
+	if !byOwner.Permitted {
+		explained.Permitted, explained.Reason = false, access.OwnerRefuses
+	}
+	return explained, nil
+}
+
+// ownerOf is the person the account acts for when it is an agent's, zero for anybody else.
+func (h ExplainAccess) ownerOf(ctx context.Context, actor appshared.ActorContext, accountID shared.ID) (shared.ID, error) {
+	var owner shared.ID
+	err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := h.Agents.FindAgentByAccount(ctx, accountID)
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		owner = found.OwnerID
+		return err
+	})
+	return owner, err
 }
 
 func (h ExplainAccess) Descriptor() usecase.Descriptor {
@@ -936,7 +975,7 @@ func (h ExplainAccess) Descriptor() usecase.Descriptor {
 			{Name: "permission", Kind: usecase.KindString, Description: "A permission of the catalogue to ask about."},
 			{
 				Name: "action", Kind: usecase.KindString,
-				Enum: []string{string(service.ItemRead), string(service.ItemChange), string(service.ItemComment)},
+				Enum:        []string{string(service.ItemRead), string(service.ItemChange), string(service.ItemComment)},
 				Description: "At an entry, what to do to it: READ (the default), CHANGE or COMMENT.",
 			},
 		},

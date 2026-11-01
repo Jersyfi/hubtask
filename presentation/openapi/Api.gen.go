@@ -78,6 +78,7 @@ const (
 	ASASSIGNEE   AccessExplanationEntryReason = "AS_ASSIGNEE"
 	NOTASSIGNEE  AccessExplanationEntryReason = "NOT_ASSIGNEE"
 	NOTHINGHELD  AccessExplanationEntryReason = "NOTHING_HELD"
+	OWNERREFUSES AccessExplanationEntryReason = "OWNER_REFUSES"
 	ROLEREFUSES  AccessExplanationEntryReason = "ROLE_REFUSES"
 	THROUGHROLE  AccessExplanationEntryReason = "THROUGH_ROLE"
 	THROUGHSHARE AccessExplanationEntryReason = "THROUGH_SHARE"
@@ -91,6 +92,8 @@ func (e AccessExplanationEntryReason) Valid() bool {
 	case NOTASSIGNEE:
 		return true
 	case NOTHINGHELD:
+		return true
+	case OWNERREFUSES:
 		return true
 	case ROLEREFUSES:
 		return true
@@ -11339,7 +11342,7 @@ type AccessExplanation struct {
 		Action    AccessExplanationEntryAction `json:"action"`
 		Permitted bool                         `json:"permitted"`
 
-		// Reason THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path.
+		// Reason THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path; OWNER_REFUSES, the person is an agent and the person it acts for may not do this, so neither may it.
 		Reason AccessExplanationEntryReason `json:"reason"`
 	} `json:"entry,omitempty"`
 
@@ -11363,7 +11366,7 @@ type AccessExplanation struct {
 // AccessExplanationEntryAction defines model for AccessExplanation.Entry.Action.
 type AccessExplanationEntryAction string
 
-// AccessExplanationEntryReason THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path.
+// AccessExplanationEntryReason THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles held there do not do this; NOTHING_HELD, nothing held on the path; OWNER_REFUSES, the person is an agent and the person it acts for may not do this, so neither may it.
 type AccessExplanationEntryReason string
 
 // AccessExplanationScopeType defines model for AccessExplanation.ScopeType.

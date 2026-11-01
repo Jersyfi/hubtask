@@ -8666,6 +8666,7 @@
   "app.access.entry_not_assignee": "Nein – für {name} nicht erlaubt: Die Rolle hier reicht nur bis zu den eigenen zugewiesenen Einträgen, und dieser gehört nicht dazu.",
   "app.access.entry_role_refuses": "Nein – für {name} nicht erlaubt: Die Rollen hier erlauben das nicht.",
   "app.access.entry_nothing_held": "Nein – für {name} nicht erlaubt: Auf diesem Eintrag und darüber ist nichts vergeben.",
+  "app.access.entry_owner_refuses": "Nein – für {name} nicht erlaubt: Die Person, für die dieser Agent handelt, darf das nicht.",
   "app.access.entry_yes": "Ja – für {name} erlaubt.",
   "app.access.entry_no": "Nein – für {name} nicht erlaubt.",
   "app.access.may_here": "Was die Person hier darf",

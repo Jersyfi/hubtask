@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	agentdomain "github.com/Jersyfi/hubtask/core/domain/model/agent"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -74,5 +75,58 @@ func TestExplainAccessDoesNotDiscloseAnEntryTheCallerCannotReach(t *testing.T) {
 	_, err := explainingEntries(roles, explainer).Execute(t.Context(), admin(), shared.ID(""), domain.ItemScope(itemID), "", "")
 	if !errors.Is(err, shared.ErrNotFound) || explainer.on.ID != "" {
 		t.Fatalf("an unreachable entry answered %v and was explained: %+v", err, explainer.on)
+	}
+}
+
+// permitsBy answers an entry's decision per account: permitted for the accounts named, refused by
+// role for any other.
+type permitsBy map[shared.ID]bool
+
+func (p permitsBy) ExplainEntry(
+	_ context.Context, _ appshared.ActorContext, accountID shared.ID, _ []domain.Scope, on access.ItemSubject,
+) (access.EntryExplained, error) {
+	if p[accountID] {
+		return access.EntryExplained{Does: on.Does, Permitted: true, Reason: access.ThroughRole}, nil
+	}
+	return access.EntryExplained{Does: on.Does, Reason: access.RoleRefuses}, nil
+}
+
+type agentsByAccount map[shared.ID]agentdomain.Agent
+
+func (a agentsByAccount) FindAgentByAccount(_ context.Context, account shared.ID) (agentdomain.Agent, error) {
+	if found, ok := a[account]; ok {
+		return found, nil
+	}
+	return agentdomain.Agent{}, shared.ErrNotFound
+}
+
+// "Why may the agent not close this ticket?" - its own role would, the person it acts for may not:
+// the explanation is the refusal the agent meets (G2), not its account's alone.
+func TestExplainAccessAtAnEntryNamesTheOwnerAnAgentActsFor(t *testing.T) {
+	agentAccount, owner := shared.ID("0190f0aa-0000-7000-8000-00000000a9e1"), shared.ID("0190f0aa-0000-7000-8000-00000000a9e2")
+	roles := rolesWith(newRoleStore(), &authorizer{}, &auditSink{}, &heldBy{})
+	explain := explainingEntries(roles, nil)
+	explain.Entries = permitsBy{agentAccount: true}
+	explain.Agents = agentsByAccount{agentAccount: {OwnerID: owner}}
+
+	out, err := explain.Execute(t.Context(), admin(), agentAccount, domain.ItemScope(itemID), "", "CHANGE")
+	if err != nil {
+		t.Fatalf("explaining an agent's entry: %v", err)
+	}
+	if out.Entry == nil || out.Entry.Permitted || out.Entry.Reason != access.OwnerRefuses {
+		t.Fatalf("the agent's answer is %+v, want refused by its owner", out.Entry)
+	}
+
+	explain.Entries = permitsBy{agentAccount: true, owner: true}
+	out, err = explain.Execute(t.Context(), admin(), agentAccount, domain.ItemScope(itemID), "", "CHANGE")
+	if err != nil || out.Entry == nil || !out.Entry.Permitted {
+		t.Fatalf("an agent whose owner may answered %+v, %v", out.Entry, err)
+	}
+
+	// A person who is no agent is answered by their own decision alone.
+	explain.Entries = permitsBy{invitedID: true}
+	out, err = explain.Execute(t.Context(), admin(), invitedID, domain.ItemScope(itemID), "", "CHANGE")
+	if err != nil || out.Entry == nil || !out.Entry.Permitted {
+		t.Fatalf("a person answered %+v, %v", out.Entry, err)
 	}
 }

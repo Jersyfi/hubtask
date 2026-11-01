@@ -588,8 +588,10 @@ The two qualifiers are decided in one place in the application layer
 * **Explaining it.** `GET /access/explain?scope_type=ITEM` answers this same decision for a person
   at an entry and an act (`access.Service.ExplainEntry`, the resolution and `AllowsItemActionAlong`
   that decide a request): through a role, a share, as the assignee, or why not. The caller must
-  reach the entry, so the explanation discloses none (T-04). An agent's owner and *view as* narrow a
-  request further and are not explained there.
+  reach the entry, so the explanation discloses none (T-04). An agent's account is also asked of the
+  person it acts for, as its requests are (G2), and refused by them answers `OWNER_REFUSES`. *View
+  as* narrows the viewer's session rather than the person's access and is not explained there; nor
+  is a token's scope. The web app asks it from an entry's people dialog (*Check access*).
 
 An entry nothing on its path grants the actor anything on is **not found**, like a missing one
 ([security.md](./security.md) T-04); a creation is refused like any other write. **A list is

@@ -8666,6 +8666,7 @@
   "app.access.entry_not_assignee": "No — the role held here reaches only entries assigned to {name}, and this one is not.",
   "app.access.entry_role_refuses": "No — the roles held here by {name} do not allow this.",
   "app.access.entry_nothing_held": "No — nothing is held by {name} on this entry or above it.",
+  "app.access.entry_owner_refuses": "No — {name} is an agent, and the person it acts for may not do this.",
   "app.access.entry_yes": "Yes — {name} may.",
   "app.access.entry_no": "No — {name} may not.",
   "app.access.may_here": "What they may do here",

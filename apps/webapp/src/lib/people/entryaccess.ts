@@ -16,6 +16,7 @@ const BY_REASON: Readonly<Record<EntryDecision['reason'], string>> = {
   NOT_ASSIGNEE: 'app.access.entry_not_assignee',
   ROLE_REFUSES: 'app.access.entry_role_refuses',
   NOTHING_HELD: 'app.access.entry_nothing_held',
+  OWNER_REFUSES: 'app.access.entry_owner_refuses',
 };
 
 /** The sentence for a decision: its reason's, or the bare verdict for a reason added later. */

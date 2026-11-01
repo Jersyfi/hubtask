@@ -28,6 +28,9 @@ const (
 	RoleRefuses EntryReason = "ROLE_REFUSES"
 	// NothingHeld is no membership on the path: for the person, the entry is not there.
 	NothingHeld EntryReason = "NOTHING_HELD"
+	// OwnerRefuses is an agent permitted by its own roles whose owner is not: an agent never does
+	// what the person it acts for may not (G2), so the request is refused.
+	OwnerRefuses EntryReason = "OWNER_REFUSES"
 )
 
 // EntryExplained is the per-entry decision for one account: what *explain access* answers about an
@@ -42,8 +45,9 @@ type EntryExplained struct {
 // ExplainEntry answers Authorize's own per-entry decision for an account, and records nothing. It
 // resolves along the same path - the entry's scope appended, so a share counts - and decides with
 // the same AllowsItemActionAlong, so the explanation cannot drift from the refusal the person
-// meets. An agent's owner and *view as* narrow a request further; they are not explained here.
-// Whether the actor may ask about the account is the caller's authorisation.
+// meets. An agent's owner narrows it further, which identity.ExplainAccess asks by a second call;
+// *view as* narrows the viewer's session, not the person's access, and is not explained. Whether
+// the actor may ask about the account is the caller's authorisation.
 func (s Service) ExplainEntry(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, path []identity.Scope, on ItemSubject,
 ) (EntryExplained, error) {

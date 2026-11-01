@@ -28230,8 +28230,9 @@ components:
                 THROUGH_ROLE, a role held on the entry's path; THROUGH_SHARE, the entry shared with
                 the person; AS_ASSIGNEE, a role that reaches only the person's own entries, and this
                 is one; NOT_ASSIGNEE, that role on somebody else's entry; ROLE_REFUSES, the roles
-                held there do not do this; NOTHING_HELD, nothing held on the path.
-              enum: [THROUGH_ROLE, THROUGH_SHARE, AS_ASSIGNEE, NOT_ASSIGNEE, ROLE_REFUSES, NOTHING_HELD]
+                held there do not do this; NOTHING_HELD, nothing held on the path; OWNER_REFUSES,
+                the person is an agent and the person it acts for may not do this, so neither may it.
+              enum: [THROUGH_ROLE, THROUGH_SHARE, AS_ASSIGNEE, NOT_ASSIGNEE, ROLE_REFUSES, NOTHING_HELD, OWNER_REFUSES]
 
     BusinessHours:
       type: object

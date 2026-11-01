@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { ENTRY_ACTIONS, entryVerdictCode } from './entryaccess.ts';
 
 test('each reason the server gives has its own sentence', () => {
-  const reasons = ['THROUGH_ROLE', 'THROUGH_SHARE', 'AS_ASSIGNEE', 'NOT_ASSIGNEE', 'ROLE_REFUSES', 'NOTHING_HELD'] as const;
+  const reasons = ['THROUGH_ROLE', 'THROUGH_SHARE', 'AS_ASSIGNEE', 'NOT_ASSIGNEE', 'ROLE_REFUSES', 'NOTHING_HELD', 'OWNER_REFUSES'] as const;
   const codes = reasons.map((reason) => entryVerdictCode({ action: 'READ', permitted: reason.startsWith('THROUGH') || reason === 'AS_ASSIGNEE', reason }));
   assert.equal(new Set(codes).size, reasons.length);
   assert.ok(codes.every((code) => code.startsWith('app.access.entry_')));
