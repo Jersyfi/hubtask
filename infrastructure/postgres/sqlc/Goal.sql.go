@@ -125,6 +125,18 @@ func (q *Queries) DeletePortfolio(ctx context.Context, arg DeletePortfolioParams
 	return result.RowsAffected(), nil
 }
 
+const deletePortfolioPublicLink = `-- name: DeletePortfolioPublicLink :execrows
+DELETE FROM portfolio_public_link WHERE tenant_id = current_tenant_id() AND portfolio_id = $1
+`
+
+func (q *Queries) DeletePortfolioPublicLink(ctx context.Context, portfolioID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePortfolioPublicLink, portfolioID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const findDashboard = `-- name: FindDashboard :one
 SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
 FROM dashboard
@@ -333,6 +345,43 @@ func (q *Queries) FindPortfolio(ctx context.Context, id pgtype.UUID) (FindPortfo
 		&i.Status,
 		&i.Version,
 	)
+	return i, err
+}
+
+const findPortfolioPublicLink = `-- name: FindPortfolioPublicLink :one
+SELECT portfolio_id, created_by, created_at FROM portfolio_public_link
+WHERE tenant_id = current_tenant_id() AND portfolio_id = $1
+`
+
+type FindPortfolioPublicLinkRow struct {
+	PortfolioID pgtype.UUID
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) FindPortfolioPublicLink(ctx context.Context, portfolioID pgtype.UUID) (FindPortfolioPublicLinkRow, error) {
+	row := q.db.QueryRow(ctx, findPortfolioPublicLink, portfolioID)
+	var i FindPortfolioPublicLinkRow
+	err := row.Scan(&i.PortfolioID, &i.CreatedBy, &i.CreatedAt)
+	return i, err
+}
+
+const findPortfolioPublicLinkByHash = `-- name: FindPortfolioPublicLinkByHash :one
+SELECT portfolio_id, created_by, created_at FROM portfolio_public_link
+WHERE token_hash = $1
+`
+
+type FindPortfolioPublicLinkByHashRow struct {
+	PortfolioID pgtype.UUID
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
+// The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+func (q *Queries) FindPortfolioPublicLinkByHash(ctx context.Context, tokenHash []byte) (FindPortfolioPublicLinkByHashRow, error) {
+	row := q.db.QueryRow(ctx, findPortfolioPublicLinkByHash, tokenHash)
+	var i FindPortfolioPublicLinkByHashRow
+	err := row.Scan(&i.PortfolioID, &i.CreatedBy, &i.CreatedAt)
 	return i, err
 }
 
@@ -1076,6 +1125,31 @@ func (q *Queries) PutDashboardDigest(ctx context.Context, arg PutDashboardDigest
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const putPortfolioPublicLink = `-- name: PutPortfolioPublicLink :exec
+INSERT INTO portfolio_public_link (tenant_id, portfolio_id, token_hash, created_by, created_at)
+VALUES (current_tenant_id(), $1, $2, $3, $4)
+ON CONFLICT (tenant_id, portfolio_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at
+`
+
+type PutPortfolioPublicLinkParams struct {
+	PortfolioID pgtype.UUID
+	TokenHash   []byte
+	CreatedBy   pgtype.UUID
+	At          pgtype.Timestamptz
+}
+
+// One link per portfolio: a new token replaces the old, which stops answering.
+func (q *Queries) PutPortfolioPublicLink(ctx context.Context, arg PutPortfolioPublicLinkParams) error {
+	_, err := q.db.Exec(ctx, putPortfolioPublicLink,
+		arg.PortfolioID,
+		arg.TokenHash,
+		arg.CreatedBy,
+		arg.At,
+	)
+	return err
 }
 
 const reparentGoals = `-- name: ReparentGoals :exec

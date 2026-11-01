@@ -6341,6 +6341,26 @@ CREATE POLICY tenant_isolation ON portfolio_update
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_update TO hubtask_app;
 
+-- A portfolio's roadmap opened by a link without signing in (migration 0322, UC-GOL-03 check 15).
+CREATE TABLE portfolio_public_link (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  portfolio_id uuid NOT NULL,
+  token_hash   bytea NOT NULL,
+  created_by   uuid NOT NULL,
+  created_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, portfolio_id),
+  CONSTRAINT portfolio_public_link_portfolio_fkey FOREIGN KEY (tenant_id, portfolio_id)
+    REFERENCES portfolio (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT portfolio_public_link_created_by_fkey FOREIGN KEY (tenant_id, created_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX portfolio_public_link_token_uq ON portfolio_public_link (token_hash);
+ALTER TABLE portfolio_public_link ENABLE ROW LEVEL SECURITY;
+ALTER TABLE portfolio_public_link FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON portfolio_public_link
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_public_link TO hubtask_app;
+
 CREATE TABLE dashboard (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,

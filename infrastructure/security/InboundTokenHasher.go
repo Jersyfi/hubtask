@@ -120,3 +120,14 @@ func NewPublicFormChallengeSigner(installationSecret secret.Secret) InboundToken
 	mac.Write([]byte(publicFormChallengePepperInfo))
 	return InboundTokenHasher{pepper: mac.Sum(nil)}
 }
+
+// roadmapLinkPepperInfo separates a portfolio roadmap's public link tokens from every other
+// secret the installation key protects.
+const roadmapLinkPepperInfo = "hubtask/roadmap-public-link/v1"
+
+// NewRoadmapLinkHasher is the same construction under the roadmap link's own purpose label.
+func NewRoadmapLinkHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(roadmapLinkPepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}

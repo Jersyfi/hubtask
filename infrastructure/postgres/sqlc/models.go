@@ -2612,6 +2612,14 @@ type PortfolioItem struct {
 	Status      string
 }
 
+type PortfolioPublicLink struct {
+	TenantID    pgtype.UUID
+	PortfolioID pgtype.UUID
+	TokenHash   []byte
+	CreatedBy   pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+}
+
 type PortfolioUpdate struct {
 	ID          pgtype.UUID
 	TenantID    pgtype.UUID

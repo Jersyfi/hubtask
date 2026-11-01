@@ -236,3 +236,22 @@ WHERE tenant_id = current_tenant_id() AND dashboard_id = sqlc.arg('dashboard_id'
 -- name: MarkDashboardDigestSent :execrows
 UPDATE dashboard_digest SET last_sent_at = COALESCE(sqlc.narg('sent_at'), last_sent_at), next_at = sqlc.arg('next_at')
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
+
+-- name: PutPortfolioPublicLink :exec
+-- One link per portfolio: a new token replaces the old, which stops answering.
+INSERT INTO portfolio_public_link (tenant_id, portfolio_id, token_hash, created_by, created_at)
+VALUES (current_tenant_id(), sqlc.arg('portfolio_id'), sqlc.arg('token_hash'), sqlc.arg('created_by'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, portfolio_id) DO UPDATE SET
+  token_hash = EXCLUDED.token_hash, created_by = EXCLUDED.created_by, created_at = EXCLUDED.created_at;
+
+-- name: FindPortfolioPublicLink :one
+SELECT portfolio_id, created_by, created_at FROM portfolio_public_link
+WHERE tenant_id = current_tenant_id() AND portfolio_id = sqlc.arg('portfolio_id');
+
+-- name: FindPortfolioPublicLinkByHash :one
+-- The unauthenticated route's lookup: bounded to the token's tenant by row level security.
+SELECT portfolio_id, created_by, created_at FROM portfolio_public_link
+WHERE token_hash = sqlc.arg('token_hash');
+
+-- name: DeletePortfolioPublicLink :execrows
+DELETE FROM portfolio_public_link WHERE tenant_id = current_tenant_id() AND portfolio_id = sqlc.arg('portfolio_id');
