@@ -711,6 +711,27 @@ export function mapLayers(map: Pick<ServiceMap, 'nodes' | 'edges'>): { readonly 
 /** A map edge that joins a group's member to the service it stands for, not a relation. */
 export const isGroupEdge = (type: string) => type.startsWith('group:');
 
+/**
+ * The map's lines as what they say (SC 1.1.1, 1.3.1): which CI rests on which, in the order the
+ * map draws its CIs, and apart from those, which member a group joins to which service - a group
+ * is no relation, and saying it as one would be false. An edge whose end the map does not hold is
+ * left out, as it is not drawn.
+ */
+export function mapInWords(map: Pick<ServiceMap, 'nodes' | 'edges'>): {
+  readonly restsOn: readonly { readonly key: string; readonly from: string; readonly to: string }[];
+  readonly members: readonly { readonly key: string; readonly member: string; readonly service: string; readonly group: string }[];
+} {
+  const order = new Map(mapLayers(map).flatMap((band) => band.nodes).map((node, at) => [node.ci_id, at]));
+  const name = new Map(map.nodes.map((node) => [node.ci_id, node.name]));
+  const drawn = map.edges
+    .filter((edge) => name.has(edge.source) && name.has(edge.target))
+    .sort((a, b) => (order.get(a.source)! - order.get(b.source)!) || (order.get(a.target)! - order.get(b.target)!));
+  return {
+    restsOn: drawn.filter((edge) => !isGroupEdge(edge.type)).map((edge) => ({ key: `${edge.source}>${edge.target}:${edge.type}`, from: name.get(edge.source)!, to: name.get(edge.target)! })),
+    members: drawn.filter((edge) => isGroupEdge(edge.type)).map((edge) => ({ key: `${edge.source}>${edge.target}:${edge.type}`, member: name.get(edge.target)!, service: name.get(edge.source)!, group: edge.type.slice('group:'.length) })),
+  };
+}
+
 // The asset register (UC-AST-12).
 
 export const ASSET_STATES = ['REQUESTED', 'ORDERED', 'IN_STOCK', 'DEPLOYED', 'RETIRED', 'DISPOSED'] as const;

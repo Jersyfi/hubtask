@@ -17,7 +17,7 @@ import {
 import {
   aliasDefine, assetDraft, assetMissing, assetMoves, assetRegister, assetsPath, assetTone, attestationsInOrder, attestPath, campaignClosePath,
   campaignDraft, campaignMissing, campaignStart, ciAssetMovePath, ciAssetPath, collisionsInOrder, costField, costText, entryCiPath, entryCisPath,
-  entryKey, groupConditions, groupDefine, groupDraft, groupMembersPath, groupMissing, groupPath, isGroupEdge, mapLayers, matchingProducts, mayAttest,
+  entryKey, groupConditions, groupDefine, groupDraft, groupMembersPath, groupMissing, groupPath, isGroupEdge, mapInWords, mapLayers, matchingProducts, mayAttest,
   minorDigits, moveNeedsHolder, parseCost, reachedServices, serviceMapPath, softwareAliasPath, softwarePath, verdictTone, ASSET_SECTIONS,
 } from './cmdb.ts';
 
@@ -362,6 +362,21 @@ test('the service map is drawn in its layers, each ordered by its neighbours abo
   assert.deepEqual(layers[2]!.nodes.map((each) => each.ci_id), ['host-y', 'host-z', 'lonely']);
   assert.equal(isGroupEdge('group:web'), true);
   assert.equal(isGroupEdge('runs_on'), false);
+});
+
+test('the service map says its lines in words, group membership apart from relations (SC 1.1.1, 1.3.1)', () => {
+  const node = (id: string, layer: number) => ({ ci_id: id, class: 'ci', name: `CI ${id}`, stage: 'IN_USE', layer });
+  const said = mapInWords({
+    nodes: [node('offer', 0), node('svc', 1), node('host', 5)],
+    edges: [
+      { source: 'svc', target: 'host', type: 'runs_on' },
+      { source: 'offer', target: 'svc', type: 'depends_on' },
+      { source: 'svc', target: 'host', type: 'group:web' },
+      { source: 'svc', target: 'gone', type: 'runs_on' },
+    ],
+  });
+  assert.deepEqual(said.restsOn.map((each) => `${each.from} > ${each.to}`), ['CI offer > CI svc', 'CI svc > CI host'], 'in the order the map draws, not one with an end it lacks');
+  assert.deepEqual(said.members.map(({ member, service, group }) => ({ member, service, group })), [{ member: 'CI host', service: 'CI svc', group: 'web' }]);
 });
 
 const asset = (extra: Partial<CiAsset> = {}): CiAsset => ({

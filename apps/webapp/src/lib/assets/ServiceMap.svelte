@@ -14,7 +14,7 @@
   import { Banner, Spinner } from '@hubtask/design-system/components';
   import type { CiClass, ServiceMap } from '@hubtask/sync-engine';
 
-  import { classWord, isGroupEdge, mapLayers, serviceMapPath, type Words } from '../data/cmdb.svelte.ts';
+  import { classWord, isGroupEdge, mapInWords, mapLayers, serviceMapPath, type Words } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -43,6 +43,7 @@
     });
   });
   const layers = $derived(map ? mapLayers(map) : []);
+  const said = $derived(map ? mapInWords(map) : { restsOn: [], members: [] });
 
   let surface = $state<HTMLDivElement | undefined>(undefined);
   const cards = new Map<string, HTMLElement>();
@@ -121,6 +122,22 @@
     {/each}
   </div>
   <p class="meta">{t('app.service_map.legend')}</p>
+  {#if said.restsOn.length > 0 || said.members.length > 0}
+    <!-- The lines in words: the picture is for the eye, this is what it says (SC 1.1.1, 1.3.1). -->
+    <details class="words" data-service-map-words>
+      <summary>{t('app.service_map.in_words')}</summary>
+      {#if said.restsOn.length > 0}
+        <ul class="said" aria-label={t('app.service_map.rests_on_list')}>
+          {#each said.restsOn as each (each.key)}<li>{t('app.service_map.rests_on', { from: each.from, to: each.to })}</li>{/each}
+        </ul>
+      {/if}
+      {#if said.members.length > 0}
+        <ul class="said" aria-label={t('app.service_map.members_list')}>
+          {#each said.members as each (each.key)}<li>{t('app.service_map.member_of', { member: each.member, service: each.service, group: each.group })}</li>{/each}
+        </ul>
+      {/if}
+    </details>
+  {/if}
 {/if}
 
 <style>
@@ -153,4 +170,7 @@
   }
   .card a { color: var(--text-primary); font-weight: var(--fw-medium); white-space: nowrap; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; white-space: nowrap; }
+  .words { font-size: var(--fs-075); color: var(--text-secondary); }
+  .words summary { cursor: pointer; }
+  .said { margin: var(--sp-050) 0 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-025); }
 </style>
