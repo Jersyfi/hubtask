@@ -104,6 +104,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// slower for no gain — the minute's budget above is what bounds a caller, and the
 			// burst only decides whether an honest client's first screen stutters.
 			Burst: getInt("HUBTASK_RATE_LIMIT_BURST", 60),
+			// Zero takes the default, RateLimitConfig.TenantDepth.
+			TenantBurst: getInt("HUBTASK_RATE_LIMIT_TENANT_BURST", 0),
 		},
 		Bus: env.BusConfig{
 			// No default URL, and that is the off switch: an installation that never names a bus
@@ -536,6 +538,9 @@ func validateRateLimit(r env.RateLimitConfig) []error {
 			// a rate limit that is off by accident is exactly what T-17 is about.
 			errs = append(errs, configError("config.rate_limit_invalid", variable))
 		}
+	}
+	if r.TenantBurst < 0 {
+		errs = append(errs, configError("config.rate_limit_invalid", "HUBTASK_RATE_LIMIT_TENANT_BURST"))
 	}
 	return errs
 }

@@ -452,6 +452,21 @@ type RateLimitConfig struct {
 	AuthPerMinute int
 	// Burst is how much of the budget may be spent at once.
 	Burst int
+	// TenantBurst is how much of the workspace's budget may be spent at once. Zero takes
+	// TenantDepth's default: the workspace's bucket is shared by everyone in it, so the depth of
+	// one person's bucket would answer 429 to the whole workspace when a few open a page together.
+	TenantBurst int
+}
+
+// TenantDepth is the depth of the workspace's bucket: TenantBurst where set, otherwise half the
+// minute's budget, and never less than one person's Burst. Half: fifty people opening a cold page
+// at the same moment (24 requests each) fit in the default 3000, and the minute's budget still
+// bounds what one workspace takes from the others.
+func (r RateLimitConfig) TenantDepth() int {
+	if r.TenantBurst > 0 {
+		return r.TenantBurst
+	}
+	return max(r.TenantPerMinute/2, r.Burst)
 }
 
 // LoadShedConfig is the admission threshold of observability-reliability.md §6: above so many

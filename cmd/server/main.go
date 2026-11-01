@@ -4215,7 +4215,7 @@ func run() error {
 																Limiter: limiter, Signals: metrics,
 																Level: "tenant",
 																Bucket: rest.TenantBucket(
-																	cfg.RateLimit.TenantPerMinute, cfg.RateLimit.Burst),
+																	cfg.RateLimit.TenantPerMinute, cfg.RateLimit.TenantDepth()),
 																Next: rest.Idempotent{
 																	Guard:  idempotency.Guard{Store: postgres.NewIdempotencyStore(), UnitOfWork: unitOfWork},
 																	Routes: apiRoutes,

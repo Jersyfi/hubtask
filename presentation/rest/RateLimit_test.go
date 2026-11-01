@@ -14,6 +14,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/environment"
 )
 
 var start = time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)
@@ -398,5 +399,40 @@ func TestAnAgentCountsAgainstItsWorkspacesBudget(t *testing.T) {
 	}
 	if response.Code != http.StatusTooManyRequests {
 		t.Errorf("status %d, want 429", response.Code)
+	}
+}
+
+// Fifty people of one workspace open a cold page at the same moment, 24 requests each: with the
+// workspace's default depth none is answered 429. Each person's own bucket holds 60, so the
+// workspace's is the level that decides.
+func TestFiftyColdPagesAtOnceFitTheWorkspacesBucket(t *testing.T) {
+	depth := environment.RateLimitConfig{TenantPerMinute: 3000, Burst: 60}.TenantDepth()
+	limited := Limited{
+		Limiter: NewRateLimiter(), Level: "tenant",
+		Bucket: TenantBucket(3000, depth),
+		Clock:  func() time.Time { return start },
+	}
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/containers", nil)
+	actor := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: shared.ID("018f2a1b-0000-7000-8000-0000000000ab")}
+	r = r.WithContext(appshared.ContextWithActor(r.Context(), actor))
+	for request := range 50 * 24 {
+		if response, reached := serveLimited(t, limited, r); !reached {
+			t.Fatalf("request %d of 1200 was answered %d", request, response.Code)
+		}
+	}
+	// One person's depth, shared by the workspace, refused the third page already.
+	shallow := Limited{
+		Limiter: NewRateLimiter(), Level: "tenant",
+		Bucket: TenantBucket(3000, 60),
+		Clock:  func() time.Time { return start },
+	}
+	refused := 0
+	for range 3 * 24 {
+		if _, reached := serveLimited(t, shallow, r); !reached {
+			refused++
+		}
+	}
+	if refused == 0 {
+		t.Error("the shared depth of 60 let three cold pages through; the case this test guards is gone")
 	}
 }
