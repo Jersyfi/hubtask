@@ -132,14 +132,14 @@ func TestARefusedAddressIsNeverDialled(t *testing.T) {
 	})
 	_, port, _ := net.SplitHostPort(listener.Addr().String())
 
-	metadata := httpclient.NewGuard(env.OutboundConfig{}).ForOperatorService().
+	metadata := httpclient.NewGuard(env.OutboundConfig{}).ForOperatorService("").
 		WithResolver(func(context.Context, string) ([]netip.Addr, error) {
 			return []netip.Addr{netip.MustParseAddr("169.254.169.254")}, nil
 		})
 	for name, tc := range map[string]Scanner{
-		"metadata address":      {Address: "169.254.169.254:80", Guard: httpclient.NewGuard(env.OutboundConfig{}).ForOperatorService()},
+		"metadata address":      {Address: "169.254.169.254:80", Guard: httpclient.NewGuard(env.OutboundConfig{}).ForOperatorService("")},
 		"resolves to metadata":  {Address: "clamav:" + port, Guard: metadata},
-		"off the allowlist":     {Address: "127.0.0.1:" + port, Guard: httpclient.NewGuard(env.OutboundConfig{AllowedHosts: []string{"clamav"}}).ForOperatorService()},
+		"off the allowlist":     {Address: "127.0.0.1:" + port, Guard: httpclient.NewGuard(env.OutboundConfig{AllowedHosts: []string{"clamav"}}).ForOperatorService("")},
 		"private, guard closed": {Address: "127.0.0.1:" + port, Guard: httpclient.NewGuard(env.OutboundConfig{})},
 		"no guard":              {Address: "127.0.0.1:" + port},
 	} {
@@ -174,7 +174,7 @@ func TestAnAllowedDaemonIsDialledThroughTheGuard(t *testing.T) {
 		_, _ = io.Copy(conn, pipe)
 		_ = conn.Close()
 	})
-	guard := httpclient.NewGuard(env.OutboundConfig{AllowedHosts: []string{"127.0.0.1"}}).ForOperatorService()
+	guard := httpclient.NewGuard(env.OutboundConfig{AllowedHosts: []string{"127.0.0.1"}}).ForOperatorService("")
 	verdict, err := Scanner{Address: listener.Addr().String(), Guard: guard, Timeout: 5 * time.Second}.
 		Scan(t.Context(), strings.NewReader("the file"))
 	if err != nil || verdict.Malicious || streamed.String() != "the file" {

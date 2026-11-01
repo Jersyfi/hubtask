@@ -154,7 +154,8 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   `upload_scanner` with `address` and `timeout`, `HUBTASK_CLAMD_ADDRESS` overriding it;
   `storage.Scanner`, `infrastructure/clamd`). A TCP daemon is dialled through the outbound guard
   (rule 6): the egress allowlist, resolution and the address at dial time, private networks open
-  for this one operator-named service, metadata addresses refused always, a connect timeout of
+  and its host allowed beside a non-empty `HUBTASK_HTTP_ALLOWED_HOSTS` for this one operator-named
+  service (naming it is the operator's word for that host), metadata addresses refused always, a connect timeout of
   `HUBTASK_HTTP_CONNECT_TIMEOUT`; a `unix:` socket is a local file and needs none. The confirmation streams the whole file to it, and
   a mail's attachment is scanned before it is stored. A malicious file is refused with
   `media.infected` and its bytes removed; a file the daemon cannot answer for - down, timed out, an

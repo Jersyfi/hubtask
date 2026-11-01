@@ -6382,9 +6382,17 @@ func uploadScanner(cfg envport.Config) (storageport.Scanner, error) {
 	if address == "" {
 		return nil, nil
 	}
+	// The named host passes the egress allowlist (security.md §4): left off it, every upload would
+	// be held for a refusal that reads as the scanner not answering.
+	host := ""
+	if !strings.HasPrefix(address, "unix:") {
+		if named, _, err := net.SplitHostPort(address); err == nil {
+			host = named
+		}
+	}
 	return clamd.Scanner{
 		Address: address, Timeout: timeout, ConnectTimeout: cfg.Outbound.ConnectTimeout,
-		Guard: httpclient.NewGuard(cfg.Outbound).ForOperatorService(), StreamMaxBytes: cfg.Media.ScannerStreamMaxBytes,
+		Guard: httpclient.NewGuard(cfg.Outbound).ForOperatorService(host), StreamMaxBytes: cfg.Media.ScannerStreamMaxBytes,
 	}, nil
 }
 
