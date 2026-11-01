@@ -38,6 +38,30 @@ type WorkspaceArchiveDoor struct {
 	// stalled reader never holds the archive's snapshot and its pool connection for the whole
 	// Timeout. Zero is two minutes.
 	Stall time.Duration
+	// Concurrent bounds the downloads this process streams at once - each holds a pool connection
+	// and a snapshot for hours - and refuses the next with 503 before anything is claimed. Zero is
+	// no bound.
+	Concurrent int
+
+	once  sync.Once
+	slots chan struct{}
+}
+
+// downloadRetryAfter is what a refused download is told: a transfer takes minutes at least.
+const downloadRetryAfter = 5 * time.Minute
+
+// admit takes a slot, or answers false at the bound.
+func (d *WorkspaceArchiveDoor) admit() (func(), bool) {
+	if d.Concurrent <= 0 {
+		return func() {}, true
+	}
+	d.once.Do(func() { d.slots = make(chan struct{}, d.Concurrent) })
+	select {
+	case d.slots <- struct{}{}:
+		return func() { <-d.slots }, true
+	default:
+		return nil, false
+	}
 }
 
 // DownloadWorkspaceArchive answers POST /backups:download-workspace.
@@ -45,6 +69,16 @@ func (d *WorkspaceArchiveDoor) DownloadWorkspaceArchive(
 	w http.ResponseWriter, r *http.Request, params openapi.DownloadWorkspaceArchiveParams,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
+	// Before the step-up proof and the day's window are spent on a download that cannot run.
+	release, admitted := d.admit()
+	if !admitted {
+		w.Header().Set("Retry-After", strconv.Itoa(int(downloadRetryAfter.Seconds())))
+		WriteProblem(w, shared.ErrUnavailable.WithDetail("capacity.shed").WithParams(map[string]string{
+			"class": "archive_download", "retry_after_seconds": strconv.Itoa(int(downloadRetryAfter.Seconds())),
+		}), requestID)
+		return
+	}
+	defer release()
 	actor, _ := appshared.ActorFrom(r.Context())
 	cmd := adminservice.DownloadWorkspaceArchiveCommand{}
 	if params.XHubtaskStepUp != nil {

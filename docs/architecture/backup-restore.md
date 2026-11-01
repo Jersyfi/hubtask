@@ -214,7 +214,10 @@ data:
   (`POST /backups:download-workspace`, `hubctl backup download --out <file>`; UC-BAK-07 check 7),
   once in 24 hours, audited as `tenant.exported` with `download` as its target. `hubctl` keeps the
   file only once its ZIP directory reads, so a cut transfer leaves nothing behind. MCP has no door
-  for it: a tool's answer is a message, not a stream of a whole workspace.
+  for it: a tool's answer is a message, not a stream of a whole workspace. Each download holds a
+  pool connection and its snapshot for the whole transfer, so one process streams at most
+  `HUBTASK_BACKUP_CONCURRENT_DOWNLOADS` (2) at once and refuses the next with `503` and
+  `Retry-After` before the proof or the day's window is spent; a snapshot held for hours raises A-25.
 * An archive at a target is the operator's responsibility. A third-country target is a transfer
   under GDPR Chapter V; target setup says so and records the region.
 

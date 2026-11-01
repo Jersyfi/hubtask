@@ -9240,6 +9240,9 @@ paths:
         and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
         for two minutes ends the transfer the same way, and so does one still reading after six
         hours.
+
+        A server already streaming as many workspace downloads as it allows answers 503 with
+        Retry-After before anything is claimed.
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       requestBody:
@@ -9257,6 +9260,8 @@ paths:
                 type: string
                 format: binary
         "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
           $ref: "#/components/responses/Problem"
 
   /backups/{backupId}:

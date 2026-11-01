@@ -3703,7 +3703,7 @@ func run() error {
 		// object-storage installation they are never reached - the token this server would have to
 		// have minted is one it never mints there.
 		// The owner's way out without a target (UC-BAK-07 check 7): the export's archive, streamed.
-		controller.WorkspaceArchive = &rest.WorkspaceArchiveDoor{Downloads: adminservice.DownloadWorkspaceArchive{
+		controller.WorkspaceArchive = &rest.WorkspaceArchiveDoor{Concurrent: cfg.Backup.ConcurrentDownloads, Downloads: adminservice.DownloadWorkspaceArchive{
 			Roles: authorizer, StepUp: stepUpVerifier, Downloads: postgres.NewAdminTenantRepository(),
 			Quota: quotaGuard, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Archive: adminservice.TenantExportArchivist{

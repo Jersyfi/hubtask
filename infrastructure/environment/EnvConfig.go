@@ -222,6 +222,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			LocalRoot:              get("HUBTASK_BACKUP_LOCAL_PATH", "/var/lib/hubtask/backups"),
 			TenantTargets:          getBool("HUBTASK_BACKUP_TENANT_TARGETS", false),
 			RestoreDrillRecordFile: get("HUBTASK_RESTORE_DRILL_RECORD_FILE", ""),
+			ConcurrentDownloads:    getInt("HUBTASK_BACKUP_CONCURRENT_DOWNLOADS", 2),
 		},
 		Locale: env.LocaleConfig{
 			DefaultLocale:   get("HUBTASK_DEFAULT_LOCALE", "en"),
@@ -401,6 +402,9 @@ func validate(cfg env.Config) error {
 	errs = append(errs, validateRateLimit(cfg.RateLimit)...)
 	errs = append(errs, validateBus(cfg.Bus)...)
 	errs = append(errs, validateLoadShed(cfg.LoadShed)...)
+	if cfg.Backup.ConcurrentDownloads < 0 {
+		errs = append(errs, configError("config.limit_invalid", "HUBTASK_BACKUP_CONCURRENT_DOWNLOADS"))
+	}
 	errs = append(errs, validateRequest(cfg.Request)...)
 	errs = append(errs, validateCORS(cfg.CORS)...)
 	errs = append(errs, validateFrameAncestors(cfg.UI.FrameAncestors)...)

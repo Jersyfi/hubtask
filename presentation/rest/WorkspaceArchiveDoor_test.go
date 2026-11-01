@@ -18,6 +18,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -168,4 +169,54 @@ type zeroes struct{}
 func (zeroes) Read(p []byte) (int, error) {
 	clear(p)
 	return len(p), nil
+}
+
+// held writes nothing until it is let go, so a download stays in flight.
+type heldStarter struct{ started, release chan struct{} }
+
+func (h heldStarter) Start(
+	context.Context, appshared.ActorContext, adminservice.DownloadWorkspaceArchiveCommand,
+) (adminservice.WorkspaceDownload, error) {
+	return adminservice.NewWorkspaceDownload("x.zip", func(context.Context, backupstorage.Store) error {
+		h.started <- struct{}{}
+		<-h.release
+		return nil
+	}), nil
+}
+
+// The process streams at most Concurrent downloads at once - each holds a pool connection and a
+// snapshot - and refuses the next with 503 and Retry-After before anything is claimed; a slot
+// comes back when a download ends.
+func TestDownloadsBeyondTheBoundAreRefused(t *testing.T) {
+	starter := heldStarter{started: make(chan struct{}), release: make(chan struct{})}
+	door := &WorkspaceArchiveDoor{Downloads: starter, Concurrent: 2}
+	serve := func() *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		door.DownloadWorkspaceArchive(recorder,
+			httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/backups:download-workspace", nil),
+			openapi.DownloadWorkspaceArchiveParams{})
+		return recorder
+	}
+	done := make(chan *httptest.ResponseRecorder, 2)
+	for range 2 {
+		concurrency.Go(t.Context(), "archive.test", func(context.Context) { done <- serve() })
+		<-starter.started
+	}
+	refused := serve()
+	if refused.Code != http.StatusServiceUnavailable || refused.Header().Get("Retry-After") == "" ||
+		!strings.Contains(refused.Body.String(), "capacity.shed") {
+		t.Errorf("a third download answered %d %v %s", refused.Code, refused.Header(), refused.Body.String())
+	}
+	starter.release <- struct{}{}
+	if ended := <-done; ended.Code != http.StatusOK {
+		t.Fatalf("a download in flight answered %d", ended.Code)
+	}
+	concurrency.Go(t.Context(), "archive.test", func(context.Context) { done <- serve() })
+	<-starter.started
+	close(starter.release)
+	for range 2 {
+		if ended := <-done; ended.Code != http.StatusOK {
+			t.Errorf("a download after a slot came back answered %d", ended.Code)
+		}
+	}
 }

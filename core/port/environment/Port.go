@@ -174,6 +174,9 @@ type BackupConfig struct {
 	// hubtask_restore_drill_last_success_timestamp_seconds - the gauge A-20 watches. Empty means
 	// no drill records anything here, and the series is absent rather than zero.
 	RestoreDrillRecordFile string
+	// ConcurrentDownloads bounds the owners' workspace downloads one process streams at once: each
+	// holds a pool connection and a snapshot for its whole transfer. Zero is no bound.
+	ConcurrentDownloads int
 }
 
 // EncryptionKey is one master key as the environment gives it: an identifier that is stored in

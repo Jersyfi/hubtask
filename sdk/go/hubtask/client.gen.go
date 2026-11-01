@@ -33133,6 +33133,9 @@ type ClientInterface interface {
 	// for two minutes ends the transfer the same way, and so does one still reading after six
 	// hours.
 	//
+	// A server already streaming as many workspace downloads as it allows answers 503 with
+	// Retry-After before anything is claimed.
+	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
@@ -33164,6 +33167,9 @@ type ClientInterface interface {
 	// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
 	// for two minutes ends the transfer the same way, and so does one still reading after six
 	// hours.
+	//
+	// A server already streaming as many workspace downloads as it allows answers 503 with
+	// Retry-After before anything is claimed.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -47121,6 +47127,9 @@ func (c *Client) VerifyBackup(ctx context.Context, backupId openapi_types.UUID, 
 // for two minutes ends the transfer the same way, and so does one still reading after six
 // hours.
 //
+// A server already streaming as many workspace downloads as it allows answers 503 with
+// Retry-After before anything is claimed.
+//
 // Takes any type of body and a specified content type.
 //
 // Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
@@ -47162,6 +47171,9 @@ func (c *Client) DownloadWorkspaceArchiveWithBody(ctx context.Context, params *D
 // and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
 // for two minutes ends the transfer the same way, and so does one still reading after six
 // hours.
+//
+// A server already streaming as many workspace downloads as it allows answers 503 with
+// Retry-After before anything is claimed.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -105975,6 +105987,9 @@ type ClientWithResponsesInterface interface {
 	// for two minutes ends the transfer the same way, and so does one still reading after six
 	// hours.
 	//
+	// A server already streaming as many workspace downloads as it allows answers 503 with
+	// Retry-After before anything is claimed.
+	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
@@ -106006,6 +106021,9 @@ type ClientWithResponsesInterface interface {
 	// and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
 	// for two minutes ends the transfer the same way, and so does one still reading after six
 	// hours.
+	//
+	// A server already streaming as many workspace downloads as it allows answers 503 with
+	// Retry-After before anything is claimed.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -124560,11 +124578,18 @@ type DownloadWorkspaceArchiveResult struct {
 	HTTPResponse *http.Response
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
 func (r DownloadWorkspaceArchiveResult) GetApplicationproblemJSON4XX() *Problem {
 	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r DownloadWorkspaceArchiveResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
 }
 
 // GetBody returns the raw response body bytes
@@ -159613,6 +159638,9 @@ func (c *ClientWithResponses) VerifyBackupWithResponse(ctx context.Context, back
 // for two minutes ends the transfer the same way, and so does one still reading after six
 // hours.
 //
+// A server already streaming as many workspace downloads as it allows answers 503 with
+// Retry-After before anything is claimed.
+//
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /backups:download-workspace (the `DownloadWorkspaceArchive` operationId).
@@ -159650,6 +159678,9 @@ func (c *ClientWithResponses) DownloadWorkspaceArchiveWithBodyWithResponse(ctx c
 // and the ZIP file without its end is one no unpacker accepts. A client that reads nothing
 // for two minutes ends the transfer the same way, and so does one still reading after six
 // hours.
+//
+// A server already streaming as many workspace downloads as it allows answers 503 with
+// Retry-After before anything is claimed.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -180584,6 +180615,13 @@ func ParseDownloadWorkspaceArchiveResult(rsp *http.Response) (*DownloadWorkspace
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 
