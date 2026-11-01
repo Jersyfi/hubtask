@@ -182,6 +182,30 @@ func TestTakingAStepIntoDoneCompletesTheEntry(t *testing.T) {
 	}
 }
 
+// UC-FLW-02 check 6: entering a done-category status completes the entry and leaving it reopens
+// it, each in the history with who did it.
+func TestEnteringAndLeavingDoneCompletesAndReopens(t *testing.T) {
+	h, _ := workflowHarness(t)
+	task := h.items.stored[taskID]
+	task.CustomFields = map[string]any{"resolution": "fixed"}
+	h.items.stored[taskID] = task
+	take := TakeStep{Completion: h.writer}
+	if item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "accept"}); err != nil || !item.Completion.IsCompleted {
+		t.Fatalf("into done: %+v %v", item, err)
+	}
+	item, err := take.Execute(t.Context(), actorFixture(), TakeStepCommand{ItemID: taskID, Step: "reopen"})
+	if err != nil || item.Status != "todo" || item.Completion.IsCompleted {
+		t.Fatalf("out of done: %+v %v", item, err)
+	}
+	seen := map[activity.Verb]shared.ID{}
+	for _, entry := range h.history.entries {
+		seen[entry.Verb] = entry.Actor.ID
+	}
+	if seen[activity.ItemCompleted] != accountID || seen[activity.ItemReopened] != accountID {
+		t.Errorf("the history names who completed and reopened it: %v", seen)
+	}
+}
+
 // UC-FLW-03 check 2: a step the person may not take, or that does not leave the status, is
 // refused whatever door asks.
 func TestAStepNotOfferedIsRefused(t *testing.T) {
