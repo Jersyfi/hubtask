@@ -359,6 +359,21 @@ JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public' AND NOT i.indisvalid;
 
+-- What would let the connected role past row level security (multi-tenancy.md §2.1): a superuser
+-- or BYPASSRLS role, a role that owns tables with RLS - the doors' standing owner policies then
+-- apply to it - and a backfill's policy left behind (`%_backfill`, TO the migrating role). The
+-- catalogues are readable by every role.
+-- name: DatabaseRoleIsolation :one
+SELECT r.rolsuper AS superuser, r.rolbypassrls AS bypass_rls,
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relowner = r.oid
+  ) AS owns_tables,
+  (SELECT count(*) FROM pg_catalog.pg_policies p WHERE p.policyname LIKE '%\_backfill')::bigint AS backfill_policies
+FROM pg_catalog.pg_roles r
+WHERE r.rolname = current_user;
+
 -- The installation's dead letters for an operator (UC-INS-12), newest first: codes and moments,
 -- never the payload (rule 10). The table has no policy; only the operator's door reads this.
 -- name: PageDeadLetters :many

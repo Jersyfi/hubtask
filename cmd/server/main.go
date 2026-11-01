@@ -1644,6 +1644,9 @@ func run() error {
 		healthadapter.Volume{Name: "media", Path: mediaPath},
 		healthadapter.Volume{Name: "backups", Path: cfg.Backup.LocalRoot},
 	).Warnings)
+	// A connection role row level security does not bind - superuser, BYPASSRLS, the tables'
+	// owner, or a backfill's policy left behind - opens every workspace to every query.
+	registry.AddWarningSource(postgres.RoleIsolation{UnitOfWork: unitOfWork}.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses

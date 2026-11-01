@@ -246,6 +246,41 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 	return result.RowsAffected(), nil
 }
 
+const databaseRoleIsolation = `-- name: DatabaseRoleIsolation :one
+SELECT r.rolsuper AS superuser, r.rolbypassrls AS bypass_rls,
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_class c
+    JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relowner = r.oid
+  ) AS owns_tables,
+  (SELECT count(*) FROM pg_catalog.pg_policies p WHERE p.policyname LIKE '%\_backfill')::bigint AS backfill_policies
+FROM pg_catalog.pg_roles r
+WHERE r.rolname = current_user
+`
+
+type DatabaseRoleIsolationRow struct {
+	Superuser        *bool
+	BypassRls        *bool
+	OwnsTables       bool
+	BackfillPolicies int64
+}
+
+// What would let the connected role past row level security (multi-tenancy.md §2.1): a superuser
+// or BYPASSRLS role, a role that owns tables with RLS - the doors' standing owner policies then
+// apply to it - and a backfill's policy left behind (`%_backfill`, TO the migrating role). The
+// catalogues are readable by every role.
+func (q *Queries) DatabaseRoleIsolation(ctx context.Context) (DatabaseRoleIsolationRow, error) {
+	row := q.db.QueryRow(ctx, databaseRoleIsolation)
+	var i DatabaseRoleIsolationRow
+	err := row.Scan(
+		&i.Superuser,
+		&i.BypassRls,
+		&i.OwnsTables,
+		&i.BackfillPolicies,
+	)
+	return i, err
+}
+
 const deadLetterCount = `-- name: DeadLetterCount :one
 SELECT count(*) FROM job WHERE state = 'DEAD_LETTER'
 `

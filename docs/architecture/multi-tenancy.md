@@ -40,7 +40,11 @@ CREATE POLICY tenant_isolation ON work_item
 
 **Roles and context**
 
-* The application connects as `hubtask_app`: **no** `BYPASSRLS`, and **not** the table owner.
+* The application connects as `hubtask_app`: **no** `BYPASSRLS`, and **not** the table owner. A
+  process connected otherwise - a superuser, `BYPASSRLS`, the owner of the tables, or while a
+  backfill's `%_backfill` policy is left behind - says so in every health report as the critical
+  warning `database.isolation_bypassed` with its cause; it does not refuse to start, because the
+  integration suite and a developer's database connect as the superuser.
 * Migrations run as `hubtask_migrator`, which **owns** the objects; `0001`'s default privileges
   name that role, so migrations under another owner would grant the application nothing.
 * Exactly one place sets the context: the transaction wrapper in `infrastructure/postgres/Tenant.go`
