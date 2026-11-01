@@ -85,7 +85,7 @@ type DocumentKey struct {
 const (
 	DocumentChannel   = "hubtask_document"
 	AwarenessChannel  = "hubtask_awareness"
-	CredentialChannel = "hubtask_credential"
+	CredentialChannel = "hubtask_credential" //nolint:gosec // G101: a NOTIFY channel name, not a credential
 )
 
 func NewChangeListener(pool *pgxpool.Pool) *ChangeListener {
