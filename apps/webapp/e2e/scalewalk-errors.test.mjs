@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fold } from './scalewalk-errors.mjs';
+import { answerEvent, fold } from './scalewalk-errors.mjs';
 
 test('one error seen on many entries is one row, counted', () => {
   const rows = fold([
@@ -18,4 +18,14 @@ test('one error seen on many entries is one row, counted', () => {
     { source: 'browser', level: 'WARN', message: 'slow ? took ? ms', count: 1 },
   ]);
   assert.deepEqual(fold([]), []);
+});
+
+test('a refusal is a row with its path, told apart from a server error by its words', () => {
+  assert.equal(answerEvent(200, 'OK', 'GET', 'http://x/api/v1/items'), null);
+  const refused = answerEvent(403, 'Forbidden', 'GET', 'http://x/api/v1/tags?collection_id=1');
+  const failed = answerEvent(503, 'Service Unavailable', 'POST', 'http://x/api/v1/sync:snapshot');
+  assert.deepEqual(fold([refused, failed]), [
+    { source: 'browser', level: 'ERROR', message: 'answered ? Service Unavailable: POST /api/v1/sync:snapshot', count: 1 },
+    { source: 'browser', level: 'ERROR', message: 'refused ? Forbidden: GET /api/v1/tags', count: 1 },
+  ]);
 });

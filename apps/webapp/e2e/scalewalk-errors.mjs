@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // What run R3 collects from a browser (test/load/PLAN.md): every console error and warning, every
-// uncaught error, every request that failed and every answer of 500 or more, one row per message
+// uncaught error, every request that failed and every answer of 400 or more, one row per message
 // in the shape of test/load/harness.LogError, so the browser's rows sit beside the server's and
 // PostgreSQL's in errors-<items>.json.
 
@@ -28,8 +28,19 @@ export function record(page, events) {
   page.on('requestfailed', (request) =>
     events.push({ level: 'ERROR', message: `request failed: ${request.method()} ${pathOf(request.url())} ${request.failure()?.errorText ?? ''}` }));
   page.on('response', (response) => {
-    if (response.status() >= 500) events.push({ level: 'ERROR', message: `answered ${response.status()}: ${response.request().method()} ${pathOf(response.url())}` });
+    const event = answerEvent(response.status(), response.statusText(), response.request().method(), response.url());
+    if (event) events.push(event);
   });
+}
+
+/**
+ * An answer of 400 or more as an event, or null. A refusal is one too: the web app's own screens
+ * never ask for what their person may not read, so a 403 on a walk is a finding with its path.
+ */
+export function answerEvent(status, statusText, method, url) {
+  if (status < 400) return null;
+  const words = status >= 500 ? 'answered' : 'refused';
+  return { level: 'ERROR', message: `${words} ${status} ${statusText}: ${method} ${pathOf(url)}` };
 }
 
 function pathOf(url) {
