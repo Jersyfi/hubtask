@@ -100,6 +100,24 @@ func (q *Queries) InvitationIsOpen(ctx context.Context, id pgtype.UUID) (bool, e
 	return exists, err
 }
 
+const keptTenantCount = `-- name: KeptTenantCount :one
+SELECT closing::bigint FROM usage_record
+WHERE metric = $1 AND closing IS NOT NULL
+ORDER BY period DESC
+LIMIT 1
+`
+
+// The count the usage triggers keep for one of `items` and `media_bytes` (migration 0183): the
+// latest day row's closing, moved by every attributed write's own statement, in its transaction,
+// under the day row's lock, and counted afresh by the first write of each UTC day. A capacity
+// check reads it instead of counting every row; no row is "nothing kept", and the caller counts.
+func (q *Queries) KeptTenantCount(ctx context.Context, metric string) (int64, error) {
+	row := q.db.QueryRow(ctx, keptTenantCount, metric)
+	var closing int64
+	err := row.Scan(&closing)
+	return closing, err
+}
+
 const lockTenantPeople = `-- name: LockTenantPeople :exec
 SELECT pg_advisory_xact_lock(hashtext('people:' || current_tenant_id()::text))
 `

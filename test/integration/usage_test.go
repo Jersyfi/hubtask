@@ -330,3 +330,73 @@ func TestTwoWritersAndTheMediaSealAreCounted(t *testing.T) {
 		t.Errorf("the sealed upload reads %d / %d (%v), want 50 / 50", value, closing, err)
 	}
 }
+
+// The capacity check's cheap count (multi-tenancy.md §4): the kept count read through the adapter
+// equals the rows after inserts and a deletion, a fresh workspace has nothing kept, and a workspace
+// never reads another's (SG-3).
+func TestTheKeptCountIsTheRowsAndStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	app := appPool(ctx, t)
+	uow := postgres.NewUnitOfWork(app)
+	store := postgres.NewQuotaRepository()
+	workspace, neighbour := seedWorkspace(ctx, t, "kept"), seedWorkspace(ctx, t, "kept-next")
+	person, hub, collection := freshID(t), freshID(t), freshID(t)
+	inScope := func(statements ...string) {
+		t.Helper()
+		inRawTenant(ctx, t, app, workspace.String(), true, func(tx pgx.Tx) {
+			for _, statement := range statements {
+				if _, err := tx.Exec(ctx, statement); err != nil {
+					t.Fatalf("%s: %v", statement, err)
+				}
+			}
+		})
+	}
+	kept := func(scope shared.ID, metric string) (int64, bool, int64) {
+		t.Helper()
+		var value, counted int64
+		var ok bool
+		inTenant(t, uow, scope, func(ctx context.Context) error {
+			var err error
+			if value, ok, err = store.Kept(ctx, metric); err != nil {
+				return err
+			}
+			if metric == "items" {
+				counted, err = store.Items(ctx)
+			} else {
+				counted, err = store.MediaBytes(ctx)
+			}
+			return err
+		})
+		return value, ok, counted
+	}
+
+	if _, ok, _ := kept(workspace, "items"); ok {
+		t.Error("a workspace without a write has a kept count")
+	}
+	item := func(id shared.ID) string {
+		return fmt.Sprintf(`('%s', '%s', '%s', 'TASK', '/%s/', 1, 'Kept', 'a0', '%s')`,
+			id, workspace, collection, id, person)
+	}
+	a, b, c := freshID(t), freshID(t), freshID(t)
+	inScope(fmt.Sprintf(`INSERT INTO account (id, tenant_id, kind, display_name, status)
+		VALUES ('%s', '%s', 'USER', 'Kept', 'ACTIVE')`, person, workspace),
+		fmt.Sprintf(`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		VALUES ('%s', '%s', 'HUB', 'Hub', 'a0', '%s')`, hub, workspace, person),
+		fmt.Sprintf(`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+		VALUES ('%s', '%s', 'COLLECTION', '%s', 'Collection', 'a0', '%s')`, collection, workspace, hub, person),
+		`INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key, created_by)
+		VALUES `+item(a)+`, `+item(b)+`, `+item(c),
+		fmt.Sprintf(`DELETE FROM work_item WHERE id = '%s'`, b),
+		fmt.Sprintf(`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		VALUES ('%s', '%s', 'media/k/a', 'text/plain', 17, 'ATTACHMENT', 'READY')`, freshID(t), workspace))
+
+	if value, ok, counted := kept(workspace, "items"); !ok || value != 2 || counted != 2 {
+		t.Errorf("items kept %d (%v), counted %d; want 2 kept, 2 counted", value, ok, counted)
+	}
+	if value, ok, counted := kept(workspace, "media_bytes"); !ok || value != 17 || counted != 17 {
+		t.Errorf("bytes kept %d (%v), counted %d; want 17 and 17", value, ok, counted)
+	}
+	if value, ok, _ := kept(neighbour, "items"); ok || value != 0 {
+		t.Errorf("the neighbour reads a kept count of %d", value)
+	}
+}

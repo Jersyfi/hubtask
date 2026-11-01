@@ -6,10 +6,12 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
@@ -288,6 +290,24 @@ func (QuotaRepository) MediaBytes(ctx context.Context) (int64, error) {
 	return count(ctx, "summing the media bytes", func(q *sqlc.Queries) (int64, error) {
 		return q.SumTenantMediaBytes(ctx)
 	})
+}
+
+// Kept reads the count the usage triggers keep (migration 0183).
+func (QuotaRepository) Kept(ctx context.Context, metric string) (int64, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	value, err := queries.KeptTenantCount(ctx, metric)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the kept %s: %w", metric, err))
+	}
+	return value, true, nil
 }
 
 // WebhookTargets counts the subscriptions.

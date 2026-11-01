@@ -66,6 +66,7 @@ func (quotaUsageFake) Items(context.Context) (int64, error)                 { re
 func (quotaUsageFake) MediaBytes(context.Context) (int64, error)            { return 0, nil }
 func (quotaUsageFake) WebhookTargets(context.Context) (int64, error)        { return 0, nil }
 func (quotaUsageFake) LiveExports(context.Context) (int64, error)           { return 0, nil }
+func (quotaUsageFake) Kept(context.Context, string) (int64, bool, error)    { return 0, false, nil }
 func (quotaUsageFake) Accounts(context.Context) (int64, error)              { return 0, nil }
 func (quotaUsageFake) LockPeople(context.Context) error                     { return nil }
 func (quotaUsageFake) InvitationOpen(context.Context, string) (bool, error) { return false, nil }

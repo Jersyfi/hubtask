@@ -138,10 +138,23 @@ type usageFake struct {
 	meteredCalls  int
 	meteredMetric string
 	meteredSince  time.Time
+	// kept is what the database keeps per metric; counted is how often the rows were counted.
+	kept    map[string]int64
+	counted int
 }
 
-func (u *usageFake) Items(context.Context) (int64, error)                 { return u.items, nil }
-func (u *usageFake) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
+func (u *usageFake) Items(context.Context) (int64, error) {
+	u.counted++
+	return u.items, nil
+}
+func (u *usageFake) MediaBytes(context.Context) (int64, error) {
+	u.counted++
+	return u.media, nil
+}
+func (u *usageFake) Kept(_ context.Context, metric string) (int64, bool, error) {
+	value, ok := u.kept[metric]
+	return value, ok, nil
+}
 func (u *usageFake) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
 func (u *usageFake) LiveExports(context.Context) (int64, error)           { return u.exports, nil }
 func (u *usageFake) Accounts(context.Context) (int64, error)              { return u.people, nil }
@@ -220,6 +233,44 @@ func TestTheGuardRefusesAtTheWallAndReportsTheApproach(t *testing.T) {
 	}
 	if len(signals.ratios) != 0 {
 		t.Errorf("an unlimited quota reported a ratio: %v", signals.ratios)
+	}
+}
+
+// The kept count answers a create that has room, so a limited workspace with a million entries is
+// not counted on every create; at the wall the rows are counted, so a deletion the kept count
+// missed never refuses a workspace that has room. Nothing kept: the rows are counted.
+func TestTheKeptCountAnswersBelowTheWallAndTheRowsAtIt(t *testing.T) {
+	store := &storeFake{overrides: repository.Overrides{Items: ceiling(1_000_000), MediaBytes: ceiling(100)}}
+	usage := &usageFake{items: 500_000, kept: map[string]int64{Items: 500_000, MediaBytes: 40}}
+	guard := guardWith(store, usage, &signalsFake{})
+
+	if err := guard.Items(t.Context(), "t1", 1); err != nil {
+		t.Fatalf("a create with room was refused: %v", err)
+	}
+	if err := guard.MediaBytes(t.Context(), "t1", 10); err != nil {
+		t.Fatalf("an upload with room was refused: %v", err)
+	}
+	if usage.counted != 0 {
+		t.Errorf("the rows were counted %d times though the kept count left room", usage.counted)
+	}
+
+	// The kept count says full, the rows say otherwise: the rows decide.
+	usage.kept[Items] = 1_000_000
+	if err := guard.Items(t.Context(), "t1", 1); err != nil {
+		t.Errorf("a stale kept count refused a workspace with room: %v", err)
+	}
+	usage.items = 1_000_000
+	if err := guard.Items(t.Context(), "t1", 1); err == nil {
+		t.Error("a full workspace was admitted")
+	}
+	if usage.counted != 2 {
+		t.Errorf("the rows were counted %d times at the wall, want 2", usage.counted)
+	}
+
+	usage.kept, usage.counted = nil, 0
+	usage.items = 999_999
+	if err := guard.Items(t.Context(), "t1", 1); err != nil || usage.counted != 1 {
+		t.Errorf("nothing kept: %v after %d counts, want admitted after one", err, usage.counted)
 	}
 }
 

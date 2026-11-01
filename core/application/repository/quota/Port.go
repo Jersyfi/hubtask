@@ -93,6 +93,13 @@ type Usage interface {
 	// the reconciliation job's to reclaim, not the workspace's to answer for.
 	MediaBytes(ctx context.Context) (int64, error)
 
+	// Kept answers the count the database keeps for `items` or `media_bytes` beside every write
+	// that changes it, in that write's own transaction - so it does not lag a commit, unlike a
+	// tally written afterwards. A write made with no workspace in scope (a restore, the system
+	// scope) moves it not, until the next UTC day's first write counts afresh. False is "nothing
+	// kept yet": the caller counts.
+	Kept(ctx context.Context, metric string) (int64, bool, error)
+
 	// WebhookTargets counts the live subscriptions.
 	WebhookTargets(ctx context.Context) (int64, error)
 
@@ -119,10 +126,11 @@ type Usage interface {
 
 	// MeteredSince sums one metered thing since the instant.
 	//
-	// **Read from the billing ledger, which every other quota here refuses to do** - and the
-	// exception is the point rather than an oversight. The ledger is barred as an enforcement
+	// **Read from the billing ledger's tallies, which every other quota here refuses to do** - and
+	// the exception is the point rather than an oversight. A tally is barred as an enforcement
 	// source because it is a lagging copy of something countable: items are in `work_item`, media
-	// in `media_object`, and a count that read the tally could lag behind the rows. A token has no
+	// in `media_object`, and a count that read the tally could lag behind the rows (`Kept` is no
+	// tally: it moves in the writing transaction, and a refusal never rests on it). A token has no
 	// row. It was spent on somebody else's machine and the tally *is* the record, so there is
 	// nothing more authoritative to count - and a budget that refused to read the only record of
 	// what it bounds would not be a budget.

@@ -286,6 +286,11 @@ in the application layer and middleware; the per-token rate is resolved the same
 authentication query that already runs. A capacity quota refuses as `422 capacity.<quota>` naming the
 ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is alert A-18, which counts workspaces without naming them;
 `GET /admin/quotas` and the installation's overview name each one and the quota it stands at.
+The items and media ceilings read the count the usage triggers keep beside every write (§4.3, in
+the writing transaction), so a create in a limited workspace of a million entries does not count
+them; where that count says the wall is reached, or none is kept yet, the rows are counted, so a
+write it missed never refuses a workspace that has room. Like every capacity, the check is
+check-then-act: two creates at the last place can both pass.
 
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|
