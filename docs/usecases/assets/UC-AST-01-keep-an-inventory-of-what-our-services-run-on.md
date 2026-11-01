@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/work/LinksCi_test.go, core/application/service/cmdb/Backlinks_test.go, core/application/service/cmdb/Changes_test.go, core/application/service/sync/InitialSyncCmdb_test.go, apps/webapp/src/lib/data/replica.test.ts]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/work/LinksCi_test.go, core/application/service/cmdb/Backlinks_test.go, core/application/service/cmdb/Changes_test.go, core/application/service/sync/InitialSyncCmdb_test.go, apps/webapp/src/lib/data/replica.test.ts, core/application/archive/Carried_test.go]
 ---
 
 # Keep an inventory of what our services run on
