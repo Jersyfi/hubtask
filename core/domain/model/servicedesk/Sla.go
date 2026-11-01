@@ -134,6 +134,12 @@ type SLAPolicy struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 	Version       int
+	// HubID is the hub the policy is defined at, whose entries alone it measures; zero for one of
+	// the whole workspace (configuration model §1).
+	HubID shared.ID
+	// CopiedFrom is the key of the policy this one was copied from; empty for one made from
+	// scratch.
+	CopiedFrom string
 }
 
 // NewSLAPolicyInput is what defining a policy takes.
@@ -150,6 +156,9 @@ type NewSLAPolicyInput struct {
 	Enabled       bool
 	Now           time.Time
 	Text          text.Normalizer
+	// HubID defines the policy at that hub; zero is the whole workspace. A change keeps the
+	// policy's own.
+	HubID shared.ID
 }
 
 // NewSLAPolicy checks a policy: a key, a name, at least one type and one goal, each kind once,
@@ -212,7 +221,7 @@ func NewSLAPolicy(in NewSLAPolicyInput) (SLAPolicy, error) {
 	return SLAPolicy{
 		ID: in.ID, TenantID: in.TenantID, Key: key, Name: name, CalendarKey: calendarKey,
 		EntryTypes: types, Organisations: organisations, PriorityField: priorityField, AssigneeGroup: in.AssigneeGroup,
-		Goals: goals, Position: in.Position,
+		Goals: goals, Position: in.Position, HubID: in.HubID,
 		Enabled: in.Enabled, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
 }
@@ -271,13 +280,65 @@ func checkKeys(raw []string, at string, bound int) ([]string, error) {
 
 // Change answers the policy with every decision replaced, its key and identity kept.
 func (p SLAPolicy) Change(in NewSLAPolicyInput) (SLAPolicy, error) {
-	in.ID, in.TenantID, in.Key = p.ID, p.TenantID, p.Key
+	in.ID, in.TenantID, in.Key, in.HubID = p.ID, p.TenantID, p.Key, p.HubID
 	changed, err := NewSLAPolicy(in)
 	if err != nil {
 		return SLAPolicy{}, err
 	}
-	changed.CreatedAt, changed.Version = p.CreatedAt, p.Version
+	changed.CreatedAt, changed.Version, changed.CopiedFrom = p.CreatedAt, p.Version, p.CopiedFrom
 	return changed, nil
+}
+
+// UsableIn reports whether the policy may measure an entry inside the hub.
+func (p SLAPolicy) UsableIn(hub shared.ID) bool { return p.HubID.IsZero() || p.HubID == hub }
+
+// PoliciesWithin answers the policies an entry inside the hub may be measured by: the
+// workspace's and the hub's own, never another hub's. A zero hub is the workspace's alone.
+func PoliciesWithin(policies []SLAPolicy, hub shared.ID) []SLAPolicy {
+	var out []SLAPolicy
+	for _, p := range policies {
+		if p.UsableIn(hub) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// SLAPolicyCopy is what making a copy of a policy at a hub takes.
+type SLAPolicyCopy struct {
+	ID, TenantID, HubID shared.ID
+	Key                 string
+	// Name is the copy's own name; nil keeps the source's.
+	Name *string
+	Now  time.Time
+	Text text.Normalizer
+}
+
+// CopyAt makes a hub's own policy from p: everything of it but its identity and its key, with the
+// key it came from (configuration model §2, "shared means referenced, never overridden").
+func (p SLAPolicy) CopyAt(in SLAPolicyCopy) (SLAPolicy, error) {
+	if in.HubID.IsZero() {
+		return SLAPolicy{}, invalid("/hub_id", "sla_policies.hub_required")
+	}
+	tenantID := in.TenantID
+	if tenantID.IsZero() {
+		tenantID = p.TenantID
+	}
+	name := p.Name
+	if in.Name != nil {
+		name = *in.Name
+	}
+	copied, err := NewSLAPolicy(NewSLAPolicyInput{
+		ID: in.ID, TenantID: tenantID, Key: in.Key, Name: name, CalendarKey: p.CalendarKey,
+		EntryTypes: slices.Clone(p.EntryTypes), Organisations: slices.Clone(p.Organisations),
+		PriorityField: p.PriorityField, AssigneeGroup: p.AssigneeGroup, Goals: slices.Clone(p.Goals),
+		Position: p.Position, Enabled: p.Enabled, Now: in.Now, Text: in.Text, HubID: in.HubID,
+	})
+	if err != nil {
+		return SLAPolicy{}, err
+	}
+	copied.CopiedFrom = p.Key
+	return copied, nil
 }
 
 // IsOLA reports whether the policy is a team's internal promise rather than the requester's.
@@ -307,12 +368,13 @@ func (p SLAPolicy) Goal(kind GoalKind) (SLAGoal, bool) {
 }
 
 // Choose answers the policy an entry of the type, raised by a requester of the organisation, is
-// measured against: the first enabled one that covers both, by position and then key - one policy
-// per entry, so its clocks never disagree.
+// measured against: the first enabled one that covers both - a hub's own before the workspace's
+// (UC-SVC-02 check 11), then by position and key - one policy per entry, so its clocks never
+// disagree. The caller narrows the policies to the entry's hub (PoliciesWithin).
 func Choose(policies []SLAPolicy, entryType, organisation string) (SLAPolicy, bool) {
 	ordered := slices.Clone(policies)
 	slices.SortFunc(ordered, func(a, b SLAPolicy) int {
-		return cmp.Or(cmp.Compare(a.Position, b.Position), cmp.Compare(a.Key, b.Key))
+		return cmp.Or(cmp.Compare(hubRank(a), hubRank(b)), cmp.Compare(a.Position, b.Position), cmp.Compare(a.Key, b.Key))
 	})
 	for _, policy := range ordered {
 		if !policy.IsOLA() && policy.Covers(entryType, organisation) {
@@ -418,4 +480,12 @@ type ReportRow struct {
 	Goal      GoalKind
 	Standing  Standing
 	Entries   int
+}
+
+// hubRank orders a hub's own policy before the workspace's.
+func hubRank(p SLAPolicy) int {
+	if p.HubID.IsZero() {
+		return 1
+	}
+	return 0
 }
