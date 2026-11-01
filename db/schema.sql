@@ -7768,4 +7768,32 @@ CREATE POLICY tenant_isolation ON public_form_challenge
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON public_form_challenge TO hubtask_app;
 
+-- Migrations 0338-0351: a notification about a failing mailbox, a SAML certificate ending, a
+-- calendar push, a CMDB connector or a forge's hook; what the certificate watch keeps; a durable
+-- timer's attempts.
+ALTER TABLE notification ADD COLUMN mailbox_id uuid,
+  ADD COLUMN identity_provider_id uuid,
+  ADD COLUMN calendar_push_id uuid,
+  ADD COLUMN cmdb_connector_id uuid,
+  ADD COLUMN code_hook_id uuid,
+  ADD CONSTRAINT notification_mailbox_id_fkey
+    FOREIGN KEY (tenant_id, mailbox_id) REFERENCES mailbox (tenant_id, id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_identity_provider_id_fkey
+    FOREIGN KEY (identity_provider_id) REFERENCES identity_provider (id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_calendar_push_id_fkey
+    FOREIGN KEY (tenant_id, calendar_push_id) REFERENCES calendar_push (tenant_id, id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_cmdb_connector_id_fkey
+    FOREIGN KEY (tenant_id, cmdb_connector_id) REFERENCES cmdb_connector (tenant_id, id) ON DELETE CASCADE,
+  ADD CONSTRAINT notification_code_hook_id_fkey
+    FOREIGN KEY (tenant_id, code_hook_id) REFERENCES code_hook (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id, baseline_id, mailbox_id, identity_provider_id, calendar_push_id,
+      cmdb_connector_id, code_hook_id) <= 1);
+ALTER TABLE identity_provider ADD COLUMN saml_expiry_told_for timestamptz,
+  ADD COLUMN saml_expiry_told_days smallint,
+  ADD COLUMN saml_certificates_end timestamptz;
+ALTER TABLE durable_timer ADD COLUMN fire_attempts integer NOT NULL DEFAULT 0;
+
 COMMIT;
