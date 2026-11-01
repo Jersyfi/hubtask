@@ -10077,6 +10077,8 @@
   "app.planning.mode_MANUAL": "Von Hand",
   "app.planning.mode_AUTOMATIC": "Automatisch",
   "app.planning.mode_of": "Planung von {title}",
+  "app.planning.mode_apply": "Übernehmen",
+  "app.planning.mode_apply_of": "Planung von {title} übernehmen",
   "app.planning.milestone_of": "{title} ist ein Meilenstein",
   "app.planning.kind_FS": "Ende zu Anfang",
   "app.planning.kind_SS": "Anfang zu Anfang",

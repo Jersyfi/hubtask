@@ -248,6 +248,9 @@
     }, t('app.planning.applied', { count: String(ids.length) }));
   }
 
+  /** The scheduling mode chosen for an entry and not yet applied, by entry. */
+  const modeDraft = $state<Record<string, 'MANUAL' | 'AUTOMATIC'>>({});
+
   /** The draft of each dependency's timing, by link, until it is saved. */
   const timing = $state<Record<string, { kind: string; lag: string }>>({});
   $effect(() => {
@@ -502,16 +505,29 @@
             {/if}
             <td>
               {#if mayWrite && !row.entry.external}
-                <Select
-                  label={t('app.planning.mode_of', { title: row.title })}
-                  size="sm"
-                  value={row.entry.mode}
-                  options={modes}
-                  onchange={(event: Event) => {
-                    const mode = (event.currentTarget as HTMLSelectElement).value as 'MANUAL' | 'AUTOMATIC';
-                    void act(() => planning.setScheduling(planId, zone, row.id, { mode }));
-                  }}
-                />
+                {@const chosenMode = modeDraft[row.id] ?? row.entry.mode}
+                <!-- Chosen, then applied: a closed native select changes on every arrow key, and
+                     each change would write and reschedule the plan (SC 3.2.2). -->
+                <Inline gap="050" align="end">
+                  <Select
+                    label={t('app.planning.mode_of', { title: row.title })}
+                    size="sm"
+                    value={chosenMode}
+                    options={modes}
+                    onchange={(event: Event) => (modeDraft[row.id] = (event.currentTarget as HTMLSelectElement).value as 'MANUAL' | 'AUTOMATIC')}
+                  />
+                  {#if chosenMode !== row.entry.mode}
+                    <Button
+                      size="sm"
+                      tone="secondary"
+                      aria-label={t('app.planning.mode_apply_of', { title: row.title })}
+                      onclick={() => {
+                        const mode = chosenMode;
+                        void act(() => planning.setScheduling(planId, zone, row.id, { mode })).then(() => delete modeDraft[row.id]);
+                      }}
+                    >{t('app.planning.mode_apply')}</Button>
+                  {/if}
+                </Inline>
               {:else}
                 {t(`app.planning.mode_${row.entry.mode}`)}
               {/if}

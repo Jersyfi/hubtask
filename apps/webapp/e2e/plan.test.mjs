@@ -206,8 +206,13 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   await page.waitForTimeout(200);
   assert.equal(written.filter((each) => each.path === `/links/${LINK}/timing`).length, 1);
 
-  // An entry made manual, and the one proposed move accepted.
-  await page.getByLabel(`Scheduling of ${FIRST.title}`).selectOption('MANUAL');
+  // An entry made manual: choosing writes nothing - a closed select changes on every arrow key
+  // (SC 3.2.2) - and the apply beside it writes the mode.
+  const scheduling = page.getByLabel(`Scheduling of ${FIRST.title}`);
+  await scheduling.selectOption('MANUAL');
+  await page.waitForTimeout(300);
+  assert.equal(written.some((each) => each.path.endsWith('/scheduling')), false, 'choosing a mode wrote it');
+  await page.getByRole('button', { name: `Apply the scheduling of ${FIRST.title}` }).click();
   await page.waitForTimeout(300);
   const mode = written.find((each) => each.method === 'PUT' && each.path === `/items/${FIRST.id}/scheduling`);
   assert.deepEqual(mode?.body, { mode: 'MANUAL' });

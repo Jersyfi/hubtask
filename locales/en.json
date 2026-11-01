@@ -10077,6 +10077,8 @@
   "app.planning.mode_MANUAL": "By hand",
   "app.planning.mode_AUTOMATIC": "Automatic",
   "app.planning.mode_of": "Scheduling of {title}",
+  "app.planning.mode_apply": "Apply",
+  "app.planning.mode_apply_of": "Apply the scheduling of {title}",
   "app.planning.milestone_of": "{title} is a milestone",
   "app.planning.kind_FS": "Finish to start",
   "app.planning.kind_SS": "Start to start",
