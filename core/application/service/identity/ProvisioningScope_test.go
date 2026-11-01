@@ -99,3 +99,35 @@ func TestARaisedSessionGainsTheWholeControlPlaneAlone(t *testing.T) {
 		t.Errorf("the raised session carries %v, want admin:tenants and not its subset", actor.Scopes)
 	}
 }
+
+// UC-INS-04 check 5: an operator removed from the register while their hour runs loses the
+// installation on the next request - the register is read again, not trusted from the elevation.
+func TestARaisedSessionWhoseHolderLeftTheRegisterGainsNothing(t *testing.T) {
+	sessions := newSessionsStore()
+	credential, _ := refreshCredential(now)
+	credential.Session.ElevatedUntil = now.Add(30 * time.Minute)
+	sessions.sessions[sessionRowID] = repository.SessionCredential{
+		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
+	}
+	signer := validatingSigner{token: "hbt_sat_x", claims: cryptoport.SessionClaims{
+		TenantID: tenant, SessionID: sessionRowID, AccountID: account,
+		ExpiresAt: now.Add(10 * time.Minute),
+	}}
+	register := &operatorRegister{accounts: map[shared.ID]bool{account: true}}
+	authenticate := sessionAuthenticator(sessions, signer, now)
+	authenticate.Operators = register
+
+	before, err := authenticate.Execute(t.Context(), AuthenticateTokenCommand{Credential: "hbt_sat_x"})
+	if err != nil || !before.HasScope("admin:tenants") {
+		t.Fatalf("the raised session carries %v (%v), want admin:tenants", before.Scopes, err)
+	}
+
+	delete(register.accounts, account)
+	after, err := authenticate.Execute(t.Context(), AuthenticateTokenCommand{Credential: "hbt_sat_x"})
+	if err != nil {
+		t.Fatalf("authenticating: %v", err)
+	}
+	if after.HasScope("admin:tenants") {
+		t.Errorf("the session still carries the installation after its holder left the register: %v", after.Scopes)
+	}
+}

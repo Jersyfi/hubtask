@@ -123,6 +123,7 @@ func TestSomebodyOutsideTheRegisterCannotRaiseTheirSession(t *testing.T) {
 
 // Without a fresh proof there is no elevation: a session that could raise itself would be a tab
 // that could, and the hour is exactly what a stolen tab must not get.
+// UC-INS-04 check 2: opening the hour asks for a fresh proof.
 func TestRaisingASessionDemandsAFreshProof(t *testing.T) {
 	fixture, register := newElevationFixture(t)
 
