@@ -232,7 +232,7 @@ func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 // total to what adds up: a COUNT or a SUM, cut by period. A saved view's is the view's, and a
 // running total over one that does not add up is the reader's to judge.
 func summaryFits(query map[string]any, cumulative bool, at string) error {
-	_, aggregation, err := work.ParseSummary(usecase.Input(query))
+	_, aggregation, err := work.ParseSummary(summaryInput(query))
 	if err != nil || !cumulative {
 		return err
 	}
@@ -243,6 +243,30 @@ func summaryFits(query map[string]any, cumulative bool, at string) error {
 		return invalid(at, "dashboards.cumulative_function")
 	}
 	return nil
+}
+
+// summaryInput is a widget's summary as the aggregate use case takes it. The document is kept as
+// it came, which is the contract's POST /items:aggregate body with its scope nested; the REST door
+// flattens that body for the use case, and nothing flattens a document stored inside another.
+func summaryInput(query map[string]any) usecase.Input {
+	in := usecase.Input{}
+	for key, value := range query {
+		in[key] = value
+	}
+	scope, nested := query["scope"].(map[string]any)
+	if !nested {
+		return in
+	}
+	delete(in, "scope")
+	for from, to := range map[string]string{
+		"container_id": "scope_container_id", "item_id": "scope_item_id",
+		"include_descendants": "include_descendants", "workspace": "scope_workspace",
+	} {
+		if value, present := scope[from]; present {
+			in[to] = value
+		}
+	}
+	return in
 }
 
 var dashboardInput = []usecase.Field{
@@ -538,7 +562,7 @@ func (s Steward) figures(ctx context.Context, actor appshared.ActorContext, d do
 		case domain.WidgetView:
 			out, err = s.run(ctx, actor, s.ViewSummaries, usecase.Input{"view_id": w.ViewID.String()})
 		case domain.WidgetQuery:
-			out, err = s.run(ctx, actor, s.Summaries, usecase.Input(w.Query))
+			out, err = s.run(ctx, actor, s.Summaries, summaryInput(w.Query))
 		case domain.WidgetGoals:
 			data := []usecase.Output{}
 			for _, g := range w.GoalIDs {
@@ -577,7 +601,7 @@ func (s Steward) series(ctx context.Context, actor appshared.ActorContext, w dom
 	first, _ := row["data"].([]usecase.Output)
 	var second []usecase.Output
 	if w.Compare != nil {
-		out, err := s.run(ctx, actor, s.Summaries, usecase.Input(w.Compare.Query))
+		out, err := s.run(ctx, actor, s.Summaries, summaryInput(w.Compare.Query))
 		code, err := refusedCode(err)
 		if err != nil {
 			return err

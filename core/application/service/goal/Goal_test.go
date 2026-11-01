@@ -501,6 +501,34 @@ func TestADashboardDrawsEachReadersOwnNumbers(t *testing.T) {
 	}
 }
 
+// A widget's query arrives as the contract writes POST /items:aggregate - its scope nested, as the
+// widget editor sends it - and is kept so; it is run and checked as the flat input it stands for.
+func TestAWidgetsQueryTakesTheAggregateBodysNestedScope(t *testing.T) {
+	s, _, _, _ := newSteward(t)
+	nested := map[string]any{"scope": map[string]any{"container_id": listA.String(), "include_descendants": true},
+		"aggregate": map[string]any{"function": "COUNT", "group_by": "is_completed"}}
+	made := ok(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "Mine", "widgets": []any{
+		map[string]any{"title": "Launch", "chart": "PIE", "source": "QUERY", "query": nested},
+		map[string]any{"title": "All", "chart": "NUMBER", "source": "QUERY", "x": 6.0, "query": map[string]any{
+			"scope": map[string]any{"workspace": true}, "aggregate": map[string]any{"function": "COUNT"}}},
+	}})
+	figures := ok(t, ReadDashboardFigures{s}.Descriptor(), ana, usecase.Input{"dashboard_id": made.String("id")})
+	rows := figures["widgets"].([]usecase.Output)
+	if len(rows) != 2 || rows[0]["error"] != nil {
+		t.Fatalf("the figures of a nested scope = %v", rows)
+	}
+	read := ok(t, ReadDashboard{s}.Descriptor(), ana, usecase.Input{"dashboard_id": made.String("id")})
+	kept := read["widgets"].([]usecase.Output)[0]["query"].(map[string]any)
+	if scope, _ := kept["scope"].(map[string]any); scope["container_id"] != listA.String() {
+		t.Fatalf("the widget's query is kept as %v", kept)
+	}
+	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "Bad", "widgets": []any{
+		map[string]any{"title": "x", "chart": "BAR", "source": "QUERY", "query": map[string]any{"scope": "everything", "aggregate": map[string]any{"function": "COUNT"}}},
+	}}); code(err) != "query.scope_required" {
+		t.Fatalf("a scope that is not an object: %v", err)
+	}
+}
+
 type groups map[shared.ID][]shared.ID
 
 func (g groups) InGroup(_ context.Context, account, group shared.ID) (bool, error) {
