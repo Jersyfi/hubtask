@@ -2437,6 +2437,7 @@
   "app.changes.version": "Version {version}",
   "app.changes.by_agent": "von einem Agenten angewendet",
   "app.changes.by_direct": "direkt in den Ansichten geändert, vor der nächsten Anwendung festgehalten",
+  "app.changes.by_baseline": "die Konfiguration vor der ersten Anwendung, zum Zurücksetzen aufbewahrt",
   "app.changes.by_person": "von einer Person angewendet",
   "app.changes.was_proposed": "von einem Agenten vorgeschlagen",
   "app.changes.rollback_of": "zurück zu Version {version}",
