@@ -22,6 +22,7 @@
 import type { AccountSummary } from '@hubtask/sync-engine';
 
 import { actor } from './account.svelte.ts';
+import { ResolveBatch } from './accountbatch.ts';
 import { engine } from './engine.ts';
 import { media } from './media.svelte.ts';
 
@@ -92,38 +93,69 @@ class Accounts {
   }
 
   /**
-   * Asks for the names this screen needs and has not got.
+   * Asks for the names this screen needs and has not got - all of a turn's in one request.
    *
    * Safe to call on every render: an identifier already known, already being asked for, or already
-   * refused is skipped, so the work happens once per identifier per session.
+   * left out of an answer is skipped, so the work happens once per identifier per session. One the
+   * server could not answer (busy, down, offline) is asked again, and after the last attempt by the
+   * next call that wants it.
    */
   resolve(ids: readonly (string | null | undefined)[]): void {
+    const wanted: string[] = [];
     for (const id of ids) {
       if (!id || id in this.#names || this.#asking.has(id) || this.#unknown.has(id)) continue;
       this.#asking.add(id);
-      void this.#read(id);
+      wanted.push(id);
     }
+    if (wanted.length > 0) this.#batch.ask(wanted);
   }
 
-  async #read(id: string): Promise<void> {
-    try {
-      const state = await engine.refresh<AccountSummary>({ path: `/accounts/${id}` });
-      if (state.status === 'ready' && state.data.display_name) {
-        this.#names = { ...this.#names, [id]: state.data.display_name };
-        if (state.data.status) this.#statuses = { ...this.#statuses, [id]: state.data.status };
-        if (state.data.has_address === false) this.#addressless = { ...this.#addressless, [id]: true };
-        if (state.data.managed === true) this.#managed = { ...this.#managed, [id]: true };
-        if (state.data.avatar_media_id) this.#pictures = { ...this.#pictures, [id]: state.data.avatar_media_id };
-      } else {
-        this.#unknown.add(id);
+  #batchMissing = false;
+
+  readonly #batch = new ResolveBatch<AccountSummary>({
+    read: async (ids) => {
+      if (!this.#batchMissing) {
+        const state = await engine.refresh<{ data: AccountSummary[] }>({ path: '/accounts:resolve', body: { ids } });
+        if (state.status === 'ready') return state.data.data ?? [];
+        if (state.status !== 'failed' || state.error.status !== 404) throw state.status === 'failed' ? state.error : new Error('accounts not resolved');
+        // A server older than the batch read, during a rolling update: one read per name, as before.
+        this.#batchMissing = true;
       }
-    } catch {
-      // A refusal is an answer: this reader may not have that name, and the feed says "Somebody".
-      // Rethrowing would put a sentence about an account on a screen about an entry.
-      this.#unknown.add(id);
-    } finally {
-      this.#asking.delete(id);
+      const states = await Promise.all(ids.map((id) => engine.refresh<AccountSummary>({ path: `/accounts/${id}` })));
+      return states.flatMap((state) => (state.status === 'ready' ? [state.data] : []));
+    },
+    idOf: (account) => account.id,
+    settled: (found, unknown) => this.#settle(found, unknown),
+    gaveUp: (ids) => { for (const id of ids) this.#asking.delete(id); },
+  });
+
+  #settle(found: readonly AccountSummary[], unknown: readonly string[]): void {
+    const names = { ...this.#names };
+    const statuses = { ...this.#statuses };
+    const addressless = { ...this.#addressless };
+    const managed = { ...this.#managed };
+    const pictures = { ...this.#pictures };
+    for (const account of found) {
+      this.#asking.delete(account.id);
+      if (!account.display_name) {
+        this.#unknown.add(account.id);
+        continue;
+      }
+      names[account.id] = account.display_name;
+      if (account.status) statuses[account.id] = account.status;
+      if (account.has_address === false) addressless[account.id] = true;
+      if (account.managed === true) managed[account.id] = true;
+      if (account.avatar_media_id) pictures[account.id] = account.avatar_media_id;
     }
+    for (const id of unknown) {
+      this.#asking.delete(id);
+      this.#unknown.add(id);
+    }
+    this.#names = names;
+    this.#statuses = statuses;
+    this.#addressless = addressless;
+    this.#managed = managed;
+    this.#pictures = pictures;
   }
 }
 

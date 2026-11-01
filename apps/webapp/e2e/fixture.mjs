@@ -1010,6 +1010,11 @@ export function stub(route) {
   // The reader's passkeys: none yet, and another can be added - at `localhost`, the host a walk opens
   // the bundle at when it needs a browser to make one (an address is no relying party).
   if (path.endsWith('/api/v1/accounts/me/passkeys')) return route.fulfill({ json: PASSKEYS });
+  // The walks name people one read at a time, each answering its own: the client falls back to
+  // that when the batch read is not there, as it does against a server older than it.
+  if (path.endsWith('/api/v1/accounts:resolve')) {
+    return route.fulfill({ status: 404, json: { code: 'not_found', detail_code: 'route.operation_not_available', status: 404, request_id: 'req_e2e' } });
+  }
   if (path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${OTHER.id}`)) return route.fulfill({ json: OTHER });
   if (path.endsWith(`/api/v1/accounts/${INVITED.id}`)) return route.fulfill({ json: INVITED });
