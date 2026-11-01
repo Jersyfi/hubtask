@@ -58,6 +58,7 @@ HUBTASK_IMAGE=$IMAGE
 HUBTASK_VERSION=$TAG
 HUBTASK_PORT=$HTTP_PORT
 HUBTASK_OPS_PORT=$OPS_PORT
+HUBTASK_BASE_URL=http://127.0.0.1:$HTTP_PORT
 ENV
 
 cd deploy/docker
@@ -404,8 +405,7 @@ HUBTASK_OPS_PORT=$MULTI_OPS_PORT
 HUBTASK_TENANCY_MODE=multi
 ENV
 # The address this check reaches the stack under. In multi mode a host is the installation's own or
-# a workspace's, and any other names nothing (multi-tenancy.md §3, T-28): the compose default of
-# localhost:8080 would make 127.0.0.1 such a stranger.
+# a workspace's, and any other names nothing (multi-tenancy.md §3, T-28).
 echo "HUBTASK_BASE_URL=http://127.0.0.1:$MULTI_HTTP_PORT" >> "$MULTI_ENV_FILE"
 
 $COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" down -v --remove-orphans >/dev/null 2>&1 || true

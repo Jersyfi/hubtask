@@ -59,7 +59,7 @@ inbound adapter like REST or MCP and ships inside the binary
 
 ```bash
 git clone https://github.com/Jersyfi/hubtask.git && cd hubtask
-cp deploy/docker/.env.example .env      # set the secrets
+cp deploy/docker/.env.example .env      # set the secrets and HUBTASK_BASE_URL
 docker compose -f deploy/docker/compose.yaml up -d
 # API:  http://localhost:8080/api/v1
 # Meta: http://localhost:8080/api/v1/meta/capabilities

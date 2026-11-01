@@ -431,6 +431,30 @@ func TestNoSMTPIsAWarningNotAnError(t *testing.T) {
 	})
 }
 
+// An address only this machine reaches - the example's localhost left in place on a server - is
+// never empty, so config.base_url_missing stays quiet while every invitation, reset mail and
+// redirect URI points at a dead link. It is warned about by name; a real host is not.
+func TestABaseURLOnlyThisMachineReachesIsAWarning(t *testing.T) {
+	withRequiredSecrets(t)
+	for address, want := range map[string]bool{
+		"http://localhost:8080":         true,
+		"http://127.0.0.1:8080":         true,
+		"http://[::1]:8080":             true,
+		"http://hubtask.localhost":      true,
+		"https://tasks.example.org":     false,
+		"https://localhost.example.org": false,
+	} {
+		t.Setenv("HUBTASK_BASE_URL", address)
+		cfg, err := load(t)
+		if err != nil {
+			t.Fatalf("%s: load failed: %v", address, err)
+		}
+		if got := hasWarning(New("v", "c").Warnings(cfg), "config.base_url_loopback"); got != want {
+			t.Errorf("%s: warned %v, want %v", address, got, want)
+		}
+	}
+}
+
 func TestConfiguredSMTPMustBeComplete(t *testing.T) {
 	withRequiredSecrets(t)
 	t.Setenv("HUBTASK_SMTP_HOST", "smtp.example.org")

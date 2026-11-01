@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -311,6 +313,10 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 	}
 	if cfg.BaseURL == "" {
 		w = append(w, env.Warning{Code: "config.base_url_missing", Severity: "warn"})
+	} else if loopbackAddress(cfg.BaseURL) {
+		// Never empty, so the warning above stays quiet - while every link in a mail and every
+		// redirect URI points at a machine only this one reaches.
+		w = append(w, env.Warning{Code: "config.base_url_loopback", Severity: "warn"})
 	}
 	// No warning about a missing identity provider: a provider is configured per tenant, in the
 	// database, and a multi-tenant installation whose workspaces sign in with
@@ -339,6 +345,20 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 		})
 	}
 	return w
+}
+
+// loopbackAddress reports whether the address names a host only this machine reaches.
+func loopbackAddress(address string) bool {
+	parsed, err := url.Parse(address)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // restoreDrillRecordReachable is whether the record can be read once a drill writes it: a readable

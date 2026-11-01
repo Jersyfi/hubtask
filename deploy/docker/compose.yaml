@@ -136,7 +136,7 @@ services:
       # The application role, not the owner: no SUPERUSER, no BYPASSRLS, not an owner - which is
       # what makes row level security the last, unbypassable boundary here too (ADR-0010).
       HUBTASK_DB_DSN: postgres://hubtask_app:${HUBTASK_DB_APP_PASSWORD}@db:5432/${POSTGRES_DB:-hubtask}?sslmode=disable
-      HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:-http://localhost:8080}
+      HUBTASK_BASE_URL: ${HUBTASK_BASE_URL:?set HUBTASK_BASE_URL in .env to the address people reach Hubtask at, such as https://tasks.example.org}
       # Single by default - the self-hoster's mode. The smoke check overrides it to exercise the
       # multi-mode control plane against the same file: one Compose file, both modes.
       HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}

@@ -2038,6 +2038,7 @@
   "config.accessibility_statement_missing": "Diese Installation betreibt Arbeitsbereiche für andere und nennt keine Erklärung zur Barrierefreiheit, darum zeigt eine Anmeldekarte keine, solange ihr Arbeitsbereich keine gesetzt hat. Setze sie unter Installation, Standardwerte, oder mit: {command}",
   "config.smtp_missing_with_reminders": "Es ist kein SMTP-Server eingerichtet, und diese Installation löst Erinnerungen aus. Sie werden festgehalten und warten in der Warteschlange; niemand erfährt davon, bis ein Mailserver eingerichtet ist.",
   "config.base_url_missing": "HUBTASK_BASE_URL ist nicht gesetzt. Links in E-Mails und Feeds werden falsch sein.",
+  "config.base_url_loopback": "HUBTASK_BASE_URL nennt einen Host, den nur dieser Rechner erreicht. Links in E-Mails, Einladungen und Anmelde-Weiterleitungen funktionieren für niemanden sonst.",
   "config.egress_allowlist_missing": "Es ist keine Liste erlaubter Ziele für ausgehende Verbindungen eingerichtet. Im Mehrfachmodus sollten ausgehende Aufrufe auf bekannte Hosts beschränkt sein.",
   "config.egress_private_networks_allowed": "Ausgehende Aufrufe in private Netze sind erlaubt. Ein Webhook-Ziel kann Dienste in deinem Netz erreichen.",
   "config.smtp_without_tls": "SMTP zu {host} ist ohne TLS eingerichtet. Zugangsdaten gehen unverschlüsselt über die Leitung.",
