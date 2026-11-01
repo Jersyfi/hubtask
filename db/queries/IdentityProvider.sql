@@ -316,3 +316,18 @@ WHERE tenant_id IS NOT DISTINCT FROM current_tenant_id();
 UPDATE identity_provider
 SET client_secret_enc = sqlc.arg('client_secret_enc'), client_secret_key_id = sqlc.arg('client_secret_key_id')
 WHERE id = sqlc.arg('id') AND client_secret_key_id = sqlc.arg('expected_key_id');
+
+-- name: ListSamlCertificateWatches :many
+-- This workspace's SAML providers with what their administrators were last told about the
+-- certificates' end (identity.md §26.1). The installation's rows are never SAML.
+SELECT id, display_name, enabled, saml_certificate, saml_expiry_told_for, saml_expiry_told_days
+FROM identity_provider
+WHERE tenant_id = current_tenant_id() AND kind = 'SAML'
+ORDER BY id;
+
+-- name: MarkSamlExpiryTold :execrows
+-- The warning given for an end, so the next pass gives the next one and never this one again.
+UPDATE identity_provider SET
+  saml_expiry_told_for  = sqlc.arg('told_for'),
+  saml_expiry_told_days = sqlc.arg('told_days')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND kind = 'SAML';

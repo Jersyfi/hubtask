@@ -442,6 +442,9 @@ func (w IdentityProviderWriter) ConfigureAt(
 			if err != nil {
 				return err
 			}
+			if err := w.seedSAMLWatch(ctx, tenantID, stored); err != nil {
+				return err
+			}
 			return w.record(ctx, actor, tenantID, IdentityProviderConfiguredAction, stored)
 		}
 
@@ -462,12 +465,24 @@ func (w IdentityProviderWriter) ConfigureAt(
 			return shared.ErrNotFound.WithDetail("identity_provider.not_found")
 		}
 		stored = written
+		if err := w.seedSAMLWatch(ctx, tenantID, stored); err != nil {
+			return err
+		}
 		return w.record(ctx, actor, tenantID, IdentityProviderConfiguredAction, stored)
 	})
 	if err != nil {
 		return domain.IdentityProvider{}, err
 	}
 	return stored, nil
+}
+
+// seedSAMLWatch starts the workspace's certificate watch with the save of a SAML provider
+// (identity.md §26.1); nothing in this system may enumerate workspaces to start it otherwise.
+func (w IdentityProviderWriter) seedSAMLWatch(ctx context.Context, tenantID shared.ID, stored domain.IdentityProvider) error {
+	if stored.Kind != domain.KindSAML || tenantID.IsZero() || w.Session.Jobs == nil {
+		return nil
+	}
+	return SeedSAMLCertificateWatch(ctx, w.Session.Jobs, tenantID, w.Session.Clock.Now())
 }
 
 // newcomerGroupHolds checks a newcomer group inside the write's transaction: it has to be this

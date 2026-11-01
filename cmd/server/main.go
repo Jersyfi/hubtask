@@ -83,6 +83,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	calendardomain "github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	identitymodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	knowledgedomain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
@@ -4515,7 +4516,9 @@ func run() error {
 			Agents: agentStore,
 			// The connected mailbox its administrators are told has refused for an hour.
 			Mailboxes: mailboxAddresses{postgres.NewMailboxRepository()},
-			Boards: postgres.NewWhiteboardRepository(),
+			// The SAML provider whose certificates end, and when.
+			SAMLProviders: samlProviderEnds{postgres.NewIdentityProviderRepository()},
+			Boards:        postgres.NewWhiteboardRepository(),
 			// The approval a message is about, and through it the entry.
 			Approvals: serviceDeskStore.Approvals(),
 			// The baseline a plan slipped from, and through it the plan's place.
@@ -4936,7 +4939,7 @@ func run() error {
 		queueport.KindMailboxPoll: mailservice.PollMailbox{
 			Boxes: mailBoxes, Receive: receiveMail,
 			// The workspace's administrators told once a mailbox has refused for an hour.
-			Failing: notification.RecordMailboxFailing{
+			Failing: notification.TellAdministrators{
 				Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
 				Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
 			},
@@ -5162,6 +5165,19 @@ func run() error {
 			Watch: privacyservice.WatchDeadlines{
 				Requests: privacyStore, Signals: metrics, UnitOfWork: unitOfWork,
 				Clock: clockadapter.System{},
+			},
+			Queue: jobs, Clock: clockadapter.System{},
+		},
+		// The workspace's administrators told 30, 7 and 1 days before a SAML provider's
+		// certificates end (identity.md §26.1).
+		queueport.KindSAMLCertificateWatch: worker.SAMLCertificateWatch{
+			Watch: identity.WatchSAMLCertificates{
+				Watches: postgres.NewIdentityProviderRepository(),
+				Tell: notification.TellAdministrators{
+					Notifications: notifications, Accounts: accounts, Memberships: postgres.NewMembershipRepository(),
+					Preferences: notificationPreferences, Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+				},
+				UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			Queue: jobs, Clock: clockadapter.System{},
 		},
@@ -5524,6 +5540,20 @@ func verifierWriter(verifier stepupport.Verifier) identity.SessionWriter {
 func runsBackgroundWork(cfg envport.Config) bool {
 	return cfg.HasRole(envport.RoleWorker) || cfg.HasRole(envport.RoleScheduler) ||
 		cfg.HasRole(envport.RoleAutomation)
+}
+
+// samlProviderEnds names a SAML provider and the end of its last certificate for the warning.
+type samlProviderEnds struct {
+	providers postgres.IdentityProviderRepository
+}
+
+func (s samlProviderEnds) SAMLProviderEnd(ctx context.Context, id shared.ID) (string, time.Time, error) {
+	configured, err := s.providers.Find(ctx, id)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	end, _ := identitymodel.SAMLCertificatesEnd(configured.SAMLCertificate)
+	return configured.DisplayName, end, nil
 }
 
 // mailboxAddresses names a connected mailbox by its address for the notice that it turned failing.

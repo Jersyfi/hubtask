@@ -172,3 +172,13 @@ type IdentityProviderSealing interface {
 	// read. False means the row is gone, or it changed in between.
 	RewrapSecret(ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
 }
+
+// SAMLCertificateWatches is what the watch over a workspace's SAML certificates reads and writes
+// (identity.md §26.1), in the workspace's transaction.
+type SAMLCertificateWatches interface {
+	// SAMLWatches answers the workspace's SAML providers, switched off ones included.
+	SAMLWatches(ctx context.Context) ([]identity.SAMLWatch, error)
+	// MarkSAMLExpiryTold records the warning given for the end, or an error wrapping
+	// shared.ErrNotFound where the provider is gone.
+	MarkSAMLExpiryTold(ctx context.Context, id shared.ID, end time.Time, days int) error
+}

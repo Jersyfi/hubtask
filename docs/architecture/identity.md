@@ -1129,6 +1129,18 @@ arrival, the newcomers and the session are the same code.
 | The identity | Subject is the `NameID`; the address the `email`/`mail` attribute (or a `NameID` in the email format), treated as verified because the configured provider signed it; the name `displayName`, else given name and surname; `AuthnInstant` as the authentication time. |
 | Not served | Step-up and connection through a SAML provider (`identity_provider.saml_sign_in_only`), IdP-initiated sign-in, single logout, encrypted assertions, signed requests; the installation does not offer a SAML provider. |
 
+### 26.1 The certificates' end
+
+An ended certificate refuses every answer, so nobody signs in through the provider from that
+moment. The workspace's administrators are told by e-mail (category `INTEGRATION`, subject
+`notification.identity_provider_id`) 30, 7 and 1 days before the **last** configured certificate
+ends - during a rollover the newer one keeps the provider working - once per warning and end
+(`identity_provider.saml_expiry_told_for`/`_days`, migration 0340), so a new certificate is
+warned of afresh. A switched-off provider is told nothing. The watch is the per-workspace job
+`identity.saml_certificate_watch`: seeded by the save of a SAML provider (and once by migration
+0340 for the workspaces that had one), it looks again at the next warning or after a day at the
+latest, and ends when the workspace has no SAML provider. The message links `/administration/sign-in`.
+
 ---
 
 ## 27. Synchronising from an LDAP directory

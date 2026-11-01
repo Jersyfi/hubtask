@@ -229,6 +229,9 @@ type Notification struct {
 	// MailboxID is the connected mailbox that has refused for over an hour, told to the
 	// workspace's administrators once when it turns failing (ADR-0094).
 	MailboxID shared.ID
+	// IdentityProviderID is the SAML provider whose certificates end within 30, 7 or 1 days, told
+	// to the workspace's administrators once per warning (identity.md §26.1).
+	IdentityProviderID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -262,6 +265,7 @@ type NewInput struct {
 	ApprovalID         shared.ID
 	BaselineID         shared.ID
 	MailboxID          shared.ID
+	IdentityProviderID shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -311,6 +315,7 @@ func New(in NewInput) (Notification, error) {
 		ApprovalID:         in.ApprovalID,
 		BaselineID:         in.BaselineID,
 		MailboxID:          in.MailboxID,
+		IdentityProviderID: in.IdentityProviderID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -318,7 +323,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID} {
 		if !id.IsZero() {
 			named++
 		}

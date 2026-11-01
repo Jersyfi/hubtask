@@ -836,6 +836,73 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 	return items, nil
 }
 
+const listSamlCertificateWatches = `-- name: ListSamlCertificateWatches :many
+SELECT id, display_name, enabled, saml_certificate, saml_expiry_told_for, saml_expiry_told_days
+FROM identity_provider
+WHERE tenant_id = current_tenant_id() AND kind = 'SAML'
+ORDER BY id
+`
+
+type ListSamlCertificateWatchesRow struct {
+	ID                 pgtype.UUID
+	DisplayName        string
+	Enabled            bool
+	SamlCertificate    *string
+	SamlExpiryToldFor  pgtype.Timestamptz
+	SamlExpiryToldDays *int16
+}
+
+// This workspace's SAML providers with what their administrators were last told about the
+// certificates' end (identity.md §26.1). The installation's rows are never SAML.
+func (q *Queries) ListSamlCertificateWatches(ctx context.Context) ([]ListSamlCertificateWatchesRow, error) {
+	rows, err := q.db.Query(ctx, listSamlCertificateWatches)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSamlCertificateWatchesRow{}
+	for rows.Next() {
+		var i ListSamlCertificateWatchesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.Enabled,
+			&i.SamlCertificate,
+			&i.SamlExpiryToldFor,
+			&i.SamlExpiryToldDays,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markSamlExpiryTold = `-- name: MarkSamlExpiryTold :execrows
+UPDATE identity_provider SET
+  saml_expiry_told_for  = $1,
+  saml_expiry_told_days = $2
+WHERE id = $3 AND tenant_id = current_tenant_id() AND kind = 'SAML'
+`
+
+type MarkSamlExpiryToldParams struct {
+	ToldFor  pgtype.Timestamptz
+	ToldDays *int16
+	ID       pgtype.UUID
+}
+
+// The warning given for an end, so the next pass gives the next one and never this one again.
+func (q *Queries) MarkSamlExpiryTold(ctx context.Context, arg MarkSamlExpiryToldParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markSamlExpiryTold, arg.ToldFor, arg.ToldDays, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const oidcFlowLive = `-- name: OidcFlowLive :one
 SELECT EXISTS (
   SELECT 1 FROM oidc_flow

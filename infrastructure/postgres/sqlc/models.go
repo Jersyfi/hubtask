@@ -1942,6 +1942,8 @@ type IdentityProvider struct {
 	NewcomerGroupID    pgtype.UUID
 	SamlSsoUrl         *string
 	SamlCertificate    *string
+	SamlExpiryToldFor  pgtype.Timestamptz
+	SamlExpiryToldDays *int16
 }
 
 type ImportRun struct {
@@ -2288,6 +2290,7 @@ type Notification struct {
 	ApprovalID         pgtype.UUID
 	BaselineID         pgtype.UUID
 	MailboxID          pgtype.UUID
+	IdentityProviderID pgtype.UUID
 }
 
 type NotificationPreference struct {

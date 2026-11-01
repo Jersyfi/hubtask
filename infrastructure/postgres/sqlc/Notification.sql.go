@@ -66,7 +66,7 @@ const findNotification = `-- name: FindNotification :one
 SELECT id, tenant_id, recipient_id, category, channel, state, reason,
        event_id, item_id, actor_id, created_at, sent_at, attempts, rule_id, subscription_id,
        private_hub_access_id, membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id,
-       mailbox_id
+       mailbox_id, identity_provider_id
 FROM notification
 WHERE id = $1
 `
@@ -98,6 +98,7 @@ func (q *Queries) FindNotification(ctx context.Context, id pgtype.UUID) (Notific
 		&i.ApprovalID,
 		&i.BaselineID,
 		&i.MailboxID,
+		&i.IdentityProviderID,
 	)
 	return i, err
 }
@@ -136,14 +137,16 @@ const insertNotification = `-- name: InsertNotification :execrows
 INSERT INTO notification (
   id, tenant_id, recipient_id, category, channel, state, reason,
   event_id, item_id, actor_id, created_at, rule_id, subscription_id, private_hub_access_id,
-  membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id, mailbox_id
+  membership_id, page_id, agent_id, whiteboard_id, approval_id, baseline_id, mailbox_id,
+  identity_provider_id
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9, $10,
   $11, $12, $13,
   $14, $15, $16, $17,
-  $18, $19, $20
+  $18, $19, $20,
+  $21
 )
 ON CONFLICT DO NOTHING
 `
@@ -169,6 +172,7 @@ type InsertNotificationParams struct {
 	ApprovalID         pgtype.UUID
 	BaselineID         pgtype.UUID
 	MailboxID          pgtype.UUID
+	IdentityProviderID pgtype.UUID
 }
 
 // The notification record and what people have said about being told (arc42 §5.2).
@@ -203,6 +207,7 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		arg.ApprovalID,
 		arg.BaselineID,
 		arg.MailboxID,
+		arg.IdentityProviderID,
 	)
 	if err != nil {
 		return 0, err

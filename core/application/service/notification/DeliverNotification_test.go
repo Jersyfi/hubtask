@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
@@ -759,6 +760,45 @@ func TestAFailingMailboxIsSaidInItsOwnWords(t *testing.T) {
 		t.Errorf("subject %q", sent.Subject)
 	}
 	if !strings.Contains(sent.Body, "link="+mainBase+"/administration/mail") {
+		t.Errorf("body %q", sent.Body)
+	}
+}
+
+type samlEnds map[shared.ID]time.Time
+
+func (s samlEnds) SAMLProviderEnd(_ context.Context, id shared.ID) (string, time.Time, error) {
+	end, ok := s[id]
+	if !ok {
+		return "", time.Time{}, shared.ErrNotFound
+	}
+	return "Corporate directory", end, nil
+}
+
+// identity.md §26.1: the warning names the provider, says when its certificates end and links the
+// screen where a new one is pasted.
+func TestASAMLCertificateEndingIsSaidWithItsEnd(t *testing.T) {
+	providerID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f9")
+	fixture := delivery(t, domain.CategoryIntegration, false)
+	record, err := domain.New(domain.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000fa"), TenantID: tenant, RecipientID: bert,
+		Category: domain.CategoryIntegration, Channel: domain.ChannelEmail, IdentityProviderID: providerID, At: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.notifications.Insert(t.Context(), record); err != nil {
+		t.Fatal(err)
+	}
+	fixture.delivery.SAMLProviders = samlEnds{providerID: time.Date(2026, 12, 1, 9, 0, 0, 0, time.UTC)}
+	if err := fixture.delivery.Execute(t.Context(), tenant, record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	sent := fixture.mailbox.sent[0]
+	if !strings.Contains(sent.Subject, "email.saml_certificate_ending.subject") || !strings.Contains(sent.Subject, "Corporate directory") {
+		t.Errorf("subject %q", sent.Subject)
+	}
+	if !strings.Contains(sent.Body, "until=") || !strings.Contains(sent.Body, "2026") ||
+		!strings.Contains(sent.Body, "link="+mainBase+"/administration/sign-in") {
 		t.Errorf("body %q", sent.Body)
 	}
 }

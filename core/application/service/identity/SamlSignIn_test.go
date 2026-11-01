@@ -122,11 +122,16 @@ func TestASAMLCallbackWithoutTheHandoffIsRefused(t *testing.T) {
 
 func samlTestCertificate(t *testing.T, at time.Time) string {
 	t.Helper()
+	return samlTestCertificateUntil(t, at, at.AddDate(1, 0, 0))
+}
+
+func samlTestCertificateUntil(t *testing.T, at, until time.Time) string {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	template := &x509.Certificate{SerialNumber: big.NewInt(1), NotBefore: at.AddDate(-1, 0, 0), NotAfter: at.AddDate(1, 0, 0)}
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), NotBefore: at.AddDate(-1, 0, 0), NotAfter: until}
 	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
 	if err != nil {
 		t.Fatal(err)

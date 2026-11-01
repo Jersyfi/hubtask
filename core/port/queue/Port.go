@@ -363,6 +363,12 @@ const (
 	// a tenant that owes nothing costs a row that is not there.
 	KindPrivacyDeadlines Kind = "privacy.deadlines"
 
+	// KindSAMLCertificateWatch tells a workspace's administrators 30, 7 and 1 days before a SAML
+	// provider's last certificate ends (identity.md §26.1). The deadline watch's shape: seeded by
+	// the write that configures a SAML provider (and once by migration 0340), it reschedules
+	// itself while the workspace has one; deduplicated on the workspace.
+	KindSAMLCertificateWatch Kind = "identity.saml_certificate_watch"
+
 	// KindPrivacyExtensionEntry records an installation-wide case's extension in one workspace the
 	// person is a member of (data-protection.md §4.1). One job per workspace, enqueued with the
 	// extension, so that a failure in one workspace is retried there rather than lost; not

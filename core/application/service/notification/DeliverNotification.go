@@ -85,6 +85,9 @@ const (
 	// A connected mailbox that has refused for over an hour (ADR-0094).
 	subjectMailboxFailing = "email.mailbox_failing.subject"
 	bodyMailboxFailing    = "email.mailbox_failing.body"
+	// A SAML provider whose last certificate ends within 30, 7 or 1 days (identity.md §26.1).
+	subjectSAMLCertificateEnding = "email.saml_certificate_ending.subject"
+	bodySAMLCertificateEnding    = "email.saml_certificate_ending.body"
 	// A person a whiteboard's comment named (UC-CNV-09): COMMENT's category, its own sentence - the
 	// subject is a board, not an entry.
 	subjectWhiteboardMention = "email.whiteboard_mention.subject"
@@ -150,6 +153,9 @@ type DeliverNotification struct {
 	// Mailboxes names the connected mailbox that turned failing by its address. Optional: nil
 	// leaves it out.
 	Mailboxes MailboxReader
+	// SAMLProviders names the SAML provider whose certificates end and says when. Optional: nil
+	// leaves both out.
+	SAMLProviders SAMLProviderReader
 	// Boards names the whiteboard a comment named the recipient on. Optional: nil leaves its title
 	// out.
 	Boards BoardReader
@@ -216,6 +222,11 @@ type PageReader interface {
 	Find(ctx context.Context, id shared.ID) (knowledge.Page, error)
 }
 
+// SAMLProviderReader answers a SAML provider's name and when its last certificate ends.
+type SAMLProviderReader interface {
+	SAMLProviderEnd(ctx context.Context, id shared.ID) (name string, end time.Time, err error)
+}
+
 // MailboxReader answers a connected mailbox's address by its identifier.
 type MailboxReader interface {
 	MailboxAddress(ctx context.Context, id shared.ID) (string, error)
@@ -268,6 +279,9 @@ type subject struct {
 	approval servicedesk.Approval
 	// plan is the hub or collection a baseline's plan is, zero for every other message.
 	plan work.Container
+	// samlEnd is when the SAML provider the record names stops admitting anybody, zero for every
+	// other message.
+	samlEnd time.Time
 	// base is the workspace's address every link of the message names, read with the rest.
 	base string
 	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
@@ -475,6 +489,12 @@ func (d DeliverNotification) load(
 					loaded.plan, loaded.title = place, place.Name
 				}
 			}
+		case !record.IdentityProviderID.IsZero() && d.SAMLProviders != nil:
+			name, end, err := d.SAMLProviders.SAMLProviderEnd(ctx, record.IdentityProviderID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.title, loaded.samlEnd = name, end
 		case !record.MailboxID.IsZero() && d.Mailboxes != nil:
 			address, err := d.Mailboxes.MailboxAddress(ctx, record.MailboxID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -592,6 +612,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.MailboxID.IsZero() {
 		subjectCode, bodyCode = subjectMailboxFailing, bodyMailboxFailing
 	}
+	if !loaded.record.IdentityProviderID.IsZero() {
+		subjectCode, bodyCode = subjectSAMLCertificateEnding, bodySAMLCertificateEnding
+	}
 	if !loaded.record.WhiteboardID.IsZero() {
 		subjectCode, bodyCode = subjectWhiteboardMention, bodyWhiteboardMention
 	}
@@ -608,6 +631,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		Link:        link(loaded),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
+	if !loaded.samlEnd.IsZero() {
+		message.Until = inZone(loaded.samlEnd, loaded.recipient.zone)
+	}
 	if !loaded.record.BaselineID.IsZero() {
 		message.SubjectCode, message.BodyCode = subjectPlanException, bodyPlanException
 		message.Link = planLink(loaded.base, loaded.plan)
@@ -747,6 +773,8 @@ func link(loaded subject) string {
 		return base + "/profile/agents"
 	case !record.MailboxID.IsZero():
 		return base + "/administration/mail"
+	case !record.IdentityProviderID.IsZero():
+		return base + "/administration/sign-in"
 	case !record.WhiteboardID.IsZero():
 		return base + "/whiteboards/" + url.PathEscape(record.WhiteboardID.String())
 	case !record.ApprovalID.IsZero():

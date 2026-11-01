@@ -15,14 +15,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// RecordMailboxFailing tells the workspace's administrators that a connected mailbox has refused
-// for over an hour (ADR-0094): mail sent to the desk through it is not arriving, and no ticket or
-// service clock starts until somebody fixes its sign-in. Told once, when the mailbox turns
-// failing - the poll keeps trying every minute and a message each time would be noise.
+// TellAdministrators records what the workspace's administrators have to fix before people notice:
+// a connected mailbox that has refused for over an hour (ADR-0094), and a SAML provider whose
+// certificates end soon (identity.md §26.1).
 //
 // The integration category: what an integration has to tell its owner, on the switch somebody set
-// for exactly that. No event, like a disabled webhook: a run of refusals is what caused it.
-type RecordMailboxFailing struct {
+// for exactly that. No event, like a disabled webhook: a state that was found is what caused it.
+type TellAdministrators struct {
 	Notifications repository.Notifications
 	Accounts      identityrepo.Accounts
 	Memberships   identityrepo.Memberships
@@ -32,27 +31,38 @@ type RecordMailboxFailing struct {
 	IDs           clock.IDGenerator
 }
 
-// MailboxFailing records one message per administrator and queues its delivery, inside the
-// caller's transaction, so the message commits with the check that found the mailbox failing.
-func (r RecordMailboxFailing) MailboxFailing(ctx context.Context, tenantID, mailboxID shared.ID) error {
+// MailboxFailing tells that a mailbox refused for over an hour: mail sent to the desk through it
+// is not arriving. Told once, when the mailbox turns failing - the poll keeps trying every minute
+// and a message each time would be noise.
+func (r TellAdministrators) MailboxFailing(ctx context.Context, tenantID, mailboxID shared.ID) error {
+	return r.tell(ctx, domain.NewInput{TenantID: tenantID, MailboxID: mailboxID})
+}
+
+// SAMLCertificateEnding tells that a SAML provider's last certificate ends soon: from then on
+// nobody signs in through it. The watch calls it once per warning.
+func (r TellAdministrators) SAMLCertificateEnding(ctx context.Context, tenantID, providerID shared.ID) error {
+	return r.tell(ctx, domain.NewInput{TenantID: tenantID, IdentityProviderID: providerID})
+}
+
+// tell records one message per administrator and queues its delivery, inside the caller's
+// transaction, so the message commits with the check that found the state.
+func (r TellAdministrators) tell(ctx context.Context, subject domain.NewInput) error {
 	administrators, err := r.Memberships.Administrators(ctx, []identity.Scope{identity.TenantScope()})
 	if err != nil {
 		return err
 	}
 	for _, recipientID := range administrators {
-		if err := r.one(ctx, tenantID, mailboxID, recipientID); err != nil {
+		if err := r.one(ctx, subject, recipientID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r RecordMailboxFailing) one(ctx context.Context, tenantID, mailboxID, recipientID shared.ID) error {
-	written, err := domain.New(domain.NewInput{
-		ID: r.IDs.NewID(), TenantID: tenantID, RecipientID: recipientID,
-		Category: domain.CategoryIntegration, Channel: domain.ChannelEmail,
-		MailboxID: mailboxID, At: r.Clock.Now(),
-	})
+func (r TellAdministrators) one(ctx context.Context, subject domain.NewInput, recipientID shared.ID) error {
+	subject.ID, subject.RecipientID, subject.At = r.IDs.NewID(), recipientID, r.Clock.Now()
+	subject.Category, subject.Channel = domain.CategoryIntegration, domain.ChannelEmail
+	written, err := domain.New(subject)
 	if err != nil {
 		return err
 	}
