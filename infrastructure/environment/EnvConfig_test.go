@@ -483,6 +483,7 @@ func TestWarningsReportWhatTheOperatorIsMissing(t *testing.T) {
 		"config.base_url_missing",         // links in emails would be wrong
 		"config.egress_allowlist_missing", // mandatory in provider operation (T-07)
 		"config.smtp_without_tls",
+		"config.encryption_keys_missing", // no webhook, target or connector secret can be kept
 	} {
 		if !hasWarning(warnings, want) {
 			t.Errorf("the warning %s is missing from %v", want, warnings)

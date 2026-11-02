@@ -311,6 +311,12 @@ func (e *EnvConfig) Warnings(cfg env.Config) []env.Warning {
 			w = append(w, env.Warning{Code: "config.smtp_missing", Severity: "info"})
 		}
 	}
+	if cfg.Encryption.ActiveKeyID() == "" {
+		// Not an error: an installation without a keyring runs, and refuses each secret it is
+		// asked to keep (crypto.no_encryption_key). The operator learns it here, before a
+		// workspace administrator meets the refusal on the webhook form.
+		w = append(w, env.Warning{Code: "config.encryption_keys_missing", Severity: "warn"})
+	}
 	if cfg.BaseURL == "" {
 		w = append(w, env.Warning{Code: "config.base_url_missing", Severity: "warn"})
 	} else if loopbackAddress(cfg.BaseURL) {

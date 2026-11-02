@@ -2031,6 +2031,7 @@
   "media.uploads_held_without_scanner": "Uploads in {workspaces} Arbeitsbereichen warten auf einen Virenscan, und diese Installation nennt keinen Scanner, der älteste seit {oldest_minutes} Minuten. Sie lassen sich anhängen und erst wieder herunterladen, wenn wieder ein Scanner genannt ist.",
   "config.backup_not_configured": "Kein Zeitplan schreibt in ein Sicherungsziel, darum wird nichts gesichert.",
   "config.backup_coverage_unchecked": "Die Sicherungsziele ließen sich nicht zählen, daher wurde nicht geprüft, ob diese Installation gesichert wird.",
+  "config.encryption_keys_missing": "Es ist kein Schlüssel zur Verschlüsselung eingerichtet (HUBTASK_ENCRYPTION_KEYS). Geheimnisse von Webhooks und Zugangsdaten von Backup-Zielen und Konnektoren können nicht gespeichert werden; diese Formulare werden abgelehnt.",
   "config.smtp_missing": "Es ist kein SMTP-Server eingerichtet. Benachrichtigungen per E-Mail sind nicht verfügbar.",
   "config.operator_register_empty": "Diese Installation hat mehr als einen Arbeitsbereich und niemanden in ihrem Betreiberverzeichnis, darum kann sie niemand betreiben. Füge auf dem Rechner, auf dem sie läuft, einen Betreiber hinzu mit: {command}",
   "config.operator_pending": "HUBTASK_OPERATORS nennt {entry}, und dieses Konto gibt es noch nicht. Es kommt ins Betreiberverzeichnis, sobald es existiert.",

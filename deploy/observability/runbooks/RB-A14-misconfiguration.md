@@ -24,6 +24,9 @@ The codes and what they cost:
 
 * `config.smtp_missing_with_reminders` — reminders are on and there is no mail server: they
   fire into nothing. The most urgent of the set.
+* `config.encryption_keys_missing` — `HUBTASK_ENCRYPTION_KEYS` is empty: every secret a workspace
+  would keep (a webhook's, a backup target's, a connector's) is refused with
+  `crypto.no_encryption_key`. Generate a key as `.env.example` shows and restart.
 * `config.base_url_missing` — links in mails and CloudEvents name the wrong origin.
 * `config.egress_allowlist_missing` / `config.egress_private_networks_allowed` — the outbound
   guard is wider than it should be (T-07).

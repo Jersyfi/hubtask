@@ -215,6 +215,7 @@
   "media.uploads_held_without_scanner": "Uploads in {workspaces} workspaces are held for a virus scan and this installation names no scanner, the oldest for {oldest_minutes} minutes. They can be attached and never downloaded until a scanner is named again.",
   "config.backup_not_configured": "No schedule writes to a backup target, so nothing is being backed up.",
   "config.backup_coverage_unchecked": "The backup targets could not be counted, so whether this installation is backed up was not checked.",
+  "config.encryption_keys_missing": "No encryption key is configured (HUBTASK_ENCRYPTION_KEYS). Webhook secrets, backup target and connector credentials cannot be stored, so those forms are refused.",
   "config.smtp_missing": "No SMTP server is configured. Notifications by email are unavailable.",
   "config.operator_register_empty": "This installation has more than one workspace and nobody in its operator register, so nobody can run it. On the machine it runs on, add an operator with: {command}",
   "config.operator_pending": "HUBTASK_OPERATORS names {entry}, and no such account exists yet. It is added to the operator register once it does.",
