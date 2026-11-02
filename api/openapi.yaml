@@ -25513,7 +25513,7 @@ components:
         jurisdiction:
           $ref: "#/components/schemas/AiJurisdiction"
         created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: [string, "null"], format: date-time }
         version: { type: integer }
 
     OfferedAiModelConfiguration:
@@ -28761,8 +28761,8 @@ components:
         current: { type: number, description: "As the caller sees it: a view's total or a milestone's entry where live, else the last value reported." }
         unit: { type: string }
         source: { type: string, enum: [MANUAL, VIEW] }
-        view_id: { type: string, format: uuid, nullable: true }
-        entry_id: { type: string, format: uuid, nullable: true }
+        view_id: { type: [string, "null"], format: uuid }
+        entry_id: { type: [string, "null"], format: uuid }
         progress: { type: number, minimum: 0, maximum: 1 }
         live: { type: boolean, description: "Whether current was computed for the caller now." }
 
@@ -28797,14 +28797,14 @@ components:
       properties:
         id: { type: string, format: uuid }
         period_id: { type: string, format: uuid }
-        hub_id: { type: string, format: uuid, nullable: true }
-        parent_id: { type: string, format: uuid, nullable: true }
+        hub_id: { type: [string, "null"], format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
         title: { type: string }
         description: { type: string }
-        owner_id: { type: string, format: uuid, nullable: true }
+        owner_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
-        confidence: { type: integer, nullable: true, minimum: 0, maximum: 10 }
-        grade: { type: number, nullable: true, minimum: 0, maximum: 1 }
+        confidence: { type: [integer, "null"], minimum: 0, maximum: 10 }
+        grade: { type: [number, "null"], minimum: 0, maximum: 1 }
         key_results: { type: array, items: { $ref: "#/components/schemas/KeyResult" } }
         entries:
           type: object
@@ -28814,7 +28814,7 @@ components:
             total: { type: integer }
             done: { type: integer }
         child_count: { type: integer, description: "The goals under it the caller may read." }
-        progress: { type: number, nullable: true, minimum: 0, maximum: 1, description: "The mean of its key results, its goals below and its linked entries' share completed; null with none." }
+        progress: { type: [number, "null"], minimum: 0, maximum: 1, description: "The mean of its key results, its goals below and its linked entries' share completed; null with none." }
         version: { type: integer }
         linked_entries:
           type: array
@@ -28825,7 +28825,7 @@ components:
             properties:
               id: { type: string, format: uuid }
               title: { type: string }
-              key: { type: string, nullable: true }
+              key: { type: [string, "null"] }
               completed: { type: boolean }
               collection_id: { type: string, format: uuid }
         check_ins: { type: array, description: "The latest 20, only on a goal read alone.", items: { $ref: "#/components/schemas/GoalCheckIn" } }
@@ -29151,7 +29151,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         goal_id: { type: string, format: uuid }
-        author_id: { type: string, format: uuid, nullable: true }
+        author_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [ON_TRACK, AT_RISK, OFF_TRACK, DONE, DROPPED] }
         confidence: { type: integer, minimum: 0, maximum: 10 }
         note: { type: string }
@@ -29242,12 +29242,12 @@ components:
       required: [id, parent_id, name, description, owner_id, status, items, progress, version]
       properties:
         id: { type: string, format: uuid }
-        parent_id: { type: string, format: uuid, nullable: true }
+        parent_id: { type: [string, "null"], format: uuid }
         name: { type: string }
         description: { type: string }
-        owner_id: { type: string, format: uuid, nullable: true }
+        owner_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK] }
-        progress: { type: number, nullable: true, minimum: 0, maximum: 1, description: "Read alone: the share of its projects' entries completed." }
+        progress: { type: [number, "null"], minimum: 0, maximum: 1, description: "Read alone: the share of its projects' entries completed." }
         version: { type: integer }
         items:
           type: array
@@ -29260,12 +29260,12 @@ components:
               kind: { type: string, enum: [HUB, COLLECTION] }
               name: { type: string }
               archived: { type: boolean }
-              start_on: { type: string, format: date, nullable: true }
-              end_on: { type: string, format: date, nullable: true }
+              start_on: { type: [string, "null"], format: date }
+              end_on: { type: [string, "null"], format: date }
               status: { type: string, enum: [NONE, ON_TRACK, AT_RISK, OFF_TRACK] }
-              entries: { type: integer, nullable: true, description: "Read alone: its entries as the caller counts them." }
-              done: { type: integer, nullable: true }
-              progress: { type: number, nullable: true, minimum: 0, maximum: 1 }
+              entries: { type: [integer, "null"], description: "Read alone: its entries as the caller counts them." }
+              done: { type: [integer, "null"] }
+              progress: { type: [number, "null"], minimum: 0, maximum: 1 }
               budget:
                 type: object
                 description: Read alone, for a caller who manages costs at the project and where it has a budget - its budget and burn as GET /plans/{planId}/budget answers them.
@@ -29293,12 +29293,11 @@ components:
             unpriced_minutes: { type: integer, format: int64 }
             currency: { type: string }
             mixed_currencies: { type: boolean }
-            budget_amount_minor: { type: integer, format: int64, nullable: true }
-            amount_minor: { type: integer, format: int64, nullable: true }
+            budget_amount_minor: { type: [integer, "null"], format: int64 }
+            amount_minor: { type: [integer, "null"], format: int64 }
         latest_update:
           description: Read alone.
-          allOf: [{ $ref: "#/components/schemas/PortfolioUpdate" }]
-          nullable: true
+          anyOf: [{ $ref: "#/components/schemas/PortfolioUpdate" }, { type: "null" }]
 
     PortfolioList:
       type: object
@@ -29312,7 +29311,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         portfolio_id: { type: string, format: uuid }
-        author_id: { type: string, format: uuid, nullable: true }
+        author_id: { type: [string, "null"], format: uuid }
         status: { type: string, enum: [ON_TRACK, AT_RISK, OFF_TRACK] }
         summary: { type: string }
         created_at: { type: string, format: date-time }
@@ -29358,12 +29357,11 @@ components:
         title: { type: string }
         chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
         source: { type: string, enum: [VIEW, QUERY, GOALS] }
-        view_id: { type: string, format: uuid, nullable: true }
-        query: { type: object, additionalProperties: true, nullable: true }
+        view_id: { type: [string, "null"], format: uuid }
+        query: { type: [object, "null"], additionalProperties: true }
         goal_ids: { type: array, items: { type: string, format: uuid } }
         compare:
-          allOf: [{ $ref: "#/components/schemas/DashboardWidgetCompare" }]
-          nullable: true
+          anyOf: [{ $ref: "#/components/schemas/DashboardWidgetCompare" }, { type: "null" }]
         cumulative: { type: boolean }
         x: { type: integer }
         y: { type: integer }
@@ -29410,8 +29408,8 @@ components:
       required: [id, hub_id, owner_id, name, sharing, widgets, version]
       properties:
         id: { type: string, format: uuid }
-        hub_id: { type: string, format: uuid, nullable: true }
-        owner_id: { type: string, format: uuid, nullable: true }
+        hub_id: { type: [string, "null"], format: uuid }
+        owner_id: { type: [string, "null"], format: uuid }
         name: { type: string }
         sharing: { type: string, enum: [PRIVATE, SCOPE, GROUPS] }
         group_ids:
@@ -29467,26 +29465,24 @@ components:
                 description: A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
                 items: { type: object, additionalProperties: true }
               truncated: { type: boolean }
-              error: { type: string, nullable: true, description: "The error code of a widget the caller cannot run." }
+              error: { type: [string, "null"], description: "The error code of a widget the caller cannot run." }
               compare:
-                type: object
-                nullable: true
+                type: [object, "null"]
                 description: The second series' rows, as data's; its error code alone where the caller cannot run it.
                 required: [data, truncated, error]
                 properties:
                   data: { type: array, items: { type: object, additionalProperties: true } }
                   truncated: { type: boolean }
-                  error: { type: string, nullable: true }
+                  error: { type: [string, "null"] }
               remaining:
-                type: array
-                nullable: true
+                type: [array, "null"]
                 description: "A cumulative widget with a second series: per group and period, the first running total less the second's - what is left."
                 items:
                   type: object
                   required: [group, period, value]
                   properties:
-                    group: { type: string, nullable: true }
-                    period: { type: string, nullable: true }
+                    group: { type: [string, "null"] }
+                    period: { type: [string, "null"] }
                     value: { type: string, description: An exact decimal. }
 
     Absence:
@@ -39485,7 +39481,7 @@ components:
         key: { type: string }
         item_id: { type: string, format: uuid }
         title: { type: string }
-        entry_type: { type: string, nullable: true }
+        entry_type: { type: [string, "null"] }
         collection_id: { type: string, format: uuid }
 
     SampleEntryList:
@@ -39503,7 +39499,7 @@ components:
         key: { type: string }
         page_id: { type: string, format: uuid }
         title: { type: string }
-        icon: { type: string, nullable: true }
+        icon: { type: [string, "null"] }
 
     HubTemplatePageList:
       type: object
@@ -40239,10 +40235,9 @@ components:
         classes: { type: array, items: { type: string } }
         may_create: { type: boolean }
         mapping:
-          allOf: [{ $ref: "#/components/schemas/CiFileMapping" }]
-          nullable: true
+          anyOf: [{ $ref: "#/components/schemas/CiFileMapping" }, { type: "null" }]
         system: { type: boolean }
-        last_run_at: { type: string, format: date-time, nullable: true }
+        last_run_at: { type: [string, "null"], format: date-time }
         version: { type: integer }
 
     CiSourceList:
@@ -40265,9 +40260,9 @@ components:
       type: object
       description: A protection need per confidentiality, integrity and availability.
       properties:
-        c: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
-        i: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
-        a: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        c: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
+        i: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
+        a: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
 
     CiOwnProtection:
       type: object
@@ -40275,9 +40270,9 @@ components:
         The need a person set. A dimension in `fixed` is not raised by what depends on the CI and
         carries a `reason`.
       properties:
-        c: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
-        i: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
-        a: { type: string, enum: [NORMAL, HIGH, VERY_HIGH], nullable: true }
+        c: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
+        i: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
+        a: { type: [string, "null"], enum: [NORMAL, HIGH, VERY_HIGH, null] }
         fixed: { type: array, items: { type: string, enum: [c, i, a] } }
         reason: { type: string, maxLength: 2000 }
 
@@ -40286,7 +40281,7 @@ components:
       required: [source, at]
       properties:
         source: { type: string }
-        run_id: { type: string, format: uuid, nullable: true }
+        run_id: { type: [string, "null"], format: uuid }
         at: { type: string, format: date-time }
 
     CiRelation:
@@ -40311,7 +40306,7 @@ components:
       properties:
         ref: { type: string }
         outcome: { type: string, enum: [CREATE, UPDATE, UNCHANGED, HOLD, DUPLICATE, REFUSED] }
-        ci_id: { type: string, format: uuid, nullable: true }
+        ci_id: { type: [string, "null"], format: uuid }
         class: { type: string }
         rule: { type: string }
         taken: { type: array, items: { type: string } }
@@ -40342,15 +40337,15 @@ components:
         status: { type: string, enum: [OK, PENDING, BLOCKED, MERGED] }
         attributes: { type: object, additionalProperties: {} }
         provenance: { type: object, additionalProperties: { $ref: "#/components/schemas/CiProvenance" } }
-        owner_account_id: { type: string, format: uuid, nullable: true }
-        owner_group_id: { type: string, format: uuid, nullable: true }
-        location_id: { type: string, format: uuid, nullable: true }
+        owner_account_id: { type: [string, "null"], format: uuid }
+        owner_group_id: { type: [string, "null"], format: uuid }
+        location_id: { type: [string, "null"], format: uuid }
         protection: { $ref: "#/components/schemas/CiOwnProtection" }
         effective_protection: { $ref: "#/components/schemas/CiProtection" }
-        review_due: { type: string, format: date, nullable: true }
+        review_due: { type: [string, "null"], format: date }
         quantity: { type: integer }
-        last_seen_at: { type: string, format: date-time, nullable: true }
-        merged_into: { type: string, format: uuid, nullable: true }
+        last_seen_at: { type: [string, "null"], format: date-time }
+        merged_into: { type: [string, "null"], format: uuid }
         relations: { type: array, items: { $ref: "#/components/schemas/CiRelation" } }
         decision: { $ref: "#/components/schemas/CiDecision" }
         created_by: { type: string, format: uuid }
@@ -40364,7 +40359,7 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/ConfigurationItem" } }
-        next: { type: string, format: uuid, nullable: true }
+        next: { type: [string, "null"], format: uuid }
 
     ConfigurationItemCreate:
       type: object
@@ -40386,11 +40381,11 @@ components:
       properties:
         stage: { type: string, enum: [PLANNED, ORDERED, IN_STOCK, IN_USE, MAINTENANCE, RETIRED, DISPOSED] }
         status: { type: string, enum: [OK, PENDING, BLOCKED] }
-        owner_account_id: { type: string, format: uuid, nullable: true }
-        owner_group_id: { type: string, format: uuid, nullable: true }
-        location_id: { type: string, format: uuid, nullable: true }
+        owner_account_id: { type: [string, "null"], format: uuid }
+        owner_group_id: { type: [string, "null"], format: uuid }
+        location_id: { type: [string, "null"], format: uuid }
         protection: { $ref: "#/components/schemas/CiOwnProtection" }
-        review_due: { type: string, format: date, nullable: true }
+        review_due: { type: [string, "null"], format: date }
         quantity: { type: integer, minimum: 1, maximum: 1000000 }
 
     CiPayloadItem:
@@ -40457,7 +40452,7 @@ components:
       description: A reconciliation run; a dry run has no `id` and was not stored.
       required: [hub_id, source, started_at, dry_run, counts]
       properties:
-        id: { type: string, format: uuid, nullable: true }
+        id: { type: [string, "null"], format: uuid }
         hub_id: { type: string, format: uuid }
         source: { type: string }
         actor_id: { type: string, format: uuid }
@@ -40488,12 +40483,12 @@ components:
         hosts: { type: array, items: { type: string }, description: Every host it may reach. }
         every_minutes: { type: integer }
         enabled: { type: boolean }
-        collection_id: { type: string, format: uuid, nullable: true }
-        run_as: { type: string, format: uuid, nullable: true }
+        collection_id: { type: [string, "null"], format: uuid }
+        run_as: { type: [string, "null"], format: uuid }
         has_credential: { type: boolean }
-        next_run_at: { type: string, format: date-time, nullable: true }
-        last_run_at: { type: string, format: date-time, nullable: true }
-        last_run_id: { type: string, format: uuid, nullable: true }
+        next_run_at: { type: [string, "null"], format: date-time }
+        last_run_at: { type: [string, "null"], format: date-time }
+        last_run_id: { type: [string, "null"], format: uuid }
         last_outcome: { type: string, enum: ["", OK, EMPTY, FAILED] }
         last_error: { type: string, description: The last failure's message code. }
         failures: { type: integer }
@@ -40556,11 +40551,11 @@ components:
         status: { type: string, enum: [FIRING, RESOLVED] }
         severity: { type: string }
         title: { type: string }
-        ci_id: { type: string, format: uuid, nullable: true }
-        entry_id: { type: string, format: uuid, nullable: true }
+        ci_id: { type: [string, "null"], format: uuid }
+        entry_id: { type: [string, "null"], format: uuid }
         first_at: { type: string, format: date-time }
         last_at: { type: string, format: date-time }
-        resolved_at: { type: string, format: date-time, nullable: true }
+        resolved_at: { type: [string, "null"], format: date-time }
         count: { type: integer }
 
     CiAlertList:
@@ -40669,7 +40664,7 @@ components:
         run_as: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
-        last_delivery_at: { type: string, format: date-time, nullable: true }
+        last_delivery_at: { type: [string, "null"], format: date-time }
 
     CodeHookMinted:
       allOf:

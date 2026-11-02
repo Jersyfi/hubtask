@@ -2811,15 +2811,18 @@ func (e CiInventoryReceiptStatus) Valid() bool {
 
 // Defines values for CiOwnProtectionA.
 const (
-	CiOwnProtectionAHIGH     CiOwnProtectionA = "HIGH"
-	CiOwnProtectionANORMAL   CiOwnProtectionA = "NORMAL"
-	CiOwnProtectionAVERYHIGH CiOwnProtectionA = "VERY_HIGH"
+	CiOwnProtectionAHIGH        CiOwnProtectionA = "HIGH"
+	CiOwnProtectionALessThannil CiOwnProtectionA = "<nil>"
+	CiOwnProtectionANORMAL      CiOwnProtectionA = "NORMAL"
+	CiOwnProtectionAVERYHIGH    CiOwnProtectionA = "VERY_HIGH"
 )
 
 // Valid indicates whether the value is a known member of the CiOwnProtectionA enum.
 func (e CiOwnProtectionA) Valid() bool {
 	switch e {
 	case CiOwnProtectionAHIGH:
+		return true
+	case CiOwnProtectionALessThannil:
 		return true
 	case CiOwnProtectionANORMAL:
 		return true
@@ -2832,15 +2835,18 @@ func (e CiOwnProtectionA) Valid() bool {
 
 // Defines values for CiOwnProtectionC.
 const (
-	CiOwnProtectionCHIGH     CiOwnProtectionC = "HIGH"
-	CiOwnProtectionCNORMAL   CiOwnProtectionC = "NORMAL"
-	CiOwnProtectionCVERYHIGH CiOwnProtectionC = "VERY_HIGH"
+	CiOwnProtectionCHIGH        CiOwnProtectionC = "HIGH"
+	CiOwnProtectionCLessThannil CiOwnProtectionC = "<nil>"
+	CiOwnProtectionCNORMAL      CiOwnProtectionC = "NORMAL"
+	CiOwnProtectionCVERYHIGH    CiOwnProtectionC = "VERY_HIGH"
 )
 
 // Valid indicates whether the value is a known member of the CiOwnProtectionC enum.
 func (e CiOwnProtectionC) Valid() bool {
 	switch e {
 	case CiOwnProtectionCHIGH:
+		return true
+	case CiOwnProtectionCLessThannil:
 		return true
 	case CiOwnProtectionCNORMAL:
 		return true
@@ -2874,15 +2880,18 @@ func (e CiOwnProtectionFixed) Valid() bool {
 
 // Defines values for CiOwnProtectionI.
 const (
-	CiOwnProtectionIHIGH     CiOwnProtectionI = "HIGH"
-	CiOwnProtectionINORMAL   CiOwnProtectionI = "NORMAL"
-	CiOwnProtectionIVERYHIGH CiOwnProtectionI = "VERY_HIGH"
+	CiOwnProtectionIHIGH        CiOwnProtectionI = "HIGH"
+	CiOwnProtectionILessThannil CiOwnProtectionI = "<nil>"
+	CiOwnProtectionINORMAL      CiOwnProtectionI = "NORMAL"
+	CiOwnProtectionIVERYHIGH    CiOwnProtectionI = "VERY_HIGH"
 )
 
 // Valid indicates whether the value is a known member of the CiOwnProtectionI enum.
 func (e CiOwnProtectionI) Valid() bool {
 	switch e {
 	case CiOwnProtectionIHIGH:
+		return true
+	case CiOwnProtectionILessThannil:
 		return true
 	case CiOwnProtectionINORMAL:
 		return true
@@ -2895,15 +2904,18 @@ func (e CiOwnProtectionI) Valid() bool {
 
 // Defines values for CiProtectionA.
 const (
-	CiProtectionAHIGH     CiProtectionA = "HIGH"
-	CiProtectionANORMAL   CiProtectionA = "NORMAL"
-	CiProtectionAVERYHIGH CiProtectionA = "VERY_HIGH"
+	CiProtectionAHIGH        CiProtectionA = "HIGH"
+	CiProtectionALessThannil CiProtectionA = "<nil>"
+	CiProtectionANORMAL      CiProtectionA = "NORMAL"
+	CiProtectionAVERYHIGH    CiProtectionA = "VERY_HIGH"
 )
 
 // Valid indicates whether the value is a known member of the CiProtectionA enum.
 func (e CiProtectionA) Valid() bool {
 	switch e {
 	case CiProtectionAHIGH:
+		return true
+	case CiProtectionALessThannil:
 		return true
 	case CiProtectionANORMAL:
 		return true
@@ -2916,15 +2928,18 @@ func (e CiProtectionA) Valid() bool {
 
 // Defines values for CiProtectionC.
 const (
-	CiProtectionCHIGH     CiProtectionC = "HIGH"
-	CiProtectionCNORMAL   CiProtectionC = "NORMAL"
-	CiProtectionCVERYHIGH CiProtectionC = "VERY_HIGH"
+	CiProtectionCHIGH        CiProtectionC = "HIGH"
+	CiProtectionCLessThannil CiProtectionC = "<nil>"
+	CiProtectionCNORMAL      CiProtectionC = "NORMAL"
+	CiProtectionCVERYHIGH    CiProtectionC = "VERY_HIGH"
 )
 
 // Valid indicates whether the value is a known member of the CiProtectionC enum.
 func (e CiProtectionC) Valid() bool {
 	switch e {
 	case CiProtectionCHIGH:
+		return true
+	case CiProtectionCLessThannil:
 		return true
 	case CiProtectionCNORMAL:
 		return true
@@ -2937,15 +2952,18 @@ func (e CiProtectionC) Valid() bool {
 
 // Defines values for CiProtectionI.
 const (
-	CiProtectionIHIGH     CiProtectionI = "HIGH"
-	CiProtectionINORMAL   CiProtectionI = "NORMAL"
-	CiProtectionIVERYHIGH CiProtectionI = "VERY_HIGH"
+	CiProtectionIHIGH        CiProtectionI = "HIGH"
+	CiProtectionILessThannil CiProtectionI = "<nil>"
+	CiProtectionINORMAL      CiProtectionI = "NORMAL"
+	CiProtectionIVERYHIGH    CiProtectionI = "VERY_HIGH"
 )
 
 // Valid indicates whether the value is a known member of the CiProtectionI enum.
 func (e CiProtectionI) Valid() bool {
 	switch e {
 	case CiProtectionIHIGH:
+		return true
+	case CiProtectionILessThannil:
 		return true
 	case CiProtectionINORMAL:
 		return true
@@ -15504,10 +15522,10 @@ type DailyNoteOpen struct {
 type Dashboard struct {
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
-	HubId    openapi_types.UUID    `json:"hub_id"`
+	HubId    *openapi_types.UUID   `json:"hub_id"`
 	Id       openapi_types.UUID    `json:"id"`
 	Name     string                `json:"name"`
-	OwnerId  openapi_types.UUID    `json:"owner_id"`
+	OwnerId  *openapi_types.UUID   `json:"owner_id"`
 	Sharing  DashboardSharing      `json:"sharing"`
 	Version  int                   `json:"version"`
 	Widgets  []DashboardWidget     `json:"widgets"`
@@ -15574,9 +15592,9 @@ type DashboardFigures struct {
 	DashboardId openapi_types.UUID `json:"dashboard_id"`
 	Widgets     []struct {
 		// Compare The second series' rows, as data's; its error code alone where the caller cannot run it.
-		Compare struct {
+		Compare *struct {
 			Data      []map[string]interface{} `json:"data"`
-			Error     string                   `json:"error"`
+			Error     *string                  `json:"error"`
 			Truncated bool                     `json:"truncated"`
 		} `json:"compare"`
 
@@ -15584,13 +15602,13 @@ type DashboardFigures struct {
 		Data []map[string]interface{} `json:"data"`
 
 		// Error The error code of a widget the caller cannot run.
-		Error string             `json:"error"`
+		Error *string            `json:"error"`
 		Id    openapi_types.UUID `json:"id"`
 
 		// Remaining A cumulative widget with a second series: per group and period, the first running total less the second's - what is left.
-		Remaining []struct {
-			Group  string `json:"group"`
-			Period string `json:"period"`
+		Remaining *[]struct {
+			Group  *string `json:"group"`
+			Period *string `json:"period"`
 
 			// Value An exact decimal.
 			Value string `json:"value"`
@@ -15606,19 +15624,19 @@ type DashboardList struct {
 
 // DashboardWidget defines model for DashboardWidget.
 type DashboardWidget struct {
-	Chart      DashboardWidgetChart   `json:"chart"`
-	Compare    DashboardWidgetCompare `json:"compare"`
-	Cumulative bool                   `json:"cumulative"`
-	GoalIds    []openapi_types.UUID   `json:"goal_ids"`
-	H          int                    `json:"h"`
-	Id         openapi_types.UUID     `json:"id"`
-	Query      map[string]interface{} `json:"query"`
-	Source     DashboardWidgetSource  `json:"source"`
-	Title      string                 `json:"title"`
-	ViewId     openapi_types.UUID     `json:"view_id"`
-	W          int                    `json:"w"`
-	X          int                    `json:"x"`
-	Y          int                    `json:"y"`
+	Chart      DashboardWidgetChart    `json:"chart"`
+	Compare    *DashboardWidgetCompare `json:"compare"`
+	Cumulative bool                    `json:"cumulative"`
+	GoalIds    []openapi_types.UUID    `json:"goal_ids"`
+	H          int                     `json:"h"`
+	Id         openapi_types.UUID      `json:"id"`
+	Query      *map[string]interface{} `json:"query"`
+	Source     DashboardWidgetSource   `json:"source"`
+	Title      string                  `json:"title"`
+	ViewId     *openapi_types.UUID     `json:"view_id"`
+	W          int                     `json:"w"`
+	X          int                     `json:"x"`
+	Y          int                     `json:"y"`
 }
 
 // DashboardWidgetChart defines model for DashboardWidget.Chart.
@@ -16899,7 +16917,7 @@ type Goal struct {
 
 	// ChildCount The goals under it the caller may read.
 	ChildCount  int    `json:"child_count"`
-	Confidence  int    `json:"confidence"`
+	Confidence  *int   `json:"confidence"`
 	Description string `json:"description"`
 
 	// Entries The linked entries the caller may read, and how many are completed.
@@ -16907,25 +16925,25 @@ type Goal struct {
 		Done  int `json:"done"`
 		Total int `json:"total"`
 	} `json:"entries"`
-	Grade      float32            `json:"grade"`
-	HubId      openapi_types.UUID `json:"hub_id"`
-	Id         openapi_types.UUID `json:"id"`
-	KeyResults []KeyResult        `json:"key_results"`
+	Grade      *float32            `json:"grade"`
+	HubId      *openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID  `json:"id"`
+	KeyResults []KeyResult         `json:"key_results"`
 
 	// LinkedEntries Only on a goal read alone.
 	LinkedEntries *[]struct {
 		CollectionId openapi_types.UUID `json:"collection_id"`
 		Completed    bool               `json:"completed"`
 		Id           openapi_types.UUID `json:"id"`
-		Key          string             `json:"key"`
+		Key          *string            `json:"key"`
 		Title        string             `json:"title"`
 	} `json:"linked_entries,omitempty"`
-	OwnerId  openapi_types.UUID `json:"owner_id"`
-	ParentId openapi_types.UUID `json:"parent_id"`
-	PeriodId openapi_types.UUID `json:"period_id"`
+	OwnerId  *openapi_types.UUID `json:"owner_id"`
+	ParentId *openapi_types.UUID `json:"parent_id"`
+	PeriodId openapi_types.UUID  `json:"period_id"`
 
 	// Progress The mean of its key results, its goals below and its linked entries' share completed; null with none.
-	Progress float32    `json:"progress"`
+	Progress *float32   `json:"progress"`
 	Status   GoalStatus `json:"status"`
 	Title    string     `json:"title"`
 	Version  int        `json:"version"`
@@ -16936,13 +16954,13 @@ type GoalStatus string
 
 // GoalCheckIn defines model for GoalCheckIn.
 type GoalCheckIn struct {
-	AuthorId   openapi_types.UUID `json:"author_id"`
-	Confidence int                `json:"confidence"`
-	CreatedAt  time.Time          `json:"created_at"`
-	GoalId     openapi_types.UUID `json:"goal_id"`
-	Id         openapi_types.UUID `json:"id"`
-	Note       string             `json:"note"`
-	Status     GoalCheckInStatus  `json:"status"`
+	AuthorId   *openapi_types.UUID `json:"author_id"`
+	Confidence int                 `json:"confidence"`
+	CreatedAt  time.Time           `json:"created_at"`
+	GoalId     openapi_types.UUID  `json:"goal_id"`
+	Id         openapi_types.UUID  `json:"id"`
+	Note       string              `json:"note"`
+	Status     GoalCheckInStatus   `json:"status"`
 	Values     []struct {
 		KeyResultId openapi_types.UUID `json:"key_result_id"`
 		Value       float32            `json:"value"`
@@ -18187,20 +18205,20 @@ type JumbleIntakeToken struct {
 // KeyResult defines model for KeyResult.
 type KeyResult struct {
 	// Current As the caller sees it: a view's total or a milestone's entry where live, else the last value reported.
-	Current float32            `json:"current"`
-	EntryId openapi_types.UUID `json:"entry_id"`
-	Id      openapi_types.UUID `json:"id"`
-	Kind    KeyResultKind      `json:"kind"`
+	Current float32             `json:"current"`
+	EntryId *openapi_types.UUID `json:"entry_id"`
+	Id      openapi_types.UUID  `json:"id"`
+	Kind    KeyResultKind       `json:"kind"`
 
 	// Live Whether current was computed for the caller now.
-	Live     bool               `json:"live"`
-	Progress float32            `json:"progress"`
-	Source   KeyResultSource    `json:"source"`
-	Start    float32            `json:"start"`
-	Target   float32            `json:"target"`
-	Title    string             `json:"title"`
-	Unit     string             `json:"unit"`
-	ViewId   openapi_types.UUID `json:"view_id"`
+	Live     bool                `json:"live"`
+	Progress float32             `json:"progress"`
+	Source   KeyResultSource     `json:"source"`
+	Start    float32             `json:"start"`
+	Target   float32             `json:"target"`
+	Title    string              `json:"title"`
+	Unit     string              `json:"unit"`
+	ViewId   *openapi_types.UUID `json:"view_id"`
 }
 
 // KeyResultKind defines model for KeyResult.Kind.
@@ -20961,8 +20979,8 @@ type PortalRequestPage struct {
 type Portfolio struct {
 	// Budget Read alone, where the caller manages costs at one or more of its projects with a budget: their budgets and burn rolled up. Money is summed only while every budget with money is in one currency; otherwise its amounts are null and mixed_currencies is true.
 	Budget *struct {
-		AmountMinor       int64  `json:"amount_minor"`
-		BudgetAmountMinor int64  `json:"budget_amount_minor"`
+		AmountMinor       *int64 `json:"amount_minor"`
+		BudgetAmountMinor *int64 `json:"budget_amount_minor"`
 		BudgetMinutes     int64  `json:"budget_minutes"`
 		Currency          string `json:"currency"`
 		Minutes           int64  `json:"minutes"`
@@ -20990,27 +21008,27 @@ type Portfolio struct {
 			OverTime          bool   `json:"over_time"`
 			UnpricedMinutes   int64  `json:"unpriced_minutes"`
 		} `json:"budget,omitempty"`
-		ContainerId openapi_types.UUID `json:"container_id"`
-		Done        int                `json:"done"`
-		EndOn       openapi_types.Date `json:"end_on"`
+		ContainerId openapi_types.UUID  `json:"container_id"`
+		Done        *int                `json:"done"`
+		EndOn       *openapi_types.Date `json:"end_on"`
 
 		// Entries Read alone: its entries as the caller counts them.
-		Entries  int                  `json:"entries"`
+		Entries  *int                 `json:"entries"`
 		Kind     PortfolioItemsKind   `json:"kind"`
 		Name     string               `json:"name"`
-		Progress float32              `json:"progress"`
-		StartOn  openapi_types.Date   `json:"start_on"`
+		Progress *float32             `json:"progress"`
+		StartOn  *openapi_types.Date  `json:"start_on"`
 		Status   PortfolioItemsStatus `json:"status"`
 	} `json:"items"`
 
 	// LatestUpdate Read alone.
-	LatestUpdate *PortfolioUpdate   `json:"latest_update,omitempty"`
-	Name         string             `json:"name"`
-	OwnerId      openapi_types.UUID `json:"owner_id"`
-	ParentId     openapi_types.UUID `json:"parent_id"`
+	LatestUpdate *PortfolioUpdate    `json:"latest_update,omitempty"`
+	Name         string              `json:"name"`
+	OwnerId      *openapi_types.UUID `json:"owner_id"`
+	ParentId     *openapi_types.UUID `json:"parent_id"`
 
 	// Progress Read alone: the share of its projects' entries completed.
-	Progress float32         `json:"progress"`
+	Progress *float32        `json:"progress"`
 	Status   PortfolioStatus `json:"status"`
 	Version  int             `json:"version"`
 }
@@ -21094,7 +21112,7 @@ type PortfolioRoadmap struct {
 
 // PortfolioUpdate defines model for PortfolioUpdate.
 type PortfolioUpdate struct {
-	AuthorId    openapi_types.UUID    `json:"author_id"`
+	AuthorId    *openapi_types.UUID   `json:"author_id"`
 	CreatedAt   time.Time             `json:"created_at"`
 	Id          openapi_types.UUID    `json:"id"`
 	PortfolioId openapi_types.UUID    `json:"portfolio_id"`

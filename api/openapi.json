@@ -37171,9 +37171,11 @@
             "format": "date-time"
           },
           "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "version": {
             "type": "integer"
@@ -43100,14 +43102,18 @@
             ]
           },
           "view_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "entry_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "progress": {
             "type": "number",
@@ -43250,14 +43256,18 @@
             "format": "uuid"
           },
           "hub_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "parent_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "title": {
             "type": "string"
@@ -43266,9 +43276,11 @@
             "type": "string"
           },
           "owner_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "status": {
             "type": "string",
@@ -43282,14 +43294,18 @@
             ]
           },
           "confidence": {
-            "type": "integer",
-            "nullable": true,
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 10
           },
           "grade": {
-            "type": "number",
-            "nullable": true,
+            "type": [
+              "number",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 1
           },
@@ -43320,8 +43336,10 @@
             "description": "The goals under it the caller may read."
           },
           "progress": {
-            "type": "number",
-            "nullable": true,
+            "type": [
+              "number",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 1,
             "description": "The mean of its key results, its goals below and its linked entries' share completed; null with none."
@@ -43350,8 +43368,10 @@
                   "type": "string"
                 },
                 "key": {
-                  "type": "string",
-                  "nullable": true
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "completed": {
                   "type": "boolean"
@@ -44594,9 +44614,11 @@
             "format": "uuid"
           },
           "author_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "status": {
             "type": "string",
@@ -44903,9 +44925,11 @@
             "format": "uuid"
           },
           "parent_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -44914,9 +44938,11 @@
             "type": "string"
           },
           "owner_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "status": {
             "type": "string",
@@ -44928,8 +44954,10 @@
             ]
           },
           "progress": {
-            "type": "number",
-            "nullable": true,
+            "type": [
+              "number",
+              "null"
+            ],
             "minimum": 0,
             "maximum": 1,
             "description": "Read alone: the share of its projects' entries completed."
@@ -44973,14 +45001,18 @@
                   "type": "boolean"
                 },
                 "start_on": {
-                  "type": "string",
-                  "format": "date",
-                  "nullable": true
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
                 },
                 "end_on": {
-                  "type": "string",
-                  "format": "date",
-                  "nullable": true
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
                 },
                 "status": {
                   "type": "string",
@@ -44992,17 +45024,23 @@
                   ]
                 },
                 "entries": {
-                  "type": "integer",
-                  "nullable": true,
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
                   "description": "Read alone: its entries as the caller counts them."
                 },
                 "done": {
-                  "type": "integer",
-                  "nullable": true
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "progress": {
-                  "type": "number",
-                  "nullable": true,
+                  "type": [
+                    "number",
+                    "null"
+                  ],
                   "minimum": 0,
                   "maximum": 1
                 },
@@ -45091,25 +45129,31 @@
                 "type": "boolean"
               },
               "budget_amount_minor": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
               },
               "amount_minor": {
-                "type": "integer",
-                "format": "int64",
-                "nullable": true
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
               }
             }
           },
           "latest_update": {
             "description": "Read alone.",
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/PortfolioUpdate"
+              },
+              {
+                "type": "null"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -45147,9 +45191,11 @@
             "format": "uuid"
           },
           "author_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "status": {
             "type": "string",
@@ -45340,14 +45386,18 @@
             ]
           },
           "view_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "query": {
-            "type": "object",
-            "additionalProperties": true,
-            "nullable": true
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
           },
           "goal_ids": {
             "type": "array",
@@ -45357,12 +45407,14 @@
             }
           },
           "compare": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/DashboardWidgetCompare"
+              },
+              {
+                "type": "null"
               }
-            ],
-            "nullable": true
+            ]
           },
           "cumulative": {
             "type": "boolean"
@@ -45481,14 +45533,18 @@
             "format": "uuid"
           },
           "hub_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "owner_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -45669,13 +45725,17 @@
                   "type": "boolean"
                 },
                 "error": {
-                  "type": "string",
-                  "nullable": true,
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "description": "The error code of a widget the caller cannot run."
                 },
                 "compare": {
-                  "type": "object",
-                  "nullable": true,
+                  "type": [
+                    "object",
+                    "null"
+                  ],
                   "description": "The second series' rows, as data's; its error code alone where the caller cannot run it.",
                   "required": [
                     "data",
@@ -45694,14 +45754,18 @@
                       "type": "boolean"
                     },
                     "error": {
-                      "type": "string",
-                      "nullable": true
+                      "type": [
+                        "string",
+                        "null"
+                      ]
                     }
                   }
                 },
                 "remaining": {
-                  "type": "array",
-                  "nullable": true,
+                  "type": [
+                    "array",
+                    "null"
+                  ],
                   "description": "A cumulative widget with a second series: per group and period, the first running total less the second's - what is left.",
                   "items": {
                     "type": "object",
@@ -45712,12 +45776,16 @@
                     ],
                     "properties": {
                       "group": {
-                        "type": "string",
-                        "nullable": true
+                        "type": [
+                          "string",
+                          "null"
+                        ]
                       },
                       "period": {
-                        "type": "string",
-                        "nullable": true
+                        "type": [
+                          "string",
+                          "null"
+                        ]
                       },
                       "value": {
                         "type": "string",
@@ -65113,8 +65181,10 @@
             "type": "string"
           },
           "entry_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "collection_id": {
             "type": "string",
@@ -65155,8 +65225,10 @@
             "type": "string"
           },
           "icon": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -67265,20 +67337,24 @@
             "type": "boolean"
           },
           "mapping": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/CiFileMapping"
+              },
+              {
+                "type": "null"
               }
-            ],
-            "nullable": true
+            ]
           },
           "system": {
             "type": "boolean"
           },
           "last_run_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "version": {
             "type": "integer"
@@ -67338,31 +67414,40 @@
         "description": "A protection need per confidentiality, integrity and availability.",
         "properties": {
           "c": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "NORMAL",
               "HIGH",
-              "VERY_HIGH"
-            ],
-            "nullable": true
+              "VERY_HIGH",
+              null
+            ]
           },
           "i": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "NORMAL",
               "HIGH",
-              "VERY_HIGH"
-            ],
-            "nullable": true
+              "VERY_HIGH",
+              null
+            ]
           },
           "a": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "NORMAL",
               "HIGH",
-              "VERY_HIGH"
-            ],
-            "nullable": true
+              "VERY_HIGH",
+              null
+            ]
           }
         }
       },
@@ -67371,31 +67456,40 @@
         "description": "The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.\n",
         "properties": {
           "c": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "NORMAL",
               "HIGH",
-              "VERY_HIGH"
-            ],
-            "nullable": true
+              "VERY_HIGH",
+              null
+            ]
           },
           "i": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "NORMAL",
               "HIGH",
-              "VERY_HIGH"
-            ],
-            "nullable": true
+              "VERY_HIGH",
+              null
+            ]
           },
           "a": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "NORMAL",
               "HIGH",
-              "VERY_HIGH"
-            ],
-            "nullable": true
+              "VERY_HIGH",
+              null
+            ]
           },
           "fixed": {
             "type": "array",
@@ -67425,9 +67519,11 @@
             "type": "string"
           },
           "run_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "at": {
             "type": "string",
@@ -67498,9 +67594,11 @@
             ]
           },
           "ci_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "class": {
             "type": "string"
@@ -67609,19 +67707,25 @@
             }
           },
           "owner_account_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "owner_group_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "location_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "protection": {
             "$ref": "#/components/schemas/CiOwnProtection"
@@ -67630,22 +67734,28 @@
             "$ref": "#/components/schemas/CiProtection"
           },
           "review_due": {
-            "type": "string",
-            "format": "date",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
           },
           "quantity": {
             "type": "integer"
           },
           "last_seen_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "merged_into": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "relations": {
             "type": "array",
@@ -67690,9 +67800,11 @@
             }
           },
           "next": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -67756,27 +67868,35 @@
             ]
           },
           "owner_account_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "owner_group_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "location_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "protection": {
             "$ref": "#/components/schemas/CiOwnProtection"
           },
           "review_due": {
-            "type": "string",
-            "format": "date",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
           },
           "quantity": {
             "type": "integer",
@@ -67955,9 +68075,11 @@
         ],
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "hub_id": {
             "type": "string",
@@ -68080,32 +68202,42 @@
             "type": "boolean"
           },
           "collection_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "run_as": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "has_credential": {
             "type": "boolean"
           },
           "next_run_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "last_run_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "last_run_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "last_outcome": {
             "type": "string",
@@ -68324,14 +68456,18 @@
             "type": "string"
           },
           "ci_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "entry_id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
           },
           "first_at": {
             "type": "string",
@@ -68342,9 +68478,11 @@
             "format": "date-time"
           },
           "resolved_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "count": {
             "type": "integer"
@@ -68701,9 +68839,11 @@
             "format": "date-time"
           },
           "last_delivery_at": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },

@@ -1883,7 +1883,7 @@ class Portfolio(TypedDict, total=False):
     version: Required[int]
     items: Required[list[dict[str, Any]]]
     budget: dict[str, Any]
-    latest_update: "PortfolioUpdate"
+    latest_update: "PortfolioUpdate" | Any
 
 class PortfolioList(TypedDict, total=False):
     data: Required[list["Portfolio"]]
@@ -1928,7 +1928,7 @@ class DashboardWidget(TypedDict, total=False):
     view_id: Required[str | None]
     query: Required[dict[str, Any] | None]
     goal_ids: Required[list[str]]
-    compare: Required["DashboardWidgetCompare"]
+    compare: Required["DashboardWidgetCompare" | Any]
     cumulative: Required[bool]
     x: Required[int]
     y: Required[int]
@@ -6021,7 +6021,7 @@ class CiSource(TypedDict, total=False):
     rank: Required[int]
     classes: Required[list[str]]
     may_create: Required[bool]
-    mapping: "CiFileMapping"
+    mapping: "CiFileMapping" | Any
     system: Required[bool]
     last_run_at: str | None
     version: Required[int]
