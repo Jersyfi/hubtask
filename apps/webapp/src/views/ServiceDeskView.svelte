@@ -191,7 +191,15 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.desk.title')} subtitle={t('app.desk.subtitle')} isTitleInBar={viewport.isCompact} />
+  <PageHeader title={t('app.desk.title')} subtitle={t('app.desk.subtitle')} isTitleInBar={viewport.isCompact}
+    breadcrumb={{
+      trail: [
+        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        { id: 'service-desk', label: t('app.desk.title') },
+      ],
+      label: t('app.admin.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }} />
   <Tabs label={t('app.desk.title')} selected={current} onselect={(id) => (current = id as typeof current)}
     tabs={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: tab, label: t(`app.desk.tab.${tab}`) }))}>
     {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}

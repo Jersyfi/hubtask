@@ -24,6 +24,8 @@
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
+  import ModuleOff from './lib/frame/ModuleOff.svelte';
+  import { offModuleOf } from './lib/frame/moduleroute.ts';
   import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { viewAs } from './lib/data/viewas.svelte.ts';
@@ -190,6 +192,8 @@
    * answered for this reader, and then nothing is drawn rather than a not-found that turns into a
    * screen a moment later.
    */
+  /** The module a page belongs to where it is off: said in place of the page (moduleroute.ts). */
+  const offModule = $derived(offModuleOf(route.name ?? '', manifest.value?.modules_on));
   const reach = $derived(
     route.area === 'administration'
       ? reachesAdministrationArea()
@@ -366,6 +370,8 @@
     <!-- Not yet known whether this reader is inside the level: nothing, rather than a guess. -->
   {:else if reach === false}
     {@render nothingHere()}
+  {:else if offModule}
+    <ModuleOff module={offModule} />
   {:else if route.name === 'consent'}
     <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
