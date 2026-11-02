@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!--
+  Mockup of docs/architecture/user-experience.md §5: the product empty state in its three kinds,
+  create with a template gallery, a plan in words, a refusal with a next step, and a settings
+  page with sources, pickers and the save bar. Draws the generated token sheet only (rule 15);
+  run `make tokens` before opening it. A picture to build from: none of the names are real.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the shared patterns</title>
+<link rel="stylesheet" href="../../../packages/design-system/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/design-system/dist/fonts.css">
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg-canvas); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--fs-200); line-height: var(--lh-normal); }
+  button { font: inherit; color: inherit; }
+  .scenes { display: flex; flex-wrap: wrap; gap: var(--sp-100); padding: var(--sp-150) var(--sp-300); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); align-items: center; }
+  .scenes button { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-full); padding: var(--sp-050) var(--sp-200); cursor: pointer; }
+  .scenes button[aria-pressed="true"] { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); }
+  .scenes .note { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-100); }
+  .scene { display: none; padding: var(--sp-500); }
+  .scene.on { display: grid; gap: var(--sp-400); max-width: var(--layout-content-max); margin: 0 auto; }
+
+  .btn { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); }
+  .btn.p { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); box-shadow: var(--shadow-glow); }
+  .link { color: var(--text-brand); text-decoration: underline; }
+  .quiet { color: var(--text-subtle); font-size: var(--fs-100); }
+  .card { background: var(--bg-surface); border-radius: var(--r-lg); box-shadow: var(--shadow-raised); padding: var(--sp-300); }
+  .label { color: var(--text-subtle); font-size: var(--fs-075); font-weight: var(--fw-semibold); text-transform: uppercase; margin-bottom: var(--sp-150); }
+
+  .empty { display: grid; justify-items: center; text-align: center; gap: var(--sp-150); padding: var(--sp-600) var(--sp-300); }
+  .empty .mark { display: inline-grid; place-items: center; width: var(--sp-800); height: var(--sp-800); border-radius: var(--r-full); background: var(--accent-primary-subtle); color: var(--text-brand); font-size: var(--fs-500); }
+  .empty h2 { margin: 0; font-size: var(--fs-400); }
+  .empty p { margin: 0; color: var(--text-secondary); max-width: var(--layout-dialog-wide); }
+  .tpl { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-150); width: 100%; max-width: var(--layout-dialog-wide); }
+  .t { border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-150); text-align: start; background: var(--bg-surface); display: grid; gap: var(--sp-050); }
+  .t[aria-pressed="true"] { border-color: var(--accent-primary); box-shadow: var(--shadow-glow); }
+  .t .pv { height: var(--sp-800); border-radius: var(--r-sm); background: var(--bg-surface-sunken); display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-050); padding: var(--sp-050); }
+  .t .pv i { background: var(--label-blue-bg); border-radius: var(--r-xs); }
+  .t .pv i:nth-child(2) { background: var(--label-amber-bg); }
+  .t .pv i:nth-child(3) { background: var(--label-green-bg); }
+  .t.blank .pv i { background: transparent; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-300); }
+
+  .dialog { background: var(--bg-raised); border-radius: var(--r-xl); box-shadow: var(--shadow-overlay); padding: var(--sp-400); display: grid; gap: var(--sp-200); max-width: var(--layout-dialog-wide); }
+  .dialog h2 { margin: 0; font-size: var(--fs-500); }
+  .in { border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); background: var(--bg-surface); }
+  .in.focus { border: var(--bw-ring) solid var(--focus-ring); }
+  .chips { display: flex; gap: var(--sp-050); flex-wrap: wrap; }
+  .chip { font-size: var(--fs-075); border-radius: var(--r-full); padding: 0 var(--sp-100); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .actions { display: flex; justify-content: flex-end; gap: var(--sp-150); }
+
+  .plan { display: grid; gap: var(--sp-100); }
+  .plan .ln { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-150); align-items: start; }
+  .op { font-size: var(--fs-075); font-weight: var(--fw-semibold); border-radius: var(--r-sm); padding: 0 var(--sp-100); }
+  .op.add { background: var(--status-success-surface); color: var(--status-success-text); }
+  .op.chg { background: var(--status-info-surface); color: var(--status-info-text); }
+  .op.rem { background: var(--status-danger-surface); color: var(--status-danger-text); }
+  .reach { background: var(--status-warning-surface); color: var(--status-warning-text); border: var(--bw-hairline) solid var(--status-warning-border); border-radius: var(--r-md); padding: var(--sp-150); }
+  .refused { border-inline-start: var(--bw-thick) solid var(--status-danger-accent); padding-inline-start: var(--sp-150); }
+
+  .banner { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-150); align-items: start; background: var(--status-danger-surface); border: var(--bw-hairline) solid var(--status-danger-border); color: var(--status-danger-text); border-radius: var(--r-md); padding: var(--sp-150) var(--sp-200); }
+  .banner.info { background: var(--status-info-surface); border-color: var(--status-info-border); color: var(--status-info-text); }
+  details { color: var(--text-secondary); font-size: var(--fs-100); }
+  .err { color: var(--text-danger); font-size: var(--fs-100); }
+
+  .settings { display: grid; grid-template-columns: var(--layout-sidenav-width) 1fr; gap: var(--sp-300); }
+  .sections { display: grid; gap: var(--sp-025); align-content: start; }
+  .sections a { padding: var(--sp-050) var(--sp-150); border-radius: var(--r-sm); color: var(--text-secondary); }
+  .sections a[aria-current="page"] { background: var(--accent-primary-subtle); color: var(--text-brand); font-weight: var(--fw-medium); }
+  .set { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-100) var(--sp-200); align-items: center; padding: var(--sp-200) 0; border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .set .hint { grid-column: 1 / -1; }
+  .src { font-size: var(--fs-075); border-radius: var(--r-full); padding: 0 var(--sp-100); border: var(--bw-hairline) solid var(--border-default); color: var(--text-secondary); }
+  .src.lock { background: var(--status-neutral-surface); }
+  .prio { display: grid; grid-template-columns: auto 1fr 1fr; gap: var(--sp-100) var(--sp-200); align-items: center; }
+  .savebar { position: sticky; bottom: 0; display: flex; gap: var(--sp-150); align-items: center; background: var(--bg-emphasis); color: var(--text-inverse); border-radius: var(--r-lg); padding: var(--sp-150) var(--sp-200); box-shadow: var(--shadow-overlay); margin-top: var(--sp-300); }
+  .savebar .sp { flex: 1; }
+  .savebar .btn { background: transparent; color: inherit; border-color: currentColor; }
+  .savebar .btn.p { background: var(--accent-primary); border-color: var(--accent-primary); }
+  .flush { margin: 0; }
+  .explain { padding: var(--sp-200); border-inline-start: var(--bw-thick) solid var(--accent-primary); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-100); }
+</style>
+</head>
+<body>
+<div class="scenes" role="toolbar" aria-label="Scenes">
+  <button data-scene="empty" aria-pressed="true">Empty states</button>
+  <button data-scene="create" aria-pressed="false">Create from a template</button>
+  <button data-scene="plan" aria-pressed="false">A plan in words</button>
+  <button data-scene="refusal" aria-pressed="false">Refusals and failures</button>
+  <button data-scene="settings" aria-pressed="false">A settings page</button>
+  <button id="theme" aria-pressed="false">Dark</button>
+  <span class="note">user-experience.md §5</span>
+</div>
+
+<section class="scene on" id="empty">
+  <div class="card"><div class="empty">
+    <span class="mark" aria-hidden="true">◎</span>
+    <h2>Set goals for the quarter</h2>
+    <p>Goals say what the team wants to reach by a date; key results measure it, from entries or by hand. Q4 2026 is ready as your first period.</p>
+    <button class="btn p">＋ New goal in Q4 2026</button>
+    <div class="tpl">
+      <button class="t"><span class="pv"><i></i><i></i><i></i></span><b>Quarterly OKRs</b><span class="quiet">3 goals, 9 key results</span></button>
+      <button class="t"><span class="pv"><i></i><i></i><i></i></span><b>Delivery dashboard</b><span class="quiet">Charts over your projects</span></button>
+      <button class="t"><span class="pv"><i></i><i></i><i></i></span><b>Portfolio</b><span class="quiet">Projects by goal</span></button>
+    </div>
+    <a class="link">How goals work in Hubtask</a>
+  </div></div>
+  <div class="row3">
+    <div class="card"><div class="label">First use, may not create</div><div class="empty"><span class="mark" aria-hidden="true">◎</span><h2>No goals here yet</h2><p>Goals say what the team wants to reach by a date.</p><span class="quiet">Anna Keller or another administrator can set the first period.</span></div></div>
+    <div class="card"><div class="label">Filtered to nothing</div><div class="empty"><span class="mark" aria-hidden="true">⌖</span><h2>No goal matches these filters</h2><button class="btn">Clear filters</button></div></div>
+    <div class="card"><div class="label">Settled</div><div class="empty"><span class="mark" aria-hidden="true">✓</span><h2>Nothing waiting for your yes</h2></div></div>
+  </div>
+  <p class="explain">One empty pattern in every product (§5.5): what the product is for, the default already there, the primary act, two or three templates, the guide. For a reader who may not create: who can. Filtered and settled keep voice-and-tone §4's words.</p>
+</section>
+
+<section class="scene" id="create">
+  <div class="dialog" role="dialog" aria-label="New whiteboard">
+    <h2>New whiteboard</h2>
+    <span class="in focus">Retro sprint 42</span>
+    <div class="tpl">
+      <button class="t blank"><span class="pv"><i></i><i></i><i></i></span><b>Blank</b></button>
+      <button class="t" aria-pressed="true"><span class="pv"><i></i><i></i><i></i></span><b>Retrospective</b><span class="quiet">Went well · To improve · Actions, with voting</span></button>
+      <button class="t"><span class="pv"><i></i><i></i><i></i></span><b>Brainstorm</b><span class="quiet">Clusters and a timer</span></button>
+      <button class="t"><span class="pv"><i></i><i></i><i></i></span><b>User story map</b><span class="quiet">Activities over releases</span></button>
+      <button class="t"><span class="pv"><i></i><i></i><i></i></span><b>Kanban sketch</b><span class="quiet">Columns to try a flow</span></button>
+    </div>
+    <div class="chips"><span class="chip">In: Product development and delivery ✎</span></div>
+    <div class="actions"><button class="btn">Cancel</button><button class="btn p">Create whiteboard</button></div>
+  </div>
+  <p class="explain">One create anatomy (§5.2): the name first, the templates as a gallery with previews and <i>Blank</i> as one card, the place as a chip, one primary. A product screen's create is <code>PageHeader</code>'s primary with <i>From a template…</i> as its split.</p>
+</section>
+
+<section class="scene" id="plan">
+  <div class="card plan">
+    <div class="label">Publishing the workflow “Incident” — what changes</div>
+    <div class="ln"><span class="op add">Adds</span><span>The status <b>Waiting for supplier</b>, between In progress and Resolved</span></div>
+    <div class="ln"><span class="op chg">Changes</span><span>2 fields of <b>Incident</b>: <i>Urgency</i> becomes required; <i>Supplier</i> is shown when the status is Waiting for supplier</span></div>
+    <div class="ln"><span class="op rem">Removes</span><span>The step <b>Reopen</b> from Closed</span></div>
+    <div class="reach">Reaches 4 collections and 37 open entries. 3 entries in <b>On hold</b> need a new status: choose one below.</div>
+    <div class="ln refused"><span class="op rem">Refused</span><span>The status <b>On hold</b> is still used by 3 entries and has no replacement. <a class="link">Choose a status for them</a></span></div>
+    <label><input type="checkbox"> I have seen that this changes what people may do</label>
+    <div class="actions"><button class="btn">Keep as draft</button><button class="btn p" disabled>Publish</button></div>
+  </div>
+  <p class="explain">One <code>PlanSummary</code> on every screen that plans (§5.4): each change a sentence with the block's human name, the reach, each refusal with its parameters and a way to fix it. The acknowledgement only where the plan removes something or changes what somebody may do.</p>
+</section>
+
+<section class="scene" id="refusal">
+  <div class="banner"><span aria-hidden="true">⚠</span><span><b>You cannot move entries in “Incidents and requests”.</b><br>Your role there is Viewer, which reads but does not change. Anna Keller and Tom Berg manage who may do what there.<details><summary>Details for support</summary>Reference 1ed9ffdb · access.not_permitted · 2 Nov 2026, 10:14</details></span><button class="btn">Ask Anna</button></div>
+  <div class="banner info"><span aria-hidden="true">↻</span><span><b>Hubtask was updated.</b><br>Reload to continue with the new version; nothing you entered is lost.</span><button class="btn p">Reload</button></div>
+  <div class="dialog" role="dialog" aria-label="Record time">
+    <h2>Record time</h2>
+    <div class="banner"><span aria-hidden="true">⚠</span><span>The week of 26 Oct is submitted, so time cannot be added to it. Choose a day in this week, or ask Anna to reopen it.</span><span></span></div>
+    <span class="in">Monday, 26 October</span>
+    <span class="in focus" aria-invalid="true">1500 minutes</span><span class="err">At most 24 hours a day — 1500 minutes is 25 hours.</span>
+    <div class="actions"><button class="btn">Cancel</button><button class="btn p">Record</button></div>
+  </div>
+  <p class="explain">A refusal says what happened, why and what next (§5.8); the permission and the place by name, who can grant it, the reference behind <i>Details</i>. After a deploy the screen says that Hubtask was updated. In a dialog the refusal is inside the dialog and the field error at its field (§5.10).</p>
+</section>
+
+<section class="scene" id="settings">
+  <div class="card settings">
+    <nav class="sections" aria-label="Service desk settings"><a>General</a><a aria-current="page">SLA policies</a><a>Business hours</a><a>Replies</a><a>Organisations</a><a>Intake</a></nav>
+    <div>
+      <h2 class="flush">SLA policy “Incidents”</h2>
+      <div class="set"><span><b>Applies to</b></span><span class="src">Set here</span><span class="hint in">Incident ▾ · Problem ▾</span></div>
+      <div class="set"><span><b>Business hours</b></span><span class="src lock">🔒 Workspace</span><span class="hint quiet">Mon–Fri 8:00–18:00, Europe/Berlin — set for every desk by Anna Keller. <a class="link">Why?</a></span></div>
+      <div class="set"><span><b>Targets by priority</b></span><span class="src">Template ITIL service desk</span>
+        <div class="hint prio">
+          <span></span><span class="quiet">First response</span><span class="quiet">Resolution</span>
+          <b>P1</b><span class="in">15 minutes ▾</span><span class="in">4 hours ▾</span>
+          <b>P2</b><span class="in">1 hour ▾</span><span class="in">1 business day ▾</span>
+          <b>P3</b><span class="in">4 hours ▾</span><span class="in">3 business days ▾</span>
+        </div>
+      </div>
+      <div class="set"><span><b>Paused while</b></span><span class="src">Set here</span><span class="hint in">Waiting for customer ▾ · Waiting for supplier ▾</span></div>
+      <details><summary>Advanced</summary>Measure by calendar time instead of business hours · escalate before breach</details>
+      <div class="savebar"><span>2 changes · reach 37 open incidents, 4 targets move</span><span class="sp"></span><button class="btn">Discard</button><button class="btn">Show the plan</button><button class="btn p">Save</button></div>
+    </div>
+  </div>
+  <p class="explain">One settings shell (§5.4): sections at the start, a source chip on every value with its lock and why, pickers fed by the workspace's own types, statuses and durations — never keys or minutes typed by hand —, <i>Advanced</i> folded on the same page, a save bar with its reach.</p>
+</section>
+
+<script>
+  const buttons = document.querySelectorAll('[data-scene]');
+  function show(id) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scene === id)));
+    document.querySelectorAll('.scene').forEach((s) => s.classList.toggle('on', s.id === id));
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => show(b.dataset.scene)));
+  document.getElementById('theme').addEventListener('click', (e) => {
+    const dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    e.currentTarget.setAttribute('aria-pressed', String(dark));
+  });
+</script>
+</body>
+</html>

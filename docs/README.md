@@ -8,7 +8,7 @@ table names it. Write it there; elsewhere, link to it.
 | [`vision/`](./vision/README.md) | Why: principles, personas, the deployments D1–D7, non-goals | the owner |
 | [`usecases/`](./usecases/README.md) | What must be true for a person — the yardstick for every change | the owner decides *Goal*, *How to check*, *Where it ends*; workers keep *Today* and the state |
 | [`architecture/`](./architecture/arc42.md) | The current rule of each concern, one subject document per concern; arc42 is the entry; the configuration document and templates are [`configuration.md`](./architecture/configuration.md) | the worker that changes a rule, in the same pull request |
-| [`design/`](./design/design-system.md) | The design system and the product's voice | the worker that changes a rule, in the same pull request |
+| [`design/`](./design/design-system.md) | The design system and the product's voice; the direction for the user experience — where each product lives, the first start, the shared patterns — is [`architecture/user-experience.md`](./architecture/user-experience.md) | the worker that changes a rule, in the same pull request |
 | [`adr/`](./adr/README.md) | Why and when each decision was taken — a log, not the rules | the worker that records a decision, named to the owner |
 | [`backlog/`](./backlog/README.md) | Running milestones with what they deliver, their tasks and decisions; how work runs | workers, at a cut and while a milestone runs |
 | [`privacy/`](./privacy/data-catalog.md) | The data catalogue, technical and organisational measures, the control mapping an operator's attestation cites, the NIS2 supplier pack, AI providers, the breach runbook | the worker whose change touches personal data or a mapped control |

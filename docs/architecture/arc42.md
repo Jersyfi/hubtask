@@ -26,7 +26,8 @@ one subject document, linked from the chapter that needs it; an ADR records why 
   [deployment.md](./deployment.md), [support-matrix.md](./support-matrix.md),
   [ci-cd.md](./ci-cd.md), [versioning-release.md](./versioning-release.md),
   [licensing-editions.md](./licensing-editions.md).
-* Clients: [the design system and the shell](../design/design-system.md).
+* Clients: [the design system and the shell](../design/design-system.md),
+  [the user-experience direction](./user-experience.md).
 * Decisions and plan: [the ADRs](../adr/README.md), [the roadmap](../roadmap.md).
 
 ---

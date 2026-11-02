@@ -592,6 +592,9 @@ Not triggers: **randomness** (arbitrary, invites toggling tasks to roll the dice
 
 ## 8. The onboarding tour
 
+**Changing:** [`user-experience.md`](../architecture/user-experience.md) §3.1 and §3.4 order the
+starter before the tour and add product tours; this section changes with that build step.
+
 On first start a **guided click-through on the real interface** — coach marks, a spotlight on actual
 elements — gives one short, plain piece of information per feature. Never a slide show of
 screenshots.
@@ -792,6 +795,10 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 * The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
 
 ### 11.3 One navigation list
+
+**Changing:** [`user-experience.md`](../architecture/user-experience.md) §2 adds a `products` and a
+`workspace` band and moves the products out of the account menu; this section changes with the
+build step that lands it (§11 there). Until then it describes what is built.
 
 **`apps/webapp/src/lib/navigation.ts` is the one list of destinations; every width draws it and
 nothing else.** No second list, second tree or "advanced" navigation. Each destination carries a
