@@ -130,3 +130,63 @@ export function agentRows<A extends { readonly status: string; readonly owner_id
       path: viewerId !== undefined && agent.owner_id === viewerId ? '/profile/agents' : isAdministrationReachable ? '/administration/agents' : undefined,
     }));
 }
+
+/** What the pages' home reads of a page: a tree row of `GET /hubs/{id}/pages`. */
+export interface PageRow {
+  readonly hub_id: string;
+  readonly updated_at: string;
+  readonly owner_id: string | null;
+  readonly template: boolean;
+  readonly archived: boolean;
+  readonly due_for_review: boolean;
+  readonly trashed_at: string | null;
+  readonly daily_for: string | null;
+}
+
+// A template is a start, an archived or trashed page is put away, and a daily note is somebody's
+// own day: none of them is a page somebody reads as the space's content.
+const isContent = (page: PageRow) => !page.template && !page.archived && page.trashed_at === null && page.daily_for === null;
+
+/** The pages of the hubs where pages are on, the last changed first, at most `limit` (§2.2). */
+export function recentPages<P extends PageRow>(lists: Readonly<Record<string, readonly P[]>>, hubIds: readonly string[], limit: number): P[] {
+  const content = Object.fromEntries(hubIds.map((hubId) => [hubId, (lists[hubId] ?? []).filter(isContent)]));
+  return recentBoards(content, hubIds, limit);
+}
+
+/**
+ * The pages waiting for the reader's review (§2.2): those the reader answers for whose
+ * verification has run out (UC-DOC's `due_for_review`), the longest unchanged first.
+ */
+export function pagesToReview<P extends PageRow>(lists: Readonly<Record<string, readonly P[]>>, hubIds: readonly string[], viewerId: string | undefined): P[] {
+  if (viewerId === undefined) return [];
+  return hubIds
+    .flatMap((hubId) => lists[hubId] ?? [])
+    .filter((page) => isContent(page) && page.due_for_review && page.owner_id === viewerId)
+    .sort((a, b) => (a.updated_at < b.updated_at ? -1 : a.updated_at > b.updated_at ? 1 : 0));
+}
+
+/** The inventory's summary across hubs (§2.2): configuration items in all and those found wanting. */
+export interface InventorySummary {
+  readonly total: number;
+  readonly wanting: number;
+  readonly reviewOverdue: number;
+  /** Whether every hub named has answered, so a sum is not shown as the whole while one is read. */
+  readonly isWhole: boolean;
+}
+
+export function inventorySummary(
+  healths: Readonly<Record<string, { readonly total: number; readonly review_overdue: number; readonly problems: readonly unknown[] }>>,
+  hubIds: readonly string[],
+): InventorySummary {
+  let total = 0;
+  let wanting = 0;
+  let reviewOverdue = 0;
+  for (const hubId of hubIds) {
+    const health = healths[hubId];
+    if (!health) continue;
+    total += health.total;
+    wanting += health.problems.length;
+    reviewOverdue += health.review_overdue;
+  }
+  return { total, wanting, reviewOverdue, isWhole: hubIds.every((hubId) => healths[hubId] !== undefined) };
+}

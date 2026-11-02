@@ -24,6 +24,14 @@ const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false }
 const board = (n, title, at) => ({ id: `01a0e2e0-0000-7000-8000-0000000001${n}`, hub_id: HUB.id, title, element_count: 3, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1 });
 const agent = (n, name, status, owner) => ({ id: `01a0e2e0-0000-7000-8000-0000000002${n}`, account_id: null, name, purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE', owner_id: owner, status });
 const AGENTS = [agent('01', 'Old sorter', 'RETIRED', ACCOUNT.id), agent('02', 'Request sorter', 'ACTIVE', ACCOUNT.id), agent('03', 'Duplicate finder', 'SUSPENDED', '01a0e2e0-0000-7000-8000-0000000009ff')];
+const pageOf = (n, title, at, more = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000003${n}`, hub_id: HUB.id, parent_id: null, title, icon: null, position: n, template: false, content_language: null, owner_id: null, verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, restricted: false, daily_for: null, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1, ...more });
+const PAGES = [
+  pageOf('01', 'Onboarding guide', '2026-10-02T09:00:00Z'),
+  pageOf('02', 'How we release, step by step, for every team that ships to customers', '2026-10-31T09:00:00Z'),
+  pageOf('03', 'Meeting notes template', '2026-11-01T09:00:00Z', { template: true }),
+  pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true }),
+];
+const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
@@ -44,6 +52,8 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
     if (path.endsWith('/api/v1/agents')) return route.fulfill({ json: { data: AGENTS } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
@@ -213,3 +223,35 @@ test('chromium 1280 px: the agents\' home lists the agents working here', async 
   assert.match((await working.textContent()) ?? '', /Live[\s\S]*Stopped/u);
   assert.deepEqual(failures, []);
 });
+
+// §2.2: the pages' home lists the reader's pages to review and the recently changed ones, the
+// space's content only; the assets' home opens with the inventory's health across hubs.
+for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
+  test(`chromium ${width} px, ${scheme}: the pages' home shows what waits for review and what changed`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/pages', modulesOn: ['KNOWLEDGE'] });
+    t.after(close);
+    const review = page.getByRole('region', { name: 'Waiting for your review' });
+    await review.waitFor({ timeout: 10_000 });
+    assert.deepEqual(await review.locator('.name').allTextContents(), ['Support rota']);
+    const recent = page.getByRole('region', { name: 'Recently changed pages' });
+    assert.deepEqual(await recent.locator('.name').allTextContents(), [PAGES[1].title, 'Onboarding guide', 'Support rota']);
+    assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/pages/${PAGES[1].id}`);
+    await noSidewaysScroll(page, `pages ${width} ${scheme}`);
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium ${width} px, ${scheme}: the assets' home opens with the inventory's health`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/assets', modulesOn: ['ASSETS'] });
+    t.after(close);
+    const inventory = page.getByRole('region', { name: 'Inventory across your hubs' });
+    await inventory.waitFor({ timeout: 10_000 });
+    const figures = await inventory.locator('dl > div').evaluateAll((rows) => rows.map((row) => `${row.querySelector('dt')?.textContent}=${row.querySelector('dd')?.textContent}`));
+    assert.deepEqual(figures, ['Configuration items=42', 'Found wanting=2', 'Review overdue=4']);
+    await noSidewaysScroll(page, `assets ${width} ${scheme}`);
+    assert.deepEqual(failures, []);
+  });
+}

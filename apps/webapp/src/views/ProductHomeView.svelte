@@ -20,13 +20,15 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { agentRows, homeTabs, hubScreenOf, productDoors, recentBoards } from '../lib/product/home.ts';
+  import { agentRows, homeTabs, hubScreenOf, inventorySummary, pagesToReview, productDoors, recentBoards, recentPages } from '../lib/product/home.ts';
   import { agentsPath } from '../lib/data/agents.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { formatRelative } from '../lib/i18n/datetime.ts';
-  import type { AgentList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { AgentList, CmdbHealth, PageList, WhiteboardList } from '@hubtask/sync-engine';
+  import { pagesPath } from '../lib/data/pages.svelte.ts';
+  import { healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
 
   interface Props {
@@ -69,23 +71,43 @@
   );
 
   /**
-   * The whiteboards' home lists the boards themselves (§2.2), recent first across the hubs where
-   * the module is on - each hub's own list, as its *Whiteboards* tab reads it.
+   * One read per hub where the product is on, each hub's own as its tab reads it; a hub that
+   * leaves the list stops its read. Called once per product at the component's start.
    */
+  function eachHub<T>(forModule: string, pathOf: (hubId: string) => string, onready: (hubId: string, data: T) => void): void {
+    const key = $derived(module === forModule ? hubsWith.map((hub) => hub.id).join(',') : '');
+    $effect(() => {
+      const ids = key === '' ? [] : key.split(',');
+      return untrack(() => {
+        const stops = ids.map((hubId) =>
+          engine.subscribe<T>({ path: pathOf(hubId) }, (next) => {
+            if (next.status === 'ready') onready(hubId, next.data);
+          }),
+        );
+        return () => stops.forEach((stop) => stop());
+      });
+    });
+  }
+
+  /** The whiteboards' home lists the boards themselves (§2.2), recent first across the hubs. */
   const BOARDS_SHOWN = 12;
   let boardsAt = $state<Record<string, WhiteboardList['data']>>({});
-  const boardHubKey = $derived(module === 'WHITEBOARD' ? hubsWith.map((hub) => hub.id).join(',') : '');
-  $effect(() => {
-    const ids = boardHubKey === '' ? [] : boardHubKey.split(',');
-    return untrack(() => {
-      const stops = ids.map((hubId) =>
-        engine.subscribe<WhiteboardList>({ path: boardsPath(hubId) }, (next) => {
-          if (next.status === 'ready') boardsAt = { ...boardsAt, [hubId]: next.data.data };
-        }),
-      );
-      return () => stops.forEach((stop) => stop());
-    });
-  });
+  eachHub<WhiteboardList>('WHITEBOARD', boardsPath, (hubId, data) => (boardsAt = { ...boardsAt, [hubId]: data.data }));
+
+  /** The pages' home: the reader's pages to review and the recently changed ones (§2.2). */
+  const PAGES_SHOWN = 10;
+  let pagesAt = $state<Record<string, PageList['data']>>({});
+  eachHub<PageList>('KNOWLEDGE', pagesPath, (hubId, data) => (pagesAt = { ...pagesAt, [hubId]: data.data }));
+  const knowledgeHubs = $derived(module === 'KNOWLEDGE' ? hubsWith.map((hub) => hub.id) : []);
+  const toReview = $derived(pagesToReview(pagesAt, knowledgeHubs, actor.account?.id));
+  const recent = $derived(recentPages(pagesAt, knowledgeHubs, PAGES_SHOWN));
+
+  /** The assets' home opens with the inventory's health across hubs (§2.2). */
+  let healthAt = $state<Record<string, CmdbHealth>>({});
+  eachHub<CmdbHealth>('ASSETS', healthPath, (hubId, data) => (healthAt = { ...healthAt, [hubId]: data }));
+  const assetHubs = $derived(module === 'ASSETS' ? hubsWith.map((hub) => hub.id) : []);
+  const inventory = $derived(inventorySummary(healthAt, assetHubs));
+
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
   const hubName = (id: string) => containers.find(id)?.name ?? '';
 
@@ -153,6 +175,55 @@
                   <span class="name" title={row.agent.name}>{row.agent.name}</span>
                   {#if row.agent.purpose}<span class="purpose">{row.agent.purpose}</span>{/if}
                   {#snippet trailing()}<Badge tone={agentTone(row.agent.status)} size="sm">{t(`app.agents.status.${row.agent.status}`)}</Badge>{/snippet}
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
+        </Stack>
+      </section>
+    {/if}
+    {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0}
+      <section aria-labelledby="product-inventory" aria-busy={!inventory.isWhole}>
+        <Stack gap="100">
+          <h2 class="heading" id="product-inventory">{t('app.product_home.inventory')}</h2>
+          <dl class="figures">
+            <div><dt>{t('app.assets.health_total')}</dt><dd>{inventory.total}</dd></div>
+            <div><dt>{t('app.assets.problems')}</dt><dd>{inventory.wanting}</dd></div>
+            <div><dt>{t('app.assets.review_overdue')}</dt><dd>{inventory.reviewOverdue}</dd></div>
+          </dl>
+        </Stack>
+      </section>
+    {/if}
+    {#if toReview.length > 0}
+      <section aria-labelledby="product-review">
+        <Stack gap="100">
+          <h2 class="heading" id="product-review">{t('app.product_home.pages_review')}</h2>
+          <ul class="hubs">
+            {#each toReview as each (each.id)}
+              <li>
+                <ListRow href={`/pages/${each.id}`} onactivate={() => onnavigate(`/pages/${each.id}`)} label={each.title}>
+                  {#snippet leading()}<Icon name="book-open" size="sm" />{/snippet}
+                  <span class="name" title={each.title}>{each.title}</span>
+                  <span class="purpose">{hubName(each.hub_id)}</span>
+                  {#snippet trailing()}<Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>{/snippet}
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
+        </Stack>
+      </section>
+    {/if}
+    {#if recent.length > 0}
+      <section aria-labelledby="product-pages">
+        <Stack gap="100">
+          <h2 class="heading" id="product-pages">{t('app.product_home.pages_recent')}</h2>
+          <ul class="hubs">
+            {#each recent as each (each.id)}
+              <li>
+                <ListRow href={`/pages/${each.id}`} onactivate={() => onnavigate(`/pages/${each.id}`)} label={each.title}>
+                  {#snippet leading()}<Icon name="book-open" size="sm" />{/snippet}
+                  <span class="name" title={each.title}>{each.title}</span>
+                  <span class="purpose">{[hubName(each.hub_id), formatRelative(each.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
                 </ListRow>
               </li>
             {/each}
@@ -240,6 +311,14 @@
   .card-title { overflow: hidden; font-weight: var(--fw-medium); text-overflow: ellipsis; white-space: nowrap; }
   .card-meta { overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .purpose { display: block; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  /* The same figures as a hub's health section draws (lib/assets/Health.svelte). */
+  .figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--sp-1600)), 1fr)); gap: var(--sp-100); margin: 0; }
+  .figures div {
+    display: grid; gap: var(--sp-025); padding: var(--sp-100) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface);
+  }
+  .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
+  .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .doors, .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
