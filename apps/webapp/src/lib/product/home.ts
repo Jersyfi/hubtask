@@ -93,3 +93,18 @@ export function moreInHubtask(options: { readonly modulesOn: readonly string[] |
   const on = options.modulesOn;
   return PRODUCTS.filter((row) => !on.includes(row.module));
 }
+
+/**
+ * The boards of the hubs where whiteboards are on, as one list, the last changed first (§2.2),
+ * at most `limit`. Only the hubs named: a hub whose module went off keeps no row here.
+ */
+export function recentBoards<B extends { readonly hub_id: string; readonly updated_at: string }>(
+  lists: Readonly<Record<string, readonly B[]>>,
+  hubIds: readonly string[],
+  limit: number,
+): B[] {
+  return hubIds
+    .flatMap((hubId) => lists[hubId] ?? [])
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
+    .slice(0, limit);
+}

@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { homeTabs, hubScreenOf, moreInHubtask, productDoors } from './home.ts';
+import { homeTabs, hubScreenOf, moreInHubtask, productDoors, recentBoards } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -46,4 +46,18 @@ test('More in Hubtask lists the products that are off, for a holder of STRUCTURE
   assert.deepEqual(moreInHubtask({ modulesOn: [], mayShape: false }), []);
   assert.deepEqual(moreInHubtask({ modulesOn: undefined, mayShape: true }), []);
   assert.deepEqual(moreInHubtask({ modulesOn: PRODUCTS.map((row) => row.module), mayShape: true }), []);
+});
+
+// §2.2: the whiteboards' home lists every board the reader may read, recent first, across hubs.
+test('the boards of every hub are one list, the last changed first, cut where the home stops', () => {
+  const board = (id: string, hub: string, at: string) => ({ id, hub_id: hub, title: id, updated_at: at });
+  const lists = {
+    h1: [board('a', 'h1', '2026-11-01T10:00:00Z'), board('b', 'h1', '2026-10-01T10:00:00Z')],
+    h2: [board('c', 'h2', '2026-11-02T08:00:00Z')],
+  };
+  assert.deepEqual(recentBoards(lists, ['h1', 'h2'], 10).map((each) => each.id), ['c', 'a', 'b']);
+  assert.deepEqual(recentBoards(lists, ['h1', 'h2'], 2).map((each) => each.id), ['c', 'a']);
+  // A hub the module is off at is not listed, even where an earlier answer is still held.
+  assert.deepEqual(recentBoards(lists, ['h1'], 10).map((each) => each.id), ['a', 'b']);
+  assert.deepEqual(recentBoards({}, ['h1'], 10), []);
 });

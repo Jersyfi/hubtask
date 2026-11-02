@@ -21,6 +21,8 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER', display_name: 'Band Walker', email: 'band@example.invalid', status: 'ACTIVE', locale: 'en', onboarding_completed_at: '2026-09-01T00:00:00Z' };
 const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'Product development and delivery for the whole company', order_key: 'a0', version: 1 };
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
+const board = (n, title, at) => ({ id: `01a0e2e0-0000-7000-8000-0000000001${n}`, hub_id: HUB.id, title, element_count: 3, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1 });
+const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
 function stubFor({ modulesOn, hubModules }) {
@@ -38,6 +40,7 @@ function stubFor({ modulesOn, hubModules }) {
       return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn } });
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
@@ -175,3 +178,20 @@ test('chromium 1280 px: Today offers the products that are off, and hides them f
   assert.equal(await more.count(), 0, 'More in Hubtask came back after it was hidden');
   assert.deepEqual(failures, []);
 });
+
+// §2.2: the whiteboards' home lists the boards themselves, recent first, as cards.
+for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
+  test(`chromium ${width} px, ${scheme}: the whiteboards' home shows the boards, the last changed first`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/whiteboards', modulesOn: ['WHITEBOARD'] });
+    t.after(close);
+    const recent = page.getByRole('region', { name: 'Recently changed boards' });
+    await recent.waitFor({ timeout: 10_000 });
+    const titles = await recent.getByRole('link').evaluateAll((links) => links.map((link) => link.querySelector('[title]')?.getAttribute('title')));
+    assert.deepEqual(titles, [BOARDS[0].title, BOARDS[1].title]);
+    assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/whiteboards/${BOARDS[0].id}`);
+    await noSidewaysScroll(page, `whiteboards ${width} ${scheme}`);
+    assert.deepEqual(failures, []);
+  });
+}

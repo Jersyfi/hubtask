@@ -18,9 +18,13 @@
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { homeTabs, hubScreenOf, productDoors } from '../lib/product/home.ts';
+  import { homeTabs, hubScreenOf, productDoors, recentBoards } from '../lib/product/home.ts';
+  import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
+  import { formatRelative } from '../lib/i18n/datetime.ts';
+  import type { WhiteboardList } from '@hubtask/sync-engine';
   import NotesView from './NotesView.svelte';
 
   interface Props {
@@ -61,6 +65,27 @@
   const hubsWith = $derived(
     hubs.filter((hub) => onAt[hub.id] !== undefined && (modulesHere(manifest.value?.modules_on, onAt[hub.id]) as readonly string[]).includes(module)),
   );
+
+  /**
+   * The whiteboards' home lists the boards themselves (§2.2), recent first across the hubs where
+   * the module is on - each hub's own list, as its *Whiteboards* tab reads it.
+   */
+  const BOARDS_SHOWN = 12;
+  let boardsAt = $state<Record<string, WhiteboardList['data']>>({});
+  const boardHubKey = $derived(module === 'WHITEBOARD' ? hubsWith.map((hub) => hub.id).join(',') : '');
+  $effect(() => {
+    const ids = boardHubKey === '' ? [] : boardHubKey.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) =>
+        engine.subscribe<WhiteboardList>({ path: boardsPath(hubId) }, (next) => {
+          if (next.status === 'ready') boardsAt = { ...boardsAt, [hubId]: next.data.data };
+        }),
+      );
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
+  const hubName = (id: string) => containers.find(id)?.name ?? '';
 
   const doors = $derived(productDoors(module, { isAdministrationReachable: reachesAdministrationArea() === true }));
   const creation = $derived(hubCreationHere());
@@ -103,6 +128,24 @@
       </ul>
     {/if}
 
+    {#if boards.length > 0}
+      <section aria-labelledby="product-boards">
+        <Stack gap="100">
+          <h2 class="heading" id="product-boards">{t('app.product_home.boards_recent')}</h2>
+          <ul class="cards">
+            {#each boards as board (board.id)}
+              <li>
+                <a class="card" href={`/whiteboards/${board.id}`}>
+                  <span class="card-mark" aria-hidden="true"><Icon name="layout-template" size="md" /></span>
+                  <span class="card-title" title={board.title}>{board.title}</span>
+                  <span class="card-meta">{[hubName(board.hub_id), t('app.whiteboards.objects', { count: String(board.element_count) }), formatRelative(board.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
+                </a>
+              </li>
+            {/each}
+          </ul>
+        </Stack>
+      </section>
+    {/if}
     {#if hubScreenOf(module, '') !== undefined}
       <section aria-labelledby="product-hubs">
         <Stack gap="100">
@@ -146,6 +189,24 @@
 {/if}
 
 <style>
+  /* Boards are visual, so they are cards (§5.1), as many to a row as fit. */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24ch), 1fr)); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-050);
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .card:hover { background: var(--bg-surface-hover); }
+  .card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .card-mark { display: inline-flex; color: var(--text-subtle); }
+  .card-title { overflow: hidden; font-weight: var(--fw-medium); text-overflow: ellipsis; white-space: nowrap; }
+  .card-meta { overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .doors, .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
