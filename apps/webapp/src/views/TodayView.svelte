@@ -58,6 +58,7 @@
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { bandsOf, greetingOf, isListFigure, isProjectFigure } from '../lib/today.ts';
+  import { moreInHubtask } from '../lib/product/home.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { mayCaptureHere } from '../lib/capture/places.svelte.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
@@ -278,10 +279,35 @@
     !isLoading && !failure && !(hasJumble && isJumbleLoading) && isMineEmpty && lists.length === 0 && projects.length === 0 && recents.rows.length === 0 && (!hasJumble || waiting.length === 0),
   );
   const mayInvite = $derived(holdsHere('MANAGE_MEMBERS') === true);
+
+  /**
+   * *More in Hubtask* (user-experience.md §3.3): the products that are off, for whoever may switch
+   * one on. *Try it* opens the product's home, which offers the switch and says what it does.
+   * Dismissed for good on this device - a convenience kept in the browser, so a private window or
+   * blocked storage shows it again rather than failing.
+   */
+  const MORE_KEY = 'hubtask.today.more';
+  let isMoreDismissed = $state(false);
+  $effect(() => {
+    try {
+      isMoreDismissed = localStorage.getItem(MORE_KEY) === 'dismissed';
+    } catch {
+      isMoreDismissed = false;
+    }
+  });
+  function dismissMore() {
+    isMoreDismissed = true;
+    try {
+      localStorage.setItem(MORE_KEY, 'dismissed');
+    } catch {
+      // Storage refused: dismissed for this visit only.
+    }
+  }
+  const moreProducts = $derived(isMoreDismissed ? [] : moreInHubtask({ modulesOn: manifest.value?.modules_on, mayShape: holdsHere('STRUCTURE') === true }));
   const hasCompany = $derived(people.along({}).filter((membership) => membership.scope_type === 'TENANT').length > 1);
 
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
-  const hasSide = $derived(lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0);
+  const hasSide = $derived(lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
 
   const moment = $derived(celebration.current);
 
@@ -547,6 +573,29 @@
             </Stack>
           </section>
         {/if}
+
+        {#if moreProducts.length > 0}
+          <section class="panel" aria-labelledby="today-more" data-more>
+            <Stack gap="100">
+              <div class="head-row">
+                <h2 class="head" id="today-more">{t('app.today.more')}</h2>
+                <IconButton icon="x" size="sm" label={t('app.today.more_dismiss')} onclick={dismissMore} />
+              </div>
+              <ul class="offers">
+                {#each moreProducts as product (product.id)}
+                  <li>
+                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                    <span class="offer-words">
+                      <span class="offer-name">{t(product.code)}</span>
+                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                    </span>
+                    <Button size="sm" tone="secondary" onclick={() => onnavigate?.(product.path)}>{t('app.today.more_try')}</Button>
+                  </li>
+                {/each}
+              </ul>
+            </Stack>
+          </section>
+        {/if}
       </div>
       {/if}
     </div>
@@ -559,6 +608,12 @@
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
 
 <style>
+  .offers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .offers li { display: flex; align-items: center; gap: var(--sp-150); min-width: 0; }
+  .offer-mark { display: inline-grid; place-items: center; inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); background: var(--accent-primary-subtle); color: var(--text-brand); flex: none; }
+  .offer-words { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .offer-name { font-weight: var(--fw-medium); }
+  .offer-what { color: var(--text-secondary); font-size: var(--fs-075); }
   /* One column on a phone; from `expanded` the concept's two - what is on the reader the wider,
      because it is the reason they are here, the rest stacked beside it. */
   .panels {

@@ -9,6 +9,8 @@
 
 import type { IconName } from '@hubtask/design-system/components';
 
+import { PRODUCTS, type ProductRow } from '../navigation.ts';
+
 export interface HomeTab {
   readonly id: string;
   readonly code: string;
@@ -79,4 +81,15 @@ export function productDoors(module: string, options: { readonly isAdministratio
     default:
       return [];
   }
+}
+
+/**
+ * *More in Hubtask* (user-experience.md §3.3): the products switched off, each with what it does,
+ * in the products band's order. Offered only to a holder of `STRUCTURE` on the workspace, who can
+ * switch one on; nobody else is shown a product they cannot have.
+ */
+export function moreInHubtask(options: { readonly modulesOn: readonly string[] | undefined; readonly mayShape: boolean }): readonly ProductRow[] {
+  if (!options.mayShape || options.modulesOn === undefined) return [];
+  const on = options.modulesOn;
+  return PRODUCTS.filter((row) => !on.includes(row.module));
 }

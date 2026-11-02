@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { homeTabs, hubScreenOf, productDoors } from './home.ts';
+import { homeTabs, hubScreenOf, moreInHubtask, productDoors } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -37,4 +37,13 @@ test('the administration doors are offered only to whoever reaches the administr
 test('the pages home holds My notes as its second tab, at its own address', () => {
   assert.deepEqual(homeTabs('KNOWLEDGE').map((tab) => tab.path), ['/pages', '/notes']);
   assert.deepEqual(homeTabs('WHITEBOARD'), []);
+});
+
+// user-experience.md §3.3: the switched-off products are offered to whoever may switch one on, and
+// to nobody else; nothing while the manifest is unread.
+test('More in Hubtask lists the products that are off, for a holder of STRUCTURE only', () => {
+  assert.deepEqual(moreInHubtask({ modulesOn: ['KNOWLEDGE', 'TIME'], mayShape: true }).map((row) => row.module), ['PLANNING', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'GOALS', 'AGENTS']);
+  assert.deepEqual(moreInHubtask({ modulesOn: [], mayShape: false }), []);
+  assert.deepEqual(moreInHubtask({ modulesOn: undefined, mayShape: true }), []);
+  assert.deepEqual(moreInHubtask({ modulesOn: PRODUCTS.map((row) => row.module), mayShape: true }), []);
 });

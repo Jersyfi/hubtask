@@ -131,6 +131,9 @@ for (const scheme of ['light', 'dark']) {
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width: 375, scheme, modulesOn: ['SERVICE_DESK', 'ASSETS'] });
     t.after(close);
+    // Today with *More in Hubtask* fits the phone.
+    await page.getByRole('region', { name: 'More in Hubtask' }).waitFor({ timeout: 10_000 });
+    await noSidewaysScroll(page, `Today 375 ${scheme}`);
     const bar = page.getByRole('navigation', { name: 'Sections' });
     await bar.getByRole('button', { name: 'More' }).click();
     const drawer = page.locator('dialog[open]');
@@ -148,3 +151,27 @@ for (const scheme of ['light', 'dark']) {
     assert.deepEqual(failures, []);
   });
 }
+
+// user-experience.md §3.3: *More in Hubtask* offers the products that are off to whoever may switch
+// one on, each with what it does; *Try it* opens its home with the switch; it can be hidden for good.
+test('chromium 1280 px: Today offers the products that are off, and hides them for good', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, modulesOn: ['KNOWLEDGE'] });
+  t.after(close);
+  const more = page.getByRole('region', { name: 'More in Hubtask' });
+  await more.waitFor({ timeout: 10_000 });
+  const names = (await more.locator('.offer-name').allTextContents()).map((name) => name.trim());
+  assert.deepEqual(names, ['Plans', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Goals', 'Agents'], JSON.stringify(names));
+  await more.getByRole('listitem').filter({ hasText: 'Whiteboards' }).getByRole('button', { name: 'Try it' }).click();
+  await page.waitForFunction(() => location.pathname === '/whiteboards', null, { timeout: 5_000 });
+  await page.getByRole('button', { name: 'Switch Whiteboard on' }).waitFor({ timeout: 5_000 });
+  await page.goto(`${served.origin}/`);
+  await more.getByRole('button', { name: 'Hide More in Hubtask for good' }).click();
+  await more.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.reload();
+  await page.getByRole('button', { name: ACCOUNT.display_name }).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(500);
+  assert.equal(await more.count(), 0, 'More in Hubtask came back after it was hidden');
+  assert.deepEqual(failures, []);
+});
