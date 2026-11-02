@@ -11,9 +11,10 @@ import { pathsFor, revokedContainerOf, unaffected } from './live.ts';
 const record = (over: Partial<ChangeRecord>): ChangeRecord =>
   ({ op: 'UPSERT', entity: 'item', entity_id: 'i-1', ...over }) as ChangeRecord;
 
-test('an entry makes its lists, its own document and its history stale - and nothing under it', () => {
+test('an entry makes its lists, its own document, its history and its status stale - and nothing under it', () => {
   const paths = pathsFor(record({ entity_id: 'i-1', container_id: 'c-1' }));
-  assert.deepEqual(paths, ['/items:query', '/items/i-1$', '/items/i-1/activity']);
+  // Its steps and clocks too: somebody else's tick or step moves a workflow entry's status.
+  assert.deepEqual(paths, ['/items:query', '/items/i-1$', '/items/i-1/activity', '/items/i-1/steps', '/items/i-1/sla']);
   // Naming `/items` would cover the thread, the reminders and the series of a retitled entry.
   assert.equal(paths.some((name) => matchesPath(name, '/items/i-1/comments')), false);
   assert.equal(paths.some((name) => matchesPath(name, '/items/i-1?expand=labels')), true, 'the document, as the page reads it');

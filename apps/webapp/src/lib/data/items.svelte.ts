@@ -33,7 +33,7 @@ import type {
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
-import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, touchesOf } from './touches.ts';
+import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS, touchesOf } from './touches.ts';
 
 const QUERY = '/items:query';
 
@@ -591,7 +591,7 @@ class Items {
       'POST',
       `/items/${id}:${isCompleted ? 'complete' : 'reopen'}`,
       undefined,
-      { idempotencyKey, invalidates: TOUCHES_ANY_ENTRY },
+      { idempotencyKey, invalidates: TOUCHES_ANY_STATUS },
     );
   }
 

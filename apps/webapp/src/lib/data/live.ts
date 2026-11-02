@@ -29,7 +29,7 @@
 
 import type { ChangeRecord, ResourceRequest } from '@hubtask/sync-engine';
 
-import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, entryDocument, entryHistory } from './touches.ts';
+import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS, entryDocument, entryHistory, entryStatus } from './touches.ts';
 
 /** The paths a change to an entry makes stale. */
 function itemPaths(record: ChangeRecord): readonly string[] {
@@ -41,6 +41,8 @@ function itemPaths(record: ChangeRecord): readonly string[] {
     ENTRY_LISTS,
     entryDocument(id),
     entryHistory(id),
+    // Its status, steps and clocks, which somebody else's step or tick moves.
+    ...entryStatus(id),
     // An entry that left for the trash, or came back from it, is a row of that screen too.
     ...(record.op === 'DELETE' ? ['/trash'] : []),
   ];

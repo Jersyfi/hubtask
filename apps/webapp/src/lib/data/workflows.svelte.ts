@@ -13,7 +13,7 @@ import type {
 
 import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
-import { CONFIG_CHECK, TOUCHES_ANY_ENTRY } from './touches.ts';
+import { CONFIG_CHECK, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS } from './touches.ts';
 
 export * from './workflows.ts';
 
@@ -113,7 +113,7 @@ class Workflows {
   take(item: Pick<WorkItem, 'id' | 'version'>, by: { step?: string; to_status?: string }): Promise<WorkItem> {
     return engine.mutate<WorkItem>('POST', `/items/${item.id}:step`, by, {
       idempotencyKey: INTENT, ifMatch: etagFor(item.version),
-      invalidates: [...TOUCHES_ANY_ENTRY, stepsPath(item.id)],
+      invalidates: TOUCHES_ANY_STATUS,
     });
   }
 }
