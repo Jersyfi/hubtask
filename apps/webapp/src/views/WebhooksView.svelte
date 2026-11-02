@@ -31,6 +31,7 @@
   import { Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { keepsSecrets } from '../lib/administration/gaps.ts';
   import {
     webhooks,
     type Delivery,
@@ -602,7 +603,11 @@
       {/each}
     {/if}
 
-    {#if !resting}
+    {#if !resting && !keepsSecrets(manifest.value?.features)}
+      <!-- Each subscription's secret is sealed under the installation's key; without one the
+           server refuses at the end, so the form is not offered and the reason is said first. -->
+      <Banner tone="warning" title={t('app.webhooks.no_key_title')}>{t('app.webhooks.no_key_body')}</Banner>
+    {:else if !resting}
     <WorkspaceGate permission="AUTOMATION">
       {#snippet actions()}
       <form class="panel" onsubmit={subscribe}>

@@ -20,6 +20,8 @@
   import type { ConfigCheck, ConfigProposalList, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
 
   import { backupState, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import { gapsOf } from '../lib/administration/gaps.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { readMailboxes, type Mailbox } from '../lib/data/mailintake.svelte.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
@@ -133,6 +135,8 @@
   const now = Date.now();
   const owed = $derived(owedSoon(privacy.of(false), (request) => standingOf(request, now)));
   const degraded = $derived(health.degradations);
+  // What the installation is not set up for, which the health report counts as no fault.
+  const gaps = $derived(gapsOf(manifest.value?.features));
 
   const KNOWN_LIMITS = new Set([
     'api_requests_per_minute', 'items', 'media_bytes', 'automation_runs_per_hour', 'webhook_targets',
@@ -159,7 +163,7 @@
       { id: 'mail', shown: mayReadMail && (mail.boxes.length > 0 || mail.status !== 'ready'), needs: mailFailing.length > 0 },
       { id: 'backup', shown: mayReadBackup, needs: lastBackup === undefined ? targets.length > 0 : lastBackup.state !== 'opened' },
       { id: 'requests', shown: mayReadRequests, needs: owed.length > 0 },
-      { id: 'health', shown: true, needs: degraded.length > 0 },
+      { id: 'health', shown: true, needs: degraded.length > 0 || gaps.length > 0 },
       { id: 'check', shown: mayCheck, needs: findings.length > 0 },
       { id: 'waiting', shown: mayCheck, needs: waiting.needs },
     ]
@@ -318,10 +322,16 @@
           <a class="go" href="/administration/changes">{t('app.admin_overview.open_changes')}</a>
         {:else if card.id === 'health'}
           <h2 id="card-health">{t('app.admin_overview.health')}</h2>
-          {#if degraded.length === 0}
+          {#if degraded.length === 0 && gaps.length === 0}
             <p class="quiet">{t('app.admin_overview.health_fine')}</p>
           {:else}
-            <ul class="lines">
+            <ul class="lines" data-testid="admin-health">
+              {#each gaps as gap (gap.feature)}
+                <li>
+                  <span>{t(gap.messageCode)}</span>
+                  {#if gap.page}<a href={gap.page}>{t('app.admin_overview.open_feature')}</a>{/if}
+                </li>
+              {/each}
               {#each degraded as degradation (degradation.feature)}
                 {@const where = pageOfFeature(degradation.feature)}
                 <li>
