@@ -140,6 +140,8 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   // No drawer over the collection: the settings are the page.
   assert.equal(await page.locator('dialog[open]').count(), 0);
   const sections = page.getByRole('navigation', { name: 'Parts of the structure' });
+  // The sections arrive with the place's modules: read them once the last one stands.
+  await sections.getByRole('link', { name: 'People' }).waitFor({ timeout: 5_000 });
   assert.deepEqual((await sections.getByRole('link').allTextContents()).map((each) => each.trim()), ['General', 'Structure', 'Labels', 'Fields', 'Templates', 'Automation', 'People']);
   assert.equal(await sections.getByRole('link', { name: 'General' }).getAttribute('aria-current'), 'page');
   // *General* is the edit dialog's fields, in place.
