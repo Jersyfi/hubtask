@@ -5,7 +5,7 @@
   import Input from './Input.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'four' }: { mode?: 'four' | 'keyboard' | 'long' | 'action' } = $props();
+  const { mode = 'four' }: { mode?: 'four' | 'keyboard' | 'long' | 'action' | 'more' } = $props();
 
   let current = $state('workspace');
   let draft = $state('');
@@ -16,9 +16,11 @@
   const destinations = $derived<Destination[]>([
     { id: 'workspace', label: mode === 'long' ? 'Arbeitsbereich' : 'Workspace', icon: 'workspace', href: '/' },
     { id: 'search', label: mode === 'long' ? 'Suche' : 'Search', icon: 'search', href: '/search' },
-    ...(mode === 'action' ? [{ id: 'capture', label: 'Capture', icon: 'plus', isAction: true } satisfies Destination] : []),
+    ...(mode === 'action' || mode === 'more' ? [{ id: 'capture', label: 'Capture', icon: 'plus', isAction: true } satisfies Destination] : []),
     { id: 'jumble', label: 'Jumble', icon: 'jumble', href: '/jumble', count: 3 },
-    { id: 'you', label: mode === 'long' ? 'Du' : 'You', icon: 'user', href: '/profile' },
+    mode === 'more'
+      ? ({ id: 'more', label: 'More', icon: 'menu', isOpener: true } satisfies Destination)
+      : { id: 'you', label: mode === 'long' ? 'Du' : 'You', icon: 'user', href: '/profile' },
   ]);
 </script>
 
@@ -30,7 +32,7 @@
       <Input label="A field to focus" bind:value={draft} placeholder="Focus me: the bar gives way" />
     {/if}
   </Stack>
-  <BottomBar label="Destinations" {destinations} {current} onnavigate={(id) => (id === 'capture' ? (acted += 1) : (current = id))} />
+  <BottomBar label="Destinations" {destinations} {current} onnavigate={(id) => (id === 'capture' || id === 'more' ? (acted += 1) : (current = id))} />
 </div>
 
 <style>
