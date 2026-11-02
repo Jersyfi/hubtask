@@ -258,10 +258,12 @@ the `tolerance` and `collection_tolerance` sections and the workspace's `plannin
 ## 11. The configuration check
 
 Before anybody meets it, the check answers what the configuration in force would strand (UC-CFG-01
-check 10): a workflow whose entries can never be completed, a status no step leads to, a step only
-roles that do not exist may take, a rule answering its own change, a hub's scheme naming a workflow
-the workspace does not hold, a required field every channel hides, two fields of one kind with the
-same choices, one lock repeated in several collections that the hub could set once. Each finding has
+check 10): a workflow whose entries can never be completed, a status no step leads to (a step's
+approval reaches the status it declines to), a step only roles that do not exist may take, a rule
+answering its own change, a hub's scheme naming a workflow the workspace does not hold, a required
+field every channel hides, two fields of one kind with the same choices (unless one type's form asks
+both, as impact and urgency are asked), one lock repeated in several collections that the hub could
+set once. Every shipped template raises no finding in an empty workspace. Each finding has
 a severity (`ERROR` before `WARNING`), a message code and the key path of the block to change.
 *Administration → Overview* lists them; a workspace template whose document or hub part the check
 finds an `ERROR` in is refused when it is published (`config.template_check_failed`), so a broken

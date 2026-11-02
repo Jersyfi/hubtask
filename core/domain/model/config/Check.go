@@ -66,7 +66,7 @@ func CheckDocument(in Checked) []Finding {
 	}
 	findings = append(findings, checkRules("rules", in.Workspace["rules"])...)
 	findings = append(findings, checkRequiredFields(in.Workspace, in.Channels)...)
-	findings = append(findings, checkSameMeaning(in.Workspace["fields"])...)
+	findings = append(findings, checkSameMeaning(in.Workspace["fields"], in.Workspace["types"])...)
 	if in.Hub != nil {
 		findings = append(findings, checkRules("rules", in.Hub["rules"])...)
 		findings = append(findings, checkLocks(in.Hub)...)
@@ -110,13 +110,17 @@ func checkWorkflow(key string, block Block, roles map[string]bool) []Finding {
 	}
 	type step struct {
 		key, to string
-		from    []string
-		who     map[string]any
+		// declineTo is where the step's approval sends an entry it declines: reached as its
+		// `to` is, by the same step.
+		declineTo string
+		from      []string
+		who       map[string]any
 	}
 	var steps []step
 	for _, raw := range listOf(shape["steps"]) {
 		each, _ := raw.(map[string]any)
-		s := step{key: stringOf(each["key"]), to: stringOf(each["to"]), who: mapOf(each["who"])}
+		s := step{key: stringOf(each["key"]), to: stringOf(each["to"]), who: mapOf(each["who"]),
+			declineTo: stringOf(mapOf(each["approval"])["decline_to"])}
 		for _, from := range listOf(each["from"]) {
 			s.from = append(s.from, stringOf(from))
 		}
@@ -154,7 +158,7 @@ func checkWorkflow(key string, block Block, roles map[string]bool) []Finding {
 	for grew := true; grew; {
 		grew = false
 		for _, s := range steps {
-			if reached[s.to] || !takeable(s) {
+			if (reached[s.to] && (s.declineTo == "" || reached[s.declineTo])) || !takeable(s) {
 				continue
 			}
 			leaves := len(s.from) == 0
@@ -163,6 +167,9 @@ func checkWorkflow(key string, block Block, roles map[string]bool) []Finding {
 			}
 			if leaves {
 				reached[s.to], grew = true, true
+				if s.declineTo != "" {
+					reached[s.declineTo] = true
+				}
 			}
 		}
 	}
@@ -268,7 +275,24 @@ func checkRequiredFields(document Document, channels []string) []Finding {
 // checkSameMeaning finds two fields of one kind offering the same choices under different keys:
 // the duplicate a local field becomes when a shared one of its meaning exists (model.md §6), which
 // splits every report and filter over the meaning in two.
-func checkSameMeaning(fields Section) []Finding {
+//
+// Two fields one type's form asks side by side are two questions - the impact and the urgency a
+// priority is read from - and never one meaning held twice.
+func checkSameMeaning(fields, types Section) []Finding {
+	together := map[[2]string]bool{}
+	for _, entryType := range types {
+		var asked []string
+		for _, raw := range listOf(mapOf(entryType["form"])["fields"]) {
+			if key, custom := strings.CutPrefix(stringOf(mapOf(raw)["key"]), "custom_fields."); custom {
+				asked = append(asked, key)
+			}
+		}
+		for _, one := range asked {
+			for _, other := range asked {
+				together[[2]string{one, other}] = true
+			}
+		}
+	}
 	var findings []Finding
 	first := map[string]string{}
 	for _, key := range sortedKeys(fields) {
@@ -283,8 +307,10 @@ func checkSameMeaning(fields Section) []Finding {
 		slices.Sort(options)
 		meaning := stringOf(field["kind"]) + "\x00" + strings.Join(options, "\x00")
 		if held, seen := first[meaning]; seen {
-			findings = append(findings, Finding{Severity: SeverityWarning, Code: "config.check.fields_same_meaning",
-				Path: "fields." + held, Params: map[string]string{"field": held, "other": key}})
+			if !together[[2]string{held, key}] {
+				findings = append(findings, Finding{Severity: SeverityWarning, Code: "config.check.fields_same_meaning",
+					Path: "fields." + held, Params: map[string]string{"field": held, "other": key}})
+			}
 			continue
 		}
 		first[meaning] = key

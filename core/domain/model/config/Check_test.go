@@ -129,6 +129,33 @@ func TestTheConfigurationCheck(t *testing.T) {
 				Params: map[string]string{"field": "prio", "other": "priority"}}},
 		},
 		{
+			name: "two fields one form asks side by side are two questions, not one meaning",
+			in: Checked{Workspace: Document{
+				"fields": {
+					"impact":  Block{"kind": "SELECT", "options": []any{"High", "Medium", "Low"}},
+					"urgency": Block{"kind": "SELECT", "options": []any{"High", "Medium", "Low"}},
+				},
+				"types": {
+					"incident": Block{"level": "TASK", "form": formOf([]any{
+						map[string]any{"key": "custom_fields.impact"}, map[string]any{"key": "custom_fields.urgency"},
+					})},
+				},
+			}},
+		},
+		{
+			name: "a status an approval declines to is reached",
+			in: Checked{Workspace: Document{"workflows": {"change": Block{"shape": map[string]any{
+				"initial": "draft",
+				"statuses": []any{
+					map[string]any{"key": "draft", "category": "TODO"},
+					map[string]any{"key": "approved", "category": "DONE"},
+					map[string]any{"key": "declined", "category": "DONE"},
+				},
+				"steps": []any{map[string]any{"key": "approve", "from": []any{"draft"}, "to": "approved",
+					"approval": map[string]any{"decline_to": "declined"}}},
+			}}}}},
+		},
+		{
 			name: "collections each locking the same tolerance the hub leaves open",
 			in: Checked{Workspace: Document{}, Hub: Document{"collection_tolerance": {
 				"network.time_tolerance_days": Block{"value": float64(3), "lock": true},
