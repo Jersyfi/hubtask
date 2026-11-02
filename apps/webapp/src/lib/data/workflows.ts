@@ -110,10 +110,13 @@ export function stepsFrom(shape: WorkflowShape, status: string): readonly Workfl
   return shape.steps.filter((step) => step.to !== status && (!step.from?.length || step.from.includes(status)));
 }
 
-/** The draft a designer starts from: the workflow's draft, else a copy of what is in force. */
+/**
+ * The draft a designer starts from: the workflow's draft, else a copy of what is in force. A JSON
+ * copy, not `structuredClone`: the workflow is a store's reactive proxy, which cannot be cloned.
+ */
 export function startingDraft(workflow: Workflow): WorkflowShape {
   const source = (workflow.draft as WorkflowShape | null | undefined) ?? workflow.published;
-  return structuredClone(source);
+  return JSON.parse(JSON.stringify(source)) as WorkflowShape;
 }
 
 /** A key from a name: small letters, digits and underscores, starting with a letter. */

@@ -157,7 +157,7 @@
     if (!name || !base) return;
     const key = keyOf(name, all.map((each) => each.key));
     void act('create', async () => {
-      await workflows.create(key, name, structuredClone(base.published));
+      await workflows.create(key, name, $state.snapshot(base.published) as WorkflowShape);
       chosenKey = key;
       isNewOpen = false;
       newName = '';

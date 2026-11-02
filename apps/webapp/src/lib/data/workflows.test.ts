@@ -8,7 +8,7 @@ import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
   addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
-  removeStatus, shippedCopy, standing, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub,
+  removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -131,4 +131,12 @@ test('the shipped workflow is copied with the client’s own words for its statu
   assert.deepEqual(copy.statuses.map((status) => status.name), ['«workflows.status.todo»', '«workflows.status.in_progress»', '«workflows.status.done»']);
   assert.deepEqual(copy.steps, shape.steps);
   assert.equal(shape.statuses[0]?.name, null);
+});
+
+test('the designer starts from a workflow held in a reactive store, which cannot be structured-cloned', () => {
+  // A store's state is a proxy; structuredClone refuses one with a DataCloneError.
+  const held = { key: 'support', draft: null, published: new Proxy(shape, {}) } as never;
+  const draft = startingDraft(held);
+  assert.deepEqual(draft, shape);
+  assert.notEqual(draft, shape, 'the draft is a copy, not the shape in force');
 });
