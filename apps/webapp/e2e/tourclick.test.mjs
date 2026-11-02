@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// The first sign-in's tour is finished by clicking (design-system.md §8): at a desktop and a
+// phone size every step's mark stands inside the viewport and its Next takes a pointer - none is
+// clipped at an edge or covered by its own text. Chromium only.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+
+import { chromium } from 'playwright';
+
+import { ACCOUNT, forgetUnstubbed, stub } from './fixture.mjs';
+import { serve } from './serve.mjs';
+
+const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const served = await serve(DIST);
+test.after(() => served.close());
+
+const FRESH = { ...ACCOUNT, id: '01a0e2e0-0000-7000-8000-0000000032a1', onboarding_completed_at: null };
+
+for (const [width, height] of [[1440, 900], [390, 844]]) {
+  test(`chromium: the tour is clicked through at ${width}x${height}`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width, height } });
+    t.after(() => context.close());
+    forgetUnstubbed();
+    await context.route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: FRESH });
+      if (url.pathname.endsWith('/preferences') && route.request().method() === 'PATCH') {
+        return route.fulfill({ json: { ...FRESH, ...route.request().postDataJSON() } });
+      }
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+    await page.goto(`${served.origin}/`);
+    const spotlight = page.locator('.spotlight');
+    await spotlight.waitFor({ state: 'attached', timeout: 15_000 });
+
+    const seen = [];
+    // A step may move to another screen first: the next mark is waited for, the end is its absence.
+    const another = () => spotlight.waitFor({ state: 'attached', timeout: 8_000 }).then(() => true, () => false);
+    for (let step = 0; step < 20 && (await another()); step += 1) {
+      const mark = page.locator('[role="dialog"][aria-labelledby^="coach-"]');
+      await mark.waitFor({ state: 'visible', timeout: 5_000 });
+      await page.waitForTimeout(150);
+      const count = (await mark.locator('.count').textContent())?.trim() ?? '';
+      const box = await mark.boundingBox();
+      assert.ok(box && box.y >= 0 && box.x >= 0 && box.y + box.height <= height + 1 && box.x + box.width <= width + 1,
+        `${count}: the mark ${JSON.stringify(box)} leaves the ${width}x${height} viewport`);
+      const next = mark.getByRole('button').first();
+      // A plain click: Playwright refuses one whose point another element covers.
+      await next.click({ timeout: 3_000 }).catch((error) => assert.fail(`${count}: Next cannot be clicked - ${String(error).split('\n')[0]}`));
+      seen.push(count);
+    }
+    assert.equal(await spotlight.count(), 0, `the tour did not end after ${JSON.stringify(seen)}`);
+    // Step 8 points at the whole of Your settings, taller than the screen: the one that was
+    // clipped. The fixture draws no entry opener, so the tour passes over its last step.
+    assert.ok(seen.includes('Step 8 of 9'), `step 8 was not shown: ${JSON.stringify(seen)}`);
+    assert.deepEqual(failures, []);
+  });
+}

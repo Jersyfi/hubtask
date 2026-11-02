@@ -91,10 +91,15 @@
 </script>
 
 <div class="mark" role="dialog" aria-labelledby={`${id}-caption`} aria-describedby={`${id}-body`} bind:this={surface}>
-  <Stack gap="100">
-    <span class="count">{countLabel}</span>
-    <h2 class="caption" id={`${id}-caption`}>{caption}</h2>
-    <p class="body" id={`${id}-body`}>{body}</p>
+  <!-- The words scroll inside the mark where it is short of room; the buttons never do. -->
+  <div class="words">
+    <Stack gap="100">
+      <span class="count">{countLabel}</span>
+      <h2 class="caption" id={`${id}-caption`}>{caption}</h2>
+      <p class="body" id={`${id}-body`}>{body}</p>
+    </Stack>
+  </div>
+  <div class="actions">
     <Inline gap="100" align="center">
       <Button size="sm" onclick={onNext}>{nextLabel}</Button>
       {#if hasBack}
@@ -102,7 +107,7 @@
       {/if}
       <Button size="sm" tone="subtle" onclick={onSkip}>{skipLabel}</Button>
     </Inline>
-  </Stack>
+  </div>
 </div>
 
 <style>
@@ -111,6 +116,11 @@
     z-index: var(--z-dialog);
     /* Rule 4: as wide as its words up to a limit, never a fixed width. */
     max-width: 36ch;
+    /* Never taller than the screen: the words scroll, the buttons stay. */
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-100);
+    max-block-size: calc(100dvh - var(--sp-200) * 2);
     margin: var(--sp-100);
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
@@ -120,6 +130,9 @@
     /* Rule 1: raised, a standalone surface over the page. */
     box-shadow: var(--shadow-overlay);
   }
+
+  .words { min-block-size: 0; overflow-y: auto; }
+  .actions { flex: none; }
 
   .count { color: var(--text-subtle); font-size: var(--fs-075); }
 
