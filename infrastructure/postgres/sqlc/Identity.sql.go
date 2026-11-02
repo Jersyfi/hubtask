@@ -1240,6 +1240,53 @@ func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembership
 	return items, nil
 }
 
+const listRequesterPortals = `-- name: ListRequesterPortals :many
+WITH grants AS (
+  SELECT c.scope_type, c.scope_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'REQUEST' = ANY(r.permissions)
+    AND (c.account_id = $1::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = $1::uuid))
+)
+SELECT k.id, k.name
+FROM container k
+WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
+  AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
+       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB'))
+ORDER BY k.name, k.id
+LIMIT 50
+`
+
+type ListRequesterPortalsRow struct {
+	ID   pgtype.UUID
+	Name string
+}
+
+// The collections where the account is a requester through a role of the workspace's own that
+// carries REQUEST, held directly or through a group, at the collection or at its hub: the portals
+// a requester is sent to. Live collections only, by name; at most 50.
+func (q *Queries) ListRequesterPortals(ctx context.Context, accountID pgtype.UUID) ([]ListRequesterPortalsRow, error) {
+	rows, err := q.db.Query(ctx, listRequesterPortals, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRequesterPortalsRow{}
+	for rows.Next() {
+		var i ListRequesterPortalsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockGroup = `-- name: LockGroup :one
 SELECT id FROM account_group WHERE id = $1 FOR UPDATE
 `

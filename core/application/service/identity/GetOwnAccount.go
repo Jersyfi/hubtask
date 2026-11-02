@@ -64,6 +64,9 @@ type GetOwnAccount struct {
 	// one reading for both, so a screen that hides *Create hub* hides it exactly where the server
 	// would refuse it. Nil answers true, the shape before it was asked.
 	Access AccessHolder
+	// Portals answers the collections where the account is a requester, so a person who holds
+	// nothing else is sent to their portal rather than told they have no access (UC-SVC-05).
+	Portals repository.RequesterPortals
 }
 
 // AccessHolder answers whether an account holds a role anywhere in the workspace, directly or
@@ -120,6 +123,8 @@ type OwnAccount struct {
 	// HasAccess is whether the account holds a role anywhere - false is somebody an administrator
 	// still has to give access to.
 	HasAccess bool
+	// Portals are the collections whose portal the account uses as a requester.
+	Portals []repository.RequesterPortal
 	// RecoveryCodesRemaining is -1 where there is nothing to count: an installation wired without
 	// the second factor, or an account that holds none. Its codes are not "zero left", they are a
 	// thing that does not exist yet, and a screen told zero sends somebody to make codes the server
@@ -198,6 +203,16 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 			return OwnAccount{}, err
 		}
 	}
+	if h.Portals != nil {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			portals, err := h.Portals.PortalsOf(ctx, actor.AccountID)
+			answer.Portals = portals
+			return err
+		})
+		if err != nil {
+			return OwnAccount{}, err
+		}
+	}
 	if h.Factor != nil {
 		required, err := h.Factor.DemandsFactorOf(ctx, actor)
 		if err != nil {
@@ -256,6 +271,11 @@ func (h GetOwnAccount) invoke(
 	out["second_factor_required"] = own.SecondFactorRequired
 	out["has_password"] = own.HasPassword
 	out["has_access"] = own.HasAccess
+	portals := make([]usecase.Output, 0, len(own.Portals))
+	for _, portal := range own.Portals {
+		portals = append(portals, usecase.Output{"collection_id": portal.CollectionID.String(), "name": portal.Name})
+	}
+	out["portals"] = portals
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

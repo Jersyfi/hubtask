@@ -19,6 +19,20 @@ type CustomRoleRow struct {
 	Version   int
 }
 
+// RequesterPortal is a collection whose portal the account may use as a requester: where it is
+// sent to on signing in when it holds nothing else.
+type RequesterPortal struct {
+	CollectionID shared.ID
+	Name         string
+}
+
+// RequesterPortals reads the collections where the account holds a role of the workspace's own
+// that carries REQUEST, at the collection or its hub, directly or through a group. A reading of
+// the account's own grants for its navigation; every portal request is still decided by REQUEST.
+type RequesterPortals interface {
+	PortalsOf(ctx context.Context, accountID shared.ID) ([]RequesterPortal, error)
+}
+
 // CustomGrantRow is a custom role held at a place, with the role's key.
 type CustomGrantRow struct {
 	Grant   identity.CustomGrant

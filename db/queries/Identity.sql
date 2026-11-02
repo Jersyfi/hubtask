@@ -161,6 +161,27 @@ SELECT EXISTS (
      )
 ) AS held;
 
+-- name: ListRequesterPortals :many
+-- The collections where the account is a requester through a role of the workspace's own that
+-- carries REQUEST, held directly or through a group, at the collection or at its hub: the portals
+-- a requester is sent to. Live collections only, by name; at most 50.
+WITH grants AS (
+  SELECT c.scope_type, c.scope_id
+  FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'REQUEST' = ANY(r.permissions)
+    AND (c.account_id = sqlc.arg('account_id')::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid))
+)
+SELECT k.id, k.name
+FROM container k
+WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
+  AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
+       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB'))
+ORDER BY k.name, k.id
+LIMIT 50;
+
 -- name: CountPeopleReaching :one
 -- How many people hold a role - built-in or the workspace's own, directly or through a group - in
 -- the tenant, or within one hub when hub_id is named: at the hub, at a collection of it, at an

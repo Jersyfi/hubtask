@@ -11542,6 +11542,12 @@ type Account struct {
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
+	// Portals The collections whose requester portal this account uses - where a role of the workspace's own that carries `REQUEST` is held at the collection or its hub, directly or through a group - answered on `GET /accounts/me` and on nothing else. A person whose only access is a portal is sent there instead of being told they have none.
+	Portals *[]struct {
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Name         string             `json:"name"`
+	} `json:"portals,omitempty"`
+
 	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
 	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.
 	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
@@ -17727,6 +17733,12 @@ type InvitedAccount struct {
 
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// Portals The collections whose requester portal this account uses - where a role of the workspace's own that carries `REQUEST` is held at the collection or its hub, directly or through a group - answered on `GET /accounts/me` and on nothing else. A person whose only access is a portal is sent there instead of being told they have none.
+	Portals *[]struct {
+		CollectionId openapi_types.UUID `json:"collection_id"`
+		Name         string             `json:"name"`
+	} `json:"portals,omitempty"`
 
 	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
 	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.

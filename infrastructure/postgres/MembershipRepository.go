@@ -400,3 +400,31 @@ func (r MembershipRepository) PeopleReaching(ctx context.Context, hubID shared.I
 	}
 	return int(people), nil
 }
+
+// PortalsOf answers the collections where the account is a requester through a role of the
+// workspace's own, in the transaction's tenant.
+func (r MembershipRepository) PortalsOf(ctx context.Context, accountID shared.ID) ([]repository.RequesterPortal, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListRequesterPortals(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the account's requester portals: %w", err))
+	}
+	portals := make([]repository.RequesterPortal, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		portals = append(portals, repository.RequesterPortal{CollectionID: id, Name: row.Name})
+	}
+	return portals, nil
+}

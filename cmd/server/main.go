@@ -2687,7 +2687,8 @@ func run() error {
 			Factor:   sessionWriter,
 			Password: sessionWriter,
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
-			Access: postgres.NewMembershipRepository(),
+			Access:  postgres.NewMembershipRepository(),
+			Portals: postgres.NewMembershipRepository(),
 		}.Descriptor(),
 		identity.ReadOwnSettings{Accounts: accounts, UnitOfWork: unitOfWork, Resolver: signInPolicyResolver}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),

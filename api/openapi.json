@@ -35609,6 +35609,26 @@
           "has_access": {
             "type": "boolean",
             "description": "Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.\n"
+          },
+          "portals": {
+            "type": "array",
+            "description": "The collections whose requester portal this account uses - where a role of the workspace's own that carries `REQUEST` is held at the collection or its hub, directly or through a group - answered on `GET /accounts/me` and on nothing else. A person whose only access is a portal is sent there instead of being told they have none.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "collection_id",
+                "name"
+              ],
+              "properties": {
+                "collection_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
