@@ -55,6 +55,17 @@
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
 
+  /**
+   * What each switch draws: the saved value, the reader's choice while it is written, and the
+   * saved value again once the write fails or the switch-off waits for its question. Bound, so a
+   * revert redraws the switch - a box set back by hand under a bound value stayed drawn off
+   * after the write had switched the module on.
+   */
+  let drawn = $state<Record<string, boolean>>({});
+  $effect(() => {
+    drawn = Object.fromEntries(all.map((state) => [state.module, state.on]));
+  });
+
   /** The module being switched, so its row shows progress. */
   let busy = $state<ModuleState['module'] | undefined>(undefined);
   /** The module whose switch-off is being asked about. */
@@ -81,6 +92,7 @@
       const code = to === 'ON' ? 'app.modules.switched_on' : to === 'OFF' ? 'app.modules.switched_off' : 'app.modules.reset_done';
       toast.show({ text: t(code, { module: name }), tone: 'success' });
     } catch (error) {
+      drawn[state.module] = state.on;
       refusal = { module: state.module, message: renderProblem(error as never, messages).message };
     } finally {
       busy = undefined;
@@ -91,12 +103,14 @@
     // Kept before anything else: the read stays what is in force until the server answers.
     const control = event.currentTarget as HTMLInputElement;
     const next = control.checked;
-    control.checked = state.on;
     if (asksFirst(state, next)) {
+      control.checked = state.on;
+      drawn[state.module] = state.on;
       confirming = state;
       isConfirming = true;
       return;
     }
+    drawn[state.module] = next;
     void send(state, next ? 'ON' : 'OFF');
   }
 
@@ -126,7 +140,7 @@
             <Switch
               label={t(codes.name)}
               hint={t(codes.hint)}
-              checked={state.on}
+              bind:checked={() => drawn[state.module] ?? state.on, (value) => (drawn[state.module] = value)}
               onchange={(event) => change(state, event)}
               isBusy={busy === state.module}
               busyLabel={t('app.workspace.saving')}
