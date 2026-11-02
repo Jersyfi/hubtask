@@ -1318,9 +1318,11 @@ export function fallback(route, request, path) {
   if (read === '/entry-types' && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
   // No calendar is pushed to; the installation has no provider's app (`CalendarPushList`).
   if (read === '/integrations/calendar-pushes' && request.method() === 'GET') return route.fulfill({ json: { data: [], providers: [] } });
-  // Pages open by a public link as the installation's default allows; no day locked, time seen in
+  // Pages, request forms and roadmaps open by a public link as the installation's default allows; no day locked, time seen in
   // full; no kind of work defined (`PublicLinksPolicy`, `TimePolicy`, `WorkTypeList`).
   if (read === '/pages:public-links' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
+  if (read === '/public-forms:policy' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
+  if (read === '/portfolios:public-links' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
   if (read === '/time-policy' && request.method() === 'GET') return route.fulfill({ json: { locked_through: null, visibility: 'FULL', version: 1 } });
   // No entry of the ones asked about is linked to another (`EntryLinkList`): the timeline draws no arrow.
   if (read === '/links:query' && request.method() === 'POST') return route.fulfill({ json: { data: [] } });
