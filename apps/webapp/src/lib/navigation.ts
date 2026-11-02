@@ -4,16 +4,17 @@
 /**
  * The one list of destinations (ADR-0061 decision 1).
  *
- * Every width draws this list and nothing else: the primary group as a pinned `SideNav` from
- * `expanded`, in the `NavDrawer` on `medium`, and as the `BottomBar` on `compact`; the account
- * group behind the avatar from `medium` up and behind "You" in the bottom bar below it. A
- * destination that is in one drawing and not another is the failure this file exists to
- * prevent, which is why the frame has no list of its own and why the test beside this file
- * reads the route table rather than trusting the strings here.
+ * Every width draws this list and nothing else: the bands as a pinned `SideNav` from `expanded`, in
+ * the `NavDrawer` on `medium` and behind *More* on `compact`, where the `BottomBar` carries the
+ * places a thumb needs; the account group behind the avatar on every width. A destination that is
+ * in one drawing and not another is the failure this file exists to prevent, which is why the
+ * frame has no list of its own and why the test beside this file reads the route table rather
+ * than trusting the strings here.
  *
- * The list has a **shape**, and the frame draws it and no other (ADR-0063 decision 1): three
- * bands in one order — the places that are not the tree, the tree itself, and `KEEPING`, pinned
- * to the foot of the column. They never mix, and nothing is drawn outside one.
+ * The list has a **shape**, and the frame draws it and no other (ADR-0063 decision 1,
+ * user-experience.md §2.1): five bands in one order — the places that are not the tree, the
+ * products switched on, the tree itself, the workspace's administration, and `KEEPING`, pinned to
+ * the foot of the column. They never mix, and nothing is drawn outside one.
  *
  * `area` is ADR-0032's: the mobile build renders the administration row as an entry that says
  * where the capability lives, and nothing else about the list changes.
@@ -27,14 +28,16 @@ import { PLACE_ROUTES } from './routes.ts';
 export type Group = 'primary' | 'account';
 
 /**
- * The three bands the navigation is drawn in, in this order and no other (ADR-0063 decision 1).
+ * The five bands the navigation is drawn in, in this order and no other (ADR-0063 decision 1,
+ * user-experience.md §2.1): the places, the products switched on, the tree, the workspace's
+ * administration and the keeping band.
  *
  * `places` are the rooms of the product that are not the tree; `tree` is the workspace's own
  * structure; `keeping` is where somebody looks when something is **missing**, and it is pinned to
  * the foot of the column so that it is never mixed in with the hubs above it. Nothing is drawn
  * outside a band, and nothing is in two.
  */
-export type Band = 'places' | 'tree' | 'keeping';
+export type Band = 'places' | 'products' | 'tree' | 'workspace' | 'keeping';
 
 /** The account group's two verbs. */
 export type AccountAction = 'help' | 'sign-out';
@@ -67,6 +70,10 @@ export interface Destination {
   readonly area?: Area;
   /** The suite module whose screen this is: the row is drawn only where it is on (UC-INS-21). */
   readonly module?: string;
+  /** A code of synonyms the palette also finds the row by (user-experience.md §2.7). */
+  readonly words?: string;
+  /** A place the phone's bottom bar leaves to the drawer: the bar has five slots and no more. */
+  readonly isOffBar?: boolean;
 }
 
 export const DESTINATIONS: readonly Destination[] = [
@@ -75,12 +82,16 @@ export const DESTINATIONS: readonly Destination[] = [
   // hubs the tree below it lists (ADR-0063 decision 1). Its id stays `workspace`, the key the
   // drawings and the walks know it by; the workspace keeps its own name for what it is called.
   { id: 'workspace', group: 'primary', icon: 'sun', code: 'app.nav.today', target: { kind: 'route', path: '/' }, routes: ['home', ...PLACE_ROUTES, 'item'] },
-  { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'] },
+  { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'], words: 'app.nav.words_search' },
   // Capture: the phone's ＋ between Search and the jumble (ux-inventory.md §E0). Only the bottom bar
   // draws it; from `medium` up the bar carries *Capture* as a button of its own, and the column
   // lists places, not acts (`primary`'s `hasCapture`).
   { id: 'capture', group: 'primary', icon: 'plus', code: 'app.nav.capture', target: { kind: 'capture' }, routes: [] },
-  { id: 'jumble', group: 'primary', icon: 'jumble', code: 'app.nav.jumble', target: { kind: 'route', path: '/jumble' }, routes: ['jumble'] },
+  { id: 'jumble', group: 'primary', icon: 'jumble', code: 'app.nav.jumble', target: { kind: 'route', path: '/jumble' }, routes: ['jumble'], words: 'app.nav.words_jumble' },
+  // What waits for the reader's yes (UC-SVC-09 check 1): a place of the column, where the service
+  // desk is on - the approvals are the desk's (user-experience.md §2.1). The phone reaches it
+  // through *More*.
+  { id: 'approvals', group: 'primary', icon: 'user-check', code: 'app.nav.approvals', target: { kind: 'route', path: '/approvals' }, routes: ['approvals'], module: 'SERVICE_DESK', isOffBar: true },
   // The account group: what the avatar opens. Reachable from every screen, because the profile
   // is where somebody goes when the product is speaking to them in the wrong language — which is
   // exactly the moment a buried link is no use.
@@ -90,22 +101,8 @@ export const DESTINATIONS: readonly Destination[] = [
   // is a way through rather than a notice, so the tour and the installation do not share the
   // outlined `info`: two rows of one menu would say the same thing with one mark.
   { id: 'profile', group: 'account', icon: 'user', code: 'app.nav.profile', target: { kind: 'route', path: '/profile' }, routes: ['profile', 'tokens'], area: 'profile' },
-  // The reader's own time (M7): their week, the weeks they decide and the report. The account's,
-  // behind the avatar, because it is about the reader rather than a place of the workspace; drawn
-  // only where the time module is on.
-  { id: 'time', group: 'account', icon: 'clock', code: 'app.nav.time', target: { kind: 'route', path: '/time' }, routes: ['time'], module: 'TIME' },
-  // The reader's own notes (M3, UC-DOC-07): today's note in their personal space and the pages
-  // shared with them. The account's, behind the avatar, as their time is; drawn only where the
-  // knowledge module is on.
-  // The approvals waiting for the reader's yes (UC-SVC-09 check 1): the account's, as their notes
-  // are; drawn only where the service desk is on.
-  { id: 'approvals', group: 'account', icon: 'user-check', code: 'app.nav.approvals', target: { kind: 'route', path: '/approvals' }, routes: ['approvals'], module: 'SERVICE_DESK' },
-  { id: 'notes', group: 'account', icon: 'file-text', code: 'app.nav.notes', target: { kind: 'route', path: '/notes' }, routes: ['notes'], module: 'KNOWLEDGE' },
-  // Goals, portfolios and dashboards (M8): the workspace's view of whether the work adds up. Behind
-  // the avatar beside the reader's time rather than in the primary group, whose three spaces are
-  // the work itself; drawn only where the goals module is on.
-  { id: 'goals', group: 'account', icon: 'flag', code: 'app.nav.goals', target: { kind: 'route', path: '/goals' }, routes: ['goals', 'goal', 'portfolio', 'dashboard'], module: 'GOALS' },
-  { id: 'administration', group: 'account', icon: 'settings', code: 'app.nav.administration', target: { kind: 'route', path: '/administration' }, routes: ['administration'], area: 'administration' },
+  // *Appearance*: the theme and reduced motion, the person's device (user-experience.md §2.3).
+  { id: 'appearance', group: 'account', icon: 'sun-moon', code: 'app.nav.appearance', target: { kind: 'route', path: '/profile/appearance' }, routes: ['appearance'], area: 'profile' },
   // The level above the workspaces (ADR-0070 §5). Drawn only for an account in the operator
   // register, which the manifest answers — never compiled in, and **absent** rather than disabled
   // where it does not apply: somebody who is not an operator was never going to have it, and a
@@ -154,6 +151,54 @@ const TRASH_ROW: KeepingRow = { id: 'trash', icon: 'trash', code: 'app.nav.trash
 export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
 
 /**
+ * A product's row in the `products` band (user-experience.md §2.2): one per module with a home,
+ * in `Module.Keys()` order so the band never reorders itself when a module is switched. WORKFLOWS
+ * has none - workflows shape entries in every product.
+ */
+export interface ProductRow {
+  readonly id: string;
+  readonly module: string;
+  readonly icon: IconName;
+  readonly code: string;
+  /** A code of synonyms the palette also finds the row by (§2.7). */
+  readonly words: string;
+  readonly path: string;
+  readonly routes: readonly string[];
+}
+
+export const PRODUCTS: readonly ProductRow[] = [
+  { id: 'plans', module: 'PLANNING', icon: 'calendar', code: 'app.nav.plans', words: 'app.nav.words_plans', path: '/plans', routes: ['plans-home'] },
+  // *My notes* is a tab of the pages' home (§2.2); its own address is kept and is this row's.
+  { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'] },
+  { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'] },
+  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home'] },
+  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home'] },
+  { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'] },
+  { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'portfolio', 'dashboard'] },
+  { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home'] },
+];
+
+/** The products band: the rows of the modules switched on, in the one order; none while none is on. */
+export function products(options: { readonly modulesOn?: readonly string[] }): readonly ProductRow[] {
+  const on = options.modulesOn ?? [];
+  return PRODUCTS.filter((row) => on.includes(row.module));
+}
+
+/** The product row a module is drawn by, or nothing for a module without a home. */
+export const productOf = (module: string): ProductRow | undefined => PRODUCTS.find((row) => row.module === module);
+
+/**
+ * The `workspace` band: *Administration*, in the column rather than behind the avatar (§2.1),
+ * drawn where the manifest says the reader reaches it - `STRUCTURE` or `READ_CONFIGURATION` on the
+ * workspace, the condition the account menu's row had.
+ */
+const ADMINISTRATION_ROW: KeepingRow = { id: 'administration', icon: 'settings', code: 'app.nav.administration', path: '/administration', routes: ['administration'] };
+
+export function workspaceBand(options: { readonly isAdministrationReachable: boolean }): readonly KeepingRow[] {
+  return options.isAdministrationReachable ? [ADMINISTRATION_ROW] : [];
+}
+
+/**
  * The administration's own navigation, in the five groups ADR-0063 decision 7 names.
  *
  * A second list rather than a band of the first, because it is a second *place*: while the route's
@@ -185,6 +230,8 @@ export interface SectionRow {
   readonly routes: readonly string[];
   /** The suite module whose screen this is: the row is drawn only where it is on (UC-INS-21). */
   readonly module?: string;
+  /** A code of synonyms the palette also finds the row by (user-experience.md §2.7). */
+  readonly words?: string;
 }
 
 export interface SectionGroup {
@@ -226,12 +273,12 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
       { id: 'time-settings', icon: 'clock', code: 'app.time_settings.title', path: '/administration/time', routes: ['time-settings'], module: 'TIME' },
-      { id: 'service-desk', icon: 'inbox', code: 'app.desk.title', path: '/administration/service-desk', routes: ['service-desk'], module: 'SERVICE_DESK' },
+      { id: 'service-desk', icon: 'inbox', code: 'app.desk.title', path: '/administration/service-desk', routes: ['service-desk'], module: 'SERVICE_DESK', words: 'app.nav.words_service_desk' },
       { id: 'cmdb', icon: 'shield', code: 'app.cmdb_admin.title', path: '/administration/configuration-items', routes: ['cmdb'], module: 'ASSETS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
-      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
-      { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
+      { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'], words: 'app.nav.words_rules' },
+      { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'], words: 'app.nav.words_runs' },
     ],
   },
   {
@@ -239,7 +286,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_people',
     rows: [
       // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
-      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'] },
+      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'], words: 'app.nav.words_people' },
       // The providers are the sign-in screen's *Ways and providers* tab (§E9); their old address
       // moved there and is claimed here, so the row is current the moment it lands.
       { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
@@ -252,7 +299,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_connections',
     rows: [
       // The mail intake: a workspace's one inbox, sorted by handles and ticket keys (ADR-0094).
-      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'] },
+      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'], words: 'app.nav.words_mail' },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
       { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'] },
@@ -271,8 +318,8 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
       { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
-      { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'] },
-      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
+      { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'], words: 'app.nav.words_audit' },
+      { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'], words: 'app.nav.words_privacy' },
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
     ],
   },
@@ -495,8 +542,11 @@ export function instanceSection(options: { readonly isSingleWorkspace: boolean }
 /** Kept as the name the rest of the client uses for the trash's row. */
 export const TRASH = TRASH_ROW;
 
-/** The word for the account group's head on a phone, where there is no avatar to open. */
-export const YOU_CODE = 'app.nav.you';
+/**
+ * The phone's fifth slot (user-experience.md §2.6): *More* opens the drawer, whose first band is the
+ * products. The account is the avatar in the bar, as on every other width.
+ */
+export const MORE_CODE = 'app.nav.more';
 
 /**
  * The primary group, whole — Search included, whatever the bar is carrying — and the jumble where
@@ -514,13 +564,28 @@ export const YOU_CODE = 'app.nav.you';
  * Below `medium` nothing changes: the tree draws no primary group there, because the bottom bar
  * holds those destinations and Search is already one of them.
  */
-export function primary(options: { readonly hasJumble: boolean; readonly hasCapture?: boolean }): readonly Destination[] {
+export function primary(options: {
+  readonly hasJumble: boolean;
+  readonly hasCapture?: boolean;
+  /** The modules switched on (`modules_on`); a place of a module that is off is not drawn. */
+  readonly modulesOn?: readonly string[];
+}): readonly Destination[] {
+  const on = options.modulesOn ?? [];
   return DESTINATIONS.filter(
     (destination) =>
       destination.group === 'primary' &&
       (destination.id !== 'jumble' || options.hasJumble) &&
+      (!destination.module || on.includes(destination.module)) &&
       (destination.target.kind !== 'capture' || options.hasCapture === true),
   );
+}
+
+/**
+ * The phone's bottom bar before *More*: the places it carries itself (Today, Search, Capture,
+ * Inbox). What it leaves out is the drawer's, which *More* opens (§2.6).
+ */
+export function bar(options: { readonly hasJumble: boolean; readonly hasCapture?: boolean }): readonly Destination[] {
+  return primary(options).filter((destination) => !destination.isOffBar);
 }
 
 /**
@@ -540,10 +605,7 @@ export function account(options: {
   readonly isInstanceReachable: boolean;
   /** A single-workspace installation, where the installation is the administration's last group. */
   readonly isSingleWorkspace?: boolean;
-  /** The modules switched on (`modules_on`); a row of a module that is off is not drawn. */
-  readonly modulesOn?: readonly string[];
 }): readonly Destination[] {
-  const on = options.modulesOn ?? [];
   const place = installationPlace({
     isInstanceReachable: options.isInstanceReachable,
     isAdministrationReachable: options.isAdministrationReachable,
@@ -551,8 +613,6 @@ export function account(options: {
   });
   return DESTINATIONS.filter((destination) => {
     if (destination.group !== 'account') return false;
-    if (destination.module && !on.includes(destination.module)) return false;
-    if (destination.area === 'administration') return options.isAdministrationReachable;
     if (destination.area === 'instance') return place === 'menu';
     return true;
   });
@@ -570,10 +630,14 @@ export function currentDestination(route: { readonly name: string | null; readon
   if (route.area === 'instance') return 'instance';
   // And the same for Your settings, which is a section of its own since ADR-0065 decision 3: its
   // screens are the area, and the list should not have to name each of them twice.
-  if (route.area === 'profile') return 'profile';
+  // *Appearance* is a row of its own in the account menu (user-experience.md §2.3), and its screen
+  // is that row's.
+  if (route.area === 'profile') return route.name === 'appearance' ? 'appearance' : 'profile';
   if (route.name === null) return undefined;
   const keeping = KEEPING.find((each) => each.routes.includes(route.name as string));
   if (keeping) return keeping.id;
+  const product = PRODUCTS.find((each) => each.routes.includes(route.name as string));
+  if (product) return product.id;
   return DESTINATIONS.find((destination) => destination.routes.includes(route.name as string))?.id;
 }
 

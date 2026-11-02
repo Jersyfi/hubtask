@@ -72,7 +72,7 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   await fresh.context.route('**/api/v1/containers?type=HUB**', (route) => route.fulfill({ json: { ...PAGE, data: [] } }));
   await fresh.page.goto(`${served.origin}/`);
   await fresh.page.locator('main').getByText('No hubs yet. A hub holds the collections you work in.').waitFor({ timeout: 15_000 });
-  assert.equal(await fresh.page.getByRole('region', { name: 'In the jumble' }).count(), 0, 'an empty workspace still draws the panels');
+  assert.equal(await fresh.page.getByRole('region', { name: 'In the inbox' }).count(), 0, 'an empty workspace still draws the panels');
   assert.equal(await fresh.page.locator('main').getByRole('button', { name: /^Create (private )?hub$/ }).count(), 1, 'no way to start a workspace');
   assert.deepEqual(fresh.failures, []);
 });
@@ -155,10 +155,10 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   assert.equal(await projects.getByText('Next step').count(), 1);
 
   // The jumble as a small inbox: how many wait and the first three, each with its decisions (check 4).
-  const jumble = region(page, 'In the jumble');
+  const jumble = region(page, 'In the inbox');
   await jumble.getByRole('link', { name: TODAY_ARRIVALS[0].raw_subject }).waitFor({ timeout: 5_000 });
   assert.equal(await jumble.getByRole('link', { name: 'No subject' }).count(), 1);
-  assert.equal(await jumble.getByRole('link', { name: /^Open the jumble \(2\)/u }).count(), 1);
+  assert.equal(await jumble.getByRole('link', { name: /^Open the inbox \(2\)/u }).count(), 1);
   assert.match((await jumble.textContent()) ?? '', /2 waiting/u);
 
   // Recently opened is not drawn while nothing was opened on this device (check 5): an empty card

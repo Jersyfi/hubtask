@@ -64,7 +64,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administrationFor, currentDestination, instanceSection, primary } from '../navigation.ts';
+  import { DESTINATIONS, MORE_CODE, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -259,20 +259,27 @@
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,
       isSingleWorkspace: manifest.isSingleTenant,
-      modulesOn: manifest.value?.modules_on,
     }),
   );
-  /** The bottom bar: the primary group and "You", the account group's head on a phone. */
+  /**
+   * The bottom bar (user-experience.md §2.6): Today, Search, Capture, Inbox and *More*, which opens
+   * the drawer with the products, the tree, the administration and the keeping band.
+   */
   const bottomDestinations = $derived([
-    ...primary({ hasJumble: holdsHere('READ') === true, hasCapture: isCaptureOffered }).map((each) =>
+    ...bar({ hasJumble: holdsHere('READ') === true, hasCapture: isCaptureOffered }).map((each) =>
       each.target.kind === 'capture'
         ? { id: each.id, label: t(each.code), icon: each.icon, isAction: true }
         : { id: each.id, label: t(each.code), icon: each.icon, href: each.target.kind === 'route' ? each.target.path : '/' },
     ),
-    { id: 'you', label: t(YOU_CODE), icon: 'user' as const, href: '/profile' },
+    { id: 'more', label: t(MORE_CODE), icon: 'menu' as const, isOpener: true },
   ]);
+  /** A place the bar carries is its own; any other place of the list is *More*'s. */
   const bottomCurrent = $derived(
-    accountGroup.some((each) => each.id === destination) ? 'you' : destination === 'trash' ? 'workspace' : destination,
+    bottomDestinations.some((each) => each.id === destination) && destination !== 'more'
+      ? destination
+      : destination === undefined || accountGroup.some((each) => each.id === destination)
+        ? undefined
+        : 'more',
   );
 
   /** The drawer below `expanded`, closed by a navigation; focus returns to ☰. */
@@ -524,8 +531,8 @@
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
-      {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={false} onchoose={chooseAccount} />
+      {#if session.isSignedIn}
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -661,16 +668,18 @@
       destinations={bottomDestinations}
       current={bottomCurrent}
       onnavigate={(id) => {
-        if (id === 'you') isAccountOpen = true;
+        if (id === 'more') isDrawerOpen = true;
         // Search opens the palette here, the bar having no field to type in: its *All results*
         // and *Open search* are the way to the search screen (UC-WRK-27 check 1).
         else if (id === 'search') palette.summon();
         // The ＋ is an act, not a place: it opens the capture field where the reader is.
         else if (id === 'capture') capture.summon();
-        else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
+        else {
+          const chosen = bottomDestinations.find((each) => each.id === id);
+          go(chosen && 'href' in chosen && chosen.href ? chosen.href : '/');
+        }
       }}
     />
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isBelowExpanded && palette.isOpen}

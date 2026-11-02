@@ -21,7 +21,7 @@ import { archivalOf } from '../data/containers.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
 import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
-import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, type SectionGroup } from '../navigation.ts';
+import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
 
@@ -185,6 +185,7 @@ function sectionOffers(groups: readonly SectionGroup[], area: Area, section: str
       kind: 'place' as const,
       id: `${area}:${row.id}`,
       label: t(row.titleCode ?? row.code),
+      ...(row.words ? { keywords: t(row.words) } : {}),
       context: section,
       area,
       target: { kind: 'route' as const, path: row.path },
@@ -198,17 +199,24 @@ function sectionOffers(groups: readonly SectionGroup[], area: Area, section: str
  */
 export function placeOffers(reach: Reach, t: Translate): readonly Offer[] {
   const offers: Offer[] = [
-    ...primary({ hasJumble: reach.hasJumble === true }).flatMap((destination): Offer[] =>
+    ...primary({ hasJumble: reach.hasJumble === true, modulesOn: reach.modulesOn }).flatMap((destination): Offer[] =>
       destination.target.kind === 'route'
-        ? [{ kind: 'place', id: destination.id, label: t(destination.code), area: destination.area, target: { kind: 'route', path: destination.target.path } }]
+        ? [{ kind: 'place', id: destination.id, label: t(destination.code), ...(destination.words ? { keywords: t(destination.words) } : {}), area: destination.area, target: { kind: 'route', path: destination.target.path } }]
         : [],
+    ),
+    // One source per product switched on (user-experience.md §5.3), found by its name and its
+    // synonyms - *SLA* finds the service desk, *wiki* the pages.
+    ...products({ modulesOn: reach.modulesOn }).map(
+      (row): Offer => ({ kind: 'place', id: `product:${row.id}`, label: t(row.code), keywords: t(row.words), context: t('app.nav.products'), target: { kind: 'route', path: row.path } }),
+    ),
+    ...workspaceBand({ isAdministrationReachable: reach.isAdministrationReachable }).map(
+      (row): Offer => ({ kind: 'place', id: row.id, label: t(row.code), area: 'administration', target: { kind: 'route', path: row.path } }),
     ),
     ...KEEPING.map((row): Offer => ({ kind: 'place', id: row.id, label: t(row.code), target: { kind: 'route', path: row.path } })),
     ...account({
       isAdministrationReachable: reach.isAdministrationReachable,
       isInstanceReachable: reach.isInstanceReachable,
       isSingleWorkspace: reach.isSingleWorkspace,
-      modulesOn: reach.modulesOn,
     }).map(
       (destination): Offer => ({
         kind: 'place',

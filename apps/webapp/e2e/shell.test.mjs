@@ -77,12 +77,14 @@ const STATEMENT = 'Accessibility statement, on hubtask.eu';
  * field is where a search is typed and Search is the place it is built, which is why they are no
  * longer counted as one thing.
  */
-const PRIMARY = ['Today', 'Search', 'Jumble'];
+const PRIMARY = ['Today', 'Search', 'Inbox'];
 // The account group, in its order. "This installation" is "About Hubtask" — the same route under
 // a name somebody would look for (ADR-0063 decision 6) — and it carries no version: a build
 // reference is not what a menu row is called, and the page behind it quotes the version whole
 // (ADR-0065 decision 5). Signing out is last, because it is the last thing a reader does.
-const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Help and shortcuts', 'About Hubtask', 'Sign out'];
+// Only what is about the person (user-experience.md §2.3); the administration is a row of the
+// column's workspace band.
+const ACCOUNT_GROUP = ['Your settings', 'Appearance', 'Help and shortcuts', 'About Hubtask', 'Sign out'];
 
 async function open(browser, width, options = {}) {
   const context = await browser.newContext({ viewport: { width, height: 800 } });
@@ -151,7 +153,7 @@ async function common(page, width) {
   assert.equal(await page.getByRole('status').filter({ hasText: /Connected|Reconnecting|Offline|synced|copy/ }).count() > 0, true, `${width}: no sync line`);
 }
 
-test('chromium: 375 px — the bottom bar, the tree behind ☰, the account group behind "You"', async (t) => {
+test('chromium: 375 px — the bottom bar with More, the tree behind ☰ and More, the account behind the avatar', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, 375);
@@ -161,7 +163,9 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   // Spacious for a thumb, and the bar the thumb reaches.
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
   const bar = page.getByRole('navigation', { name: 'Sections' });
-  for (const name of [...PRIMARY, 'You']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
+  for (const name of PRIMARY) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
+  // The fifth slot is *More* (user-experience.md §2.6): it opens the drawer, so it is a button.
+  assert.equal(await bar.getByRole('button', { name: 'More' }).count(), 1, 'the bottom bar has no More');
   // The ＋ between Search and the jumble is an act, so a button and never a link (UC-WRK-26 check 1).
   assert.equal(await bar.getByRole('button', { name: 'Capture' }).count(), 1, 'the bottom bar has no capture');
   assert.equal(await bar.getByRole('link', { name: 'Capture' }).count(), 0, 'capture is drawn as a link');
@@ -175,7 +179,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   const rows = await drawer.getByRole('treeitem').allTextContents();
-  assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
+  assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Administration', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   assert.equal(await drawer.getByRole('button', { name: 'New', exact: true }).count(), 1, 'the drawer has no way to create a hub');
   // The twist opens a hub where it stands; pressing the hub's row goes to the hub, because a hub
   // is a place before it is a container: the way into one is not through a collection and back up
@@ -194,8 +198,16 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, `/hubs/${HUB.id}`, 'pressing a hub does not open the hub');
 
-  // "You" opens the account group as a sheet: the name at its head, the five rows, sign out last.
-  await bar.getByRole('link', { name: 'You' }).click();
+  // *More* opens the same drawer as ☰.
+  await bar.getByRole('button', { name: 'More' }).click();
+  await drawer.waitFor({ timeout: 5_000 });
+  assert.equal(await drawer.getByRole('treeitem', { name: 'Administration' }).count(), 1, 'More does not open the drawer');
+  await page.keyboard.press('Escape');
+  await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
+
+  // The avatar in the bar opens the account group as a sheet: the name at its head, the rows,
+  // sign out last.
+  await page.getByRole('banner').getByRole('button', { name: ACCOUNT.display_name }).click();
   const sheet = page.locator('dialog[open]');
   await sheet.waitFor({ timeout: 5_000 });
   assert.equal(await sheet.getByText(ACCOUNT.display_name).count(), 1, 'the sheet does not name the person');
@@ -205,7 +217,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   await sheet.getByRole('button', { name: 'Your settings' }).click();
   await sheet.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, '/profile');
-  assert.equal(await bar.getByRole('link', { name: 'You' }).getAttribute('aria-current'), 'page');
+  assert.equal(await bar.locator('[aria-current="page"]').count(), 0, 'a place of the bar is current in Your settings');
 
   // Your settings is a section of its own (ADR-0065 decision 3), so the drawer here holds the
   // section's list rather than the workspace's tree - and its first row is the way out, which is
@@ -252,7 +264,7 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-  assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
+  assert.deepEqual(rows, [...PRIMARY, 'House', 'Administration', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
   // Search is the bar's way into the search over the page here, and it leads to the same
   // destination as the row.
   await page.keyboard.press('Escape');
@@ -315,10 +327,13 @@ for (const width of [905, 1280]) {
     assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, `${width}: a drawer trigger on a desk`);
     // Two trees in one column, and one list behind them: the places and the hubs, then the
     // `keeping` band pinned to the foot (ADR-0063 decision 1). The rows are the same rows.
-    const tree = page.getByRole('navigation', { name: 'Workspace' });
+    const tree = page.getByRole('navigation', { name: 'Workspace', exact: true });
     const keeping = page.getByRole('navigation', { name: 'What is kept' });
     const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
     assert.deepEqual(rows, [...PRIMARY, 'House'], `${width}: the tree holds ${JSON.stringify(rows)}`);
+    // The workspace band (user-experience.md §2.1): the administration in the column, under the hubs.
+    const band = page.getByRole('navigation', { name: 'Administration', exact: true });
+    assert.deepEqual((await band.getByRole('treeitem').allTextContents()).map((row) => row.trim()), ['Administration'], `${width}: the workspace band`);
     assert.deepEqual((await keeping.getByRole('treeitem').allTextContents()).map((row) => row.trim()), ['Archive', 'Trash'], `${width}: the keeping band`);
     // And it is at the foot: below every row of the tree above it, and at the bottom of the column.
     const foot = await page.evaluate(() => {
@@ -353,7 +368,7 @@ for (const width of [905, 1280]) {
     assert.equal(marks.length, railRows, `${width}: the rail drew ${marks.length} marks for ${railRows} rows`);
     assert.deepEqual(marks.filter((mark) => !mark.inside || mark.width === 0), [], `${width}: a mark of the rail is clipped or missing`);
     // The label is announced although it is not drawn, so the rail is navigable by name.
-    assert.equal(await tree.getByRole('treeitem', { name: 'Jumble' }).count(), 1, `${width}: the rail's rows lost their names`);
+    assert.equal(await tree.getByRole('treeitem', { name: 'Inbox' }).count(), 1, `${width}: the rail's rows lost their names`);
 
     // A branch pressed in the rail **goes to the branch and** opens its subtree beside the column,
     // so a press means what it means unfolded and nothing is unreachable while the navigation is
@@ -435,7 +450,7 @@ for (const width of [905, 1280]) {
       .catch(() => assert.fail(`${width}: the mark stayed offline after the network came back`));
 
     // Every destination, through the tree and the menu.
-    await tree.getByRole('treeitem', { name: 'Jumble' }).click();
+    await tree.getByRole('treeitem', { name: 'Inbox' }).click();
     assert.equal(new URL(page.url()).pathname, '/jumble');
     await keeping.getByRole('treeitem', { name: 'Trash' }).click();
     assert.equal(new URL(page.url()).pathname, '/trash');
@@ -497,7 +512,7 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
   // figures, which would settle the empty hub before the tree is asked.
   await page.goto(`${served.origin}/trash`);
 
-  const tree = page.getByRole('navigation', { name: 'Workspace' });
+  const tree = page.getByRole('navigation', { name: 'Workspace', exact: true });
   await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).waitFor({ timeout: 15_000 });
   // The tree reads every hub's collections as it draws, so an empty hub is known empty at once:
   // no twist that opens onto nothing, and the row is still the way to the hub's own screen -

@@ -942,7 +942,7 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   assert.ok(written.some((body) => body.runs?.rule_id === RULE.id), 'the listing was asked for the rule');
   // On the shell: one heading, from the PageHeader.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
-  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'What the rules did');
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Rule runs');
   // Trying and starting a rule left this page for the editor (ux-inventory.md §E9).
   assert.equal(await page.getByRole('heading', { name: 'Try a rule' }).count(), 0);
   assert.equal(await page.getByRole('combobox', { name: 'Which rule' }).count(), 0);

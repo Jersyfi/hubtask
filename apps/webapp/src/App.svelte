@@ -25,7 +25,7 @@
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
   import ModuleOff from './lib/frame/ModuleOff.svelte';
-  import { offModuleOf } from './lib/frame/moduleroute.ts';
+  import { PRODUCT_HOMES, offModuleOf } from './lib/frame/moduleroute.ts';
   import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { viewAs } from './lib/data/viewas.svelte.ts';
@@ -96,6 +96,7 @@
     CmdbView: () => import('./views/CmdbView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
+    ProductHomeView: () => import('./views/ProductHomeView.svelte'),
     ApprovalsView: () => import('./views/ApprovalsView.svelte'),
     ServiceDeskView: () => import('./views/ServiceDeskView.svelte'),
     PortalView: () => import('./views/PortalView.svelte'),
@@ -371,7 +372,7 @@
   {:else if reach === false}
     {@render nothingHere()}
   {:else if offModule}
-    <ModuleOff module={offModule} />
+    <ModuleOff module={offModule} isProduct={route.name !== null && route.name in PRODUCT_HOMES} />
   {:else if route.name === 'consent'}
     <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
@@ -522,7 +523,10 @@
   {:else if route.name === 'approvals'}
     <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'notes'}
-    <LazyView load={views.NotesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+    <!-- *My notes* is the pages' home's second tab (user-experience.md §2.2), at its own address. -->
+    <LazyView load={views.ProductHomeView} props={{ module: 'KNOWLEDGE', tab: 'notes', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name && PRODUCT_HOMES[route.name]}
+    <LazyView load={views.ProductHomeView} props={{ module: PRODUCT_HOMES[route.name], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal'}
     {#key route.path}
       <LazyView load={views.PortalView} props={{ collectionId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />

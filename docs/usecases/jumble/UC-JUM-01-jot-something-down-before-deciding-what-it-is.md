@@ -19,7 +19,7 @@ collection, a type or a date. Deciding what it becomes comes later, in the jumbl
 
 ## Story
 
-On the *Jumble* screen the person presses *Capture*, types a subject and, on the lines after it, a
+On the *Inbox* screen (the jumble) the person presses *Capture*, types a subject and, on the lines after it, a
 longer text if they want one, and presses Enter. The entry appears at the top of the list as *Undecided*. From a terminal,
 `hubctl jumble submit` does the same; a script does it over the API, an agent through MCP — and
 either may carry files it has already uploaded. Nothing is a task yet.

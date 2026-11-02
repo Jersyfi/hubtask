@@ -112,7 +112,7 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     await page.locator('[data-mail-order]').getByText('[SHOP-42]').waitFor();
     await page.locator('[data-mail-handles] [data-handle="kitchen"] code').first().waitFor({ timeout: 10_000 });
     const log = page.locator('[data-mail-log]');
-    await log.getByText('In the jumble · Sender not allowed').waitFor();
+    await log.getByText('In the inbox · Sender not allowed').waitFor();
     await log.getByRole('link', { name: 'Entry' }).waitFor();
 
     // A collection's settings: its subject word and address, and a new handle.

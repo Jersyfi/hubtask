@@ -389,7 +389,8 @@ the mark the bar carries; how the product uses them is §11.
   shadow; the title is a span, never a heading; the top safe-area inset goes into its padding.
 * **`NavDrawer`** — `Drawer` holding `SideNav`; composition only.
 * **`BottomBar`** — three to five destinations with a mark and a word, `aria-current`, the bottom
-  safe-area inset in its padding. It switches routes, so it is not `Tabs`. It hides, by opacity,
+  safe-area inset in its padding; one may be an act (a button with its mark filled) and one an
+  opener (*More*, a quiet button that opens a dialog). It switches routes, so it is not `Tabs`. It hides, by opacity,
   while an input has focus, so it does not ride the on-screen keyboard over the field.
 * **`PlaceTabs`** — the views of one place (a product's home, a hub, a collection) as one strip
   under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav`
@@ -801,20 +802,20 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 
 ### 11.3 One navigation list
 
-**Changing:** [`user-experience.md`](../architecture/user-experience.md) §2 adds a `products` and a
-`workspace` band and moves the products out of the account menu; this section changes with the
-build step that lands it (§11 there). Until then it describes what is built.
-
 **`apps/webapp/src/lib/navigation.ts` is the one list of destinations; every width draws it and
 nothing else.** No second list, second tree or "advanced" navigation. Each destination carries a
-route, a group, an icon, a message code and, where the mobile build needs it, an `area` (§11.5).
+route, a group, an icon, a message code, where the palette needs them a code of synonyms
+(`words`), and, where the mobile build needs it, an `area` (§11.5).
 
-**Three bands, in this order.** Nothing outside a band, nothing in two.
+**Five bands, in this order** ([`user-experience.md`](../architecture/user-experience.md) §2.1).
+Nothing outside a band, nothing in two.
 
 | Band | What is in it | Where |
 |---|---|---|
-| `places` | Today, Search, Jumble | At the top. Search is here on every width |
+| `places` | Today, Search, Inbox, *Waiting for my yes* (where the service desk is on) | At the top. Search is here on every width |
+| `products` | One row per product switched on, in `Module.Keys()` order: Plans, Pages, Whiteboards, Service desk, Assets, Time, Goals, Agents, each opening its home | Under the caption *Products*; absent while no product is on |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
+| `workspace` | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing | Under the caption *Workspace*, below the hubs |
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
@@ -837,11 +838,10 @@ settings' *General* section. Each is the page menu's own act: choosing it opens 
 which runs it with its own handler. The figure and the *⋯* share one cell
 at the end of the row, so a row with a menu wraps where one without does.
 
-**The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
-on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
-settings*; *Workspace administration*, only where the manifest's `workspace_permissions` carry
-`STRUCTURE` or the auditor's `READ_CONFIGURATION` - and an address under `/administration` typed by
-anybody else answers as one that reaches nothing; *Installation*, only for an account in the operator register, as the
+**The account group is not in the column.** It is the bar's account menu behind the avatar on
+every width, a menu from `medium` up and a sheet on `compact`. It holds only what is about the
+person (user-experience.md §2.3), in `navigation.ts`'s order: the display name and e-mail as the
+head; *Your settings*; *Appearance*; *Installation*, only for an account in the operator register, as the
 manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)) - except on a single-workspace
 installation, where an operator who reaches the administration finds it as the administration's last
 group instead, "Installation · Applies to every workspace you create", and not in this menu; *Help and shortcuts* (§11.4), which holds the tour; *About
@@ -853,8 +853,8 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` | `BottomBar`: the `places` destinations, with *Capture* between *Search* and *Jumble*, and *You*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
-| `medium` | `NavDrawer`: one `SideNav` with all three bands |
+| `compact` | `BottomBar`: Today, Search, *Capture*, Inbox and *More*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. *More* opens the `NavDrawer` (as ☰ does): the places the bar does not carry, then the `products`, `tree`, `workspace` and `keeping` bands, so no destination is drawn twice; *More* is current on a place only the drawer lists. The account is the avatar in the bar |
+| `medium` | `NavDrawer`: all five bands |
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10). Its end edge is a `ResizeHandle`: dragged, or moved by the arrows, between `layout.sidenav.min` and `layout.sidenav.max`, a double-click back to `layout.sidenav.width`; the width is the device's (§11.10) |
 
 In a build that excludes the administration area — the installed mobile clients

@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+/**
+ * What a product's workspace-wide home holds (user-experience.md §2.2, §5.1): its views, the hub
+ * screen each hub row opens, and the doors to the workspace-wide screens it already has. Kept out
+ * of the view so the one anatomy is the same for every product and a test reads it whole.
+ */
+
+import type { IconName } from '@hubtask/design-system/components';
+
+export interface HomeTab {
+  readonly id: string;
+  readonly code: string;
+  readonly path: string;
+}
+
+export interface Door {
+  readonly id: string;
+  readonly code: string;
+  readonly icon: IconName;
+  readonly path: string;
+}
+
+/** A home's views where it has several; one view draws no strip. */
+export function homeTabs(module: string): readonly HomeTab[] {
+  if (module === 'KNOWLEDGE') {
+    return [
+      { id: 'spaces', code: 'app.product_home.tab_spaces', path: '/pages' },
+      { id: 'notes', code: 'app.nav.notes', path: '/notes' },
+    ];
+  }
+  return [];
+}
+
+/**
+ * The hub's own screen of a product, which the home's hub row opens; nothing for a product with no
+ * screen per hub. The desk lists its queues in the hub's collections, so a hub row opens the hub.
+ */
+export function hubScreenOf(module: string, hubId: string): string | undefined {
+  const at = `/hubs/${encodeURIComponent(hubId)}`;
+  switch (module) {
+    case 'PLANNING':
+      return `${at}/plan`;
+    case 'KNOWLEDGE':
+      return `${at}/pages`;
+    case 'WHITEBOARD':
+      return `${at}/whiteboards`;
+    case 'ASSETS':
+      return `${at}/assets`;
+    case 'SERVICE_DESK':
+      return at;
+    default:
+      return undefined;
+  }
+}
+
+/** The workspace-wide screens a product already has, drawn above its hubs. */
+export function productDoors(module: string, options: { readonly isAdministrationReachable: boolean }): readonly Door[] {
+  switch (module) {
+    case 'SERVICE_DESK':
+      return [
+        { id: 'approvals', code: 'app.nav.approvals', icon: 'user-check', path: '/approvals' },
+        ...(options.isAdministrationReachable
+          ? [{ id: 'settings', code: 'app.product_home.desk_settings', icon: 'settings' as const, path: '/administration/service-desk' }]
+          : []),
+      ];
+    case 'ASSETS':
+      return options.isAdministrationReachable
+        ? [{ id: 'settings', code: 'app.product_home.cmdb_settings', icon: 'settings', path: '/administration/configuration-items' }]
+        : [];
+    case 'AGENTS':
+      return [
+        { id: 'mine', code: 'app.product_home.agents_mine', icon: 'user', path: '/profile/agents' },
+        ...(options.isAdministrationReachable
+          ? [{ id: 'all', code: 'app.product_home.agents_all', icon: 'zap' as const, path: '/administration/agents' }]
+          : []),
+      ];
+    default:
+      return [];
+  }
+}

@@ -16,9 +16,13 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
-  const { onnavigate }: { onnavigate?: (path: string) => void } = $props();
+  // Embedded, the notes are the pages' home's *My notes* tab (user-experience.md §2.2): the home
+  // draws the head and names the page.
+  const { onnavigate, isEmbedded = false }: { onnavigate?: (path: string) => void; isEmbedded?: boolean } = $props();
 
-  $effect(() => page.entitle(t('app.notes.title')));
+  $effect(() => {
+    if (!isEmbedded) page.entitle(t('app.notes.title'));
+  });
 
   const space = untrack(() => resource<PersonalSpace>(personalSpacePath));
   const shared = untrack(() => resource<SharedPageList>(sharedPagesPath));
@@ -44,7 +48,11 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.notes.title')} subtitle={t('app.notes.intro')} isTitleInBar={viewport.isCompact} />
+  {#if isEmbedded}
+    <p class="quiet">{t('app.notes.intro')}</p>
+  {:else}
+    <PageHeader title={t('app.notes.title')} subtitle={t('app.notes.intro')} isTitleInBar={viewport.isCompact} />
+  {/if}
 
   <section aria-labelledby="notes-own">
     <Stack gap="100">

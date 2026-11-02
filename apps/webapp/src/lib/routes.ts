@@ -149,6 +149,14 @@ export const ROUTES: readonly Route[] = [
   { name: 'time', pattern: '/time' },
   // Goals, portfolios and dashboards (M8): a period's goals, the portfolios and the dashboards as
   // tabs (`?tab=`, `?period=`, `?hub=`), and one of each by itself.
+  // The products' workspace-wide homes (user-experience.md §2.2): one door per product, across the
+  // hubs the reader may read. End-user, so the installed clients carry them.
+  { name: 'plans-home', pattern: '/plans' },
+  { name: 'pages-home', pattern: '/pages' },
+  { name: 'whiteboards-home', pattern: '/whiteboards' },
+  { name: 'desk-home', pattern: '/desk' },
+  { name: 'assets-home', pattern: '/assets' },
+  { name: 'agents-home', pattern: '/agents' },
   { name: 'goals', pattern: '/goals' },
   { name: 'goal', pattern: '/goals/:id' },
   { name: 'portfolio', pattern: '/portfolios/:id' },

@@ -15,7 +15,8 @@
   import { toast } from './toasts.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
 
-  const { module }: { module: string } = $props();
+  // `isProduct`: a product's home, whose trail is *Products* rather than the administration's.
+  const { module, isProduct = false }: { module: string; isProduct?: boolean } = $props();
 
   const name = $derived(t(`app.modules.name_${module.toLowerCase()}`));
   $effect(() => page.entitle(name));
@@ -47,14 +48,18 @@
   <PageHeader title={name} isTitleInBar={viewport.isCompact}
     breadcrumb={{
       trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+        isProduct
+          ? { id: 'products', label: t('app.nav.products') }
+          : { id: 'administration', label: t('app.admin.title'), href: '/administration' },
         { id: 'module', label: name },
       ],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }} />
   <EmptyState kind="unused" icon="layout-template" title={t('app.module_off.title', { module: name })}
-    description={t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}
+    description={isProduct
+      ? t(mayShape ? 'app.module_off.body_product' : 'app.module_off.body_product_ask', { what: t(`app.modules.hint_${module.toLowerCase()}`) })
+      : t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}
     action={mayShape ? switchControl : undefined} />
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </Stack>

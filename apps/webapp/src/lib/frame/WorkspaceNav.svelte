@@ -26,14 +26,15 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
-  import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
+  import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
   import { people } from '../data/people.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { rowMessage } from '../data/figure.ts';
-  import { KEEPING, primary } from '../navigation.ts';
+  import { KEEPING, primary, products, workspaceBand } from '../navigation.ts';
   import { commands } from '../palette/commands.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { archivalOf } from '../data/containers.ts';
@@ -60,15 +61,34 @@
   /** Whether the jumble is the reader's, which decides whether its row is drawn. */
   const hasJumble = $derived(holdsHere('READ') === true);
 
-  /** The one list's primary group, as nodes of the same tree. */
-  const destinationNodes = $derived(
-    hasDestinations
-      ? primary({ hasJumble }).map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon }))
-      : [],
+  const modulesOn = $derived(manifest.value?.modules_on);
+  /**
+   * The places band, as nodes of the same tree. On `compact` the bottom bar carries Today, Search
+   * and the Inbox, so the drawer draws only the places the bar leaves to it (user-experience.md §2.6).
+   */
+  const places = $derived(primary({ hasJumble, modulesOn }).filter((destination) => hasDestinations || destination.isOffBar));
+  const destinationNodes = $derived(places.map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon })));
+  /** The products band (§2.2): one row per product switched on, under its caption; none while none is on. */
+  const productRows = $derived(products({ modulesOn }));
+  const productNodes = $derived(
+    productRows.map((row, index) => ({
+      id: row.id,
+      label: t(row.code),
+      icon: row.icon,
+      ...(index === 0 ? { band: { caption: t('app.nav.products') } } : {}),
+    })),
+  );
+  /** The workspace band (§2.1): *Administration*, where the manifest says the reader reaches it. */
+  const workspaceRows = $derived(workspaceBand({ isAdministrationReachable: reachesAdministrationArea() === true }));
+  const workspaceNodes = $derived(
+    workspaceRows.map((row, index) => ({
+      id: row.id,
+      label: t(row.code),
+      icon: row.icon,
+      ...(index === 0 ? { band: { caption: t('app.nav.workspace_band') } } : {}),
+    })),
   );
 
-  // A workspace has to be startable from inside the application, and a hub is where starting one
-  // begins: nothing else can be created until one exists.
   let isCreatingHub = $state(false);
   // Which hub the reader may create, as the overview's head offers it: a shared one with STRUCTURE,
   // a private one of one's own where the manifest offers it, none otherwise or while unknown.
@@ -300,6 +320,7 @@
    */
   const nodes = $derived([
     ...destinationNodes,
+    ...productNodes,
     ...hubNodes.map((hub, index) => (index === 0 ? { ...hub, band: { caption: t('app.nav.hubs') } } : hub)),
   ]);
 
@@ -318,8 +339,12 @@
   const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
 
   function navigate(id: string) {
-    const destination = primary({ hasJumble }).find((each) => each.id === id);
+    const destination = places.find((each) => each.id === id);
     if (destination && destination.target.kind === 'route') return onnavigate(destination.target.path);
+    const product = productRows.find((each) => each.id === id);
+    if (product) return onnavigate(product.path);
+    const room = workspaceRows.find((each) => each.id === id);
+    if (room) return onnavigate(room.path);
     const keeping = KEEPING.find((each) => each.id === id);
     if (keeping) return onnavigate(keeping.path);
     const container = containers.find(id);
@@ -426,6 +451,11 @@
         {/snippet}
       </Menu>
     </div>
+  {/if}
+
+  {#if workspaceNodes.length > 0 && !actor.hasNoAccess}
+    <!-- The workspace's own administration, under the hubs and above the keeping band (§2.1). -->
+    <SideNav label={t('app.nav.administration')} nodes={workspaceNodes} {current} {isRail} onnavigate={navigate} />
   {/if}
 
   <!-- Where a reader goes when something is missing: at the foot of the column, on every width,

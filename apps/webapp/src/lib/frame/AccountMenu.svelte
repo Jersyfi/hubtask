@@ -78,6 +78,11 @@
 {/snippet}
 
 {#if isSheet}
+  <!-- The avatar in the bar on a phone too (user-experience.md §2.6): the bottom bar's fifth slot
+       is *More*, so the account is opened where it is on every other width. -->
+  <button type="button" class="account" aria-label={name} aria-haspopup="dialog" onclick={() => (isSheetOpen = true)}>
+    <span aria-hidden="true"><Avatar {name} src={picture} size="sm" /></span>
+  </button>
   <Drawer bind:isOpen={isSheetOpen} edge="block-end" title={t('app.nav.you')} dismissLabel={t('app.dismiss')}>
     <Stack gap="200">
       {@render who()}

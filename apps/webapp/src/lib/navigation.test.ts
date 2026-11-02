@@ -13,7 +13,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, administration, currentDestination, firstScreen, installationPlace, instanceSection, primary } from './navigation.ts';
+import GERMAN from '../../../../locales/de.json' with { type: 'json' };
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, bar, currentDestination, firstScreen, installationPlace, instanceSection, primary, products, workspaceBand } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -25,7 +26,7 @@ test('every destination with a route lands on a route it claims as current', () 
     assert.ok(destination.routes.includes(resolution.name), `${destination.id} lands on ${resolution.name} but does not claim it`);
     assert.equal(currentDestination(resolution), destination.id);
   }
-  for (const row of KEEPING) {
+  for (const row of [...KEEPING, ...PRODUCTS, ...workspaceBand({ isAdministrationReachable: true })]) {
     const resolution = resolve(ROUTES, row.path);
     assert.ok(resolution.name, `${row.id} points at ${row.path}, which resolves to nothing`);
     assert.ok(row.routes.includes(resolution.name), `${row.id} lands on ${resolution.name} but does not claim it`);
@@ -34,18 +35,53 @@ test('every destination with a route lands on a route it claims as current', () 
 });
 
 test('nothing is in two bands, and nothing is outside one', () => {
-  // The three bands are `places` (the primary group), the tree (the containers, which are data
-  // rather than a list here) and `keeping`. A destination in both would be drawn twice, which is
-  // the failure the one list exists to prevent (ADR-0063 decision 1).
-  const places = new Set(primary({ hasJumble: true }).map((destination) => destination.id));
-  const keeping = new Set(KEEPING.map((row) => row.id));
-  for (const id of keeping) assert.equal(places.has(id), false, `${id} is in two bands`);
-  assert.equal(keeping.size, KEEPING.length, 'a row of the keeping band is in it twice');
+  // The five bands (user-experience.md §2.1): places, products, the tree (the containers, which
+  // are data rather than a list here), the workspace's administration and `keeping`. A row in two
+  // would be drawn twice, which is the failure the one list exists to prevent.
+  const every = ['SERVICE_DESK', ...PRODUCTS.map((row) => row.module)];
+  const bands = [
+    primary({ hasJumble: true, hasCapture: true, modulesOn: every }).map((destination) => destination.id),
+    products({ modulesOn: every }).map((row) => row.id),
+    workspaceBand({ isAdministrationReachable: true }).map((row) => row.id),
+    KEEPING.map((row) => row.id),
+  ];
+  const seen = new Set<string>();
+  for (const band of bands) {
+    for (const id of band) {
+      assert.equal(seen.has(id), false, `${id} is in two bands`);
+      seen.add(id);
+    }
+  }
   // The account group is behind the avatar, not in the column: no band holds it.
   for (const destination of DESTINATIONS) {
     if (destination.group !== 'account') continue;
-    assert.equal(places.has(destination.id) || keeping.has(destination.id), false, `${destination.id} is in the column`);
+    assert.equal(seen.has(destination.id), false, `${destination.id} is in the column`);
   }
+});
+
+// user-experience.md §2.1: for every module with a home, on draws exactly one products row in the
+// column, the drawer and the phone's *More* (all three draw `products`), off draws none.
+test('a product is one row of the products band where its module is on, and none where it is off', () => {
+  const keys = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+  assert.deepEqual(PRODUCTS.map((row) => row.module), keys.filter((key) => key !== 'WORKFLOWS'), 'the band is not in Module.Keys() order');
+  assert.deepEqual(products({ modulesOn: [] }), [], 'a household with nothing on sees a products row');
+  assert.deepEqual(products({}), []);
+  for (const key of keys) {
+    const rows = products({ modulesOn: [key] });
+    assert.equal(rows.length, key === 'WORKFLOWS' ? 0 : 1, `${key} draws ${rows.length} rows`);
+    assert.equal(products({ modulesOn: keys.filter((each) => each !== key) }).some((row) => row.module === key), false, `${key} is drawn while off`);
+  }
+  for (const row of PRODUCTS) {
+    assert.ok(row.code in SOURCE, row.code);
+    assert.ok(row.words in SOURCE, row.words);
+    for (const name of row.routes) assert.equal(currentDestination({ name, area: 'end-user' }), row.id, `${name} does not mark ${row.id}`);
+  }
+});
+
+test('the administration is the workspace band, drawn only where the server says so', () => {
+  assert.deepEqual(workspaceBand({ isAdministrationReachable: true }).map((row) => row.id), ['administration']);
+  assert.deepEqual(workspaceBand({ isAdministrationReachable: false }), []);
+  assert.equal(currentDestination({ name: 'modules', area: 'administration' }), 'administration');
 });
 
 test('every route a destination claims exists in the table', () => {
@@ -62,29 +98,30 @@ test('the areas are the route table’s, not the list’s', () => {
     if (destination.target.kind !== 'route') continue;
     assert.equal(resolve(ROUTES, destination.target.path).area, destination.area ?? 'end-user', destination.id);
   }
-  const administration = DESTINATIONS.filter((destination) => destination.area === 'administration');
-  assert.equal(administration.length, 1, 'the administration is one row of the list');
+  assert.equal(DESTINATIONS.filter((destination) => destination.area === 'administration').length, 0, 'the administration left the account menu (§2.3)');
 });
 
 test('every word is a code the catalogue has', () => {
   for (const destination of DESTINATIONS) assert.ok(destination.code in SOURCE, destination.code);
   for (const row of KEEPING) assert.ok(row.code in SOURCE, row.code);
   assert.ok(TRASH.code in SOURCE);
-  assert.ok(YOU_CODE in SOURCE);
+  assert.ok(MORE_CODE in SOURCE);
+  for (const destination of DESTINATIONS) if (destination.words) assert.ok(destination.words in SOURCE, destination.words);
 });
 
-test('the bottom bar can draw the primary group and "You"', () => {
-  // `BottomBar` takes three to five destinations: the primary group plus the account group's
-  // head. Fewer is a switch, more is narrower than a thumb.
+test('the bottom bar can draw its places and "More"', () => {
+  // `BottomBar` takes three to five destinations: Today, Search, Capture, the Inbox and *More*
+  // (user-experience.md §2.6). Fewer is a switch, more is narrower than a thumb.
   for (const hasJumble of [true, false]) {
     for (const hasCapture of [true, false]) {
-      const count = primary({ hasJumble, hasCapture }).length + 1;
+      const count = bar({ hasJumble, hasCapture }).length + 1;
       assert.ok(count >= 3 && count <= 5, `${count} destinations on a phone`);
     }
   }
+  assert.deepEqual(bar({ hasJumble: true, hasCapture: true }).map((destination) => destination.id), ['workspace', 'search', 'capture', 'jumble']);
 });
 
-test('capture is an act in the primary group, drawn only where asked, between Search and the jumble', () => {
+test('capture is an act in the primary group, drawn only where asked, between Search and the inbox', () => {
   // The column lists places; the bottom bar draws the ＋ (UC-WRK-26 check 1, ux-inventory.md §E0).
   assert.deepEqual(primary({ hasJumble: true }).map((destination) => destination.id), ['workspace', 'search', 'jumble']);
   assert.deepEqual(primary({ hasJumble: true, hasCapture: true }).map((destination) => destination.id), ['workspace', 'search', 'capture', 'jumble']);
@@ -93,39 +130,29 @@ test('capture is an act in the primary group, drawn only where asked, between Se
   assert.deepEqual(capture?.routes, []);
 });
 
+// UC-SVC-09 check 1, user-experience.md §2.1: what waits for the reader's yes is a place of the
+// column where the service desk is on, and the drawer's on a phone.
+test('the approvals are a place only where the service desk is on', () => {
+  assert.ok(!primary({ hasJumble: true }).some((destination) => destination.id === 'approvals'));
+  assert.deepEqual(primary({ hasJumble: true, modulesOn: ['SERVICE_DESK'] }).map((destination) => destination.id), ['workspace', 'search', 'jumble', 'approvals']);
+  assert.ok(!bar({ hasJumble: true }).some((destination) => destination.id === 'approvals'), 'the bar carries the approvals');
+});
+
 test('the search exists once', () => {
   assert.equal(DESTINATIONS.filter((destination) => destination.target.kind === 'route' && destination.target.path === '/search').length, 1);
 });
 
-test('the administration row is offered only where the server says so', () => {
+// user-experience.md §2.3: the account menu holds only what is about the person.
+test('the account menu holds only what is about the person', () => {
   const ids = (reachable: boolean) =>
     account({ isAdministrationReachable: reachable, isInstanceReachable: false }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'administration', 'help', 'about', 'sign-out']);
-  assert.deepEqual(ids(false), ['profile', 'help', 'about', 'sign-out']);
-});
-
-// UC-TIM-02 check 8, UC-INS-21 check 4: *My time* and the time page are drawn only where the time
-// module is on.
-test('the time rows are drawn only where the time module is on', () => {
-  const menu = (modulesOn?: readonly string[]) =>
-    account({ isAdministrationReachable: true, isInstanceReachable: false, modulesOn }).map((destination) => destination.id);
-  assert.ok(!menu().includes('time'));
-  assert.ok(!menu(['PLANNING']).includes('time'));
-  assert.deepEqual(menu(['TIME']), ['profile', 'time', 'administration', 'help', 'about', 'sign-out']);
+  assert.deepEqual(ids(true), ['profile', 'appearance', 'help', 'about', 'sign-out']);
+  assert.deepEqual(ids(false), ['profile', 'appearance', 'help', 'about', 'sign-out']);
   const rows = (modulesOn?: readonly string[]) =>
     administration({ hasPrivateHubs: true, modulesOn }).flatMap((group) => group.rows.map((row) => row.id));
   assert.equal(rows().includes('time-settings'), false);
   assert.equal(rows(['TIME']).includes('time-settings'), true);
-});
-
-// UC-GOL-01 check 9, UC-INS-21 check 4: the goals, portfolios and dashboards are reached only
-// where the goals module is on, and the row stays current on each of their pages.
-test('the goals row is drawn only where the goals module is on', () => {
-  const menu = (modulesOn?: readonly string[]) =>
-    account({ isAdministrationReachable: false, isInstanceReachable: false, modulesOn }).map((destination) => destination.id);
-  assert.ok(!menu().includes('goals'));
-  assert.ok(!menu(['TIME']).includes('goals'));
-  assert.ok(menu(['GOALS']).includes('goals'));
+  // UC-GOL-01 check 9: the goals row stays current on each of their pages.
   for (const name of ['goals', 'goal', 'portfolio', 'dashboard']) {
     assert.equal(currentDestination({ name, area: 'end-user' }), 'goals');
   }
@@ -137,7 +164,7 @@ test('the instance row is offered only to an operator, and is absent rather than
   // and a row they cannot use is a row they have to ask about (ADR-0070 §5).
   const ids = (reachable: boolean) =>
     account({ isAdministrationReachable: true, isInstanceReachable: reachable }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'administration', 'instance', 'help', 'about', 'sign-out']);
+  assert.deepEqual(ids(true), ['profile', 'appearance', 'instance', 'help', 'about', 'sign-out']);
   assert.ok(!ids(false).includes('instance'), 'a non-operator was offered the control plane');
 
   // And it is the row every screen of the area is current for, so the menu marks one place rather
@@ -300,4 +327,24 @@ test('the installation offers no AI, platform or plans row where it runs one wor
 test('the jumble is a place only for somebody it is drawn for', () => {
   assert.ok(primary({ hasJumble: true }).some((destination) => destination.id === 'jumble'));
   assert.deepEqual(primary({ hasJumble: false }).map((destination) => destination.id), ['workspace', 'search']);
+});
+
+// user-experience.md §2.7: the navigation's words are plain nouns, translated in every catalogue;
+// a word the same in English and German is a word nobody translated, unless it is a brand or a
+// loanword the German reader uses as it is.
+test('every navigation word is translated, but for a short list of words used as they are', () => {
+  const SAME = new Set(['Hubtask', 'Hubs', 'Installation', 'Whiteboards', 'Workflows', 'Webhooks', 'Tokens']);
+  const codes = [
+    ...DESTINATIONS.map((destination) => destination.code),
+    ...PRODUCTS.map((row) => row.code),
+    ...KEEPING.map((row) => row.code),
+    ...workspaceBand({ isAdministrationReachable: true }).map((row) => row.code),
+    ...ADMINISTRATION.flatMap((group) => [...(group.code ? [group.code] : []), ...group.rows.map((row) => row.code)]),
+    MORE_CODE,
+    'app.nav.products',
+    'app.nav.workspace_band',
+  ];
+  const german = GERMAN as Record<string, string>;
+  const untranslated = [...new Set(codes)].filter((code) => SOURCE[code] === german[code] && !SAME.has(SOURCE[code] as string));
+  assert.deepEqual(untranslated, [], `the same in both: ${untranslated.map((code) => `${code}=${SOURCE[code]}`).join(', ')}`);
 });

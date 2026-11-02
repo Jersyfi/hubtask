@@ -10,6 +10,7 @@ import { test } from 'node:test';
 
 import type { Capabilities, Container } from '@hubtask/sync-engine';
 
+import { PRODUCTS } from '../navigation.ts';
 import { collectionOffers, containerOffers, contextOf, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
 
@@ -190,4 +191,20 @@ test('an operator reaches the installation; on a multi-workspace installation it
 test('the account\'s verbs are rows that perform them', () => {
   const signOut = placeOffers(MEMBER_REACH, t).find((offer) => offer.id === 'sign-out');
   assert.deepEqual(signOut?.target, { kind: 'account', action: 'sign-out' });
+});
+
+// user-experience.md §5.3: every product that is on contributes a source of its own, found by its
+// synonyms too; a product that is off contributes none.
+test('every product that is on is a place of the palette, found by its synonyms', () => {
+  const on = ['PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
+  const offers = placeOffers({ ...MEMBER_REACH, modulesOn: on }, t);
+  for (const row of PRODUCTS) {
+    const offer = offers.find((each) => each.target.kind === 'route' && each.target.path === row.path);
+    assert.ok(offer, `${row.module} is no place of the palette`);
+    assert.equal(offer?.keywords, row.words, `${row.module} carries no synonyms`);
+  }
+  const none = placeOffers({ ...MEMBER_REACH, modulesOn: [] }, t);
+  for (const row of PRODUCTS) {
+    assert.ok(!none.some((each) => each.target.kind === 'route' && each.target.path === row.path), `${row.module} is offered while off`);
+  }
 });

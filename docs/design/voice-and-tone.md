@@ -53,6 +53,13 @@ something the reader is entitled to** ("Too many requests. Please try again in a
 **Hubtask is asking for work it caused** ("Please try again in a moment" after a dependency
 failed). Asking somebody to sign in is neither.
 
+**1.8 The navigation says plain, conventional nouns** ([`user-experience.md`](../architecture/user-experience.md)
+§2.7): *Inbox*, not "Jumble"; *Audit log*, not "The trail"; *Rule runs*, *Privacy requests*,
+*Rules*. A coined word is found by nobody who has not been told it. The identifiers stay; the old
+word is kept as a synonym (`words` in `navigation.ts`) so the palette still finds it, and a test
+fails where a navigation word is the same in English and German without being a brand or a
+loanword used as it is.
+
 ---
 
 ## 2. Buttons

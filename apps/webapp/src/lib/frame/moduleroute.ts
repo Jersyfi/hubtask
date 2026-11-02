@@ -15,7 +15,19 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
 };
 
 /** The module the route's page belongs to, or none. */
-export const moduleOfRoute = (route: string): string | undefined => ROUTE_MODULES[route];
+/** The products' homes drawn by the one home view, by route (user-experience.md §2.2). */
+export const PRODUCT_HOMES: Readonly<Record<string, string>> = {
+  'plans-home': 'PLANNING',
+  'pages-home': 'KNOWLEDGE',
+  'whiteboards-home': 'WHITEBOARD',
+  'desk-home': 'SERVICE_DESK',
+  'assets-home': 'ASSETS',
+  'agents-home': 'AGENTS',
+};
+
+// A product's home reached by a link while its module is off draws the neutral screen with its way
+// forward (user-experience.md §2.8), not an empty list.
+export const moduleOfRoute = (route: string): string | undefined => ROUTE_MODULES[route] ?? PRODUCT_HOMES[route];
 
 /**
  * The module the page belongs to where it is off in the workspace; none while the manifest is
