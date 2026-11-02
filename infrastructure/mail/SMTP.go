@@ -79,9 +79,9 @@ func (s SMTP) Send(ctx context.Context, message port.Message) error {
 		return err
 	}
 	if s.config.Host == "" {
-		// Not configured is a dependency that is down rather than a programming error: an
-		// installation that never set HUBTASK_SMTP_HOST is one whose notifications wait, which is
-		// what /meta/health says about it (observability-reliability.md §7).
+		// Not configured is a dependency that is down rather than a programming error. A
+		// notification never gets here then - it is suppressed before the send
+		// (observability-reliability.md §7).
 		return unavailable(errors.New("no mail server is configured"))
 	}
 

@@ -274,6 +274,25 @@ func TestSwitchingOffWhileTheMessageWaitsSuppressesIt(t *testing.T) {
 	}
 }
 
+// An installation without a mail server sends no email by its operator's decision: the record is
+// suppressed with that reason at once, rather than retried into a dead letter nothing will drain.
+func TestWithoutAMailServerTheMessageIsSuppressedNotRetried(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	fixture.delivery.WithoutMail = true
+	fixture.mailbox.err = shared.ErrUnavailable.WithDetail("dependency.unavailable")
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering without a mail server failed the job, which the queue retries: %v", err)
+	}
+	if len(fixture.mailbox.sent) != 0 || len(fixture.signals.failed) != 0 {
+		t.Errorf("sent %v, failed %v - nothing is tried", fixture.mailbox.sent, fixture.signals.failed)
+	}
+	stored := fixture.stored(t)
+	if stored.State != domain.StateSuppressed || stored.Reason != domain.ReasonNoMailServer {
+		t.Errorf("record %+v - it has to say why", stored)
+	}
+}
+
 // SMTP down means the notification waits: the record stays pending, the error comes back, and the
 // queue's retry is what catches up (observability-reliability.md §7).
 func TestAnUnreachableServerLeavesTheNotificationWaiting(t *testing.T) {

@@ -843,6 +843,7 @@
   "notifications.channel_unknown": "{value} ist kein Benachrichtigungskanal.",
   "notifications.category_off": "Du hast Benachrichtigungen dieser Art ausgeschaltet.",
   "notifications.no_address": "Es gibt keine E-Mail-Adresse, an die das gehen könnte.",
+  "notifications.no_mail_server": "Diese Installation verschickt keine E-Mails, darum wurde nichts verschickt.",
   "notifications.self_caused": "Das hast du selbst getan, darum wurde nichts verschickt.",
   "notifications.delivery_failed": "Diese Nachricht ließ sich nicht zustellen.",
   "notifications.payload_malformed": "Diese Installation konnte ein Ereignis, das sie bekannt geben wollte, nicht lesen.",

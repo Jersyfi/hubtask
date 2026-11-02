@@ -170,6 +170,9 @@ const (
 	// ReasonNoAddress is a recipient with no email address to send to. A suppression rather than a
 	// failure: nothing is going to change by trying again.
 	ReasonNoAddress = "notifications.no_address"
+	// ReasonNoMailServer is an installation that sends no email at all: the operator's decision,
+	// so a suppression - retrying would only fill the dead letters.
+	ReasonNoMailServer = "notifications.no_mail_server"
 	// ReasonSelfCaused is somebody being told about their own action. Suppressed for everybody's
 	// sanity: an assignment you made to yourself is not news.
 	ReasonSelfCaused = "notifications.self_caused"

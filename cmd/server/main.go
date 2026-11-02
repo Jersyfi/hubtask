@@ -4571,6 +4571,8 @@ func run() error {
 		Delivery: notification.DeliverNotification{
 			Notifications: notifications, Preferences: notificationPreferences,
 			Accounts: accounts, Items: items, Mail: mailSender, Renderer: renderer,
+			// No mail server: suppressed at once, not retried into the dead letters.
+			WithoutMail: !cfg.Mail.Configured(),
 			// The subjects that are not an entry: the rule that was switched off,
 			// the subscription that stopped being called.
 			Rules:         postgres.NewAutomationRuleRepository(cursors),

@@ -1325,6 +1325,7 @@
   "notifications.channel_unknown": "{value} is not a notification channel.",
   "notifications.category_off": "You have switched notifications of this kind off.",
   "notifications.no_address": "There is no email address to send this to.",
+  "notifications.no_mail_server": "This installation sends no email, so nothing was sent.",
   "notifications.self_caused": "You did this yourself, so nothing was sent.",
   "notifications.delivery_failed": "This message could not be delivered.",
   "notifications.payload_malformed": "This installation could not read an event it was announcing.",

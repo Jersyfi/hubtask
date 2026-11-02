@@ -180,11 +180,14 @@ type DeliverNotification struct {
 	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
 	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
 	// domain, sends no Reply-To.
-	Replies    ReplyAddresses
-	Mail       mail.Sender
-	Renderer   i18n.Renderer
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
+	Replies ReplyAddresses
+	Mail    mail.Sender
+	// WithoutMail is an installation without a mail server (environment.MailConfig.Configured
+	// false): every message is suppressed at once instead of retried. The zero value mails.
+	WithoutMail bool
+	Renderer    i18n.Renderer
+	UnitOfWork  persistence.UnitOfWork
+	Clock       clock.Clock
 	// Workspaces answers the workspace's own default language, the second link of the chain a
 	// recipient's locale is resolved down (i18n-l10n.md §2) - an invited person has not chosen
 	// one yet, by definition, and the invitation is the first thing they read. Optional: nil
@@ -349,6 +352,9 @@ func (d DeliverNotification) Execute(
 		// Switched off, or nowhere to send, since the record was written. Suppressed with the
 		// reason rather than sent, and the job is done rather than failed.
 		return d.write(ctx, scope, loaded.record.Suppress(loaded.decision.Reason))
+	}
+	if d.WithoutMail {
+		return d.write(ctx, scope, loaded.record.Suppress(domain.ReasonNoMailServer))
 	}
 
 	started := d.Clock.Now()
