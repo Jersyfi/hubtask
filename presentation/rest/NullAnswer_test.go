@@ -43,6 +43,32 @@ func TestAGoalAnswersItsNullMembersAsNull(t *testing.T) {
 	}
 }
 
+// A workspace dashboard has no hub and nobody's own none an owner: both stay null, so the client
+// names the workspace rather than a hub nobody reads.
+func TestADashboardAnswersItsNullPlaceAsNull(t *testing.T) {
+	out := usecase.Output{
+		"id": "01a0e2e0-0000-7000-8000-000000000001", "hub_id": nil, "owner_id": nil, "name": "d",
+		"sharing": "WORKSPACE", "group_ids": []string{}, "widgets": []any{}, "version": 1,
+	}
+	var answer openapi.Dashboard
+	if err := remarshal(out, &answer); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(answer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var read map[string]any
+	if err := json.Unmarshal(raw, &read); err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range []string{"hub_id", "owner_id"} {
+		if value, present := read[member]; !present || value != nil {
+			t.Errorf("%s reads %v, want null", member, value)
+		}
+	}
+}
+
 // OpenAPI 3.1 has no `nullable` keyword: the generator ignores it and answers a null as the
 // type's zero value. A null is spelled in the type (`type: [string, "null"]`) or as an `anyOf`.
 func TestTheContractSpellsNullInTheType(t *testing.T) {
