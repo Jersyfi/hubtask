@@ -51,7 +51,7 @@ export const TOUCHES_ANY_ENTRY: readonly string[] = [ENTRY_LISTS, ANY_ENTRY_DOCU
 
 /**
  * What a write that may move an entry's status makes stale besides: in a collection a workflow
- * runs, ticking an entry off moves it to a done status (D-02), and a step stops or starts its
+ * runs, ticking an entry off moves it to a done status, and a step stops or starts its
  * service-level clocks - so the open entry's steps and clocks are re-read with its document.
  */
 export const TOUCHES_ANY_STATUS: readonly string[] = [...TOUCHES_ANY_ENTRY, '/items/*/steps', '/items/*/sla'];
