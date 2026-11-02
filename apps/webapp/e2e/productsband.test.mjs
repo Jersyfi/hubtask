@@ -54,6 +54,8 @@ function queueOf(body) {
   return narrowing.op === 'IS_NULL' ? 'unassigned' : 'mine';
 }
 const queries = [];
+const releaseOf = (n, name, on, state = 'PLANNED') => ({ id: `01a0e2e0-0000-7000-8000-0000000007${n}`, hub_id: HUB.id, name, description: '', release_on: on, state, released_at: null, notes_page_id: null, version: 1 });
+const RELEASES = [releaseOf('01', 'Winter release with the new planning board and the reworked reports', '2026-12-10'), releaseOf('02', 'Autumn fixes', '2026-11-20'), releaseOf('03', 'Summer', '2026-07-01', 'RELEASED')];
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
@@ -76,6 +78,7 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/releases`)) return route.fulfill({ json: { data: RELEASES } });
     if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: TYPES } });
     if (path.endsWith('/api/v1/items:query')) {
       const body = route.request().postDataJSON();
@@ -319,3 +322,17 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// §2.2: the plans' home lists the releases still to go out, the soonest first.
+test('chromium 375 px, dark: the plans\' home lists the releases to come', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 375, scheme: 'dark', path: '/plans', modulesOn: ['PLANNING'] });
+  t.after(close);
+  const upcoming = page.getByRole('region', { name: 'Releases to come' });
+  await upcoming.waitFor({ timeout: 10_000 });
+  assert.deepEqual(await upcoming.locator('.name').allTextContents(), ['Autumn fixes', RELEASES[0].name]);
+  assert.equal(await upcoming.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}/releases`);
+  await noSidewaysScroll(page, 'plans 375 dark');
+  assert.deepEqual(failures, []);
+});

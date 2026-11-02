@@ -5941,6 +5941,7 @@
   "app.product_home.pages_review": "Waiting for your review",
   "app.product_home.pages_recent": "Recently changed pages",
   "app.product_home.inventory": "Inventory across your hubs",
+  "app.product_home.releases_due": "Releases to come",
   "app.nav.you": "You",
   "app.jumble.title": "Inbox",
   "app.jumble.intro": "Things that arrived by mail, by webhook, or that you captured without a collection. Each one becomes an entry or is dismissed — and a dismissal keeps it readable rather than deleting it.",

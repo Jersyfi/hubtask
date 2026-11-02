@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { agentRows, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, productDoors, recentBoards, recentPages } from './home.ts';
+import { agentRows, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -111,4 +111,12 @@ test('the inventory summary adds the hubs up and says when one has not answered 
   assert.deepEqual(inventorySummary({ h1: health(10, 2, 1), h2: health(5, 1, 0) }, ['h1', 'h2']), { total: 15, wanting: 3, reviewOverdue: 1, isWhole: true });
   assert.deepEqual(inventorySummary({ h1: health(10, 2, 1) }, ['h1', 'h2']), { total: 10, wanting: 2, reviewOverdue: 1, isWhole: false });
   assert.deepEqual(inventorySummary({ h1: health(10, 2, 1), gone: health(9, 9, 9) }, ['h1']), { total: 10, wanting: 2, reviewOverdue: 1, isWhole: true });
+});
+
+// §2.2: the plans' home lists the releases still to go out, the soonest first, across hubs.
+test('the releases to come are the planned ones of the hubs named, the soonest first', () => {
+  const release = (id: string, hub: string, on: string, state = 'PLANNED') => ({ id, hub_id: hub, release_on: on, state });
+  const lists = { h1: [release('b', 'h1', '2026-12-01'), release('gone', 'h1', '2026-10-01', 'RELEASED')], h2: [release('a', 'h2', '2026-11-15')], off: [release('x', 'off', '2026-11-01')] };
+  assert.deepEqual(releasesDue(lists, ['h1', 'h2'], 10).map((each) => each.id), ['a', 'b']);
+  assert.deepEqual(releasesDue(lists, ['h1', 'h2'], 1).map((each) => each.id), ['a']);
 });

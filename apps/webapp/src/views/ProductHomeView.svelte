@@ -20,13 +20,14 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { agentRows, homeTabs, hubScreenOf, inventorySummary, pagesToReview, productDoors, recentBoards, recentPages } from '../lib/product/home.ts';
+  import { agentRows, homeTabs, hubScreenOf, inventorySummary, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { agentsPath } from '../lib/data/agents.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { formatRelative } from '../lib/i18n/datetime.ts';
-  import type { AgentList, CmdbHealth, PageList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { AgentList, CmdbHealth, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
@@ -104,6 +105,12 @@
   const knowledgeHubs = $derived(module === 'KNOWLEDGE' ? hubsWith.map((hub) => hub.id) : []);
   const toReview = $derived(pagesToReview(pagesAt, knowledgeHubs, actor.account?.id));
   const recent = $derived(recentPages(pagesAt, knowledgeHubs, PAGES_SHOWN));
+
+  /** The plans' home lists the releases still to go out (§2.2), the soonest first. */
+  const RELEASES_SHOWN = 8;
+  let releasesAt = $state<Record<string, ReleaseList['data']>>({});
+  eachHub<ReleaseList>('PLANNING', releasesPath, (hubId, data) => (releasesAt = { ...releasesAt, [hubId]: data.data }));
+  const upcoming = $derived(module === 'PLANNING' ? releasesDue(releasesAt, hubsWith.map((hub) => hub.id), RELEASES_SHOWN) : []);
 
   /** The assets' home opens with the inventory's health across hubs (§2.2). */
   let healthAt = $state<Record<string, CmdbHealth>>({});
@@ -217,6 +224,24 @@
             <div><dt>{t('app.assets.problems')}</dt><dd>{inventory.wanting}</dd></div>
             <div><dt>{t('app.assets.review_overdue')}</dt><dd>{inventory.reviewOverdue}</dd></div>
           </dl>
+        </Stack>
+      </section>
+    {/if}
+    {#if upcoming.length > 0}
+      <section aria-labelledby="product-releases">
+        <Stack gap="100">
+          <h2 class="heading" id="product-releases">{t('app.product_home.releases_due')}</h2>
+          <ul class="hubs">
+            {#each upcoming as each (each.id)}
+              <li>
+                <ListRow href={`/hubs/${each.hub_id}/releases`} onactivate={() => onnavigate(`/hubs/${each.hub_id}/releases`)} label={each.name}>
+                  {#snippet leading()}<Icon name="flag" size="sm" />{/snippet}
+                  <span class="name" title={each.name}>{each.name}</span>
+                  <span class="purpose">{[hubName(each.hub_id), t('app.releases.due_on', { day: each.release_on })].filter(Boolean).join(' · ')}</span>
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
         </Stack>
       </section>
     {/if}

@@ -190,3 +190,19 @@ export function inventorySummary(
   }
   return { total, wanting, reviewOverdue, isWhole: hubIds.every((hubId) => healths[hubId] !== undefined) };
 }
+
+/**
+ * The releases still to go out across the hubs where planning is on (§2.2), the soonest first,
+ * at most `limit`. A day is compared as text: `release_on` is a calendar date, not an instant.
+ */
+export function releasesDue<R extends { readonly hub_id: string; readonly state: string; readonly release_on: string }>(
+  lists: Readonly<Record<string, readonly R[]>>,
+  hubIds: readonly string[],
+  limit: number,
+): R[] {
+  return hubIds
+    .flatMap((hubId) => lists[hubId] ?? [])
+    .filter((release) => release.state === 'PLANNED')
+    .sort((a, b) => (a.release_on < b.release_on ? -1 : a.release_on > b.release_on ? 1 : 0))
+    .slice(0, limit);
+}
