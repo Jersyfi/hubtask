@@ -117,6 +117,29 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await changeDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByRole('heading', { name: 'Ship the suite to everyone' }).first().waitFor({ timeout: 5_000 });
 
+  // The goal's title in the list is a link in the design system's colour, in light and dark -
+  // never the browser's blue - and so is every other link in the region.
+  await page.goto(`${served.origin}/goals`);
+  const titleLink = page.locator('main a', { hasText: 'Ship the suite to everyone' }).first();
+  await titleLink.waitFor({ timeout: 5_000 });
+  for (const colorScheme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme });
+    const colours = await page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--text-brand)';
+      document.body.append(probe);
+      const brand = getComputedStyle(probe).color;
+      probe.remove();
+      return { brand, links: [...document.querySelectorAll('main a')].map((each) => getComputedStyle(each).color) };
+    });
+    assert.ok(colours.links.length > 0, 'no link in the list');
+    for (const colour of colours.links) {
+      assert.ok(!['rgb(0, 0, 238)', 'rgb(85, 26, 139)'].includes(colour), `${colorScheme}: a link keeps the browser's colour ${colour}`);
+    }
+    assert.equal(await titleLink.evaluate((each) => getComputedStyle(each).color), colours.brand, `${colorScheme}: the goal's title is not in the brand colour`);
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+
   await page.goto(`${served.origin}/goals?tab=dashboards`);
   await page.getByRole('button', { name: 'New dashboard' }).first().click();
   const boardDialog = page.getByRole('dialog', { name: 'New dashboard' });

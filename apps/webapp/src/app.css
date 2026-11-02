@@ -55,6 +55,13 @@ p {
   color: var(--text-secondary);
 }
 
+/* A link a component leaves unstyled - a title in a table row, a sentence's link - takes the
+   brand's text colour, never the browser's blue, which is unreadable on the dark canvas. Without
+   specificity, so a component's own colour always wins. */
+:where(a:any-link) {
+  color: var(--text-brand);
+}
+
 /* The data style of design-system.md §3: IDs, timestamps, counters. */
 code {
   font-family: var(--font-mono);
