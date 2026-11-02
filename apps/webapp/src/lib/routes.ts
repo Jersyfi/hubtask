@@ -184,6 +184,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'portal', pattern: '/portal/:id' },
   // A hub's whiteboards and one of them (M4), addressed as a page is.
   { name: 'hub-whiteboards', pattern: '/hubs/:id/whiteboards' },
+  // A hub's desk (user-experience.md §2.4): the handler's queues across its desk collections.
+  { name: 'hub-desk', pattern: '/hubs/:id/desk' },
   { name: 'whiteboard', pattern: '/whiteboards/:id' },
   // A hub's or a collection's plan (M2): the schedule as a Gantt chart and as a table.
   { name: 'hub-plan', pattern: '/hubs/:id/plan' },

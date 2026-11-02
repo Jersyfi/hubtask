@@ -30,6 +30,9 @@
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
+  import DeskQueues from '../lib/servicedesk/DeskQueues.svelte';
+  import { desksOf } from '../lib/servicedesk/queues.ts';
+  import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
 
   interface Props {
     module: string;
@@ -122,6 +125,26 @@
   const workingAgents = $derived(agentList ? agentRows(agentList, actor.account?.id, reachesAdministrationArea() === true) : []);
   const agentTone = (status: string) => (status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'warning' : 'neutral');
 
+  /**
+   * The desk's home: the handler's queues across every desk collection of the hubs where the desk
+   * is on (§2.2). Each hub's collections and the types are read to know which collections are desks.
+   */
+  const deskHubKey = $derived(module === 'SERVICE_DESK' ? hubsWith.map((hub) => hub.id).join(',') : '');
+  $effect(() => {
+    const ids = deskHubKey === '' ? [] : deskHubKey.split(',');
+    return untrack(() => {
+      const stops = [...ids.map((hubId) => containers.openLevel(hubId)), ...(ids.length > 0 ? [entryTypes.open()] : [])];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const typesReady = $derived(entryTypes.state !== undefined && entryTypes.state.status !== 'idle' && entryTypes.state.status !== 'loading');
+  const desksAt = $derived(
+    module === 'SERVICE_DESK' && typesReady && hubsWith.every((hub) => !containers.isLevelLoading(hub.id))
+      ? Object.fromEntries(hubsWith.map((hub) => [hub.id, desksOf(containers.collectionsOf(hub.id), entryTypes.all)]))
+      : undefined,
+  );
+  const hasDesks = $derived(desksAt !== undefined && Object.values(desksAt).some((ids) => ids.length > 0));
+
   const doors = $derived(productDoors(module, { isAdministrationReachable: reachesAdministrationArea() === true }));
   const creation = $derived(hubCreationHere());
   const mayCreateHub = $derived(creation === 'shared' || creation === 'private');
@@ -163,6 +186,9 @@
       </ul>
     {/if}
 
+    {#if hasDesks && desksAt}
+      <DeskQueues desks={desksAt} withHub {onnavigate} />
+    {/if}
     {#if workingAgents.length > 0}
       <section aria-labelledby="product-agents">
         <Stack gap="100">

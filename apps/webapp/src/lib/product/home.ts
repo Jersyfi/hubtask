@@ -37,7 +37,7 @@ export function homeTabs(module: string): readonly HomeTab[] {
 
 /**
  * The hub's own screen of a product, which the home's hub row opens; nothing for a product with no
- * screen per hub. The desk lists its queues in the hub's collections, so a hub row opens the hub.
+ * screen per hub.
  */
 export function hubScreenOf(module: string, hubId: string): string | undefined {
   const at = `/hubs/${encodeURIComponent(hubId)}`;
@@ -51,7 +51,7 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
     case 'ASSETS':
       return `${at}/assets`;
     case 'SERVICE_DESK':
-      return at;
+      return `${at}/desk`;
     default:
       return undefined;
   }

@@ -45,6 +45,7 @@ export function placeTabs(input: PlaceTabInput): PlaceTabEntry[] {
         : []),
       ...(on('KNOWLEDGE') ? [{ id: 'pages', code: 'app.pages.title', icon: 'book-open' as const, href: `${base}/pages` }] : []),
       ...(on('WHITEBOARD') ? [{ id: 'whiteboards', code: 'app.whiteboards.title', icon: 'layout-template' as const, href: `${base}/whiteboards` }] : []),
+      ...(on('SERVICE_DESK') ? [{ id: 'desk', code: 'app.place_tabs.desk', icon: 'inbox' as const, href: `${base}/desk` }] : []),
       ...(on('ASSETS') ? [{ id: 'assets', code: 'app.assets.title', icon: 'shield' as const, href: `${base}/assets` }] : []),
       ...(on('TIME') ? [timeTab(base)] : []),
       ...(on('GOALS')
@@ -87,6 +88,7 @@ export function placeTabOf(route: string, query: Readonly<Record<string, string 
     case 'collection-sprints': return { tab: 'sprints' };
     case 'hub-pages': return { tab: 'pages' };
     case 'hub-whiteboards': return { tab: 'whiteboards' };
+    case 'hub-desk': return { tab: 'desk' };
     case 'hub-assets':
     case 'hub-assets-section': return { tab: 'assets' };
     case 'hub-actuals':

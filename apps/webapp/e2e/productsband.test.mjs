@@ -32,6 +32,28 @@ const PAGES = [
   pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true }),
 ];
 const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
+const DESK = { id: '01a0e2e0-0000-7000-8000-000000000501', type: 'COLLECTION', parent_id: HUB.id, name: 'IT help desk for every office and every remote worker', order_key: 'a0', version: 1, structure: { settings: { entry_types: { TASK: ['incident'] } } } };
+const SCRUM = { id: '01a0e2e0-0000-7000-8000-000000000502', type: 'COLLECTION', parent_id: HUB.id, name: 'Sprint work', order_key: 'a1', version: 1, structure: { settings: { entry_types: { TASK: ['story'] } } } };
+const TYPES = [
+  { key: 'incident', level: 'TASK', name: 'Incident', system: false, position: 1, archived: false, form: { channels: [{ channel: 'PORTAL' }] } },
+  { key: 'story', level: 'TASK', name: 'Story', system: false, position: 2, archived: false },
+];
+const ticket = (n, title) => ({ id: `01a0e2e0-0000-7000-8000-0000000006${n}`, type: 'TASK', entry_type: 'incident', collection_id: DESK.id, title, completion: { mode: 'BINARY', is_completed: false }, version: 1 });
+/** Each queue's answer, by its narrowing: what the server would hold for this reader. */
+const QUEUES = {
+  mine: [ticket('01', 'The printer on the third floor prints every page twice and nobody knows why')],
+  unassigned: [ticket('02', 'VPN drops at noon'), ticket('03', 'New laptop for Ana')],
+  breaching: [],
+  open: [ticket('01', 'The printer on the third floor prints every page twice and nobody knows why'), ticket('02', 'VPN drops at noon'), ticket('03', 'New laptop for Ana')],
+};
+function queueOf(body) {
+  const nodes = body?.filter?.nodes ?? [];
+  const narrowing = nodes[2];
+  if (!narrowing) return 'open';
+  if (narrowing.field === 'sla_standing') return 'breaching';
+  return narrowing.op === 'IS_NULL' ? 'unassigned' : 'mine';
+}
+const queries = [];
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
@@ -54,6 +76,14 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
+    if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: TYPES } });
+    if (path.endsWith('/api/v1/items:query')) {
+      const body = route.request().postDataJSON();
+      queries.push(body);
+      const rows = QUEUES[queueOf(body)];
+      return route.fulfill({ json: { data: rows, groups: [], page: { next_cursor: null, has_more: false }, total: rows.length } });
+    }
+    if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === HUB.id) return route.fulfill({ json: { ...PAGE, data: [DESK, SCRUM] } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
@@ -252,6 +282,40 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     const figures = await inventory.locator('dl > div').evaluateAll((rows) => rows.map((row) => `${row.querySelector('dt')?.textContent}=${row.querySelector('dd')?.textContent}`));
     assert.deepEqual(figures, ['Configuration items=42', 'Found wanting=2', 'Review overdue=4']);
     await noSidewaysScroll(page, `assets ${width} ${scheme}`);
+    assert.deepEqual(failures, []);
+  });
+}
+
+// §2.2, §2.4, §7.4: the desk's home and a hub's Desk tab draw the handler's queues across the
+// hub's desk collections only, with their counts, what breaks first on top (UC-SVC-03).
+for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
+  test(`chromium ${width} px, ${scheme}: the desk's home and the hub's Desk tab draw the queues`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    queries.length = 0;
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/desk', modulesOn: ['SERVICE_DESK'] });
+    t.after(close);
+    const queues = page.getByRole('tablist', { name: 'Queues' });
+    await queues.getByRole('tab', { name: 'Mine (1)' }).waitFor({ timeout: 10_000 });
+    assert.deepEqual(await queues.getByRole('tab').allTextContents(), ['Mine (1)', 'Unassigned (2)', 'About to breach (0)', 'All open (3)']);
+    // Only the desk is asked, by what breaks first, counted.
+    assert.ok(queries.length > 0 && queries.every((body) => JSON.stringify(body.filter.nodes[0]) === JSON.stringify({ op: 'IN', field: 'collection_id', value: [DESK.id] }) && body.sort[0].field === 'sla_due' && body.count === 'exact'), JSON.stringify(queries));
+    await queues.getByRole('tab', { name: 'Unassigned (2)' }).click();
+    const panel = page.getByRole('tabpanel');
+    await panel.getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 5_000 });
+    await queues.getByRole('tab', { name: 'About to breach (0)' }).click();
+    await panel.getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
+    await noSidewaysScroll(page, `desk home ${width} ${scheme}`);
+
+    await page.goto(`${served.origin}/hubs/${HUB.id}/desk`);
+    const strip = page.getByRole('navigation', { name: HUB.name });
+    await strip.getByRole('link', { name: 'Desk' }).waitFor({ timeout: 10_000 });
+    assert.equal(await strip.getByRole('link', { name: 'Desk' }).getAttribute('aria-current'), 'page');
+    const desks = page.getByRole('region', { name: 'Desks' });
+    await desks.waitFor({ timeout: 10_000 });
+    assert.deepEqual(await desks.locator('.name').allTextContents(), [DESK.name]);
+    await page.getByRole('tab', { name: 'All open (3)' }).waitFor({ timeout: 10_000 });
+    await noSidewaysScroll(page, `hub desk ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
 }

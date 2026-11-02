@@ -97,6 +97,7 @@
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
+    HubDeskView: () => import('./views/HubDeskView.svelte'),
     ApprovalsView: () => import('./views/ApprovalsView.svelte'),
     ServiceDeskView: () => import('./views/ServiceDeskView.svelte'),
     PortalView: () => import('./views/PortalView.svelte'),
@@ -560,6 +561,10 @@
           onnavigate: (path: string) => router.navigate(path),
         }}
       />
+    {/key}
+  {:else if route.name === 'hub-desk'}
+    {#key route.path}
+      <LazyView load={views.HubDeskView} props={{ hubId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'hub-plan' || route.name === 'collection-plan'}
     {#key route.path}

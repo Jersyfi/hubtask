@@ -11,7 +11,7 @@ const ALL = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK',
 const ids = (tabs: { id: string }[]) => tabs.map((tab) => tab.id);
 
 test('a hub with every module on draws its tabs in the one fixed order (user-experience.md §2.4)', () => {
-  assert.deepEqual(ids(placeTabs({ type: 'HUB', id: 'h', modulesOn: ALL })), ['overview', 'plan', 'pages', 'whiteboards', 'assets', 'time', 'goals']);
+  assert.deepEqual(ids(placeTabs({ type: 'HUB', id: 'h', modulesOn: ALL })), ['overview', 'plan', 'pages', 'whiteboards', 'desk', 'assets', 'time', 'goals']);
 });
 
 test('a hub with no module on keeps only its overview (UC-INS-21 check 3)', () => {
@@ -20,7 +20,7 @@ test('a hub with no module on keeps only its overview (UC-INS-21 check 3)', () =
 
 test('each module switched off takes exactly its own tab away and reorders nothing', () => {
   const full = ids(placeTabs({ type: 'HUB', id: 'h', modulesOn: ALL }));
-  for (const [module, tab] of [['PLANNING', 'plan'], ['KNOWLEDGE', 'pages'], ['WHITEBOARD', 'whiteboards'], ['ASSETS', 'assets'], ['TIME', 'time'], ['GOALS', 'goals']] as const) {
+  for (const [module, tab] of [['PLANNING', 'plan'], ['KNOWLEDGE', 'pages'], ['WHITEBOARD', 'whiteboards'], ['SERVICE_DESK', 'desk'], ['ASSETS', 'assets'], ['TIME', 'time'], ['GOALS', 'goals']] as const) {
     const without = ids(placeTabs({ type: 'HUB', id: 'h', modulesOn: ALL.filter((each) => each !== module) }));
     assert.deepEqual(without, full.filter((each) => each !== tab), module);
   }
@@ -34,7 +34,7 @@ test('a collection offers its portal only where it acts as a desk', () => {
 test('every view a tab holds is reached by a route that names that tab current', () => {
   const routeOf: Record<string, string> = {
     '/hubs/h': 'hub', '/hubs/h/plan': 'hub-plan', '/hubs/h/releases': 'hub-releases', '/hubs/h/pages': 'hub-pages',
-    '/hubs/h/whiteboards': 'hub-whiteboards', '/hubs/h/assets': 'hub-assets', '/hubs/h/actuals': 'hub-actuals', '/hubs/h/workload': 'hub-workload',
+    '/hubs/h/whiteboards': 'hub-whiteboards', '/hubs/h/desk': 'hub-desk', '/hubs/h/assets': 'hub-assets', '/hubs/h/actuals': 'hub-actuals', '/hubs/h/workload': 'hub-workload',
   };
   for (const tab of placeTabs({ type: 'HUB', id: 'h', modulesOn: ALL })) {
     for (const href of [tab.href, ...(tab.views ?? []).map((view) => view.href)]) {

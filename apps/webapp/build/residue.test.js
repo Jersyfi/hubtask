@@ -274,6 +274,7 @@ async function views() {
     ['portal-request', await load('PortalRequestView'), { id: ITEM, onnavigate: noop }],
     ['portal-article', await load('PortalArticleView'), { collectionId: COLLECTION, pageId: ITEM, onnavigate: noop }],
     ['hub-whiteboards', await load('WhiteboardsView'), { hubId: COLLECTION, onnavigate: noop }],
+    ['hub-desk', await load('HubDeskView'), { hubId: COLLECTION, onnavigate: noop }],
     ['whiteboard', await load('WhiteboardsView'), { boardId: ITEM, onnavigate: noop }],
     ['hub-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
     ['collection-plan', await load('PlanView'), { planId: COLLECTION, onnavigate: noop }],
