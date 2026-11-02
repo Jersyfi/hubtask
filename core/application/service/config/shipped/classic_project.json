@@ -1,6 +1,6 @@
 {
   "key": "classic_project",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -94,6 +94,14 @@
             },
             {
               "key": "notes",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.probability",
+              "section": "work"
+            },
+            {
+              "key": "custom_fields.impact",
               "section": "work"
             }
           ]

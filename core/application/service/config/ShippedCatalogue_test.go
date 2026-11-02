@@ -198,3 +198,27 @@ func TestEveryShippedTemplateIsOneAWorkspaceCanTake(t *testing.T) {
 		}
 	}
 }
+
+// A template taken into an empty workspace raises no finding of the configuration check, a
+// warning included: an administrator's first look at the overview must not say the product's own
+// template is misconfigured.
+func TestEveryShippedTemplatePassesTheConfigurationCheck(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, template := range templates {
+		in := checkedBase()
+		if in.Workspace, err = asJSON(template.Document); err != nil {
+			t.Fatal(err)
+		}
+		if template.Hub != nil {
+			if in.Hub, err = asJSON(template.Hub); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, finding := range domain.CheckDocument(in) {
+			t.Errorf("%s: %s at %s %v", template.Key, finding.Code, finding.Path, finding.Params)
+		}
+	}
+}

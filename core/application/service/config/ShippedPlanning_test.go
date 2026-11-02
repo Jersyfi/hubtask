@@ -46,7 +46,7 @@ func TestThePlanningTemplatesAreWholeWaysOfWorking(t *testing.T) {
 			t.Errorf("%s is not shipped", key)
 			continue
 		}
-		if template.Origin != domain.OriginHubtask || template.Version != 1 || !reservedKey(key) {
+		if template.Origin != domain.OriginHubtask || template.Version < 1 || !reservedKey(key) {
 			t.Errorf("%s is %v %d", key, template.Origin, template.Version)
 		}
 		for name := range template.Document {
