@@ -39215,9 +39215,12 @@ components:
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
             `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
-            `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open` and
+            `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`,
             `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has
-            an address there).
+            an address there) and `encryption` (the installation holds an encryption key, so a
+            secret a workspace keeps - a webhook's signing secret, a backup target's or a
+            connector's credentials - can be stored; without one, a client does not offer the
+            form that would be refused).
 
             `setup_open` is `true` exactly while the installation has no workspace and nobody in its
             operator register: then `POST /auth/installation:set-up` is offered, and a client shows

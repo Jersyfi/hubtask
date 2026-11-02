@@ -584,6 +584,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// encryption keyring is offering a form that will be refused at the end; the manifest
 			// says so first.
 			"backup_encryption": g.Config.Encryption.ActiveKeyID() != "",
+			// The same keyring for every secret a workspace keeps: a webhook's signing secret
+			// as much as a target's credentials. Named for what it is, so a webhook form need
+			// not ask a backup's name.
+			"encryption": g.Config.Encryption.ActiveKeyID() != "",
 			// Whether the caller's tenant may configure a target of its own. Always true when
 			// this installation serves one tenant - there the owner is the operator - and the
 			// operator's switch otherwise (backup-restore.md §2).
