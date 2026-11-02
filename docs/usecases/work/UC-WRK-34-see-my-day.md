@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
-state: verified
+state: partial
 tasks: [UX-15]
-checked_by: [apps/webapp/e2e/today.test.mjs, apps/webapp/src/lib/today.test.ts, apps/webapp/e2e/looks.test.mjs]
+checked_by: [apps/webapp/e2e/today.test.mjs, apps/webapp/e2e/todaybands.test.mjs, apps/webapp/src/lib/today.test.ts, apps/webapp/e2e/looks.test.mjs]
 ---
 
 # See my day
@@ -29,6 +29,11 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 5. Recently opened places on this device are listed.
 6. What is overdue is said as overdue, without blame: the glance counts it, its band is *Overdue* and its rows carry the overdue mark with the date; no "you missed" anywhere. (Changed 2026-10-24 by the product owner: the person wants to see at once what is late.)
 7. The page greets the person by the time of their day and says at a glance how much is due today, how much is coming up, what waits in the jumble and what is open on them, each figure a link to those entries.
+8. Where a product is on, *Today* shows its band (*Needs your answer*, *Waiting for your yes*, *Time today*, *Sprint*) fed by the product's own reads, and none where it is off. (Added 2026-10-31 by the product owner's decision to build the user-experience direction, `user-experience.md` §3.3 and §9.)
+
+## Today
+
+* Check 8: not met — *Needs your answer* and *Sprint* are missing (no read answers the desk entries a reader holds with a running SLA target across hubs, nor the running sprint a reader is in), *Waiting for your yes* lists approvals but not held agent acts or pages waiting for review, and the *Today* row carries no band counts; tracked in `user-experience.md` §11 step 15.
 
 ## Where it ends
 

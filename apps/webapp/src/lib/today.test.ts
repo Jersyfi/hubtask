@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery } from './today.ts';
+import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, timeTodayOf } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -86,4 +86,19 @@ test('the greeting follows the hour where the person is, not where the device is
   assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 4, 59)), 'evening');
   assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 11, 0)), 'day');
   assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 18, 0)), 'evening');
+});
+
+test('a product band stands only where its module is on, and none before the modules are known', () => {
+  assert.deepEqual(productBandsOf(undefined), []);
+  assert.deepEqual(productBandsOf([]), []);
+  assert.deepEqual(productBandsOf(['KNOWLEDGE', 'GOALS']), []);
+  assert.deepEqual(productBandsOf(['TIME']), ['time']);
+  assert.deepEqual(productBandsOf(['TIME', 'SERVICE_DESK', 'PLANNING']), ['approvals', 'time']);
+});
+
+test('time today is the day\'s recorded minutes against the week, with the running timer beside', () => {
+  const week = { minutes: 600, days: [{ day: '2026-11-02', minutes: 240, locked: false }, { day: '2026-11-03', minutes: 360, locked: false }] };
+  assert.deepEqual(timeTodayOf(week, '2026-11-03', { running: false }), { today: 360, week: 600, running: undefined });
+  assert.deepEqual(timeTodayOf(week, '2026-11-04', { running: true, elapsed_minutes: 25, entry_id: 'e1' }), { today: 0, week: 600, running: { minutes: 25, entryId: 'e1' } });
+  assert.equal(timeTodayOf(undefined, '2026-11-04', { running: false }), undefined, 'not drawn before the week is read');
 });

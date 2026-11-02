@@ -108,3 +108,39 @@ export function greetingOf(zone: string, now: number): DayPart {
   if (hour >= 11 && hour < 18) return 'day';
   return 'evening';
 }
+
+/** A band *Today* draws for a product (user-experience.md §3.3), in the order it is drawn. */
+export type ProductBand = 'approvals' | 'time';
+
+/**
+ * The product bands, each only where its module is on (UC-WRK-34 check 8): none while the modules
+ * are unknown, because a band whose read the server refuses would be an error, not a day.
+ */
+export function productBandsOf(modulesOn: readonly string[] | undefined): ProductBand[] {
+  const on = new Set(modulesOn ?? []);
+  return [
+    ...(on.has('SERVICE_DESK') ? ['approvals' as const] : []),
+    ...(on.has('TIME') ? ['time' as const] : []),
+  ];
+}
+
+/** What *Time today* says: today's recorded minutes, the week's, and the timer while it runs. */
+export interface TimeToday {
+  readonly today: number;
+  readonly week: number;
+  readonly running: { readonly minutes: number; readonly entryId: string | null | undefined } | undefined;
+}
+
+/** Undefined until the week is read: a zero shown before then would be a figure nobody measured. */
+export function timeTodayOf(
+  week: { readonly minutes: number; readonly days: readonly { readonly day: string; readonly minutes: number }[] } | undefined,
+  day: string,
+  timer: { readonly running: boolean; readonly elapsed_minutes?: number; readonly entry_id?: string | null } | undefined,
+): TimeToday | undefined {
+  if (!week) return undefined;
+  return {
+    today: week.days.find((each) => each.day === day)?.minutes ?? 0,
+    week: week.minutes,
+    running: timer?.running ? { minutes: timer.elapsed_minutes ?? 0, entryId: timer.entry_id } : undefined,
+  };
+}

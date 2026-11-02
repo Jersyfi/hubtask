@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { WorkItem } from '@hubtask/sync-engine';
+  import type { ApprovalList, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, ErrorState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -57,7 +57,12 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { bandsOf, greetingOf, isListFigure, isProjectFigure } from '../lib/today.ts';
+  import { bandsOf, greetingOf, isListFigure, isProjectFigure, productBandsOf, timeTodayOf } from '../lib/today.ts';
+  import { approvals, myApprovalsPath } from '../lib/data/approvals.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
+  import { TIMER, elapsedMinutes, minutesText, weekPath, weekStartOf } from '../lib/data/time.svelte.ts';
+  import { todayIn } from '../lib/i18n/zone.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { moreInHubtask } from '../lib/product/home.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { mayCaptureHere } from '../lib/capture/places.svelte.ts';
@@ -306,8 +311,63 @@
   const moreProducts = $derived(isMoreDismissed ? [] : moreInHubtask({ modulesOn: manifest.value?.modules_on, mayShape: holdsHere('STRUCTURE') === true }));
   const hasCompany = $derived(people.along({}).filter((membership) => membership.scope_type === 'TENANT').length > 1);
 
+  /**
+   * The products' bands (user-experience.md §3.3, UC-WRK-34 check 8), each read only where its
+   * module is on - a read of a module that is off is refused, and a refusal is not a day.
+   */
+  const productBands = $derived(productBandsOf(manifest.value?.modules_on));
+  let waitingApprovals = $state<ApprovalList['data'] | undefined>(undefined);
+  $effect(() => {
+    if (!productBands.includes('approvals')) {
+      waitingApprovals = undefined;
+      return;
+    }
+    return untrack(() => engine.subscribe<ApprovalList>({ path: myApprovalsPath }, (next) => {
+      if (next.status === 'ready') waitingApprovals = next.data.data.filter((approval) => approval.state === 'PENDING');
+    }));
+  });
+  async function approve(approval: ApprovalList['data'][number]) {
+    try {
+      await approvals.decide(approval, 'APPROVE', '');
+      toast.show({ text: t('app.approvals.approved_announced'), tone: 'success' });
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+  const day = $derived(todayIn(zone));
+  let week = $state<TimesheetWeek | undefined>(undefined);
+  let timer = $state<TimeTimer | undefined>(undefined);
+  $effect(() => {
+    if (!productBands.includes('time')) {
+      week = undefined;
+      timer = undefined;
+      return;
+    }
+    const path = weekPath(weekStartOf(day) ?? day);
+    return untrack(() => {
+      const stops = [
+        engine.subscribe<TimesheetWeek>({ path }, (next) => { if (next.status === 'ready') week = next.data; }),
+        engine.subscribe<TimeTimer>({ path: TIMER }, (next) => { if (next.status === 'ready') timer = next.data; }),
+      ];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  // A running timer counts on while the page is open; nothing ticks while none runs.
+  let tick = $state(Date.now());
+  $effect(() => {
+    if (!timer?.running) return;
+    tick = Date.now();
+    const every = setInterval(() => (tick = Date.now()), 30_000);
+    return () => clearInterval(every);
+  });
+  const timeToday = $derived.by(() => {
+    const at = timeTodayOf(week, day, timer);
+    return at?.running && timer?.started_at ? { ...at, running: { ...at.running, minutes: elapsedMinutes(timer.started_at, tick) } } : at;
+  });
+  const hasProductBands = $derived((waitingApprovals?.length ?? 0) > 0 || timeToday !== undefined);
+
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
-  const hasSide = $derived(lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
+  const hasSide = $derived(hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
 
   const moment = $derived(celebration.current);
 
@@ -464,6 +524,45 @@
            was opened last. -->
       {#if hasSide}
       <div class="side">
+        <!-- The products' bands first, where the products meet the reader's day (check 8). -->
+        {#if waitingApprovals && waitingApprovals.length > 0}
+          <section class="panel" aria-labelledby="today-approvals" data-band="approvals">
+            <Stack gap="100">
+              <div class="head-row">
+                <h2 class="head" id="today-approvals">{t('app.today.approvals')}</h2>
+                <span class="head-count">{t('app.today.approvals_count', { count: waitingApprovals.length })}</span>
+              </div>
+              <ul class="inbox">
+                {#each waitingApprovals.slice(0, 3) as approval (approval.id)}
+                  {@const title = `${approval.item_number ? `#${approval.item_number} ` : ''}${approval.item_title ?? ''}`}
+                  <li class="arrival">
+                    <span class="channel" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
+                    <a class="subject" href={`/items/${approval.item_id}`}>{title}</a>
+                    <span class="from">{[approval.step, formatRelative(approval.requested_at, messages.locale)].join(' · ')}</span>
+                    {#if approval.may_decide}
+                      <span class="acts">
+                        <Button size="sm" tone="secondary" onclick={() => void approve(approval)}>{t('app.approvals.approve')}</Button>
+                      </span>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+              <p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>
+            </Stack>
+          </section>
+        {/if}
+        {#if timeToday}
+          <section class="panel" aria-labelledby="today-time" data-band="time">
+            <Stack gap="100">
+              <h2 class="head" id="today-time">{t('app.today.time')}</h2>
+              <p class="figures"><b>{minutesText(timeToday.today)}</b> {t('app.today.time_against', { week: minutesText(timeToday.week) })}</p>
+              {#if timeToday.running}
+                <p class="running"><span class="running-mark" aria-hidden="true"><Icon name="clock" size="sm" /></span><span>{t('app.time.timer_running', { minutes: minutesText(timeToday.running.minutes) })}</span>{#if timeToday.running.entryId}<span aria-hidden="true">·</span><a href={`/items/${timeToday.running.entryId}`}>{t('app.time.timer_open')}</a>{/if}</p>
+              {/if}
+              <p class="more"><a href="/time">{t('app.today.time_open')} →</a></p>
+            </Stack>
+          </section>
+        {/if}
         <!-- A list is one tile with its figure, never its entries one by one (check 2). -->
         {#if lists.length > 0}
           <section class="panel" aria-labelledby="today-lists">
@@ -733,6 +832,12 @@
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-100); }
 
   .more { margin: 0; font-size: var(--fs-075); }
+
+  /* *Time today*: the day's figure large, the week beside it, the running timer under it. */
+  .figures { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .figures b { color: var(--text-primary); font-size: var(--fs-300); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
+  .running { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-primary); font-size: var(--fs-100); }
+  .running-mark { display: inline-flex; color: var(--text-success); }
 
   a { color: var(--text-brand); }
 
