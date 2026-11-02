@@ -96,8 +96,12 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
   assert.equal(await page.getByRole('navigation', { name: 'Workspace' }).count(), 0, 'the workspace tree is drawn inside the section');
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  // The way out and ten screens, the calendars pushed to and the file stores among them.
-  assert.equal(rows.length, 11, `the section holds ${rows.length} rows`);
+  // The way out and twelve screens, the calendars pushed to, the file stores and the reader's own
+  // rules and agents among them (the agents' row only while that module is on, as it is here).
+  assert.deepEqual(rows, [
+    'The workspace', 'Name and language', 'On this device', 'Notifications', 'Password and sign-in', 'Signed in',
+    'Devices', 'Apps', 'Access tokens', 'Calendars', 'File stores', 'Rules', 'Agents',
+  ]);
 
   const untrailed = [];
   const unheaded = [];
