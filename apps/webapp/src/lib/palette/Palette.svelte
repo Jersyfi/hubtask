@@ -31,7 +31,7 @@
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
   import { groupOf, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate, type Group, type Row } from './rows.ts';
-  import { collectionOffers, containerOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
+  import { collectionOffers, containerOffers, hubTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
   import { catalogueOffers, type Place } from '../settings/catalogue.ts';
@@ -46,6 +46,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { modules } from '../data/modules.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { itemPath } from '../data/item.svelte.ts';
   import { categoriesOf } from '../data/preferences.ts';
@@ -129,6 +130,34 @@
           .slice(0, 3)
           .flatMap((candidate) => placed.filter((each) => each.container.id === candidate.id)),
   );
+
+  /**
+   * The hubs whose names answer the words best: the three whose views are offered as *Go to*. The
+   * hub on screen offers its own through its head (`ContainerView`), and twice would be noise.
+   */
+  const matchedHubs = $derived(
+    words === ''
+      ? []
+      : rank(
+          placed.filter((each) => each.container.type === 'HUB' && each.container.id !== here.hub).map((each) => ({ kind: 'container' as const, id: each.container.id, label: each.container.name })),
+          words,
+          messages.locale,
+        )
+          .slice(0, 3)
+          .flatMap((candidate) => placed.filter((each) => each.container.id === candidate.id)),
+  );
+  /** The modules on at each matched hub, as the hub answered them; until then its views are not offered. */
+  let hubModules = $state<Record<string, readonly string[]>>({});
+  const askedHubs = $derived(isOpen ? matchedHubs.map((each) => each.container.id).join(',') : '');
+  $effect(() => {
+    const ids = askedHubs === '' ? [] : askedHubs.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
+        if (next.status === 'ready') hubModules = { ...hubModules, [hubId]: next.data.modules_on };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
 
   // ------------------------------------------------------------------------------------------
   // Where the reader stands
@@ -244,6 +273,7 @@
         t,
       }).map((offer) => (offer.id.startsWith('new-in:') ? { ...offer, keywords: t('app.palette.words_create') } : offer)),
     ),
+    ...matchedHubs.flatMap((each) => hubTabOffers(each, manifest.value?.modules_on, hubModules[each.container.id], t)),
     ...placeOffers(reach, t),
     ...settings,
     ...catalogueRows,

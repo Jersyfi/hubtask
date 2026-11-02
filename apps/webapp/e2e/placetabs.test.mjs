@@ -134,3 +134,26 @@ test('chromium 1280 px: the tree mirrors the hub\'s views, and its name is one l
   await page.waitForFunction((id) => location.pathname === `/hubs/${id}/pages`, HUB.id, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
+
+// §5.3: a hub named in the palette offers its views as *Go to <hub> › <tab>*, from any screen,
+// only those on at the hub - Whiteboards is on in the workspace and off at this hub.
+test('chromium 1280 px: the palette goes to a hub\'s views from anywhere', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, {
+    width: 1280, path: '/',
+    modulesOn: ['WHITEBOARD', 'KNOWLEDGE', 'PLANNING'],
+    hubModules: ['KNOWLEDGE', 'PLANNING'],
+  });
+  t.after(close);
+  await page.getByRole('combobox', { name: 'Search everything' }).fill('product development');
+  const goTo = page.getByRole('option', { name: /^Go to Product development/ });
+  await goTo.first().waitFor({ timeout: 10_000 });
+  const names = (await goTo.allTextContents()).map((each) => each.trim());
+  assert.ok(names.some((name) => name.includes('› Pages')), JSON.stringify(names));
+  assert.ok(names.some((name) => name.includes('› Plan')), JSON.stringify(names));
+  assert.ok(!names.some((name) => name.includes('› Whiteboards')), `a view off at the hub is offered: ${JSON.stringify(names)}`);
+  await page.getByRole('option', { name: /› Pages/ }).click();
+  await page.waitForFunction((id) => location.pathname === `/hubs/${id}/pages`, HUB.id, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});

@@ -21,6 +21,8 @@ import { archivalOf } from '../data/containers.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
 import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
+import { modulesHere } from '../data/modules.ts';
+import { placeTabs } from '../workspace/placeTabs.ts';
 import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
@@ -157,6 +159,29 @@ export function collectionOffers(
     });
   }
   return offers;
+}
+
+/**
+ * A hub the reader matched by name offers its views as *Go to <hub> › <tab>* (user-experience.md
+ * §5.3), the tabs its strip draws. `hubOn` is the hub's own answer; before it arrives nothing is
+ * listed, because the workspace's set may be wider than the hub's (UC-INS-21 check 3, P-05).
+ */
+export function hubTabOffers(
+  placed: Placed,
+  workspaceOn: readonly string[] | undefined,
+  hubOn: readonly string[] | undefined,
+  t: Translate,
+): readonly Offer[] {
+  const { container } = placed;
+  if (container.type !== 'HUB' || hubOn === undefined || archivalOf(container) !== 'active') return [];
+  return placeTabs({ type: 'HUB', id: container.id, modulesOn: modulesHere(workspaceOn, hubOn) })
+    .slice(1)
+    .map((tab) => ({
+      kind: 'action' as const,
+      id: `go-to:${container.id}:${tab.id}`,
+      label: t('app.place_tabs.go_to', { place: container.name, tab: t(tab.code) }),
+      target: { kind: 'route' as const, path: tab.href },
+    }));
 }
 
 // ---------------------------------------------------------------------------------------------
