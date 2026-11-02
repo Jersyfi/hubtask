@@ -377,8 +377,8 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (7)
-AppBar · NavDrawer · BottomBar · PageHeader · DetailPane · Logo · ResizeHandle
+### Wave 5 — the shell (8)
+AppBar · NavDrawer · BottomBar · PlaceTabs · PageHeader · DetailPane · Logo · ResizeHandle
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
@@ -391,6 +391,11 @@ the mark the bar carries; how the product uses them is §11.
 * **`BottomBar`** — three to five destinations with a mark and a word, `aria-current`, the bottom
   safe-area inset in its padding. It switches routes, so it is not `Tabs`. It hides, by opacity,
   while an input has focus, so it does not ride the on-screen keyboard over the field.
+* **`PlaceTabs`** — the views of one place (a product's home, a hub, a collection) as one strip
+  under its head ([`user-experience.md`](../architecture/user-experience.md) §2.4, §5.1): a `nav`
+  of links with `aria-current`, because each switches routes — not `Tabs`, for `BottomBar`'s
+  reason. One tab stop, the arrows, Home and End between the links; narrow, it scrolls inside
+  itself with the current link in view and never wraps. An optional mark and count per link.
 * **`PageHeader`** — the breadcrumb (the parent only on `compact`), the title and an optional
   subtitle, **one** primary action, at most two secondary ones, a `Menu` for the rest, and an
   optional second row for a `ViewSwitcher` or `Tabs`. It cannot draw a fourth button. With

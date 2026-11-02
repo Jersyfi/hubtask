@@ -82,6 +82,7 @@ export { default as AppBar, type NavigationToggle } from './AppBar.svelte';
 export { default as NavDrawer } from './NavDrawer.svelte';
 export { default as PageHeader, type PageAction } from './PageHeader.svelte';
 export { default as BottomBar, type Destination } from './BottomBar.svelte';
+export { default as PlaceTabs, type PlaceTab } from './PlaceTabs.svelte';
 export { default as DetailPane } from './DetailPane.svelte';
 export { default as Logo } from './Logo.svelte';
 export { type LogoSize } from './mark.ts';
