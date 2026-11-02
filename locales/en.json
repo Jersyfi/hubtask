@@ -5937,6 +5937,7 @@
   "app.product_home.cmdb_settings": "Configuration item settings",
   "app.product_home.agents_mine": "Agents acting for you",
   "app.product_home.agents_all": "All agents of the workspace",
+  "app.product_home.agents_working": "Working here",
   "app.nav.you": "You",
   "app.jumble.title": "Inbox",
   "app.jumble.intro": "Things that arrived by mail, by webhook, or that you captured without a collection. Each one becomes an entry or is dismissed — and a dismissal keeps it readable rather than deleting it.",

@@ -108,3 +108,25 @@ export function recentBoards<B extends { readonly hub_id: string; readonly updat
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : 0))
     .slice(0, limit);
 }
+
+const AGENT_ORDER: Readonly<Record<string, number>> = { ACTIVE: 0, APPROVED: 1, SUSPENDED: 2, DRAFT: 3 };
+
+/**
+ * The agents working here (§2.2), live ones first, each with the screen the reader may act on it
+ * from: their own on *Agents acting for you*, anybody's in the administration where the reader
+ * reaches it, and none otherwise. A retired agent works nowhere and is left out.
+ */
+export function agentRows<A extends { readonly status: string; readonly owner_id: string | null }>(
+  list: readonly A[],
+  viewerId: string | undefined,
+  isAdministrationReachable: boolean,
+): { readonly agent: A; readonly path: string | undefined }[] {
+  return list
+    .filter((agent) => agent.status !== 'RETIRED')
+    .map((agent, index) => ({ agent, index }))
+    .sort((a, b) => (AGENT_ORDER[a.agent.status] ?? 9) - (AGENT_ORDER[b.agent.status] ?? 9) || a.index - b.index)
+    .map(({ agent }) => ({
+      agent,
+      path: viewerId !== undefined && agent.owner_id === viewerId ? '/profile/agents' : isAdministrationReachable ? '/administration/agents' : undefined,
+    }));
+}

@@ -22,6 +22,8 @@ const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER', disp
 const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'Product development and delivery for the whole company', order_key: 'a0', version: 1 };
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 const board = (n, title, at) => ({ id: `01a0e2e0-0000-7000-8000-0000000001${n}`, hub_id: HUB.id, title, element_count: 3, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1 });
+const agent = (n, name, status, owner) => ({ id: `01a0e2e0-0000-7000-8000-0000000002${n}`, account_id: null, name, purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE', owner_id: owner, status });
+const AGENTS = [agent('01', 'Old sorter', 'RETIRED', ACCOUNT.id), agent('02', 'Request sorter', 'ACTIVE', ACCOUNT.id), agent('03', 'Duplicate finder', 'SUSPENDED', '01a0e2e0-0000-7000-8000-0000000009ff')];
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
@@ -40,6 +42,7 @@ function stubFor({ modulesOn, hubModules }) {
       return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn } });
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
+    if (path.endsWith('/api/v1/agents')) return route.fulfill({ json: { data: AGENTS } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
@@ -195,3 +198,18 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// §2.2: the agents' home lists the agents working here, live first, a retired one not at all.
+test('chromium 1280 px: the agents\' home lists the agents working here', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/agents', modulesOn: ['AGENTS'] });
+  t.after(close);
+  const working = page.getByRole('region', { name: 'Working here' });
+  await working.waitFor({ timeout: 10_000 });
+  const names = await working.locator('[title]').evaluateAll((each) => each.map((node) => node.getAttribute('title')));
+  assert.deepEqual(names, ['Request sorter', 'Duplicate finder']);
+  assert.equal(await working.getByRole('link', { name: 'Request sorter' }).getAttribute('href'), '/profile/agents');
+  assert.match((await working.textContent()) ?? '', /Live[\s\S]*Stopped/u);
+  assert.deepEqual(failures, []);
+});

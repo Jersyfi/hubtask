@@ -5937,6 +5937,7 @@
   "app.product_home.cmdb_settings": "Einstellungen der Konfigurationselemente",
   "app.product_home.agents_mine": "Agenten, die für dich handeln",
   "app.product_home.agents_all": "Alle Agenten des Arbeitsbereichs",
+  "app.product_home.agents_working": "Arbeiten hier",
   "app.nav.you": "Du",
   "app.jumble.title": "Eingang",
   "app.jumble.intro": "Dinge, die per Mail oder Webhook angekommen sind oder die du ohne Sammlung erfasst hast. Jedes wird ein Eintrag oder wird verworfen – und Verwerfen hält es lesbar, statt es zu löschen.",

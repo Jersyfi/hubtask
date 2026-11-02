@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Button, EmptyState, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Badge, Button, EmptyState, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import { markOf } from '../lib/workspace/look.ts';
@@ -20,11 +20,13 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { homeTabs, hubScreenOf, productDoors, recentBoards } from '../lib/product/home.ts';
+  import { agentRows, homeTabs, hubScreenOf, productDoors, recentBoards } from '../lib/product/home.ts';
+  import { agentsPath } from '../lib/data/agents.svelte.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { formatRelative } from '../lib/i18n/datetime.ts';
-  import type { WhiteboardList } from '@hubtask/sync-engine';
+  import type { AgentList, WhiteboardList } from '@hubtask/sync-engine';
   import NotesView from './NotesView.svelte';
 
   interface Props {
@@ -87,6 +89,17 @@
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
   const hubName = (id: string) => containers.find(id)?.name ?? '';
 
+  /** The agents' home lists the agents working here that the reader may see (§2.2). */
+  let agentList = $state<AgentList['data'] | undefined>(undefined);
+  $effect(() => {
+    if (module !== 'AGENTS') return;
+    return untrack(() => engine.subscribe<AgentList>({ path: agentsPath }, (next) => {
+      if (next.status === 'ready') agentList = next.data.data;
+    }));
+  });
+  const workingAgents = $derived(agentList ? agentRows(agentList, actor.account?.id, reachesAdministrationArea() === true) : []);
+  const agentTone = (status: string) => (status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'warning' : 'neutral');
+
   const doors = $derived(productDoors(module, { isAdministrationReachable: reachesAdministrationArea() === true }));
   const creation = $derived(hubCreationHere());
   const mayCreateHub = $derived(creation === 'shared' || creation === 'private');
@@ -128,6 +141,25 @@
       </ul>
     {/if}
 
+    {#if workingAgents.length > 0}
+      <section aria-labelledby="product-agents">
+        <Stack gap="100">
+          <h2 class="heading" id="product-agents">{t('app.product_home.agents_working')}</h2>
+          <ul class="hubs">
+            {#each workingAgents as row (row.agent.id)}
+              <li>
+                <ListRow href={row.path} onactivate={row.path ? () => onnavigate(row.path ?? '/') : undefined} label={row.agent.name}>
+                  {#snippet leading()}<Icon name="zap" size="sm" />{/snippet}
+                  <span class="name" title={row.agent.name}>{row.agent.name}</span>
+                  {#if row.agent.purpose}<span class="purpose">{row.agent.purpose}</span>{/if}
+                  {#snippet trailing()}<Badge tone={agentTone(row.agent.status)} size="sm">{t(`app.agents.status.${row.agent.status}`)}</Badge>{/snippet}
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
+        </Stack>
+      </section>
+    {/if}
     {#if boards.length > 0}
       <section aria-labelledby="product-boards">
         <Stack gap="100">
@@ -207,6 +239,7 @@
   .card-mark { display: inline-flex; color: var(--text-subtle); }
   .card-title { overflow: hidden; font-weight: var(--fw-medium); text-overflow: ellipsis; white-space: nowrap; }
   .card-meta { overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  .purpose { display: block; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .doors, .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
