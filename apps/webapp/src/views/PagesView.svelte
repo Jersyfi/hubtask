@@ -45,6 +45,7 @@
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The hub whose space is drawn; absent when a page's address names only the page. */
@@ -483,6 +484,7 @@
   });
 </script>
 
+{#if hubFromRoute && !pageId}<PlaceStrip placeId={hubFromRoute} current="pages" {onnavigate} />{/if}
 <div class="space">
   <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>
     <Stack gap="100">

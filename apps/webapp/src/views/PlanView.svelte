@@ -52,6 +52,7 @@
   import { SPREADSHEET_TYPE } from '../lib/data/xlsx.ts';
   import PlanImport from '../lib/planning/PlanImport.svelte';
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The hub or collection the plan is. */
@@ -398,6 +399,7 @@
       onselect: (id: string) => void exportAs(id),
     }}
   />
+  <PlaceStrip placeId={planId} current="plan" view="plan" {onnavigate} />
 
   {#if refusal}
     <Banner tone="danger">{refusal}</Banner>

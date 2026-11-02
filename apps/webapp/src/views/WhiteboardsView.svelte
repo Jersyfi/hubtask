@@ -25,6 +25,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The hub whose boards are listed; absent when a board's address names only the board. */
@@ -159,6 +160,7 @@
       </Stack>
       {#if mayWrite}<Button icon="plus" onclick={() => (isCreating = true)}>{t('app.whiteboards.new')}</Button>{/if}
     </Inline>
+    {#if hubFromRoute}<PlaceStrip placeId={hubFromRoute} current="whiteboards" {onnavigate} />{/if}
     {#if listRefusal}
       <Banner tone="danger">{listRefusal}</Banner>
     {:else if !list}

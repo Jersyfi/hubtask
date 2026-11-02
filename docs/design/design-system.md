@@ -1081,6 +1081,12 @@ archived container leaves the tree.
 * **On a hub**: *Create collection*, with *Import* as the secondary action (`POST /imports` needs
   `STRUCTURE` on the hub). The file goes through the media flow; the report is drawn by the same
   component as a restore's dry run, refused rows beneath it by number and code.
+* **Under the head, the place's tab strip** (`PlaceTabs`, user-experience.md §2.4): a hub's
+  *Overview · Plan · Pages · Whiteboards · Assets · Time · Goals*, a collection's *Entries · Plan ·
+  Sprints · Portal · Time*, each only where its module is on there (`lib/workspace/placeTabs.ts`),
+  drawn again on every screen a tab opens; a tab with several views (the plan's releases, time's
+  workload) draws them as a second strip. No product is a head button or an item of the place's
+  menu, which holds only verbs on the place; the palette offers each tab as *Go to <place> › <tab>*.
 * **On a collection**: *Add entry*, which opens capture pointed at the collection — no split, its
   other ways being capture's modes. The filter is the toolbar's, with its count — inline from
   `expanded` up, a `Drawer` below.

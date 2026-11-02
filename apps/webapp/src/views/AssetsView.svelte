@@ -35,6 +35,7 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The hub whose assets are shown; absent when the address names one CI. */
@@ -97,6 +98,7 @@
       {#if hub}<a class="hub" href={`/hubs/${hub.id}`}>{hub.name}</a>{/if}
       <h1 class="title">{t('app.assets.title')}</h1>
     </Stack>
+    {#if hubId}<PlaceStrip placeId={hubId} current="assets" {onnavigate} />{/if}
     {#if classesRefusal}
       <Banner tone="danger">{classesRefusal}</Banner>
     {:else if classesRead.state.status !== 'ready'}

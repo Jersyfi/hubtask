@@ -34,6 +34,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import { goalTone } from '../lib/goals/tone.ts';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the goals where it names none or an unknown one. */
@@ -246,6 +247,7 @@
 
 <Stack gap="300">
   <PageHeader title={hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title')} isTitleInBar={viewport.isCompact} {secondary} />
+  {#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}
 
   <Tabs label={t('app.goals.title')} selected={current} onselect={(next) => onnavigate(address({ tab: next }))} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}

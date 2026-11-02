@@ -30,6 +30,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
     /** The hub the releases belong to. */
@@ -175,6 +176,7 @@
       : undefined}
     secondary={mayWrite ? [{ label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) }] : []}
   />
+  <PlaceStrip placeId={hubId} current="plan" view="releases" {onnavigate} />
 
   {#if refusal}
     <Banner tone="danger">{refusal}</Banner>

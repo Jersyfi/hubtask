@@ -92,6 +92,8 @@
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
+  import { placeTabs } from '../lib/workspace/placeTabs.ts';
+  import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
@@ -862,11 +864,6 @@
    * The place's own menu, the same items as its row in the navigation (`placeMenu`, design-system.md
    * §11.8): what is done to the place itself, for whom it may be done. Entries are the toolbar's.
    */
-  /**
-   * A hub's module screens, where their modules are on: its pages (M3), its whiteboards (M4) and its
-   * assets (M6). The first two are the head's secondary actions, the header holding two; the rest
-   * join the place's menu. Import is the place's menu's, the filter the toolbar's.
-   */
   // The types are read only where the portal could be offered: a collection with the desk on.
   $effect(() => {
     if (container?.type !== 'COLLECTION' || !modulesOn.includes('SERVICE_DESK')) return;
@@ -876,41 +873,27 @@
     container?.type === 'COLLECTION'
       && actsAsDesk(entryTypes.all, entryTypesOffered(container.structure?.settings, 'TASK'), container.parent_id),
   );
-  const moduleActions = $derived.by<PageAction[]>(() => {
-    if (!container) return [];
-    const on = modulesOn;
-    const actions: PageAction[] = [];
-    if (on.includes('PLANNING')) {
-      const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
-      actions.push({ label: t('app.planning.title'), icon: 'calendar', onclick: () => onnavigate(`${base}/plan`) });
-      if (container.type !== 'HUB') actions.push({ label: t('app.sprints.title'), icon: 'repeat', onclick: () => onnavigate(`/collections/${id}/sprints`) });
-      if (container.type === 'HUB') actions.push({ label: t('app.releases.title'), icon: 'tag', onclick: () => onnavigate(`/hubs/${id}/releases`) });
-    }
-    if (on.includes('TIME')) {
-      const base = container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`;
-      actions.push({ label: t('app.actuals.title'), icon: 'clock', onclick: () => onnavigate(`${base}/actuals`) });
-      actions.push({ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`${base}/workload`) });
-    }
-    // A collection's requester portal, where the service desk is on and the collection acts as a
-    // desk (UC-SVC-05): the address its requesters are given, opened here to see what they see.
-    if (container.type !== 'HUB' && on.includes('SERVICE_DESK') && isDesk) {
-      actions.push({ label: t('app.desk.portal'), icon: 'inbox', onclick: () => onnavigate(`/portal/${id}`) });
-    }
-    if (container.type !== 'HUB') return actions;
-    if (on.includes('GOALS')) {
-      actions.push({ label: t('app.goals.hub_goals'), icon: 'flag', onclick: () => onnavigate(`/goals?hub=${id}`) });
-      actions.push({ label: t('app.dashboards.hub_dashboards'), icon: 'gauge', onclick: () => onnavigate(`/goals?tab=dashboards&hub=${id}`) });
-    }
-    if (on.includes('KNOWLEDGE')) actions.push({ label: t('app.pages.title'), icon: 'book-open', onclick: () => onnavigate(`/hubs/${id}/pages`) });
-    if (on.includes('WHITEBOARD')) actions.push({ label: t('app.whiteboards.title'), icon: 'layout-template', onclick: () => onnavigate(`/hubs/${id}/whiteboards`) });
-    if (on.includes('ASSETS')) actions.push({ label: t('app.assets.title'), icon: 'shield', onclick: () => onnavigate(`/hubs/${id}/assets`) });
-    return actions;
-  });
+  /**
+   * The place's views (user-experience.md §2.4): the strip under the head, offered to the palette
+   * as *Go to <place> › <tab>*. No product is a head button or a menu item: the menu holds only
+   * verbs on the place.
+   */
+  const tabActs = $derived<readonly Act[]>(
+    container === undefined
+      ? []
+      : placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn, isDesk })
+          .slice(1)
+          .map((tab) => ({
+            id: `page:tab-${tab.id}`,
+            label: t('app.place_tabs.go_to', { place: container.name, tab: t(tab.code) }),
+            icon: tab.icon,
+            run: () => onnavigate(tab.href),
+          })),
+  );
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
       : [
-          ...moduleActions.slice(2).map((action, index) => ({ id: `module:${index + 2}`, label: action.label, icon: action.icon })),
           ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
         ],
   );
@@ -957,8 +940,7 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id.startsWith('module:')) moduleActions[Number(id.slice(7))]?.onclick?.();
-    else if (id === 'settings') openStructure('general');
+    if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
@@ -1012,10 +994,6 @@
             }
           : undefined,
   );
-  const headSecondary = $derived.by<readonly [] | readonly [PageAction] | readonly [PageAction, PageAction]>(() => {
-    const actions = moduleActions;
-    return actions.length >= 2 ? [actions[0]!, actions[1]!] : actions.length === 1 ? [actions[0]!] : [];
-  });
   /**
    * The order, the toolbar's own menu (design-system.md §11.1): the fields the installation lets
    * the entries be ordered by, narrowed to what this collection carries, and the direction.
@@ -1078,7 +1056,7 @@
   );
 
   // What the palette may list here: the head's own lists, then the views, then the layouts.
-  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...toolActs, ...viewActs, ...layoutActs]));
+  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, menu: headMenu }), ...toolActs, ...tabActs, ...viewActs, ...layoutActs]));
 
   // A wish the palette left for this collection - a layout, or the add form - taken once and acted
   // on only where this screen's own answers allow it. It wins over any layout this screen would
@@ -1325,7 +1303,6 @@
           if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
         },
       }}
-      secondary={headSecondary}
       menu={headMenu}
       figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
@@ -1374,6 +1351,7 @@
         <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
       {/snippet}
     </PageHeader>
+    <PlaceStrip placeId={container.id} current={container.type === 'HUB' ? 'overview' : 'entries'} {onnavigate} />
 
     {#if container.type === 'COLLECTION'}
       <!-- The toolbar (design-system.md §11.1): about the entries, where the head is about the
