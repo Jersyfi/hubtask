@@ -6,6 +6,10 @@
  * of the catalogue, and how a goal of the request stands for the requester (UC-SVC-05).
  */
 
+import type { EntryType } from '@hubtask/sync-engine';
+
+import { offeredTypes } from '../data/entrytypes.ts';
+
 /** A question as the catalogue asks it: a custom field's key, kind and the values a choice offers. */
 export interface Question {
   readonly key: string;
@@ -135,6 +139,16 @@ export function deskHead(desk: Desk | undefined, words: { title: string; intro: 
  * catalogue is that, and is said as such instead of as a role code with a reference.
  */
 export const isTeamView = (failure: { readonly status?: number } | undefined): boolean => failure?.status === 403;
+
+/**
+ * Whether a collection acts as a desk: a type its entries may take names the requester portal
+ * in its form and leaves it open - what the server's catalogue offers (`CatalogueThrough`). Only
+ * there is the portal a place to open; a Scrum or Kanban collection has none.
+ */
+export function actsAsDesk(types: readonly EntryType[], offered: readonly string[] | undefined, hub?: string | null): boolean {
+  return offeredTypes(types, 'TASK', offered, hub)
+    .some((type) => (type.form?.channels ?? []).some((rule) => rule.channel === 'PORTAL' && rule.closed !== true));
+}
 
 /** A portal the signed-in account uses as a requester (`portals` on `GET /accounts/me`). */
 export interface PortalPlace { readonly collection_id: string; readonly name: string }

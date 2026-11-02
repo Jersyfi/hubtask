@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart } from './portal.ts';
+import { actsAsDesk, answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -77,4 +77,18 @@ test('a requester who holds nothing but one portal starts there; several are lis
   assert.equal(portalStart(true, [desk, { collection_id: 'c-2', name: 'Facilities' }]), undefined);
   assert.equal(portalStart(true, []), undefined);
   assert.equal(portalStart(false, [desk]), undefined, 'somebody with access keeps their day');
+});
+
+test('the portal is offered only where a collection acts as a desk', () => {
+  const type = (key: string, channels?: { channel: string; closed?: boolean }[], extra: Record<string, unknown> = {}) =>
+    ({ key, level: 'TASK', system: false, position: 0, archived: false, form: channels ? { channels } : undefined, ...extra }) as never;
+  const incident = type('incident', [{ channel: 'PORTAL' }]);
+  const story = type('story');
+  assert.equal(actsAsDesk([incident, story], undefined), true, 'a type open to the portal makes the desk');
+  assert.equal(actsAsDesk([story], undefined), false, 'a Scrum collection has no portal');
+  assert.equal(actsAsDesk([type('closed', [{ channel: 'PORTAL', closed: true }])], undefined), false, 'a closed door is no desk');
+  assert.equal(actsAsDesk([type('public', [{ channel: 'PUBLIC' }])], undefined), false, 'a public form alone is not the portal');
+  assert.equal(actsAsDesk([incident, story], ['story']), false, 'the collection offers only types without the portal');
+  assert.equal(actsAsDesk([type('own', [{ channel: 'PORTAL' }], { hub_id: 'h-2' })], undefined, 'h-1'), false, 'another hub\'s type');
+  assert.equal(actsAsDesk([type('arch', [{ channel: 'PORTAL' }], { archived: true })], undefined), false, 'an archived type');
 });

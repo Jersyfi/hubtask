@@ -10282,7 +10282,7 @@
   "app.portal.none": "Nothing can be asked here yet",
   "app.portal.none_body": "The team has not offered any kind of request in this portal.",
   "app.portal.team_view": "You see this portal as the desk's team",
-  "app.portal.team_view_body": "Requesters raise and follow their requests here. You are not one of them, so nothing can be asked from this account; what the team sets up for the portal is below.",
+  "app.portal.team_view_body": "Requesters raise and follow their requests here. You are part of the team, so this account asks nothing here. To let somebody ask, give them a role that holds Raise requests (area Portal) at this collection, under People; what the team sets up for the portal is below.",
   "app.portal.ask": "What do you need?",
   "app.portal.kind": "Kind of request",
   "app.portal.kind_first": "Choose a kind of request first.",

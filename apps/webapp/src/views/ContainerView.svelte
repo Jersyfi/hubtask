@@ -71,7 +71,9 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { typesShown } from '../lib/data/entrytypes.ts';
+  import { entryTypesOffered, typesShown } from '../lib/data/entrytypes.ts';
+  import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
+  import { actsAsDesk } from '../lib/portal/portal.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -865,6 +867,15 @@
    * assets (M6). The first two are the head's secondary actions, the header holding two; the rest
    * join the place's menu. Import is the place's menu's, the filter the toolbar's.
    */
+  // The types are read only where the portal could be offered: a collection with the desk on.
+  $effect(() => {
+    if (container?.type !== 'COLLECTION' || !modulesOn.includes('SERVICE_DESK')) return;
+    return untrack(() => entryTypes.open());
+  });
+  const isDesk = $derived(
+    container?.type === 'COLLECTION'
+      && actsAsDesk(entryTypes.all, entryTypesOffered(container.structure?.settings, 'TASK'), container.parent_id),
+  );
   const moduleActions = $derived.by<PageAction[]>(() => {
     if (!container) return [];
     const on = modulesOn;
@@ -880,9 +891,9 @@
       actions.push({ label: t('app.actuals.title'), icon: 'clock', onclick: () => onnavigate(`${base}/actuals`) });
       actions.push({ label: t('app.workload.title'), icon: 'users', onclick: () => onnavigate(`${base}/workload`) });
     }
-    // A collection's requester portal, where the service desk is on (UC-SVC-05): the address its
-    // requesters are given, opened here to see what they see.
-    if (container.type !== 'HUB' && on.includes('SERVICE_DESK')) {
+    // A collection's requester portal, where the service desk is on and the collection acts as a
+    // desk (UC-SVC-05): the address its requesters are given, opened here to see what they see.
+    if (container.type !== 'HUB' && on.includes('SERVICE_DESK') && isDesk) {
       actions.push({ label: t('app.desk.portal'), icon: 'inbox', onclick: () => onnavigate(`/portal/${id}`) });
     }
     if (container.type !== 'HUB') return actions;
