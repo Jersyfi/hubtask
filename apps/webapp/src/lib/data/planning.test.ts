@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
-import { PLAN_CSV_HEADS, dependencyDrawn, ganttRows, inTreeOrder, lagOf, planCsvRows, planXlsxOf, projectFormatOf, proposedMoves } from './planning.ts';
+import { PLAN_CSV_HEADS, dependencyDrawn, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFormatOf, proposedMoves } from './planning.ts';
 
 const entry = (id: string, more: Partial<PlanScheduleEntry> = {}): PlanScheduleEntry => ({
   item_id: id, title: id, parent_id: null, collection_id: 'c', start: '2026-11-02', finish: '2026-11-04',
@@ -124,4 +124,11 @@ test("a project file's format is its name's, else its first character's", () => 
   assert.equal(projectFormatOf('plan.csv', '<x'), 'CSV');
   assert.equal(projectFormatOf('plan', '  <?xml'), 'MSPROJECT_XML');
   assert.equal(projectFormatOf('plan', 'ID,Name'), 'CSV');
+});
+
+// A hub's plan asks the hub's memberships, never a collection's under the hub's id.
+test('planRolePath names the hub for a hub and waits for a place not read', () => {
+  assert.equal(planRolePath('h', undefined), undefined);
+  assert.deepEqual(planRolePath('h', { type: 'HUB', parent_id: null }), { hubId: 'h' });
+  assert.deepEqual(planRolePath('c', { type: 'COLLECTION', parent_id: 'h' }), { hubId: 'h', collectionId: 'c' });
 });

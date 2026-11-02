@@ -15,7 +15,18 @@
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
+import type { Path } from './people.ts';
 import { xlsxOf } from './xlsx.ts';
+
+/**
+ * The path whose roles decide what the plan's reader may do: the hub's own for a hub's plan, the
+ * collection under its hub for a collection's. None while the place is not read, since a guess
+ * would ask a hub's memberships as a collection's.
+ */
+export function planRolePath(planId: string, place: { type: string; parent_id?: string | null } | undefined): Path | undefined {
+  if (!place) return undefined;
+  return place.type === 'HUB' ? { hubId: planId } : { hubId: place.parent_id ?? undefined, collectionId: planId };
+}
 
 /** One row of the chart and of the table beside it. */
 export interface GanttRow {

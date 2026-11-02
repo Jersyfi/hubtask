@@ -34,7 +34,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, ganttRows, lagOf, planCsvRows, planXlsxOf, planning, proposedMoves, schedulePath, tolerancePath,
+    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, ganttRows, lagOf, planCsvRows, planRolePath, planXlsxOf, planning, proposedMoves, schedulePath, tolerancePath,
   } from '../lib/data/planning.svelte.ts';
   import { anchorOf, draggedTo, gridOf, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
@@ -65,18 +65,16 @@
   const today = $derived(todayIn(zone));
   const place = $derived(containers.find(planId));
   const placePath = $derived(place?.type === 'HUB' ? `/hubs/${planId}` : `/collections/${planId}`);
-  const rolePath = $derived(
-    place?.type === 'HUB' ? { hubId: planId } : { hubId: place?.parent_id ?? undefined, collectionId: planId },
-  );
+  const rolePath = $derived(planRolePath(planId, place));
 
   $effect(() => frame.entitle(place ? t('app.planning.title_of', { place: place.name }) : t('app.planning.title')));
   $effect(() => untrack(() => workspace.open()));
   $effect(() => {
     const path = rolePath;
-    untrack(() => people.open(path));
+    if (path) untrack(() => people.open(path));
   });
 
-  const mayWrite = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
+  const mayWrite = $derived(holds((rolePath && people.roleOf(rolePath, actor.account?.id, roleOrder())) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
 
   let schedule = $state<PlanSchedule | undefined>(undefined);
   // While the server is away the plan is the copy's (UC-PLN-02 check 9): the entries' own dates and
@@ -112,7 +110,7 @@
     const path = tolerancePath(planId, zone);
     return untrack(() => engine.subscribe<PlanTolerance>({ path }, (next) => { if (next.status === 'ready') tolerance = next.data; }));
   });
-  const mayShape = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
+  const mayShape = $derived(holds((rolePath && people.roleOf(rolePath, actor.account?.id, roleOrder())) ?? undefined, 'STRUCTURE').status === 'permitted');
   const lockedAbove = $derived(!!tolerance?.locked_by && tolerance.locked_by !== (place?.type === 'HUB' ? 'HUB' : 'COLLECTION'));
   let toleranceDraft = $state('');
   let toleranceLock = $state(false);
