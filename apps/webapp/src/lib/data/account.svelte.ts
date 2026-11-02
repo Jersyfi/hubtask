@@ -86,6 +86,11 @@ class Actor {
     return this.account?.has_access === false;
   }
 
+  /** The portals this account uses as a requester - where somebody holding nothing else goes. */
+  get portals(): readonly { readonly collection_id: string; readonly name: string }[] {
+    return this.account?.portals ?? [];
+  }
+
   /** Whether a second factor stands: the authenticator app armed, or a passkey (identity.md §23.2). */
   get hasSecondFactor(): boolean | undefined {
     return this.account?.has_second_factor;

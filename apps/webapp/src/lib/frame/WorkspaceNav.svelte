@@ -312,6 +312,7 @@
    * list is still `navigation.ts`'s, and the rows are the same rows. What it costs is that the
    * arrows do not carry from the last hub into the trash, which `Tab` does instead.
    */
+  const portalNodes = $derived(actor.portals.map((each) => ({ id: `portal:${each.collection_id}`, label: each.name, icon: 'inbox' as const })));
   const keepingNodes = $derived(KEEPING.map((each) => ({ id: each.id, label: t(each.code), icon: each.icon })));
 
   const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
@@ -385,6 +386,10 @@
       retryLabel={t('app.retry')}
       onRetry={() => containers.refresh()}
     />
+  {:else if actor.hasNoAccess && actor.portals.length > 0}
+    <!-- A requester holding nothing but portals: their portals are their navigation (UC-SVC-05). -->
+    <SideNav label={t('app.nav.portals')} nodes={portalNodes} {isRail}
+      onnavigate={(id) => onnavigate(`/portal/${id.slice('portal:'.length)}`)} />
   {:else if actor.hasNoAccess}
     {#if !isRail}
       <!-- Nobody gave this person anything yet (UC-ID-08 check 2): a sentence, and no *Create hub*,

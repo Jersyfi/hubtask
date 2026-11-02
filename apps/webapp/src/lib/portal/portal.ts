@@ -135,3 +135,14 @@ export function deskHead(desk: Desk | undefined, words: { title: string; intro: 
  * catalogue is that, and is said as such instead of as a role code with a reference.
  */
 export const isTeamView = (failure: { readonly status?: number } | undefined): boolean => failure?.status === 403;
+
+/** A portal the signed-in account uses as a requester (`portals` on `GET /accounts/me`). */
+export interface PortalPlace { readonly collection_id: string; readonly name: string }
+
+/**
+ * Where a requester who holds nothing but portals starts: their one portal, else nowhere - with
+ * several, the start lists them. Somebody with access anywhere starts on their day as before.
+ */
+export function portalStart(hasNoAccess: boolean, portals: readonly PortalPlace[]): string | undefined {
+  return hasNoAccess && portals.length === 1 ? `/portal/${portals[0]?.collection_id}` : undefined;
+}

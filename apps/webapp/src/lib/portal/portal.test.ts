@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView } from './portal.ts';
+import { answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -69,4 +69,12 @@ test('the desk\'s team opening its portal is told so, not shown a refusal', () =
   assert.equal(isTeamView({ status: 404 }), false, 'a desk that is not there is a failure');
   assert.equal(isTeamView({ status: 503 }), false);
   assert.equal(isTeamView(undefined), false);
+});
+
+test('a requester who holds nothing but one portal starts there; several are listed; access starts on the day', () => {
+  const desk = { collection_id: 'c-1', name: 'Service desk' };
+  assert.equal(portalStart(true, [desk]), '/portal/c-1');
+  assert.equal(portalStart(true, [desk, { collection_id: 'c-2', name: 'Facilities' }]), undefined);
+  assert.equal(portalStart(true, []), undefined);
+  assert.equal(portalStart(false, [desk]), undefined, 'somebody with access keeps their day');
 });

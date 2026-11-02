@@ -40,6 +40,7 @@
   import { entryMenu } from '../lib/entries/entryMenu.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { portalStart } from '../lib/portal/portal.ts';
   import { holds, holdsHere, hubCreationHere, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
@@ -69,6 +70,11 @@
   }
 
   const { onnavigate }: Props = $props();
+  // A requester with one portal and nothing else starts in it (UC-SVC-05).
+  $effect(() => {
+    const start = portalStart(actor.hasNoAccess, actor.portals);
+    if (start) untrack(() => onnavigate?.(start));
+  });
 
   let isCreatingHub = $state(false);
   // The empty workspace's one action: a shared hub with STRUCTURE on the workspace, a private one
@@ -325,7 +331,16 @@
     {#snippet aside()}<span class="date">{dayLine}</span>{/snippet}
   </PageHeader>
 
-  {#if actor.hasNoAccess}
+  {#if actor.hasNoAccess && actor.portals.length > 0}
+    <!-- A requester holding nothing but portals: where they ask, not a notice about access. -->
+    <EmptyState kind="unused" title={t('app.workspace.portals_title')} description={t('app.workspace.portals_detail')} icon="inbox">
+      {#snippet action()}
+        {#each actor.portals as portal (portal.collection_id)}
+          <Button tone="primary" icon="inbox" onclick={() => onnavigate?.(`/portal/${portal.collection_id}`)}>{portal.name}</Button>
+        {/each}
+      {/snippet}
+    </EmptyState>
+  {:else if actor.hasNoAccess}
     <!-- Nobody gave this person anything yet: said in a sentence rather than an empty workspace
          without explanation (UC-ID-08 check 2), and without *Create hub*, which the server refuses
          to an account holding no role anywhere - a private hub of one's own included. -->
