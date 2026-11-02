@@ -15,7 +15,9 @@
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { answersOf, byOrigin, galleryScope, offerOf, offersSamples, takenFirst } from '../data/configtemplates.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
+  import { answersOf, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from '../data/configtemplates.ts';
+  import { modules } from '../data/modules.svelte.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -127,6 +129,39 @@
     }
   }
 
+  /**
+   * A template refused only because modules are off is one switch away: named in words, and offered
+   * to switch on where the reader may change the workspace's shape - never a code or a path.
+   */
+  const needed = $derived(plan ? modulesToSwitchOn(plan.refusals) : []);
+  const neededNames = $derived(new Intl.ListFormat(messages.locale, { type: 'conjunction' })
+    .format(needed.map((key) => t(`app.modules.name_${key.toLowerCase()}`))));
+  const maySwitch = $derived(holdsHere('STRUCTURE') === true);
+
+  async function switchOnAndUse() {
+    if (!chosen) return;
+    busy = 'modules';
+    try {
+      for (const key of needed) await modules.switch(key as Parameters<typeof modules.switch>[0], 'ON');
+      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      busy = undefined;
+    }
+  }
+
+  function refusalText(refused: ConfigTemplatePlan['refusals'][number]): string {
+    const words = refusalWords(refused);
+    const reason = words.module ? t(words.code, { module: t(words.module) }) : t(words.code, refused.params ?? {});
+    return t('app.templates.refused_item', { section: t(words.section), reason });
+  }
+
+  function changeText(change: ConfigTemplatePlan['changes'][number]): string {
+    const words = changeWords(change);
+    return t(words.code, { section: t(words.section), key: change.key });
+  }
+
   const counts = (each: { added: number; changed: number; removed: number }) =>
     t('app.changes.counts', { added: each.added, changed: each.changed, removed: each.removed });
 </script>
@@ -220,11 +255,16 @@
           </ul>
         {/if}
       {/if}
-      {#if plan.refusals.length > 0}
+      {#if needed.length > 0}
+        <Banner tone="info" title={t('app.templates.needs_modules_title')}>
+          <p class="quiet" data-template-needs-modules>{t('app.templates.needs_module', { module: neededNames })}
+            {maySwitch ? t('app.templates.needs_modules_body') : t('app.templates.needs_modules_ask')}</p>
+        </Banner>
+      {:else if plan.refusals.length > 0}
         <Banner tone="danger" title={t('app.templates.refused')}>
           <ul class="changes">
             {#each plan.refusals as refused (refused.path + refused.code)}
-              <li><code>{refused.path}</code> {refused.code}</li>
+              <li>{refusalText(refused)}</li>
             {/each}
           </ul>
         </Banner>
@@ -232,7 +272,7 @@
         <p class="quiet">{counts(plan.counts)}</p>
         <ul class="changes" data-plan-changes>
           {#each plan.changes as change (change.path)}
-            <li><code>{change.op}</code> {change.path}</li>
+            <li>{changeText(change)}</li>
           {/each}
         </ul>
         <PlanReach reach={plan.reach} />
@@ -244,6 +284,10 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.changes.cancel')}</Button>
+      {#if needed.length > 0 && maySwitch}
+        <Button tone="primary" data-switch-modules isBusy={busy === 'modules'} onclick={switchOnAndUse}>
+          {t('app.templates.switch_on_and_use', { modules: neededNames })}</Button>
+      {/if}
       {#if plan?.plan_hash}
         <Button tone="primary" data-apply-template isBusy={busy === 'apply'}
           disabledReason={plan && needsAcknowledge(plan.flags) && !acknowledged ? t('app.changes.acknowledge_first') : undefined}

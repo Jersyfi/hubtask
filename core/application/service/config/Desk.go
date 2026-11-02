@@ -27,6 +27,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -93,6 +94,9 @@ type current struct {
 	// the key prefixes of the settings areas the reader may not read.
 	Withheld         []string
 	WithheldSettings []string
+	// WithheldModules names, by section, the module that is off where that is why it is withheld:
+	// a plan refuses it as the module, so a person is told which switch to turn (UC-CFG-05).
+	WithheldModules map[string]string
 	// Hub is the hub whose own document this is, empty for the workspace's.
 	Hub shared.ID
 	// Places are the hubs and collections by handle, and Account the reader - who a rule the
@@ -166,7 +170,7 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shar
 				err = d.exportCollections(ctx, actor, s, &out)
 			}
 			if err != nil && withheld(err) {
-				out.Withheld = append(out.Withheld, s.name)
+				out.withhold(s.name, err)
 				continue
 			}
 			if err != nil {
@@ -177,7 +181,7 @@ func (d Desk) export(ctx context.Context, actor appshared.ActorContext, hub shar
 		answer, err := d.list(ctx, actor, s)
 		if err != nil {
 			if withheld(err) {
-				out.Withheld = append(out.Withheld, s.name)
+				out.withhold(s.name, err)
 				continue
 			}
 			return current{}, err
@@ -256,6 +260,18 @@ func (d Desk) list(ctx context.Context, actor appshared.ActorContext, s section)
 		return nil, err
 	}
 	return usecase.Output{"data": rows}, nil
+}
+
+// withhold records a section the reader cannot read, and the module that is off where that is why.
+func (c *current) withhold(name string, err error) {
+	c.Withheld = append(c.Withheld, name)
+	var e *shared.Error
+	if errors.As(err, &e) && e.DetailCode == module.OffCode && e.Params["module"] != "" {
+		if c.WithheldModules == nil {
+			c.WithheldModules = map[string]string{}
+		}
+		c.WithheldModules[name] = e.Params["module"]
+	}
 }
 
 // errWithheld is a section the reader may not read.
@@ -374,9 +390,14 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 			p.Refusals = append(p.Refusals, domain.Refusal("config.section_unknown", name, nil))
 		}
 		for _, w := range now.Withheld {
-			if w == name {
-				p.Refusals = append(p.Refusals, domain.Refusal("config.section_withheld", name, nil))
+			if w != name {
+				continue
 			}
+			if off, isOff := now.WithheldModules[name]; isOff {
+				p.Refusals = append(p.Refusals, domain.Refusal(module.OffCode, name, map[string]string{"module": off}))
+				continue
+			}
+			p.Refusals = append(p.Refusals, domain.Refusal("config.section_withheld", name, nil))
 		}
 		for key, block := range desired[name] {
 			if name == sectionRules || name == sectionCollectionRules {

@@ -19,6 +19,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	workmodel "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -159,7 +160,8 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		return usecase.Output{"custom": rowsOf(w.roles), "grants": w.grants}, nil
 	case "ListWorkflows":
 		if w.workflows == nil {
-			return nil, shared.ErrValidation.WithDetail("module.off")
+			// As the module answers: forbidden, naming itself.
+			return nil, module.Set{}.Require(module.Workflows)
 		}
 		return usecase.Output{"data": rowsOf(w.workflows), "scheme": w.scheme}, nil
 	case "GetContainer":

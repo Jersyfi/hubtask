@@ -286,3 +286,21 @@ func TestAPlanNamesTheDoorsANewlyRequiredFieldCloses(t *testing.T) {
 		t.Errorf("a door's gap refused the plan: %v", plan["refusals"])
 	}
 }
+
+// A template a workspace cannot take because a module is off says which module, so the person
+// is told the switch to turn rather than that a section is withheld (UC-CFG-05).
+func TestAPlanNamesTheModuleThatIsOff(t *testing.T) {
+	f := newFixture()
+	f.world.workflows = nil
+	document := map[string]any{"workflows": map[string]any{"service": map[string]any{"shape": serviceShape("todo", "review")}}}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})
+
+	refusals := plan["refusals"].([]usecase.Output)
+	if len(refusals) != 1 {
+		t.Fatalf("refusals %v", refusals)
+	}
+	params, _ := refusals[0]["params"].(map[string]string)
+	if refusals[0]["code"] != "module.off" || params["module"] != "WORKFLOWS" || refusals[0]["path"] != "/workflows" {
+		t.Errorf("the refusal does not name the module: %v", refusals[0])
+	}
+}

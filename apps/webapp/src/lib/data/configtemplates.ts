@@ -75,3 +75,41 @@ export function galleryScope(hubId: string | undefined, collectionId: string | u
   if (collectionId) return 'collection';
   return hubId ? 'hub' : 'workspace';
 }
+
+/** A plan's refusal or change as the contract answers it, what the words below read of it. */
+interface Refused { readonly path: string; readonly code: string; readonly params?: Readonly<Record<string, string>> }
+interface Changed { readonly section: string; readonly key: string; readonly op: 'ADD' | 'CHANGE' | 'REMOVE' }
+
+/** The configuration's sections a template may bring, each with a word for it (`app.templates.section_*`). */
+export const SECTIONS: readonly string[] = [
+  'modules', 'roles', 'fields', 'link_types', 'types', 'workflows', 'settings', 'structure', 'scheme', 'tolerance',
+  'business_calendars', 'sla_policies', 'reply_templates', 'requester_organisations', 'views', 'rules', 'pages',
+  'template_pages', 'collection_structure', 'collection_tolerance', 'collection_views', 'collection_rules', 'collection_fields',
+];
+
+/** The word for a section, a generic one for a section this client does not know yet. */
+export const sectionWord = (section: string): string =>
+  SECTIONS.includes(section) ? `app.templates.section_${section}` : 'app.templates.section_other';
+
+/**
+ * The modules a plan is refused for because they are off, in the order first named - and only
+ * where nothing else refuses it, since switching them on would then not make it usable.
+ */
+export function modulesToSwitchOn(refusals: readonly Refused[]): string[] {
+  if (refusals.length === 0 || !refusals.every((each) => each.code === 'module.off' && each.params?.module)) return [];
+  return [...new Set(refusals.map((each) => each.params?.module ?? ''))];
+}
+
+/** A change of a plan in words: what it does to which part, as code and parameters. */
+export function changeWords(change: Changed): { code: string; section: string; key: string } {
+  return { code: `app.templates.change_${change.op.toLowerCase()}`, section: sectionWord(change.section), key: change.key };
+}
+
+/** A refusal in words: the section it is about, and the server's message code for why. */
+export function refusalWords(refused: Refused): { section: string; code: string; module?: string } {
+  const section = sectionWord(refused.path.split('/').filter(Boolean)[0] ?? '');
+  if (refused.code === 'module.off' && refused.params?.module) {
+    return { section, code: 'app.templates.needs_module', module: `app.modules.name_${refused.params.module.toLowerCase()}` };
+  }
+  return { section, code: refused.code };
+}

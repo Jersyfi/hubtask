@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, byOrigin, galleryScope, offerOf, offersSamples, takenFirst } from './configtemplates.ts';
+import { SECTIONS, answersOf, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from './configtemplates.ts';
 
 test('the gallery draws the four origins in order and leaves an empty one out', () => {
   const groups = byOrigin([
@@ -55,4 +55,27 @@ test("a collection's settings draw the collection's gallery, not its hub's", () 
   assert.equal(galleryScope('hub', 'collection'), 'collection');
   assert.equal(galleryScope('hub', undefined), 'hub');
   assert.equal(galleryScope(undefined, undefined), 'workspace');
+});
+
+test('a template refused only for modules that are off names them, and nothing else is one switch away', () => {
+  const off = (module: string, path: string) => ({ path, code: 'module.off', params: { module } });
+  assert.deepEqual(modulesToSwitchOn([off('WORKFLOWS', '/types'), off('WORKFLOWS', '/workflows'), off('SERVICE_DESK', '/sla_policies')]), ['WORKFLOWS', 'SERVICE_DESK']);
+  assert.deepEqual(modulesToSwitchOn([off('WORKFLOWS', '/workflows'), { path: '/roles', code: 'config.section_withheld' }]), [], 'another refusal stays');
+  assert.deepEqual(modulesToSwitchOn([]), []);
+});
+
+test('a plan is said in words: no message code and no key path is shown', () => {
+  assert.deepEqual(changeWords({ section: 'structure', key: 'automation', op: 'ADD' }),
+    { code: 'app.templates.change_add', section: 'app.templates.section_structure', key: 'automation' });
+  assert.equal(changeWords({ section: 'something_new', key: 'k', op: 'REMOVE' }).section, 'app.templates.section_other');
+  assert.deepEqual(refusalWords({ path: '/workflows', code: 'module.off', params: { module: 'WORKFLOWS' } }),
+    { section: 'app.templates.section_workflows', code: 'app.templates.needs_module', module: 'app.modules.name_workflows' });
+  assert.deepEqual(refusalWords({ path: '/settings/ai.source', code: 'config.section_withheld' }),
+    { section: 'app.templates.section_settings', code: 'config.section_withheld' });
+});
+
+test('every section a template may bring has its word in the catalogue', async () => {
+  const { readFileSync } = await import('node:fs');
+  const catalogue = JSON.parse(readFileSync(new URL('../../../../../locales/en.json', import.meta.url), 'utf8'));
+  for (const section of [...SECTIONS, 'other']) assert.ok(catalogue[`app.templates.section_${section}`], `no word for ${section}`);
 });
