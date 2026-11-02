@@ -2,10 +2,12 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Modules* under *How we work* (UC-INS-21): the workspace's module switches, and the plans'
-  // time tolerance the workspace decides (UC-PLN-04 check 7).
+  // time tolerance the workspace decides (UC-PLN-04 check 7) while Planning is on.
 
   import { PageHeader, Stack } from '@hubtask/design-system/components';
 
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { isModuleOn } from '../lib/frame/moduleroute.ts';
   import ModuleSwitches from '../lib/workspace/ModuleSwitches.svelte';
   import WorkspaceTolerance from '../lib/workspace/WorkspaceTolerance.svelte';
   import { t } from '../lib/i18n/i18n.svelte.ts';
@@ -33,7 +35,7 @@
 
   <ModuleSwitches />
 
-  <WorkspaceTolerance />
+  {#if isModuleOn('PLANNING', manifest.value?.modules_on)}<WorkspaceTolerance />{/if}
 </Stack>
 
 <style>

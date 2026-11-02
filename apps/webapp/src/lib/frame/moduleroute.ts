@@ -25,3 +25,11 @@ export function offModuleOf(route: string, modulesOn: readonly string[] | undefi
   const module = moduleOfRoute(route);
   return module && modulesOn && !modulesOn.includes(module) ? module : undefined;
 }
+
+/**
+ * Whether a section of a module is drawn: only once the manifest says the module is on, since a
+ * section's read while it is off is refused with `module.off`.
+ */
+export function isModuleOn(module: string, modulesOn: readonly string[] | undefined): boolean {
+  return modulesOn?.includes(module) ?? false;
+}
