@@ -25,7 +25,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    PERIODS, PORTFOLIOS, alignmentTree, dashboardsPath, goals, goalsPath, percentOf, percentText,
+    PERIODS, PORTFOLIOS, alignmentTree, dashboardsPath, goals, goalsPath, hubOf, percentOf, percentText,
   } from '../lib/data/goals.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -95,7 +95,10 @@
   }
 
   const mayStructure = $derived(holdsHere('STRUCTURE') === true);
-  const placeName = (hubId: string | null) => (hubId ? (containers.find(hubId)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
+  const placeName = (place: { hub_id?: string | null }) => {
+    const hub = hubOf(place);
+    return hub ? (containers.find(hub)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace');
+  };
   const personName = (id: string | null) => (id ? (accounts.nameOf(id) ?? t('app.people.unnamed')) : '');
 
   // --- Periods and goals ------------------------------------------------------------------------
@@ -284,7 +287,7 @@
                     </span>
                     {#if goal.key_results.length > 0}<span class="note">{t('app.goals.key_results_count', { count: String(goal.key_results.length) })}</span>{/if}
                   </th>
-                  <td>{placeName(goal.hub_id)}</td>
+                  <td>{placeName(goal)}</td>
                   <td>{personName(goal.owner_id)}</td>
                   <td>{#if goal.status !== 'NONE'}<Badge size="sm" tone={goalTone(goal.status)}>{t(`app.goals.status_${goal.status}`)}</Badge>{/if}</td>
                   <td class="number">{goal.confidence === null ? '' : t('app.goals.confidence_of', { value: String(goal.confidence) })}</td>
@@ -338,7 +341,7 @@
             {#each dashboardList as each (each.id)}
               <tr>
                 <th scope="row"><a href={`/dashboards/${each.id}`}>{each.name}</a></th>
-                <td>{placeName(each.hub_id)}</td>
+                <td>{placeName(each)}</td>
                 <td>{t(`app.dashboards.sharing_${each.sharing}`)}</td>
                 <td class="number">{each.widgets.length}</td>
               </tr>

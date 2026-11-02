@@ -25,7 +25,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    checkInsPath, goalPath, goals, goalsPath, goalWrite, parentChoices, percentOf, percentText, type CheckIn,
+    checkInsPath, goalPath, goals, goalsPath, goalWrite, hubOf, parentChoices, percentOf, percentText, type CheckIn,
   } from '../lib/data/goals.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { views } from '../lib/data/views.svelte.ts';
@@ -80,16 +80,18 @@
 
   // Who may write: WRITE_ITEMS at the goal's place - the hub's role, or the workspace's.
   $effect(() => {
-    const hub = goal?.hub_id;
+    const hub = hubOf(goal);
     if (hub) return untrack(() => people.open({ hubId: hub }));
   });
   const mayWrite = $derived.by(() => {
     if (!goal || goal.grade !== null) return false;
-    if (goal.hub_id) return holds(people.roleOf({ hubId: goal.hub_id }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted';
+    const hub = hubOf(goal);
+    if (hub) return holds(people.roleOf({ hubId: hub }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted';
     return holdsHere('WRITE_ITEMS') === true;
   });
 
-  const placeName = $derived(goal?.hub_id ? (containers.find(goal.hub_id)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
+  const placeHub = $derived(hubOf(goal));
+  const placeName = $derived(placeHub ? (containers.find(placeHub)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
   const personName = (id: string | null | undefined) => (id ? (accounts.nameOf(id) ?? t('app.people.unnamed')) : t('app.goals.nobody'));
 
   let failure = $state<string | undefined>(undefined);

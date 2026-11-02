@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
-  alignmentTree, barLayout, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
+  alignmentTree, barLayout, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
   leftRows, percentText, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
   widgetWrite,
 } from './goals.ts';
@@ -147,4 +147,13 @@ test('a widget keeps its second series and running total when written back', () 
   assert.equal(write.cumulative, true);
   assert.equal(write.compare?.title, 'Resolved');
   assert.equal(widgetWrite({ ...widget, compare: null, cumulative: false }).compare, undefined);
+});
+
+// A workspace goal or dashboard reads as the workspace's, never as a hub nobody reads.
+test('hubOf reads null and the nil UUID as the workspace', () => {
+  assert.equal(hubOf({ hub_id: null }), null);
+  assert.equal(hubOf({}), null);
+  assert.equal(hubOf(undefined), null);
+  assert.equal(hubOf({ hub_id: '00000000-0000-0000-0000-000000000000' }), null);
+  assert.equal(hubOf({ hub_id: '01a0e2e0-0000-7000-8000-000000000001' }), '01a0e2e0-0000-7000-8000-000000000001');
 });

@@ -25,6 +25,15 @@ export function percentOf(share: number | null | undefined): number | undefined 
   return text === '' ? undefined : Number(text);
 }
 
+/**
+ * The hub a goal or a dashboard is in; null for the workspace's. The nil UUID names no hub - an
+ * answer kept from an older server carries it for the workspace - so it reads as the workspace.
+ */
+export function hubOf(place: { hub_id?: string | null } | null | undefined): string | null {
+  const id = place?.hub_id;
+  return id && id !== '00000000-0000-0000-0000-000000000000' ? id : null;
+}
+
 // --- The alignment tree (UC-GOL-01 check 9) -----------------------------------------------------
 
 export interface TreeRow {

@@ -28,7 +28,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
     seriesTable, widgetWrite, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
@@ -73,7 +73,8 @@
 
   /** A private dashboard is its owner's; a shared one is changed by whoever the server lets. */
   const mayEdit = $derived(dashboard !== undefined && (dashboard.sharing !== 'PRIVATE' || dashboard.owner_id === actor.account?.id));
-  const placeName = $derived(dashboard?.hub_id ? (containers.find(dashboard.hub_id)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
+  const placeHub = $derived(hubOf(dashboard));
+  const placeName = $derived(placeHub ? (containers.find(placeHub)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
   const locale = $derived(messages.locale);
 
   let failure = $state<string | undefined>(undefined);
@@ -116,7 +117,7 @@
   let editingIndex = $state(-1);
   $effect(() => {
     if (!isWidgetOpen) return;
-    const hub = dashboard?.hub_id ?? undefined;
+    const hub = placeHub ?? undefined;
     return untrack(() => {
       const closers = [views.open()];
       if (hub) closers.push(views.open(hub));
@@ -124,7 +125,7 @@
     });
   });
   const summaryViews = $derived(isWidgetOpen
-    ? [...views.of(), ...(dashboard?.hub_id ? views.of(dashboard.hub_id) : [])].filter((each, i, all) => each.query && 'aggregate' in each.query && all.findIndex((other) => other.id === each.id) === i)
+    ? [...views.of(), ...(placeHub ? views.of(placeHub) : [])].filter((each, i, all) => each.query && 'aggregate' in each.query && all.findIndex((other) => other.id === each.id) === i)
     : []);
   let goalChoices = $state<GoalList['data']>([]);
   $effect(() => {
