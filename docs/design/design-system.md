@@ -1383,7 +1383,7 @@ both modes; G5–G8 by the walks of each act.
 |---|---|
 | G1 | **One edge.** The trail, the title, the toolbar and the content of a page share one inline-start edge. |
 | G2 | **One control size.** Every icon control in one region — the bar, a toolbar, a row — is the same square with the same hover shape; text buttons share one height per density. |
-| G3 | **Text never breaks inside a word.** Names in rows, tabs, chips, menus and the tree are one line cut with an ellipsis and the full name as their title, or wrap between words where two lines are the drawing (the tree, a card's title); buttons never wrap. |
+| G3 | **Text never breaks inside a word.** Names in rows, tabs, chips, menus and the tree are one line cut with an ellipsis and the full name as their title, or wrap between words where two lines are the drawing (a card's title); the tree's names are one line (user-experience.md §2.5); buttons never wrap. |
 | G4 | **What is centred.** Empty states, a page's single message and a lone primary action are centred in their region; forms, lists, tables and settings start at the edge; a dialog's actions end at the inline end. |
 | G5 | **Where feedback goes.** A field's error under the field, a summary at the form's top on submit and the focus on the first; a refused act as a toast with the reason; a page-wide problem as one banner under the page head; a done act as a toast with *Undo* where it can be undone; loading as a skeleton in place. |
 | G6 | **One surface per job.** A dialog creates or decides; a popover changes one value; the entry panel shows one entry beside its list; a page holds settings. |

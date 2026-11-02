@@ -27,7 +27,7 @@ export const flat: Story = {
 export const long: Story = {
   name: 'The same tree in German',
   about:
-    'Rule 4 against the component with the least room: the indent takes width from the label at every level, not from the mark in front of it. A label wraps to a second line and only a third is cut, so a row that explains its place — the last one here — keeps its sense in a phone’s drawer instead of ending after its first words; the indent does not collapse, because the depth is the information.',
+    'Rule 4 against the component with the least room: the indent takes width from the label at every level, not from the mark in front of it. A name is one line with an ellipsis and never breaks inside a word (user-experience.md §2.5); the whole name stays the row’s accessible name and its tooltip. The indent does not collapse, because the depth is the information.',
   args: { mode: 'long' },
 };
 
@@ -64,6 +64,13 @@ export const branch: Story = {
   about:
     'A hub is a screen before it is a container — its settings, its collections, the control that makes another one — so pressing its row goes there and opens it, and the twist at the end of the row is what closes it again. The twist is a control with a name and no tab stop of its own: the tree keeps one stop, the arrows keep expanding, and `aria-expanded` on the row stays the one statement about the state. A caller that names no twist keeps the old behaviour, where the row folds and nothing navigates.',
   args: { mode: 'tree' },
+};
+
+export const views: Story = {
+  name: 'A hub’s views under its collections',
+  about:
+    'An open hub lists its collections, then, after a hairline that starts where their labels do, one quieter row per view of the hub its tab strip offers — *Plan*, *Pages*, *Time* (user-experience.md §2.4). They are links to the hub’s tabs, not places: no figure, no menu, nothing to move.',
+  args: { mode: 'views' },
 };
 
 export const figures: Story = {

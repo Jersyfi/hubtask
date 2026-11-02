@@ -4,7 +4,7 @@
   import Box from './Box.svelte';
   import SideNav, { type NavNode } from './SideNav.svelte';
 
-  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures' | 'colours' | 'reorder'; isRail?: boolean; opened?: string } = $props();
+  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures' | 'colours' | 'reorder' | 'views'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
   // shape the application hands this component for real.
@@ -31,6 +31,22 @@
     { id: 'jumble', label: 'Jumble', icon: 'jumble', href: '/jumble' },
   ];
 
+  // A hub's views mirrored under its collections, quieter and after a hairline.
+  const views: NavNode[] = [
+    {
+      id: 'work',
+      label: 'Work',
+      icon: 'hub',
+      children: [
+        { id: 'hubtask', label: 'Hubtask', icon: 'collection', href: '/c/hubtask', meta: '12 open' },
+        { id: 'admin', label: 'Administration', icon: 'collection', href: '/c/admin' },
+        { id: 'work/plan', label: 'Plan', icon: 'calendar', href: '/h/work/plan', isQuiet: true, band: {} },
+        { id: 'work/pages', label: 'Pages', icon: 'book-open', href: '/h/work/pages', isQuiet: true },
+        { id: 'work/time', label: 'Time', icon: 'clock', href: '/h/work/time', isQuiet: true },
+      ],
+    },
+  ];
+
   const flat: NavNode[] = [
     { id: 'jumble', label: 'Jumble', icon: 'jumble', href: '/jumble' },
     { id: 'today', label: 'Today', icon: 'calendar', href: '/today' },
@@ -47,8 +63,7 @@
         { id: 'shopping', label: 'Wocheneinkaufsliste', icon: 'collection', href: '/c/s' },
       ],
     },
-    // A row whose label is the explanation of the place, the way the installation's is in the
-    // administration: it wraps to a second line rather than losing its end.
+    // A row whose label is longer than the column: one line, cut with an ellipsis.
     { id: 'instance', label: 'Gilt für jeden Arbeitsbereich, den Sie anlegen', icon: 'gauge', href: '/instance' },
   ];
 
@@ -128,7 +143,7 @@
     if (row instanceof HTMLElement) row.click();
   });
   const nodes = $derived(
-    mode === 'reorder' ? ranked : mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : mode === 'colours' ? colours : tree,
+    mode === 'reorder' ? ranked : mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : mode === 'colours' ? colours : mode === 'views' ? views : tree,
   );
 </script>
 
