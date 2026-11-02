@@ -40,6 +40,8 @@
   import { archivalOf } from '../data/containers.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { placeMenu } from '../workspace/placeMenu.ts';
+  import { placeTabs, tabNodeId, tabOfNode } from '../workspace/placeTabs.ts';
+  import { modules, modulesHere } from '../data/modules.svelte.ts';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
@@ -165,13 +167,46 @@
     });
   });
 
-  // The hub the reader is inside is opened for them. Arriving at a collection by deep link and
-  // finding its own hub collapsed would make the sidebar disagree with the address bar.
+  // The hub the reader is inside is opened for them. Arriving at a collection or a hub's tab by deep
+  // link and finding its own hub collapsed would make the sidebar disagree with the address bar.
   $effect(() => {
-    const container = current ? containers.find(current) : undefined;
-    const hubId = container?.type === 'COLLECTION' ? container.parent_id : undefined;
+    const tab = current ? tabOfNode(current) : undefined;
+    const container = current && !tab ? containers.find(current) : undefined;
+    const hubId = tab?.placeId ?? (container?.type === 'COLLECTION' ? container.parent_id : undefined);
     if (hubId && !expanded.includes(hubId)) expanded = [...expanded, hubId];
   });
+
+  // The modules on at each open hub and at the one the reader is on, for the hub's views mirrored
+  // under its collections (user-experience.md §2.4); a closed hub is not asked.
+  let hubModules = $state<Record<string, readonly string[]>>({});
+  const askedHubs = $derived(
+    [...new Set([...expanded, ...(current && containers.find(current)?.type === 'HUB' ? [current] : [])])].sort().join(','),
+  );
+  $effect(() => {
+    const ids = askedHubs === '' ? [] : askedHubs.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
+        if (next.status === 'ready') hubModules = { ...hubModules, [hubId]: next.data.modules_on };
+      }));
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
+  });
+  /** A hub's views other than its overview, as quieter rows after a hairline, once its modules answered. */
+  function viewRowsOf(hubId: string) {
+    const here = hubModules[hubId];
+    if (here === undefined) return [];
+    return placeTabs({ type: 'HUB', id: hubId, modulesOn: modulesHere(modulesOn, here) })
+      .slice(1)
+      .map((tab, index) => ({
+        id: tabNodeId(hubId, tab.id),
+        label: t(tab.code),
+        icon: tab.icon,
+        isQuiet: true,
+        ...(index === 0 ? { band: {} } : {}),
+      }));
+  }
 
   /** The hubs and a hub's collections as the tree draws them: the levels a rank position is in. */
   const shownHubs = $derived(containers.hubs.filter((hub) => !live.hasLost(hub.id)));
@@ -290,9 +325,9 @@
       // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
       // the hub, which is where a collection is made.
       isBranch:
-        containers.isLevelLoading(hub.id) || shownCollectionsOf(hub.id).length > 0,
-      children: shownCollectionsOf(hub.id)
-        .map((collection) => {
+        containers.isLevelLoading(hub.id) || shownCollectionsOf(hub.id).length > 0 || viewRowsOf(hub.id).length > 0,
+      children: [
+        ...shownCollectionsOf(hub.id).map((collection) => {
           // What counts in it, short (UC-WRK-29): nothing where it counts nothing or nothing yet.
           const figure = collection.figure ? rowMessage(collection.figure, messages.locale) : undefined;
           return {
@@ -304,6 +339,8 @@
             isMovable: mayRankIn(hub.id),
           };
         }),
+        ...viewRowsOf(hub.id),
+      ],
     })),
   );
 
@@ -347,6 +384,12 @@
     if (room) return onnavigate(room.path);
     const keeping = KEEPING.find((each) => each.id === id);
     if (keeping) return onnavigate(keeping.path);
+    const tab = tabOfNode(id);
+    if (tab) {
+      const href = placeTabs({ type: 'HUB', id: tab.placeId, modulesOn: modulesHere(modulesOn, hubModules[tab.placeId] ?? []) }).find((each) => each.id === tab.tab)?.href;
+      if (href) onnavigate(href);
+      return;
+    }
     const container = containers.find(id);
     if (!container) return;
     onnavigate(container.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`);

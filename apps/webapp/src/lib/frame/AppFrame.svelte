@@ -29,6 +29,7 @@
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { PLACE_ROUTES } from '../routes.ts';
+  import { placeTabOf, tabNodeId } from '../workspace/placeTabs.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
@@ -211,13 +212,16 @@
    * the workspace page the workspace row; inside a collection the collection, not the row above it.
    * On an entry's page its collection, and nothing until the entry says which - never the workspace.
    */
-  const currentNode = $derived(
-    PLACE_ROUTES.includes(route.name ?? '')
-      ? route.params.id
-      : route.name === 'item'
-        ? page.place
-        : destination,
-  );
+  const currentNode = $derived.by(() => {
+    if (PLACE_ROUTES.includes(route.name ?? '')) return route.params.id;
+    if (route.name === 'item') return page.place;
+    // A hub's tab is its row mirrored under the hub (user-experience.md §2.4); a collection's tab
+    // is the collection's own row.
+    const tab = placeTabOf(route.name ?? '', route.query);
+    const placeId = route.name === 'goals' ? route.query['hub'] : route.params.id;
+    if (tab && placeId) return route.name?.startsWith('collection-') ? placeId : tabNodeId(placeId, tab.tab);
+    return destination;
+  });
   /**
    * The section the reader is inside, or nothing while they are in the workspace.
    *

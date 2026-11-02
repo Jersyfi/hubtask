@@ -112,3 +112,25 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
     assert.deepEqual(failures, []);
   });
 }
+
+// §2.4, §2.5: the tree mirrors an open hub's views as quieter rows after its collections, the one
+// the reader is on current; the hub's long name is one line with the whole name as its tooltip.
+test('chromium 1280 px: the tree mirrors the hub\'s views, and its name is one line', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}/workload`, modulesOn: ['TIME', 'KNOWLEDGE'] });
+  t.after(close);
+  const tree = page.getByRole('navigation', { name: 'Workspace', exact: true });
+  const time = tree.locator(`[data-node="${HUB.id}/tab/time"]`);
+  await time.waitFor({ timeout: 10_000 });
+  assert.equal(await time.getAttribute('aria-current'), 'page', 'the hub\'s Time row is not current on its screen');
+  const views = (await tree.locator(`[data-node^="${HUB.id}/tab/"]`).allTextContents()).map((each) => each.trim());
+  assert.deepEqual(views, ['Pages', 'Time'], JSON.stringify(views));
+  const name = tree.getByRole('treeitem', { name: HUB.name }).locator('.label');
+  assert.equal(await name.getAttribute('title'), HUB.name);
+  const box = await name.evaluate((element) => ({ lines: Math.round(element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight)), cut: element.scrollWidth > element.clientWidth }));
+  assert.equal(box.lines, 1, 'the hub\'s name breaks onto a second line');
+  await tree.locator(`[data-node="${HUB.id}/tab/pages"]`).click();
+  await page.waitForFunction((id) => location.pathname === `/hubs/${id}/pages`, HUB.id, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});

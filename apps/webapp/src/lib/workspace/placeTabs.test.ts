@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { placeTabOf, placeTabs } from './placeTabs.ts';
+import { placeTabOf, placeTabs, tabNodeId, tabOfNode } from './placeTabs.ts';
 import { placeMenu } from './placeMenu.ts';
 
 const ALL = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
@@ -51,4 +51,11 @@ test('no product appears in the place menu: it holds only verbs on the place', (
   const menu = placeMenu({ type: 'HUB', mayShape: true, mayDelete: true, archival: 'active', privacy: 'make_private' }, (code) => code);
   assert.deepEqual(menu.map((item) => item.id), ['settings', 'import', 'position', 'archive', 'privacy', 'trash']);
   assert.ok(menu.every((item) => !products.has(item.label)));
+});
+
+test('a hub view\'s tree id names its hub and its tab, and no container id reads as one', () => {
+  const hub = '01a0e2e0-0000-7000-8000-000000000002';
+  assert.deepEqual(tabOfNode(tabNodeId(hub, 'time')), { placeId: hub, tab: 'time' });
+  assert.equal(tabOfNode(hub), undefined);
+  assert.equal(tabOfNode('today'), undefined);
 });

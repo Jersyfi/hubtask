@@ -98,3 +98,12 @@ export function placeTabOf(route: string, query: Readonly<Record<string, string 
     default: return undefined;
   }
 }
+
+/** The tree's id for a hub's view mirrored under it: never a container's id, which is a UUID. */
+export const tabNodeId = (placeId: string, tab: string): string => `${placeId}/tab/${tab}`;
+
+/** The place and the tab a tree id names, or nothing for any other row. */
+export function tabOfNode(id: string): { placeId: string; tab: string } | undefined {
+  const match = /^(.+)\/tab\/([a-z]+)$/u.exec(id);
+  return match ? { placeId: match[1]!, tab: match[2]! } : undefined;
+}
