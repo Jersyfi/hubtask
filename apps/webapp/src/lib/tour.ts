@@ -13,7 +13,7 @@
  * workspace can show.
  */
 
-export type StepId = 'hubs' | 'capture' | 'palette' | 'layouts' | 'entry' | 'levels' | 'jumble' | 'search' | 'profile' | 'make';
+export type StepId = 'hubs' | 'products' | 'capture' | 'palette' | 'layouts' | 'entry' | 'levels' | 'jumble' | 'search' | 'profile' | 'make';
 
 export interface Step {
   readonly id: StepId;
@@ -33,12 +33,19 @@ export interface Workspace {
   readonly itemId?: string;
   /** Whether the jumble is the reader's to see: `READ` on the workspace itself. */
   readonly hasJumble: boolean;
+  /** The first row of the products band, where any product is on (user-experience.md §3.4). */
+  readonly firstProduct?: string;
 }
 
 /** The steps a workspace can be walked through, in order. */
 export function stepsFor(workspace: Workspace): readonly Step[] {
   const steps: Step[] = [
     { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' },
+    // *Your products live here*: the band's first row in the column; a phone draws no column, and
+    // the step is passed over there.
+    ...(workspace.firstProduct
+      ? [{ id: 'products' as const, route: '/', selector: `[data-tour="hubs"] [data-node="${workspace.firstProduct}"]`, side: 'inline-end' as const }]
+      : []),
     // Capture from every page (ux-inventory.md §E1): the bar's button, or the bottom bar's ＋ on a
     // phone - the one act among its destinations.
     { id: 'capture', route: '/', selector: '[data-tour="capture"], nav button[data-action]', side: 'block-end' },

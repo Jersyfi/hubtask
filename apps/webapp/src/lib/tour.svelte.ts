@@ -19,6 +19,8 @@
 import { actor } from './data/account.svelte.ts';
 import { engine } from './data/engine.ts';
 import { holdsHere } from './data/capability.svelte.ts';
+import { manifest } from './data/capabilities.svelte.ts';
+import { products } from './navigation.ts';
 import { preferences } from './data/preferences.svelte.ts';
 import { TOUR_SESSION_KEY, stepsFor, type Step } from './tour.ts';
 
@@ -77,7 +79,7 @@ class TourStore {
     const workspace = await this.#workspace();
     // The jumble's step only for somebody the jumble is drawn for: a step pointing at a screen
     // that answers "nothing here" would be a tour of a refusal.
-    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true });
+    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.id });
     await this.#go(0, 1);
   }
 

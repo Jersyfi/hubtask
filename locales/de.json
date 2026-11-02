@@ -5531,6 +5531,8 @@
   "app.tour.make_one": "Eins anlegen",
   "app.tour.hubs.caption": "Wo die Arbeit wohnt",
   "app.tour.hubs.body": "Ein Hub hält Sammlungen, und eine Sammlung hält die Einträge. Alles, was du anlegst, sitzt irgendwo in diesem Baum, und der Baum ist auf jeder Seite derselbe.",
+  "app.tour.products.caption": "Hier wohnen deine Produkte",
+  "app.tour.products.body": "Was dein Arbeitsbereich eingeschaltet hat - Pläne, Seiten, der Servicedesk - hat hier sein Zuhause, mit allem, was es über deine Hubs hinweg hält.",
   "app.tour.capture.caption": "Festhalten, bevor es entwischt",
   "app.tour.capture.body": "Erfassen nimmt eine Zeile von jeder Seite an, oder drücke Q. Sag, wohin sie gehört, oder lass sie im Eingang und entscheide später.",
   "app.tour.palette.caption": "Alles finden, alles tun",

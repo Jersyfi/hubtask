@@ -49,3 +49,10 @@ test('the tour starts on the overview only, so an address opened by link keeps i
   assert.equal(startsAt('/'), true);
   for (const path of ['/profile/security', '/profile/sessions', '/collections/c', '/search', '/sign-in']) assert.equal(startsAt(path), false, path);
 });
+
+test('where a product is on, the second step points at the products band\'s first row', () => {
+  const steps = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages' });
+  assert.deepEqual(steps.slice(0, 3).map((s) => s.id), ['hubs', 'products', 'capture']);
+  assert.equal(steps[1]?.selector, '[data-tour="hubs"] [data-node="pages"]');
+  assert.ok(!stepsFor({ hasJumble: false }).some((s) => s.id === 'products'), 'a workspace with nothing on is shown no band');
+});

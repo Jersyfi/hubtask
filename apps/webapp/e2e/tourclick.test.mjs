@@ -12,7 +12,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, forgetUnstubbed, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -70,3 +70,30 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// user-experience.md §3.4: where a product is on, the second step points at the products band.
+test('chromium: with a product on, the tour shows where the products live', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: FRESH });
+    if (url.pathname.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: { ...MANIFEST, modules_on: ['KNOWLEDGE'] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/`);
+  const mark = page.locator('[role="dialog"][aria-labelledby^="coach-"]');
+  await mark.waitFor({ state: 'visible', timeout: 15_000 });
+  await mark.getByRole('button').first().click();
+  await page.waitForTimeout(300);
+  await mark.waitFor({ state: 'visible', timeout: 5_000 });
+  assert.match((await mark.textContent()) ?? '', /Your products live here/u);
+});

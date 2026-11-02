@@ -5531,6 +5531,8 @@
   "app.tour.make_one": "Make one",
   "app.tour.hubs.caption": "Where work lives",
   "app.tour.hubs.body": "A hub holds collections, and a collection holds the entries. Everything you make sits somewhere in this tree, and the tree is the same on every screen.",
+  "app.tour.products.caption": "Your products live here",
+  "app.tour.products.body": "What your workspace has switched on - plans, pages, the service desk - each has its home here, with everything it holds across your hubs.",
   "app.tour.capture.caption": "Catch it before it slips",
   "app.tour.capture.body": "Capture takes a line from any page, or press Q. Say where it goes, or leave it in the inbox and decide later.",
   "app.tour.palette.caption": "Find anything, do anything",

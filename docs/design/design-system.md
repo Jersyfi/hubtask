@@ -617,7 +617,9 @@ screenshots.
 * The design system defines the **pattern** (`Tour`, `CoachMark`, §4): presentation (spotlight,
   glass overlay per rule 2), tone ([`voice-and-tone.md`](./voice-and-tone.md), no exclamation marks)
   and interaction (next, back, skip, keyboard, visible focus). The steps are the client's, in
-  `apps/webapp/src/lib/tour.ts`, anchored by `data-tour` attributes.
+  `apps/webapp/src/lib/tour.ts`, anchored by `data-tour` attributes. Where a product is on, the
+  second step, *Your products live here*, points at the products band's first row (user-experience.md
+  §3.4); the starter before the tour and the product tours are not built yet.
 
 ---
 
