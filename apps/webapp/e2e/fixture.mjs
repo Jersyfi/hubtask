@@ -985,6 +985,10 @@ export function stub(route) {
   if (figured) return figured;
   const celebrated = celebrationRoute(route, request, url, path);
   if (celebrated) return celebrated;
+  // A place's modules are the workspace's: a walk of the fixture switches none off below it.
+  if (/\/api\/v1\/containers\/[^/]+\/modules$/.test(path) && request.method() === 'GET') {
+    return route.fulfill({ json: { modules_on: MANIFEST.modules_on ?? [] } });
+  }
   // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
   // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
