@@ -22,6 +22,7 @@
   // filled (known-traps.md: a live region created already filled is not announced).
 
   import Button from './Button.svelte';
+  import { clearanceUnder } from './focus.ts';
 
   interface Props {
     /** What the bar is, for a reader who arrives at it: "Unsaved changes". */
@@ -73,8 +74,10 @@
   /** Moves a field above the bar by exactly what the bar covers of it, where it covers any. */
   function clear(field: EventTarget | null): void {
     if (!(field instanceof HTMLElement) || !bar || bar.contains(field) || field === document.body) return;
-    const covered = field.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
-    if (covered > 0) scrollerOf(field).scrollBy({ top: covered });
+    const scroller = scrollerOf(field);
+    const roomTop = scroller === document.scrollingElement || scroller === document.documentElement ? 0 : scroller.getBoundingClientRect().top;
+    const covered = clearanceUnder(field.getBoundingClientRect(), bar.getBoundingClientRect().top, roomTop);
+    if (covered > 0) scroller.scrollBy({ top: covered });
   }
 
   // A field that takes focus under the bar is brought above it. The scroll padding below does

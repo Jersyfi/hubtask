@@ -153,3 +153,15 @@ export function focusFirst(options: { returnTo?: string } = {}): Attachment {
     };
   };
 }
+
+/**
+ * How far to scroll a focused field so that a bar pinned at the bottom (`SaveBar`) no longer
+ * covers it: what the bar covers of it, or nothing. Nothing as well for an element taller than the
+ * room between `roomTop` and the bar - a region such as `main`, focused because it was pressed: it
+ * cannot be cleared, and scrolling between a press and its release moves the control under the
+ * pointer, so the click lands on something else.
+ */
+export function clearanceUnder(field: { top: number; bottom: number }, barTop: number, roomTop: number): number {
+  if (field.bottom - field.top > barTop - roomTop) return 0;
+  return Math.max(0, field.bottom - barTop);
+}
