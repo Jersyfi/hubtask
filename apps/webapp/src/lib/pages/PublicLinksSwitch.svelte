@@ -17,6 +17,8 @@
   const administers = $derived(holdsHere('MANAGE_MEMBERS') === true);
   const policy = resource<PublicLinksPolicy>(publicLinksPolicyPath);
   const held = $derived(policy.state.status === 'ready' ? policy.state.data : undefined);
+  // Drawn as `allowed === true`: a `Switch` refuses an undefined binding and takes the whole screen
+  // down with it, so an answer without the field (a proxy's page) reads as off instead.
 
   async function set(allowed: boolean) {
     try {
@@ -34,7 +36,7 @@
       label={t('app.admin.public_links')}
       hint={t('app.admin.public_links_hint')}
       disabledReason={held.locked_by ? t('app.admin.public_links_locked') : undefined}
-      bind:checked={() => held.allowed, (on) => void set(on)}
+      bind:checked={() => held.allowed === true, (on) => void set(on)}
     />
   </div>
 {/if}
