@@ -591,6 +591,19 @@
     border: var(--bw-hairline) solid var(--border-default);
     border-radius: var(--r-md);
   }
+  /* A table: as wide as its words, scrolled sideways on a narrow screen rather than squeezed. */
+  .editor :global(.tableWrapper) { margin-block: var(--sp-100); overflow-x: auto; }
+  .editor :global(.page-table) { border-collapse: collapse; min-inline-size: 50%; }
+  .editor :global(.page-table th),
+  .editor :global(.page-table td) {
+    padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-default);
+    vertical-align: top;
+    text-align: start;
+  }
+  .editor :global(.page-table th) { background: var(--bg-surface-sunken); font-weight: var(--fw-semibold); }
+  .editor :global(.page-table p) { margin: 0; }
+  .editor :global(.page-table .selectedCell) { background: var(--bg-surface-pressed); }
   .editor :global(.page-details__summary) { font-weight: var(--fw-medium); cursor: pointer; }
   .editor :global(.page-details__input) {
     inline-size: calc(100% - var(--sp-300));

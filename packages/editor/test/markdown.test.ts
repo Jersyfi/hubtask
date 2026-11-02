@@ -128,3 +128,33 @@ test('an embed takes an https address alone, and a directive typed as words stay
   const unknownTone = toMarkdown({ type: 'doc', content: [{ type: 'callout', attrs: { tone: 'purple' }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] }] });
   assert.equal(unknownTone, ':::info\nx\n:::\n');
 });
+
+test('a Markdown table is read as a table and written back the same (fourth answers, 2)', () => {
+  const body = [
+    '## Bausteine',
+    '',
+    '| Baustein | Verantwortung | Team |',
+    '| --- | --- | --- |',
+    '| App (iOS/Android) | Oberfläche und **Offline** | Mobile |',
+    '| Pipe \\| im Text |  | Plattform |',
+    '',
+    'Danach ein Absatz.',
+    '',
+  ].join('\n');
+  const doc = fromMarkdown(body);
+  const table = doc.content?.[1];
+  assert.equal(table?.type, 'table', 'the table is not a table');
+  assert.equal(table?.content?.length, 3);
+  assert.deepEqual(table?.content?.[0]?.content?.map((cell) => cell.type), ['tableHeader', 'tableHeader', 'tableHeader']);
+  assert.equal(table?.content?.[2]?.content?.[0]?.content?.[0]?.content?.[0]?.text, 'Pipe | im Text');
+  assert.equal(toMarkdown(doc), body);
+  assert.equal(doc.content?.[2]?.type, 'paragraph');
+});
+
+test('a table as a seed writes it - without spaces, alignment marks or a ragged row - is read too', () => {
+  const doc = fromMarkdown('|a|b|\n|:---|---:|\n|1|\n');
+  const table = doc.content?.[0];
+  assert.equal(table?.type, 'table');
+  assert.equal(table?.content?.[1]?.content?.length, 2, 'a short row is filled to the width');
+  assert.equal(toMarkdown(doc), '| a | b |\n| --- | --- |\n| 1 |  |\n');
+});

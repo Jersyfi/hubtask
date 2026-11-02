@@ -15,6 +15,7 @@ import { Editor, Extension, Node, mergeAttributes, type JSONContent } from '@tip
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { TableKit } from '@tiptap/extension-table';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
 import type * as Y from 'yjs';
@@ -342,8 +343,11 @@ export const StatusChip = Node.create({
 
 const BLOCK_TYPES = [
   'paragraph', 'heading', 'blockquote', 'codeBlock', 'bulletList', 'orderedList', 'taskList', 'referenceBlock',
-  'callout', 'details', 'tableOfContents', 'childPages', 'embed',
+  'callout', 'details', 'tableOfContents', 'childPages', 'embed', 'table',
 ];
+
+/** The table block: TipTap's own, without resizing - a width dragged would not survive Markdown. */
+export const PageTable = TableKit.configure({ table: { resizable: false, HTMLAttributes: { class: 'page-table' } } });
 
 /**
  * Every top block carries an identifier an inline comment stands at (`PageCommentCreate.anchor`).
@@ -438,6 +442,8 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     ReferenceBlock.configure({ drawing: options.drawing, fallback }),
     Callout,
     Details.configure({ drawing: options.drawing }),
+    // A Markdown table (GitHub's dialect), edited in place; columns are as wide as their words.
+    PageTable,
     TableOfContents.configure({ drawing: options.drawing }),
     ChildPages.configure({ drawing: options.drawing }),
     Embed.configure({ drawing: options.drawing }),

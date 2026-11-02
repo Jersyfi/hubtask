@@ -9,11 +9,11 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { Node as PMNode } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 
-import { Callout, ChildPages, DateChip, Details, Embed, Reference, embedFrame, ReferenceBlock, StatusChip, TableOfContents } from '../src/editor.ts';
+import { Callout, ChildPages, DateChip, Details, Embed, PageTable, Reference, embedFrame, ReferenceBlock, StatusChip, TableOfContents } from '../src/editor.ts';
 import { fromMarkdown, toMarkdown, type DocNode } from '../src/markdown.ts';
 
 const schema = getSchema([
-  StarterKit, TaskList, TaskItem, Reference, ReferenceBlock, Callout, Details, TableOfContents, ChildPages, Embed, DateChip, StatusChip,
+  StarterKit, TaskList, TaskItem, Reference, ReferenceBlock, Callout, Details, PageTable, TableOfContents, ChildPages, Embed, DateChip, StatusChip,
 ]);
 
 // A page imported from a wiki keeps its panels, expands and contents in the editor itself: the
@@ -60,4 +60,19 @@ test('an embed is framed, sandboxed, only for an origin the installation frames'
   assert.equal(embedFrame('http://dashboards.example.org/d/7', ['http://dashboards.example.org']), undefined);
   assert.equal(embedFrame('https://dashboards.example.org/d/7', undefined), undefined);
   assert.equal(embedFrame('https://dashboards.example.org/d/7', []), undefined);
+});
+
+// A table seeded through the API (the handbook's architecture page) is a table the editor's
+// schema holds, and comes back as written (fourth answers, 2).
+test("a Markdown table is the editor schema's own table, and comes back as written", () => {
+  const body = [
+    '| Baustein | Verantwortung | Team |',
+    '| --- | --- | --- |',
+    '| App (iOS/Android) | Oberfläche und Offline | Mobile |',
+    '',
+  ].join('\n');
+  const doc = PMNode.fromJSON(schema, fromMarkdown(body));
+  doc.check();
+  assert.equal(doc.firstChild?.type.name, 'table');
+  assert.equal(toMarkdown(doc.toJSON() as DocNode), body);
 });

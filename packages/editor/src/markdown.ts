@@ -101,6 +101,8 @@ function block(node: DocNode, indent: string): string {
       const fence = text.includes('```') ? '~~~' : '```';
       return [`${indent}${fence}${language}`, ...text.split('\n').map((line) => indent + line), `${indent}${fence}`].join('\n');
     }
+    case 'table':
+      return table(node, indent);
     case 'horizontalRule':
       return `${indent}---`;
     case 'referenceBlock':
@@ -128,6 +130,21 @@ function block(node: DocNode, indent: string): string {
 }
 
 /** How many containers deep a container's content goes, so its fence outlasts every inner one. */
+/**
+ * A table as GitHub's Markdown writes one: the first row is the header, a delimiter row under it,
+ * one line per row. A cell holds one line, so its blocks are joined by a space and a pipe in it is
+ * escaped.
+ */
+function table(node: DocNode, indent: string): string {
+  const rows = (node.content ?? []).map((row) => (row.content ?? []).map((cell) =>
+    (cell.content ?? []).map((part) => inline(part.content ?? []).replace(/\n/gu, ' ')).join(' ').replace(/\|/gu, '\\|').trim()));
+  const width = Math.max(1, ...rows.map((cells) => cells.length));
+  const line = (cells: readonly string[]) =>
+    `${indent}| ${Array.from({ length: width }, (_, at) => cells[at] ?? '').join(' | ')} |`;
+  const [head = [], ...body] = rows;
+  return [line(head), `${indent}|${' --- |'.repeat(width)}`, ...body.map(line)].join('\n');
+}
+
 function containerDepth(nodes: readonly DocNode[]): number {
   let deepest = 0;
   for (const node of nodes) {
@@ -313,6 +330,13 @@ function parseBlocks(lines: readonly string[]): DocNode[] {
       i++;
       continue;
     }
+    if (TABLE_ROW.test(line) && TABLE_DELIMITER.test(lines[i + 1] ?? '')) {
+      const rows: string[][] = [cellsOf(line)];
+      i += 2;
+      while (i < lines.length && TABLE_ROW.test(lines[i] ?? '')) rows.push(cellsOf(lines[i++] ?? ''));
+      out.push(tableOf(rows));
+      continue;
+    }
     if (line.startsWith('>')) {
       const quoted: string[] = [];
       while (i < lines.length && (lines[i] ?? '').startsWith('>')) quoted.push((lines[i++] ?? '').replace(/^> ?/u, ''));
@@ -333,6 +357,43 @@ function parseBlocks(lines: readonly string[]): DocNode[] {
     out.push({ type: 'paragraph', content: parseInline(paragraph.join('\n')) });
   }
   return out;
+}
+
+const TABLE_ROW = /^\s*\|.*\|\s*$/u;
+const TABLE_DELIMITER = /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/u;
+
+/** A row's cells: split at every pipe not escaped, the outer two dropped, each trimmed. */
+function cellsOf(line: string): string[] {
+  const cells: string[] = [];
+  let cell = '';
+  const text = line.trim().replace(/^\|/u, '').replace(/\|$/u, '');
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at] ?? '';
+    if (char === '\\' && text[at + 1] === '|') {
+      cell += '|';
+      at++;
+    } else if (char === '|') {
+      cells.push(cell.trim());
+      cell = '';
+    } else cell += char;
+  }
+  cells.push(cell.trim());
+  return cells;
+}
+
+/** The table node: the first row's cells are headers, every row as wide as the widest. */
+function tableOf(rows: readonly (readonly string[])[]): DocNode {
+  const width = Math.max(...rows.map((cells) => cells.length));
+  return {
+    type: 'table',
+    content: rows.map((cells, row) => ({
+      type: 'tableRow',
+      content: Array.from({ length: width }, (_, at) => {
+        const text = cells[at] ?? '';
+        return { type: row === 0 ? 'tableHeader' : 'tableCell', content: [{ type: 'paragraph', ...(text === '' ? {} : { content: parseInline(text) }) }] };
+      }),
+    })),
+  };
 }
 
 function startsBlock(line: string): boolean {
