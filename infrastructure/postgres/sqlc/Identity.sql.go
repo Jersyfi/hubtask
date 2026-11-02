@@ -1255,7 +1255,7 @@ FROM container k
 WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
   AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
        OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB'))
-ORDER BY k.name, k.id
+ORDER BY k.name COLLATE hubtask_name, k.id
 LIMIT 50
 `
 
