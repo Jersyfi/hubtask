@@ -28,7 +28,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import ArticleSuggestions from '../lib/portal/ArticleSuggestions.svelte';
   import Question from '../lib/portal/Question.svelte';
-  import { answersOf, askable, deflectionText, deskHead, deskLogoOf } from '../lib/portal/portal.ts';
+  import { answersOf, askable, deflectionText, deskHead, deskLogoOf, isTeamView } from '../lib/portal/portal.ts';
   import { media } from '../lib/data/media.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
@@ -51,7 +51,10 @@
   const waiting = $derived(asked.state.status === 'ready' ? asked.state.data.data : []);
 
   const kinds = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.data : []);
-  const failure = $derived(catalogue.state.status === 'failed' ? renderProblem(catalogue.state.error, messages) : undefined);
+  // The desk's team opening the portal from its collection holds no REQUEST there: told as such,
+  // with what it sets up for the portal, rather than shown the refusal (UC-SVC-05).
+  const isTeam = $derived(catalogue.state.status === 'failed' && isTeamView(catalogue.state.error));
+  const failure = $derived(catalogue.state.status === 'failed' && !isTeam ? renderProblem(catalogue.state.error, messages) : undefined);
   const organisation = $derived(mine.state.status === 'ready' ? mine.state.data.organisation : undefined);
   const offered = $derived(offersOrganisation(organisation));
   let scope = $state<'MINE' | 'ORGANISATION'>('MINE');
@@ -123,7 +126,9 @@
   <PageHeader title={head.title} subtitle={head.subtitle} isTitleInBar={viewport.isCompact}
     mark={desk ? deskMark : undefined} />
 
-  {#if failure}
+  {#if isTeam}
+    <EmptyState kind="unused" icon="inbox" title={t('app.portal.team_view')} description={t('app.portal.team_view_body')} />
+  {:else if failure}
     <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')} onRetry={() => void catalogue.refresh()} />
   {:else if catalogue.state.status !== 'ready'}
@@ -172,7 +177,7 @@
   {#if holdsHere('MANAGE_MEMBERS') === true}<PublicFormPanel {collectionId} />{/if}
   {#if holdsHere('STRUCTURE') === true && desk}<DeskLogoPanel {collectionId} hasLogo={deskLogoOf(desk) !== undefined} />{/if}
 
-  <section aria-labelledby="portal-mine">
+  {#if !isTeam}<section aria-labelledby="portal-mine">
     <Stack gap="100">
       <h2 class="heading" id="portal-mine">{t('app.portal.mine')}</h2>
       {#if offered}
@@ -199,7 +204,7 @@
           endLabel={t('app.portal.end')} onLoadMore={() => void more()} />
       {/if}
     </Stack>
-  </section>
+  </section>{/if}
 </Stack>
 
 <style>

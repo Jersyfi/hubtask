@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone } from './portal.ts';
+import { answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -62,4 +62,11 @@ test('a desk is drawn by its own logo where it has one', () => {
   assert.equal(deskLogoOf({ ...desk, logo_media_id: null }), undefined);
   assert.equal(deskLogoOf(desk), undefined);
   assert.equal(deskLogoOf(undefined), undefined);
+});
+
+test('the desk\'s team opening its portal is told so, not shown a refusal', () => {
+  assert.equal(isTeamView({ status: 403 }), true);
+  assert.equal(isTeamView({ status: 404 }), false, 'a desk that is not there is a failure');
+  assert.equal(isTeamView({ status: 503 }), false);
+  assert.equal(isTeamView(undefined), false);
 });

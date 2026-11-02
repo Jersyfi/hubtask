@@ -128,3 +128,10 @@ export function deskLogoOf(desk: Desk | undefined): string | undefined {
 export function deskHead(desk: Desk | undefined, words: { title: string; intro: string }): { title: string; subtitle: string } {
   return { title: desk?.name || words.title, subtitle: desk?.description || words.intro };
 }
+
+/**
+ * Whether the portal's catalogue was refused because the reader is not a requester there - the
+ * desk's own team opening its portal from the collection - rather than broken: a 403 on the
+ * catalogue is that, and is said as such instead of as a role code with a reference.
+ */
+export const isTeamView = (failure: { readonly status?: number } | undefined): boolean => failure?.status === 403;
