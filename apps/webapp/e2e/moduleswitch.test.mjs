@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A module switched on is drawn on at once, without a reload (UC-INS-21), and a module's page
+// A module switched on is drawn on at once, without a reload (UC-INS-21), with a card that says
+// where it is now and what it still needs (user-experience.md §2.8), and a module's page
 // reached while it is off says so in place of its forms - no read refused, no form that fails -
 // with the switch at hand. Chromium only.
 
@@ -50,7 +51,16 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
     await row.locator('label').first().click();
     await row.locator(`[data-reset="${module}"]`).waitFor({ timeout: 5_000 });
     assert.equal(await control.isChecked(), true, `${module} is drawn off after its write switched it on`);
+    // The card under the switch says where the product is now (user-experience.md §2.8), one at a time.
+    const card = page.locator(`[data-switched-on="${module}"]`);
+    await card.waitFor({ timeout: 5_000 });
+    assert.equal(await page.locator('[data-switched-on]').count(), 1, 'an earlier card stayed');
   }
+  const time = page.locator('[data-switched-on="TIME"]');
+  assert.equal(await time.getByRole('link', { name: 'Find it in Time' }).getAttribute('href'), '/time');
+  assert.equal(await time.getByRole('link', { name: /^Set up time/u }).getAttribute('href'), '/administration/time');
+  await time.getByRole('button', { name: 'Close' }).click();
+  await time.waitFor({ state: 'detached', timeout: 5_000 });
   assert.deepEqual(walk.errors(), []);
 });
 

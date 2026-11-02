@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+/**
+ * What the card under a switch offers once a module is on (user-experience.md §2.8), the same for
+ * every module: where to find it - the product's home, or the hub's tab where it was switched at a
+ * hub - and the settings it still needs before it is of use, where it has any.
+ */
+
+import { productOf } from '../navigation.ts';
+import { placeTabs } from '../workspace/placeTabs.ts';
+
+export interface SwitchedOn {
+  /** Where the product is now: its row's home, or the hub's tab; none for a module without one. */
+  readonly find?: { readonly code: string; readonly href: string };
+  /** The settings page it still needs, where it has one. */
+  readonly setup?: { readonly code: string; readonly href: string };
+}
+
+/** The settings each module needs before it is of use, where it has a page of them. */
+const SETUP: Readonly<Record<string, { code: string; href: string }>> = {
+  SERVICE_DESK: { code: 'app.modules.on_setup_desk', href: '/administration/service-desk' },
+  TIME: { code: 'app.modules.on_setup_time', href: '/administration/time' },
+  WORKFLOWS: { code: 'app.modules.on_setup_workflows', href: '/administration/workflows' },
+};
+
+export function switchedOn(module: string, hubId?: string): SwitchedOn {
+  const tab = hubId ? placeTabs({ type: 'HUB', id: hubId, modulesOn: [module] }).slice(1)[0] : undefined;
+  const row = productOf(module);
+  const find = tab ? { code: tab.code, href: tab.href } : row ? { code: row.code, href: row.path } : undefined;
+  return { ...(find ? { find } : {}), ...(SETUP[module] ? { setup: SETUP[module] } : {}) };
+}

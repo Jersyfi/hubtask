@@ -15,7 +15,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Button, Dialog, IconButton, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import type { ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
@@ -27,6 +27,8 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import FailureNote from '../frame/FailureNote.svelte';
+  import { newMarks } from '../product/newmark.svelte.ts';
+  import { switchedOn } from '../product/switchedon.ts';
 
   interface Props {
     /** The hub to switch for; absent is the workspace. */
@@ -82,12 +84,16 @@
   });
   const reachLines = $derived(offReach(reach.status === 'ready' ? reach.data : undefined));
   let refusal = $state<{ module: ModuleState['module']; message: string } | undefined>(undefined);
+  /** The module just switched on here, whose card says where it is now (user-experience.md §2.8). */
+  let justOn = $state<ModuleState['module'] | undefined>(undefined);
 
   async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT') {
     refusal = undefined;
     busy = state.module;
     try {
       await modules.switch(state.module, to, hubId);
+      justOn = to === 'ON' ? state.module : justOn === state.module ? undefined : justOn;
+      if (to === 'ON' && switchedOn(state.module, hubId).find) newMarks.add(state.module);
       const name = t(moduleCodes(state).name);
       const code = to === 'ON' ? 'app.modules.switched_on' : to === 'OFF' ? 'app.modules.switched_off' : 'app.modules.reset_done';
       toast.show({ text: t(code, { module: name }), tone: 'success' });
@@ -160,6 +166,20 @@
               {/if}
             </Inline>
             {#if refusal?.module === state.module}<p class="refusal" role="alert">{refusal.message}</p>{/if}
+            {#if justOn === state.module && state.on}
+              {@const next = switchedOn(state.module, hubId)}
+              <!-- The same card for every module: where it is now, and what it still needs. -->
+              <section class="card" aria-label={t('app.modules.on_card', { module: t(codes.name) })} data-switched-on={state.module}>
+                <Inline justify="between" align="center">
+                  <p class="card-title">{t('app.modules.on_card', { module: t(codes.name) })}</p>
+                  <IconButton icon="x" size="sm" label={t('app.modules.on_card_close')} onclick={() => (justOn = undefined)} />
+                </Inline>
+                <Inline gap="150" align="center" isWrapping>
+                  {#if next.find}<a class="act" href={next.find.href}>{t('app.modules.on_find', { place: t(next.find.code) })}</a>{/if}
+                  {#if next.setup}<a class="act" href={next.setup.href}>{t(next.setup.code)}</a>{/if}
+                </Inline>
+              </section>
+            {/if}
           </Stack>
         </li>
       {/each}
@@ -218,4 +238,14 @@
   }
 
   .refusal { margin: 0; color: var(--text-danger); }
+
+  .card {
+    display: grid;
+    gap: var(--sp-100);
+    padding: var(--sp-150) var(--sp-200);
+    border-radius: var(--r-md);
+    background: var(--accent-primary-subtle);
+  }
+  .card-title { margin: 0; font-weight: var(--fw-medium); }
+  .act { color: var(--text-brand); font-weight: var(--fw-medium); }
 </style>

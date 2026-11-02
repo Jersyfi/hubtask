@@ -42,6 +42,7 @@
   import { placeMenu } from '../workspace/placeMenu.ts';
   import { placeTabs, tabNodeId, tabOfNode } from '../workspace/placeTabs.ts';
   import { modules, modulesHere } from '../data/modules.svelte.ts';
+  import { newMarks } from '../product/newmark.svelte.ts';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
@@ -77,6 +78,8 @@
       id: row.id,
       label: t(row.code),
       icon: row.icon,
+      // Quiet, until its home is first visited (user-experience.md §2.8).
+      meta: newMarks.has(row.module) ? t('app.nav.new_mark') : undefined,
       ...(index === 0 ? { band: { caption: t('app.nav.products') } } : {}),
     })),
   );

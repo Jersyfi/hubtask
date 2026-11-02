@@ -30,6 +30,7 @@
   import Palette from '../palette/Palette.svelte';
   import { PLACE_ROUTES } from '../routes.ts';
   import { placeTabOf, tabNodeId } from '../workspace/placeTabs.ts';
+  import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
@@ -65,7 +66,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, MORE_CODE, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection } from '../navigation.ts';
+  import { DESTINATIONS, MORE_CODE, PRODUCTS, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -203,6 +204,12 @@
     untrack(() => {
       if (palette.isOpen) palette.dismiss();
     });
+  });
+
+  // A product's home visited takes its *new* mark away (user-experience.md §2.8).
+  $effect(() => {
+    const row = PRODUCTS.find((each) => each.routes.includes(route.name ?? ''));
+    if (row) untrack(() => newMarks.seen(row.module));
   });
 
   /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
