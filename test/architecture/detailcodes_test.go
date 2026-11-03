@@ -6,6 +6,7 @@ package architecture
 import (
 	"go/ast"
 	"go/token"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -17,29 +18,27 @@ import (
 // in a non-test file has its sentence in locales/en.json (i18n-l10n.md §3). A prefix list holds
 // only the products that existed when it was written; a new product's refusal would reach a person
 // as the generic sentence or its humanised key. The one exception is a code on ErrInternal: a 500
-// answers without its detail, so nobody reads it.
+// answers without its detail, so nobody reads it. A code named by a string constant - the
+// archive's `CodeChainBroken` - is held by the constant's value, in its own package or another.
 func TestEveryDetailCodeAPersonCanMeetIsInTheCatalogue(t *testing.T) {
 	messages := loadCatalogue(t)
 	missing := map[string][]string{}
 	found := 0
+	consts := stringConstants(t, detailRoots)
 
-	forEachGoFile(t, []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"},
+	forEachGoFile(t, detailRoots,
 		func(path string, file *ast.File, fset *token.FileSet) {
 			if strings.HasSuffix(path, "_test.go") {
 				return
 			}
 			note := func(lit ast.Expr) {
-				basic, ok := lit.(*ast.BasicLit)
-				if !ok || basic.Kind != token.STRING {
-					return
-				}
-				code, err := strconv.Unquote(basic.Value)
-				if err != nil || code == "" {
+				code, ok := codeOf(lit, filepath.Dir(rel(path)), file, consts)
+				if !ok || code == "" {
 					return
 				}
 				found++
 				if _, ok := messages[code]; !ok {
-					at := rel(path) + ":" + strconv.Itoa(fset.Position(basic.Pos()).Line)
+					at := rel(path) + ":" + strconv.Itoa(fset.Position(lit.Pos()).Line)
 					missing[code] = append(missing[code], at)
 				}
 			}
@@ -79,6 +78,76 @@ func TestEveryDetailCodeAPersonCanMeetIsInTheCatalogue(t *testing.T) {
 	for _, code := range codes {
 		t.Errorf("the detail code %s (%s) is missing from locales/en.json", code, strings.Join(missing[code], ", "))
 	}
+}
+
+var detailRoots = []string{"../../core", "../../infrastructure", "../../presentation", "../../cmd"}
+
+const modulePath = "github.com/Jersyfi/hubtask/"
+
+// stringConstants answers every package-level string constant, keyed by its package directory
+// and name ("core/application/archive.CodeChainBroken").
+func stringConstants(t *testing.T, roots []string) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	forEachGoFile(t, roots, func(path string, file *ast.File, _ *token.FileSet) {
+		dir := filepath.Dir(rel(path))
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.CONST {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				value, ok := spec.(*ast.ValueSpec)
+				if !ok || len(value.Names) != len(value.Values) {
+					continue
+				}
+				for i, name := range value.Names {
+					if basic, ok := value.Values[i].(*ast.BasicLit); ok && basic.Kind == token.STRING {
+						if text, err := strconv.Unquote(basic.Value); err == nil {
+							out[dir+"."+name.Name] = text
+						}
+					}
+				}
+			}
+		}
+	})
+	return out
+}
+
+// codeOf answers the string a detail-code argument names: a literal, a constant of the file's own
+// package, or a constant of an imported package of this module. Anything else is not judged.
+func codeOf(expr ast.Expr, dir string, file *ast.File, consts map[string]string) (string, bool) {
+	switch e := expr.(type) {
+	case *ast.BasicLit:
+		if e.Kind != token.STRING {
+			return "", false
+		}
+		code, err := strconv.Unquote(e.Value)
+		return code, err == nil
+	case *ast.Ident:
+		code, ok := consts[dir+"."+e.Name]
+		return code, ok
+	case *ast.SelectorExpr:
+		pkg, ok := e.X.(*ast.Ident)
+		if !ok {
+			return "", false
+		}
+		for _, spec := range file.Imports {
+			path, err := strconv.Unquote(spec.Path.Value)
+			if err != nil || !strings.HasPrefix(path, modulePath) {
+				continue
+			}
+			name := filepath.Base(path)
+			if spec.Name != nil {
+				name = spec.Name.Name
+			}
+			if name == pkg.Name {
+				code, ok := consts[strings.TrimPrefix(path, modulePath)+"."+e.Sel.Name]
+				return code, ok
+			}
+		}
+	}
+	return "", false
 }
 
 func calledName(fun ast.Expr) string {
