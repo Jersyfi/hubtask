@@ -68,7 +68,7 @@ test('every role this module moves by is a token pair the CSS declares', () => {
 
 test('the components whose lists move draw them through this module', () => {
   const read = (name) => fs.readFileSync(path.join(here, '..', 'src', name), 'utf8');
-  assert.match(read('Table.svelte'), /<tbody \{@attach arrivals\}>/, 'a table row arrives');
+  assert.match(read('Table.svelte'), /<tbody \{@attach arrivals\}[ >]/, 'a table row arrives');
   assert.match(read('BucketColumn.svelte'), /class="cards" \{@attach arrivals\}/, 'a board card arrives');
   assert.match(read('ListRow.svelte'), /\{@attach arrive\}/, 'a list row arrives');
   assert.match(read('TaskRow.svelte'), /<ListRow /, 'a task row arrives as the list row it draws');
