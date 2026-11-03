@@ -1,6 +1,6 @@
 {
   "key": "classic_project",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -387,6 +387,19 @@
       },
       "change_request": {
         "workflow": "change_request"
+      }
+    },
+    "structure": {
+      "views": {
+        "value": {
+          "offered": [
+            "TIMELINE",
+            "LIST_COLLAPSED",
+            "LIST_EXPANDED",
+            "KANBAN"
+          ],
+          "default": "TIMELINE"
+        }
       }
     }
   }

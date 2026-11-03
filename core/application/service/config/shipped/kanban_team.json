@@ -1,6 +1,6 @@
 {
   "key": "kanban_team",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -113,6 +113,19 @@
     "scheme": {
       "card": {
         "workflow": "card"
+      }
+    },
+    "structure": {
+      "views": {
+        "value": {
+          "offered": [
+            "KANBAN",
+            "LIST_COLLAPSED",
+            "LIST_EXPANDED",
+            "TIMELINE"
+          ],
+          "default": "KANBAN"
+        }
       }
     }
   }

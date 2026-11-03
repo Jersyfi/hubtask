@@ -1,6 +1,6 @@
 {
   "key": "scrum_team",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -274,6 +274,19 @@
       },
       "bug": {
         "workflow": "bug"
+      }
+    },
+    "structure": {
+      "views": {
+        "value": {
+          "offered": [
+            "KANBAN",
+            "LIST_COLLAPSED",
+            "LIST_EXPANDED",
+            "TIMELINE"
+          ],
+          "default": "KANBAN"
+        }
       }
     }
   }

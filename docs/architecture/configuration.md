@@ -245,6 +245,9 @@ what a workspace can take: every block one the applying use cases accept, the co
 (§11) finding no error, an approval waiting only on a role the template brings, and a key two
 templates share - a field, a type, a workflow, a role - defined the same in both, so a workspace may
 take any two. The project templates share one RAID record type (`raid_item`).
+A template's hub part names the view its collections open on (`structure.views`,
+`user-experience.md` §7.5): the Kanban and the Scrum team the board, the Classic project the
+timeline; a collection inherits it from its hub and may set its own.
 
 ## 10. Tolerances
 

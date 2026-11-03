@@ -101,3 +101,33 @@ func TestThePlanningTemplatesAreWholeWaysOfWorking(t *testing.T) {
 		}
 	}
 }
+
+// A template opens its collections on the view its way of working lives in (user-experience.md
+// §7.5): the Kanban and the Scrum team on the board, the Classic project on its timeline. The value
+// is the hub's structure, so a collection made later inherits it and may set its own.
+func TestThePlanningTemplatesOpenOnTheirOwnView(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byKey := map[string]domain.Template{}
+	for _, template := range templates {
+		byKey[template.Key] = template
+	}
+	for key, opening := range map[string]work.ViewLayout{
+		"kanban_team": work.ViewKanban, "scrum_team": work.ViewKanban, "classic_project": work.ViewTimeline,
+	} {
+		views, _ := byKey[key].Hub[sectionStructure][string(work.SettingViews)][settingValueField].(map[string]any)
+		offered, _ := views["offered"].([]any)
+		if text(views["default"]) != string(opening) {
+			t.Errorf("%s opens on %v, want %s", key, views["default"], opening)
+		}
+		found := false
+		for _, layout := range offered {
+			found = found || text(layout) == string(opening)
+		}
+		if !found {
+			t.Errorf("%s does not offer the view it opens on: %v", key, offered)
+		}
+	}
+}
