@@ -86,8 +86,10 @@ type DefineCustomFieldCommand struct {
 	CollectionID shared.ID
 	HubID        shared.ID
 	Key          string
-	Kind         domain.CustomFieldKind
-	Options      []string
+	// Name is what a person reads for the field; empty leaves it unnamed.
+	Name    string
+	Kind    domain.CustomFieldKind
+	Options []string
 	// Currency is a MONEY field's ISO 4217 code, empty for every other kind.
 	Currency string
 	// Formula is a CALCULATED field's expression, empty for every other kind.
@@ -165,7 +167,7 @@ func (h DefineCustomField) Execute(
 		now := h.Clock.Now()
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID, HubID: cmd.HubID,
-			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency, Formula: cmd.Formula,
+			Key: cmd.Key, Name: cmd.Name, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency, Formula: cmd.Formula,
 			IsRequired: cmd.IsRequired, Restricted: cmd.Restricted, ReadRestricted: cmd.ReadRestricted,
 			AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
@@ -283,6 +285,8 @@ func (h DefineCustomField) recordAudit(
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes: audit.Changes(
 			audit.Change{Field: "key", Classification: audit.Open, To: definition.Key},
+			// The name is a person's words for the field, so it is held as user content (rule 10).
+			audit.Change{Field: domain.FieldName, Classification: audit.Sensitive, To: definition.Name},
 			audit.Change{Field: "kind", Classification: audit.Open, To: string(definition.Kind)},
 			audit.Change{
 				Field: "collection_id", Classification: audit.Open,
@@ -332,6 +336,7 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 		"hub_id":        idOrNil(definition.HubID),
 		"copied_from":   idOrNil(definition.CopiedFrom),
 		"key":           definition.Key,
+		"name":          stringOrNil(definition.Name),
 		"kind":          string(definition.Kind),
 		// An empty array rather than null for a kind with no choices: a client renders the option
 		// editor from this, and null would make it special-case the eight kinds.
@@ -371,6 +376,11 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 				Name: "key", Kind: usecase.KindString, Required: true,
 				Description: "The identifier the value is stored under, matching " +
 					"^[a-z][a-z0-9_]{0,49}$ and free in its scope.",
+			},
+			{
+				Name: "name", Kind: usecase.KindString,
+				Description: "What a person reads for the field, at most 100 characters; omitted " +
+					"or blank leaves it unnamed, and a client shows the key.",
 			},
 			{
 				Name: "kind", Kind: usecase.KindString, Required: true,
@@ -473,6 +483,7 @@ func (h DefineCustomField) invoke(
 		CollectionID:   collectionID,
 		HubID:          hubID,
 		Key:            in.String("key"),
+		Name:           in.String("name"),
 		Kind:           kind,
 		Options:        options,
 		Currency:       in.String("currency"),

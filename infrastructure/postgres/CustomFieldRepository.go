@@ -64,7 +64,7 @@ func (r CustomFieldRepository) Insert(
 
 	err = queries.InsertCustomField(ctx, sqlc.InsertCustomFieldParams{
 		ID: id, CollectionID: collectionID, CopiedFrom: copiedFrom, Key: definition.Key,
-		Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
+		Name: currencyOf(definition.Name), Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
 		Formula:    currencyOf(definition.Formula),
 		IsRequired: definition.IsRequired, Restricted: definition.Restricted,
 		ReadRestricted: definition.ReadRestricted,
@@ -194,7 +194,7 @@ func (r CustomFieldRepository) SetAttributes(
 	}
 
 	affected, err := queries.UpdateCustomField(ctx, sqlc.UpdateCustomFieldParams{
-		Options: options, IsRequired: definition.IsRequired, Restricted: definition.Restricted,
+		Name: currencyOf(definition.Name), Options: options, IsRequired: definition.IsRequired, Restricted: definition.Restricted,
 		ReadRestricted: definition.ReadRestricted,
 		AppliesTo:      typesOf(definition.AppliesTo), UpdatedAt: timestampOf(definition.UpdatedAt),
 		ID: id,
@@ -301,7 +301,7 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 
 	return work.CustomFieldDefinition{
 		ID: id, TenantID: tenantID, CollectionID: collectionID, HubID: hubID, CopiedFrom: copiedFrom,
-		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
+		Key: row.Key, Name: currencyFrom(row.Name), Kind: work.CustomFieldKind(row.Kind), Options: options,
 		Currency: currencyFrom(row.Currency), Formula: currencyFrom(row.Formula), IsRequired: row.IsRequired, Restricted: row.Restricted,
 		ReadRestricted: row.ReadRestricted, AppliesTo: appliesTo,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
@@ -309,8 +309,8 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	}, nil
 }
 
-// currencyOf stores an empty currency - or formula - as null: the columns' CHECKs pair a currency
-// with MONEY and a formula with CALCULATED.
+// currencyOf stores an empty currency - or formula, or name - as null: the columns' CHECKs pair a
+// currency with MONEY and a formula with CALCULATED, and hold a name to at least one character.
 func currencyOf(code string) *string {
 	if code == "" {
 		return nil

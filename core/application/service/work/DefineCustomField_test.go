@@ -528,3 +528,37 @@ func containsText(change any, text string) bool {
 	}
 	return false
 }
+
+// A field's name is a person's words for it: answered, renamed, and held in the trail as user
+// content only (rule 10).
+func TestAFieldsNameIsAnsweredRenamedAndKeptOutOfTheTrailInClearText(t *testing.T) {
+	h := newCustomFieldHarness(t)
+
+	defined, err := h.define.Execute(t.Context(), actor(), DefineCustomFieldCommand{
+		CollectionID: collectionID, Key: "customer", Name: "Customer account", Kind: domain.CustomFieldText,
+	})
+	if err != nil {
+		t.Fatalf("defining failed: %v", err)
+	}
+	if defined.Name != "Customer account" || customFieldOutput(defined)["name"] != "Customer account" {
+		t.Fatalf("the name is %q, answered as %v", defined.Name, customFieldOutput(defined)["name"])
+	}
+	if change, named := h.audit.entries[0].Changes[domain.FieldName]; !named || containsText(change, "Customer") {
+		t.Errorf("the name in the trail is %v", change)
+	}
+
+	h.audit.entries = nil
+	renamed := "Client"
+	updated, err := (UpdateCustomField{Writer: h.writer()}).Execute(t.Context(), actor(), UpdateCustomFieldCommand{
+		FieldID: defined.ID, Attributes: domain.CustomFieldAttributes{Name: &renamed},
+	})
+	if err != nil || updated.Name != "Client" || updated.Key != "customer" {
+		t.Fatalf("renamed to %+v (%v)", updated, err)
+	}
+	if change, named := h.audit.entries[0].Changes[domain.FieldName]; !named || containsText(change, "Client") {
+		t.Errorf("the rename in the trail is %v", change)
+	}
+	if customFieldOutput(domain.CustomFieldDefinition{Key: "x"})["name"] != nil {
+		t.Error("an unnamed field answers a name")
+	}
+}

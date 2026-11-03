@@ -594,3 +594,32 @@ func TestARealCustomFieldSurvivesTheRoundTripThroughTheArchivesShape(t *testing.
 		}
 	}
 }
+
+// A field's name is stored, renamed and removed; the key stays (migration 0355).
+func TestAFieldsNameRoundTripsAndIsRemovedAsNull(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	defined := definedField(ctx, t, tenantA, collection, "client_"+shortSuffix(t), work.CustomFieldText)
+	if stored := findField(ctx, t, tenantA, defined.ID); stored.Name != "" {
+		t.Fatalf("an unnamed field came back named %q", stored.Name)
+	}
+
+	version := defined.Version
+	for _, name := range []string{"Client account", ""} {
+		stored := findField(ctx, t, tenantA, defined.ID)
+		updated, _, err := stored.Updated(work.CustomFieldAttributes{Name: &name}, text.Composing{}, changedAt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			return fieldRepo().SetAttributes(ctx, updated, version)
+		}); err != nil {
+			t.Fatalf("writing the name %q: %v", name, err)
+		}
+		version++
+		if again := findField(ctx, t, tenantA, defined.ID); again.Name != name || again.Key != defined.Key {
+			t.Fatalf("the name came back as %q under %q, want %q", again.Name, again.Key, name)
+		}
+	}
+}

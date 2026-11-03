@@ -38,6 +38,9 @@ func customFieldResponse(out usecase.Output) openapi.CustomFieldDefinition {
 	if currency := out.String("currency"); currency != "" {
 		definition.Currency = &currency
 	}
+	if name := out.String("name"); name != "" {
+		definition.Name = &name
+	}
 	if formula := out.String("formula"); formula != "" {
 		definition.Formula = &formula
 	}

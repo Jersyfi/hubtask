@@ -20902,6 +20902,7 @@ paths:
       tags: [structure]
       operationId: updateCustomField
       x-hubtask-rest: generated
+      x-hubtask-rest-null-as: { name: "" }
       x-hubtask-rest-answer: customFieldResponse
       description: >
         Changes what a definition permits. A field that is not sent is left alone. The key and the

@@ -302,7 +302,7 @@ func (w CustomFieldWriter) recordAudit(
 // enough to read it (audit.md §4).
 func auditChangeOf(change domain.FieldChange) audit.Change {
 	classification := audit.Open
-	if change.Field == domain.FieldOptions {
+	if change.Field == domain.FieldOptions || change.Field == domain.FieldName {
 		classification = audit.Sensitive
 	}
 	return audit.Change{
@@ -363,6 +363,11 @@ func (h UpdateCustomField) Descriptor() usecase.Descriptor {
 				Description: "The definition to change.",
 			},
 			{
+				Name: "name", Kind: usecase.KindString,
+				Description: "What a person reads for the field, at most 100 characters; null or " +
+					"blank removes it. The key stays.",
+			},
+			{
 				Name: "options", Kind: usecase.KindList,
 				Description: "The values a SELECT or a MULTI_SELECT may hold, replacing the list.",
 			},
@@ -411,6 +416,10 @@ func (h UpdateCustomField) invoke(
 	}
 
 	attributes := domain.CustomFieldAttributes{}
+	if in.Present("name") {
+		name := in.String("name")
+		attributes.Name = &name
+	}
 	if in.Present("options") {
 		options, err := in.StringList("options")
 		if err != nil {
