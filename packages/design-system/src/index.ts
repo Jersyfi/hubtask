@@ -69,6 +69,7 @@ export { default as ReadOnlyNotice } from './ReadOnlyNotice.svelte';
 export { default as SaveBar } from './SaveBar.svelte';
 
 // ...and a list, with every state it can be in.
+export { default as Disclosure } from './Disclosure.svelte';
 export { default as EmptyState, type Emptiness } from './EmptyState.svelte';
 export { default as ErrorState } from './ErrorState.svelte';
 export { default as ListRow } from './ListRow.svelte';

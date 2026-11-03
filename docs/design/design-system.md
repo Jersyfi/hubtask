@@ -283,11 +283,15 @@ no reason moves a box. The eight cases, and the pattern each takes:
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
-Drawer · SearchField · ReadOnlyNotice · SaveBar
+Drawer · SearchField · ReadOnlyNotice · SaveBar · Disclosure
 
 `structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
 `Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
-`overlay` rank, so a dialog opened from inside one closes first.
+`overlay` rank, so a dialog opened from inside one closes first. `Disclosure` folds what is
+needed later on the same page ([`user-experience.md`](../architecture/user-experience.md) UX-4):
+*Advanced* in a settings block, *Details for support* under a refusal; a button with
+`aria-expanded`, a quiet line of what is inside, the content arriving in the `reveal` role and
+absent while closed.
 
 **`SideNav` is one component with two drawings; a second tree is never built.** A row is mark ·
 label · twist: the mark at one inline position for every level, the indent on the label, the twist
