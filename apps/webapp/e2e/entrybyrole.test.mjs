@@ -132,7 +132,7 @@ test('chromium: a viewer cannot tick off a search result', async (t) => {
   });
 
   await page.goto(`${served.origin}/search`);
-  await page.getByRole('searchbox', { name: 'Search the entries you can see' }).fill('electrician');
+  await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('electrician');
   const box = page.getByRole('checkbox', { name: `Mark ${ITEMS[1].title} as done` });
   await box.waitFor({ timeout: 10_000 });
   await page.waitForTimeout(600);

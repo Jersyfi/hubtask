@@ -79,6 +79,8 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/releases`)) return route.fulfill({ json: { data: RELEASES } });
+    if (path.endsWith('/api/v1/pages:search')) return route.fulfill({ json: { data: [{ id: PAGES[0].id, hub_id: HUB.id, parent_id: null, title: 'Onboarding guide', icon: null, excerpt: 'Your first «release» week', rank: 1, updated_at: PAGES[0].updated_at }] } });
+    if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [], page: { next_cursor: null, has_more: false } } });
     if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: TYPES } });
     if (path.endsWith('/api/v1/items:query')) {
       const body = route.request().postDataJSON();
@@ -336,3 +338,35 @@ test('chromium 375 px, dark: the plans\' home lists the releases to come', async
   await noSidewaysScroll(page, 'plans 375 dark');
   assert.deepEqual(failures, []);
 });
+
+// §5.3: one search for every kind: entries, pages, boards and places, grouped and filtered by kind;
+// with no entry matching, the screen does not say nothing matches while other kinds do.
+for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
+  test(`chromium ${width} px, ${scheme}: the search finds pages, boards and places beside entries`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/search', modulesOn: ['KNOWLEDGE', 'WHITEBOARD'] });
+    t.after(close);
+    await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('release');
+    const pagesFound = page.getByRole('region', { name: 'Pages' });
+    await pagesFound.waitFor({ timeout: 10_000 });
+    assert.equal(await pagesFound.getByRole('link', { name: 'Onboarding guide' }).getAttribute('href'), `/pages/${PAGES[0].id}`);
+    const boardsFound = page.getByRole('region', { name: 'Boards' });
+    await boardsFound.waitFor({ timeout: 10_000 });
+    assert.deepEqual(await boardsFound.locator('.name').allTextContents(), [BOARDS[0].title]);
+    assert.equal(await page.getByText('Nothing matches those words.').count(), 0);
+    const kinds = page.getByRole('group', { name: 'What to show' });
+    assert.deepEqual(await kinds.getByRole('button').allTextContents(), ['All', 'Entries', 'Pages', 'Boards', 'Hubs and collections']);
+    await kinds.getByRole('button', { name: 'Boards' }).click();
+    await pagesFound.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await boardsFound.count(), 1);
+    await kinds.getByRole('button', { name: 'Hubs and collections' }).click();
+    await page.getByText('Nothing of this kind matches those words.').waitFor({ timeout: 5_000 });
+    await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('product development');
+    const places = page.getByRole('region', { name: 'Hubs and collections' });
+    await places.waitFor({ timeout: 5_000 });
+    assert.equal(await places.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}`);
+    await noSidewaysScroll(page, `search ${width} ${scheme}`);
+    assert.deepEqual(failures, []);
+  });
+}
