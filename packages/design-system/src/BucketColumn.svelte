@@ -22,6 +22,7 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import { arrivals } from './motion.ts';
 
   interface Props {
     /** The bucket's own name. Content, not a message code. */
@@ -83,7 +84,7 @@
     </p>
   {/if}
 
-  <div class="cards">{@render children()}</div>
+  <div class="cards" {@attach arrivals}>{@render children()}</div>
 </section>
 
 <style>

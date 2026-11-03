@@ -72,6 +72,7 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import { arrivals } from './motion.ts';
   import { nextSort, type Sort } from './table.ts';
 
   /** One column. `align` is `start`/`end`, never left and right. */
@@ -208,7 +209,7 @@
             {/each}
           </tr>
         </thead>
-        <tbody>
+        <tbody {@attach arrivals}>
           {@render children()}
           {#if empty}
             <!-- Drawn by the stylesheet only when it is the sole row, so the caller renders it

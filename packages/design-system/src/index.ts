@@ -142,6 +142,7 @@ export type { Align, Justify, Space } from './space.ts';
 export { anchorTo, positionArea, raiseToTopLayer, type Alignment, type Placement, type Side } from './anchor.ts';
 
 export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
+export { arrive, arrivals, enter, flip, isMotionReduced, leave, reveal } from './motion.ts';
 
 export { openOverlay, type MenuItem, type OverlayOptions } from './overlay.ts';
 

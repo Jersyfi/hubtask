@@ -469,14 +469,20 @@ below it.
    narrower than the focus ring, or the container cuts the ring.
 6. **Motion only in `opacity` and `transform`.** Layout is never animated. A component animates
    through a `motion.<role>` token — a duration paired with an easing — never a primitive. The roles
-   are `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis` and `celebration`; `attach`
+   are `state`, `pending`, `attach`, `entrance`, `exit`, `emphasis`, `reorder`, `reveal` and
+   `celebration`; `attach`
    (arriving against the pointer, a tooltip) and `entrance` (arriving away from it, a dialog) are
    different roles. `--dur-instant` stays a primitive: the floor is the *absence* of movement. Under
    reduced motion the completion celebration reduces to a colour change and the acknowledgement is
    never absent. Component CSS honours `[data-motion="reduced"]` alongside
    `prefers-reduced-motion` ([ADR-0037](../adr/ADR-0037-component-workbench.md)); in the web app
    `apps/webapp/src/lib/motion.ts` is the one module that sets `data-motion`, and the choice is the
-   device's (§11.10).
+   device's (§11.10). A list's movement goes through `packages/design-system/src/motion.ts`
+   ([user-experience.md §6](../architecture/user-experience.md#6-motion-and-liveliness)): a row
+   arrives (`arrive` on `ListRow`, `arrivals` on `Table`'s body and `BucketColumn`'s cards; the
+   first eight of one arrival a `--dur-stagger` apart), a keyed card travels to its new place
+   (`animate:flip`), an opened section's content is revealed; each reads its role's custom
+   properties at run time and does nothing under reduced motion.
 
 **The layering scale.** `primitive.layer` is the only source of a `z-index`: `base` · `raised` ·
 `sticky` · `overlay` · `dialog` · `popover` · `tooltip` · `toast`, ten apart so a component may sit
