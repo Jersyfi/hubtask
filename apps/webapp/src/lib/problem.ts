@@ -25,7 +25,7 @@
 
 import type { TransportError } from '@hubtask/sync-engine';
 
-import { formatDateTime } from './i18n/datetime.ts';
+import { formatDateTime, formatRelative } from './i18n/datetime.ts';
 import type { MessageParams } from './i18n/format.ts';
 import type { Messages } from './i18n/messages.ts';
 
@@ -77,15 +77,32 @@ function candidates(error: TransportError): string[] {
 /**
  * The parameters as a reader reads them. A parameter named `*_at` is a moment - a spent AI budget's
  * `renews_at`, a running access's `ends_at` - and a message cannot format one, so it is written in
- * the reader's locale here, before the sentence takes it. A value that is not a moment stays as it
- * arrived.
+ * the reader's locale here, before the sentence takes it. A `permission` is named as the role editor
+ * names it, a rate limit's `level` by what it guards (user-experience.md §5.8); a key this build has
+ * no name for stays as it arrived, which is still truer than nothing.
  */
-function readable(params: Readonly<Record<string, string>> | undefined, locale: string): MessageParams {
+function readable(params: Readonly<Record<string, string>> | undefined, messages: Messages): MessageParams {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(params ?? {})) {
-    out[name] = name.endsWith('_at') ? formatDateTime(value, locale) : value;
+    out[name] = name.endsWith('_at') ? formatDateTime(value, messages.locale)
+      : name === 'permission' ? named(messages, `app.permissions.name.${value.toLowerCase()}`, value)
+      : name === 'level' ? named(messages, `app.limit_level.${value}`, value)
+      : value;
   }
   return out;
+}
+
+function named(messages: Messages, code: string, fallback: string): string {
+  return messages.has(code) ? messages.t(code) : fallback;
+}
+
+/**
+ * When to try again, from `Retry-After`: "in 2 minutes", or "in a moment" when the server said
+ * nothing - a sentence that asks the reader to wait carries `{retry_at}` and must never show it.
+ */
+function retryAt(error: TransportError, messages: Messages, now: number): string {
+  if (error.retryAfterMs === undefined) return messages.t('app.retry_soon');
+  return formatRelative(new Date(now + Math.max(error.retryAfterMs, 60_000)).toISOString(), messages.locale, now);
 }
 
 /** The statuses whose answer is worth quoting: a refusal (audited as denied), a conflict or quota, a server fault. */
@@ -93,11 +110,12 @@ function quotable(status: number | undefined): boolean {
   return status === 403 || (status ?? 0) >= 409;
 }
 
-export function renderProblem(error: TransportError, messages: Messages): RenderedProblem {
+export function renderProblem(error: TransportError, messages: Messages, now: number = Date.now()): RenderedProblem {
   // The request id travels as a parameter as well as a field, because `errors.internal` renders it
   // inside its own sentence. Where it does, showing it again beneath would say it twice.
   const params: MessageParams = {
-    ...readable(error.params, messages.locale),
+    retry_at: retryAt(error, messages, now),
+    ...readable(error.params, messages),
     ...(error.requestId ? { request_id: error.requestId } : {}),
   };
 
@@ -136,5 +154,5 @@ export interface Refusal {
  */
 export function renderRefusal(refusal: Refusal, messages: Messages): string {
   const code = messages.has(refusal.code) ? refusal.code : 'app.something_went_wrong';
-  return messages.t(code, readable(refusal.params, messages.locale));
+  return messages.t(code, readable(refusal.params, messages));
 }

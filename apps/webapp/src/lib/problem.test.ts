@@ -223,3 +223,54 @@ test('every scope a hold refusal names reads as words, never as its key', () => 
     assert.match(rendered.message, /legal hold/);
   }
 });
+
+// user-experience.md §5.8: a refusal says what and what next - the permission by its name in the
+// role editor, the limit by what it guards, and when to try again from the server's Retry-After.
+test('a missing permission is named as the role editor names it, never by its key', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 403, code: 'forbidden', detailCode: 'access.not_permitted', params: { permission: 'WRITE_ITEMS' },
+    }),
+    messages,
+  );
+  assert.ok(rendered.message.includes(messages.t('app.permissions.name.write_items')), rendered.message);
+  assert.ok(!rendered.message.includes('WRITE_ITEMS'), rendered.message);
+
+  // A permission this build has no name for stays as it arrived rather than turning into nothing.
+  const unknown = renderProblem(
+    new TransportError('problem', {
+      status: 403, code: 'forbidden', detailCode: 'access.not_permitted', params: { permission: 'INVENTED' },
+    }),
+    messages,
+  );
+  assert.ok(unknown.message.includes('INVENTED'), unknown.message);
+});
+
+test('a rate limit says what it guards and when to try again', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 429, code: 'rate_limited', detailCode: 'access.rate_limit_exceeded',
+      params: { level: 'credential' }, retryAfterMs: 120_000,
+    }),
+    messages,
+  );
+  assert.ok(rendered.message.includes(messages.t('app.limit_level.credential')), rendered.message);
+  assert.ok(rendered.message.includes(new Intl.RelativeTimeFormat('en', { numeric: 'auto' }).format(2, 'minute')), rendered.message);
+  assert.ok(!rendered.message.includes('credential '), rendered.message);
+  assert.ok(!rendered.message.includes('{'), rendered.message);
+
+  // Without Retry-After the sentence still reads, and says soon rather than a placeholder.
+  const bare = renderProblem(
+    new TransportError('problem', { status: 429, code: 'rate_limited', detailCode: 'access.rate_limit_exceeded', params: { level: 'tenant' } }),
+    messages,
+  );
+  assert.ok(bare.message.includes(messages.t('app.retry_soon')), bare.message);
+  assert.ok(!bare.message.includes('{'), bare.message);
+
+  // A numeric level - an approval's step - is not a limit and stays a number.
+  const step = renderProblem(
+    new TransportError('problem', { status: 409, code: 'conflict', detailCode: 'approvals.too_few_approvers', params: { level: '2' } }),
+    messages,
+  );
+  assert.ok(step.message.includes('Level 2'), step.message);
+});
