@@ -14,6 +14,7 @@
   import { engine } from '../data/engine.ts';
   import { absenceGrid, absencesPath, addMonths, monthDays, time } from '../data/time.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { renderProblem } from '../problem.ts';
@@ -113,7 +114,7 @@
       <ul class="list">
         {#each mine as absence (absence.id)}
           <li>
-            <span>{t('app.absences.span', { from: absence.from, to: absence.to, kind: t(`app.absences.kind_${absence.kind}`) })}{absence.half ? ` · ${t('app.absences.half')}` : ''}</span>
+            <span>{t('app.absences.span', { from: formatPlainDay(absence.from, messages.locale), to: formatPlainDay(absence.to, messages.locale), kind: t(`app.absences.kind_${absence.kind}`) })}{absence.half ? ` · ${t('app.absences.half')}` : ''}</span>
             <Inline gap="050">
               <Button size="sm" tone="subtle" icon="pencil" onclick={() => open(absence)}>{t('app.absences.edit')}</Button>
               <Button size="sm" tone="subtle" icon="trash" onclick={() => void remove(absence)}>{t('app.absences.remove')}</Button>

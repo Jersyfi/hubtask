@@ -39,6 +39,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { decimalSeparatorOf } from '../lib/i18n/number.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
@@ -431,7 +432,7 @@
           {#each waiting as each (`${each.account_id}:${each.week_start}`)}
             <tr>
               <th scope="row">{personName(each.account_id)}</th>
-              <td>{t('app.time.week_of', { from: each.week_start, to: addDays(each.week_start, 6) })}</td>
+              <td>{t('app.time.week_of', { from: formatPlainDay(each.week_start, messages.locale), to: formatPlainDay(addDays(each.week_start, 6), messages.locale) })}</td>
               <td class="number">{minutesText(each.submitted_minutes)}</td>
               <td>
                 <Inline gap="050">
@@ -447,7 +448,7 @@
       {#if deciding}
         <section class="block" aria-labelledby="time-deciding">
           <Inline justify="between" align="center">
-            <h2 id="time-deciding" class="heading">{t('app.time.week_of_person', { name: personName(deciding.account_id), from: deciding.week_start })}</h2>
+            <h2 id="time-deciding" class="heading">{t('app.time.week_of_person', { name: personName(deciding.account_id), from: formatPlainDay(deciding.week_start, messages.locale) })}</h2>
             <Inline gap="050">
               <Button size="sm" icon="check" onclick={() => deciding && void approve(deciding)}>{t('app.time.approve')}</Button>
               <Button size="sm" tone="secondary" onclick={() => { reason = ''; isRejecting = true; }}>{t('app.time.send_back')}</Button>
@@ -534,7 +535,7 @@
 {/if}
 
 {#if isCorrecting && correcting}
-  <Dialog bind:isOpen={isCorrecting} title={t('app.time.correct_title', { minutes: minutesText(correcting.minutes), day: correcting.day })} dismissLabel={t('app.links.cancel')}>
+  <Dialog bind:isOpen={isCorrecting} title={t('app.time.correct_title', { minutes: minutesText(correcting.minutes), day: formatPlainDay(correcting.day, messages.locale) })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.time.correct_hint')}</p>
       <Input label={t('app.time.col_day')} type="date" bind:value={correction.day} />

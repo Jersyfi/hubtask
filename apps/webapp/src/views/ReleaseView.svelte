@@ -28,6 +28,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -204,8 +205,8 @@
         {#if chosen.description}<p>{chosen.description}</p>{/if}
         <p class="quiet">
           {chosen.state === 'RELEASED' && chosen.released_at
-            ? t('app.releases.released_on', { day: chosen.released_at.slice(0, 10) })
-            : t('app.releases.due_on', { day: chosen.release_on })}
+            ? t('app.releases.released_on', { day: formatDay(chosen.released_at, messages.locale) })
+            : t('app.releases.due_on', { day: formatPlainDay(chosen.release_on, messages.locale) })}
           {#if detail} · {t('app.releases.counts', { done: String(detail.done_count), open: String(detail.open_count) })}{/if}
         </p>
         {#if chosen.notes_page_id}

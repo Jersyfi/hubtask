@@ -28,7 +28,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
-  import { formatRelative } from '../lib/i18n/datetime.ts';
+  import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
   import type { AgentJobList, AgentList, AgentRequestList, CmdbHealth, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { healthPath } from '../lib/data/cmdb.svelte.ts';
@@ -307,7 +307,7 @@
                 <ListRow href={`/hubs/${each.hub_id}/releases`} onactivate={() => onnavigate(`/hubs/${each.hub_id}/releases`)} label={each.name}>
                   {#snippet leading()}<Icon name="flag" size="sm" />{/snippet}
                   <span class="name" title={each.name}>{each.name}</span>
-                  <span class="purpose">{[hubName(each.hub_id), t('app.releases.due_on', { day: each.release_on })].filter(Boolean).join(' · ')}</span>
+                  <span class="purpose">{[hubName(each.hub_id), t('app.releases.due_on', { day: formatPlainDay(each.release_on, messages.locale) })].filter(Boolean).join(' · ')}</span>
                 </ListRow>
               </li>
             {/each}

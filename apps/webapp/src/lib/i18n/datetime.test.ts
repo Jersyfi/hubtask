@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateTime, formatDay, formatDue, formatDueShort, formatRelative, formatToday } from './datetime.ts';
+import { formatDateTime, formatDay, formatDue, formatDueShort, formatPlainDay, formatRelative, formatToday } from './datetime.ts';
 
 test('a moment is written the way the locale writes moments', () => {
   // Not the exact string — that is the platform's and it moves between ICU versions. What is
@@ -23,6 +23,15 @@ test('a day is written without its minute', () => {
   assert.doesNotMatch(day, /15:30|3:30/);
   assert.notEqual(day, formatDay('2026-09-04T15:30:00Z', 'de-DE'));
   assert.equal(formatDay('not a moment', 'en'), 'not a moment');
+});
+
+test('a calendar day is the reader\'s, never its ISO text, and never the day before', () => {
+  // A plain date carries no zone: drawn on the device's clock, midnight UTC is the evening before
+  // west of Greenwich. The suite runs under New York and Kiritimati as well, which is what proves it.
+  assert.equal(formatPlainDay('2026-11-03', 'en-GB'), '3 Nov 2026');
+  assert.equal(formatPlainDay('2026-11-03', 'de-DE'), '03.11.2026');
+  assert.equal(formatPlainDay(null, 'en'), '—');
+  assert.equal(formatPlainDay('not a day', 'en'), 'not a day');
 });
 
 test('a value this cannot read is shown as it arrived', () => {

@@ -31,6 +31,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
@@ -266,7 +267,7 @@
           <Select label={t('app.goals.period')} value={chosen?.id ?? ''}
             options={[...periods].sort((a, b) => b.start_on.localeCompare(a.start_on)).map((each) => ({ value: each.id, label: each.state === 'CLOSED' ? t('app.goals.period_closed_label', { name: each.name }) : each.name }))}
             onchange={(event: Event) => onnavigate(address({ period: (event.currentTarget as HTMLSelectElement).value }))} />
-          {#if chosen}<span class="quiet">{t('app.goals.period_span', { from: chosen.start_on, to: chosen.end_on })}</span>{/if}
+          {#if chosen}<span class="quiet">{t('app.goals.period_span', { from: formatPlainDay(chosen.start_on, messages.locale), to: formatPlainDay(chosen.end_on, messages.locale) })}</span>{/if}
           {#if mayStructure}
             <Button size="sm" tone="secondary" icon="plus" onclick={() => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; }}>{t('app.goals.new_period')}</Button>
             {#if chosen?.state === 'OPEN'}<Button size="sm" tone="subtle" icon="lock" onclick={() => (isClosing = true)}>{t('app.goals.close_period')}</Button>{/if}

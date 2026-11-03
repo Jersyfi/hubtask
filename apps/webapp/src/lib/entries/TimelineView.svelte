@@ -58,6 +58,7 @@
   import { dependenciesAmong, linksAmong } from '../data/links.svelte.ts';
   import { bothOf, windowFilter } from '../data/query.ts';
   import { anchorOf, draggedTo, gridOf, placedBetween, scaleOf, windowOf, type Scale, type Span } from '../data/schedule.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { firstWeekdayOf } from '../i18n/week.ts';
   import { dateIn, instantOf, todayIn } from '../i18n/zone.ts';
@@ -261,13 +262,13 @@
 
   function move(direction: 1 | -1) {
     shown = shift(current, direction);
-    announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
+    announcer.say(t('app.timeline.moved', { from: formatPlainDay(current.from, messages.locale), to: formatPlainDay(current.to, messages.locale) }));
   }
 
   function backToToday() {
     anchor = today;
     shown = undefined;
-    announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
+    announcer.say(t('app.timeline.moved', { from: formatPlainDay(current.from, messages.locale), to: formatPlainDay(current.to, messages.locale) }));
   }
 
   function chooseScale(next: string) {
@@ -349,7 +350,7 @@
       ]}
       onchange={(event: Event) => chooseScale((event.currentTarget as HTMLSelectElement).value)}
     />
-    <span class="range">{t('app.timeline.window', { from: current.from, to: current.to })}</span>
+    <span class="range">{t('app.timeline.window', { from: formatPlainDay(current.from, messages.locale), to: formatPlainDay(current.to, messages.locale) })}</span>
   </div>
 
   {#if reading === undefined || reading.status === 'loading' || reading.status === 'idle'}

@@ -25,6 +25,7 @@
   import { goalTone } from '../lib/goals/tone.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { firstWeekdayOf } from '../lib/i18n/week.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
@@ -73,12 +74,11 @@
     const format = new Intl.DateTimeFormat(messages.locale, scale === 'year' ? { year: 'numeric', timeZone: 'UTC' } : { month: 'short', year: '2-digit', timeZone: 'UTC' });
     return gridOf(current, scale, weekStart).map((at) => ({ at, label: format.format(Date.parse(`${at}T00:00:00Z`)) }));
   });
-  const dayLabel = (day: string | null | undefined) =>
-    day ? new Intl.DateTimeFormat(messages.locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`)) : '—';
+  const dayLabel = (day: string | null | undefined) => formatPlainDay(day, messages.locale);
 
   function move(direction: 1 | -1) {
     shown = shift(current, direction);
-    announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
+    announcer.say(t('app.timeline.moved', { from: dayLabel(current.from), to: dayLabel(current.to) }));
   }
 
   const columns = $derived<Column[]>([
@@ -125,7 +125,7 @@
         options={(['month', 'quarter', 'year'] as const).map((value) => ({ value, label: t(`app.planning.scale_${value}`) }))}
         onchange={(event: Event) => { scale = scaleOf((event.currentTarget as HTMLSelectElement).value); shown = undefined; }}
       />
-      <span class="quiet">{t('app.timeline.window', { from: current.from, to: current.to })}</span>
+      <span class="quiet">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
     </div>
 
     <div class="window">

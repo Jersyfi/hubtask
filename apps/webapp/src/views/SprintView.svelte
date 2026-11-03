@@ -34,6 +34,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -236,7 +237,7 @@
         <h2 id="sprint-head" class="heading">{chosen.name}</h2>
         {#if chosen.goal}<p>{t('app.sprints.goal_is', { goal: chosen.goal })}</p>{/if}
         <p class="quiet">
-          {t('app.sprints.span', { from: chosen.start_on, to: chosen.end_on })}
+          {t('app.sprints.span', { from: formatPlainDay(chosen.start_on, messages.locale), to: formatPlainDay(chosen.end_on, messages.locale) })}
           {#if chosen.state !== 'PLANNED'} · {t('app.sprints.committed', { count: String(chosen.committed_count), value: String(chosen.committed_value), unit: unitLabel })}{/if}
           {#if chosen.state === 'CLOSED'} · {t('app.sprints.completed', { count: String(chosen.completed_count), value: String(chosen.completed_value), unit: unitLabel })}{/if}
         </p>
@@ -331,7 +332,7 @@
           </svg>
           <Table label={t('app.sprints.burndown')} isLabelHidden columns={burndownColumns}>
             {#each detail.burndown as point (point.day)}
-              <tr><th scope="row">{point.day}</th><td class="number">{point.remaining}</td><td class="number">{point.ideal}</td><td class="number">{point.scope}</td></tr>
+              <tr><th scope="row">{formatPlainDay(point.day, messages.locale)}</th><td class="number">{point.remaining}</td><td class="number">{point.ideal}</td><td class="number">{point.scope}</td></tr>
             {/each}
           </Table>
         </section>

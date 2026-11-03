@@ -14,6 +14,7 @@
   import { outsiderRows, roadmapTokenOf, sharedRoadmapPath } from '../lib/data/roadmaplink.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { goalTone } from '../lib/goals/tone.ts';
+  import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
 
   const token = roadmapTokenOf(globalThis.location?.hash ?? '');
@@ -27,8 +28,7 @@
     document.title = roadmap ? t('app.roadmap.title_of', { portfolio: roadmap.name }) : t('app.roadmap.title');
   });
 
-  const dayLabel = (day: string | null | undefined) =>
-    day ? new Intl.DateTimeFormat(messages.locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`)) : '—';
+  const dayLabel = (day: string | null | undefined) => formatPlainDay(day, messages.locale);
   const columns = $derived<Column[]>([
     { id: 'what', label: t('app.roadmap.col_what') },
     { id: 'start', label: t('app.planning.col_start') },

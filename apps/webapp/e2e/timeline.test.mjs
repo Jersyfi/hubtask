@@ -111,6 +111,10 @@ test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray t
   assert.ok(await page.locator('.timeline .track .cell[data-today]').count() >= 1, 'today is not marked through the rows');
   await page.getByText(/^Today is .*marked on the axis\.$/).waitFor({ timeout: 5_000 });
 
+  // The window is said in the reader's dates, never as ISO text (user-experience.md §5.10).
+  const range = (await page.locator('.timeline .range').textContent()) ?? '';
+  assert.ok(range.trim() !== '' && !/\d{4}-\d{2}-\d{2}/.test(range), `the window reads "${range}"`);
+
   // The dated entry is on the axis; the four without dates are in the tray, and it folds.
   const tray = page.locator('.timeline details.undated');
   assert.equal(await tray.evaluate((el) => el.open), true, 'the tray opens folded, so the undated are hidden until asked for');

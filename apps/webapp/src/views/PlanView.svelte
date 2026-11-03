@@ -43,6 +43,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { firstWeekdayOf } from '../lib/i18n/week.ts';
   import { dateIn, instantOf, todayIn } from '../lib/i18n/zone.ts';
@@ -197,12 +198,11 @@
     const format = new Intl.DateTimeFormat(messages.locale, partsFor(scale));
     return gridOf(current, scale, weekStart).map((at) => ({ at, label: format.format(Date.parse(`${at}T00:00:00Z`)) }));
   });
-  const dayLabel = (day: string | null | undefined) =>
-    day ? new Intl.DateTimeFormat(messages.locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`)) : '—';
+  const dayLabel = (day: string | null | undefined) => formatPlainDay(day, messages.locale);
 
   function move(direction: 1 | -1) {
     shown = shift(current, direction);
-    announcer.say(t('app.timeline.moved', { from: current.from, to: current.to }));
+    announcer.say(t('app.timeline.moved', { from: dayLabel(current.from), to: dayLabel(current.to) }));
   }
 
   let failure = $state<string | undefined>(undefined);
@@ -327,9 +327,9 @@
     } else if (id === 'xlsx') {
       platform.saveFile(new Blob([planXlsxOf(rows, schedule) as BlobPart], { type: SPREADSHEET_TYPE }), `${name}.xlsx`);
     } else if (id === 'png') {
-      platform.saveFile(await pngOf(drawPlan(rows, title)), `${name}.png`);
+      platform.saveFile(await pngOf(drawPlan(rows, title, messages.locale)), `${name}.png`);
     } else if (id === 'pdf') {
-      printPicture(drawPlan(rows, title), title);
+      printPicture(drawPlan(rows, title, messages.locale), title);
       return;
     } else return;
     toast.show({ text: t('app.planning.exported'), tone: 'success' });
@@ -490,7 +490,7 @@
           {t('app.planning.baseline_delete')}
         </Button>
       {/if}
-      <span class="quiet">{t('app.timeline.window', { from: current.from, to: current.to })}</span>
+      <span class="quiet">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
     </div>
 
     <div class="window">

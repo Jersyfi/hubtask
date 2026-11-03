@@ -13,6 +13,7 @@
  */
 
 import type { GanttRow } from '../data/planning.ts';
+import { formatPlainDay } from '../i18n/datetime.ts';
 
 const DAY_MS = 86_400_000;
 
@@ -39,7 +40,7 @@ function look(): Look {
 const dayOf = (day: string) => Date.parse(`${day}T00:00:00Z`) / DAY_MS;
 
 /** Draws the rows over their whole reach and answers the canvas. */
-export function drawPlan(rows: readonly GanttRow[], title: string, scale = 2): HTMLCanvasElement {
+export function drawPlan(rows: readonly GanttRow[], title: string, locale: string, scale = 2): HTMLCanvasElement {
   const colours = look();
   const dated = rows.flatMap((row) => [row.start, row.due]).filter((day) => !!day).map(dayOf);
   const first = dated.length > 0 ? Math.min(...dated) : 0;
@@ -66,7 +67,7 @@ export function drawPlan(rows: readonly GanttRow[], title: string, scale = 2): H
     pen.lineTo(x, height - 8);
     pen.stroke();
     pen.fillStyle = colours.quiet;
-    pen.fillText(new Date((first + day) * DAY_MS).toISOString().slice(0, 10), x + 2, header - 12);
+    pen.fillText(formatPlainDay(new Date((first + day) * DAY_MS).toISOString().slice(0, 10), locale), x + 2, header - 12);
   }
   rows.forEach((row, at) => {
     const y = header + at * rowHeight;

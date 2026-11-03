@@ -21,7 +21,7 @@
   } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -117,7 +117,7 @@
             <button type="button" class="pick" aria-expanded={openId === campaign.id} onclick={() => (openId = openId === campaign.id ? undefined : campaign.id)}>
               <strong>{campaign.name}</strong>
               <span class="meta">
-                {t('app.campaigns.due', { day: campaign.due_on })} ·
+                {t('app.campaigns.due', { day: formatPlainDay(campaign.due_on, messages.locale) })} ·
                 {campaign.classes.length > 0 ? campaign.classes.map((each) => classWord(each, classes, words)).join(', ') : t('app.cmdb_admin.every_class')}
               </span>
             </button>
