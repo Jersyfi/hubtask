@@ -28,7 +28,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { keepsSecrets } from '../lib/administration/gaps.ts';
@@ -599,7 +599,7 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.webhooks.none')}</p>
+        <EmptyState kind="unused" title={t('app.webhooks.none')} />
       {/each}
     {/if}
 

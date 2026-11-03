@@ -28,7 +28,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -273,7 +273,7 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.groups.none')}</p>
+        <EmptyState kind="unused" title={t('app.groups.none')} />
       {/each}
     {/if}
 

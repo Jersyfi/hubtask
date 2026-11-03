@@ -11,7 +11,7 @@
   // not drawn** (P-05): without STRUCTURE the page lists and offers no control.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { ConfigDraftList, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -372,7 +372,7 @@
     {:else if sandbox?.status !== 'ready'}
       <Spinner label={t('app.changes.reading')} />
     {:else if !sandbox.data.exists}
-      <p class="quiet">{t('app.changes.sandbox_none')}</p>
+      <EmptyState kind="unused" title={t('app.changes.sandbox_none')} />
       {#if mayChange}
         <div class="actions">
           <Button tone="secondary" size="sm" isBusy={sandboxBusy} data-sandbox-copy

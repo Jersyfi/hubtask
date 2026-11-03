@@ -113,7 +113,7 @@
           onRetry={() => devices.open()}
         />
       {:else if shown.length === 0}
-        <p class="quiet">{t('app.devices.none')}</p>
+        <EmptyState kind="unused" title={t('app.devices.none')} />
       {:else}
         <Table
           label={t('app.devices.title')}

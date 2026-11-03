@@ -19,7 +19,7 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge,
+    EmptyState, Badge,
     Banner,
     Button,
     Checkbox,
@@ -173,7 +173,7 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.apps.none')}</p>
+        <EmptyState kind="unused" title={t('app.apps.none')} />
       {/each}
     {/if}
 

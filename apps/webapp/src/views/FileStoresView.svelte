@@ -123,7 +123,7 @@
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
       {#if connections.length === 0}
-        <p class="quiet">{t('app.filestores.none')}</p>
+        <EmptyState kind="unused" title={t('app.filestores.none')} />
       {:else}
         <Table label={t('app.filestores.title')} isLabelHidden {columns}>
           {#each connections as conn (conn.id)}

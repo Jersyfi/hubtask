@@ -25,7 +25,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Breadcrumb, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Breadcrumb, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
 
   import type { Suggestion } from '@hubtask/sync-engine';
 
@@ -1088,7 +1088,7 @@
         {:else if stored}
           <RuleRuns ruleId={stored.id} enabled={stored.enabled} findings={stored.findings ?? []} runs={ruleRuns} ondraw={drawRun} />
         {:else}
-          <p class="quiet panel">{t('app.flow.runs_none')}</p>
+          <EmptyState kind="unused" title={t('app.flow.runs_none')} />
         {/if}
     {/snippet}
 

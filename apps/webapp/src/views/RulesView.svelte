@@ -32,7 +32,7 @@
 
   import { untrack } from 'svelte';
 
-  import { AutomationRuleCard, Banner, Button, PageHeader, Spinner, Stack, Tabs, type PageAction } from '@hubtask/design-system/components';
+  import { EmptyState, AutomationRuleCard, Banner, Button, PageHeader, Spinner, Stack, Tabs, type PageAction } from '@hubtask/design-system/components';
   import { actionsOfHead } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
 
@@ -283,7 +283,7 @@
             {/if}
           </Stack>
         {:else}
-          <p class="quiet">{isOwn || filter === 'mine' ? t('app.rules.mine_none') : t('app.rules.none')}</p>
+          <EmptyState kind="unused" title={isOwn || filter === 'mine' ? t('app.rules.mine_none') : t('app.rules.none')} />
         {/each}
       </Stack>
     {/if}
@@ -291,7 +291,6 @@
 </div>
 
 <style>
-  .quiet { margin: 0; color: var(--text-secondary); }
 
   .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 

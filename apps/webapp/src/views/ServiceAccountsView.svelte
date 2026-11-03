@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -139,7 +139,7 @@
           </Stack>
         </section>
       {:else}
-        <p class="quiet">{t('app.service_accounts.none')}</p>
+        <EmptyState kind="unused" title={t('app.service_accounts.none')} />
       {/each}
     {/if}
 

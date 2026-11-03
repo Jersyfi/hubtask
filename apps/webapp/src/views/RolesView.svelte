@@ -13,7 +13,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, CheckboxGroup, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, CheckboxGroup, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { AccessExplanation, CustomRole } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -287,7 +287,7 @@
             </Stack>
           </article>
         {:else}
-          <p class="quiet">{t('app.roles.none')}</p>
+          <EmptyState kind="unused" title={t('app.roles.none')} />
         {/each}
       </Stack>
     </section>

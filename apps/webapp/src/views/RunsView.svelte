@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
@@ -352,7 +352,7 @@
             </Stack>
           </div>
         {:else}
-          <p class="quiet">{t('app.runs.none')}</p>
+          <EmptyState kind="unused" title={t('app.runs.none')} />
         {/each}
 
         <!-- Drawn whole while something is to be said after the last page: the live regions go

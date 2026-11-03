@@ -17,7 +17,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, Button, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import PrivateHubsAllowed from '../lib/workspace/PrivateHubsAllowed.svelte';
   import EmergencyAccessDialog from '../lib/workspace/EmergencyAccessDialog.svelte';
@@ -109,7 +109,7 @@
     {:else if refusal}
       <FailureNote problem={refusal} />
     {:else if privateHubs.hubs.length === 0}
-      <p class="quiet">{t('app.private_hubs.empty')}</p>
+      <EmptyState kind="unused" title={t('app.private_hubs.empty')} />
     {:else}
       <Table label={t('app.private_hubs.title')} isLabelHidden {columns}>
         {#each privateHubs.hubs as hub (hub.id)}

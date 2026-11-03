@@ -66,7 +66,7 @@
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
       {#if consent.grants.length === 0}
-        <p class="quiet">{t('app.grants.none')}</p>
+        <EmptyState kind="unused" title={t('app.grants.none')} />
       {:else}
         <Table
           label={t('app.grants.title')}

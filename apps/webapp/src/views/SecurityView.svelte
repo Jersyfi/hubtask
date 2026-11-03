@@ -162,7 +162,7 @@
           <!-- An account that signs in only through a provider: there is no password to change,
                and offering to would be offering a control the server cannot honour (UC-ID-05
                check 5). -->
-          <p class="quiet">{t('app.password.none')}</p>
+          <EmptyState kind="unused" title={t('app.password.none')} />
         {:else}
         <p class="quiet">{t('app.password.change_body')}</p>
         {#if passwordApi.problem}

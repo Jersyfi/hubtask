@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { Preset, TransportError } from '@hubtask/sync-engine';
 
   import { presetChoice, presetName, presets, presetValue } from '../lib/data/presets.svelte.ts';
@@ -153,7 +153,7 @@
           <h2 id="presets-saved">{t('app.presets.saved_title')}</h2>
           <p class="quiet">{t('app.presets.saved_about')}</p>
           {#if presets.workspace.length === 0}
-            <p class="quiet" data-presets-empty>{t('app.presets.none')}</p>
+            <div data-presets-empty><EmptyState kind="unused" title={t('app.presets.none')} /></div>
           {:else}
             <ul class="rows">
               {#each presets.workspace as preset (preset.id)}

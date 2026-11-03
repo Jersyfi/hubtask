@@ -158,7 +158,7 @@
           onRetry={() => sessions.open()}
         />
       {:else if shown.length === 0}
-        <p class="quiet">{t('app.sessions.none')}</p>
+        <EmptyState kind="unused" title={t('app.sessions.none')} />
       {:else}
         <Table
           label={t('app.sessions.title')}

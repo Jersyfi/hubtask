@@ -117,7 +117,7 @@
           onRetry={() => accountId && preferences.open(accountId)()}
         />
       {:else if categories.length === 0}
-        <p class="quiet">{t('app.profile.none')}</p>
+        <EmptyState kind="unused" title={t('app.profile.none')} />
       {:else}
         <Table label={t('app.profile.notifications')} isLabelHidden {columns}>
           {#each categories as category (category)}

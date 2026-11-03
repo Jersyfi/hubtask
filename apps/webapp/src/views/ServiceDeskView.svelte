@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
   import {
-    Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
+    EmptyState, Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
   import type {
     BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine, SlaPolicyList, SlaReport,
@@ -206,7 +206,7 @@
 
     {#if current === 'calendars'}
       <Stack gap="150">
-        {#if !calendarRows}<Skeleton lines={3} />{:else if calendarRows.length === 0}<p class="quiet">{t('app.desk.calendars_none')}</p>{/if}
+        {#if !calendarRows}<Skeleton lines={3} />{:else if calendarRows.length === 0}<EmptyState kind="unused" title={t('app.desk.calendars_none')} />{/if}
         <ul class="rows">
           {#each calendarRows ?? [] as row (row.key)}
             <li>
@@ -250,7 +250,7 @@
       </Stack>
     {:else if current === 'policies'}
       <Stack gap="150">
-        {#if !policyRows}<Skeleton lines={3} />{:else if policyRows.length === 0}<p class="quiet">{t('app.desk.policies_none')}</p>{/if}
+        {#if !policyRows}<Skeleton lines={3} />{:else if policyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.policies_none')} />{/if}
         <ul class="rows">
           {#each policyRows ?? [] as row (row.key)}
             <li>
@@ -322,7 +322,7 @@
       </Stack>
     {:else if current === 'replies'}
       <Stack gap="150">
-        {#if !replyRows}<Skeleton lines={3} />{:else if replyRows.length === 0}<p class="quiet">{t('app.desk.replies_none')}</p>{/if}
+        {#if !replyRows}<Skeleton lines={3} />{:else if replyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.replies_none')} />{/if}
         <ul class="rows">
           {#each replyRows ?? [] as row (row.key)}
             <li>
@@ -354,7 +354,7 @@
     {:else if current === 'organisations'}
       <Stack gap="150">
         <p class="quiet">{t('app.desk.organisations_intro')}</p>
-        {#if !organisationRows}<Skeleton lines={3} />{:else if organisationRows.length === 0}<p class="quiet">{t('app.desk.organisations_none')}</p>{/if}
+        {#if !organisationRows}<Skeleton lines={3} />{:else if organisationRows.length === 0}<EmptyState kind="unused" title={t('app.desk.organisations_none')} />{/if}
         <ul class="rows">
           {#each organisationRows ?? [] as row (row.key)}
             <li data-organisation-row>
@@ -395,7 +395,7 @@
           <Input label={t('app.desk.to')} type="date" bind:value={reportTo} />
           <div><Button tone="secondary" icon="gauge" onclick={() => void readReport()}>{t('app.desk.count')}</Button></div>
         </div>
-        {#if report && rows.length === 0}<p class="quiet">{t('app.desk.report_none')}</p>{/if}
+        {#if report && rows.length === 0}<EmptyState kind="unused" title={t('app.desk.report_none')} />{/if}
         <ul class="rows" aria-label={t('app.desk.tab.report')}>
           {#each rows as row (row.policy + row.goal)}
             <li data-report-row>

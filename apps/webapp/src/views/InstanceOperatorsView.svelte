@@ -15,7 +15,7 @@
   // what happens: the installation closes to you the moment you confirm. The last operator has no
   // *Remove* at all - the database refuses it, so the control would offer what cannot be done.
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { Operator } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -294,7 +294,7 @@
           {:else if machinesRefused}
             <p class="quiet">{machinesRefused.message}</p>
           {:else if candidates.length === 0}
-            <p class="quiet">{t('app.instance.operator_service_none')}</p>
+            <EmptyState kind="unused" title={t('app.instance.operator_service_none')} />
           {:else}
             <Select
               label={t('app.instance.operator_service_label')}

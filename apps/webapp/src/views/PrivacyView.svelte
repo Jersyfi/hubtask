@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -572,7 +572,7 @@
             </Stack>
           </section>
         {:else}
-          <p class="quiet">{t('app.privacy.none')}</p>
+          <EmptyState kind="unused" title={t('app.privacy.none')} />
         {/each}
 
         <!-- Drawn whole while something is to be said after the last page: the live regions go

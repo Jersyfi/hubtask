@@ -73,7 +73,7 @@
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
       {#if pushes.length === 0}
-        <p class="quiet">{t('app.pushes.none')}</p>
+        <EmptyState kind="unused" title={t('app.pushes.none')} />
       {:else}
         <Table label={t('app.pushes.title')} isLabelHidden {columns}>
           {#each pushes as push (push.id)}

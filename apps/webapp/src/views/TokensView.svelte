@@ -28,6 +28,7 @@
     Badge,
     Button,
     CheckboxGroup,
+    EmptyState,
     Input,
     OneTimeSecret,
     Radio,
@@ -264,7 +265,7 @@
   {:else if refusal}
     <FailureNote problem={refusal} />
   {:else if held.length === 0}
-    <p class="quiet">{accountId ? t('app.tokens.none_service') : t('app.tokens.none')}</p>
+    <EmptyState kind="unused" title={accountId ? t('app.tokens.none_service') : t('app.tokens.none')} />
   {:else}
     <Table
       label={t('app.tokens.title')}
