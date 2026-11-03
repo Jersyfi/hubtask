@@ -17621,6 +17621,7 @@ type InstanceSettings struct {
 
 	// Legal The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).
 	// And `account_url`, the provider's account page: an address where the workspace's owners and administrators manage what they are on. It is set here and per plan, never by a workspace; a plan's own replaces the installation's unless the installation locks it, and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.
+	// And `support_url` and `docs_url`, where people ask for help and what they read: set and locked here, per plan and by a workspace like the four links, and shown in Help rather than in the footer. `support_url` takes an `https` or a `mailto:` address.
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
@@ -18566,8 +18567,14 @@ type LegalHoldReplaceResultHoldsOutcome string
 // LegalLinks The links this installation's operator is obliged to show, resolved workspace -> instance -> nothing. A link that is set nowhere is **absent** rather than empty: a private installation owes nobody an imprint, and a footer of four links pointing nowhere is worse than no footer.
 type LegalLinks struct {
 	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
-	ImprintUrl       *string `json:"imprint_url,omitempty"`
-	PrivacyUrl       *string `json:"privacy_url,omitempty"`
+
+	// DocsUrl The documentation address, resolved like the links above. Help shows it; the footer does not.
+	DocsUrl    *string `json:"docs_url,omitempty"`
+	ImprintUrl *string `json:"imprint_url,omitempty"`
+	PrivacyUrl *string `json:"privacy_url,omitempty"`
+
+	// SupportUrl Where a person asks for help, an `https` or `mailto:` address, resolved like the links above. Help shows it; the footer does not.
+	SupportUrl *string `json:"support_url,omitempty"`
 
 	// TermsSetBy Present with `terms_url`: whether the workspace or the installation set the terms, so that a screen can say whom to ask about them.
 	TermsSetBy *LegalLinksTermsSetBy `json:"terms_set_by,omitempty"`
@@ -18583,9 +18590,15 @@ type LegalLinksTermsSetBy string
 // LegalPolicySettings The four links, each with its own lock - B2C locks them, B2B leaves them open.
 type LegalPolicySettings struct {
 	AccessibilityUrl SignInPolicyText `json:"accessibility_url"`
-	ImprintUrl       SignInPolicyText `json:"imprint_url"`
-	PrivacyUrl       SignInPolicyText `json:"privacy_url"`
-	TermsUrl         SignInPolicyText `json:"terms_url"`
+
+	// DocsUrl The documentation this workspace's people read. Shown in Help, never in the footer.
+	DocsUrl    *SignInPolicyText `json:"docs_url,omitempty"`
+	ImprintUrl SignInPolicyText  `json:"imprint_url"`
+	PrivacyUrl SignInPolicyText  `json:"privacy_url"`
+
+	// SupportUrl Where a person here asks for help: an `https` address or a `mailto:` address. Shown in Help, never in the sign-in footer.
+	SupportUrl *SignInPolicyText `json:"support_url,omitempty"`
+	TermsUrl   SignInPolicyText  `json:"terms_url"`
 
 	// TermsVersion The version of the terms of use. It belongs to the terms link and resolves with it - from the same level, under the same lock: a workspace sets a version only beside a terms link of its own. Changing the link or the version asks every person to agree again at their next sign-in.
 	TermsVersion SignInPolicyText `json:"terms_version"`
@@ -22842,6 +22855,9 @@ type SignInPolicyChange struct {
 	CommonPasswords  *bool   `json:"common_passwords,omitempty"`
 	ContextWords     *bool   `json:"context_words,omitempty"`
 
+	// DocsUrl The documentation this workspace's people read; empty clears it.
+	DocsUrl *string `json:"docs_url,omitempty"`
+
 	// HistoryCount 0 is off. At most ten.
 	HistoryCount    *int    `json:"history_count,omitempty"`
 	ImprintUrl      *string `json:"imprint_url,omitempty"`
@@ -22870,9 +22886,12 @@ type SignInPolicyChange struct {
 	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
 
 	// SessionIdleMinutes 0 is off.
-	SessionIdleMinutes *int    `json:"session_idle_minutes,omitempty"`
-	SessionMaxDays     *int    `json:"session_max_days,omitempty"`
-	TermsUrl           *string `json:"terms_url,omitempty"`
+	SessionIdleMinutes *int `json:"session_idle_minutes,omitempty"`
+	SessionMaxDays     *int `json:"session_max_days,omitempty"`
+
+	// SupportUrl Where this workspace's people ask for help: `https` or `mailto:`, empty clears it. Refused with `auth.legal_url_scheme` for any other scheme.
+	SupportUrl *string `json:"support_url,omitempty"`
+	TermsUrl   *string `json:"terms_url,omitempty"`
 
 	// TermsVersion The terms' version, at most 64 characters without control characters; empty clears it. Refused with `auth.terms_version_without_link` where the workspace has no terms link of its own, and with `auth.terms_version_invalid` when it is too long or holds a control character.
 	TermsVersion *string `json:"terms_version,omitempty"`

@@ -662,6 +662,8 @@ class LegalPolicySettings(TypedDict, total=False):
     privacy_url: Required["SignInPolicyText"]
     terms_url: Required["SignInPolicyText"]
     accessibility_url: Required["SignInPolicyText"]
+    support_url: "SignInPolicyText"
+    docs_url: "SignInPolicyText"
     terms_version: Required["SignInPolicyText"]
 
 class InstallationDefaults(TypedDict, total=False):
@@ -705,6 +707,8 @@ class SignInPolicyChange(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    support_url: str
+    docs_url: str
     terms_version: str
     managed_accounts: bool
     private_hubs: bool
@@ -1041,6 +1045,8 @@ class LegalLinks(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    support_url: str
+    docs_url: str
     terms_version: str
     terms_set_by: Literal["INSTALLATION", "WORKSPACE"]
 

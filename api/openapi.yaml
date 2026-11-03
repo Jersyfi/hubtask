@@ -26132,6 +26132,14 @@ components:
         privacy_url: { $ref: "#/components/schemas/SignInPolicyText" }
         terms_url: { $ref: "#/components/schemas/SignInPolicyText" }
         accessibility_url: { $ref: "#/components/schemas/SignInPolicyText" }
+        support_url:
+          $ref: "#/components/schemas/SignInPolicyText"
+          description: >
+            Where a person here asks for help: an `https` address or a `mailto:` address. Shown in
+            Help, never in the sign-in footer.
+        docs_url:
+          $ref: "#/components/schemas/SignInPolicyText"
+          description: The documentation this workspace's people read. Shown in Help, never in the footer.
         terms_version:
           $ref: "#/components/schemas/SignInPolicyText"
           description: >
@@ -26239,6 +26247,12 @@ components:
         privacy_url: { type: string }
         terms_url: { type: string }
         accessibility_url: { type: string }
+        support_url:
+          type: string
+          description: >
+            Where this workspace's people ask for help: `https` or `mailto:`, empty clears it.
+            Refused with `auth.legal_url_scheme` for any other scheme.
+        docs_url: { type: string, description: "The documentation this workspace's people read; empty clears it." }
         terms_version:
           type: string
           description: >
@@ -27227,6 +27241,10 @@ components:
             workspace; a plan's own replaces the installation's unless the installation locks it,
             and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and
             administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.
+
+            And `support_url` and `docs_url`, where people ask for help and what they read: set and
+            locked here, per plan and by a workspace like the four links, and shown in Help rather
+            than in the footer. `support_url` takes an `https` or a `mailto:` address.
         localisation:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
@@ -27494,6 +27512,14 @@ components:
         privacy_url: { type: string }
         terms_url: { type: string }
         accessibility_url: { type: string }
+        support_url:
+          type: string
+          description: >
+            Where a person asks for help, an `https` or `mailto:` address, resolved like the links
+            above. Help shows it; the footer does not.
+        docs_url:
+          type: string
+          description: The documentation address, resolved like the links above. Help shows it; the footer does not.
         terms_version:
           type: string
           description: >

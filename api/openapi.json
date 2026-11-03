@@ -38152,6 +38152,14 @@
           "accessibility_url": {
             "$ref": "#/components/schemas/SignInPolicyText"
           },
+          "support_url": {
+            "$ref": "#/components/schemas/SignInPolicyText",
+            "description": "Where a person here asks for help: an `https` address or a `mailto:` address. Shown in Help, never in the sign-in footer.\n"
+          },
+          "docs_url": {
+            "$ref": "#/components/schemas/SignInPolicyText",
+            "description": "The documentation this workspace's people read. Shown in Help, never in the footer."
+          },
           "terms_version": {
             "$ref": "#/components/schemas/SignInPolicyText",
             "description": "The version of the terms of use. It belongs to the terms link and resolves with it - from the same level, under the same lock: a workspace sets a version only beside a terms link of its own. Changing the link or the version asks every person to agree again at their next sign-in.\n"
@@ -38305,6 +38313,14 @@
           },
           "accessibility_url": {
             "type": "string"
+          },
+          "support_url": {
+            "type": "string",
+            "description": "Where this workspace's people ask for help: `https` or `mailto:`, empty clears it. Refused with `auth.legal_url_scheme` for any other scheme.\n"
+          },
+          "docs_url": {
+            "type": "string",
+            "description": "The documentation this workspace's people read; empty clears it."
           },
           "terms_version": {
             "type": "string",
@@ -39651,7 +39667,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).\nAnd `account_url`, the provider's account page: an address where the workspace's owners and administrators manage what they are on. It is set here and per plan, never by a workspace; a plan's own replaces the installation's unless the installation locks it, and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.\n"
+            "description": "The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).\nAnd `account_url`, the provider's account page: an address where the workspace's owners and administrators manage what they are on. It is set here and per plan, never by a workspace; a plan's own replaces the installation's unless the installation locks it, and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.\nAnd `support_url` and `docs_url`, where people ask for help and what they read: set and locked here, per plan and by a workspace like the four links, and shown in Help rather than in the footer. `support_url` takes an `https` or a `mailto:` address.\n"
           },
           "localisation": {
             "type": "object",
@@ -39950,6 +39966,14 @@
           },
           "accessibility_url": {
             "type": "string"
+          },
+          "support_url": {
+            "type": "string",
+            "description": "Where a person asks for help, an `https` or `mailto:` address, resolved like the links above. Help shows it; the footer does not.\n"
+          },
+          "docs_url": {
+            "type": "string",
+            "description": "The documentation address, resolved like the links above. Help shows it; the footer does not."
           },
           "terms_version": {
             "type": "string",
