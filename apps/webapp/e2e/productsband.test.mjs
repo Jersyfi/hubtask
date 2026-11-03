@@ -105,8 +105,8 @@ function stubFor({ modulesOn, hubModules }) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, { width, scheme = 'light', path = '/', ...modules }) {
-  const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
+async function open(browser, { width, scheme = 'light', path = '/', reducedMotion = 'no-preference', ...modules }) {
+  const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme, reducedMotion });
   await context.route('**/api/v1/**', stubFor(modules));
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
@@ -383,3 +383,47 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// Motion (user-experience.md §6): a home's rows arrive with the entrance role, staggered, by
+// opacity and transform only - and nothing moves where the system or the product asks for less.
+// Counted at `Element.animate`, because an arrival is over before a poll could see it.
+test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced motion', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const watch = () => {
+    window.__arrivals = [];
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (keyframes, options) {
+      if (this.classList.contains('row')) window.__arrivals.push({ properties: Object.keys(keyframes[0] ?? {}).sort(), delay: options?.delay ?? 0, duration: options?.duration ?? 0 });
+      return animate.call(this, keyframes, options);
+    };
+  };
+
+  const first = await (async () => {
+    const opened = await open(browser, { width: 1280, path: '/pages', modulesOn: ['KNOWLEDGE'] });
+    t.after(opened.close);
+    await opened.page.addInitScript(watch);
+    await opened.page.reload();
+    await opened.page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 10_000 });
+    const seen = await opened.page.evaluate(() => window.__arrivals ?? []);
+    assert.deepEqual(opened.failures, []);
+    return seen;
+  })();
+  assert.ok(first.length >= 1, `no row arrived: ${JSON.stringify(first)}`);
+  for (const arrival of first) {
+    assert.deepEqual(arrival.properties, ['opacity', 'transform'], 'an arrival moves only opacity and transform (rule 6)');
+    assert.ok(arrival.duration > 0, 'the entrance role has no duration');
+  }
+  assert.equal(first[0].delay, 0, 'the first row waits');
+
+  for (const [label, options, choice] of [['the system', { reducedMotion: 'reduce' }, null], ['the product', {}, 'reduced']]) {
+    const opened = await open(browser, { width: 1280, path: '/pages', modulesOn: ['KNOWLEDGE'], ...options });
+    t.after(opened.close);
+    await opened.page.addInitScript(watch);
+    if (choice) await opened.page.addInitScript((value) => localStorage.setItem('hubtask.motion', value), choice);
+    await opened.page.reload();
+    await opened.page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 10_000 });
+    assert.deepEqual(await opened.page.evaluate(() => window.__arrivals ?? []), [], `a row moved although ${label} asked for reduced motion`);
+    assert.deepEqual(opened.failures, []);
+  }
+});

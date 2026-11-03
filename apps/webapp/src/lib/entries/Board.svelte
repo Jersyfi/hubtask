@@ -33,6 +33,7 @@
     ViewSwitcher,
     VisuallyHidden,
     WorkItemCard,
+    flip,
     rankIntent,
     rankTarget,
     type RankCommand,
@@ -919,8 +920,10 @@
             {#each cards as card (card.id)}
               <!-- `data-card` is how a key press finds its way back from the focused control to the
                    card, and `data-column` says which column's cards it is ranked among. -->
+              <!-- A card moved by a drop or a rank command travels to its new place (motion.reorder). -->
               <div
                 class="card"
+                animate:flip
                 data-card={card.id}
                 data-column={bucket?.id ?? 'none'}
                 data-celebrating={moment && moment.item.id === card.id ? '' : undefined}
