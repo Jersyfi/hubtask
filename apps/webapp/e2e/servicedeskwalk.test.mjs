@@ -42,7 +42,7 @@ function deskBackend() {
     decisions: [], requested_by: OTHER.id, requested_at: at(-3 * HOUR), decided_at: null, due_at: at(21 * HOUR), may_decide: true, version: 1,
   });
   const waiting = [approval(REQUEST, 1), approval(OTHER_REQUEST, 2)];
-  return (method, path, query, body) => {
+  const answer = (method, path, query, body) => {
     if (path === '/business-calendars' && method === 'GET') return { json: { data: calendars } };
     const calendar = /^\/business-calendars\/([a-z][a-z0-9_]*)$/.exec(path);
     if (calendar && method === 'PUT') {
@@ -87,12 +87,15 @@ function deskBackend() {
     }
     return undefined;
   };
+  answer.policies = policies;
+  return answer;
 }
 
 test('chromium: service desk - a calendar and a policy defined, a request\'s promised times read, approvals decided - without an error', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['SERVICE_DESK'], answer: deskBackend() });
+  const backend = deskBackend();
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK'], answer: backend });
   t.after(walk.close);
   const { page } = walk;
 
@@ -109,8 +112,13 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await policyForm.getByLabel('Name').fill('Standard');
   await policyForm.getByLabel('Entry types').fill('request');
   await policyForm.getByLabel('Calendar').selectOption({ label: 'Office hours' });
+  // A goal is written in hours and held in minutes (user-experience.md §5.4, DurationInput).
+  const firstResponse = policyForm.locator('.duration', { has: page.getByLabel('First response') });
+  await firstResponse.getByLabel('First response').fill('4');
+  await firstResponse.getByLabel('Unit').selectOption('HOURS');
   await policyForm.getByRole('button', { name: 'Add the policy' }).click();
   await page.getByText('Standard').first().waitFor({ timeout: 5_000 });
+  assert.equal(backend.policies[0]?.goals.find((goal) => goal.kind === 'FIRST_RESPONSE')?.minutes, 240);
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
   const promised = page.getByRole('list', { name: 'Promised times' });

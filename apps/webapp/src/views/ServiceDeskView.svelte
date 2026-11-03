@@ -14,6 +14,7 @@
   import {
     EmptyState, Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
+  import DurationInput from '../lib/forms/DurationInput.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import type {
     BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine, SlaPolicyList, SlaReport,
@@ -287,17 +288,17 @@
                 <Input label={t('app.desk.priority_field')} hint={t('app.desk.priority_field_hint')} bind:value={policy.priority} />
               </div>
               <div class="fields">
-                <Input label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.first} />
+                <DurationInput label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} bind:minutes={policy.first} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.firstBy} />
               </div>
               {#if !policy.group}
                 <div class="fields">
-                  <Input label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.next} />
+                  <DurationInput label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} bind:minutes={policy.next} />
                   <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.nextBy} />
                 </div>
               {/if}
               <div class="fields">
-                <Input label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} type="number" min="1" bind:value={policy.resolution} />
+                <DurationInput label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} bind:minutes={policy.resolution} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.resolutionBy} />
               </div>
               <div class="fields">
