@@ -8315,6 +8315,8 @@
   "app.today.jumble_none": "Nichts wartet.",
   "app.today.approvals": "Wartet auf dein Ja",
   "app.today.approvals_count": "{count, plural, one {# wartet} other {# warten}}",
+  "app.today.held_act": "{agent} fragt, bevor es handelt",
+  "app.today.held_act_agent": "Ein Agent",
   "app.today.approvals_all": "Alle Freigaben, und ablehnen mit Begründung",
   "app.today.time": "Zeit heute",
   "app.today.time_against": "heute, von {week} in dieser Woche",

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, timeTodayOf, todayRowCountOf } from './today.ts';
+import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -94,6 +94,8 @@ test('a product band stands only where its module is on, and none before the mod
   assert.deepEqual(productBandsOf(['KNOWLEDGE', 'GOALS']), []);
   assert.deepEqual(productBandsOf(['TIME']), ['time']);
   assert.deepEqual(productBandsOf(['TIME', 'SERVICE_DESK', 'PLANNING']), ['approvals', 'time']);
+  assert.deepEqual(productBandsOf(['AGENTS', 'TIME', 'SERVICE_DESK']), ['approvals', 'agent_acts', 'time']);
+  assert.deepEqual(productBandsOf(['AGENTS']), ['agent_acts']);
 });
 
 test('time today is the day\'s recorded minutes against the week, with the running timer beside', () => {
@@ -104,9 +106,27 @@ test('time today is the day\'s recorded minutes against the week, with the runni
 });
 
 // user-experience.md §3.3: the products' bands carry their count on the Today row.
-test('the Today row counts what waits for the reader\'s yes, and nothing before it is known', () => {
+test('the Today row counts the approvals and held acts waiting for the reader\'s yes, and nothing before they are known', () => {
   assert.equal(todayRowCountOf(undefined), undefined, 'not drawn before the approvals are read');
   assert.equal(todayRowCountOf([]), undefined, 'nothing waiting draws no count');
   assert.equal(todayRowCountOf([{ state: 'PENDING' }, { state: 'APPROVED' }, { state: 'PENDING' }]), 2);
   assert.equal(todayRowCountOf([{ state: 'DECLINED' }]), undefined);
+  assert.equal(todayRowCountOf(undefined, [{ status: 'PENDING' }]), 1, 'an agent\'s held act waits too');
+  assert.equal(todayRowCountOf([{ state: 'PENDING' }], [{ status: 'PENDING' }, { status: 'FAILED' }]), 2);
+});
+
+// An irreversible act is approved where its preview is read, never from a row on Today.
+test('a held act is approved at Today\'s row only where it can be undone', () => {
+  const acts = [
+    { id: 'r1', agent_id: 'a1', class: 'REVERSIBLE', status: 'PENDING', created_at: '2026-11-03T08:00:00Z' },
+    { id: 'r2', agent_id: 'a2', class: 'IRREVERSIBLE', status: 'PENDING', created_at: '2026-11-03T09:00:00Z' },
+    { id: 'r3', agent_id: 'a1', class: 'REVERSIBLE', status: 'APPROVED', created_at: '2026-11-03T10:00:00Z' },
+  ];
+  const agents = [{ id: 'a1', name: 'Request sorter', owner_id: 'me' }, { id: 'a2', name: 'Duplicate finder', owner_id: 'other' }];
+  assert.deepEqual(heldActRows(acts, agents, 'me', true), [
+    { id: 'r1', name: 'Request sorter', at: '2026-11-03T08:00:00Z', mayApproveHere: true, path: '/profile/agents?tab=requests' },
+    { id: 'r2', name: 'Duplicate finder', at: '2026-11-03T09:00:00Z', mayApproveHere: false, path: '/administration/agents?tab=requests' },
+  ]);
+  assert.deepEqual(heldActRows(acts, [], 'me', false).map((row) => [row.name, row.path]), [['', undefined], ['', undefined]], 'an agent not read yet has no name and no way there');
+  assert.deepEqual(heldActRows(undefined, agents, 'me', true), []);
 });

@@ -33,7 +33,7 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 
 ## Today
 
-* Check 8: not met — *Needs your answer* and *Sprint* are missing (no read answers the desk entries a reader holds with a running SLA target across hubs, nor the running sprint a reader is in), *Waiting for your yes* lists approvals but not held agent acts or pages waiting for review; the *Today* row counts what waits for the reader's yes, the one band with a count today; tracked in `user-experience.md` §11 step 15.
+* Check 8: not met — *Needs your answer* and *Sprint* are missing (no read answers the desk entries a reader holds with a running SLA target across hubs, nor the running sprint a reader is in), *Waiting for your yes* lists approvals and agents' held acts but not pages waiting for review (no workspace-wide read answers the pages a reader must review; the pages' home asks every hub); the *Today* row counts what waits for the reader's yes, the one band with a count today; tracked in `user-experience.md` §11 step 15.
 
 ## Where it ends
 

@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { ApprovalList, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, ErrorState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -41,7 +41,7 @@
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { portalStart } from '../lib/portal/portal.ts';
-  import { holds, holdsHere, hubCreationHere, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, mayDo, reachesAdministrationArea, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
@@ -57,7 +57,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { bandsOf, greetingOf, isListFigure, isProjectFigure, productBandsOf, timeTodayOf } from '../lib/today.ts';
+  import { bandsOf, greetingOf, heldActRows, isListFigure, isProjectFigure, productBandsOf, timeTodayOf } from '../lib/today.ts';
+  import { agents, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
   import { approvals, myApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { TIMER, elapsedMinutes, minutesText, weekPath, weekStartOf } from '../lib/data/time.svelte.ts';
@@ -334,6 +335,37 @@
       writeFailure = renderProblem(error as never, messages);
     }
   }
+  /**
+   * The agents' acts held for the reader's yes (§3.3), where agents are on: `GET /agent-requests`
+   * answers only those the reader may decide; the agents' names come from their own list.
+   */
+  let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
+  let agentList = $state<AgentList['data']>([]);
+  $effect(() => {
+    if (!productBands.includes('agent_acts')) {
+      heldActs = undefined;
+      return;
+    }
+    return untrack(() => {
+      const stops = [
+        engine.subscribe<AgentRequestList>({ path: requestsPath('PENDING') }, (next) => { if (next.status === 'ready') heldActs = next.data.data; }),
+        engine.subscribe<AgentList>({ path: agentsPath }, (next) => { if (next.status === 'ready') agentList = next.data.data; }),
+      ];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const heldRows = $derived(heldActRows(heldActs, agentList, actor.account?.id, reachesAdministrationArea() === true));
+  async function decideAct(id: string, approve: boolean) {
+    const request = heldActs?.find((each) => each.id === id);
+    if (!request) return;
+    try {
+      await agents.decide(request as AgentRequest, approve);
+      toast.show({ text: t(approve ? 'app.agents.request_approved' : 'app.agents.request_declined'), tone: 'success' });
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+  const waitingCount = $derived((waitingApprovals?.length ?? 0) + heldRows.length);
   const day = $derived(todayIn(zone));
   let week = $state<TimesheetWeek | undefined>(undefined);
   let timer = $state<TimeTimer | undefined>(undefined);
@@ -364,7 +396,7 @@
     const at = timeTodayOf(week, day, timer);
     return at?.running && timer?.started_at ? { ...at, running: { ...at.running, minutes: elapsedMinutes(timer.started_at, tick) } } : at;
   });
-  const hasProductBands = $derived((waitingApprovals?.length ?? 0) > 0 || timeToday !== undefined);
+  const hasProductBands = $derived(waitingCount > 0 || timeToday !== undefined);
 
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
   const hasSide = $derived(hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
@@ -525,15 +557,15 @@
       {#if hasSide}
       <div class="side">
         <!-- The products' bands first, where the products meet the reader's day (check 8). -->
-        {#if waitingApprovals && waitingApprovals.length > 0}
+        {#if waitingCount > 0}
           <section class="panel" aria-labelledby="today-approvals" data-band="approvals">
             <Stack gap="100">
               <div class="head-row">
                 <h2 class="head" id="today-approvals">{t('app.today.approvals')}</h2>
-                <span class="head-count">{t('app.today.approvals_count', { count: waitingApprovals.length })}</span>
+                <span class="head-count">{t('app.today.approvals_count', { count: waitingCount })}</span>
               </div>
               <ul class="inbox">
-                {#each waitingApprovals.slice(0, 3) as approval (approval.id)}
+                {#each (waitingApprovals ?? []).slice(0, 3) as approval (approval.id)}
                   {@const title = `${approval.item_number ? `#${approval.item_number} ` : ''}${approval.item_title ?? ''}`}
                   <li class="arrival">
                     <span class="channel" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
@@ -546,8 +578,25 @@
                     {/if}
                   </li>
                 {/each}
+                {#each heldRows.slice(0, 3) as act (act.id)}
+                  <li class="arrival" data-held-act={act.id}>
+                    <span class="channel" aria-hidden="true"><Icon name="zap" size="sm" /></span>
+                    {#if act.path}
+                      <a class="subject" href={act.path}>{t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}</a>
+                    {:else}
+                      <span class="subject">{t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}</span>
+                    {/if}
+                    <span class="from">{formatRelative(act.at, messages.locale)}</span>
+                    <span class="acts">
+                      {#if act.mayApproveHere}
+                        <Button size="sm" tone="secondary" onclick={() => void decideAct(act.id, true)}>{t('app.agents.approve_act')}</Button>
+                      {/if}
+                      <Button size="sm" tone="subtle" onclick={() => void decideAct(act.id, false)}>{t('app.agents.decline_act')}</Button>
+                    </span>
+                  </li>
+                {/each}
               </ul>
-              <p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>
+              {#if waitingApprovals && waitingApprovals.length > 0}<p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>{/if}
             </Stack>
           </section>
         {/if}

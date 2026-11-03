@@ -46,7 +46,8 @@
   import { engine } from '../data/engine.ts';
   import { myApprovalsPath } from '../data/approvals.svelte.ts';
   import { productBandsOf, todayRowCountOf } from '../today.ts';
-  import type { ApprovalList } from '@hubtask/sync-engine';
+  import { requestsPath } from '../data/agents.ts';
+  import type { AgentRequestList, ApprovalList } from '@hubtask/sync-engine';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
@@ -75,13 +76,16 @@
    */
   const places = $derived(primary({ hasJumble, modulesOn }).filter((destination) => hasDestinations || destination.isOffBar));
   /**
-   * What waits for the reader's yes, counted on the *Today* row (user-experience.md §3.3); read
-   * only where Today draws that band, from the same list it reads.
+   * What waits for the reader's yes - approvals, agents' held acts - counted on the *Today* row
+   * (user-experience.md §3.3); each read only where Today draws it, from the same list it reads.
    */
   let waiting = $state<ApprovalList['data'] | undefined>(undefined);
-  const countsWaiting = $derived(productBandsOf(modulesOn).includes('approvals'));
+  let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
+  const todayBands = $derived(productBandsOf(modulesOn));
+  const countsApprovals = $derived(todayBands.includes('approvals'));
+  const countsActs = $derived(todayBands.includes('agent_acts'));
   $effect(() => {
-    if (!countsWaiting) {
+    if (!countsApprovals) {
       waiting = undefined;
       return;
     }
@@ -89,7 +93,16 @@
       if (next.status === 'ready') waiting = next.data.data;
     }));
   });
-  const todayCount = $derived(todayRowCountOf(waiting));
+  $effect(() => {
+    if (!countsActs) {
+      heldActs = undefined;
+      return;
+    }
+    return untrack(() => engine.subscribe<AgentRequestList>({ path: requestsPath('PENDING') }, (next) => {
+      if (next.status === 'ready') heldActs = next.data.data;
+    }));
+  });
+  const todayCount = $derived(todayRowCountOf(waiting, heldActs));
   const destinationNodes = $derived(
     places.map((destination) => ({
       id: destination.id,

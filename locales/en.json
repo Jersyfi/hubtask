@@ -8315,6 +8315,8 @@
   "app.today.jumble_none": "Nothing waits.",
   "app.today.approvals": "Waiting for your yes",
   "app.today.approvals_count": "{count, plural, one {# waiting} other {# waiting}}",
+  "app.today.held_act": "{agent} asks before acting",
+  "app.today.held_act_agent": "An agent",
   "app.today.approvals_all": "All approvals, and declining with a reason",
   "app.today.time": "Time today",
   "app.today.time_against": "today, of {week} this week",

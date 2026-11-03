@@ -29,6 +29,9 @@ const APPROVAL = {
   requested_by: ACCOUNT.id, requested_at: new Date(Date.now() - 3_600_000).toISOString(), decided_at: null, due_at: null, may_decide: true, version: 1,
 };
 const today = new Date().toISOString().slice(0, 10);
+const AGENT = { id: '01a0e2e0-0000-7000-8000-0000000000c1', account_id: null, name: 'Request sorter', purpose: 'Sorts new requests', kind: 'TICKET_TRIAGE', owner_id: ACCOUNT.id, status: 'ACTIVE' };
+const act = (n, kind) => ({ id: `01a0e2e0-0000-7000-8000-0000000000d${n}`, agent_id: AGENT.id, use_case: 'UpdateItem', class: kind, input: {}, status: 'PENDING', decided_by: null, decided_at: null, code: '', created_at: new Date(Date.now() - 600_000).toISOString() });
+const ACTS = [act(1, 'REVERSIBLE'), act(2, 'IRREVERSIBLE')];
 
 function stubFor({ modulesOn, asked, decided }) {
   return async (route) => {
@@ -52,6 +55,19 @@ function stubFor({ modulesOn, asked, decided }) {
     if (path.endsWith(`/api/v1/approvals/${APPROVAL.id}:decide`)) {
       decided.push(request.postDataJSON());
       return route.fulfill({ json: { ...APPROVAL, state: 'APPROVED', may_decide: false } });
+    }
+    if (path.endsWith('/api/v1/agent-requests')) {
+      asked.push('agent-requests');
+      return route.fulfill({ json: { data: ACTS.filter((each) => !decided.some((d) => d.act === each.id)) } });
+    }
+    const deciding = /\/api\/v1\/agent-requests\/([^/]+):decide$/.exec(path);
+    if (deciding) {
+      decided.push({ act: deciding[1], ...request.postDataJSON() });
+      return route.fulfill({ json: { ...ACTS.find((each) => each.id === deciding[1]), status: 'DECLINED' } });
+    }
+    if (path.endsWith('/api/v1/agents')) {
+      asked.push('agents');
+      return route.fulfill({ json: { data: [AGENT] } });
     }
     if (path.endsWith('/api/v1/timer')) {
       asked.push('timer');
@@ -134,3 +150,30 @@ test('chromium 1280 px: with the desk and time off, Today draws neither band and
   assert.deepEqual(asked, [], 'a read of a module that is off was sent');
   assert.deepEqual(failures, []);
 });
+
+// §3.3: where agents are on, their held acts wait in the same band; one that cannot be undone is
+// approved only where its preview is read, so its row offers Decline alone.
+for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
+  test(`chromium ${width} px, ${scheme}: an agent's held acts wait for the reader's yes on Today`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures, decided, close } = await open(browser, { width, scheme, modulesOn: ['AGENTS'] });
+    t.after(close);
+    const yes = page.getByRole('region', { name: 'Waiting for your yes' });
+    await yes.waitFor({ timeout: 10_000 });
+    const reversible = yes.locator(`[data-held-act="${ACTS[0].id}"]`);
+    const irreversible = yes.locator(`[data-held-act="${ACTS[1].id}"]`);
+    await irreversible.waitFor({ timeout: 10_000 });
+    assert.equal(await reversible.getByRole('link', { name: 'Request sorter asks before acting' }).getAttribute('href'), '/profile/agents?tab=requests');
+    assert.equal(await reversible.getByRole('button', { name: 'Approve and do it' }).count(), 1);
+    assert.equal(await irreversible.getByRole('button', { name: 'Approve and do it' }).count(), 0, 'an act that cannot be undone is approved from the row');
+    if (width >= 1280) await page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).filter({ hasText: /2 waiting/u }).first().waitFor({ timeout: 10_000 });
+    const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+    assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
+    await irreversible.getByRole('button', { name: 'Decline' }).click();
+    for (let tries = 0; tries < 50 && decided.length === 0; tries++) await page.waitForTimeout(100);
+    assert.deepEqual(decided, [{ act: ACTS[1].id, approve: false }]);
+    await irreversible.waitFor({ state: 'detached', timeout: 10_000 });
+    assert.deepEqual(failures, []);
+  });
+}

@@ -110,7 +110,7 @@ export function greetingOf(zone: string, now: number): DayPart {
 }
 
 /** A band *Today* draws for a product (user-experience.md §3.3), in the order it is drawn. */
-export type ProductBand = 'approvals' | 'time';
+export type ProductBand = 'approvals' | 'agent_acts' | 'time';
 
 /**
  * The product bands, each only where its module is on (UC-WRK-34 check 8): none while the modules
@@ -120,17 +120,59 @@ export function productBandsOf(modulesOn: readonly string[] | undefined): Produc
   const on = new Set(modulesOn ?? []);
   return [
     ...(on.has('SERVICE_DESK') ? ['approvals' as const] : []),
+    ...(on.has('AGENTS') ? ['agent_acts' as const] : []),
     ...(on.has('TIME') ? ['time' as const] : []),
   ];
 }
 
 /**
- * The count the *Today* row carries (user-experience.md §3.3): what waits for the reader's yes.
- * Nothing while unknown or none, so the row never says "0".
+ * The count the *Today* row carries (user-experience.md §3.3): the approvals and the agents' held
+ * acts waiting for the reader's yes. Nothing while unknown or none, so the row never says "0".
  */
-export function todayRowCountOf(waiting: readonly { readonly state: string }[] | undefined): number | undefined {
-  const count = waiting?.filter((approval) => approval.state === 'PENDING').length ?? 0;
+export function todayRowCountOf(
+  approvals: readonly { readonly state: string }[] | undefined,
+  acts?: readonly { readonly status: string }[],
+): number | undefined {
+  const count = (approvals?.filter((approval) => approval.state === 'PENDING').length ?? 0)
+    + (acts?.filter((act) => act.status === 'PENDING').length ?? 0);
   return count > 0 ? count : undefined;
+}
+
+/** One held act on Today: whose agent, since when, and where it is decided. */
+export interface HeldActRow {
+  readonly id: string;
+  readonly name: string;
+  readonly at: string;
+  /** An act that cannot be undone is approved where its preview is read, never from a row. */
+  readonly mayApproveHere: boolean;
+  readonly path: string | undefined;
+}
+
+/**
+ * The agents' acts waiting for the reader (`GET /agent-requests` answers only those the reader
+ * may decide), each leading to the screen that shows its preview: the reader's own agents on
+ * *Agents acting for you*, anybody's in the administration where the reader reaches it.
+ */
+export function heldActRows(
+  acts: readonly { readonly id: string; readonly agent_id: string; readonly class: string; readonly status: string; readonly created_at: string }[] | undefined,
+  agents: readonly { readonly id: string; readonly name: string; readonly owner_id: string | null }[],
+  viewerId: string | undefined,
+  isAdministrationReachable: boolean,
+): HeldActRow[] {
+  const byId = new Map(agents.map((agent) => [agent.id, agent]));
+  return (acts ?? [])
+    .filter((act) => act.status === 'PENDING')
+    .map((act) => {
+      const agent = byId.get(act.agent_id);
+      const isOwn = agent !== undefined && viewerId !== undefined && agent.owner_id === viewerId;
+      return {
+        id: act.id,
+        name: agent?.name ?? '',
+        at: act.created_at,
+        mayApproveHere: act.class === 'REVERSIBLE',
+        path: isOwn ? '/profile/agents?tab=requests' : isAdministrationReachable ? '/administration/agents?tab=requests' : undefined,
+      };
+    });
 }
 
 /** What *Time today* says: today's recorded minutes, the week's, and the timer while it runs. */
