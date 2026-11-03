@@ -1,6 +1,6 @@
 {
   "key": "travel",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "trip_kind": {
+        "name": "Kind",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -23,18 +24,21 @@
         ]
       },
       "trip_starts_at": {
+        "name": "Starts at",
         "kind": "DATE_TIME",
         "applies_to": [
           "TASK"
         ]
       },
       "trip_reference": {
+        "name": "Booking reference",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "trip_cost": {
+        "name": "Cost",
         "kind": "MONEY",
         "applies_to": [
           "TASK"
@@ -42,6 +46,7 @@
         "currency": "EUR"
       },
       "trip_document": {
+        "name": "Document",
         "kind": "FILE",
         "applies_to": [
           "TASK"

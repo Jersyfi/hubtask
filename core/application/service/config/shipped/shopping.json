@@ -1,6 +1,6 @@
 {
   "key": "shopping",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,12 +9,14 @@
     },
     "fields": {
       "shopping_quantity": {
+        "name": "Quantity",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "shopping_shop": {
+        "name": "Shop",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -28,6 +30,7 @@
         ]
       },
       "shopping_price": {
+        "name": "Price",
         "kind": "MONEY",
         "applies_to": [
           "TASK"

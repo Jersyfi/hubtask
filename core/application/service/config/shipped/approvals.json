@@ -1,6 +1,6 @@
 {
   "key": "approvals",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -28,6 +28,7 @@
     },
     "fields": {
       "purchase_amount": {
+        "name": "Amount",
         "kind": "MONEY",
         "applies_to": [
           "TASK"
@@ -35,12 +36,14 @@
         "currency": "EUR"
       },
       "purchase_supplier": {
+        "name": "Supplier",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "leave_kind": {
+        "name": "Kind of leave",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -52,36 +55,42 @@
         ]
       },
       "leave_from": {
+        "name": "First day",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "leave_until": {
+        "name": "Last day",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "travel_destination": {
+        "name": "Destination",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "travel_from": {
+        "name": "Departure",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "travel_until": {
+        "name": "Return",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "travel_cost": {
+        "name": "Estimated cost",
         "kind": "MONEY",
         "applies_to": [
           "TASK"

@@ -1,6 +1,6 @@
 {
   "key": "content_calendar",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "content_channel": {
+        "name": "Channel",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -22,18 +23,21 @@
         ]
       },
       "content_publish_on": {
+        "name": "Publish on",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "content_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "content_link": {
+        "name": "Link",
         "kind": "URL",
         "applies_to": [
           "TASK"

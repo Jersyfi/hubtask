@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 11,
+  "version": 12,
   "questions": [
     {
       "key": "first_group",
@@ -41,6 +41,7 @@
     },
     "fields": {
       "impact": {
+        "name": "Impact",
         "kind": "SELECT",
         "options": [
           "High",
@@ -52,6 +53,7 @@
         ]
       },
       "urgency": {
+        "name": "Urgency",
         "kind": "SELECT",
         "options": [
           "High",
@@ -63,6 +65,7 @@
         ]
       },
       "priority": {
+        "name": "Priority",
         "kind": "SELECT",
         "options": [
           "P1",
@@ -75,6 +78,7 @@
         ]
       },
       "responding_group": {
+        "name": "Responding group",
         "kind": "GROUP",
         "applies_to": [
           "TASK"

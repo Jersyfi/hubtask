@@ -1,6 +1,6 @@
 {
   "key": "internal_it",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,6 +12,7 @@
     },
     "fields": {
       "it_request_category": {
+        "name": "Category",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -25,6 +26,7 @@
         ]
       },
       "it_request_device": {
+        "name": "Device",
         "kind": "TEXT",
         "applies_to": [
           "TASK"

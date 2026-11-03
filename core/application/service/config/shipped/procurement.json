@@ -1,6 +1,6 @@
 {
   "key": "procurement",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -28,6 +28,7 @@
     },
     "fields": {
       "procurement_amount": {
+        "name": "Amount",
         "kind": "MONEY",
         "applies_to": [
           "TASK"
@@ -35,24 +36,28 @@
         "currency": "EUR"
       },
       "procurement_needed_by": {
+        "name": "Needed by",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "procurement_cost_centre": {
+        "name": "Cost centre",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "procurement_vendor": {
+        "name": "Vendor",
         "kind": "REFERENCE",
         "applies_to": [
           "TASK"
         ]
       },
       "procurement_order_number": {
+        "name": "Order number",
         "kind": "TEXT",
         "applies_to": [
           "TASK"

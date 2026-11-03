@@ -1,6 +1,6 @@
 {
   "key": "portfolio",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,18 +12,21 @@
     },
     "fields": {
       "initiative_sponsor": {
+        "name": "Sponsor",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "initiative_value": {
+        "name": "Value",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "initiative_health": {
+        "name": "Health",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -35,6 +38,7 @@
         ]
       },
       "initiative_review_on": {
+        "name": "Review on",
         "kind": "DATE",
         "applies_to": [
           "TASK"

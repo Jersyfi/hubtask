@@ -1,6 +1,6 @@
 {
   "key": "classic_project",
-  "version": 3,
+  "version": 4,
   "document": {
     "modules": {
       "workflows": {
@@ -24,6 +24,7 @@
     },
     "fields": {
       "probability": {
+        "name": "Probability",
         "kind": "SELECT",
         "options": [
           "High",
@@ -35,6 +36,7 @@
         ]
       },
       "impact": {
+        "name": "Impact",
         "kind": "SELECT",
         "options": [
           "High",

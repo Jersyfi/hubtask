@@ -1,6 +1,6 @@
 {
   "key": "okr",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,6 +12,7 @@
     },
     "fields": {
       "okr_quarter": {
+        "name": "Quarter",
         "kind": "SELECT",
         "applies_to": [
           "TASK"

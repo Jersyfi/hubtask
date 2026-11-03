@@ -1,6 +1,6 @@
 {
   "key": "records_of_processing",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,12 +9,14 @@
     },
     "fields": {
       "ropa_purpose": {
+        "name": "Purpose",
         "kind": "RICH_TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "ropa_legal_basis": {
+        "name": "Legal basis",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -29,12 +31,14 @@
         ]
       },
       "ropa_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "ropa_subjects": {
+        "name": "Data subjects",
         "kind": "MULTI_SELECT",
         "applies_to": [
           "TASK"
@@ -48,6 +52,7 @@
         ]
       },
       "ropa_data_categories": {
+        "name": "Data categories",
         "kind": "MULTI_SELECT",
         "applies_to": [
           "TASK"
@@ -62,30 +67,35 @@
         ]
       },
       "ropa_recipients": {
+        "name": "Recipients",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "ropa_third_country": {
+        "name": "Transfer to a third country",
         "kind": "BOOL",
         "applies_to": [
           "TASK"
         ]
       },
       "ropa_retention": {
+        "name": "Retention",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "ropa_measures": {
+        "name": "Technical and organisational measures",
         "kind": "RICH_TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "ropa_review_on": {
+        "name": "Review on",
         "kind": "DATE",
         "applies_to": [
           "TASK"

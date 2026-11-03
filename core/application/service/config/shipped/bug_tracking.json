@@ -1,6 +1,6 @@
 {
   "key": "bug_tracking",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "defect_severity": {
+        "name": "Severity",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -21,24 +22,28 @@
         ]
       },
       "defect_steps": {
+        "name": "Steps to reproduce",
         "kind": "RICH_TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "defect_environment": {
+        "name": "Environment",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "defect_version": {
+        "name": "Found in version",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "defect_fixed_in": {
+        "name": "Fixed in version",
         "kind": "TEXT",
         "applies_to": [
           "TASK"

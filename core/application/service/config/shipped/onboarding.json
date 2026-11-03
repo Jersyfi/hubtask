@@ -1,6 +1,6 @@
 {
   "key": "onboarding",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "staff_change_kind": {
+        "name": "Kind",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -19,18 +20,21 @@
         ]
       },
       "staff_change_on": {
+        "name": "Effective on",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "staff_change_manager": {
+        "name": "Manager",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "staff_change_equipment": {
+        "name": "Equipment",
         "kind": "MULTI_SELECT",
         "applies_to": [
           "TASK"

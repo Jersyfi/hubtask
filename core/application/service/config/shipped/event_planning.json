@@ -1,6 +1,6 @@
 {
   "key": "event_planning",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "event_area": {
+        "name": "Area",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -23,6 +24,7 @@
         ]
       },
       "event_cost": {
+        "name": "Cost",
         "kind": "MONEY",
         "applies_to": [
           "TASK"
@@ -30,18 +32,21 @@
         "currency": "EUR"
       },
       "event_guest_email": {
+        "name": "Guest email",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "event_guest_organisation": {
+        "name": "Guest organisation",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "event_guest_rsvp": {
+        "name": "RSVP",
         "kind": "STATUS",
         "applies_to": [
           "TASK"

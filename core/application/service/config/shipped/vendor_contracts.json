@@ -1,6 +1,6 @@
 {
   "key": "vendor_contracts",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "vendor_status": {
+        "name": "Status",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -21,24 +22,28 @@
         ]
       },
       "vendor_website": {
+        "name": "Website",
         "kind": "URL",
         "applies_to": [
           "TASK"
         ]
       },
       "vendor_manager": {
+        "name": "Vendor manager",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "contract_vendor": {
+        "name": "Vendor",
         "kind": "REFERENCE",
         "applies_to": [
           "TASK"
         ]
       },
       "contract_status": {
+        "name": "Status",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -51,6 +56,7 @@
         ]
       },
       "contract_value": {
+        "name": "Value",
         "kind": "MONEY",
         "applies_to": [
           "TASK"
@@ -58,30 +64,35 @@
         "currency": "EUR"
       },
       "contract_starts_on": {
+        "name": "Starts on",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "contract_ends_on": {
+        "name": "Ends on",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "contract_notice_by": {
+        "name": "Notice by",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "contract_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "contract_document": {
+        "name": "Document",
         "kind": "FILE",
         "applies_to": [
           "TASK"

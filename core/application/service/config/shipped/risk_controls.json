@@ -1,6 +1,6 @@
 {
   "key": "risk_controls",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,24 +9,28 @@
     },
     "fields": {
       "isms_asset": {
+        "name": "Asset",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "isms_likelihood": {
+        "name": "Likelihood",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "isms_impact": {
+        "name": "Impact",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "isms_score": {
+        "name": "Score",
         "kind": "CALCULATED",
         "applies_to": [
           "TASK"
@@ -34,6 +38,7 @@
         "formula": "entry.custom_fields.isms_likelihood * entry.custom_fields.isms_impact"
       },
       "isms_treatment": {
+        "name": "Treatment",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -46,18 +51,21 @@
         ]
       },
       "isms_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "control_reference": {
+        "name": "Reference",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "control_theme": {
+        "name": "Theme",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -70,24 +78,28 @@
         ]
       },
       "control_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "control_applicable": {
+        "name": "Applicable",
         "kind": "BOOL",
         "applies_to": [
           "TASK"
         ]
       },
       "control_justification": {
+        "name": "Justification",
         "kind": "RICH_TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "control_status": {
+        "name": "Status",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -99,6 +111,7 @@
         ]
       },
       "control_evidence": {
+        "name": "Evidence",
         "kind": "URL",
         "applies_to": [
           "TASK"

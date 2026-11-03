@@ -1,6 +1,6 @@
 {
   "key": "scaled_agile",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,30 +12,35 @@
     },
     "fields": {
       "feature_business_value": {
+        "name": "Business value",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "feature_time_criticality": {
+        "name": "Time criticality",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "feature_risk_reduction": {
+        "name": "Risk reduction",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "feature_job_size": {
+        "name": "Job size",
         "kind": "NUMBER",
         "applies_to": [
           "TASK"
         ]
       },
       "feature_cost_of_delay": {
+        "name": "Cost of delay",
         "kind": "CALCULATED",
         "applies_to": [
           "TASK"
@@ -43,6 +48,7 @@
         "formula": "entry.custom_fields.feature_business_value + entry.custom_fields.feature_time_criticality + entry.custom_fields.feature_risk_reduction"
       },
       "roam_status": {
+        "name": "ROAM status",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -55,6 +61,7 @@
         ]
       },
       "roam_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"

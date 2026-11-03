@@ -1,6 +1,6 @@
 {
   "key": "hr_requests",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,6 +12,7 @@
     },
     "fields": {
       "hr_request_category": {
+        "name": "Category",
         "kind": "SELECT",
         "applies_to": [
           "TASK"

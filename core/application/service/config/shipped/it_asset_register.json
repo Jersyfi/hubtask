@@ -1,6 +1,6 @@
 {
   "key": "it_asset_register",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,12 +9,14 @@
     },
     "fields": {
       "asset_tag": {
+        "name": "Asset tag",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_status": {
+        "name": "Status",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -28,6 +30,7 @@
         ]
       },
       "asset_category": {
+        "name": "Category",
         "kind": "CASCADING_SELECT",
         "applies_to": [
           "TASK"
@@ -45,42 +48,49 @@
         ]
       },
       "asset_serial_number": {
+        "name": "Serial number",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_ip_address": {
+        "name": "IP address",
         "kind": "IP_ADDRESS",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_support_group": {
+        "name": "Support group",
         "kind": "GROUP",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_purchased_on": {
+        "name": "Purchased on",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_warranty_until": {
+        "name": "Warranty until",
         "kind": "DATE",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_purchase_price": {
+        "name": "Purchase price",
         "kind": "MONEY",
         "applies_to": [
           "TASK"
@@ -88,12 +98,14 @@
         "currency": "EUR"
       },
       "asset_depends_on": {
+        "name": "Depends on",
         "kind": "REFERENCE",
         "applies_to": [
           "TASK"
         ]
       },
       "asset_labels": {
+        "name": "Labels",
         "kind": "LABEL",
         "applies_to": [
           "TASK"

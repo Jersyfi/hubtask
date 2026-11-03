@@ -1,6 +1,6 @@
 {
   "key": "contact_register",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "organisation_category": {
+        "name": "Category",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -21,36 +22,42 @@
         ]
       },
       "organisation_website": {
+        "name": "Website",
         "kind": "URL",
         "applies_to": [
           "TASK"
         ]
       },
       "contact_organisation": {
+        "name": "Organisation",
         "kind": "REFERENCE",
         "applies_to": [
           "TASK"
         ]
       },
       "contact_role": {
+        "name": "Role",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "contact_email": {
+        "name": "Email",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "contact_phone": {
+        "name": "Phone",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "contact_status": {
+        "name": "Status",
         "kind": "STATUS",
         "applies_to": [
           "TASK"
@@ -61,6 +68,7 @@
         ]
       },
       "contact_labels": {
+        "name": "Labels",
         "kind": "LABEL",
         "applies_to": [
           "TASK"

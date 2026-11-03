@@ -1,6 +1,6 @@
 {
   "key": "habits",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "habit_rhythm": {
+        "name": "Rhythm",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -20,6 +21,7 @@
         ]
       },
       "habit_area": {
+        "name": "Area",
         "kind": "SELECT",
         "applies_to": [
           "TASK"

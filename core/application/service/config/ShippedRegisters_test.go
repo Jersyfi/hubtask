@@ -42,7 +42,7 @@ func TestTheRegisterTemplatesAreWholeRegisters(t *testing.T) {
 		"contact_register":  {"organisation", "contact"},
 		"vendor_contracts":  {"vendor", "contract"},
 	}
-	versions := map[string]int{"it_asset_register": 1, "risk_register": 1, "contact_register": 1, "vendor_contracts": 2}
+	versions := map[string]int{"it_asset_register": 2, "risk_register": 2, "contact_register": 2, "vendor_contracts": 3}
 	fieldOwner := map[string]string{}
 	for key, types := range expected {
 		template, ok := byKey[key]

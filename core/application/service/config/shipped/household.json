@@ -1,6 +1,6 @@
 {
   "key": "household",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "household_room": {
+        "name": "Room",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -23,6 +24,7 @@
         ]
       },
       "household_cost": {
+        "name": "Cost",
         "kind": "MONEY",
         "applies_to": [
           "TASK"

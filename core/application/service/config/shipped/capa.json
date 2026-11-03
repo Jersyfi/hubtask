@@ -1,6 +1,6 @@
 {
   "key": "capa",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -9,6 +9,7 @@
     },
     "fields": {
       "capa_source": {
+        "name": "Source",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -22,6 +23,7 @@
         ]
       },
       "capa_severity": {
+        "name": "Severity",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -33,24 +35,28 @@
         ]
       },
       "capa_owner": {
+        "name": "Owner",
         "kind": "USER",
         "applies_to": [
           "TASK"
         ]
       },
       "capa_containment": {
+        "name": "Containment",
         "kind": "RICH_TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "capa_root_cause": {
+        "name": "Root cause",
         "kind": "RICH_TEXT",
         "applies_to": [
           "TASK"
         ]
       },
       "capa_check_on": {
+        "name": "Effectiveness check on",
         "kind": "DATE",
         "applies_to": [
           "TASK"

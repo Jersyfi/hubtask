@@ -1,6 +1,6 @@
 {
   "key": "customer_support",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,6 +12,7 @@
     },
     "fields": {
       "support_category": {
+        "name": "Category",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -24,6 +25,7 @@
         ]
       },
       "support_priority": {
+        "name": "Priority",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -35,6 +37,7 @@
         ]
       },
       "support_customer": {
+        "name": "Customer",
         "kind": "TEXT",
         "applies_to": [
           "TASK"

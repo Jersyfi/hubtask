@@ -1,6 +1,6 @@
 {
   "key": "facility_requests",
-  "version": 1,
+  "version": 2,
   "document": {
     "modules": {
       "workflows": {
@@ -12,6 +12,7 @@
     },
     "fields": {
       "facility_category": {
+        "name": "Category",
         "kind": "SELECT",
         "applies_to": [
           "TASK"
@@ -25,6 +26,7 @@
         ]
       },
       "facility_location": {
+        "name": "Location",
         "kind": "TEXT",
         "applies_to": [
           "TASK"
