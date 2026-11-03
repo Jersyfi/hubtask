@@ -33,7 +33,7 @@
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
-  import { shippedCopy, workflowCopyKey, workflows, workflowsAtHub } from '../data/workflows.svelte.ts';
+  import { shippedCopy, workflowCopyKey, workflowFor, workflows, workflowsAtHub } from '../data/workflows.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import NarrowingDialog from './NarrowingDialog.svelte';
   import { reachOf } from '../settings/reach.ts';
@@ -118,8 +118,9 @@
     if (!isOpen) return;
     const id = container.id;
     const hub = isHub;
+    const flows = typesShown(manifest.value);
     return untrack(() => {
-      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [workflows.open(), customFields.openHub(id)] : [customFields.open(id)])];
+      const stops = [presets.open(), customFields.open(), entryTypes.open(), ...(hub ? [workflows.open(), customFields.openHub(id)] : [customFields.open(id), ...(flows ? [workflows.open()] : [])])];
       return () => {
         for (const stop of stops) stop();
       };
@@ -260,6 +261,9 @@
   }
 
   /** The settings this reader is shown: the entry types only where types are shown at all. */
+  const workflowInForce = $derived(
+    !isHub && typesShown(manifest.value) ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
+  );
   const shownSettings = $derived(SETTINGS.filter((setting) => setting !== 'entry_types' || typesShown(manifest.value)));
 
   /** A level's types in use, as the entry types setting offers them for ticking. */
@@ -561,6 +565,14 @@
           </Button>
           </div>
         </section>
+        {/if}
+
+        <!-- A collection's Workflow section names the workflow its tasks run, as its head does. -->
+        {#if group === 'workflow' && !isHub && workflowInForce}
+          <p class="hint" data-collection-workflow={workflowInForce.key}>
+            {t('app.workflows.runs_here')}
+            <a href="/administration/workflows">{workflowInForce.name ?? t('workflows.default_name')}</a>
+          </p>
         {/if}
 
         {#each shownSettings.filter((setting) => groupOf(setting) === group) as setting (setting)}

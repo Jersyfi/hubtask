@@ -5,6 +5,8 @@
 // status with the steps from it, above the notes, and draws neither the level nor *No column*
 // beside the type; where none runs, the level and the column mark stay as they were.
 //
+// A collection's Workflow settings name the workflow its tasks run, as the collection's head does.
+//
 // Chromium, large and at a phone's width.
 
 import { test } from 'node:test';
@@ -37,7 +39,7 @@ const TYPE = {
 };
 const ENTRY = ITEMS[3];
 
-async function open(width, { runs, asks = false }) {
+async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}` }) {
   const browser = await chromium.launch();
   const { context, page } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -72,7 +74,7 @@ async function open(width, { runs, asks = false }) {
     if (runs && read === '/entry-types') return route.fulfill({ json: { data: [TYPE] } });
     return stub(route);
   });
-  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.goto(`${served.origin}${path}`);
   await page.getByRole('main').waitFor();
   await page.waitForTimeout(800);
   return { page, close: async () => { await context.close(); await browser.close(); } };
@@ -129,5 +131,18 @@ test('chromium: a refused step says at the asked field what it needs, and the fa
     assert.equal(await page.locator('[data-steps] .refusal').count(), 0, 'nothing is said under the dialog');
   } finally {
     await close();
+  }
+});
+
+test('chromium: a collection\'s Workflow settings name the workflow in force', { timeout: 60_000 }, async () => {
+  for (const width of [1280, 390]) {
+    const { page, close } = await open(width, { runs: true, path: `/collections/${ENTRY.collection_id}/settings/workflow` });
+    try {
+      const line = page.locator('[data-collection-workflow="incident"]');
+      await line.waitFor({ timeout: 15_000 });
+      assert.equal(await line.getByRole('link', { name: 'Incident' }).getAttribute('href'), '/administration/workflows');
+    } finally {
+      await close();
+    }
   }
 });
