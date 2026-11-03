@@ -4,7 +4,7 @@
 // Presets of one's own and the workspace's (UC-WRK-30 checks 1-4), walked over the shared
 // fixture's structure hub:
 //
-// * *Save as preset* on a collection's Structure panel sends the collection and the choice - for
+// * *Save as preset* in a collection's settings, *Template*, sends the collection and the choice - for
 //   me, or for the workspace where the reader may shape it; a member is not offered the workspace;
 // * creating a collection offers Hubtask's, the workspace's and the reader's own presets, each
 //   marked with where it comes from - the installation's too (UC-INS-18 check 2) -, and a saved one
@@ -87,7 +87,7 @@ async function openPanel(page, collection) {
   await page.getByRole('heading', { name: collection.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   await page.waitForTimeout(600);
   await openSettings(page, collection.name);
-  await page.getByRole('link', { name: 'Structure' }).click();
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Template', exact: true }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;
