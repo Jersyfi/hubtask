@@ -266,7 +266,7 @@ func TestAPlanNamesTheDoorsANewlyRequiredFieldCloses(t *testing.T) {
 	f.world.types["incident"] = map[string]any{"key": "incident", "level": "TASK", "name": "Incident",
 		"form": map[string]any{"sections": []any{}, "fields": []any{}, "validations": []any{}, "channels": []any{}}}
 	form := map[string]any{"sections": []any{}, "validations": []any{},
-		"fields": []any{map[string]any{"key": "custom_fields.severity", "required": true}},
+		"fields":   []any{map[string]any{"key": "custom_fields.severity", "required": true}},
 		"channels": []any{map[string]any{"channel": "MAIL", "closed": true, "hidden": []any{}, "presets": map[string]any{}}}}
 	document := map[string]any{"types": map[string]any{"incident": map[string]any{"form": form}}}
 	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})

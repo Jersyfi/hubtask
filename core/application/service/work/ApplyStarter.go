@@ -10,8 +10,8 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"

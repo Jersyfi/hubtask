@@ -5,10 +5,11 @@ package worker
 
 import (
 	"context"
-	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"sync"
 	"testing"
 	"time"
+
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"

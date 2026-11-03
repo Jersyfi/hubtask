@@ -142,7 +142,7 @@ func signInPolicyOf(stored *policyDocument) (identity.PolicyPatch, identity.Lega
 		identity.LinkImprint: stored.ImprintURL, identity.LinkPrivacy: stored.PrivacyURL,
 		identity.LinkTerms: stored.TermsURL, identity.LinkAccessibility: stored.AccessibilityURL,
 		identity.LinkTermsVersion: stored.TermsVersion,
-		identity.LinkSupport: stored.SupportURL, identity.LinkDocs: stored.DocsURL,
+		identity.LinkSupport:      stored.SupportURL, identity.LinkDocs: stored.DocsURL,
 	} {
 		if value != nil {
 			links = links.With(name, *value)
@@ -177,7 +177,7 @@ func signInDocumentOf(patch identity.PolicyPatch, links identity.LegalLinks) *po
 		identity.LinkImprint: &stored.ImprintURL, identity.LinkPrivacy: &stored.PrivacyURL,
 		identity.LinkTerms: &stored.TermsURL, identity.LinkAccessibility: &stored.AccessibilityURL,
 		identity.LinkTermsVersion: &stored.TermsVersion,
-		identity.LinkSupport: &stored.SupportURL, identity.LinkDocs: &stored.DocsURL,
+		identity.LinkSupport:      &stored.SupportURL, identity.LinkDocs: &stored.DocsURL,
 	} {
 		if value := links.Of(name); value != "" {
 			held := value
