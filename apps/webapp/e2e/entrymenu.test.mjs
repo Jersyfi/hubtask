@@ -48,7 +48,7 @@ async function open(browser, path, { width = 1280, height = 900, hasTouch = fals
     const request = route.request();
     const path = new URL(request.url()).pathname;
     // The reads that are a POST - a query, a search, a pull - write nothing.
-    if (request.method() !== 'GET' && !/(items:query|sync:pull|sync:snapshot|\/search)$/.test(path)) written.push({ method: request.method(), path });
+    if (request.method() !== 'GET' && !/(items:query|sync:pull|sync:snapshot|accounts:resolve|\/search)$/.test(path)) written.push({ method: request.method(), path });
     return stub(route);
   });
   await page.goto(`${served.origin}${path}`);
@@ -154,7 +154,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   // Search: the same menu on a hit, once the role along its collection has been read.
   const search = await open(browser, '/search');
   t.after(() => search.context.close());
-  await search.page.getByRole('searchbox', { name: 'Search the entries you can see' }).fill('electrician');
+  await search.page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('electrician');
   const hit = search.page.locator(`[data-hit="${DATED.id}"] a`).first();
   await hit.waitFor({ timeout: 10_000 });
   await search.page.waitForTimeout(600);
