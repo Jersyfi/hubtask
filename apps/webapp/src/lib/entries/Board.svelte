@@ -442,6 +442,25 @@
   }
 
   /**
+   * The converse of `moveTo`'s done column (user-experience.md §7.5): a card marked as done on a
+   * board of buckets moves to the done column, so the board and the tick never disagree. The
+   * client's reaction for the same reason the drop's is; the completion first, so a refused one
+   * moves nothing.
+   */
+  async function completeInto(item: WorkItem, bucketId: string) {
+    writeFailure = undefined;
+    try {
+      const completed = await items.setCompleted(item.id, true, crypto.randomUUID());
+      void celebration.celebrate(completed);
+      await items.setBucket(completed.id, bucketId, completed.version);
+      announcer.say(t('app.entries.completed_announced', { title: item.title }));
+      refocusId = item.id;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /**
    * Takes the step into a status column (UC-FLW-03 check 2): the same call the status control
    * makes, so the same rules hold. A refusal names what the step still needs, and the card stays
    * where the server has it.
@@ -565,6 +584,11 @@
     if (id.startsWith('bucket:')) {
       const bucketId = id.slice('bucket:'.length);
       void moveTo(card, bucketId === 'none' ? null : bucketId);
+      return;
+    }
+    const done = isBucketBoard ? columns.find((column) => column.is_done_bucket) : undefined;
+    if (id === 'complete' && done && !columns.find((column) => column.id === card.bucket_id)?.is_done_bucket) {
+      void completeInto(card, done.id);
       return;
     }
     void actions?.run(card, id, cards);
