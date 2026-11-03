@@ -1176,7 +1176,9 @@ between columns is the card's menu (§11.9).
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips,
    one height whether or not they carry a mark. Where the collection has columns and the reader may
    write, the column's chip is the menu that moves the entry to another column, the done column
-   completing it as a drop on the board does.
+   completing it as a drop on the board does. Where a workflow runs for the entry, the head
+   carries its status with the steps the reader may take from it instead, and names the type in
+   place of the level; neither the level nor *No column* is drawn there (`user-experience.md` §5.6).
    A set cover is drawn above the title; no room is taken for an absent one. Its menu is the one
    entry menu (UC-WRK-28 check 2) without *Open*, the page being the entry open; where the reader
    may not share, *People* reads who has access in *Share*'s place. Moving it to the trash leaves
@@ -1192,7 +1194,8 @@ between columns is the card's menu (§11.9).
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
    `DetailPane` as a grid of two. It shows what is set; the fields with nothing set wait behind
    *More fields (n)* - *Add a field* where nothing is set - and are never folded over a standing
-   proposal. The head beside the title carries only the level, the column and *archived*.
+   proposal. The head beside the title carries only the level (the type where a workflow runs), the column
+   or the status, and *archived*.
 4. **The description, the parts and the activity** in the main column: the description a box,
    one quiet line while empty; the parts one card; comments and activity as tabs, writing first,
    the five newest under it, then ten more at a time before the server's older page.

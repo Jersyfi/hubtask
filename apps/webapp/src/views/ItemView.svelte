@@ -354,6 +354,8 @@
     }
   }
 
+  /** Whether a workflow runs for the entry, as its status control found. */
+  let hasWorkflow = $state(false);
   const columnName = $derived(item?.bucket_id ? buckets.of(item.collection_id).find((each) => each.id === item?.bucket_id)?.name : undefined);
   const carriedLabels = $derived(
     item ? (item.label_ids ?? []).map((labelId) => labels.of(item.collection_id).find((each) => each.id === labelId)).filter((each) => each !== undefined) : [],
@@ -1213,9 +1215,14 @@
            stays stored and is not drawn, as its row is not. -->
       <!-- Beside the title only what the entry *is*: its level, its column, archived. Who, when and
            which labels are the details' (concept round 2, §4), not a second row of the same facts. -->
+      <!-- In a workflow collection the status is the column and the type says more than the level
+           (user-experience.md §5.6): neither the level nor *No column* is drawn there. -->
       <div class="marks">
-        <Badge size="sm">{typeName(item.type)}</Badge>
-        {#if isWritable && columnsHere.length > 0}
+        {#if !hasWorkflow}<Badge size="sm">{typeName(item.type)}</Badge>
+        {:else if itemType?.name}<Badge size="sm">{itemType.name}</Badge>{/if}
+        {#if hasWorkflow}
+          <!-- Nothing: the status below is the place on the board. -->
+        {:else if isWritable && columnsHere.length > 0}
           <!-- The column is changed here as well as on the board (concept round 3): the mark is
                the menu of the collection's columns. -->
           <Menu label={t('app.item.column_menu')} items={columnItems} onselect={(id) => void setColumn(id === 'none' ? null : id)}>
@@ -1230,6 +1237,8 @@
           <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
         {/if}
       </div>
+      <!-- The status and the steps the reader may take from it, in the head (UC-FLW-03, §5.6). -->
+      {#key item.id}<StepControl {item} bind:runs={hasWorkflow} />{/key}
       <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the
            celebrations are off (check 7), or while the entry is open. -->
       {#if kudosOffer(item, signedIn.account?.id, celebration.isOn) !== 'none'}
@@ -1368,8 +1377,6 @@
         {#if modulesOn.includes('TIME')}
           {#key item.id}<EntryTimer itemId={item.id} onnavigate={(path) => onnavigate?.(path)} />{/key}
         {/if}
-        <!-- The entry's status and the steps the reader may take (UC-FLW-03). -->
-        {#key item.id}<StepControl {item} />{/key}
         <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
         {#if modulesOn.includes('SERVICE_DESK')}
           <!-- Its promised times (UC-SVC-02 check 6). -->

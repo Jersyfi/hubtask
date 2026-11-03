@@ -19,9 +19,11 @@
 
   interface Props {
     item: WorkItem;
+    /** Whether a workflow runs for the entry, for the head's marks to leave out what it replaces. */
+    runs?: boolean;
   }
 
-  const { item }: Props = $props();
+  let { item, runs = $bindable(false) }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntrySteps>(untrack(() => `/items/${item.id}/steps`));
@@ -30,6 +32,9 @@
   const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
   const workflow = $derived(workflows.list?.data.find((each) => each.key === answer?.workflow));
   const status = $derived(workflow?.published.statuses.find((each) => each.key === answer?.status));
+  $effect(() => {
+    runs = Boolean(answer?.workflow && status);
+  });
 
   let refusal = $state<{ message: string; details: readonly string[] } | undefined>(undefined);
   let isTaking = $state(false);
@@ -130,9 +135,13 @@
 {/if}
 
 <style>
-  .steps { display: flex; flex-direction: column; gap: var(--sp-100); }
+  /* In the entry's head (user-experience.md §5.6): the status, then the steps from it, on one line
+     where they fit; a refusal takes a line of its own under them. */
+  .steps { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .status { margin: 0; }
+
+  .steps > .refusal { flex-basis: 100%; }
 
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
 
