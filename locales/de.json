@@ -7323,6 +7323,8 @@
   "app.fields.workspace_wide": "Im ganzen Arbeitsbereich",
   "app.fields.this_collection": "Diese Sammlung",
   "app.fields.this_hub": "Dieser Hub",
+  "app.fields.name": "Name",
+  "app.fields.name_hint": "Was Personen für das Feld in Formularen und an einem Eintrag lesen. Der Schlüssel darunter folgt dem Namen, bis Sie den Schlüssel ändern.",
   "app.fields.key": "Schlüssel",
   "app.fields.key_hint": "Die Kennung, unter der der Wert gespeichert wird. Kleinbuchstaben, Ziffern und Unterstriche.",
   "app.fields.key_invalid": "Ein Schlüssel beginnt mit einem Kleinbuchstaben und enthält Kleinbuchstaben, Ziffern und Unterstriche.",

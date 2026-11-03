@@ -35,7 +35,8 @@
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { cascadingOptionFault, isCalculated, isValidCurrency, isHubs, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
+  import { keyFrom } from '../data/entrytypes.ts';
+  import { cascadingOptionFault, fieldName, isCalculated, isValidCurrency, isHubs, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -67,7 +68,10 @@
     'DATE_TIME', 'GROUP', 'CASCADING_SELECT', 'IP_ADDRESS', 'FILE', 'LABEL', 'STATUS',
   ];
 
+  let name = $state('');
   let key = $state('');
+  /** Whether the person wrote the key themselves; until then it follows the name. */
+  let isKeyWritten = $state(false);
   let kind = $state('TEXT');
   let options = $state('');
   let currency = $state('');
@@ -105,7 +109,9 @@
   });
 
   function reset() {
+    name = '';
     key = '';
+    isKeyWritten = false;
     kind = 'TEXT';
     options = '';
     currency = '';
@@ -123,6 +129,7 @@
 
   function startEdit(definition: CustomFieldDefinition) {
     editing = definition;
+    name = definition.name ?? '';
     key = definition.key;
     kind = definition.kind;
     options = (definition.options ?? []).join('\n');
@@ -189,6 +196,7 @@
         await customFields.update(
           current.id,
           {
+            ...(name.trim() !== (current.name ?? '') ? { name: name.trim() === '' ? null : name.trim() } : {}),
             options: takesOptions(current.kind) ? optionList() : [],
             is_required: isRequired,
             ...(isRestricted !== (current.restricted ?? false) ? { restricted: isRestricted } : {}),
@@ -202,6 +210,7 @@
           {
             collection_id: collectionId,
             key,
+            ...(name.trim() !== '' ? { name: name.trim() } : {}),
             kind: kind as never,
             options: takesOptions(kind) ? optionList() : [],
             ...(takesCurrency(kind) ? { currency } : {}),
@@ -242,7 +251,8 @@
           <li>
             <div class="row">
               <div>
-                <span class="key">{definition.key}</span>
+                <span class="name">{fieldName(definition)}</span>
+                {#if definition.name}<span class="key">{definition.key}</span>{/if}
                 <span class="meta">
                   {kindLabel(definition.kind)}{#if definition.currency} ({definition.currency}){/if} ·
                   {isHubs(definition)
@@ -276,10 +286,21 @@
       <div bind:this={form}>
       <Stack gap="150">
         <Input
+          label={t('app.fields.name')}
+          hint={t('app.fields.name_hint')}
+          bind:value={name}
+          maxlength={100}
+          oninput={() => {
+            if (editing || isKeyWritten) return;
+            key = keyFrom(name);
+            missing = without(missing, 'key');
+          }}
+        />
+        <Input
           label={t('app.fields.key')}
           hint={t('app.fields.key_hint')}
           bind:value={key}
-          oninput={() => (missing = without(missing, 'key'))}
+          oninput={() => { isKeyWritten = true; missing = without(missing, 'key'); }}
           error={missing.key ? t(missing.key) : keyIsWrong ? t('app.fields.key_invalid') : undefined}
           disabledReason={editing ? t('app.fields.immutable') : undefined}
         />
@@ -402,6 +423,7 @@
 
   .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
 
+  .name { display: block; }
   .key { display: block; font-family: var(--font-mono); }
 
   .meta { display: block; color: var(--text-secondary); font-size: var(--fs-075); }

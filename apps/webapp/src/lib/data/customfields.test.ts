@@ -8,6 +8,7 @@ import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
 import {
   cascadingOptionFault,
+  fieldName,
   FILTER_PREFIX,
   appliesTo,
   definitionsFor,
@@ -290,4 +291,13 @@ test('the register kinds: options, travel shape, comparisons, order and reading'
   assert.equal(valueText({ kind: 'DATE_TIME' }, '2026-10-31T09:00:00Z', reading), 'at 2026-10-31T09:00:00Z');
   assert.equal(valueText({ kind: 'CASCADING_SELECT' }, 'Hardware/Laptop', reading), 'Hardware › Laptop');
   assert.equal(valueText({ kind: 'LABEL' }, ['backend', 'ops'], reading), 'backend, ops');
+});
+
+test('a field is labelled by its name, and by its key only where it has none', () => {
+  const base = { key: 'first_response' } as CustomFieldDefinition;
+  assert.equal(fieldName({ ...base, name: 'First response' }), 'First response');
+  assert.equal(fieldName({ ...base, name: null }), 'first_response');
+  assert.equal(fieldName(base), 'first_response');
+  assert.equal(fieldName({ ...base, name: '  ' }), 'first_response');
+  assert.equal(fieldName(undefined, 'customer'), 'customer', 'a field not read yet is named by the key asked for');
 });

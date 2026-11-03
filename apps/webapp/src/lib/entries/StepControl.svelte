@@ -11,6 +11,7 @@
   import type { EntrySteps, StepVerdict, WorkItem } from '@hubtask/sync-engine';
 
   import { customFields } from '../data/customfields.svelte.ts';
+  import { fieldName } from '../data/customfields.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { statusLabel, workflows } from '../data/workflows.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -140,7 +141,7 @@
   >
     <div bind:this={askForm}><Stack gap="200">
       {#each askedFields(asked) as key (key)}
-        <Input label={key} bind:value={values[key]} error={refusal?.fields.get(fieldPath(key))} />
+        <Input label={fieldName(customFields.of(item.collection_id).find((each) => each.key === key), key)} bind:value={values[key]} error={refusal?.fields.get(fieldPath(key))} />
       {/each}
       {#if refusal}
         {@const rest = notAtAField(refusal, asked)}

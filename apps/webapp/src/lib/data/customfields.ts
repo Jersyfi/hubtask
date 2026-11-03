@@ -27,6 +27,14 @@ import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
 import type { FilterField } from './query.ts';
 
+/**
+ * What a person reads for a field: its name, the key only where it has none (user-experience.md
+ * §5.6). A field not read yet is named by the key it was asked for.
+ */
+export function fieldName(definition: Pick<CustomFieldDefinition, 'key' | 'name'> | undefined, key = ''): string {
+  return definition?.name?.trim() || definition?.key || key;
+}
+
 /** The key's shape, as the contract's pattern writes it. */
 const KEY = /^[a-z][a-z0-9_]{0,49}$/;
 

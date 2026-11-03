@@ -31,7 +31,7 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { calculatedOf, definitionsFor, isCalculated, valueFor } from '../data/customfields.ts';
+  import { calculatedOf, definitionsFor, fieldName, isCalculated, valueFor } from '../data/customfields.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -206,7 +206,7 @@
           valueFor(definition.kind, next),
           item.version,
         );
-        announcer.say(t('app.fields.value_saved_announced', { key: definition.key }));
+        announcer.say(t('app.fields.value_saved_announced', { key: fieldName(definition) }));
       } catch (error) {
         failedKey = definition.key;
         failure = renderProblem(error as never, messages).message;
@@ -223,7 +223,7 @@
   function drawn(definition: CustomFieldDefinition) {
     return {
       key: definition.key,
-      label: definition.key,
+      label: fieldName(definition),
       kind: definition.kind as string,
       options: (definition.options ?? []) as readonly string[],
       isRequired: definition.is_required ?? false,
@@ -264,14 +264,14 @@
                While the entry's writes wait to be sent, the browser computes it the same way. -->
           {@const shownValue = queue.isPending(item.id) ? calculatedOf(definition, customFields.of(item.collection_id), values) : held}
           <div class="calculated" data-calculated={definition.key}>
-            <span class="label">{definition.key}</span>
+            <span class="label">{fieldName(definition)}</span>
             <output>{typeof shownValue === 'number' ? numbers.format(shownValue) : t('app.fields.calculated_empty')}</output>
             <p class="quiet">{t('app.fields.calculated_hint')}</p>
           </div>
         {:else if !isWritable(definition)}
           <!-- Restricted, and the reader holds no role naming its permission: shown, not edited. -->
           <div class="calculated" data-restricted={definition.key}>
-            <span class="label">{definition.key}</span>
+            <span class="label">{fieldName(definition)}</span>
             <output>{shown(definition, held)}</output>
             <p class="quiet">{t('app.fields.restricted_read_only')}</p>
           </div>

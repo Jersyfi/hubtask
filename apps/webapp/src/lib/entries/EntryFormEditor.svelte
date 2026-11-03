@@ -18,7 +18,7 @@
   import type { EntryType } from '@hubtask/sync-engine';
 
   import { customFields } from '../data/customfields.svelte.ts';
-  import { valueFor } from '../data/customfields.ts';
+  import { fieldName, valueFor } from '../data/customfields.ts';
   import {
     FORM_CHANNELS, OPT_IN_CHANNELS, addableKeys, channelIn, customKeyOf, draftOfForm, formKeyOfCustom, formOfDraft, moveField, newField,
     refusalsByField, removeField, removeSection, type FormDraft,
@@ -46,7 +46,10 @@
   let refusals = $state<ReadonlyMap<string, string>>(new Map());
 
   /** A field's name as a reader knows it: the entry's own words, or the custom field's key. */
-  const labelOf = (key: string) => customKeyOf(key) ?? t(`app.entry_forms.own_${key}`);
+  const labelOf = (key: string) => {
+    const custom = customKeyOf(key);
+    return custom === undefined ? t(`app.entry_forms.own_${key}`) : fieldName(definitions.find((definition) => definition.key === custom), custom);
+  };
 
   const addable = $derived(addableKeys(draft, definitions.map((definition) => definition.key)));
   const addOptions = $derived([

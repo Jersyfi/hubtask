@@ -18,6 +18,8 @@
 
 import type { CustomFieldDefinition, EffectiveStructure } from '@hubtask/sync-engine';
 
+import { fieldName } from './customfields.ts';
+
 export type FigureKind = 'OPEN' | 'FIELD_SUM' | 'DUE' | 'RHYTHM' | 'PROGRESS' | 'FLOW' | 'NONE';
 
 /** The order the control lists them in: the simplest first, nothing last. */
@@ -48,7 +50,7 @@ export function figureOffer(structure: EffectiveStructure, definitions: readonly
   const fields = capabilitiesOf(structure, 'TASK').includes('CUSTOM_FIELDS')
     ? definitions
         .filter((definition) => definition.kind === 'NUMBER' && definition.applies_to.includes('TASK'))
-        .map((definition) => ({ key: definition.key, name: definition.key }))
+        .map((definition) => ({ key: definition.key, name: fieldName(definition) }))
     : [];
   const offered = new Set<FigureKind>(['OPEN', 'RHYTHM', 'FLOW', 'NONE']);
   if (levels.length > 1) offered.add('PROGRESS');

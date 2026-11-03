@@ -7323,6 +7323,8 @@
   "app.fields.workspace_wide": "Workspace-wide",
   "app.fields.this_collection": "This collection",
   "app.fields.this_hub": "This hub",
+  "app.fields.name": "Name",
+  "app.fields.name_hint": "What people read for the field in forms and on an entry. The key below follows it until you change the key.",
   "app.fields.key": "Key",
   "app.fields.key_hint": "The identifier the value is stored under. Lower case, digits and underscores.",
   "app.fields.key_invalid": "A key starts with a lower-case letter, and holds lower-case letters, digits and underscores.",

@@ -15,7 +15,7 @@
   import type { EntryFormState, EntryType } from '@hubtask/sync-engine';
 
   import { customFields } from '../data/customfields.svelte.ts';
-  import { definitionsFor, valueFor } from '../data/customfields.ts';
+  import { definitionsFor, fieldName, valueFor } from '../data/customfields.ts';
   import { customKeyOf, standingOf, unfoldedIn } from '../data/entryforms.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -68,7 +68,7 @@
     const help = type.form?.fields?.find((field) => field.key === `custom_fields.${key}`)?.help;
     return {
       key,
-      label: key,
+      label: fieldName(definition, key),
       kind: (definition?.kind as string | undefined) ?? 'TEXT',
       options: (definition?.options ?? []) as readonly string[],
       isRequired: required,

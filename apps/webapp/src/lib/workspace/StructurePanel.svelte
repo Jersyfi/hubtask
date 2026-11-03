@@ -28,7 +28,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { fieldsAtHub } from '../data/customfields.ts';
+  import { fieldName, fieldsAtHub } from '../data/customfields.ts';
   import { copyKeyFor, entryTypes, offeredTypes as typesOfLevel, typesAtHub, typesShown } from '../data/entrytypes.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
@@ -746,7 +746,7 @@
                     <ul>
                       {#each fieldsHere.shared as definition (definition.id)}
                         <li>
-                          <span>{definition.key}</span>
+                          <span>{fieldName(definition)}</span>
                           <span class="source">{t('app.structure.hub_types_shared')}</span>
                           {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `field:${definition.id}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyFieldHere(definition)}>
                             {t('app.structure.hub_types_copy')}
@@ -755,7 +755,7 @@
                       {/each}
                       {#each fieldsHere.own as definition (definition.id)}
                         <li>
-                          <span>{definition.key}</span>
+                          <span>{fieldName(definition)}</span>
                           <span class="source">{definition.copied_from ? t('app.structure.hub_fields_copied') : t('app.structure.hub_types_own')}</span>
                         </li>
                       {/each}

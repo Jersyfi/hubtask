@@ -68,7 +68,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
-  import { definitionsFor, valueText } from '../lib/data/customfields.ts';
+  import { definitionsFor, fieldName, valueText } from '../lib/data/customfields.ts';
   import { hasForm, panelRows } from '../lib/data/entryforms.ts';
   import { droppedBy, entryTypes, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
@@ -1564,7 +1564,7 @@
                 {#if row.opens}<h3 class="form-section" data-form-section>{row.opens}</h3>{/if}
                 <DetailRow
                   id={`field-${definition.key}`}
-                  label={row.required ? t('app.entry_forms.required_label', { name: definition.key }) : definition.key}
+                  label={row.required ? t('app.entry_forms.required_label', { name: fieldName(definition) }) : fieldName(definition)}
                   value={valueText(definition, held, fieldReading)}
                   isReadOnly={!isWritable || row.readOnly}
                 >
