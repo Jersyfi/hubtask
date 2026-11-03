@@ -174,7 +174,7 @@ func BuiltInPresets() []Preset {
 			Completion:  CompletionManual,
 			Capture:     captureDated,
 			Celebration: CelebrationAll,
-			Automation:  []AutomationBehaviour{AutomationRequiredBeyondFirstColumn},
+			Automation:  []AutomationBehaviour{AutomationRequiredBeyondFirstColumn, AutomationNewIntoFirstColumn},
 		}},
 	}
 }

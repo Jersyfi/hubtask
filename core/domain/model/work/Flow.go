@@ -11,6 +11,17 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// LandingColumn is the column a new task starts in where its collection lands new tasks in the
+// first column: the board's first, or none on a board with none left.
+func LandingColumn(board []Bucket) shared.ID {
+	for _, bucket := range board {
+		if !bucket.IsDeleted() {
+			return bucket.ID
+		}
+	}
+	return ""
+}
+
 // FirstColumn answers whether a column is the first of its board: the leftmost one that is not
 // deleted. A board is answered left to right (repository.Buckets.List), so it is the first of the
 // list. An empty board has no first column, and no column is past one.

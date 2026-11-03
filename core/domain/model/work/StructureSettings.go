@@ -133,9 +133,12 @@ const (
 	// only with every required custom field of its type set (UC-WRK-31 check 2). The server
 	// applies it on every writer that places an entry in a column (`FlowGate`).
 	AutomationRequiredBeyondFirstColumn AutomationBehaviour = "REQUIRED_BEYOND_FIRST_COLUMN"
+	// AutomationNewIntoFirstColumn starts a top-level task created without a column in the
+	// board's first (user-experience.md §7.5), on every door that creates one (`CreateWorkItem`).
+	AutomationNewIntoFirstColumn AutomationBehaviour = "NEW_INTO_FIRST_COLUMN"
 )
 
-var automationBehaviours = [...]AutomationBehaviour{AutomationRequiredBeyondFirstColumn}
+var automationBehaviours = [...]AutomationBehaviour{AutomationRequiredBeyondFirstColumn, AutomationNewIntoFirstColumn}
 
 // AutomationBehaviours is the declared set.
 func AutomationBehaviours() []AutomationBehaviour { return automationBehaviours[:] }
