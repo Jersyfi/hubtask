@@ -204,9 +204,9 @@
       expandLabel: t('app.goals.expand_trail'),
       onnavigate: () => onnavigate('/goals?tab=portfolios'),
     }}
+    primary={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
     secondary={mayWrite ? [
       { label: t('app.portfolios.report'), icon: 'send', onclick: () => { report.status = portfolio?.status && portfolio.status !== 'NONE' ? portfolio.status : 'ON_TRACK'; report.summary = ''; isReporting = true; } },
-      { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() },
     ] : []}
     menu={{
       label: t('app.goals.more'),

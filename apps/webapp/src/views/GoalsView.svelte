@@ -238,16 +238,16 @@
     if (ok) isBuilding = false;
   }
 
-  const secondary = $derived.by(() => {
-    if (current === 'goals' && chosen?.state === 'OPEN' && placeChoices.length > 0) return [{ label: t('app.goals.new_goal'), icon: 'plus' as const, onclick: openSetting }] as const;
-    if (current === 'portfolios' && holdsHere('WRITE_ITEMS') === true) return [{ label: t('app.portfolios.new'), icon: 'plus' as const, onclick: () => { portfolioDraft.name = ''; portfolioDraft.description = ''; portfolioDraft.parent = ''; isGathering = true; } }] as const;
-    if (current === 'dashboards') return [{ label: t('app.dashboards.new'), icon: 'plus' as const, onclick: () => { dashboardDraft.name = ''; dashboardDraft.place = hub ?? ''; dashboardDraft.sharing = 'PRIVATE'; dashboardDraft.groupIds = []; isBuilding = true; } }] as const;
-    return [] as const;
+  const primary = $derived.by(() => {
+    if (current === 'goals' && chosen?.state === 'OPEN' && placeChoices.length > 0) return { label: t('app.goals.new_goal'), icon: 'plus' as const, onclick: openSetting };
+    if (current === 'portfolios' && holdsHere('WRITE_ITEMS') === true) return { label: t('app.portfolios.new'), icon: 'plus' as const, onclick: () => { portfolioDraft.name = ''; portfolioDraft.description = ''; portfolioDraft.parent = ''; isGathering = true; } };
+    if (current === 'dashboards') return { label: t('app.dashboards.new'), icon: 'plus' as const, onclick: () => { dashboardDraft.name = ''; dashboardDraft.place = hub ?? ''; dashboardDraft.sharing = 'PRIVATE'; dashboardDraft.groupIds = []; isBuilding = true; } };
+    return undefined;
   });
 </script>
 
 <Stack gap="300">
-  <PageHeader title={hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title')} isTitleInBar={viewport.isCompact} {secondary} />
+  <PageHeader title={hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title')} isTitleInBar={viewport.isCompact} {primary} />
   {#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}
 
   <Tabs label={t('app.goals.title')} selected={current} onselect={(next) => onnavigate(address({ tab: next }))} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>
@@ -280,7 +280,7 @@
         {:else}
           <div class="scroll">
             <Table label={t('app.goals.tree', { period: chosen?.name ?? '' })} columns={goalColumns}>
-              {#snippet empty()}<ProductEmpty kind="unused" title={t('app.goals.empty')} create={secondary[0]} />{/snippet}
+              {#snippet empty()}<ProductEmpty kind="unused" title={t('app.goals.empty')} create={primary} />{/snippet}
               {#each tree as { goal, depth } (goal.id)}
                 <tr>
                   <th scope="row">
@@ -318,7 +318,7 @@
       {:else}
         <div class="scroll">
           <Table label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
-            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.portfolios.empty')} create={secondary[0]} />{/snippet}
+            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.portfolios.empty')} create={primary} />{/snippet}
             {#each portfolioList as each (each.id)}
               <tr>
                 <th scope="row"><a href={`/portfolios/${each.id}`}>{each.name}</a></th>
@@ -340,7 +340,7 @@
       {:else}
         <div class="scroll">
           <Table label={t('app.goals.tab_dashboards')} isLabelHidden columns={dashboardColumns}>
-            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.dashboards.empty')} create={secondary[0]} />{/snippet}
+            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.dashboards.empty')} create={primary} />{/snippet}
             {#each dashboardList as each (each.id)}
               <tr>
                 <th scope="row"><a href={`/dashboards/${each.id}`}>{each.name}</a></th>

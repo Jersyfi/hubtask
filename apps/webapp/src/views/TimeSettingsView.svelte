@@ -152,7 +152,7 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-    secondary={mayShape ? [{ label: t('app.time_settings.add_kind'), icon: 'plus', onclick: () => openKind(undefined) }] : []}
+    primary={mayShape ? { label: t('app.time_settings.add_kind'), icon: 'plus', onclick: () => openKind(undefined) } : undefined}
   />
   <div class="file"><ViewSectionsAsFile {...pagePart('/administration/time')} /></div>
 

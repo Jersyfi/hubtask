@@ -325,7 +325,7 @@
   <PageHeader
     title={t('app.time.title')}
     isTitleInBar={viewport.isCompact}
-    secondary={current === 'week' && isOpen && offeredKinds.length > 0 ? [{ label: t('app.time.add'), icon: 'plus', onclick: () => openRecord(undefined) }] : []}
+    primary={current === 'week' && isOpen && offeredKinds.length > 0 ? { label: t('app.time.add'), icon: 'plus', onclick: () => openRecord(undefined) } : undefined}
   />
 
   <Tabs label={t('app.time.title')} selected={current} onselect={select} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>

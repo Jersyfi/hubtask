@@ -264,9 +264,12 @@
       expandLabel: t('app.goals.expand_trail'),
       onnavigate: () => onnavigate('/goals?tab=dashboards'),
     }}
+    primary={mayEdit && isEditing
+      ? { label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => openWidget(-1), ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }
+      : undefined}
     secondary={mayEdit
       ? isEditing
-        ? [{ label: t('app.dashboards.save_layout'), icon: 'check', onclick: () => void saveLayout() }, { label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => openWidget(-1), ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }]
+        ? [{ label: t('app.dashboards.save_layout'), icon: 'check', onclick: () => void saveLayout() }]
         : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }]
       : []}
     menu={dashboard ? {

@@ -175,7 +175,7 @@
           onnavigate: () => onnavigate(placePath),
         }
       : undefined}
-    secondary={mayWrite ? [{ label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) }] : []}
+    primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
   />
   <PlaceStrip placeId={hubId} current="plan" view="releases" {onnavigate} />
 
