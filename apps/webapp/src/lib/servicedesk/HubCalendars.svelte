@@ -8,6 +8,8 @@
 
   import { untrack } from 'svelte';
   import { Badge, Button, Checkbox, Inline, Input, Skeleton, Stack, Textarea } from '@hubtask/design-system/components';
+  import ZonePicker from '../forms/ZonePicker.svelte';
+  import { deviceZone } from '../i18n/zone.ts';
   import type { BusinessCalendarList } from '@hubtask/sync-engine';
 
   import { calendarsPath, desk, hubCalendarsPath } from '../data/desk.svelte.ts';
@@ -34,7 +36,7 @@
   );
 
   let editing = $state<string | undefined>(undefined);
-  let form = $state({ name: '', zone: '', days: [] as string[], from: '08:00', to: '17:00', holidays: '' });
+  let form = $state({ name: '', zone: deviceZone(), days: [] as string[], from: '08:00', to: '17:00', holidays: '' });
   let refusal = $state<string | undefined>(undefined);
   let isSaving = $state(false);
 
@@ -100,7 +102,7 @@
           <form class="panel" onsubmit={(event) => void save(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={form.name} required />
-              <Input label={t('app.desk.zone')} hint={t('app.desk.zone_hint')} bind:value={form.zone} required />
+              <ZonePicker label={t('app.desk.zone')} bind:value={form.zone} isRequired />
               <div class="choices" role="group" aria-label={t('app.desk.days')}>
                 {#each WEEKDAYS as weekday (weekday)}
                   <Checkbox label={t(`app.desk.day.${weekday.toLowerCase()}`)} checked={form.days.includes(weekday)}

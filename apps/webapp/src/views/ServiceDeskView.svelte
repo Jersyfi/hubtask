@@ -14,6 +14,7 @@
   import {
     EmptyState, Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import type {
     BusinessCalendarList, ReplyTemplateList, RequesterOrganisationList, SlaGoal, SlaPolicy, SlaPolicyDefine, SlaPolicyList, SlaReport,
   } from '@hubtask/sync-engine';
@@ -29,7 +30,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { addDays, instantOf, todayIn } from '../lib/i18n/zone.ts';
+  import { addDays, deviceZone, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
   import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
@@ -70,7 +71,7 @@
   }
 
   // A calendar: one span on the days chosen, holidays by line.
-  let calendar = $state({ key: '', name: '', zone: Intl.DateTimeFormat().resolvedOptions().timeZone, days: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'] as string[], from: '08:00', to: '17:00', holidays: '' });
+  let calendar = $state({ key: '', name: '', zone: deviceZone(), days: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'] as string[], from: '08:00', to: '17:00', holidays: '' });
 
   function editCalendar(key: string) {
     const row = calendarRows?.find((each) => each.key === key);
@@ -227,7 +228,7 @@
           <form class="panel" onsubmit={(event) => void saveCalendar(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={calendar.name} required />
-              <Input label={t('app.desk.zone')} hint={t('app.desk.zone_hint')} bind:value={calendar.zone} required />
+              <ZonePicker label={t('app.desk.zone')} bind:value={calendar.zone} isRequired />
               <div class="choices" role="group" aria-label={t('app.desk.days')}>
                 {#each WEEKDAYS as weekday (weekday)}
                   <Checkbox label={t(`app.desk.day.${weekday.toLowerCase()}`)} checked={calendar.days.includes(weekday)}

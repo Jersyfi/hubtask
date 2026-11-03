@@ -39,6 +39,7 @@
   import { untrack } from 'svelte';
 
   import { Avatar, Badge, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import type { OwnSettings } from '@hubtask/sync-engine';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
@@ -231,23 +232,15 @@
           </Stack>
         {/if}
 
-        {#if zones.length > 0}
-          <Select
-            label={t('app.profile.zone')}
-            data-setting="zone"
-            hint={t('app.profile.zone_hint')}
-            bind:value={zone}
-            options={withWorkspaceChoice(
-              zones.map((each) => ({ value: each, label: each })),
-              t('app.profile.use_workspace'),
-            )}
-          />
-          {@render inForceLine(sourceOf('time_zone', (value) => value))}
-        {:else}
-          <!-- A browser that will not list the zones still lets somebody type one, and the server
-               refuses an unknown name. A worse offer, not a broken one. -->
-          <Input label={t('app.profile.zone')} data-setting="zone" hint={t('app.profile.zone_free')} bind:value={zone} />
-        {/if}
+        <ZonePicker
+          label={t('app.profile.zone')}
+          data-setting="zone"
+          hint={t('app.profile.zone_hint')}
+          freeHint={t('app.profile.zone_free')}
+          inheritLabel={t('app.profile.use_workspace')}
+          bind:value={zone}
+        />
+        {#if zones.length > 0}{@render inForceLine(sourceOf('time_zone', (value) => value))}{/if}
 
         <Select
           label={t('app.profile.week_start')}

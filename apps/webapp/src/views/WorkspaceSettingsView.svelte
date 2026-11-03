@@ -20,11 +20,12 @@
   import { tick, untrack } from 'svelte';
 
   import { Input, PageHeader, SaveBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { WEEK_STARTS, localesOf, zoneOptions } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, localesOf } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -59,9 +60,6 @@
   const reading = $derived(workspace.state);
   const current = $derived(workspace.workspace);
   const locales = $derived(localesOf(manifest.value));
-  // The workspace's own zone has to be among them, or the control shows nothing selected and
-  // the screen says "no zone set" about a workspace that has one.
-  const zones = $derived(zoneOptions(current?.default_time_zone));
 
   const refusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
@@ -211,23 +209,15 @@
               />
             {/if}
 
-            {#if zones.length > 0}
-              <Select
-                label={t('app.workspace.zone')}
-                hint={above.time_zone
-                  ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
-                  : t('app.workspace.zone_hint')}
-                bind:value={zone}
-                options={zones.map((each) => ({ value: each, label: each }))}
-              />
-            {:else}
-              <Input
-                label={t('app.workspace.zone')}
-                hint={t('app.workspace.zone_free')}
-                bind:value={zone}
-                error={failure?.fields.get('default_time_zone')}
-              />
-            {/if}
+            <ZonePicker
+              label={t('app.workspace.zone')}
+              hint={above.time_zone
+                ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
+                : t('app.workspace.zone_hint')}
+              freeHint={t('app.workspace.zone_free')}
+              bind:value={zone}
+              error={failure?.fields.get('default_time_zone')}
+            />
 
             <Select
               label={t('app.workspace.week_start')}

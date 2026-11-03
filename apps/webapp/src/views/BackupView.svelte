@@ -24,6 +24,8 @@
   import { tick, untrack } from 'svelte';
 
   import { Badge, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import ZonePicker from '../lib/forms/ZonePicker.svelte';
+  import { deviceZone } from '../lib/i18n/zone.ts';
 
   import { backup, type Archive, type Schedule } from '../lib/data/backup.svelte.ts';
   import { generations, readRule } from '../lib/data/backup.ts';
@@ -55,7 +57,7 @@
   // binding whose initial value is undefined (`props_invalid_value`).
   let scheduleTarget = $state('');
   let scheduleRule = $state('FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
-  let scheduleZone = $state(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  let scheduleZone = $state(deviceZone());
   let scheduleMinKeep = $state('3');
 
   // What is on screen rather than what exists: a target whose archives somebody opened, the run
@@ -651,7 +653,7 @@
                 hint={t('app.backup.schedule_rule_hint')}
                 bind:value={scheduleRule}
               />
-              <Input label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
+              <ZonePicker label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
               <Input
                 label={t('app.backup.schedule_min_keep')}
                 hint={t('app.backup.schedule_min_keep_hint')}

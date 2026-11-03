@@ -27,3 +27,17 @@ test('no screen draws a native file input of its own', () => {
     .map((file) => path.relative(SRC, file));
   assert.deepEqual(found, [], 'use UploadField (variant "button" in a toolbar)');
 });
+
+test('no screen asks for a time zone as free text', () => {
+  // A zone is a ZonePicker (user-experience.md §5.4): a list from the platform, the device's zone
+  // by default, and free text only inside it, where the platform lists none.
+  const found = [];
+  for (const file of sources(SRC)) {
+    if (file.endsWith(`${path.sep}ZonePicker.svelte`)) continue;
+    const source = fs.readFileSync(file, 'utf8');
+    for (const tag of source.matchAll(/<Input\b[^>]*?label=\{t\('([a-z_.]+)'\)/gs)) {
+      if (/(^|[._])(zone|timezone|time_zone)(_field)?$/.test(tag[1])) found.push(`${path.relative(SRC, file)}: ${tag[1]}`);
+    }
+  }
+  assert.deepEqual(found, [], 'use ZonePicker');
+});

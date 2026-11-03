@@ -99,7 +99,8 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await page.goto(`${served.origin}/administration/service-desk`);
   const calendarForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add the calendar' }) });
   await calendarForm.getByLabel('Name').fill('Office hours');
-  await calendarForm.getByLabel('Time zone').fill('Europe/Berlin');
+  // A zone is picked from the platform's list, never typed (user-experience.md §5.4).
+  await calendarForm.getByLabel('Time zone').selectOption('Europe/Berlin');
   await calendarForm.getByRole('button', { name: 'Add the calendar' }).click();
   await page.getByText('Office hours').first().waitFor({ timeout: 5_000 });
 

@@ -9,6 +9,7 @@
   // they name, as the old form showed them.
 
   import { Button, Callout, Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import ZonePicker from '../forms/ZonePicker.svelte';
 
   import ActionForm, { type Choice, type Field } from './ActionForm.svelte';
   import Composer from './Composer.svelte';
@@ -282,15 +283,12 @@
           onupdate((current) => ({ ...current, trigger: { ...current.trigger, rrule } }));
         }}
       />
-      <Input
+      <ZonePicker
         label={t('app.rules.timezone')}
         hint={t('app.rules.timezone_hint')}
         error={errors.get('/trigger/timezone')}
         value={draft.trigger.timezone ?? ''}
-        oninput={(event: Event) => {
-          const timezone = value(event);
-          onupdate((current) => ({ ...current, trigger: { ...current.trigger, timezone } }));
-        }}
+        onchange={(timezone) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, timezone } }))}
       />
     {:else if draft.trigger.kind === 'RELATIVE_DATE'}
       <Input
