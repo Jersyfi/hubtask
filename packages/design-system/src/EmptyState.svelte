@@ -43,9 +43,19 @@
      * value rather than a literal at the call site, and a type could not catch it there.
      */
     action?: Snippet;
+    /**
+     * What else starts the place, under the one action: a product's two or three templates
+     * (user-experience.md §5.5). Dropped on `settled` with the action, for the same reason.
+     */
+    secondary?: Snippet;
+    /**
+     * One quiet line last: the product's guide, or who may create where the reader may not. Dropped
+     * on `settled`, which offers nothing.
+     */
+    footnote?: Snippet;
   }
 
-  const { kind, title, description, icon, action }: Props = $props();
+  const { kind, title, description, icon, action, secondary, footnote }: Props = $props();
 
   const MARK: Record<Emptiness, IconName> = {
     unused: 'plus',
@@ -54,6 +64,8 @@
   };
 
   const offersAction = $derived(kind !== 'settled' && action !== undefined);
+  const offersSecondary = $derived(kind !== 'settled' && secondary !== undefined);
+  const offersFootnote = $derived(kind !== 'settled' && footnote !== undefined);
 </script>
 
 <div class="empty" data-kind={kind}>
@@ -61,6 +73,8 @@
   <p class="title">{title}</p>
   {#if description}<p class="description">{description}</p>{/if}
   {#if offersAction}<div class="action">{@render action?.()}</div>{/if}
+  {#if offersSecondary}<div class="secondary">{@render secondary?.()}</div>{/if}
+  {#if offersFootnote}<p class="footnote">{@render footnote?.()}</p>{/if}
 </div>
 
 <style>
@@ -97,4 +111,21 @@
   }
 
   .action { margin-top: var(--sp-100); }
+
+  /* The templates: a row that wraps, as wide as the sentence above it may be. */
+  .secondary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-150);
+    max-width: 72ch;
+    margin-top: var(--sp-100);
+  }
+
+  .footnote {
+    margin: var(--sp-050) 0 0;
+    max-width: 56ch;
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
 </style>

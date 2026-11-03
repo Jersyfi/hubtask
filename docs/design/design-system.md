@@ -309,7 +309,9 @@ the screen; a drag let go below the floor closes it. `size` is bindable: where a
 is the caller's decision.
 
 `EmptyState` takes a required `kind` with no default — the three causes of
-[`voice-and-tone.md`](./voice-and-tone.md) §4 — and refuses a call to action on the third. A failure
+[`voice-and-tone.md`](./voice-and-tone.md) §4 — and refuses a call to action on the third. Under the action it takes a `secondary` row (a product's
+templates) and one quiet `footnote` (its guide, or who may create), both refused on the third too.
+A failure
 is not an empty state (§4.4 there): `ErrorState` is its own component.
 
 **`LoadMore` is the only pager in this system.** A control the reader presses, never a load on

@@ -18,6 +18,13 @@ export const unused: Story = {
   args: { mode: 'unused' },
 };
 
+export const started: Story = {
+  name: 'A product not used yet, with its templates',
+  about:
+    'user-experience.md §5.5: the sentence, the one action, the product’s templates as `secondary` and one quiet `footnote` - its guide, or who may create where the reader may not. Both are dropped on `settled`.',
+  args: { mode: 'started' },
+};
+
 export const filtered: Story = {
   name: 'A filter excluded everything',
   about:
