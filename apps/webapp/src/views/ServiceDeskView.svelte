@@ -34,7 +34,7 @@
   import { addDays, deviceZone, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
-  import { WEEKDAYS, byPriorityOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
+  import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
 
   $effect(() => page.entitle(t('app.desk.title')));
@@ -189,6 +189,11 @@
     ...groups.all.map((group) => ({ value: group.id, label: group.name })),
     ...(policy.group && !groups.all.some((group) => group.id === policy.group) ? [{ value: policy.group, label: policy.group }] : []),
   ]);
+  // A business day is the chosen calendar's; around the clock has none, so hours suffice there.
+  const policyDay = $derived.by(() => {
+    const chosen = calendarRows?.find((row) => row.key === policy.calendar);
+    return chosen ? dayLengthOf(chosen) : undefined;
+  });
   const calendarOptions = $derived([{ value: '', label: t('app.desk.around_the_clock') }, ...(calendarRows ?? []).map((row) => ({ value: row.key, label: row.name }))]);
 </script>
 
@@ -288,17 +293,17 @@
                 <Input label={t('app.desk.priority_field')} hint={t('app.desk.priority_field_hint')} bind:value={policy.priority} />
               </div>
               <div class="fields">
-                <DurationInput label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} bind:minutes={policy.first} />
+                <DurationInput label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} day={policyDay} bind:minutes={policy.first} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.firstBy} />
               </div>
               {#if !policy.group}
                 <div class="fields">
-                  <DurationInput label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} bind:minutes={policy.next} />
+                  <DurationInput label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} day={policyDay} bind:minutes={policy.next} />
                   <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.nextBy} />
                 </div>
               {/if}
               <div class="fields">
-                <DurationInput label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} bind:minutes={policy.resolution} />
+                <DurationInput label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} day={policyDay} bind:minutes={policy.resolution} />
                 <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.resolutionBy} />
               </div>
               <div class="fields">

@@ -7512,6 +7512,7 @@
   "app.reminders.removed_announced": "Erinnerung entfernt.",
   "app.duration.unit_MINUTES": "Minuten",
   "app.duration.unit_HOURS": "Stunden",
+  "app.duration.unit_DAYS": "Arbeitstage",
   "app.frequency.at": "Um",
   "app.frequency.weekday": "An welchem Tag",
   "app.frequency.advanced": "Erweitert",

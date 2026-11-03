@@ -7512,6 +7512,7 @@
   "app.reminders.removed_announced": "Reminder removed.",
   "app.duration.unit_MINUTES": "minutes",
   "app.duration.unit_HOURS": "hours",
+  "app.duration.unit_DAYS": "business days",
   "app.frequency.at": "At",
   "app.frequency.weekday": "On which day",
   "app.frequency.advanced": "Advanced",

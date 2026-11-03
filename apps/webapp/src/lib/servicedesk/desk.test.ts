@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byPriorityOf, byPriorityText, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policiesAtHub, policyCopyKey, policyDefinitionOf, reportRows } from './desk.ts';
+import { byPriorityOf, byPriorityText, dayLengthOf, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policiesAtHub, policyCopyKey, policyDefinitionOf, reportRows } from './desk.ts';
 
 test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
   const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
@@ -85,4 +85,12 @@ test('a hub’s settings show the shared SLA policies apart from its own, never 
   assert.deepEqual(atHub.own.map((p: { key: string }) => p.key), ['desk']);
   assert.equal(policyCopyKey(policies, 'incidents'), 'incidents_copy');
   assert.equal(policyCopyKey([...policies, { key: 'incidents_copy' } as never], 'incidents'), 'incidents_copy_2');
+});
+
+test('a calendar\'s business day is its working minutes on each day it works, where all are alike', () => {
+  assert.equal(dayLengthOf({ hours: hoursOf(['MONDAY', 'FRIDAY'], '08:00', '17:00') }), 540);
+  assert.equal(dayLengthOf({ hours: [{ day: 'MONDAY', from: '08:00', to: '12:00' }, { day: 'MONDAY', from: '13:00', to: '17:00' }, { day: 'TUESDAY', from: '09:00', to: '17:00' }] }), 480);
+  // Days of different lengths have no one business day; nor has a calendar of no hours.
+  assert.equal(dayLengthOf({ hours: [{ day: 'MONDAY', from: '08:00', to: '17:00' }, { day: 'FRIDAY', from: '08:00', to: '12:00' }] }), undefined);
+  assert.equal(dayLengthOf({ hours: [] }), undefined);
 });

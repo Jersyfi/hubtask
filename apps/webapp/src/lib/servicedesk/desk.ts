@@ -23,6 +23,19 @@ export function formOf(calendar: Pick<BusinessCalendar, 'hours'>): { days: Weekd
   return { days: WEEKDAYS.filter((day) => calendar.hours.some((span) => span.day === day)), from: first?.from ?? '08:00', to: first?.to ?? '17:00' };
 }
 
+/**
+ * A calendar's business day in minutes: what it works on each day it works, where every such day
+ * is alike; undefined otherwise, since days of different lengths have no one business day.
+ */
+export function dayLengthOf(calendar: Pick<BusinessCalendar, 'hours'>): number | undefined {
+  const perDay = new Map<string, number>();
+  const minute = (time: string) => { const [h, m] = time.split(':').map(Number); return (h ?? 0) * 60 + (m ?? 0); };
+  for (const span of calendar.hours) perDay.set(span.day, (perDay.get(span.day) ?? 0) + minute(span.to) - minute(span.from));
+  const lengths = new Set(perDay.values());
+  const [only] = lengths;
+  return lengths.size === 1 && only !== undefined && only > 0 ? only : undefined;
+}
+
 /** Holidays from text, one date per line or separated by commas; blanks dropped. */
 export function holidaysOf(text: string): string[] {
   return text.split(/[\s,]+/u).map((word) => word.trim()).filter((word) => word !== '');
