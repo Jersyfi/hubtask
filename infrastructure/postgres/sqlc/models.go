@@ -1541,6 +1541,7 @@ type CustomFieldDefinition struct {
 	Restricted     bool
 	ReadRestricted bool
 	CopiedFrom     pgtype.UUID
+	Name           *string
 }
 
 type CustomRole struct {

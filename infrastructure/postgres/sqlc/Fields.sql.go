@@ -48,7 +48,7 @@ func (q *Queries) CountEntriesHoldingCustomField(ctx context.Context, arg CountE
 
 const findCustomField = `-- name: FindCustomField :one
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id
@@ -73,6 +73,7 @@ type FindCustomFieldRow struct {
 	Restricted     bool
 	ReadRestricted bool
 	CopiedFrom     pgtype.UUID
+	Name           *string
 	AtHub          bool
 }
 
@@ -97,6 +98,7 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 		&i.Restricted,
 		&i.ReadRestricted,
 		&i.CopiedFrom,
+		&i.Name,
 		&i.AtHub,
 	)
 	return i, err
@@ -104,7 +106,7 @@ func (q *Queries) FindCustomField(ctx context.Context, id pgtype.UUID) (FindCust
 
 const findCustomFieldInScope = `-- name: FindCustomFieldInScope :one
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id
@@ -139,6 +141,7 @@ type FindCustomFieldInScopeRow struct {
 	Restricted     bool
 	ReadRestricted bool
 	CopiedFrom     pgtype.UUID
+	Name           *string
 	AtHub          bool
 }
 
@@ -167,6 +170,7 @@ func (q *Queries) FindCustomFieldInScope(ctx context.Context, arg FindCustomFiel
 		&i.Restricted,
 		&i.ReadRestricted,
 		&i.CopiedFrom,
+		&i.Name,
 		&i.AtHub,
 	)
 	return i, err
@@ -176,12 +180,12 @@ const insertCustomField = `-- name: InsertCustomField :exec
 
 INSERT INTO custom_field_definition (
   id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, read_restricted, applies_to,
-  created_at, updated_at, version, copied_from
+  created_at, updated_at, version, copied_from, name
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7, $8,
   $9, $10, $11::item_type[], $12, $12, 1,
-  $13
+  $13, $14
 )
 `
 
@@ -199,6 +203,7 @@ type InsertCustomFieldParams struct {
 	AppliesTo      []ItemType
 	CreatedAt      pgtype.Timestamptz
 	CopiedFrom     pgtype.UUID
+	Name           *string
 }
 
 // Custom field definitions.
@@ -224,6 +229,7 @@ func (q *Queries) InsertCustomField(ctx context.Context, arg InsertCustomFieldPa
 		arg.AppliesTo,
 		arg.CreatedAt,
 		arg.CopiedFrom,
+		arg.Name,
 	)
 	return err
 }
@@ -278,7 +284,7 @@ func (q *Queries) ListCustomFieldKindsByKey(ctx context.Context, arg ListCustomF
 
 const listCustomFieldsInScope = `-- name: ListCustomFieldsInScope :many
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id
@@ -306,6 +312,7 @@ type ListCustomFieldsInScopeRow struct {
 	Restricted     bool
 	ReadRestricted bool
 	CopiedFrom     pgtype.UUID
+	Name           *string
 	AtHub          bool
 }
 
@@ -341,6 +348,7 @@ func (q *Queries) ListCustomFieldsInScope(ctx context.Context, collectionID pgty
 			&i.Restricted,
 			&i.ReadRestricted,
 			&i.CopiedFrom,
+			&i.Name,
 			&i.AtHub,
 		); err != nil {
 			return nil, err
@@ -461,17 +469,19 @@ func (q *Queries) SoftDeleteCustomField(ctx context.Context, arg SoftDeleteCusto
 
 const updateCustomField = `-- name: UpdateCustomField :execrows
 UPDATE custom_field_definition SET
-  options     = $1,
-  is_required = $2,
-  restricted  = $3,
-  read_restricted = $4,
-  applies_to  = $5::item_type[],
-  updated_at  = $6,
+  name        = $1,
+  options     = $2,
+  is_required = $3,
+  restricted  = $4,
+  read_restricted = $5,
+  applies_to  = $6::item_type[],
+  updated_at  = $7,
   version     = version + 1
-WHERE id = $7::uuid AND version = $8 AND deleted_at IS NULL
+WHERE id = $8::uuid AND version = $9 AND deleted_at IS NULL
 `
 
 type UpdateCustomFieldParams struct {
+	Name            *string
 	Options         []byte
 	IsRequired      bool
 	Restricted      bool
@@ -487,6 +497,7 @@ type UpdateCustomFieldParams struct {
 // and a kind that changed would reinterpret them.
 func (q *Queries) UpdateCustomField(ctx context.Context, arg UpdateCustomFieldParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateCustomField,
+		arg.Name,
 		arg.Options,
 		arg.IsRequired,
 		arg.Restricted,

@@ -515,7 +515,7 @@ LIMIT sqlc.arg('batch');
 -- The workspace's custom field definitions in force, each filed under its collection - none for a
 -- workspace-wide one; a deleted one is not walked.
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id

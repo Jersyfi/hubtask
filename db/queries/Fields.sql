@@ -10,17 +10,17 @@
 -- insert: two requests arriving in the gap between the two would both pass the check.
 INSERT INTO custom_field_definition (
   id, tenant_id, collection_id, key, kind, options, currency, formula, is_required, restricted, read_restricted, applies_to,
-  created_at, updated_at, version, copied_from
+  created_at, updated_at, version, copied_from, name
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('collection_id'), sqlc.arg('key'),
   sqlc.arg('kind'), sqlc.arg('options'), sqlc.narg('currency'), sqlc.narg('formula'), sqlc.arg('is_required'),
   sqlc.arg('restricted'), sqlc.arg('read_restricted'), sqlc.arg('applies_to')::item_type[], sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
-  sqlc.narg('copied_from')
+  sqlc.narg('copied_from'), sqlc.narg('name')
 );
 
 -- name: FindCustomField :one
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id
@@ -32,7 +32,7 @@ WHERE f.id = $1;
 -- a hub or a team that needs something narrower - `ORDER BY` puts the specific one first and the
 -- row limit takes it. A hub as the scope sees its own and the workspace's: a hub has no parent.
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id
@@ -50,7 +50,7 @@ LIMIT 1;
 -- first, and then by key, so the answer is stable and the specific definitions follow the general
 -- ones they narrow.
 SELECT f.id, f.tenant_id, f.collection_id, f.key, f.kind, f.options, f.currency, f.formula, f.is_required, f.applies_to,
-       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from,
+       f.created_at, f.updated_at, f.deleted_at, f.version, f.restricted, f.read_restricted, f.copied_from, f.name,
        coalesce(hub.type = 'HUB', false)::boolean AS at_hub
 FROM custom_field_definition f
 LEFT JOIN container hub ON hub.id = f.collection_id
@@ -64,6 +64,7 @@ ORDER BY CASE WHEN f.collection_id IS NULL THEN 0 WHEN f.collection_id = sqlc.na
 -- kind are not in the statement at all: a key that moved would orphan every value stored under it,
 -- and a kind that changed would reinterpret them.
 UPDATE custom_field_definition SET
+  name        = sqlc.narg('name'),
   options     = sqlc.arg('options'),
   is_required = sqlc.arg('is_required'),
   restricted  = sqlc.arg('restricted'),
