@@ -99,5 +99,7 @@ test('a hub\'s own settings are offered at the hub, opening its own settings', (
   const offers = catalogueOffers(CATALOGUE, { isAdministrationReachable: false, isInstanceReachable: false }, t, { level: 'HUB', id: 'h1' });
   assert.deepEqual(offers.map((offer) => offer.id), ['HUB:module.planning', 'HUB:structure.views']);
   assert.deepEqual(offers[0]?.target, { kind: 'setting', path: '/hubs/h1/settings/modules', row: 'module.planning' });
+  // A structure setting opens the section it is drawn in (user-experience.md §5.7).
+  assert.equal((offers[1]?.target as { path?: string } | undefined)?.path, '/hubs/h1/settings/views');
   assert.equal(screenOf(define('module.planning', ['WORKSPACE', 'HUB']), 'COLLECTION', { level: 'COLLECTION', id: 'c1' }), undefined);
 });

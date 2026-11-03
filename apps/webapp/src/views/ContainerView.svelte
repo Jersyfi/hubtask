@@ -1261,12 +1261,12 @@
               ? [
                   { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
                   { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
-                  { id: 'templates', label: t('app.structure.tab_templates'), body: templatesTab },
-                  { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
+                  { id: 'templates', label: t('app.settings.section_entry_templates'), body: templatesTab },
+                  { id: 'rules', label: t('app.settings.section_rules'), body: automationTab },
                   { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
                 ]
               : [
-                  { id: 'modules', label: t('app.modules.title'), body: modulesTab },
+                  { id: 'modules', label: t('app.settings.section_products'), body: modulesTab },
                   // A hub's own working hours, where the service desk is on (UC-SVC-01 check 5).
                   ...(modulesOn.includes('SERVICE_DESK')
                     ? [{ id: 'calendars', label: t('app.desk.hub_section'), body: calendarsTab }]

@@ -38,6 +38,7 @@
   import NarrowingDialog from './NarrowingDialog.svelte';
   import { reachOf } from '../settings/reach.ts';
   import SavePresetDialog from './SavePresetDialog.svelte';
+  import { GROUP_CODES, STRUCTURE_GROUPS, groupOf, isGroup, orderSections, sectionOf, type StructureGroup } from './placeSections.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -98,7 +99,11 @@
     if (!list) return;
     queueMicrotask(() => list.querySelector<HTMLElement>('a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
   });
-  const sections = $derived([...before, { id: 'structure', label: t('app.settings.section_structure') }, ...tabs]);
+  // One section list for every place (user-experience.md §5.7): the structure's settings spread over
+  // the sections they belong to, in the level's fixed order; one draft and one save bar hold them.
+  const groups = $derived((Object.keys(STRUCTURE_GROUPS) as StructureGroup[]).map((id) => ({ id, label: t(GROUP_CODES[id]) })));
+  const sections = $derived(orderSections(container.type === 'HUB' ? 'HUB' : 'COLLECTION', [...before, ...groups, ...tabs]));
+  const openSection = $derived(sectionOf(tab));
   let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
@@ -525,10 +530,11 @@
 </script>
 
 <!-- The nine settings: the panel's first tab, or the whole panel where it has no other. -->
-{#snippet settingsBody()}
+{#snippet settingsBody(group: StructureGroup)}
   {#if structure && draft}
     <form class="panel" data-structure-panel onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="300">
+        {#if group === 'template'}
         <p class="hint">{t(isHub ? 'app.structure.intro_hub' : 'app.structure.intro')}</p>
 
         <section class="setting" data-setting="preset">
@@ -555,8 +561,9 @@
           </Button>
           </div>
         </section>
+        {/if}
 
-        {#each shownSettings as setting (setting)}
+        {#each shownSettings.filter((setting) => groupOf(setting) === group) as setting (setting)}
           {@const chip = chipOf(setting)}
           <section class="setting" data-setting={setting} aria-labelledby="structure-{setting}">
             <div class="head">
@@ -743,33 +750,34 @@
                     </ul>
                   </div>
                 {/if}
-                {#if workflows.list}
-                  {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
-                  <div class="hub-types" data-hub-workflows>
-                    <p class="hint">{t('app.structure.hub_workflows_hint')}</p>
-                    <ul>
-                      {#each flowsHere.shared as workflow (workflow.key)}
-                        <li>
-                          <span>{workflow.name ?? t('workflows.default_name')}</span>
-                          <span class="source">{t('app.structure.hub_types_shared')}</span>
-                          {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `workflow:${workflow.key}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyWorkflowHere(workflow)}>
-                            {t('app.structure.hub_types_copy')}
-                          </Button>{/if}
-                        </li>
-                      {/each}
-                      {#each flowsHere.own as workflow (workflow.key)}
-                        <li>
-                          <span>{workflow.name ?? workflow.key}</span>
-                          <span class="source">{workflow.copied_from ? t('app.structure.hub_types_copied', { from: workflow.copied_from }) : t('app.structure.hub_types_own')}</span>
-                        </li>
-                      {/each}
-                    </ul>
-                  </div>
-                {/if}
               {/if}
             {/if}
           </section>
         {/each}
+
+        {#if group === 'workflow' && isHub && workflows.list}
+          {@const flowsHere = workflowsAtHub(workflows.list.data, container.id)}
+          <div class="hub-types" data-hub-workflows>
+            <p class="hint">{t('app.structure.hub_workflows_hint')}</p>
+            <ul>
+              {#each flowsHere.shared as workflow (workflow.key)}
+                <li>
+                  <span>{workflow.name ?? t('workflows.default_name')}</span>
+                  <span class="source">{t('app.structure.hub_types_shared')}</span>
+                  {#if mayShapeHere}<Button size="sm" tone="subtle" isBusy={copying === `workflow:${workflow.key}`} busyLabel={t('app.structure.hub_types_copying')} onclick={() => void copyWorkflowHere(workflow)}>
+                    {t('app.structure.hub_types_copy')}
+                  </Button>{/if}
+                </li>
+              {/each}
+              {#each flowsHere.own as workflow (workflow.key)}
+                <li>
+                  <span>{workflow.name ?? workflow.key}</span>
+                  <span class="source">{workflow.copied_from ? t('app.structure.hub_types_copied', { from: workflow.copied_from }) : t('app.structure.hub_types_own')}</span>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       </Stack>
@@ -798,7 +806,7 @@
         <li>
           <a
             href={hrefOf(each.id)}
-            aria-current={tab === each.id ? 'page' : undefined}
+            aria-current={openSection === each.id ? 'page' : undefined}
             onclick={(event) => {
               event.preventDefault();
               onsection(each.id);
@@ -810,11 +818,10 @@
   </nav>
   <div class="section">
     {#if fileHub}<div class="file"><ViewSectionsAsFile {...placePart(isHub, container.handle ?? undefined)} hubId={fileHub} /></div>{/if}
-    {#if tab === 'structure'}
-      {@render settingsBody()}
-    {:else}
-      {@render [...before, ...tabs].find((each) => each.id === tab)?.body()}
+    {#if isGroup(openSection)}
+      {@render settingsBody(openSection)}
     {/if}
+    {@render [...before, ...tabs].find((each) => each.id === openSection)?.body()}
   </div>
 </div>
 

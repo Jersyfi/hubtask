@@ -81,12 +81,18 @@ async function menuRows(page, name) {
   return menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim() ?? ''));
 }
 
-async function openPanel(page, name) {
+// The structure's settings are spread over the place's sections (user-experience.md §5.7).
+const SECTION_OF = { levels: 'Types & forms', fields: 'Types & forms', views: 'Views', counts: 'Views', completion: 'Workflow', capture: 'Views', celebration: 'Views', automation: 'Rules' };
+
+async function toSection(page, section) {
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: section, exact: true }).click();
+  await page.locator('[data-structure-panel]').waitFor({ timeout: 5_000 });
+}
+
+async function openPanel(page, name, section = 'Template') {
   await openSettings(page, name);
-  await page.getByRole('link', { name: 'Structure' }).click();
-  const panel = page.locator('[data-structure-panel]');
-  await panel.waitFor({ timeout: 5_000 });
-  return panel;
+  await toSection(page, section);
+  return page.locator('[data-structure-panel]');
 }
 
 // The settings page's sections at a phone's width and a desk's: none out of reach, none widening the
@@ -102,11 +108,11 @@ for (const width of [390, 1280]) {
     await openPanel(page, SHAPES.list.name);
     const panel = page.locator('[data-structure-tabs]');
     const tabs = panel.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
-    assert.equal(await tabs.count(), 7);
+    assert.equal(await tabs.count(), 10);
     // On a phone the sections are one row of tabs that scrolls sideways; on a desk a column. The
     // page never widens for them, and each one is reachable - it comes into view when focused.
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sections widened the page');
-    for (let index = 0; index < 7; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
       const box = await tabs.nth(index).evaluate((tab) => {
         tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         return tab.getBoundingClientRect().toJSON();
@@ -164,6 +170,7 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   await openCollection(page, SHAPES.list);
   const panel = await openPanel(page, SHAPES.list.name);
   for (const setting of ['levels', 'fields', 'views', 'counts', 'completion', 'capture', 'celebration', 'automation']) {
+    await toSection(page, SECTION_OF[setting]);
     const section = panel.locator(`[data-setting="${setting}"]`);
     assert.equal(await section.count(), 1, `${setting} missing`);
     const chip = (await section.locator('.head button').first().textContent()).trim();
@@ -171,6 +178,7 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
     assert.equal(await section.getByRole('button', { name: /^Reset / }).count(), setting === 'automation' ? 0 : 1, `${setting}: reset`);
   }
   // The chip opens where the value comes from.
+  await toSection(page, 'Views');
   await panel.locator('[data-setting="views"] .head button').first().click();
   const details = page.getByRole('dialog', { name: 'Where Views comes from' }).or(page.locator('[popover]:popover-open'));
   await details.first().waitFor({ timeout: 5_000 });
@@ -178,6 +186,7 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   await page.keyboard.press('Escape');
 
   // The fields offer UX-12's categories, in its own dialog, which writes nothing here unless saved.
+  await toSection(page, 'Types & forms');
   await panel.locator('[data-setting="fields"]').getByRole('button', { name: /^Categories of / }).first().click();
   const categories = page.getByRole('dialog', { name: 'Categories' });
   await categories.waitFor({ timeout: 5_000 });
@@ -185,10 +194,12 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   await categories.waitFor({ state: 'hidden', timeout: 5_000 });
 
   // A reset, then a preset: one save each, the change said in the request.
+  await toSection(page, 'Views');
   await panel.getByRole('button', { name: 'Reset Success' }).click();
   await panel.locator('[data-reset-pending]').waitFor();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
+  await toSection(page, 'Template');
   await panel.getByRole('combobox', { name: 'Preset' }).selectOption('PROJECT');
   assert.ok((await panel.locator('[data-setting="preset"]').textContent()).includes('Project replaces the settings below'));
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -362,7 +373,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   await openCollection(page, SHAPES.locked);
   // A project opens with what is inside shown, its default view.
   assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the project did not open as its outline');
-  const panel = await openPanel(page, SHAPES.locked.name);
+  const panel = await openPanel(page, SHAPES.locked.name, 'Views');
   const views = panel.locator('[data-setting="views"]');
   assert.equal((await views.locator('.head button').first().textContent()).trim(), 'Workspace, locked');
   assert.equal(await views.getByRole('button', { name: /^Reset / }).count(), 0, 'a locked setting offers a reset');
@@ -375,9 +386,11 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   await board.press('Space');
   assert.ok(await board.isChecked(), 'the locked box changed');
   // One field of one level: the task's dates.
+  await toSection(page, 'Types & forms');
   const dates = panel.locator('[data-setting="fields"]').getByRole('checkbox', { name: 'Dates' }).first();
   assert.equal(await dates.getAttribute('aria-disabled'), 'true');
   // The chip names who set the lock.
+  await toSection(page, 'Views');
   await views.locator('.head button').first().click();
   await page.locator('[popover]:popover-open').first().waitFor({ timeout: 5_000 });
   assert.ok((await page.locator('[popover]:popover-open').first().textContent()).includes(`Locked by ${OTHER.display_name}. Ask them to change it.`));
@@ -385,6 +398,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
 
   // A preset under the lock: sent as itself, the locked value kept and said.
   // List offers fewer levels, so it is previewed first and confirmed with the default, Hide.
+  await toSection(page, 'Template');
   await panel.getByRole('combobox', { name: 'Preset' }).selectOption('LIST');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('dialog', { name: 'Show less?' }).getByRole('button', { name: 'Hide and save' }).click();

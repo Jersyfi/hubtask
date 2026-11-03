@@ -80,7 +80,7 @@ test('a degraded feature links to its page only where the workspace sets it', ()
 test('a configuration finding opens the page of the block it names', () => {
   assert.equal(pageOfFinding('workflows.incident'), '/administration/workflows');
   assert.equal(pageOfFinding('rules.loops'), '/administration/rules');
-  assert.equal(pageOfFinding('scheme.incident', 'h1'), '/hubs/h1/settings/structure');
+  assert.equal(pageOfFinding('scheme.incident', 'h1'), '/hubs/h1/settings/workflow');
   assert.equal(pageOfFinding('scheme.incident'), undefined);
   assert.equal(pageOfFinding('nothing.here'), undefined);
 });

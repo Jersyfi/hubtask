@@ -15,6 +15,7 @@
 import type { SettingDefinition } from '@hubtask/sync-engine';
 
 import type { Offer, Reach, Translate } from '../palette/sources.ts';
+import { GROUP_CODES, groupOf } from '../workspace/placeSections.ts';
 
 type Level = SettingDefinition['levels'][number];
 
@@ -86,7 +87,6 @@ export const workspaceScreens = (): Readonly<Record<string, Screen>> => WORKSPAC
 
 /** Where an area is drawn on a hub's or a collection's own pages, below the place's address. */
 const PLACE: Readonly<Record<string, Screen>> = {
-  structure: { path: 'settings/structure', code: 'app.settings.section_structure' },
   module: { path: 'settings/modules', code: 'app.modules.title' },
   planning: { path: 'plan', code: 'app.planning.title' },
   // A space's drafts are switched beside its tree (UC-DOC-15).
@@ -110,7 +110,10 @@ export function screenOf(definition: SettingDefinition, level: Level, place?: Pl
   if (level === 'WORKSPACE') return WORKSPACE[areaOf(definition.key)];
   if (level === 'PERSON') return PERSON_AREAS[areaOf(definition.key)] ?? PERSON;
   if (place === undefined || level !== place.level) return undefined;
-  const screen = PLACE[areaOf(definition.key)];
+  const area = areaOf(definition.key);
+  // The structure's settings are spread over the sections they belong to (user-experience.md §5.7).
+  const group = area === 'structure' ? groupOf(nameOf(definition.key)) : undefined;
+  const screen = group ? { path: `settings/${group}`, code: GROUP_CODES[group] } : PLACE[area];
   if (!screen) return undefined;
   return { path: `/${place.level === 'HUB' ? 'hubs' : 'collections'}/${place.id}/${screen.path}`, code: screen.code };
 }

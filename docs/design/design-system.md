@@ -1134,12 +1134,19 @@ figure its own head shows (UC-WRK-29); one column on `compact`.
 
 **Settings are pages** (UC-WRK-23): `/collections/:id/settings/:section` and
 `/hubs/:id/settings/:section`, in the administration's shape — the sections as a list at the start,
-the open one beside it, each at its own address. *General* is the edit dialog's fields in place;
-*Structure* is the preset and the eight settings in one save bar: each setting with its
-`SourceChip`, a reset where the value is set here, and a lock drawn as the chip's lock with the
-controls still readable and unavailable, their reason naming who set it (§4, cases 2 and 6). A
-collection's labels, fields, templates, automation (the policies) and people follow, a hub's people
-— each the same component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
+the open one beside it, each at its own address. The sections are one list in one order
+(`user-experience.md` §5.7; `lib/workspace/placeSections.ts`, its test pinning the order per level):
+a collection's *General · Template · Types & forms · Fields · Labels · Entry templates · Workflow ·
+Views · Rules · People*, a hub's *General · Products · Template · Types & forms · Workflow · Views ·
+Rules*, its working hours, code and chat, and *People*. *General* is the edit dialog's fields in
+place. The structure's preset and settings are spread over *Template* (the preset), *Types &
+forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows), *Views* (views,
+what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
+held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
+set here, and a lock drawn as the chip's lock with the controls still readable and unavailable,
+their reason naming who set it (§4, cases 2 and 6). The old addresses `…/settings/structure` and
+`…/settings/automation` open *Types & forms* and *Rules*. The other sections are each the same
+component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
 the shape is offered *Settings…*; anybody else at the address reads whose the settings are.
 What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
 view or bulk operation for it — the installation's manifest narrowed to the structure in force
@@ -1150,7 +1157,7 @@ on screen, renaming, sharing or deleting a view, exporting the list as it is fil
 calendar subscriptions; the page menu carries none of them.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
-*Structure* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
+*Template* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
 the installation's, the workspace's, yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
 unavailable with its reason while the save bar holds changes; its dialog offers *For me*, *For the
 workspace* (only to a reader who may shape the workspace) and *Replace* a preset the reader may
@@ -1224,7 +1231,7 @@ row is ticked by a tap on its start — a target of at least 44 points around th
 towards the inline end, and a tap anywhere else but its controls opens the entry; a still hold opens
 the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
 and the grip drags within its section. The row's menu holds the amount and the category. For somebody who may change the shape, the *Done* heading can be
-renamed and *Categories* chosen and ordered where the list is used; the *Structure* section opens
+renamed and *Categories* chosen and ordered where the list is used; the *Types & forms* section opens
 the same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
 swipe included.
 

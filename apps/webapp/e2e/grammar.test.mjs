@@ -22,7 +22,7 @@ test.after(() => served.close());
 
 const ROUTES = [
   '/', '/search', '/jumble', '/archive', '/trash', `/hubs/${HUB.id}`, `/collections/${COLLECTION.id}`,
-  `/hubs/${HUB.id}/settings/general`, `/collections/${COLLECTION.id}/settings/structure`, `/collections/${COLLECTION.id}/settings/labels`,
+  `/hubs/${HUB.id}/settings/general`, `/collections/${COLLECTION.id}/settings/types`, `/collections/${COLLECTION.id}/settings/views`, `/collections/${COLLECTION.id}/settings/labels`,
   '/profile', '/profile/appearance', '/profile/notifications', '/profile/security', '/profile/sessions', '/profile/devices', '/profile/apps', '/profile/tokens',
   '/administration', '/administration/workspace', '/administration/presets', '/administration/quotas', '/administration/people', '/administration/machines',
   '/administration/sign-in', '/administration/legal', '/administration/rules', '/administration/runs', '/administration/webhooks',

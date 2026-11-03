@@ -146,9 +146,9 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   t.after(() => browser.close());
   const choicesOf = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
-    // What counts is one setting of the settings page's *Structure* (UC-WRK-23).
+    // What counts is one setting of the settings page's *Views* (UC-WRK-23).
     await openSettings(page, collection.name);
-    await page.getByRole('link', { name: 'Structure' }).click();
+    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Views', exact: true }).click();
     const dialog = page.locator('[data-setting="counts"]');
     await dialog.waitFor({ timeout: 5_000 });
     const options = await dialog.getByRole('combobox', { name: 'Show' }).locator('option').allTextContents();

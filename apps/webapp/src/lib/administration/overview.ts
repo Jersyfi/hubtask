@@ -183,7 +183,7 @@ const CHECK_PAGES: Readonly<Record<string, string>> = {
 
 export function pageOfFinding(path: string, hubId?: string): string | undefined {
   const section = path.slice(0, Math.max(0, path.indexOf('.'))) || path;
-  if (section === 'scheme') return hubId ? `/hubs/${hubId}/settings/structure` : undefined;
+  if (section === 'scheme') return hubId ? `/hubs/${hubId}/settings/workflow` : undefined;
   return CHECK_PAGES[section];
 }
 
