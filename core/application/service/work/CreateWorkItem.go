@@ -669,6 +669,13 @@ func (h CreateWorkItem) build(
 		}
 	}
 
+	if cmd.BucketID.IsZero() && placement.ParentID.IsZero() && cmd.Type == domain.ItemTask && profile.Allows(domain.CapabilityBucket) {
+		landed, err := landingColumn(ctx, h.Structure, h.Buckets, collection)
+		if err != nil {
+			return domain.WorkItem{}, err
+		}
+		cmd.BucketID = landed
+	}
 	if !cmd.BucketID.IsZero() {
 		// Checked against the collection the entry is being created in, before the constructor
 		// checks the capability: a column of another collection's board is a reference nothing

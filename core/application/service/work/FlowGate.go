@@ -64,3 +64,27 @@ func (g FlowGate) ensureMayEnter(
 	}
 	return nil
 }
+
+// landingColumn is the column a new top-level task starts in without one asked: the board's first
+// where the collection's structure applies NEW_INTO_FIRST_COLUMN (user-experience.md §7.5), else
+// none. Asked by the creation, so every door - REST, MCP, mail, a rule, a device's push - lands it
+// alike.
+func landingColumn(
+	ctx context.Context, structures StructureResolver, buckets repository.Buckets, collection domain.Container,
+) (shared.ID, error) {
+	if !structures.Wired() || buckets == nil {
+		return "", nil
+	}
+	effective, err := structures.within(repository.LayerRead).Of(ctx, collection)
+	if err != nil {
+		return "", err
+	}
+	if !slices.Contains(effective.Values.Automation, domain.AutomationNewIntoFirstColumn) {
+		return "", nil
+	}
+	board, err := buckets.List(ctx, collection.ID)
+	if err != nil {
+		return "", err
+	}
+	return domain.LandingColumn(board), nil
+}

@@ -138,3 +138,44 @@ func TestACreationIntoALaterColumnCarriesItsRequiredFields(t *testing.T) {
 		t.Errorf("created in %v", out["bucket_id"])
 	}
 }
+
+// user-experience.md §7.5: where a collection lands new tasks in the first column, a top-level task
+// created without a column starts there; one created into a column, a part, and a collection that
+// does not apply it are left as they are.
+func TestANewTaskLandsInTheFirstColumnWhereTheCollectionSaysSo(t *testing.T) {
+	cases := []struct {
+		name    string
+		landing bool
+		input   usecase.Input
+		want    any
+	}{
+		{"without a column", true, usecase.Input{}, firstColumnID.String()},
+		{"into a column", true, usecase.Input{"bucket_id": secondColumnID.String(), "custom_fields": map[string]any{"customer": "ACME"}}, secondColumnID.String()},
+		{"a collection that does not land them", false, usecase.Input{}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := flowHarness(t, false)
+			if tc.landing {
+				collection := h.containers.stored[collectionID]
+				collection.Structure.Values.Automation = []domain.AutomationBehaviour{domain.AutomationNewIntoFirstColumn}
+				h.containers.stored[collectionID] = collection
+			}
+			registry, err := usecase.NewRegistry(nil, h.handler.Descriptor())
+			if err != nil {
+				t.Fatal(err)
+			}
+			in := usecase.Input{"type": "TASK", "collection_id": collectionID.String(), "title": "Printer jams"}
+			for key, value := range tc.input {
+				in[key] = value
+			}
+			out, err := registry.Invoke(context.Background(), CreateWorkItemName, itemActor(), in)
+			if err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			if out["bucket_id"] != tc.want {
+				t.Errorf("created in %v, want %v", out["bucket_id"], tc.want)
+			}
+		})
+	}
+}
