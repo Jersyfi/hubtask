@@ -11,7 +11,7 @@
   // with a collection part, which the collection takes under its own handle.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
@@ -179,28 +179,29 @@
     <p class="quiet" data-no-hub-templates>{t('app.templates.hub_none')}</p>
   {:else}
     {#each groups as group (group.origin)}
-      <div class="origin" data-origin={group.origin}>
-        <h3>{t(`app.templates.origin.${group.origin}`)}</h3>
-        <ul class="cards">
+      <div data-origin={group.origin}>
+        <TemplateGallery label={t(`app.templates.origin.${group.origin}`)}>
           {#each group.templates as template (template.key)}
             {@const offer = offerOf(template)}
-            <li class="card" data-template={template.key}>
-              <span class="name">{nameOf(template)}</span>
-              <code class="note">{template.provenance}</code>
-              {#if offer === 'UPDATE'}
-                <span class="update" data-update-available>{t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })}</span>
-              {:else if offer === 'IN_USE'}
-                <span class="note">{t('app.templates.in_use', { version: template.version })}</span>
-              {/if}
-              {#if offer !== 'IN_USE'}
-                <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={busy === template.key}
-                  data-take={template.key} onclick={() => open(template)}>
-                  {t(offer === 'UPDATE' ? 'app.templates.update' : 'app.templates.take')}
-                </Button>
-              {/if}
-            </li>
+            <TemplateCard
+              name={nameOf(template)}
+              data-template={template.key}
+              note={offer === 'UPDATE'
+                ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
+                : offer === 'IN_USE'
+                  ? t('app.templates.in_use', { version: template.version })
+                  : undefined}
+              isNoteNews={offer === 'UPDATE'}
+              action={offer === 'IN_USE' ? undefined : takeAct}
+            />
+            {#snippet takeAct()}
+              <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={busy === template.key}
+                data-take={template.key} data-update-available={offer === 'UPDATE' ? '' : undefined} onclick={() => open(template)}>
+                {t(offer === 'UPDATE' ? 'app.templates.update' : 'app.templates.take')}
+              </Button>
+            {/snippet}
           {/each}
-        </ul>
+        </TemplateGallery>
       </div>
     {/each}
   {/if}
@@ -300,29 +301,7 @@
 <style>
   .block { display: flex; flex-direction: column; gap: var(--sp-150); }
   .block h2 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .origin h3 { margin: 0 0 var(--sp-100); font-size: var(--fs-075); color: var(--text-secondary); font-weight: var(--fw-medium); }
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
-  .cards {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr));
-    gap: var(--sp-150);
-  }
-  .card {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
-    gap: var(--sp-050);
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
-  .name { font-weight: var(--fw-medium); }
-  .note { color: var(--text-subtle); font-size: var(--fs-075); }
-  .update { color: var(--text-brand); font-size: var(--fs-075); }
   .questions { display: grid; gap: var(--sp-100); }
   .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
 </style>
