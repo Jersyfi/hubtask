@@ -41,3 +41,17 @@ test('no screen asks for a time zone as free text', () => {
   }
   assert.deepEqual(found, [], 'use ZonePicker');
 });
+
+test('no screen asks for a recurrence rule as its only control', () => {
+  // A schedule is a FrequencyPicker (user-experience.md §5.4): daily, weekly or monthly at an hour,
+  // the raw rule behind Advanced inside it - nobody has to know RFC 5545 to set a nightly job.
+  const found = [];
+  for (const file of sources(SRC)) {
+    if (file.endsWith(`${path.sep}FrequencyPicker.svelte`)) continue;
+    const source = fs.readFileSync(file, 'utf8');
+    for (const tag of source.matchAll(/<Input\b[^>]*?label=\{t\('([a-z_.]+)'\)/gs)) {
+      if (/(^|[._])(rrule|schedule_rule)$/.test(tag[1])) found.push(`${path.relative(SRC, file)}: ${tag[1]}`);
+    }
+  }
+  assert.deepEqual(found, [], 'use FrequencyPicker');
+});

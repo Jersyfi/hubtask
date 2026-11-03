@@ -24,6 +24,7 @@
   import { tick, untrack } from 'svelte';
 
   import { Badge, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import FrequencyPicker from '../lib/forms/FrequencyPicker.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import { deviceZone } from '../lib/i18n/zone.ts';
 
@@ -648,10 +649,10 @@
                 options={targets.map((target) => ({ value: target.id, label: target.name }))}
                 error={scheduleMissing.target && !scheduleTarget ? t(scheduleMissing.target) : undefined}
               />
-              <Input
+              <FrequencyPicker
                 label={t('app.backup.schedule_rule')}
-                hint={t('app.backup.schedule_rule_hint')}
-                bind:value={scheduleRule}
+                rawHint={t('app.backup.schedule_rule_hint')}
+                bind:rule={scheduleRule}
               />
               <ZonePicker label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
               <Input

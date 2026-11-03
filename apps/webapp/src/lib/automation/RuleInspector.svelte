@@ -9,6 +9,7 @@
   // they name, as the old form showed them.
 
   import { Button, Callout, Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import FrequencyPicker from '../forms/FrequencyPicker.svelte';
   import ZonePicker from '../forms/ZonePicker.svelte';
 
   import ActionForm, { type Choice, type Field } from './ActionForm.svelte';
@@ -273,15 +274,12 @@
         </Stack>
       {/if}
     {:else if draft.trigger.kind === 'SCHEDULE'}
-      <Input
+      <FrequencyPicker
         label={t('app.rules.rrule')}
-        hint={t('app.flow.rrule_hint')}
+        rawHint={t('app.flow.rrule_hint')}
         error={errors.get('/trigger/rrule')}
-        value={draft.trigger.rrule ?? ''}
-        oninput={(event: Event) => {
-          const rrule = value(event);
-          onupdate((current) => ({ ...current, trigger: { ...current.trigger, rrule } }));
-        }}
+        rule={draft.trigger.rrule ?? ''}
+        onchange={(rrule) => onupdate((current) => ({ ...current, trigger: { ...current.trigger, rrule } }))}
       />
       <ZonePicker
         label={t('app.rules.timezone')}
