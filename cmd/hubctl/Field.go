@@ -22,7 +22,7 @@ func fieldGroup() group {
 		commands: []command{
 			{
 				name: "define",
-				usage: "--key <key> --kind <kind>" +
+				usage: "--key <key> --kind <kind> [--name <name>]" +
 					" [--collection <id>] [--applies-to <types>] [--options <values>] [--required]",
 				summary: "define a custom field",
 				run:     fieldDefine,
@@ -39,8 +39,9 @@ func fieldGroup() group {
 
 func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "field", "define",
-		"--key <key> --kind <kind> [--collection <id>] [--applies-to <types>] [--options <values>] [--currency <code>] [--formula <expression>] [--required] [--restricted] [--read-restricted]")
+		"--key <key> --kind <kind> [--name <name>] [--collection <id>] [--applies-to <types>] [--options <values>] [--currency <code>] [--formula <expression>] [--required] [--restricted] [--read-restricted]")
 	key := flags.String("key", "", "the identifier the value is stored under; fixed once defined")
+	name := flags.String("name", "", "what a person reads for the field; unset leaves it named by its key")
 	kind := flags.String("kind", "", "what a value looks like: TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET, RICH_TEXT, CALCULATED, DATE_TIME, GROUP, CASCADING_SELECT, IP_ADDRESS, FILE, LABEL or STATUS")
 	collection := flags.String("collection", "", "the collection the definition belongs to; unset defines it workspace-wide")
 	appliesTo := flags.String("applies-to", "", "comma-separated item types that carry the field; unset means TASK alone")
@@ -64,6 +65,9 @@ func fieldDefine(ctx context.Context, cli *CLI, args []string) error {
 	}
 
 	body := openapi.CustomFieldDefinitionCreate{Key: *key, Kind: fieldKind}
+	if *name != "" {
+		body.Name = name
+	}
 	if *collection != "" {
 		parsed, err := cli.parseID("--collection", *collection)
 		if err != nil {

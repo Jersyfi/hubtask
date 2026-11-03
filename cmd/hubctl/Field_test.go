@@ -66,6 +66,20 @@ func TestDefiningAMoneyFieldSendsItsCurrency(t *testing.T) {
 	}
 }
 
+// A field defined from the command line carries the name a person reads beside its key.
+func TestDefiningAFieldSendsItsName(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneDefinition)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"field", "define", "--key", "budget", "--name", "Budget planned", "--kind", "NUMBER")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"name":"Budget planned"`) {
+		t.Errorf("the body %q is missing the name", stub.body)
+	}
+}
+
 // UC-ID-27 on hubctl: a field restricted for writing, and one hidden from readers.
 func TestDefiningARestrictedFieldSendsTheRestriction(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneDefinition)
