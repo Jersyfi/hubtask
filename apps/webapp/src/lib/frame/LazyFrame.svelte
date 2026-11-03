@@ -6,9 +6,9 @@
   // work's screens. A frame that cannot be fetched is told apart as a screen is (LazyView).
   import type { Snippet } from 'svelte';
   import type { Resolution } from '../router.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
   import { settle } from './chunkfailure.ts';
   import { loadFrame } from './parts.ts';
+  import ChunkFailed from './ChunkFailed.svelte';
 
   type Props = {
     route: Resolution;
@@ -25,12 +25,6 @@
   <Frame {route} {onnavigate}>{@render children()}</Frame>
 {:catch}
   {#await settle() then outcome}
-    {#if outcome !== 'reload'}
-      <h1>{t(outcome === 'updated' ? 'app.view_updated' : outcome === 'offline' ? 'app.view_unavailable' : 'app.view_failed')}</h1>
-      <p>
-        <button type="button" onclick={() => location.reload()}>{t('app.view_reload')}</button>
-        <a href="/">{t('app.back_to_start')}</a>
-      </p>
-    {/if}
+    {#if outcome !== 'reload'}<ChunkFailed {outcome} />{/if}
   {/await}
 {/await}
