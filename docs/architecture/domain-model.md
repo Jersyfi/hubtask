@@ -267,7 +267,10 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   places an entry in a column (`FlowGate`: an edit, a move, a creation, and so a push or a rule).
   The first column, no column and a move within a column are never refused, a type whose fields
   leave out `CUSTOM_FIELDS` is never asked, and a required field still means only that it cannot
-  be cleared (§3.5). *Flow* sets it; the other presets set nothing.
+  be cleared (§3.5). `NEW_INTO_FIRST_COLUMN` starts a top-level task created without a column in
+  the board's first (`CreateWorkItem`, every door alike; `user-experience.md` §7.5); one created
+  into a column, a part, and a board with no column are left as they are. *Flow* sets both; the
+  other presets set nothing.
 * **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
   a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
   write whose own values set `PROGRESS` where the levels in force after it are one is refused
