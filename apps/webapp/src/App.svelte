@@ -176,7 +176,9 @@
    */
   const pane = $derived(paneFor(route, { isLarge: viewport.isLarge }));
   $effect(() => {
-    if (pane.kind === 'redirect') router.replace(pane.path);
+    // Only on a measured width: before the frame has started the viewport, `isLarge` is its
+    // default, and a desktop's `?item=` would be sent to the entry's page.
+    if (pane.kind === 'redirect' && viewport.isMeasured) router.replace(pane.path);
   });
   // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's.
   const moved = $derived(movedTo(route.name));

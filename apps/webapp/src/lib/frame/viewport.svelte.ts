@@ -20,6 +20,7 @@ export class Viewport {
   #isBelowExpanded = $state(false);
   #isCoarse = $state(false);
   #isLarge = $state(false);
+  #isMeasured = $state(false);
 
   /** Below `medium`: one column, the bottom bar, `density.spacious`. */
   get isCompact(): boolean {
@@ -34,6 +35,15 @@ export class Viewport {
   /** From `large`: the list and the detail pane beside it. */
   get isLarge(): boolean {
     return this.#isLarge;
+  }
+
+  /**
+   * Whether the widths have been read. Until the frame starts listening they are defaults, and a
+   * decision taken on them - the detail pane's redirect below `large` - would be taken for a width
+   * nobody measured: the frame is its own chunk and arrives after the first route.
+   */
+  get isMeasured(): boolean {
+    return this.#isMeasured;
   }
 
   /** The primary pointer is a finger rather than a mouse. */
@@ -69,6 +79,7 @@ export class Viewport {
     if (Number.isFinite(expanded)) watch(`(width < ${expanded}px)`, (matches) => (this.#isBelowExpanded = matches));
     if (Number.isFinite(large)) watch(`(width >= ${large}px)`, (matches) => (this.#isLarge = matches));
     watch('(pointer: coarse)', (matches) => (this.#isCoarse = matches));
+    this.#isMeasured = true;
 
     return () => {
       for (const stop of stops) stop();
