@@ -86,20 +86,31 @@
     }
   }
 
+  // A refusal while the dialog is open is said inside it, above its actions, and the dialog keeps
+  // what was typed and chosen (user-experience.md §5.10).
+  let createFailure = $state<string | undefined>(undefined);
+  let importFailure = $state<string | undefined>(undefined);
+
   async function create() {
     const title = titleDraft.trim();
     if (!title || !hubId) return;
-    const made = await act(() => whiteboards.create(hubId, { title, ...(imported ? { elements: imported.elements as never } : {}) }));
-    isCreating = false;
-    imported = undefined;
-    titleDraft = '';
-    if (made) onnavigate(`/whiteboards/${made.id}`);
+    createFailure = undefined;
+    try {
+      const made = await whiteboards.create(hubId, { title, ...(imported ? { elements: imported.elements as never } : {}) });
+      isCreating = false;
+      imported = undefined;
+      titleDraft = '';
+      onnavigate(`/whiteboards/${made.id}`);
+    } catch (error) {
+      createFailure = renderProblem(error as never, messages).message;
+    }
   }
 
   async function readFile(file: File) {
     const native = readNative(await file.text());
+    importFailure = native ? undefined : t('app.whiteboards.import_not_native');
     if (!native) {
-      toast.show({ text: t('app.whiteboards.import_not_native'), tone: 'danger' });
+      imported = undefined;
       return;
     }
     imported = native;
@@ -200,7 +211,7 @@
 {/if}
 
 {#if isCreating}
-  <Dialog bind:isOpen={isCreating} title={t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')} onClose={() => { imported = undefined; titleDraft = ''; }}>
+  <Dialog bind:isOpen={isCreating} title={t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')} onClose={() => { imported = undefined; titleDraft = ''; createFailure = undefined; importFailure = undefined; }}>
     <Stack gap="150">
       <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} maxlength={200} />
       <UploadField
@@ -208,9 +219,11 @@
         chooseLabel={t('app.import.choose')}
         dropLabel={t('app.media.drop')}
         accept="application/json,.json"
+        error={importFailure}
         onChoose={(file) => void readFile(file)}
       />
       {#if imported}<p class="meta">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</p>{/if}
+      {#if createFailure}<Banner tone="danger">{createFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.links.cancel')}</Button>
