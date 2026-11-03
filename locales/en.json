@@ -5534,6 +5534,8 @@
   "app.help.support_body_contact": "Something not working? Copy these details and send them to the support contact below. They hold nothing anybody wrote: only the version, the workspace, the page and the references of recent refusals.",
   "app.help.support_contact": "Support contact",
   "app.help.documentation": "Documentation",
+  "app.help.administered_by": "Administered by",
+  "app.help.and_more": "and {count} more",
   "app.help.copy_details": "Copy details",
   "app.help.copied": "Details copied",
   "app.help.detail_version": "Version",

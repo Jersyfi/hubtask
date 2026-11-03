@@ -9,11 +9,13 @@
   import { untrack } from 'svelte';
   import { Button, Dialog, Kbd, Stack } from '@hubtask/design-system/components';
 
+  import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { SHORTCUTS, type Scope } from '../shortcuts.ts';
   import { recentReferences, supportDetails } from '../support.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
   import { toast } from './toasts.svelte.ts';
 
   interface Props {
@@ -37,6 +39,24 @@
     if (!isOpen) return;
     return untrack(() => workspace.open());
   });
+
+  // Who administers this workspace: its owners and administrators, by name, a few at most - a
+  // person to ask. A group holding the role is not a person, so it is left out.
+  const ADMINISTRATORS_SHOWN = 3;
+  $effect(() => {
+    if (!isOpen) return;
+    return untrack(() => people.openScope({ scopeType: 'TENANT' }));
+  });
+  const administrators = $derived(isOpen
+    ? [...new Set(people.along({})
+      .filter((each) => each.scope_type === 'TENANT' && (each.role === 'OWNER' || each.role === 'ADMIN') && each.account_id)
+      .map((each) => each.account_id as string))]
+    : []);
+  $effect(() => accounts.resolve(administrators));
+  const administratorNames = $derived(administrators
+    .map((id) => accounts.nameOf(id))
+    .filter((name): name is string => !!name)
+    .slice(0, ADMINISTRATORS_SHOWN));
 
   function copyDetails() {
     const text = supportDetails({
@@ -72,8 +92,14 @@
       <h3 class="group" id="help-support">{t('app.help.support_title')}</h3>
       <Stack gap="100">
         <p class="body">{t(support ? 'app.help.support_body_contact' : 'app.help.support_body')}</p>
-        {#if support || docs}
+        {#if support || docs || administratorNames.length > 0}
           <dl class="contacts" data-help-contacts>
+            {#if administratorNames.length > 0}
+              <div data-help-administrators>
+                <dt>{t('app.help.administered_by')}</dt>
+                <dd>{new Intl.ListFormat(messages.locale, { type: 'conjunction' }).format(administratorNames)}{administrators.length > ADMINISTRATORS_SHOWN ? ` ${t('app.help.and_more', { count: String(administrators.length - ADMINISTRATORS_SHOWN) })}` : ''}</dd>
+              </div>
+            {/if}
             {#if support}
               <div><dt>{t('app.help.support_contact')}</dt><dd><a href={support} target="_blank" rel="noopener">{supportWord}</a></dd></div>
             {/if}

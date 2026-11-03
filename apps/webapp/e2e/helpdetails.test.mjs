@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { MANIFEST, signedIn } from './fixture.mjs';
+import { MANIFEST, OTHER, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -44,7 +44,7 @@ test('chromium: Help copies the details for support, and no search with them', a
   assert.deepEqual(failures, []);
 });
 
-test('chromium: Help names the support contact and the documentation the workspace set', async (t) => {
+test('chromium: Help names who administers the workspace, its support contact and its documentation', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await signedIn(browser, 390, 800);
@@ -60,6 +60,10 @@ test('chromium: Help names the support contact and the documentation the workspa
   await contact.waitFor({ timeout: 5_000 });
   assert.equal(await contact.getAttribute('href'), 'mailto:help@acme.example');
   assert.equal(await dialog.getByRole('link', { name: 'https://acme.example/docs' }).getAttribute('href'), 'https://acme.example/docs');
+  // Who to ask by name: the workspace's owner, not a member.
+  const administrators = dialog.locator('[data-help-administrators]');
+  await administrators.getByText('Jérôme Winkel').waitFor({ timeout: 5_000 });
+  assert.ok(!(await administrators.textContent()).includes(OTHER.display_name), 'a member is named as administering');
   // An address does not push the phone-width dialog wider than the screen.
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'the page scrolls sideways');
   assert.deepEqual(failures, []);

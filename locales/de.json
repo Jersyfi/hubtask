@@ -5534,6 +5534,8 @@
   "app.help.support_body_contact": "Funktioniert etwas nicht? Kopieren Sie diese Angaben und schicken Sie sie an den Support-Kontakt unten. Sie enthalten nichts, was jemand geschrieben hat: nur die Version, den Arbeitsbereich, die Seite und die Referenzen der letzten Ablehnungen.",
   "app.help.support_contact": "Support-Kontakt",
   "app.help.documentation": "Dokumentation",
+  "app.help.administered_by": "Verwaltet von",
+  "app.help.and_more": "und {count} weitere",
   "app.help.copy_details": "Angaben kopieren",
   "app.help.copied": "Angaben kopiert",
   "app.help.detail_version": "Version",
