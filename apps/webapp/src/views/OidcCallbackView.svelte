@@ -96,8 +96,9 @@
     } else {
       // The provider refused, or there is no flow in this address at all. Both end here, and
       // saying which would tell somebody standing at the callback whether a handle they do not
-      // hold was ever real.
-      oidc.refuse();
+      // hold was ever real. A refusal this installation made itself (a SAML answer it could not
+      // keep) is said in its own words.
+      oidc.refuse(arrival.kind === 'refused' ? arrival.code : undefined);
     }
   }
 

@@ -26,7 +26,9 @@ func (k *keeperDouble) Execute(_ context.Context, state, answer string) (secret.
 }
 
 // UC-ID-30 check 3: the provider's post is kept and the browser sent on to the callback with the
-// handoff and the state; an answer for no live flow is refused and sent nowhere.
+// handoff and the state; an answer for no live flow is refused with auth.oidc_flow_not_found -
+// and the browser returns to the sign-in card with that code rather than ending on a problem
+// document (user-experience.md §5.8).
 func TestTheAssertionConsumerServiceSendsTheBrowserOn(t *testing.T) {
 	keeper := &keeperDouble{}
 	controller := NewRestController()
@@ -54,9 +56,11 @@ func TestTheAssertionConsumerServiceSendsTheBrowserOn(t *testing.T) {
 	}
 
 	refused := post("hbt_osf_spent")
-	if refused.Code != http.StatusNotFound || refused.Header().Get("Location") != "" ||
-		!strings.Contains(refused.Body.String(), "auth.oidc_flow_not_found") {
-		t.Fatalf("status %d: %s", refused.Code, refused.Body)
+	back, _ := url.Parse(refused.Header().Get("Location"))
+	if refused.Code != http.StatusSeeOther || back.Host != "hubtask.example" || back.Path != "/auth/callback" ||
+		back.Query().Get("error") != "auth.oidc_flow_not_found" || back.Query().Get("state") != "hbt_osf_spent" ||
+		back.Query().Has("code") || refused.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("status %d, sent to %s: %s", refused.Code, back, refused.Body)
 	}
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+"/auth/saml:metadata", nil)

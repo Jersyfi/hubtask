@@ -5,6 +5,7 @@ package rest
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 
@@ -34,22 +35,13 @@ type SAMLDoor struct {
 // maxSAMLForm bounds the posted form ahead of the use case's own bound.
 const maxSAMLForm = 400 << 10
 
-// ReceiveSamlResponse keeps the answer and sends the browser on to the callback.
+// ReceiveSamlResponse keeps the answer and sends the browser on to the callback. A refused answer
+// goes there too, with `error` in place of the code: the provider posted a browser, and a problem
+// document is a dead end for the person in it (user-experience.md §5.8).
 func (c *SAMLDoor) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.Answers == nil || c.CallbackURL == "" {
 		WriteProblem(w, errNotWired, requestID)
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxSAMLForm)
-	if err := r.ParseForm(); err != nil {
-		WriteProblem(w, shared.ErrNotFound.WithDetail("auth.oidc_flow_not_found"), requestID)
-		return
-	}
-	state := r.PostForm.Get("RelayState")
-	code, err := c.Answers.Execute(r.Context(), state, r.PostForm.Get("SAMLResponse"))
-	if err != nil {
-		WriteProblem(w, err, requestID)
 		return
 	}
 	target, err := url.Parse(c.CallbackURL)
@@ -57,13 +49,36 @@ func (c *SAMLDoor) ReceiveSamlResponse(w http.ResponseWriter, r *http.Request) {
 		WriteProblem(w, errNotWired, requestID)
 		return
 	}
-	query := url.Values{}
-	query.Set("code", code.Reveal())
-	query.Set("state", state)
-	target.RawQuery = query.Encode()
+	r.Body = http.MaxBytesReader(w, r.Body, maxSAMLForm)
+	if err := r.ParseForm(); err != nil {
+		sendBack(w, r, target, url.Values{"error": {"auth.oidc_flow_not_found"}})
+		return
+	}
+	state := r.PostForm.Get("RelayState")
+	code, err := c.Answers.Execute(r.Context(), state, r.PostForm.Get("SAMLResponse"))
+	if err != nil {
+		sendBack(w, r, target, url.Values{"error": {refusalCode(err)}, "state": {state}})
+		return
+	}
+	sendBack(w, r, target, url.Values{"code": {code.Reveal()}, "state": {state}})
+}
+
+// refusalCode is the detail code a refused answer returns with. Only a refusal's own code travels;
+// a fault, or a refusal without one, is the generic sign-in failure - the reason is in the log.
+func refusalCode(err error) string {
+	var refusal *shared.Error
+	if errors.As(err, &refusal) && refusal.DetailCode != "" && refusal.Category != shared.CategoryInternal {
+		return refusal.DetailCode
+	}
+	return "auth.oidc_failed"
+}
+
+func sendBack(w http.ResponseWriter, r *http.Request, target *url.URL, query url.Values) {
+	back := *target
+	back.RawQuery = query.Encode()
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
-	http.Redirect(w, r, target.String(), http.StatusSeeOther)
+	http.Redirect(w, r, back.String(), http.StatusSeeOther)
 }
 
 // GetSamlMetadata answers this installation's service provider metadata.

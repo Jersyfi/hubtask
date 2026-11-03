@@ -32733,7 +32733,7 @@ type ClientInterface interface {
 	// ReceiveSamlResponseWithBody Receive a SAML provider's answer
 	//
 	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -32743,7 +32743,7 @@ type ClientInterface interface {
 	// ReceiveSamlResponseWithFormdataBody Receive a SAML provider's answer
 	//
 	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 	//
 	// Takes a body of the `application/x-www-form-urlencoded` content type.
 	//
@@ -46081,7 +46081,7 @@ func (c *Client) ResetPassword(ctx context.Context, body ResetPasswordJSONReques
 // ReceiveSamlResponseWithBody Receive a SAML provider's answer
 //
 // This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 //
 // Takes any type of body and a specified content type.
 //
@@ -46101,7 +46101,7 @@ func (c *Client) ReceiveSamlResponseWithBody(ctx context.Context, contentType st
 // ReceiveSamlResponseWithFormdataBody Receive a SAML provider's answer
 //
 // This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 //
 // Takes a body of the `application/x-www-form-urlencoded` content type.
 //
@@ -105927,7 +105927,7 @@ type ClientWithResponsesInterface interface {
 	// ReceiveSamlResponseWithBodyWithResponse Receive a SAML provider's answer
 	//
 	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -105937,7 +105937,7 @@ type ClientWithResponsesInterface interface {
 	// ReceiveSamlResponseWithFormdataBodyWithResponse Receive a SAML provider's answer
 	//
 	// This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+	// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 	//
 	// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -159429,7 +159429,7 @@ func (c *ClientWithResponses) ResetPasswordWithResponse(ctx context.Context, bod
 // ReceiveSamlResponseWithBodyWithResponse Receive a SAML provider's answer
 //
 // This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -159445,7 +159445,7 @@ func (c *ClientWithResponses) ReceiveSamlResponseWithBodyWithResponse(ctx contex
 // ReceiveSamlResponseWithFormdataBodyWithResponse Receive a SAML provider's answer
 //
 // This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.
-// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+// An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.
 //
 // Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
 //

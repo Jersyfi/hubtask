@@ -18415,7 +18415,7 @@
         "x-hubtask-rest-to": "SAML",
         "security": [],
         "summary": "Receive a SAML provider's answer",
-        "description": "This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.\nAn answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.\n",
+        "description": "This installation's assertion consumer service, the one address every SAML provider posts its answer to (HTTP-POST binding). The answer is not verified here and opens nothing: it is kept on the live sign-in its `RelayState` names, once, and the browser is sent on with `303` to `/auth/callback` on this installation's address with a fresh single-use `code` and the `state` - where the sign-in finishes through `/auth/oidc:locate` and `/auth/oidc:callback` exactly as an OpenID Connect provider's return does. There the answer is verified in full.\nAn answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and the `state` instead of a code, so the browser returns to the sign-in rather than ending on a problem document.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -18428,7 +18428,7 @@
         },
         "responses": {
           "303": {
-            "description": "On to the callback, with the code and the state",
+            "description": "On to the callback, with the code and the state, or with `error` and the state",
             "headers": {
               "Location": {
                 "schema": {

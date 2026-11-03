@@ -27,7 +27,7 @@ export interface Handoff {
  */
 export type Arrival =
   | { readonly kind: 'handoff'; readonly handoff: Handoff }
-  | { readonly kind: 'refused' }
+  | { readonly kind: 'refused'; readonly code?: string }
   | { readonly kind: 'nothing' };
 
 /**
@@ -40,13 +40,21 @@ export type Arrival =
  *
  * A `state` with no `code` is not a handoff: there is nothing to exchange, and sending an empty
  * code would be asking the server to refuse something this client can already see is not there.
+ *
+ * An `error` that is one of this installation's own sign-in codes - a SAML answer it refused - is
+ * kept, so the card can say that reason; anyone can write this address, so nothing else is.
  */
+const OWN_REFUSAL = /^auth\.[a-z_]+$/;
+
 export function readArrival(search: string): Arrival {
   const query = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
   const code = query.get('code') ?? '';
   const state = query.get('state') ?? '';
   if (code !== '' && state !== '') return { kind: 'handoff', handoff: { code, state } };
-  if (query.has('error')) return { kind: 'refused' };
+  if (query.has('error')) {
+    const error = query.get('error') ?? '';
+    return OWN_REFUSAL.test(error) ? { kind: 'refused', code: error } : { kind: 'refused' };
+  }
   return { kind: 'nothing' };
 }
 

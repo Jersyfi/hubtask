@@ -12028,7 +12028,10 @@ paths:
         exactly as an OpenID Connect provider's return does. There the answer is verified in full.
 
         An answer for no live sign-in of a SAML provider, a second answer for the same sign-in, or one
-        larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing.
+        larger than 256 KiB is refused with `auth.oidc_flow_not_found` and keeps nothing. A refused
+        answer is sent on to the same callback with `303`, carrying `error` (the refusal's code) and
+        the `state` instead of a code, so the browser returns to the sign-in rather than ending on a
+        problem document.
       requestBody:
         required: true
         content:
@@ -12037,7 +12040,7 @@ paths:
               $ref: "#/components/schemas/SamlPost"
       responses:
         "303":
-          description: On to the callback, with the code and the state
+          description: On to the callback, with the code and the state, or with `error` and the state
           headers:
             Location:
               schema: { type: string, format: uri }
