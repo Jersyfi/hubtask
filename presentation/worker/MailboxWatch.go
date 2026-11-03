@@ -5,8 +5,9 @@ package worker
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"log/slog"
-	"math/rand/v2"
 	"time"
 
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
@@ -94,7 +95,7 @@ func (m MailboxWatch) Run(ctx context.Context) {
 	m = m.withDefaults()
 	holders := map[mailservice.WatchTarget]*mailboxHolder{}
 	defer func() {
-		m.stopAll(holders)
+		m.stopAll(ctx, holders)
 		released, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
 		defer cancel()
 		_ = m.Leadership.Release(released)
@@ -140,14 +141,14 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 			*m.unsure = time.Now()
 		}
 		if time.Since(*m.unsure) >= m.Hold {
-			m.stopAll(holders)
+			m.stopAll(ctx, holders)
 		}
 		m.held(ctx, holders)
 		return
 	}
 	*m.unsure = time.Time{}
 	if !leading {
-		m.stopAll(holders)
+		m.stopAll(ctx, holders)
 		m.held(ctx, holders)
 		return
 	}
@@ -219,10 +220,15 @@ func (m MailboxWatch) slot(n int) time.Duration {
 
 // jitter is a random duration below d, so holds that failed together do not retry together.
 func jitter(d time.Duration) time.Duration {
+	var raw [8]byte
 	if d <= 0 {
 		return 0
 	}
-	return rand.N(d)
+	if _, err := rand.Read(raw[:]); err != nil {
+		return 0
+	}
+	//nolint:gosec // G115: the remainder is below d, a positive duration
+	return time.Duration(binary.BigEndian.Uint64(raw[:]) % uint64(d))
 }
 
 // start holds one mailbox, after delay, until its context ends or it cannot be held.
@@ -280,8 +286,9 @@ func (m MailboxWatch) backoff(failures int) time.Duration {
 	return pause
 }
 
-func (m MailboxWatch) stopAll(holders map[mailservice.WatchTarget]*mailboxHolder) {
-	m.letGo(context.Background(), holders)
+func (m MailboxWatch) stopAll(ctx context.Context, holders map[mailservice.WatchTarget]*mailboxHolder) {
+	// Not cancelled with the watch: letting go waits for the holds, Release at most.
+	m.letGo(context.WithoutCancel(ctx), holders)
 	clear(holders)
 }
 

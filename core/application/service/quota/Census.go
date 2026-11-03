@@ -79,7 +79,7 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []Near, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		var close []Standing
+		var approaching []Standing
 		for _, standing := range standings {
 			if standing.Used == nil {
 				continue
@@ -88,7 +88,7 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []Near, error) {
 			if ratio := standing.Ratio(); ratio != nil {
 				if *ratio >= ApproachingRatio {
 					band.Approaching++
-					close = append(close, standing)
+					approaching = append(approaching, standing)
 				}
 				if *standing.Used >= standing.Limit {
 					band.AtLimit++
@@ -96,8 +96,8 @@ func (c Census) Count(ctx context.Context) (map[string]Band, []Near, error) {
 			}
 			bands[standing.Quota] = band
 		}
-		if len(close) > 0 {
-			near = append(near, Near{TenantID: tenant.ID, Slug: tenant.Slug, Quotas: close})
+		if len(approaching) > 0 {
+			near = append(near, Near{TenantID: tenant.ID, Slug: tenant.Slug, Quotas: approaching})
 		}
 	}
 	return bands, near, nil

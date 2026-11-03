@@ -5,7 +5,8 @@ package rest
 
 import (
 	"context"
-	"math/rand/v2"
+	"crypto/rand"
+	"encoding/binary"
 	"net/http"
 	"strconv"
 	"time"
@@ -307,13 +308,26 @@ func cursorOf(params openapi.StreamChangesParams) string {
 	return *params.LastEventID
 }
 
-// streamRetry draws one connection's suggested reconnection delay, in milliseconds. A schedule's
-// spread, not a secret: math/rand is enough.
+// streamRetry draws one connection's suggested reconnection delay, in milliseconds.
 func streamRetry() int {
-	return streamRetryMin + rand.IntN(streamRetrySpread) //nolint:gosec // spreads reconnections, identifies nothing
+	return streamRetryMin + spreadBelow(streamRetrySpread)
+}
+
+// spreadBelow is a random whole number below n from crypto/rand (security.md §8); zero where the
+// source fails, which only loses the spread.
+func spreadBelow(n int) int {
+	var raw [8]byte
+	if n <= 0 {
+		return 0
+	}
+	if _, err := rand.Read(raw[:]); err != nil {
+		return 0
+	}
+	//nolint:gosec // G115: the remainder is below n, a positive int
+	return int(binary.BigEndian.Uint64(raw[:]) % uint64(n))
 }
 
 // refusalRetryAfter draws one refusal's Retry-After, in seconds.
 func refusalRetryAfter() int {
-	return streamRefusalRetryAfter + rand.IntN(streamRefusalSpread) //nolint:gosec // spreads retries, identifies nothing
+	return streamRefusalRetryAfter + spreadBelow(streamRefusalSpread)
 }

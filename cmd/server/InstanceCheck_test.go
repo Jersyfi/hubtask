@@ -34,7 +34,7 @@ func TestInstanceCheckFindsWhatWouldRefuseTheStart(t *testing.T) {
 		name, content, want string
 	}{
 		{"a trailing comma", `{"business_calendars": [],}`, "config.instance_file_malformed"},
-		{"a misspelt area", `{"bussiness_calendars": []}`, "config.instance_file_area_unknown bussiness_calendars"},
+		{"a misspelt area", `{"bussiness_calendars": []}`, "config.instance_file_area_unknown bussiness_calendars"}, //nolint:misspell // the misspelling is the case under test
 		{"an AI key nobody set", `{"ai_models": [{"display_name": "M", "api_key_env": "MODEL_KEY"}]}`,
 			"config.instance_file_ai_key_missing MODEL_KEY"},
 		{"a calendar without its fields", `{"business_calendars": [{"key": ""}]}`, ""},

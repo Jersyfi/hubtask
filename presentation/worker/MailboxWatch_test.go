@@ -252,7 +252,7 @@ func TestTheMailboxesBeyondTheLimitAreCounted(t *testing.T) {
 	watch := fastWatch(h, &leadership{lock: &lock{}, name: "a"}, signals)
 	holders := map[mailservice.WatchTarget]*mailboxHolder{}
 	watch.tick(ctx, holders)
-	defer watch.stopAll(holders)
+	defer watch.stopAll(t.Context(), holders)
 	signals.mu.Lock()
 	defer signals.mu.Unlock()
 	if len(signals.unheld) != 1 || signals.unheld[0] != 3 {
@@ -291,7 +291,7 @@ func TestAStuckHoldDoesNotHoldUpTheWatch(t *testing.T) {
 	<-stuck.entered
 
 	started := time.Now()
-	watch.stopAll(holders)
+	watch.stopAll(t.Context(), holders)
 	if took := time.Since(started); took > time.Second {
 		t.Errorf("letting go of a stuck hold took %s", took)
 	}
@@ -344,7 +344,7 @@ func TestALockThatCannotBeAskedStopsNoHold(t *testing.T) {
 	watch := fastWatch(h, nil, &watchSignals{})
 	watch.Leadership = lease
 	held := map[mailservice.WatchTarget]*mailboxHolder{}
-	defer watch.stopAll(held)
+	defer watch.stopAll(t.Context(), held)
 
 	watch.tick(ctx, held)
 	eventually(t, "both mailboxes held", func() bool {
@@ -383,7 +383,7 @@ func TestTheSignInsOfATickArePaced(t *testing.T) {
 	watch := fastWatch(h, &leadership{lock: &lock{}, name: "a"}, &watchSignals{})
 	watch.Pace = 20 * time.Millisecond
 	held := map[mailservice.WatchTarget]*mailboxHolder{}
-	defer watch.stopAll(held)
+	defer watch.stopAll(t.Context(), held)
 
 	watch.tick(ctx, held)
 	eventually(t, "all three held", func() bool {

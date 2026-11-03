@@ -497,7 +497,7 @@ func checkVerifiedCitations(root string, cases []useCase) []string {
 func uncitedChecks(root, id string, checks map[int]bool, evidence []string) []int {
 	cited := map[int]bool{}
 	for _, file := range evidence {
-		content, err := os.ReadFile(filepath.Join(root, file))
+		content, err := os.ReadFile(filepath.Join(root, file)) //nolint:gosec // G304: a file of this repository a use case cites
 		if err != nil {
 			continue
 		}

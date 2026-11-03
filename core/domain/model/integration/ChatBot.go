@@ -209,9 +209,9 @@ func (b *ChatBot) Read(since, failure string, now time.Time) {
 func CaptureID(botID shared.ID, eventID string, at time.Time) shared.ID {
 	sum := sha256.Sum256([]byte(botID.String() + "\x00" + eventID))
 	var b [16]byte
-	ms := uint64(max(at.UnixMilli(), 0)) //nolint:gosec // G115: clamped to zero above
+	ms := uint64(max(at.UnixMilli(), 0))
 	for i := 0; i < 6; i++ {
-		b[i] = byte(ms >> (8 * (5 - i)))
+		b[i] = byte(ms >> (8 * (5 - i))) //nolint:gosec // G115: one byte of the time, cut on purpose
 	}
 	copy(b[6:], sum[:10])
 	b[6] = 0x70 | b[6]&0x0f
