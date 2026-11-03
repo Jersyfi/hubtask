@@ -112,7 +112,7 @@ test('chromium: UC-WRK-31 checks 2 and 3 — a refusal names the field; a move i
   assert.deepEqual(failures, []);
 });
 
-test('chromium: UC-WRK-31 check 2 — the Rules section says the flow keeps its required fields, and switches it', async (t) => {
+test('chromium: UC-WRK-31 check 2 — the Rules section says the flow keeps its required fields and where a new task starts, and switches them', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, context, written } = await flow(browser, 1280);
@@ -123,11 +123,15 @@ test('chromium: UC-WRK-31 check 2 — the Rules section says the flow keeps its 
   await section.waitFor({ timeout: 5_000 });
   const gate = section.getByRole('checkbox', { name: 'Required fields are filled in before an entry leaves the first column' });
   assert.equal(await gate.isChecked(), true);
+  // user-experience.md §7.5: where a new task starts is the same section's second switch.
+  const landing = section.getByRole('checkbox', { name: 'A new task starts in the first column' });
+  assert.equal(await landing.isChecked(), false);
   await gate.uncheck();
+  await landing.check();
   const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/containers/${FLOW.id}/structure`));
   await page.locator('[data-structure-panel]').getByRole('button', { name: 'Save', exact: true }).click();
   const patch = await sent;
-  assert.deepEqual(patch.postDataJSON(), { settings: { automation: [] } });
+  assert.deepEqual(patch.postDataJSON(), { settings: { automation: ['NEW_INTO_FIRST_COLUMN'] } });
   // The save previews first (UC-WRK-24); the write is recorded once its route has answered.
   await patch.response();
   assert.equal(written.filter((each) => each.path.endsWith('/structure')).length, 1);

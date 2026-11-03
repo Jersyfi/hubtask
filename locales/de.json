@@ -4132,6 +4132,7 @@
   "app.structure.views_missing": "Biete mindestens eine Ansicht an.",
   "app.structure.capture_label": "Was das Erfassen erkennt",
   "app.structure.automation_label": "Was die Sammlung von selbst einhält",
+  "app.structure.automation.NEW_INTO_FIRST_COLUMN": "Eine neue Aufgabe beginnt in der ersten Spalte",
   "app.structure.automation.REQUIRED_BEYOND_FIRST_COLUMN": "Pflichtfelder sind ausgefüllt, bevor ein Eintrag die erste Spalte verlässt",
   "app.structure.capture.LINES": "Mehrere Zeilen als mehrere Einträge",
   "app.structure.capture.AMOUNT": "Eine vorangestellte Menge",

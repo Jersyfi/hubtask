@@ -4761,6 +4761,7 @@
   "app.structure.views_missing": "Offer at least one view.",
   "app.structure.capture_label": "What capture recognises",
   "app.structure.automation_label": "What the collection keeps to by itself",
+  "app.structure.automation.NEW_INTO_FIRST_COLUMN": "A new task starts in the first column",
   "app.structure.automation.REQUIRED_BEYOND_FIRST_COLUMN": "Required fields are filled in before an entry leaves the first column",
   "app.structure.capture.LINES": "Several lines as several entries",
   "app.structure.capture.AMOUNT": "A leading amount",

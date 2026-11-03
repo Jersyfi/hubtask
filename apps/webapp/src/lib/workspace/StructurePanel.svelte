@@ -439,8 +439,8 @@
   }
 
   const CAPTURE = ['LINES', 'AMOUNT', 'DATE', 'PERSON', 'LABEL'] as const;
-  /** What a collection may apply by itself; the server keeps it (UC-WRK-31 check 2). */
-  const AUTOMATION = ['REQUIRED_BEYOND_FIRST_COLUMN'] as const;
+  /** What a collection may apply by itself; the server keeps it (UC-WRK-31 check 2, user-experience.md §7.5). */
+  const AUTOMATION = ['REQUIRED_BEYOND_FIRST_COLUMN', 'NEW_INTO_FIRST_COLUMN'] as const;
 
   // ---------------------------------------------------------------------------------------------
   // The preset, the resets, the save
