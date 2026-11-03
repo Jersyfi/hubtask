@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A template a fresh workspace cannot take because its modules are off (UC-CFG-05): the dialog
+// A template a fresh workspace cannot take because its modules are off (UC-CFG-01): the dialog
 // names the module in words, offers its owner to switch it on, plans again and applies - and
 // shows neither a message code nor a key path.
 //

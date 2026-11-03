@@ -95,7 +95,7 @@ type current struct {
 	Withheld         []string
 	WithheldSettings []string
 	// WithheldModules names, by section, the module that is off where that is why it is withheld:
-	// a plan refuses it as the module, so a person is told which switch to turn (UC-CFG-05).
+	// a plan refuses it as the module, so a person is told which switch to turn (UC-CFG-01).
 	WithheldModules map[string]string
 	// Hub is the hub whose own document this is, empty for the workspace's.
 	Hub shared.ID

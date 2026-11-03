@@ -288,7 +288,7 @@ func TestAPlanNamesTheDoorsANewlyRequiredFieldCloses(t *testing.T) {
 }
 
 // A template a workspace cannot take because a module is off says which module, so the person
-// is told the switch to turn rather than that a section is withheld (UC-CFG-05).
+// is told the switch to turn rather than that a section is withheld (UC-CFG-01).
 func TestAPlanNamesTheModuleThatIsOff(t *testing.T) {
 	f := newFixture()
 	f.world.workflows = nil
