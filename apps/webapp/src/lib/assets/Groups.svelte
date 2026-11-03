@@ -83,6 +83,7 @@
   let editing = $state<CiGroup | undefined>(undefined);
   let draft = $state<GroupDraft>(groupDraft());
   let isSaving = $state(false);
+  let saveFailure = $state<string | undefined>(undefined);
   const missing = $derived(groupMissing(draft, !editing));
   const classChecks = $derived(instantiable(classes).map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
   const stageChecks = $derived(CI_STAGES.map((each) => ({ value: each, label: t(`app.assets.stage.${each}`) })));
@@ -90,6 +91,7 @@
   function openDefine(of?: CiGroup) {
     editing = of;
     draft = groupDraft(of);
+    saveFailure = undefined;
     isOpen = true;
   }
 
@@ -101,7 +103,8 @@
       isOpen = false;
       openId = saved.id;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      // Said inside the dialog, which keeps what was typed (user-experience.md §5.10).
+      saveFailure = renderProblem(error as never, messages).message;
     } finally {
       isSaving = false;
     }
@@ -185,6 +188,7 @@
       <Input label={t('app.ci_groups.name_has')} bind:value={draft.nameHas} maxlength={200} />
       <Textarea label={t('app.ci_groups.conditions')} hint={t('app.ci_groups.conditions_hint')} rows={3} bind:value={draft.conditions} />
       <Select label={t('app.ci_groups.service')} options={[{ value: '', label: t('app.ci_groups.no_service') }, ...serviceOptions]} bind:value={draft.service} />
+      {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>

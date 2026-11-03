@@ -50,3 +50,39 @@ test('chromium: a refused new whiteboard keeps its dialog open with the reason i
   assert.equal(await dialog.isVisible(), true, 'the dialog closed on a refusal');
   assert.equal(await dialog.getByLabel('Title').inputValue(), 'Retro', 'the title was lost');
 });
+
+const SERVER_CLASS = {
+  key: 'server', name: 'Server', parent: 'ci', system: false, lineage: ['ci', 'server'], version: 1,
+  attributes: [], identifier_rules: [], required_relations: [], staleness_days: 0,
+  all_attributes: [{ key: 'serial', kind: 'TEXT', need: 'OPTIONAL' }],
+};
+
+test('chromium: a refused new configuration item says why inside its dialog', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/cmdb/classes')) return route.fulfill({ json: { data: [SERVER_CLASS] } });
+    if (path.endsWith(`/hubs/${HUB.id}/cis`) && request.method() === 'POST') {
+      return route.fulfill({
+        status: 422,
+        contentType: 'application/problem+json',
+        json: { type: 'about:blank', title: 'validation.failed', status: 422, code: 'validation.failed', detail: 'validation.failed' },
+      });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/hubs/${HUB.id}/assets`);
+  await page.getByRole('button', { name: 'New configuration item' }).first().click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Class', { exact: false }).first().selectOption('server');
+  await dialog.getByLabel('Name', { exact: true }).fill('web-02');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await dialog.locator('.banner[data-tone=danger]').first().waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByLabel('Name', { exact: true }).inputValue(), 'web-02');
+});

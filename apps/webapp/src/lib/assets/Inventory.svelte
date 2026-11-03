@@ -11,7 +11,6 @@
 
   import { cisPath, classWord, cmdb, instantiable, inventoryByClass, missingRequired, parseAttribute, type Words } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import AttributeField from './AttributeField.svelte';
@@ -71,6 +70,7 @@
   const classOptions = $derived(offered.map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
 
   let isCreating = $state(false);
+  let createFailure = $state<string | undefined>(undefined);
   let draftClass = $state('');
   let draftName = $state('');
   let drafts = $state<Record<string, string>>({});
@@ -81,6 +81,7 @@
     draftClass = shown && offered.some((each) => each.key === shown) ? shown : '';
     draftName = '';
     drafts = {};
+    createFailure = undefined;
     isCreating = true;
   }
 
@@ -94,7 +95,7 @@
       else if (parsed.value !== null) attributes[attribute.key] = parsed.value;
     }
     if (invalid.length > 0) {
-      toast.show({ text: t('app.assets.attribute_invalid', { keys: invalid.join(', ') }), tone: 'danger' });
+      createFailure = t('app.assets.attribute_invalid', { keys: invalid.join(', ') });
       return;
     }
     try {
@@ -102,7 +103,8 @@
       isCreating = false;
       onnavigate(`/cis/${made.id}`);
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      // Said inside the dialog, which keeps what was typed (user-experience.md §5.10).
+      createFailure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -174,6 +176,7 @@
           <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} />
         {/each}
       {/if}
+      {#if createFailure}<Banner tone="danger">{createFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.assets.cancel')}</Button>

@@ -11,7 +11,7 @@
   // reference before it is sent. A disposed asset is kept and offers no move.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, Input, Select, Spinner, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import { Banner, Badge, Button, Dialog, Input, Select, Spinner, Stack, type SelectOption } from '@hubtask/design-system/components';
   import type { CiAsset, CiClass, ConfigurationItem, WorkItem } from '@hubtask/sync-engine';
 
   import EntryPicker from '../entries/EntryPicker.svelte';
@@ -60,11 +60,14 @@
   let draft = $state<AssetDraft>(assetDraft());
   let request = $state<WorkItem | undefined>(undefined);
   let isSaving = $state(false);
+  let saveFailure = $state<string | undefined>(undefined);
+  let moveFailure = $state<string | undefined>(undefined);
   const missing = $derived(assetMissing(draft));
 
   function openEdit() {
     draft = assetDraft(asset);
     request = undefined;
+    saveFailure = undefined;
     isOpen = true;
   }
 
@@ -76,7 +79,8 @@
       toast.show({ text: t('app.register.saved'), tone: 'success' });
       isOpen = false;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      // Said inside the dialog, which keeps what was typed (user-experience.md §5.10).
+      saveFailure = renderProblem(error as never, messages).message;
     } finally {
       isSaving = false;
     }
@@ -101,7 +105,10 @@
       moveTo = '';
       isDisposeOpen = false;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      const said = renderProblem(error as never, messages).message;
+      // Inside the disposal dialog while it is open; on the page otherwise.
+      if (isDisposeOpen) moveFailure = said;
+      else toast.show({ text: said, tone: 'danger' });
     } finally {
       isMoving = false;
     }
@@ -112,6 +119,7 @@
     if (moveTo === 'DISPOSED') {
       method = 'WIPED';
       certificate = '';
+      moveFailure = undefined;
       isDisposeOpen = true;
       return;
     }
@@ -200,6 +208,7 @@
         {/if}
         <EntryPicker chosen={request} onchoose={(found) => (request = found)} />
       </fieldset>
+      {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -214,6 +223,7 @@
       <p class="meta">{t('app.register.dispose_hint')}</p>
       <Select label={t('app.register.method_label')} options={DISPOSAL_METHODS.map((each) => ({ value: each, label: t(`app.register.method.${each}`) }))} bind:value={method} />
       <Input label={t('app.register.certificate')} hint={t('app.register.certificate_hint')} bind:value={certificate} maxlength={200} isRequired />
+      {#if moveFailure}<Banner tone="danger">{moveFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDisposeOpen = false)}>{t('app.assets.cancel')}</Button>
