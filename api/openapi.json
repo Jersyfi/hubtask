@@ -54253,13 +54253,14 @@
           },
           "automation": {
             "type": "array",
-            "description": "What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it.\n",
-            "maxItems": 1,
+            "description": "What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it. NEW_INTO_FIRST_COLUMN: a top-level task created without a column, on any door, starts in the board's first column; one created into a column, and a collection without columns, are left as they are.\n",
+            "maxItems": 2,
             "uniqueItems": true,
             "items": {
               "type": "string",
               "enum": [
-                "REQUIRED_BEYOND_FIRST_COLUMN"
+                "REQUIRED_BEYOND_FIRST_COLUMN",
+                "NEW_INTO_FIRST_COLUMN"
               ]
             }
           },

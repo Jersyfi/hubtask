@@ -9255,12 +9255,15 @@ func (e StructureSettingName) Valid() bool {
 
 // Defines values for StructureSettingsAutomation.
 const (
+	NEWINTOFIRSTCOLUMN        StructureSettingsAutomation = "NEW_INTO_FIRST_COLUMN"
 	REQUIREDBEYONDFIRSTCOLUMN StructureSettingsAutomation = "REQUIRED_BEYOND_FIRST_COLUMN"
 )
 
 // Valid indicates whether the value is a known member of the StructureSettingsAutomation enum.
 func (e StructureSettingsAutomation) Valid() bool {
 	switch e {
+	case NEWINTOFIRSTCOLUMN:
+		return true
 	case REQUIREDBEYONDFIRSTCOLUMN:
 		return true
 	default:
@@ -23464,7 +23467,7 @@ type StructureSettingName string
 
 // StructureSettings How much structure a hub or collection has: nine settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `entry_types` the server holds every write to and a client offers; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
-	// Automation What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it.
+	// Automation What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it. NEW_INTO_FIRST_COLUMN: a top-level task created without a column, on any door, starts in the board's first column; one created into a column, and a collection without columns, are left as they are.
 	Automation *[]StructureSettingsAutomation `json:"automation,omitempty"`
 
 	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.

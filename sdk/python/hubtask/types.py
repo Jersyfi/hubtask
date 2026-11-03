@@ -3524,7 +3524,7 @@ class StructureSettings(TypedDict, total=False):
     completion: "CompletionPolicy"
     capture: list[Literal["LINES", "AMOUNT", "DATE", "PERSON", "LABEL"]]
     celebration: Literal["ALL", "SUBTLE"]
-    automation: list[Literal["REQUIRED_BEYOND_FIRST_COLUMN"]]
+    automation: list[Literal["REQUIRED_BEYOND_FIRST_COLUMN", "NEW_INTO_FIRST_COLUMN"]]
     entry_types: dict[str, Any]
 
 class StructureLevel(TypedDict, total=False):
