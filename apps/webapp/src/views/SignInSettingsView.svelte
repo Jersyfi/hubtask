@@ -107,7 +107,7 @@
     sessions: ['session_max_days', 'session_idle_minutes'],
     ways: [],
     directory: [],
-    legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url'],
+    legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url', 'support_url', 'docs_url'],
   };
   const TABS = [
     { id: 'passwords', code: 'app.signin_settings.passwords' },
@@ -185,6 +185,9 @@
       privacy_url: ownLink(policy.legal.privacy_url),
       terms_url: ownLink(policy.legal.terms_url),
       accessibility_url: ownLink(policy.legal.accessibility_url),
+      // The help links, absent from a server that predates them.
+      ...(policy.legal.support_url ? { support_url: ownLink(policy.legal.support_url) } : {}),
+      ...(policy.legal.docs_url ? { docs_url: ownLink(policy.legal.docs_url) } : {}),
       // The terms' version, own where the workspace's own terms carry one (UC-ID-19).
       ...(policy.legal.terms_version ? { terms_version: ownLink(policy.legal.terms_version) } : {}),
       // Absent from a server that predates it, and then not a row this form sends.
@@ -507,19 +510,21 @@
   </div>
 {/snippet}
 
-{#snippet linkRow(key: 'imprint_url' | 'privacy_url' | 'terms_url' | 'accessibility_url', label: string)}
-  {#if policy}
-    {@const locked = policy.legal[key].lock !== null}
+{#snippet linkRow(key: 'imprint_url' | 'privacy_url' | 'terms_url' | 'accessibility_url' | 'support_url' | 'docs_url', label: string, hint?: string)}
+  {@const setting = policy?.legal[key]}
+  {#if setting}
+    {@const locked = setting.lock !== null}
     <div data-rule>
       <Input
         {label}
+        {hint}
         type="url"
-        value={locked ? policy.legal[key].value : String(draft[key] ?? '')}
+        value={locked ? setting.value : String(draft[key] ?? '')}
         oninput={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).value)}
-        disabledReason={lockedBecause(policy.legal[key].lock)}
+        disabledReason={lockedBecause(setting.lock)}
         error={refusalOf(key)}
       />
-      {@render origin(policy.legal[key], policy.legal[key].value || t('app.source.nothing'), linkOrigin(policy.legal[key], String(draft[key] ?? '')))}
+      {@render origin(setting, setting.value || t('app.source.nothing'), linkOrigin(setting, String(draft[key] ?? '')))}
     </div>
   {/if}
 {/snippet}
@@ -709,6 +714,17 @@
                 {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
               </Stack>
             </section>
+            {#if policy.legal.support_url || policy.legal.docs_url}
+              <!-- Not in the footer: Help shows them (user-experience.md §5.8). -->
+              <section class="panel" data-help-links>
+                <Stack gap="200">
+                  <h2>{t('app.signin_settings.help_links')}</h2>
+                  <p class="lead">{t('app.signin_settings.help_links_hint')}</p>
+                  {@render linkRow('support_url', t('app.help.support_contact'), t('app.signin_settings.support_url_hint'))}
+                  {@render linkRow('docs_url', t('app.help.documentation'))}
+                </Stack>
+              </section>
+            {/if}
             {/if}
 
           </Stack>

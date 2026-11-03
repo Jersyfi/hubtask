@@ -1010,3 +1010,34 @@ test('chromium: the rules and the ways are saved against the version they were r
   await row.getByText('Somebody else changed the workspace.').waitFor();
   assert.equal(preconditions.length, 3);
 });
+
+test('chromium: the help links are set on the legal page, apart from the footer\'s, and saved with it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  let patched;
+  const shown = policy();
+  shown.legal.support_url = rule('https://host.example/help', 'https://host.example/help', { source: 'INSTANCE', above: 'INSTANCE' });
+  shown.legal.docs_url = rule('', '');
+  const { page, close } = await open(browser, (route, path) => {
+    if (path !== '/tenant') return undefined;
+    if (route.request().method() === 'PATCH') {
+      patched = route.request().postDataJSON();
+      return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: shown } });
+    }
+    return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: shown } });
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/legal`);
+  const section = page.locator('[data-help-links]');
+  await section.getByRole('heading', { name: 'Where people get help' }).waitFor({ timeout: 15_000 });
+  const support = section.getByLabel('Support contact', { exact: true });
+  // The installation's is said beside the field, not filled into it.
+  assert.equal(await support.inputValue(), '');
+  await support.fill('mailto:help@acme.example');
+  const saved = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith('/tenant'));
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await saved;
+  assert.equal(patched.sign_in_policy.support_url, 'mailto:help@acme.example');
+  assert.equal('docs_url' in patched.sign_in_policy, false, 'an untouched link was sent');
+});
