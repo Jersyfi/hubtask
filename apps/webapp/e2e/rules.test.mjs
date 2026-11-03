@@ -882,7 +882,7 @@ test('chromium: the list checks the rules when it opens and says what the check 
   // On the shell: one heading, from the PageHeader; the check's banner among its
   // notices; *Write a rule* the primary action, which opens the editor at its address.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
-  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Automation');
+  assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Rules');
   await page.locator('[data-opener="new-rule"]').click();
   await page.waitForURL(/\/administration\/rules\/new$/, { timeout: 5_000 });
   await page.goBack();
