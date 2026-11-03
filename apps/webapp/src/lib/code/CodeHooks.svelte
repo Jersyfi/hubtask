@@ -62,6 +62,11 @@
   let isAddOpen = $state(false);
   let kind = $state<string>('GITHUB');
   let name = $state('');
+  let addFailure = $state<string | undefined>(undefined);
+  function openAdd() {
+    addFailure = undefined;
+    isAddOpen = true;
+  }
   async function add() {
     try {
       const answered = await code.create(hubId, kind as CodeHook['kind'], name.trim());
@@ -69,20 +74,22 @@
       isAddOpen = false;
       name = '';
     } catch (error) {
-      fail(error);
+      // Said inside the dialog, which keeps what was typed (user-experience.md §5.10).
+      addFailure = renderProblem(error as never, messages).message;
     }
   }
 
   // Renaming.
   let renaming = $state<CodeHook | undefined>(undefined);
   let newName = $state('');
+  let renameFailure = $state<string | undefined>(undefined);
   async function rename() {
     if (!renaming) return;
     try {
       await code.update(renaming, { name: newName.trim() });
       renaming = undefined;
     } catch (error) {
-      fail(error);
+      renameFailure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -123,7 +130,7 @@
 
   <div class="head">
     <p class="meta">{t('app.code.hooks_intro')}</p>
-    {#if mayShape}<Button size="sm" tone="primary" icon="plus" onclick={() => (isAddOpen = true)}>{t('app.code.hook_new')}</Button>{/if}
+    {#if mayShape}<Button size="sm" tone="primary" icon="plus" onclick={openAdd}>{t('app.code.hook_new')}</Button>{/if}
   </div>
 
   {#if refusal}
@@ -155,7 +162,7 @@
           {#if at}<IntakeAddress address={at} lead={t('app.code.address')} />{/if}
           {#if mayShape}
             <div class="actions">
-              <Button size="sm" tone="subtle" icon="pencil" onclick={() => { renaming = hook; newName = hook.name; }}>{t('app.code.rename')}</Button>
+              <Button size="sm" tone="subtle" icon="pencil" onclick={() => { renaming = hook; newName = hook.name; renameFailure = undefined; }}>{t('app.code.rename')}</Button>
               <Button size="sm" tone="subtle" icon="key" onclick={() => void rotate(hook)}>{t('app.code.redraw')}</Button>
             </div>
           {/if}
@@ -170,6 +177,7 @@
     <Stack gap="150">
       <Select label={t('app.code.forge_label')} options={forgeOptions} bind:value={kind} />
       <Input label={t('app.code.name_label')} hint={t('app.code.name_hint')} bind:value={name} maxlength={80} />
+      {#if addFailure}<Banner tone="danger">{addFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAddOpen = false)}>{t('app.code.cancel')}</Button>
@@ -180,7 +188,10 @@
 
 {#if renaming}
   <Dialog isOpen={true} onClose={() => (renaming = undefined)} title={t('app.code.rename')} dismissLabel={t('app.code.cancel')}>
-    <Input label={t('app.code.name_label')} bind:value={newName} maxlength={80} />
+    <Stack gap="150">
+      <Input label={t('app.code.name_label')} bind:value={newName} maxlength={80} />
+      {#if renameFailure}<Banner tone="danger">{renameFailure}</Banner>{/if}
+    </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (renaming = undefined)}>{t('app.code.cancel')}</Button>
       <Button tone="primary" disabledReason={newName.trim() ? undefined : t('forge.hook_name_required')} onclick={() => void rename()}>{t('app.code.save')}</Button>

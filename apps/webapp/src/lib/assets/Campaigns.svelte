@@ -80,6 +80,7 @@
   let isStartOpen = $state(false);
   let draft = $state<CampaignDraft>(campaignDraft());
   let isStarting = $state(false);
+  let startFailure = $state<string | undefined>(undefined);
   // Today on the reader's clock, which is what a due day is measured against - not Greenwich's.
   const today = () => todayIn(actor.zone);
   const missing = $derived(campaignMissing(draft, today()));
@@ -87,16 +88,24 @@
 
   function openStart() {
     draft = campaignDraft();
+    startFailure = undefined;
     isStartOpen = true;
   }
 
   async function start() {
     isStarting = true;
-    const started = await act(() => cmdb.startCampaign(hubId, campaignStart(draft)), t('app.campaigns.started'));
-    isStarting = false;
-    if (!started) return;
-    isStartOpen = false;
-    openId = started.id;
+    startFailure = undefined;
+    try {
+      const started = await cmdb.startCampaign(hubId, campaignStart(draft));
+      toast.show({ text: t('app.campaigns.started'), tone: 'success' });
+      isStartOpen = false;
+      openId = started.id;
+    } catch (error) {
+      // Said inside the dialog, which keeps what was typed (user-experience.md §5.10).
+      startFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isStarting = false;
+    }
   }
 </script>
 
@@ -194,6 +203,7 @@
       <Input label={t('app.campaigns.due_by')} hint={t('app.campaigns.due_by_hint')} type="date" bind:value={draft.dueBy} />
       <Input label={t('app.campaigns.due_on')} type="date" bind:value={draft.dueOn} isRequired />
       <Input label={t('app.campaigns.months')} hint={t('app.campaigns.months_hint')} inputmode="numeric" bind:value={draft.months} />
+      {#if startFailure}<Banner tone="danger">{startFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isStartOpen = false)}>{t('app.assets.cancel')}</Button>

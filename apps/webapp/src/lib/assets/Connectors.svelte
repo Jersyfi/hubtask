@@ -82,6 +82,7 @@
   let draft = $state<ConnectorDraft | undefined>(undefined);
   let period = $state('0');
   let isDefineOpen = $state(false);
+  let defineFailure = $state<string | undefined>(undefined);
   const spec = $derived(draft ? kindSpec(draft.kind) : undefined);
   const missing = $derived(draft ? connectorMissing({ ...draft, every: Number(period) }, !editing) : []);
   const defineReason = $derived(missing.length ? t(missing[0]!, { key: spec?.settings.find((key) => !(draft?.settings[key] ?? '').trim()) ?? '' }) : undefined);
@@ -91,6 +92,7 @@
     draft = connectorDraft(of);
     if (!of && sources[0]) draft.source = sources[0].key;
     period = String(draft.every);
+    defineFailure = undefined;
     isDefineOpen = true;
   }
 
@@ -101,7 +103,8 @@
       toast.show({ text: t('app.assets.connector_saved'), tone: 'success' });
       isDefineOpen = false;
     } catch (error) {
-      fail(error);
+      // Said inside the dialog, which keeps what was typed (user-experience.md §5.10).
+      defineFailure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -109,11 +112,13 @@
   let credentialFor = $state<CiConnector | undefined>(undefined);
   let credential = $state('');
   let isCredentialOpen = $state(false);
+  let credentialFailure = $state<string | undefined>(undefined);
   let drawn = $state<{ readonly connector: CiConnector; readonly secret: string } | undefined>(undefined);
 
   function openCredential(connector: CiConnector) {
     credentialFor = connector;
     credential = '';
+    credentialFailure = undefined;
     isCredentialOpen = true;
   }
 
@@ -125,7 +130,8 @@
       if (answered.secret) drawn = { connector: answered, secret: answered.secret };
       else toast.show({ text: t('app.assets.connector_credential_set'), tone: 'success' });
     } catch (error) {
-      fail(error);
+      if (isCredentialOpen) credentialFailure = renderProblem(error as never, messages).message;
+      else fail(error);
     }
   }
 
@@ -286,6 +292,7 @@
         <Select label={t('app.assets.connector_collection')} hint={t('app.assets.connector_collection_hint')} options={collectionOptions} bind:value={draft.collection} />
       {/if}
       <Switch label={t('app.assets.connector_enabled')} bind:checked={draft.enabled} />
+      {#if defineFailure}<Banner tone="danger">{defineFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDefineOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -296,14 +303,17 @@
 
 {#if isCredentialOpen && credentialFor}
   <Dialog bind:isOpen={isCredentialOpen} title={t('app.assets.connector_credential_title', { key: credentialFor.key })} dismissLabel={t('app.assets.cancel')}>
-    <Input
-      label={t('app.assets.connector_credential_label')}
-      hint={t('app.assets.connector_credential_hint')}
-      type="password"
-      autocomplete="new-password"
-      bind:value={credential}
-      maxlength={4096}
-    />
+    <Stack gap="150">
+      <Input
+        label={t('app.assets.connector_credential_label')}
+        hint={t('app.assets.connector_credential_hint')}
+        type="password"
+        autocomplete="new-password"
+        bind:value={credential}
+        maxlength={4096}
+      />
+      {#if credentialFailure}<Banner tone="danger">{credentialFailure}</Banner>{/if}
+    </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCredentialOpen = false)}>{t('app.assets.cancel')}</Button>
       <Button

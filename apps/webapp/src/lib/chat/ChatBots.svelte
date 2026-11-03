@@ -72,10 +72,12 @@
   let isAddOpen = $state(false);
   let isSeating = $state(false);
   let draft = $state<ChatBotDraft>(emptyChatBotDraft(''));
+  let seatFailure = $state<string | undefined>(undefined);
   const missing = $derived(chatBotMissing(draft));
 
   function open() {
     draft = emptyChatBotDraft(collections[0]?.id ?? '');
+    seatFailure = undefined;
     isAddOpen = true;
   }
 
@@ -86,7 +88,8 @@
       isAddOpen = false;
       toast.show({ text: t('app.chatbots.seated'), tone: 'success' });
     } catch (error) {
-      fail(error);
+      // Said inside the dialog, which keeps what was typed but the credentials (user-experience.md §5.10).
+      seatFailure = renderProblem(error as never, messages).message;
     } finally {
       isSeating = false;
       draft.token = draft.signingSecret = draft.appPassword = draft.commandToken = draft.webhookToken = draft.postHook = '';
@@ -229,6 +232,7 @@
       <Select label={t('app.chatbots.collection')} options={collectionOptions} bind:value={draft.collectionId} />
       <Checkbox label={t('app.chatbots.unfurl')} hint={t('app.chatbots.unfurl_hint')} bind:checked={draft.unfurl} />
       <Checkbox label={t('app.chatbots.capture')} hint={t('app.chatbots.capture_hint')} bind:checked={draft.capture} />
+      {#if seatFailure}<Banner tone="danger">{seatFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAddOpen = false)}>{t('app.chatbots.cancel')}</Button>

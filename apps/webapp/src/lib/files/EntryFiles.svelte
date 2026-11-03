@@ -11,7 +11,7 @@
   // folders instead of pasting it, and on a Nextcloud may link a read-only share (UC-INT-17).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, Stack, type SelectOption } from '@hubtask/design-system/components';
   import type { FileLink, FileLinkList, FileStoreConnection, FileStoreItem } from '@hubtask/sync-engine';
 
   import { STORES, fileHost, fileHref, fileLinksPath } from '../data/files.ts';
@@ -149,7 +149,7 @@
       {#if mayShare}
         <Checkbox label={t('app.filestores.share_label')} hint={t('app.filestores.share_hint')} bind:checked={isShared} data-share-file />
       {/if}
-      {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+      {#if refusal}<Banner tone="danger">{refusal}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.files.cancel')}</Button>
@@ -174,5 +174,4 @@
   .what a { color: var(--text-primary); font-weight: var(--fw-medium); }
   .end { display: inline-flex; align-items: center; gap: var(--sp-050); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
-  .refusal { margin: 0; color: var(--text-danger); }
 </style>
