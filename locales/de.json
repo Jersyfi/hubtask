@@ -5946,6 +5946,7 @@
   "app.product_home.agents_mine": "Agenten, die für dich handeln",
   "app.product_home.agents_all": "Alle Agenten des Arbeitsbereichs",
   "app.product_home.agents_working": "Arbeiten hier",
+  "app.product_home.agents_runs": "Letzte Läufe",
   "app.product_home.pages_review": "Warten auf deine Prüfung",
   "app.product_home.pages_recent": "Zuletzt geänderte Seiten",
   "app.product_home.inventory": "Inventar über deine Hubs",

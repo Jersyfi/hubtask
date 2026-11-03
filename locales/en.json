@@ -5946,6 +5946,7 @@
   "app.product_home.agents_mine": "Agents acting for you",
   "app.product_home.agents_all": "All agents of the workspace",
   "app.product_home.agents_working": "Working here",
+  "app.product_home.agents_runs": "Recent runs",
   "app.product_home.pages_review": "Waiting for your review",
   "app.product_home.pages_recent": "Recently changed pages",
   "app.product_home.inventory": "Inventory across your hubs",

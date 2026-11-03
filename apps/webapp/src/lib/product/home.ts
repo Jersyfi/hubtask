@@ -131,6 +131,18 @@ export function agentRows<A extends { readonly status: string; readonly owner_id
     }));
 }
 
+/** The agents' recent runs (§2.2), the newest first across the agents listed, at most `limit`. */
+export function recentRuns<J extends { readonly started_at: string }>(
+  jobsAt: Readonly<Record<string, readonly J[]>>,
+  agentIds: readonly string[],
+  limit: number,
+): J[] {
+  return agentIds
+    .flatMap((id) => jobsAt[id] ?? [])
+    .sort((a, b) => (a.started_at < b.started_at ? 1 : a.started_at > b.started_at ? -1 : 0))
+    .slice(0, limit);
+}
+
 /** What the pages' home reads of a page: a tree row of `GET /hubs/{id}/pages`. */
 export interface PageRow {
   readonly hub_id: string;

@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { agentRows, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from './home.ts';
+import { agentRows, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -119,4 +119,13 @@ test('the releases to come are the planned ones of the hubs named, the soonest f
   const lists = { h1: [release('b', 'h1', '2026-12-01'), release('gone', 'h1', '2026-10-01', 'RELEASED')], h2: [release('a', 'h2', '2026-11-15')], off: [release('x', 'off', '2026-11-01')] };
   assert.deepEqual(releasesDue(lists, ['h1', 'h2'], 10).map((each) => each.id), ['a', 'b']);
   assert.deepEqual(releasesDue(lists, ['h1', 'h2'], 1).map((each) => each.id), ['a']);
+});
+
+// §2.2: the agents' home shows their recent runs, the newest first across the agents.
+test('the recent runs across agents, the newest first, at most the limit', () => {
+  const job = (id: string, agent: string, at: string) => ({ id, agent_id: agent, started_at: at });
+  const at = { a1: [job('j1', 'a1', '2026-11-03T08:00:00Z'), job('j2', 'a1', '2026-11-01T08:00:00Z')], a2: [job('j3', 'a2', '2026-11-02T08:00:00Z')] };
+  assert.deepEqual(recentRuns(at, ['a1', 'a2'], 2).map((each) => each.id), ['j1', 'j3']);
+  assert.deepEqual(recentRuns(at, ['a2'], 5).map((each) => each.id), ['j3'], 'an agent no longer listed is left out');
+  assert.deepEqual(recentRuns({}, ['a1'], 5), []);
 });

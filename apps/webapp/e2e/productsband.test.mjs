@@ -24,6 +24,9 @@ const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false }
 const board = (n, title, at) => ({ id: `01a0e2e0-0000-7000-8000-0000000001${n}`, hub_id: HUB.id, title, element_count: 3, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1 });
 const agent = (n, name, status, owner) => ({ id: `01a0e2e0-0000-7000-8000-0000000002${n}`, account_id: null, name, purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE', owner_id: owner, status });
 const AGENTS = [agent('01', 'Old sorter', 'RETIRED', ACCOUNT.id), agent('02', 'Request sorter', 'ACTIVE', ACCOUNT.id), agent('03', 'Duplicate finder', 'SUSPENDED', '01a0e2e0-0000-7000-8000-0000000009ff')];
+const HELD = { id: '01a0e2e0-0000-7000-8000-000000000211', agent_id: AGENTS[1].id, use_case: 'UpdateItem', class: 'REVERSIBLE', input: {}, status: 'PENDING', decided_by: null, decided_at: null, code: '', created_at: '2026-11-03T08:00:00Z' };
+const job = (n, status, at) => ({ id: `01a0e2e0-0000-7000-8000-00000000022${n}`, agent_id: AGENTS[1].id, target_type: 'ENTRY', target_id: '01a0e2e0-0000-7000-8000-000000000299', status, code: '', proposals: 1, tokens: 120, started_by: null, started_at: at, ended_at: null });
+const JOBS = [job(1, 'FAILED', '2026-11-02T08:00:00Z'), job(2, 'DONE', '2026-11-03T08:00:00Z')];
 const pageOf = (n, title, at, more = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000003${n}`, hub_id: HUB.id, parent_id: null, title, icon: null, position: n, template: false, content_language: null, owner_id: null, verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, restricted: false, daily_for: null, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1, ...more });
 const PAGES = [
   pageOf('01', 'Onboarding guide', '2026-10-02T09:00:00Z'),
@@ -75,6 +78,9 @@ function stubFor({ modulesOn, hubModules }) {
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
     if (path.endsWith('/api/v1/agents')) return route.fulfill({ json: { data: AGENTS } });
+    if (path.endsWith('/api/v1/agent-requests')) return route.fulfill({ json: { data: [HELD] } });
+    if (path.endsWith(`/api/v1/agents/${AGENTS[1].id}/jobs`)) return route.fulfill({ json: { data: JOBS } });
+    if (/\/api\/v1\/agents\/[^/]+\/jobs$/.test(path)) return route.fulfill({ json: { data: [] } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
@@ -256,6 +262,13 @@ test('chromium 1280 px: the agents\' home lists the agents working here', async 
   assert.deepEqual(names, ['Request sorter', 'Duplicate finder']);
   assert.equal(await working.getByRole('link', { name: 'Request sorter' }).getAttribute('href'), '/profile/agents');
   assert.match((await working.textContent()) ?? '', /Live[\s\S]*Stopped/u);
+  // Their held acts and recent runs (§2.2), each leading to where the agent is acted on.
+  const held = page.getByRole('region', { name: 'Waiting for your yes' });
+  await held.waitFor({ timeout: 10_000 });
+  assert.equal(await held.getByRole('link', { name: 'Request sorter asks before acting' }).getAttribute('href'), '/profile/agents?tab=requests');
+  const runs = page.getByRole('region', { name: 'Recent runs' });
+  await runs.waitFor({ timeout: 10_000 });
+  assert.match((await runs.textContent()) ?? '', /Done[\s\S]*Failed/u, 'the newest run first');
   assert.deepEqual(failures, []);
 });
 
