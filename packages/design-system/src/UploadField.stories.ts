@@ -64,3 +64,10 @@ export const missing: Story = {
     'The form was submitted without a file (design-system.md §4, case 3): the field says so under the target, the field is `data-invalid` and the button is described by the sentence, so focus moved there hears what to do. The submit was never switched off for it. Choose a file and the sentence goes.',
   args: { mode: 'missing' },
 };
+
+export const button: Story = {
+  name: 'A button alone, in a toolbar',
+  about:
+    'Variant `button` draws no drop area: the button is the control, its words the visible name, and the label stays in the accessibility tree for the transparent input under it. The focus ring is the button’s own (WCAG 2.4.7), never the browser’s file control.',
+  args: { mode: 'button' },
+};

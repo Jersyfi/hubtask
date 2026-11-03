@@ -9,7 +9,7 @@
   import Self from './_UploadDemo.svelte';
   import UploadField from './UploadField.svelte';
 
-  const { mode = 'idle', reason }: { mode?: 'idle' | 'chosen' | 'uploading' | 'over' | 'unavailable' | 'row' | 'table' | 'missing'; reason?: string } =
+  const { mode = 'idle', reason }: { mode?: 'idle' | 'chosen' | 'uploading' | 'over' | 'unavailable' | 'row' | 'table' | 'missing' | 'button'; reason?: string } =
     $props();
 
   const chosen = { name: 'kitchen-plan-revision-3.pdf', size: 2_411_008 };
@@ -28,6 +28,8 @@
       <Self {reason} />
     {/snippet}
   </InContext>
+{:else if mode === 'button'}
+  <UploadField variant="button" size="sm" label="Attachment" chooseLabel="Insert a file" onChoose={() => {}} />
 {:else}
 <UploadField
   label="Attachment"
