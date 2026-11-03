@@ -4384,6 +4384,7 @@ class CustomFieldDefinition(TypedDict, total=False):
     hub_id: str | None
     copied_from: str | None
     key: Required[str]
+    name: str | None
     kind: Required["CustomFieldKind"]
     options: Required[list[str]]
     currency: Required[str | None]
@@ -4402,6 +4403,7 @@ class CustomFieldDefinitionCreate(TypedDict, total=False):
     collection_id: str | None
     hub_id: str | None
     key: Required[str]
+    name: str
     kind: Required["CustomFieldKind"]
     options: list[str]
     currency: str
@@ -4416,6 +4418,7 @@ class CustomFieldCopy(TypedDict, total=False):
 
 class CustomFieldDefinitionUpdate(TypedDict, total=False):
     """JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them."""
+    name: str | None
     options: list[str]
     is_required: bool
     restricted: bool

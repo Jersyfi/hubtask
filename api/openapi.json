@@ -58462,6 +58462,14 @@
             "pattern": "^[a-z][a-z0-9_]{0,49}$",
             "description": "The identifier the value is stored under, unique in its scope and fixed once defined. An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a key that could be renamed would orphan every value stored under it.\n"
           },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "description": "What a person reads for the field in forms and panels, renamed freely; null where none was given, and a client then shows the key.\n"
+          },
           "kind": {
             "$ref": "#/components/schemas/CustomFieldKind"
           },
@@ -58578,6 +58586,11 @@
             "type": "string",
             "pattern": "^[a-z][a-z0-9_]{0,49}$"
           },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "What a person reads for the field; omitted or blank leaves it unnamed."
+          },
           "kind": {
             "$ref": "#/components/schemas/CustomFieldKind"
           },
@@ -58639,6 +58652,14 @@
         "type": "object",
         "description": "JSON Merge Patch. The key and the kind are not in it: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them.\n",
         "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100,
+            "description": "The name a person reads; null or blank removes it."
+          },
           "options": {
             "type": "array",
             "items": {

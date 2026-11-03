@@ -1324,7 +1324,7 @@ var generatedCommands = []door{
 		Body: []doorParam{
 			{Name: "hub_id", Kind: "uuid", Help: "The hub the copy belongs to", Required: true},
 		},
-		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "key", "kind", "version"}},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "key", "name", "kind", "version"}},
 	{Group: "field", Verb: "ls", OperationID: "listCustomFields", Method: "GET", Path: "/custom-fields", Summary: "The custom field definitions in force, by key",
 		Query: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "The collection whose definitions are wanted, together with its hub's and the workspace-wide ones", Required: false},

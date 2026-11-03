@@ -15393,6 +15393,9 @@ type CustomFieldDefinition struct {
 	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
 	Kind CustomFieldKind `json:"kind"`
 
+	// Name What a person reads for the field in forms and panels, renamed freely; null where none was given, and a client then shows the key.
+	Name *string `json:"name,omitempty"`
+
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
 	Options []string `json:"options"`
 
@@ -15427,8 +15430,11 @@ type CustomFieldDefinitionCreate struct {
 	Key        string              `json:"key"`
 
 	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown. CALCULATED is a number the server computes with the definition's formula; writing one is refused with `validation_failed` and the detail `fields.calculated`. DATE_TIME is a moment, GROUP one of the workspace's groups, CASCADING_SELECT a choice of one or two levels from options written `Parent` and `Parent/Child`, IP_ADDRESS an IPv4 or IPv6 address, FILE one of the entry's own attachments, LABEL a set of free lower-case words, STATUS one state from the options in their order.
-	Kind    CustomFieldKind `json:"kind"`
-	Options *[]string       `json:"options,omitempty"`
+	Kind CustomFieldKind `json:"kind"`
+
+	// Name What a person reads for the field; omitted or blank leaves it unnamed.
+	Name    *string   `json:"name,omitempty"`
+	Options *[]string `json:"options,omitempty"`
 
 	// ReadRestricted True restricts the field as well.
 	ReadRestricted *bool `json:"read_restricted,omitempty"`
@@ -15439,7 +15445,10 @@ type CustomFieldDefinitionCreate struct {
 type CustomFieldDefinitionUpdate struct {
 	AppliesTo  *[]ItemType `json:"applies_to,omitempty"`
 	IsRequired *bool       `json:"is_required,omitempty"`
-	Options    *[]string   `json:"options,omitempty"`
+
+	// Name The name a person reads; null or blank removes it.
+	Name    *string   `json:"name,omitempty"`
+	Options *[]string `json:"options,omitempty"`
 
 	// ReadRestricted Changing it takes the field's permission `FIELD_WRITE:<key>` at the workspace. True restricts the field as well.
 	ReadRestricted *bool `json:"read_restricted,omitempty"`
