@@ -65,6 +65,9 @@
   let isOpen = $state(false);
   let acknowledged = $state(false);
   let busy = $state<string>();
+  // Everything after the plan is asked happens with the dialog open; a refusal is said inside it,
+  // which keeps the answers given (user-experience.md §5.10).
+  let dialogFailure = $state<string>();
 
   async function open(template: ConfigTemplate) {
     busy = template.key;
@@ -72,6 +75,7 @@
     answers = {};
     withSamples = false;
     acknowledged = false;
+    dialogFailure = undefined;
     try {
       plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers), false, collectionId);
       take = takenFirst(plan.upgrade);
@@ -86,10 +90,11 @@
   async function choose(path: string, isTaken: boolean) {
     if (!chosen) return;
     take = isTaken ? [...take, path] : take.filter((each) => each !== path);
+    dialogFailure = undefined;
     try {
       plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      dialogFailure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -97,10 +102,11 @@
   async function answer(key: string, value: string) {
     if (!chosen) return;
     answers = { ...answers, [key]: value };
+    dialogFailure = undefined;
     try {
       plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      dialogFailure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -108,22 +114,24 @@
   async function sampled(on: boolean) {
     if (!chosen) return;
     withSamples = on;
+    dialogFailure = undefined;
     try {
       plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      dialogFailure = renderProblem(error as never, messages).message;
     }
   }
 
   async function apply() {
     if (!plan?.plan_hash || !chosen) return;
     busy = 'apply';
+    dialogFailure = undefined;
     try {
       await config.applyTemplate(plan, acknowledged);
       toast.show({ text: t('app.templates.taken', { name: nameOf(chosen), version: chosen.version }), tone: 'success' });
       isOpen = false;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      dialogFailure = renderProblem(error as never, messages).message;
     } finally {
       busy = undefined;
     }
@@ -141,11 +149,12 @@
   async function switchOnAndUse() {
     if (!chosen) return;
     busy = 'modules';
+    dialogFailure = undefined;
     try {
       for (const key of needed) await modules.switch(key as Parameters<typeof modules.switch>[0], 'ON');
       plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      dialogFailure = renderProblem(error as never, messages).message;
     } finally {
       busy = undefined;
     }
@@ -282,6 +291,7 @@
             onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />
         {/if}
       {/if}
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.changes.cancel')}</Button>

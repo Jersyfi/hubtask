@@ -71,10 +71,11 @@
   let aliasDraft = $state({ matchPublisher: '', matchProduct: '', publisher: '', product: '' });
   function openAlias() {
     aliasDraft = { matchPublisher: '', matchProduct: '', publisher: '', product: '' };
+    dialogFailure = undefined;
     isAliasOpen = true;
   }
   async function saveAlias() {
-    const saved = await act(() => cmdb.defineAlias(aliasDefine(aliasDraft)), t('app.cmdb_admin.alias_saved'));
+    const saved = await act(() => cmdb.defineAlias(aliasDefine(aliasDraft)), t('app.cmdb_admin.alias_saved'), true);
     if (saved) isAliasOpen = false;
   }
 
@@ -97,13 +98,19 @@
     return out;
   });
 
-  async function act<T>(run: () => Promise<T>, done: string): Promise<T | undefined> {
+  // One dialog is open at a time; its refusal is said inside it, which keeps what was typed
+  // (user-experience.md §5.10). An action outside a dialog says it in a toast.
+  let dialogFailure = $state<string | undefined>(undefined);
+  async function act<T>(run: () => Promise<T>, done: string, inDialog = false): Promise<T | undefined> {
+    if (inDialog) dialogFailure = undefined;
     try {
       const out = await run();
       toast.show({ text: done, tone: 'success' });
       return out;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      const said = renderProblem(error as never, messages).message;
+      if (inDialog) dialogFailure = said;
+      else toast.show({ text: said, tone: 'danger' });
       return undefined;
     }
   }
@@ -122,6 +129,7 @@
   function openClass(of?: CiClass) {
     classEditing = of;
     classDraftState = classDraft(of);
+    dialogFailure = undefined;
     isClassOpen = true;
   }
 
@@ -135,7 +143,7 @@
   async function saveClass() {
     const draft = classDraftState;
     if (!draft) return;
-    const done = await act(() => cmdb.defineClass(classEditing?.key ?? draft.key, classDefine(draft), classEditing?.version), t('app.cmdb_admin.saved'));
+    const done = await act(() => cmdb.defineClass(classEditing?.key ?? draft.key, classDefine(draft), classEditing?.version), t('app.cmdb_admin.saved'), true);
     if (done) isClassOpen = false;
   }
 
@@ -161,6 +169,7 @@
       key: of?.key ?? '', name: of?.name ?? '', reverse: of?.reverse_name ?? '', impact: of?.impact ?? 'SOURCE',
       pairs: (of?.pairs ?? []).map((pair) => ({ ...pair })), archived: of?.archived ?? false,
     };
+    dialogFailure = undefined;
     isTypeOpen = true;
   }
 
@@ -178,7 +187,7 @@
       name: draft.name.trim(), reverse_name: draft.reverse.trim(), impact: draft.impact,
       pairs: draft.pairs.filter((pair) => pair.from && pair.to), archived: draft.archived,
     };
-    const done = await act(() => cmdb.defineRelationType(typeEditing?.key ?? draft.key, body, typeEditing?.version), t('app.cmdb_admin.saved'));
+    const done = await act(() => cmdb.defineRelationType(typeEditing?.key ?? draft.key, body, typeEditing?.version), t('app.cmdb_admin.saved'), true);
     if (done) isTypeOpen = false;
   }
 
@@ -203,6 +212,7 @@
       key: of?.key ?? '', kind: of && of.kind !== 'MANUAL' ? of.kind : 'FILE', rank: String(of?.rank ?? 50),
       classes: [...(of?.classes ?? [])], mayCreate: of?.may_create ?? true,
     };
+    dialogFailure = undefined;
     isSourceOpen = true;
   }
 
@@ -221,7 +231,7 @@
       kind: draft.kind, rank: rankOf(draft.rank), classes: draft.classes, may_create: draft.mayCreate,
       ...(sourceEditing?.mapping ? { mapping: sourceEditing.mapping } : {}),
     };
-    const done = await act(() => cmdb.defineSource(sourceEditing?.key ?? draft.key, body, sourceEditing?.version), t('app.cmdb_admin.saved'));
+    const done = await act(() => cmdb.defineSource(sourceEditing?.key ?? draft.key, body, sourceEditing?.version), t('app.cmdb_admin.saved'), true);
     if (done) isSourceOpen = false;
   }
 
@@ -383,6 +393,7 @@
       </fieldset>
       <Input label={t('app.cmdb_admin.staleness_label')} hint={t('app.cmdb_admin.staleness_hint')} inputmode="numeric" bind:value={classDraftState.staleness} />
       {#if classEditing}<Switch label={t('app.cmdb_admin.archived')} bind:checked={classDraftState.archived} />{/if}
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isClassOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -410,6 +421,7 @@
         <div><Button size="sm" tone="subtle" icon="plus" onclick={() => typeDraft?.pairs.push({ from: 'ci', to: 'ci' })}>{t('app.cmdb_admin.add_pair')}</Button></div>
       </fieldset>
       {#if typeEditing}<Switch label={t('app.cmdb_admin.archived')} bind:checked={typeDraft.archived} />{/if}
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isTypeOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -426,6 +438,7 @@
       <Input label={t('app.cmdb_admin.rank_label')} hint={t('app.cmdb_admin.rank_hint')} inputmode="numeric" bind:value={sourceDraft.rank} />
       <Switch label={t('app.cmdb_admin.may_create')} bind:checked={sourceDraft.mayCreate} />
       <CheckboxGroup label={t('app.cmdb_admin.source_classes')} hint={t('app.cmdb_admin.source_classes_hint')} options={classChecks} selected={sourceDraft.classes} onChange={(next) => { if (sourceDraft) sourceDraft.classes = [...next]; }} />
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isSourceOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -443,6 +456,7 @@
       <p class="meta">{t('app.cmdb_admin.alias_target')}</p>
       <Input label={t('app.cmdb_admin.alias_product')} bind:value={aliasDraft.product} maxlength={200} isRequired />
       <Input label={t('app.cmdb_admin.alias_publisher')} bind:value={aliasDraft.publisher} maxlength={200} />
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAliasOpen = false)}>{t('app.assets.cancel')}</Button>

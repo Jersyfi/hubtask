@@ -93,10 +93,12 @@
   let plan = $state<ConfigPlan>();
   let isRollbackOpen = $state(false);
   let acknowledgeRollback = $state(false);
+  let rollbackFailure = $state<string>();
 
   async function startRollback(version: number) {
     rollingBack = version;
     acknowledgeRollback = false;
+    rollbackFailure = undefined;
     try {
       plan = await config.planRollback(version);
       isRollbackOpen = true;
@@ -112,7 +114,8 @@
       toast.show({ text: t('app.changes.rolled_back', { version: rollingBack }), tone: 'success' });
       isRollbackOpen = false;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      // Said inside the dialog, which stays open on the plan (user-experience.md §5.10).
+      rollbackFailure = renderProblem(error as never, messages).message;
     }
   }
 
@@ -469,6 +472,7 @@
             onchange={(event: Event) => (acknowledgeRollback = (event.currentTarget as HTMLInputElement).checked)} />
         {/if}
       {/if}
+      {#if rollbackFailure}<Banner tone="danger">{rollbackFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isRollbackOpen = false)}>{t('app.changes.cancel')}</Button>

@@ -76,13 +76,19 @@
   const nameOf = (id: string | null | undefined) => (id ? (accounts.nameOf(id) ?? t('app.people.unnamed')) : '—');
   const at = (iso: string | null | undefined) => (iso ? formatDateTime(iso, messages.locale) : '—');
 
-  async function act<T>(run: () => Promise<T>, done: string): Promise<T | undefined> {
+  // One dialog is open at a time; its refusal is said inside it, which keeps what was typed
+  // (user-experience.md §5.10). An action outside a dialog says it in a toast.
+  let dialogFailure = $state<string | undefined>(undefined);
+  async function act<T>(run: () => Promise<T>, done: string, inDialog = false): Promise<T | undefined> {
+    if (inDialog) dialogFailure = undefined;
     try {
       const out = await run();
       toast.show({ text: done, tone: 'success' });
       return out;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      const said = renderProblem(error as never, messages).message;
+      if (inDialog) dialogFailure = said;
+      else toast.show({ text: said, tone: 'danger' });
       return undefined;
     }
   }
@@ -164,6 +170,7 @@
       runs: String(of?.budget.concurrent_runs ?? 0),
       accuracy: String(of?.min_accuracy ?? 0),
     };
+    dialogFailure = undefined;
     isDraftOpen = true;
   }
 
@@ -193,8 +200,8 @@
       ...(d.model ? { model_id: d.model } : {}),
     };
     const done = editing
-      ? await act(() => agents.change(editing as Agent, body), t('app.agents.saved'))
-      : await act(() => agents.register(body), t('app.agents.registered'));
+      ? await act(() => agents.change(editing as Agent, body), t('app.agents.saved'), true)
+      : await act(() => agents.register(body), t('app.agents.registered'), true);
     if (done) isDraftOpen = false;
   }
 
@@ -249,6 +256,7 @@
       model: of?.model ?? '', region: of?.region ?? 'SELF_HOSTED',
       retention: of?.retention_days === null || of?.retention_days === undefined ? '' : String(of.retention_days), retired: of?.retired ?? false,
     };
+    dialogFailure = undefined;
     isModelOpen = true;
   }
 
@@ -270,8 +278,8 @@
       ...(d.retention.trim() !== '' ? { retention_days: whole(d.retention) } : {}),
     };
     const done = modelEditing
-      ? await act(() => agents.changeModel(modelEditing as AgentModel, { ...common, retired: d.retired }), t('app.agents.model_saved'))
-      : await act(() => agents.registerModel({ key: d.key, ...common }), t('app.agents.model_registered'));
+      ? await act(() => agents.changeModel(modelEditing as AgentModel, { ...common, retired: d.retired }), t('app.agents.model_saved'), true)
+      : await act(() => agents.registerModel({ key: d.key, ...common }), t('app.agents.model_registered'), true);
     if (done) isModelOpen = false;
   }
 
@@ -508,6 +516,7 @@
       </div>
       <p class="meta">{t('app.agents.budget_hint')}</p>
       <Input label={t('app.agents.min_accuracy')} hint={t('app.agents.min_accuracy_hint')} inputmode="numeric" bind:value={draft.accuracy} />
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDraftOpen = false)}>{t('app.agents.cancel')}</Button>
@@ -530,6 +539,7 @@
       <Select label={t('app.agents.col_region')} options={regionOptions} bind:value={modelDraft.region} />
       <Input label={t('app.agents.col_retention')} hint={t('app.agents.retention_hint')} inputmode="numeric" bind:value={modelDraft.retention} />
       {#if modelEditing}<Switch label={t('app.agents.retire_model')} bind:checked={modelDraft.retired} />{/if}
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isModelOpen = false)}>{t('app.agents.cancel')}</Button>

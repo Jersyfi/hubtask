@@ -16,6 +16,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { HUB, signedIn, stub } from './fixture.mjs';
+import { productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -85,4 +86,56 @@ test('chromium: a refused new configuration item says why inside its dialog', as
 
   await dialog.locator('.banner[data-tone=danger]').first().waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByLabel('Name', { exact: true }).inputValue(), 'web-02');
+});
+
+const REFUSED = {
+  status: 422,
+  contentType: 'application/problem+json',
+  json: { type: 'about:blank', title: 'validation.failed', status: 422, code: 'validation.failed', detail: 'validation.failed' },
+};
+
+test('chromium: a refused new forge keeps its dialog open with the name and the reason', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  await context.route(`**/api/v1/hubs/${HUB.id}/code-hooks`, (route) =>
+    route.request().method() === 'POST' ? route.fulfill(REFUSED) : route.fulfill({ json: { data: [] } }));
+  await page.goto(`${served.origin}/hubs/${HUB.id}/settings/code`);
+  await page.getByRole('button', { name: 'Add a forge' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add a forge' });
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('website');
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+
+  await dialog.locator('.banner[data-tone=danger]').first().waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('textbox', { name: 'Name' }).inputValue(), 'website');
+  assert.equal(await page.locator('.toast[data-tone=danger]').count(), 0, 'the refusal was also a toast');
+});
+
+test('chromium: a refused new model says why inside its dialog', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, {
+    modules: ['AGENTS'],
+    answer: (method, path) => {
+      if (path === '/agent-models' && method === 'POST') return REFUSED;
+      if (path === '/agent-models' || path === '/agents' || path === '/agents:metering' || path === '/agent-requests') return { json: { data: [] } };
+      if (path === '/agents:halt') return { json: { halted: false, set_by: null, set_at: null } };
+      if (path === '/agents:policy') return { json: { 'agents.registered_only': { value: false, source: 'DEFAULT' } } };
+      return undefined;
+    },
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/administration/agents`);
+  await page.getByRole('tab', { name: 'Models' }).click();
+  await page.getByRole('button', { name: 'Register a model' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Key').fill('local-small');
+  await dialog.getByLabel('Name').fill('Local small');
+  await dialog.getByLabel('Model', { exact: true }).fill('small-7b');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+
+  await dialog.locator('.banner[data-tone=danger]').first().waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByLabel('Name').inputValue(), 'Local small');
 });
