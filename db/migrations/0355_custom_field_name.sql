@@ -1,11 +1,14 @@
 -- A custom field's name, what a person reads for it in forms and panels (user-experience.md §5.6);
 -- the key stays the identifier values are stored under. Nullable: every field defined before has
--- none, and a client shows the key then. Expand only (rule 12).
+-- none, and a client shows the key then. Expand only (rule 12). The CHECK is added NOT VALID so
+-- that the ALTER scans nothing under its lock on a released table; every row before it is NULL,
+-- so nothing is left unchecked, and every write after it is held to it.
 
 -- +goose Up
 
-ALTER TABLE custom_field_definition
-  ADD COLUMN name text NULL CONSTRAINT cfd_name_length CHECK (char_length(name) BETWEEN 1 AND 100);
+ALTER TABLE custom_field_definition ADD COLUMN IF NOT EXISTS name text NULL;
+ALTER TABLE custom_field_definition ADD CONSTRAINT cfd_name_length
+  CHECK (char_length(name) BETWEEN 1 AND 100) NOT VALID;
 
 -- +goose Down
 -- +goose StatementBegin
