@@ -23,14 +23,14 @@ const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
-function stubFor({ modulesOn, hubModules }) {
+function stubFor({ modulesOn, hubModules, collections = [] }) {
   return async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
     if (path.endsWith('/api/v1/stream')) return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
     if (path.endsWith('/api/v1/sync:snapshot')) {
-      const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB.id, container_id: null, payload: HUB });
-      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
+      const records = [HUB, ...collections].map((each) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: each.id, container_id: each.parent_id, payload: each }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
     }
     if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
     if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
@@ -39,7 +39,7 @@ function stubFor({ modulesOn, hubModules }) {
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
-    if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: collections.filter((each) => each.parent_id === url.searchParams.get('parent_id')) } });
     // The two time screens a hub's *Time* tab holds, empty.
     if (path.endsWith(`/api/v1/plans/${HUB.id}/actuals`)) return route.fulfill({ json: { plan_id: HUB.id, data: [], estimate_hours: 0, minutes: 0 } });
     if (path.endsWith(`/api/v1/plans/${HUB.id}/billing-rates`)) return route.fulfill({ json: { data: [] } });
@@ -155,5 +155,29 @@ test('chromium 1280 px: the palette goes to a hub\'s views from anywhere', async
   assert.ok(!names.some((name) => name.includes('› Whiteboards')), `a view off at the hub is offered: ${JSON.stringify(names)}`);
   await page.getByRole('option', { name: /› Pages/ }).click();
   await page.waitForFunction((id) => location.pathname === `/hubs/${id}/pages`, HUB.id, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+// §5.3: a collection named in the palette offers its views the same way, by what its hub has on -
+// Time is on in the workspace and off at the hub.
+test('chromium 1280 px: the palette goes to a collection\'s views from anywhere', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Release train', order_key: 'a0', version: 1 };
+  const { page, failures, close } = await open(browser, {
+    width: 1280, path: '/',
+    modulesOn: ['PLANNING', 'TIME'],
+    hubModules: ['PLANNING'],
+    collections: [COLLECTION],
+  });
+  t.after(close);
+  await page.getByRole('combobox', { name: 'Search everything' }).fill('release train');
+  const goTo = page.getByRole('option', { name: /^Go to Release train/ });
+  await goTo.first().waitFor({ timeout: 10_000 });
+  const names = (await goTo.allTextContents()).map((each) => each.trim());
+  assert.ok(names.some((name) => name.includes('› Sprints')), JSON.stringify(names));
+  assert.ok(!names.some((name) => name.includes('› Time')), `a view off at the hub is offered: ${JSON.stringify(names)}`);
+  await page.getByRole('option', { name: /Release train › Sprints/ }).click();
+  await page.waitForFunction((id) => location.pathname === `/collections/${id}/sprints`, COLLECTION.id, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });

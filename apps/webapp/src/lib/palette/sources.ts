@@ -162,19 +162,21 @@ export function collectionOffers(
 }
 
 /**
- * A hub the reader matched by name offers its views as *Go to <hub> › <tab>* (user-experience.md
- * §5.3), the tabs its strip draws. `hubOn` is the hub's own answer; before it arrives nothing is
- * listed, because the workspace's set may be wider than the hub's (UC-INS-21 check 3, P-05).
+ * A hub or a collection the reader matched by name offers its views as *Go to <place> › <tab>*
+ * (user-experience.md §5.3), the tabs its strip draws. `hubOn` is the answer of the hub (a
+ * collection's own hub); before it arrives nothing is listed, because the workspace's set may be
+ * wider than the hub's (UC-INS-21 check 3, P-05). A desk's portal is left out: whether a
+ * collection acts as a desk needs its entry types, which the palette does not read.
  */
-export function hubTabOffers(
+export function placeTabOffers(
   placed: Placed,
   workspaceOn: readonly string[] | undefined,
   hubOn: readonly string[] | undefined,
   t: Translate,
 ): readonly Offer[] {
   const { container } = placed;
-  if (container.type !== 'HUB' || hubOn === undefined || archivalOf(container) !== 'active') return [];
-  return placeTabs({ type: 'HUB', id: container.id, modulesOn: modulesHere(workspaceOn, hubOn) })
+  if (hubOn === undefined || archivalOf(container) !== 'active') return [];
+  return placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn: modulesHere(workspaceOn, hubOn) })
     .slice(1)
     .map((tab) => ({
       kind: 'action' as const,

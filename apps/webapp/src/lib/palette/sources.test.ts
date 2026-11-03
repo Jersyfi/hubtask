@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import type { Capabilities, Container } from '@hubtask/sync-engine';
 
 import { PRODUCTS } from '../navigation.ts';
-import { collectionOffers, containerOffers, contextOf, hubTabOffers, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
+import { collectionOffers, containerOffers, contextOf, placeTabOffers, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
@@ -212,14 +212,28 @@ test('every product that is on is a place of the palette, found by its synonyms'
 test('a hub named in the palette offers its views as Go to, only those on at the hub and once they are known', () => {
   // The workspace has planning, pages and time on; the hub narrows to planning and pages.
   const workspaceOn = ['PLANNING', 'KNOWLEDGE', 'TIME'];
-  assert.deepEqual(hubTabOffers(placed(HOUSE), workspaceOn, undefined, t), [], 'not listed before the hub answered');
-  const offers = hubTabOffers(placed(HOUSE), workspaceOn, ['PLANNING', 'KNOWLEDGE', 'ASSETS'], t);
+  assert.deepEqual(placeTabOffers(placed(HOUSE), workspaceOn, undefined, t), [], 'not listed before the hub answered');
+  const offers = placeTabOffers(placed(HOUSE), workspaceOn, ['PLANNING', 'KNOWLEDGE', 'ASSETS'], t);
   assert.deepEqual(ids(offers), ['go-to:h1:plan', 'go-to:h1:pages']);
   assert.deepEqual(offers.map((offer) => offer.target), [
     { kind: 'route', path: '/hubs/h1/plan' },
     { kind: 'route', path: '/hubs/h1/pages' },
   ]);
   assert.equal(offers[0]?.label, 'app.place_tabs.go_to {"place":"House","tab":"app.planning.title"}');
-  assert.deepEqual(hubTabOffers(placed(KITCHEN, HOUSE), workspaceOn, workspaceOn, t), [], 'a collection is no hub');
-  assert.deepEqual(hubTabOffers(placed({ ...HOUSE, archived_at: '2026-08-01T09:00:00Z' } as unknown as Container), workspaceOn, workspaceOn, t), [], 'an archived hub is not offered');
+  assert.deepEqual(placeTabOffers(placed({ ...HOUSE, archived_at: '2026-08-01T09:00:00Z' } as unknown as Container), workspaceOn, workspaceOn, t), [], 'an archived hub is not offered');
+});
+
+test('a collection named in the palette offers its views as Go to, by what its hub has on', () => {
+  const workspaceOn = ['PLANNING', 'KNOWLEDGE', 'TIME'];
+  assert.deepEqual(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, undefined, t), [], 'not listed before its hub answered');
+  const offers = placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['PLANNING', 'TIME'], t);
+  assert.deepEqual(ids(offers), ['go-to:c1:plan', 'go-to:c1:sprints', 'go-to:c1:time']);
+  assert.deepEqual(offers.map((offer) => offer.target), [
+    { kind: 'route', path: '/collections/c1/plan' },
+    { kind: 'route', path: '/collections/c1/sprints' },
+    { kind: 'route', path: '/collections/c1/actuals' },
+  ]);
+  assert.equal(offers[0]?.label, 'app.place_tabs.go_to {"place":"Kitchen","tab":"app.planning.title"}');
+  assert.deepEqual(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['KNOWLEDGE'], t), [], 'pages are a hub\'s view, not a collection\'s');
+  assert.deepEqual(placeTabOffers(placed(ARCHIVED, HOUSE), workspaceOn, workspaceOn, t), [], 'an archived collection is not offered');
 });

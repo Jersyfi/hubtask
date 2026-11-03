@@ -31,7 +31,7 @@
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
   import { groupOf, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate, type Group, type Row } from './rows.ts';
-  import { collectionOffers, containerOffers, hubTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
+  import { collectionOffers, containerOffers, placeTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
   import { catalogueOffers, type Place } from '../settings/catalogue.ts';
@@ -146,9 +146,18 @@
           .slice(0, 3)
           .flatMap((candidate) => placed.filter((each) => each.container.id === candidate.id)),
   );
-  /** The modules on at each matched hub, as the hub answered them; until then its views are not offered. */
+  /** The matched collections whose views are offered: not the one on screen, whose strip draws them. */
+  const matchedCollections = $derived(matched.filter((each) => each.container.id !== here.collection));
+  /**
+   * The modules on at each matched hub and at each matched collection's hub, as the hub answered
+   * them; until then its views are not offered.
+   */
   let hubModules = $state<Record<string, readonly string[]>>({});
-  const askedHubs = $derived(isOpen ? matchedHubs.map((each) => each.container.id).join(',') : '');
+  const askedHubs = $derived(
+    isOpen
+      ? [...new Set([...matchedHubs.map((each) => each.container.id), ...matchedCollections.flatMap((each) => (each.container.parent_id ? [each.container.parent_id] : []))])].join(',')
+      : '',
+  );
   $effect(() => {
     const ids = askedHubs === '' ? [] : askedHubs.split(',');
     return untrack(() => {
@@ -273,7 +282,8 @@
         t,
       }).map((offer) => (offer.id.startsWith('new-in:') ? { ...offer, keywords: t('app.palette.words_create') } : offer)),
     ),
-    ...matchedHubs.flatMap((each) => hubTabOffers(each, manifest.value?.modules_on, hubModules[each.container.id], t)),
+    ...matchedHubs.flatMap((each) => placeTabOffers(each, manifest.value?.modules_on, hubModules[each.container.id], t)),
+    ...matchedCollections.flatMap((each) => placeTabOffers(each, manifest.value?.modules_on, hubModules[each.container.parent_id ?? ''], t)),
     ...placeOffers(reach, t),
     ...settings,
     ...catalogueRows,
