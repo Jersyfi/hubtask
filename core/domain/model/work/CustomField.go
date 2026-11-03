@@ -184,7 +184,10 @@ type CustomFieldDefinition struct {
 	// Key is what the value is stored under. An identifier rather than a label, and fixed once
 	// defined: it appears in a `custom_fields.<key>` filter, and a key that could be renamed would
 	// orphan every value stored under it.
-	Key  string
+	Key string
+	// Name is what a person reads for the field, renamed freely; empty where none was given, and a
+	// client shows the key then. User content, so the audit trail holds it as sensitive (rule 10).
+	Name string
 	Kind CustomFieldKind
 	// Options are the permitted values of a SELECT or a MULTI_SELECT, and empty for every other
 	// kind. Values rather than labels: what a person sees is the client's to render (rule 8).
@@ -228,6 +231,7 @@ type NewCustomFieldInput struct {
 	// HubID defines the field for a hub's collections; not together with CollectionID.
 	HubID      shared.ID
 	Key        string
+	Name       string
 	Kind       CustomFieldKind
 	Options    []string
 	Currency   string
@@ -261,6 +265,10 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 			WithParams(map[string]string{"value": string(in.Kind)}).
 			WithFields(shared.FieldError{Path: "/kind", Code: "fields.kind_unknown"})
 	}
+	name, err := customFieldName(in.Name, in.Text)
+	if err != nil {
+		return CustomFieldDefinition{}, err
+	}
 	options, err := customFieldOptions(in.Kind, in.Options, in.Text)
 	if err != nil {
 		return CustomFieldDefinition{}, err
@@ -290,7 +298,7 @@ func NewCustomFieldDefinition(in NewCustomFieldInput) (CustomFieldDefinition, er
 
 	return CustomFieldDefinition{
 		ID: in.ID, TenantID: in.TenantID, CollectionID: in.CollectionID, HubID: in.HubID,
-		Key: key, Kind: in.Kind, Options: options, Currency: currency, Formula: formula,
+		Key: key, Name: name, Kind: in.Kind, Options: options, Currency: currency, Formula: formula,
 		IsRequired: in.IsRequired, Restricted: restricted, ReadRestricted: in.ReadRestricted,
 		AppliesTo: appliesTo, CreatedAt: in.Now, UpdatedAt: in.Now, Version: 1,
 	}, nil
@@ -349,6 +357,8 @@ func (d CustomFieldDefinition) CopyAt(id, hubID shared.ID, now time.Time) (Custo
 // No key and no kind: a key that moved would orphan every value stored under it, and a kind that
 // changed would reinterpret them. Both are a new definition rather than an edit.
 type CustomFieldAttributes struct {
+	// Name blank removes the name.
+	Name       *string
 	Options    *[]string
 	IsRequired *bool
 	Restricted *bool
@@ -359,7 +369,7 @@ type CustomFieldAttributes struct {
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a CustomFieldAttributes) IsEmpty() bool {
-	return a.Options == nil && a.IsRequired == nil && a.Restricted == nil && a.ReadRestricted == nil && a.AppliesTo == nil
+	return a.Name == nil && a.Options == nil && a.IsRequired == nil && a.Restricted == nil && a.ReadRestricted == nil && a.AppliesTo == nil
 }
 
 // The field names an update reports its changes under.
@@ -389,6 +399,17 @@ func (d CustomFieldDefinition) Updated(
 	}
 
 	var changes []FieldChange
+
+	if attributes.Name != nil {
+		name, err := customFieldName(*attributes.Name, form)
+		if err != nil {
+			return CustomFieldDefinition{}, nil, err
+		}
+		if name != d.Name {
+			changes = append(changes, FieldChange{Field: FieldName, From: d.Name, To: name})
+			d.Name = name
+		}
+	}
 
 	if attributes.Options != nil {
 		options, err := customFieldOptions(d.Kind, *attributes.Options, form)
@@ -487,6 +508,24 @@ func (d CustomFieldDefinition) EnsureEditable() error {
 // Carries reports whether an entry of this type holds the field.
 func (d CustomFieldDefinition) Carries(itemType ItemType) bool {
 	return slices.Contains(d.AppliesTo, itemType)
+}
+
+// MaxCustomFieldNameLength bounds a field's name, in characters.
+const MaxCustomFieldNameLength = 100
+
+// customFieldName trims a name and brings it to normal form C; blank is no name.
+func customFieldName(raw string, form text.Normalizer) (string, error) {
+	name, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case utf8.RuneCountInString(name) > MaxCustomFieldNameLength:
+		return "", customFieldError("/name", "fields.name_too_long", map[string]string{"maximum": strconv.Itoa(MaxCustomFieldNameLength)})
+	case hasControlCharacter(name):
+		return "", customFieldError("/name", "fields.name_malformed", nil)
+	}
+	return name, nil
 }
 
 // customFieldKey keeps a key an identifier: the schema's CHECK, written where a client can be told

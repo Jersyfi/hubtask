@@ -5,6 +5,7 @@ package work_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -459,5 +460,44 @@ func TestAFieldBelongsToOneScopeAndAHubCopiesOnlyAShared(t *testing.T) {
 		if _, err := source.CopyAt(copyID, hub, later); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("copying %s field gave %v", name, err)
 		}
+	}
+}
+
+func TestAFieldIsNamedFreelyAndItsKeyStays(t *testing.T) {
+	named, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+		ID: fieldID, TenantID: fieldTenant, CollectionID: fieldColl, Key: "first_response", Name: "  First response ",
+		Kind: work.CustomFieldDuration, AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+	})
+	if err != nil || named.Name != "First response" {
+		t.Fatalf("the name is %q (%v)", named.Name, err)
+	}
+
+	cases := []struct {
+		name, raw, code string
+	}{
+		{"too long", strings.Repeat("a", 101), "fields.name_too_long"},
+		{"a control character", "First\nresponse", "fields.name_malformed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := work.NewCustomFieldDefinition(work.NewCustomFieldInput{
+				ID: fieldID, TenantID: fieldTenant, Key: "x", Name: tc.raw, Kind: work.CustomFieldText,
+				AppliesTo: []work.ItemType{work.ItemTask}, Now: fieldNow, Text: text.Composing{},
+			})
+			if detail := shared.AsError(err).DetailCode; detail != tc.code {
+				t.Fatalf("detail %q, want %s", detail, tc.code)
+			}
+		})
+	}
+
+	renamed := "Response time"
+	updated, changes, err := named.Updated(work.CustomFieldAttributes{Name: &renamed}, text.Composing{}, fieldNow.Add(time.Hour))
+	if err != nil || updated.Name != renamed || updated.Key != "first_response" || len(changes) != 1 || changes[0].Field != work.FieldName {
+		t.Fatalf("renamed to %q with %v (%v)", updated.Name, changes, err)
+	}
+	blank := " "
+	cleared, changes, err := updated.Updated(work.CustomFieldAttributes{Name: &blank}, text.Composing{}, fieldNow.Add(2*time.Hour))
+	if err != nil || cleared.Name != "" || len(changes) != 1 {
+		t.Fatalf("a blank name leaves %q with %v (%v)", cleared.Name, changes, err)
 	}
 }

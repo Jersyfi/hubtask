@@ -750,6 +750,8 @@
   "fields.key_required": "A custom field needs a key.",
   "fields.key_too_long": "A key may be at most {maximum} characters long.",
   "fields.key_malformed": "{key} is not a valid key. Use lower-case letters, digits and underscores, starting with a letter.",
+  "fields.name_too_long": "A field's name may be at most {maximum} characters long.",
+  "fields.name_malformed": "A field's name cannot contain line breaks or control characters.",
   "fields.key_taken": "A custom field called {key} already exists here.",
   "fields.formula_not_applicable": "Only a CALCULATED field has a formula.",
   "fields.formula_required": "A calculated field needs a formula.",

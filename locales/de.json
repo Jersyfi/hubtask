@@ -1531,6 +1531,8 @@
   "fields.key_required": "Ein eigenes Feld braucht einen Schlüssel.",
   "fields.key_too_long": "Ein Schlüssel darf höchstens {maximum} Zeichen lang sein.",
   "fields.key_malformed": "{key} ist kein gültiger Schlüssel. Verwende Kleinbuchstaben, Ziffern und Unterstriche, beginnend mit einem Buchstaben.",
+  "fields.name_too_long": "Der Name eines Felds darf höchstens {maximum} Zeichen lang sein.",
+  "fields.name_malformed": "Der Name eines Felds darf keine Zeilenumbrüche oder Steuerzeichen enthalten.",
   "fields.key_taken": "Ein eigenes Feld namens {key} gibt es hier schon.",
   "fields.formula_not_applicable": "Nur ein berechnetes Feld hat eine Formel.",
   "fields.formula_required": "Ein berechnetes Feld braucht eine Formel.",
