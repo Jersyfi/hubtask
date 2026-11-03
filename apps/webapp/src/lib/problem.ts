@@ -28,6 +28,7 @@ import type { TransportError } from '@hubtask/sync-engine';
 import { formatDateTime, formatRelative } from './i18n/datetime.ts';
 import type { MessageParams } from './i18n/format.ts';
 import type { Messages } from './i18n/messages.ts';
+import { rememberReference } from './support.ts';
 
 export interface RenderedProblem {
   /** The one sentence to show. Never empty: every branch below ends in a message. */
@@ -145,6 +146,8 @@ export function renderProblem(error: TransportError, messages: Messages, now: nu
   }
 
   const isServerFault = error.kind !== 'problem' || (error.status ?? 0) >= 500;
+  // Kept for *Help*'s *Copy details*: the reference a support thread is traced by.
+  rememberReference(error.requestId);
   const reference = error.requestId && !message.includes(error.requestId) ? error.requestId : undefined;
 
   return { message, sentence, code, fields, reference, requestId: error.requestId, isServerFault };

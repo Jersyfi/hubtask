@@ -3,12 +3,18 @@
 <script lang="ts">
   // *Help and shortcuts* (UC-WRK-27 check 3, ux-inventory.md §E1): every keyboard shortcut, read
   // from the one list (`lib/shortcuts.ts`), and the tour, which was a row of the account group of
-  // its own. `?` opens it, and so do the account group and the palette.
+  // its own. `?` opens it, and so do the account group and the palette. *Getting help* comes first:
+  // the details a support request needs, copied in one press (user-experience.md §5.8).
 
+  import { untrack } from 'svelte';
   import { Button, Dialog, Kbd, Stack } from '@hubtask/design-system/components';
 
+  import { manifest } from '../data/capabilities.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import { SHORTCUTS, type Scope } from '../shortcuts.ts';
+  import { recentReferences, supportDetails } from '../support.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { toast } from './toasts.svelte.ts';
 
   interface Props {
     isOpen: boolean;
@@ -20,6 +26,33 @@
 
   const SCOPES: readonly Scope[] = ['everywhere', 'palette', 'list', 'selection'];
 
+  // The workspace's short name, read while the dialog is open; a reader the read refuses copies a dash.
+  $effect(() => {
+    if (!isOpen) return;
+    return untrack(() => workspace.open());
+  });
+
+  function copyDetails() {
+    const text = supportDetails({
+      version: manifest.value?.product_version,
+      workspace: workspace.workspace?.slug,
+      route: `${location.pathname}${location.search}`,
+      references: recentReferences(),
+      labels: {
+        version: t('app.help.detail_version'),
+        workspace: t('app.help.detail_workspace'),
+        route: t('app.help.detail_route'),
+        references: t('app.help.detail_references'),
+      },
+    });
+    void navigator.clipboard
+      .writeText(text)
+      .then(() => toast.show({ text: t('app.help.copied'), tone: 'success' }))
+      .catch(() => {
+        // A clipboard the browser refuses is said nowhere: the dialog stays, and so does the button.
+      });
+  }
+
   function takeTour() {
     isOpen = false;
     // After the dialog has returned focus: the tour's first step takes it from there.
@@ -29,6 +62,13 @@
 
 <Dialog title={t('app.help.label')} dismissLabel={t('app.palette.close')} bind:isOpen isWide>
   <Stack gap="300">
+    <section aria-labelledby="help-support">
+      <h3 class="group" id="help-support">{t('app.help.support_title')}</h3>
+      <Stack gap="100">
+        <p class="body">{t('app.help.support_body')}</p>
+        <div><Button icon="copy" onclick={copyDetails}>{t('app.help.copy_details')}</Button></div>
+      </Stack>
+    </section>
     {#each SCOPES as scope (scope)}
       <section aria-labelledby={`shortcuts-${scope}`}>
         <h3 class="group" id={`shortcuts-${scope}`}>{t(`app.shortcuts.group.${scope}`)}</h3>
@@ -88,5 +128,7 @@
   }
 
   .or { color: var(--text-subtle); font-size: var(--fs-075); }
+
+  .body { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
 
 </style>
