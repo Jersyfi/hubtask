@@ -36,15 +36,31 @@
 </script>
 
 {#if zones.length > 0}
-  <Select {label} {hint} {error} {isRequired} {options} bind:value {...rest} onchange={() => onchange?.(value)} />
+  <Select
+    {label}
+    {hint}
+    {error}
+    {isRequired}
+    {options}
+    {value}
+    {...rest}
+    onchange={(event: Event) => {
+      value = (event.currentTarget as HTMLSelectElement).value;
+      onchange?.(value);
+    }}
+  />
 {:else}
   <Input
     {label}
     hint={freeHint ?? t('app.desk.zone_hint')}
     {error}
     {isRequired}
-    bind:value
+    {value}
     {...rest}
-    oninput={() => onchange?.(value)}
+    oninput={(event: Event) => {
+      // From the event: a handler beside a binding may run before the binding has written.
+      value = (event.currentTarget as HTMLInputElement).value;
+      onchange?.(value);
+    }}
   />
 {/if}

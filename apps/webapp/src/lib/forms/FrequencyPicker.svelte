@@ -96,8 +96,12 @@
       <Input
         label={t('app.recurrence.raw')}
         hint={rawHint}
-        bind:value={rule}
-        oninput={() => onchange?.(rule)}
+        value={rule}
+        oninput={(event: Event) => {
+          // From the event: a handler beside a binding may run before the binding has written.
+          rule = (event.currentTarget as HTMLInputElement).value;
+          onchange?.(rule);
+        }}
       />
     </Disclosure>
   </Stack>
