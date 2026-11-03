@@ -58,7 +58,7 @@ async function open(browser, width, { ai = true, scheme = 'light', routes } = {}
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     // A query is a read sent as a POST; everything else that is not a GET changes something.
-    if (!['GET', 'HEAD'].includes(request.method()) && !path.endsWith(':query') && !['/sync:pull', '/sync:snapshot', '/search'].includes(path)) {
+    if (!['GET', 'HEAD'].includes(request.method()) && !path.endsWith(':query') && !['/sync:pull', '/sync:snapshot', '/search', '/accounts:resolve'].includes(path)) {
       let body = null;
       try { body = request.postDataJSON(); } catch { body = null; }
       writes.push({ method: request.method(), path, body });
