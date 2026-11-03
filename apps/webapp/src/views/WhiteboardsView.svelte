@@ -9,7 +9,7 @@
   // sees the boards and is offered no write; the board's own `writable` says the same for it.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, EmptyState, IconButton, Inline, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Dialog, EmptyState, IconButton, Inline, Input, Spinner, Stack, UploadField } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardList, WhiteboardRead } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -96,9 +96,7 @@
     if (made) onnavigate(`/whiteboards/${made.id}`);
   }
 
-  async function readFile(event: Event) {
-    const file = (event.currentTarget as HTMLInputElement).files?.[0];
-    if (!file) return;
+  async function readFile(file: File) {
     const native = readNative(await file.text());
     if (!native) {
       toast.show({ text: t('app.whiteboards.import_not_native'), tone: 'danger' });
@@ -205,10 +203,13 @@
   <Dialog bind:isOpen={isCreating} title={t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')} onClose={() => { imported = undefined; titleDraft = ''; }}>
     <Stack gap="150">
       <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} maxlength={200} />
-      <label class="file">
-        <span>{t('app.whiteboards.import')}</span>
-        <input type="file" accept="application/json,.json" onchange={readFile} />
-      </label>
+      <UploadField
+        label={t('app.whiteboards.import')}
+        chooseLabel={t('app.import.choose')}
+        dropLabel={t('app.media.drop')}
+        accept="application/json,.json"
+        onChoose={(file) => void readFile(file)}
+      />
       {#if imported}<p class="meta">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</p>{/if}
     </Stack>
     {#snippet actions()}
@@ -242,5 +243,4 @@
   .row a { color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
   .row a:hover { text-decoration: underline; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
-  .file { display: grid; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

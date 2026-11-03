@@ -5,7 +5,7 @@
   // its format found from its name, a dry run's counts shown, and then the import itself - all or
   // nothing, every entry and dependency written through its own use case on the server.
 
-  import { Banner, Button, Select, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Select, Stack, UploadField } from '@hubtask/design-system/components';
   import type { PlanImport } from '@hubtask/sync-engine';
 
   import { engine } from '../data/engine.ts';
@@ -25,23 +25,21 @@
 
   const { collectionId, zone, ondone }: Props = $props();
 
-  let fileName = $state('');
+  let chosen = $state<File | null>(null);
   let content = $state('');
   let format = $state<'MSPROJECT_XML' | 'CSV'>('CSV');
   let preview = $state<PlanImport | undefined>(undefined);
   let failure = $state<string | undefined>(undefined);
   let isBusy = $state(false);
 
-  async function readFile(event: Event) {
-    const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  async function readFile(file: File) {
     preview = undefined;
     failure = undefined;
-    if (!file) return;
     if (file.size > MAX_BYTES) {
       failure = t('app.planning.import_too_large');
       return;
     }
-    fileName = file.name;
+    chosen = file;
     content = await file.text();
     format = projectFormatOf(file.name, content);
     await send(true);
@@ -71,11 +69,15 @@
 
 <Stack gap="150">
   <p class="meta">{t('app.planning.import_hint')}</p>
-  <label class="file">
-    <span>{t('app.planning.import_file')}</span>
-    <input type="file" accept=".xml,.csv,text/csv,application/xml,text/xml" onchange={readFile} />
-    <span class="meta">{fileName || t('app.planning.import_formats')}</span>
-  </label>
+  <UploadField
+    label={t('app.planning.import_file')}
+    hint={t('app.planning.import_formats')}
+    chooseLabel={t('app.import.choose')}
+    dropLabel={t('app.media.drop')}
+    accept=".xml,.csv,text/csv,application/xml,text/xml"
+    file={chosen}
+    onChoose={(file) => void readFile(file)}
+  />
   {#if content}
     <Select
       label={t('app.planning.import_format')}
@@ -101,7 +103,6 @@
 </Stack>
 
 <style>
-  .file { display: grid; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); }
   .buttons { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
   .part { display: grid; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }

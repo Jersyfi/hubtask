@@ -7,7 +7,7 @@
   // the reconciliation of UC-AST-02 as the source chosen. Only a member who may write sees it.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Select, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import { Banner, Button, Select, Stack, UploadField, type SelectOption } from '@hubtask/design-system/components';
   import type { CiClass, CiFileImport, CiFileMapping, CiRun, CiSource, CiSourceList } from '@hubtask/sync-engine';
 
   import { classWord, cmdb, fileColumns, fileFormat, guessMapping, instantiable, sourcesPath, type Words } from '../data/cmdb.svelte.ts';
@@ -40,7 +40,7 @@
     ),
   );
 
-  let fileName = $state('');
+  let chosenFile = $state<File | null>(null);
   let content = $state('');
   let format = $state<CiFileImport['format']>('CSV');
   let source = $state('');
@@ -66,17 +66,15 @@
     })),
   ]);
 
-  async function readFile(event: Event) {
-    const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  async function readFile(file: File) {
     run = undefined;
-    if (!file) return;
     const bytes = new Uint8Array(await file.arrayBuffer());
     const workbook = /\.xlsx$/iu.test(file.name) || isZip(bytes);
     if (file.size > (workbook ? MAX_WORKBOOK_BYTES : MAX_BYTES)) {
       toast.show({ text: t('app.assets.import_too_large'), tone: 'danger' });
       return;
     }
-    fileName = file.name;
+    chosenFile = file;
     if (workbook) {
       sheetColumns = await workbookColumns(bytes);
       content = base64Of(bytes);
@@ -150,11 +148,15 @@
   {:else}
     <Select label={t('app.assets.import_source')} options={sourceOptions} placeholder={t('app.assets.import_source')} bind:value={source} onchange={adopt} />
   {/if}
-  <label class="file">
-    <span>{t('app.assets.import_file')}</span>
-    <input type="file" accept=".csv,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange={readFile} />
-    <span class="meta">{fileName || t('app.assets.import_hint')}</span>
-  </label>
+  <UploadField
+    label={t('app.assets.import_file')}
+    hint={t('app.assets.import_hint')}
+    chooseLabel={t('app.import.choose')}
+    dropLabel={t('app.media.drop')}
+    accept=".csv,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    file={chosenFile}
+    onChoose={(file) => void readFile(file)}
+  />
   {#if content}
     <Select label={t('app.assets.import_format')} options={formats} bind:value={format} />
   {/if}
@@ -189,7 +191,6 @@
 </Stack>
 
 <style>
-  .file { display: grid; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); }
   .mapping { display: grid; gap: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); margin: 0; }
   .buttons { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
   .part { display: grid; gap: var(--sp-100); }

@@ -17,7 +17,7 @@
   // A reader's editor is not connected: what they read is the body as last saved.
 
   import { mount, unmount, untrack } from 'svelte';
-  import { Button, Inline, Toolbar } from '@hubtask/design-system/components';
+  import { Button, Inline, Toolbar, UploadField } from '@hubtask/design-system/components';
   import {
     Doc, LiveDocument, createPageEditor, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
     replaceFromMarkdown, revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
@@ -343,11 +343,8 @@
   let isUploading = $state(false);
 
   /** An upload made one of the page's files, then drawn where the caret stands. */
-  async function putFile(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file || !editor) return;
+  async function putFile(file: File) {
+    if (!editor) return;
     isUploading = true;
     try {
       const object = await media.upload(file, 'ATTACHMENT', { idempotencyKey: crypto.randomUUID() });
@@ -410,10 +407,14 @@
       <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
       <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
       <Button size="sm" tone="subtle" icon="plus" onclick={() => (isAddingBlock = !isAddingBlock)}>{t('app.pages.tool_block')}</Button>
-      <label class="upload">
-        <span>{isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}</span>
-        <input type="file" disabled={isUploading} onchange={(event) => void putFile(event)} />
-      </label>
+      <UploadField
+          variant="button"
+          size="sm"
+          label={t('app.pages.tool_file')}
+          chooseLabel={isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}
+          disabledReason={isUploading ? t('app.pages.uploading') : undefined}
+          onChoose={(file) => void putFile(file)}
+        />
       {#if taskLine && !taskLine.entryId && taskLine.text !== ''}
         <Button size="sm" tone="subtle" icon="square-check" onclick={() => (isMakingTask = !isMakingTask)}>{t('app.pages.tool_task')}</Button>
       {/if}
@@ -502,18 +503,6 @@
   }
   .choice:hover { background: var(--bg-surface-hover); }
   .quiet { color: var(--text-secondary); }
-  .upload {
-    display: inline-flex;
-    align-items: center;
-    padding: var(--sp-025) var(--sp-100);
-    border-radius: var(--r-sm);
-    color: var(--text-primary);
-    font-size: var(--fs-075);
-    cursor: pointer;
-  }
-  .upload:hover { background: var(--bg-surface-hover); }
-  .upload:focus-within { outline: var(--bw-ring) solid var(--focus-ring); }
-  .upload input { inline-size: 0; block-size: 0; opacity: 0; }
 
   .editor :global(.page-body) {
     min-block-size: var(--sp-1000);

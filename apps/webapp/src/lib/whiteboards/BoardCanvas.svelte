@@ -21,7 +21,7 @@
 
   import { untrack } from 'svelte';
   import { tokens } from '@hubtask/design-system';
-  import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Textarea, UploadField } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
   import type {
     ReferenceTarget, WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentList, WhiteboardRead, WhiteboardVersion, WorkItem,
@@ -661,11 +661,7 @@
   let isUploading = $state(false);
 
   /** An upload made one of the board's files, then drawn: a picture as itself, anything else as its card. */
-  async function putFile(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
+  async function putFile(file: File) {
     const at = centre();
     isUploading = true;
     try {
@@ -1102,10 +1098,14 @@
           <Select size="sm" label={t('app.whiteboards.pen')} bind:value={pen} options={(['PEN', 'HIGHLIGHTER'] as const).map((each) => ({ value: each, label: t(`app.whiteboards.pen_${each.toLowerCase()}`) }))} />
         {/if}
         <Button size="sm" tone="subtle" icon="plus" onclick={() => (isPickingEntry = true)}>{t('app.whiteboards.put_entry')}</Button>
-        <label class="upload">
-          <span>{isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}</span>
-          <input type="file" disabled={isUploading} onchange={(event) => void putFile(event)} />
-        </label>
+        <UploadField
+          variant="button"
+          size="sm"
+          label={t('app.whiteboards.put_file')}
+          chooseLabel={isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}
+          disabledReason={isUploading ? t('app.whiteboards.uploading') : undefined}
+          onChoose={(file) => void putFile(file)}
+        />
         <!-- Chosen, then put: a closed native select changes on every arrow key, and a template
              put on each would fill the shared board (SC 3.2.2). -->
         <Select
@@ -1671,8 +1671,6 @@
   .words { fill: var(--text-primary); font-size: var(--fs-100); }
   .card path { fill: var(--bg-raised); stroke: var(--border-default); }
   .card path.pending { stroke-dasharray: 4 4; }
-  .upload { display: inline-flex; align-items: center; cursor: pointer; color: var(--text-primary); font-size: var(--fs-075); }
-  .upload input { inline-size: 0; block-size: 0; opacity: 0; }
   .card.done .words { text-decoration: line-through; fill: var(--text-subtle); }
   .card .key { fill: var(--text-subtle); font-size: var(--fs-075); }
   .card .open { fill: var(--text-brand); font-size: var(--fs-100); }
