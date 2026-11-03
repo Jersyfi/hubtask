@@ -678,6 +678,58 @@
       ]
     },
     {
+      "key": "legal.support_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
+      "key": "legal.docs_url",
+      "kind": "LINK",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
       "key": "legal.account_url",
       "kind": "LINK",
       "levels": [

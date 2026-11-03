@@ -799,6 +799,10 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
   the provider is whom a person who does not agree asks, as for the installation's. The provider's
   account link (`account_url`) resolves from installation and plan only (§4.2 there): it is no link
   a workspace sets, the footer shows or the sign-in rules answer.
+* The **help links** - the support contact (`support_url`, `https` or `mailto:`) and the
+  documentation (`docs_url`) - are set, locked and resolved exactly as the four legal links, and
+  answered with them by `/auth/sign-in-rules` and `/meta/capabilities`, but the footer never draws
+  them: Help shows them ([user-experience.md](./user-experience.md) §5.8).
 * The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
   terms link: it resolves with it, from the same level and under the same lock, and a level sets
   one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that

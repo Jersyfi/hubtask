@@ -51,6 +51,8 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 			PrivacyUrl:       optionalTextField(legal["privacy_url"]),
 			TermsUrl:         optionalTextField(legal["terms_url"]),
 			AccessibilityUrl: optionalTextField(legal["accessibility_url"]),
+			SupportUrl:       optionalTextField(legal["support_url"]),
+			DocsUrl:          optionalTextField(legal["docs_url"]),
 			TermsVersion:     optionalTextField(legal["terms_version"]),
 			TermsSetBy:       termsSetByField(legal["terms_set_by"]),
 		},

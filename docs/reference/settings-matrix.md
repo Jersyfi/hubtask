@@ -87,6 +87,12 @@ one workspace, by person and place.
 | `legal.accessibility_url` | INSTANCE | `admin:instance` | the installation's operators |
 | `legal.accessibility_url` | PLAN | `admin:instance` | the installation's operators |
 | `legal.accessibility_url` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
+| `legal.support_url` | INSTANCE | `admin:instance` | the installation's operators |
+| `legal.support_url` | PLAN | `admin:instance` | the installation's operators |
+| `legal.support_url` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
+| `legal.docs_url` | INSTANCE | `admin:instance` | the installation's operators |
+| `legal.docs_url` | PLAN | `admin:instance` | the installation's operators |
+| `legal.docs_url` | WORKSPACE | `MANAGE_MEMBERS` | OWNER, ADMIN |
 | `legal.account_url` | INSTANCE | `admin:instance` | the installation's operators |
 | `legal.account_url` | PLAN | `admin:instance` | the installation's operators |
 | `localisation.locale` | INSTANCE | `admin:instance` | the installation's operators |

@@ -32,7 +32,8 @@ func effectiveLegalBefore(instance, plan, workspace LegalLayer) (LegalLinks, map
 	resolved := LegalLinks{}
 	locks := map[LegalLink]LockOrigin{}
 
-	for _, name := range LegalLinkNames() {
+	// The help links resolve by the same rule as the four (HelpLinks_test.go).
+	for _, name := range append(LegalLinkNames(), HelpLinkNames()...) {
 		switch {
 		case instance.Locks[name]:
 			locks[name] = LockInstance

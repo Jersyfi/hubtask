@@ -412,7 +412,7 @@ func writeJSON(w http.ResponseWriter, r *http.Request, status int, body any) {
 	}
 }
 
-// legalLinksResponse maps the four links, or nothing at all.
+// legalLinksResponse maps the four links and the help links, or nothing at all.
 //
 // Nil where the installation set none, and each field absent where that one is unset: a private
 // installation owes nobody an imprint, and a footer given four links pointing nowhere is worse than
@@ -426,6 +426,8 @@ func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
 		identity.LinkTerms:         &answer.TermsUrl,
 		identity.LinkAccessibility: &answer.AccessibilityUrl,
 		identity.LinkTermsVersion:  &answer.TermsVersion,
+		identity.LinkSupport:       &answer.SupportUrl,
+		identity.LinkDocs:          &answer.DocsUrl,
 	} {
 		value := links.Of(name)
 		if value == "" {

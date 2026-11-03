@@ -133,6 +133,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			InstallationSource: policySource(row["installation_source"]),
 		}
 	}
+	helpWord := func(document usecase.Output, field string) *openapi.SignInPolicyText {
+		held := word(document, field)
+		return &held
+	}
 
 	password, _ := out["password"].(usecase.Output)
 	session, _ := out["session"].(usecase.Output)
@@ -172,6 +176,8 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			PrivacyUrl:       word(legal, "privacy_url"),
 			TermsUrl:         word(legal, "terms_url"),
 			AccessibilityUrl: word(legal, "accessibility_url"),
+			SupportUrl:       helpWord(legal, "support_url"),
+			DocsUrl:          helpWord(legal, "docs_url"),
 			TermsVersion:     word(legal, "terms_version"),
 		},
 	}

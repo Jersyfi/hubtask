@@ -42,6 +42,12 @@ const (
 	// never by a workspace, and never one of the links a footer or the sign-in card shows - so it is
 	// in neither list above, and only in LevelLegalSettingNames.
 	LinkAccount LegalLink = "account_url"
+
+	// LinkSupport and LinkDocs are where a workspace's people ask for help and what they read
+	// (user-experience.md §5.8). Set, locked and resolved like the four, but shown in Help rather
+	// than in the footer, so they are in LegalSettingNames and not in LegalLinkNames.
+	LinkSupport LegalLink = "support_url"
+	LinkDocs    LegalLink = "docs_url"
 )
 
 // LegalLinkNames is the four, in the order a footer draws them.
@@ -49,10 +55,15 @@ func LegalLinkNames() []LegalLink {
 	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkAccessibility}
 }
 
-// LegalSettingNames is the four links and the terms' version: everything a level sets about them,
-// in the order a form draws them - the version right after the link it belongs to.
+// HelpLinkNames is the support contact and the documentation, in the order Help draws them.
+func HelpLinkNames() []LegalLink {
+	return []LegalLink{LinkSupport, LinkDocs}
+}
+
+// LegalSettingNames is the four links, the terms' version and the two help links: everything a
+// level sets about them, in the order a form draws them - the version right after its link.
 func LegalSettingNames() []LegalLink {
-	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkTermsVersion, LinkAccessibility}
+	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkTermsVersion, LinkAccessibility, LinkSupport, LinkDocs}
 }
 
 // LevelLegalSettingNames is what the installation and a plan set in the legal area: the four links,
@@ -76,6 +87,9 @@ type LegalLinks struct {
 	TermsVersion string
 	// AccountURL is the provider's account page, at the installation's and a plan's level only.
 	AccountURL string
+	// SupportURL and DocsURL are the help links, empty where none was given.
+	SupportURL string
+	DocsURL    string
 	// TermsSetBy is who set the terms link in force - filled by EffectiveLegal, empty in a level's
 	// own layer and wherever no terms link is in force.
 	TermsSetBy TermsSetBy
@@ -96,6 +110,10 @@ func (l LegalLinks) Of(name LegalLink) string {
 		return l.TermsVersion
 	case LinkAccount:
 		return l.AccountURL
+	case LinkSupport:
+		return l.SupportURL
+	case LinkDocs:
+		return l.DocsURL
 	}
 	return ""
 }
@@ -115,6 +133,10 @@ func (l LegalLinks) With(name LegalLink, value string) LegalLinks {
 		l.TermsVersion = value
 	case LinkAccount:
 		l.AccountURL = value
+	case LinkSupport:
+		l.SupportURL = value
+	case LinkDocs:
+		l.DocsURL = value
 	}
 	return l
 }
@@ -160,7 +182,7 @@ func EffectiveLegal(instance, plan, workspace LegalLayer) (LegalLinks, map[Legal
 	resolved := LegalLinks{}
 	locks := map[LegalLink]LockOrigin{}
 
-	for _, name := range LegalLinkNames() {
+	for _, name := range append(LegalLinkNames(), HelpLinkNames()...) {
 		resolution := resolveLegal(name, instance, plan, workspace)
 		link, _ := resolution.Effective.(string)
 		resolved = resolved.With(name, link)
@@ -223,6 +245,13 @@ func ValidLegalURL(name LegalLink, raw string) (string, error) {
 		return "", refused("auth.legal_url_too_long")
 	}
 	parsed, err := url.Parse(trimmed)
+	if err == nil && name == LinkSupport && parsed.Scheme == "mailto" {
+		// An address to write to is a support contact too; it still has to name somebody.
+		if !strings.Contains(parsed.Opaque, "@") {
+			return "", refused("auth.legal_url_invalid")
+		}
+		return trimmed, nil
+	}
 	if err != nil || parsed.Host == "" {
 		return "", refused("auth.legal_url_invalid")
 	}
