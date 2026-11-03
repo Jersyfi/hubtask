@@ -18,6 +18,7 @@
     Badge, Banner, Button, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Tabs, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, PortfolioList } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -279,7 +280,7 @@
         {:else}
           <div class="scroll">
             <Table label={t('app.goals.tree', { period: chosen?.name ?? '' })} columns={goalColumns}>
-              {#snippet empty()}{t('app.goals.empty')}{/snippet}
+              {#snippet empty()}<ProductEmpty kind="unused" title={t('app.goals.empty')} create={secondary[0]} />{/snippet}
               {#each tree as { goal, depth } (goal.id)}
                 <tr>
                   <th scope="row">
@@ -317,7 +318,7 @@
       {:else}
         <div class="scroll">
           <Table label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
-            {#snippet empty()}{t('app.portfolios.empty')}{/snippet}
+            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.portfolios.empty')} create={secondary[0]} />{/snippet}
             {#each portfolioList as each (each.id)}
               <tr>
                 <th scope="row"><a href={`/portfolios/${each.id}`}>{each.name}</a></th>
@@ -339,7 +340,7 @@
       {:else}
         <div class="scroll">
           <Table label={t('app.goals.tab_dashboards')} isLabelHidden columns={dashboardColumns}>
-            {#snippet empty()}{t('app.dashboards.empty')}{/snippet}
+            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.dashboards.empty')} create={secondary[0]} />{/snippet}
             {#each dashboardList as each (each.id)}
               <tr>
                 <th scope="row"><a href={`/dashboards/${each.id}`}>{each.name}</a></th>

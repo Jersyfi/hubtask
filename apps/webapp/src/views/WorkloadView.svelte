@@ -10,6 +10,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Workload } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -89,7 +90,7 @@
     {#if answer.aggregated}<p class="quiet">{t('app.workload.aggregated')}</p>{/if}
     <div class="scroll">
       <Table label={t('app.workload.title')} isLabelHidden {columns}>
-        {#snippet empty()}{t('app.workload.empty')}{/snippet}
+        {#snippet empty()}<ProductEmpty kind="unused" title={t('app.workload.empty')} />{/snippet}
         {#if answer.aggregated}
           {#if answer.team.length > 0}
             <tr>

@@ -19,6 +19,7 @@
     Banner, Button, Checkbox, Dialog, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Sprint, SprintBacklog, SprintDetail, SprintList, Velocity } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -214,7 +215,7 @@
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     {#if list.length === 0}
-      <p class="quiet">{t('app.sprints.none')}</p>
+      <ProductEmpty kind="unused" title={t('app.sprints.none')} create={mayWrite ? { label: t('app.sprints.plan'), onclick: () => openPlan(undefined) } : undefined} />
     {:else if chosen}
       <div class="controls">
         <Select label={t('app.sprints.sprint')} size="sm" value={chosen.id} options={states}

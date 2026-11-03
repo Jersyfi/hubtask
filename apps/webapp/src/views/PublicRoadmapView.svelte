@@ -7,6 +7,7 @@
   // row leads into the workspace. An unknown or dead link says only that there is no roadmap here.
   import { untrack } from 'svelte';
   import { Badge, Banner, Skeleton, Table, type Column } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { PortfolioRoadmap } from '@hubtask/sync-engine';
 
   import { roadmapRows } from '../lib/data/roadmap.ts';
@@ -48,7 +49,7 @@
     </p>
     <p class="quiet">{t('app.roadmap.shared_note')}</p>
     {#if rows.length === 0}
-      <p class="quiet">{t('app.roadmap.empty')}</p>
+      <ProductEmpty kind="unused" title={t('app.roadmap.empty')} />
     {:else}
       <Table label={t('app.roadmap.table')} {columns}>
         {#each rows as row (row.id)}

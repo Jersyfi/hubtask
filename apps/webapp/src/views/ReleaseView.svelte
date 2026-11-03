@@ -16,6 +16,7 @@
     Banner, Button, Checkbox, Dialog, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Release, ReleaseDetail, ReleaseList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -186,7 +187,7 @@
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     {#if list.length === 0}
-      <p class="quiet">{t('app.releases.none')}</p>
+      <ProductEmpty kind="unused" title={t('app.releases.none')} create={mayWrite ? { label: t('app.releases.plan'), onclick: () => openPlan(undefined) } : undefined} />
     {:else if chosen}
       <div class="controls">
         <Select label={t('app.releases.release')} size="sm" value={chosen.id} {options}

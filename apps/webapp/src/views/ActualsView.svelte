@@ -11,6 +11,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { EstimatesVsActuals } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -86,7 +87,7 @@
     <p class="quiet">{t('app.actuals.summary', { estimate: hoursText(answer.estimate_hours), actual: minutesText(answer.minutes) })}</p>
     <div class="scroll">
       <Table label={t('app.actuals.title')} isLabelHidden {columns}>
-        {#snippet empty()}{t('app.actuals.empty')}{/snippet}
+        {#snippet empty()}<ProductEmpty kind="unused" title={t('app.actuals.empty')} />{/snippet}
         {#each rows as { row, depth } (row.entry_id)}
           <tr>
             <th scope="row"><span class="indent" style:--depth={depth}><a href={`/items/${row.entry_id}`}>{row.title}</a></span>{#if row.done}<span class="note">{t('app.actuals.done')}</span>{/if}</th>

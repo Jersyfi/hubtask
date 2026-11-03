@@ -15,6 +15,7 @@
   import {
     Badge, Button, EmptyState, ErrorState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, Textarea,
   } from '@hubtask/design-system/components';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { ApprovalList, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
 
   import { myApprovalsPath } from '../lib/data/approvals.svelte.ts';
@@ -186,7 +187,7 @@
             { value: 'ORGANISATION', label: t('app.portal.whose_organisation', { name: organisation?.name ?? '' }) }]} />
       {/if}
       {#if shown.state.status === 'ready' && requests.length === 0}
-        <p class="quiet">{t('app.portal.mine_none')}</p>
+        <ProductEmpty kind="unused" title={t('app.portal.mine_none')} />
       {:else if shown.state.status === 'ready'}
         {#each requests as request (request.id)}
           <ListRow href={`/portal/requests/${request.id}`} onactivate={() => onnavigate?.(`/portal/requests/${request.id}`)}>
@@ -210,7 +211,6 @@
 <style>
   .logo { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); object-fit: contain; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
   .raise { margin: 0; max-inline-size: 72ch; }
   .meta { display: inline-flex; gap: var(--sp-100); align-items: center; color: var(--text-secondary); font-size: var(--fs-075); }

@@ -7,9 +7,10 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Button, EmptyState, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
+  import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { markOf } from '../lib/workspace/look.ts';
   import { hubCreationHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -376,18 +377,13 @@
           {#if isReading && hubsWith.length === 0}
             <div aria-busy="true"><Skeleton lines={3} /></div>
           {:else if hubsWith.length === 0}
-            <EmptyState
+            <ProductEmpty
               kind="unused"
               icon={row?.icon ?? 'hub'}
               title={t('app.product_home.none', { product: name })}
               description={t(mayCreateHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')}
-            >
-              {#snippet action()}
-                {#if mayCreateHub}
-                  <Button tone="primary" icon="plus" onclick={() => (isCreatingHub = true)}>{t('app.workspace.create_hub')}</Button>
-                {/if}
-              {/snippet}
-            </EmptyState>
+              create={mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => (isCreatingHub = true) } : undefined}
+            />
           {:else}
             <ul class="hubs">
               {#each hubsWith as hub (hub.id)}
