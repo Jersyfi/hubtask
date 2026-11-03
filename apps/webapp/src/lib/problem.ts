@@ -32,6 +32,13 @@ import type { Messages } from './i18n/messages.ts';
 export interface RenderedProblem {
   /** The one sentence to show. Never empty: every branch below ends in a message. */
   readonly message: string;
+  /**
+   * The reason without the reference: for a screen that folds the reference behind *Details for
+   * support* (`FailureNote`, user-experience.md §5.8) rather than saying it in the sentence.
+   */
+  readonly sentence?: string;
+  /** The catalogue code the sentence was chosen by, for the same fold. */
+  readonly code?: string;
   /** Path from `field_errors[]` to the sentence for it, for a form to put beside its inputs. */
   readonly fields: ReadonlyMap<string, string>;
   /**
@@ -121,6 +128,8 @@ export function renderProblem(error: TransportError, messages: Messages, now: nu
 
   const code = candidates(error).find((candidate) => messages.has(candidate)) ?? 'errors.internal';
   let message = messages.t(code, params);
+  // `errors.internal` says its reference inside its own sentence; the fold says it instead.
+  const sentence = code === 'errors.internal' ? messages.t('app.something_went_wrong') : message;
   // A refusal or a failure the person may take to an administrator carries its reference in the
   // sentence, so every screen shows it whether or not it renders `reference`: the administrator
   // finds the request's entries by it (`GET /audit?request_id=`). A 404 or a plain 400 is not one.
@@ -138,7 +147,7 @@ export function renderProblem(error: TransportError, messages: Messages, now: nu
   const isServerFault = error.kind !== 'problem' || (error.status ?? 0) >= 500;
   const reference = error.requestId && !message.includes(error.requestId) ? error.requestId : undefined;
 
-  return { message, fields, reference, requestId: error.requestId, isServerFault };
+  return { message, sentence, code, fields, reference, requestId: error.requestId, isServerFault };
 }
 
 /** A refusal a job ended with: the code and parameters `GET /jobs/{id}` answers. */

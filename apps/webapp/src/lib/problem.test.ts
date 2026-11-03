@@ -274,3 +274,20 @@ test('a rate limit says what it guards and when to try again', () => {
   );
   assert.ok(step.message.includes('Level 2'), step.message);
 });
+
+// user-experience.md §5.8: where a screen can fold the reference behind *Details for support*, the
+// sentence it shows is the reason alone; the code and the reference are handed over beside it.
+test('the sentence without its reference is handed over for a fold that carries the reference', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', { status: 403, code: 'forbidden', detailCode: 'access.not_permitted', params: { permission: 'READ' }, requestId: 'r-77' }),
+    messages,
+  );
+  assert.ok(rendered.message.includes('r-77'), 'the sentence alone still carries it, for a screen with no fold');
+  assert.ok(!rendered.sentence?.includes('r-77'), rendered.sentence);
+  assert.ok(rendered.message.startsWith(rendered.sentence ?? '-'));
+  assert.equal(rendered.code, 'access.not_permitted');
+
+  const internal = renderProblem(new TransportError('problem', { status: 500, code: 'internal', requestId: 'r-78' }), messages);
+  assert.ok(!internal.sentence?.includes('r-78'), internal.sentence);
+  assert.ok(internal.sentence !== undefined && !internal.sentence.includes('{'), internal.sentence);
+});

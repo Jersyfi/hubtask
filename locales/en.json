@@ -5345,6 +5345,7 @@
   "app.answer_unreadable": "The server sent an answer this version of Hubtask cannot read.",
   "app.something_went_wrong": "Something went wrong. Try again in a moment.",
   "app.error_reference": "Reference {request_id}",
+  "app.failure.details": "Details for support",
   "app.reference": "Reference",
   "app.reference_copy": "Copy reference",
   "app.reference_copied": "The reference is copied. Pass it on to whoever administers the workspace.",
