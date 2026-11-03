@@ -15,6 +15,10 @@
   // It is announced. A list that quietly turns into a paragraph of prose is a change a screen
   // reader is never told about, so this is a live region - `assertive`, because the reader is
   // waiting for content that is not coming.
+  //
+  // `updated` is the one failure that is nobody's fault: the screen's code belongs to a release the
+  // server no longer has (user-experience.md §5.8). It reads as news rather than danger, politely
+  // announced, and its reload is the primary act, because it is the whole of the remedy.
 
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
@@ -33,17 +37,20 @@
     /** The name of the retry control. Absent means the failure is not retryable (§3.2). */
     retryLabel?: string;
     onRetry?: () => void;
+    /** `updated`: the screen belongs to an older release; the retry is a reload onto the new one. */
+    kind?: 'failed' | 'updated';
   }
 
-  const { title, description, reference, referenceLabel, retryLabel, onRetry }: Props = $props();
+  const { title, description, reference, referenceLabel, retryLabel, onRetry, kind = 'failed' }: Props = $props();
+  const updated = $derived(kind === 'updated');
 </script>
 
-<div class="error" role="alert">
-  <span class="mark" aria-hidden="true"><Icon name="triangle-alert" /></span>
+<div class="error" class:updated role={updated ? 'status' : 'alert'} data-kind={kind}>
+  <span class="mark" aria-hidden="true"><Icon name={updated ? 'sparkles' : 'triangle-alert'} /></span>
   <p class="title">{title}</p>
   {#if description}<p class="description">{description}</p>{/if}
   {#if retryLabel}
-    <div class="action"><Button tone="secondary" onclick={() => onRetry?.()}>{retryLabel}</Button></div>
+    <div class="action"><Button tone={updated ? 'primary' : 'secondary'} onclick={() => onRetry?.()}>{retryLabel}</Button></div>
   {/if}
   {#if reference && referenceLabel}
     <!-- Selectable, and in a monospace face: it exists to be copied into a support request, and a
@@ -64,6 +71,7 @@
 
   /* Rule 3: the mark carries the tone as well as the colour, so it reads in greyscale. */
   .mark { display: inline-flex; color: var(--text-danger); }
+  .updated .mark { color: var(--text-brand); }
 
   .title {
     margin: 0;

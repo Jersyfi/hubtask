@@ -11,7 +11,7 @@
   import Stack from './Stack.svelte';
 
   const { mode = 'loading' }: {
-    mode?: 'loading' | 'unused' | 'started' | 'filtered' | 'settled' | 'failed' | 'rows';
+    mode?: 'loading' | 'unused' | 'started' | 'filtered' | 'settled' | 'failed' | 'updated' | 'rows';
   } = $props();
 
   const entries = [
@@ -58,6 +58,8 @@
       referenceLabel="Reference"
       reference="01a06962-4ac3-7d3e-b60e-d60b38507d24"
     />
+  {:else if mode === 'updated'}
+    <ErrorState kind="updated" title="Hubtask was updated meanwhile. Reload to open this screen in the new version." retryLabel="Reload" />
   {:else}
     <Stack gap="050">
       {#each entries as entry (entry.id)}
