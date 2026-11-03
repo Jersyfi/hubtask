@@ -6,8 +6,8 @@
   // first (UC-FLW-04 check 3), and a refusal says, per field or check, what is still missing. Where
   // no workflow runs for the entry, nothing is drawn.
 
-  import { untrack } from 'svelte';
-  import { Button, Dialog, Input, LabelChip, Stack } from '@hubtask/design-system/components';
+  import { tick, untrack } from 'svelte';
+  import { Banner, Button, Dialog, Input, LabelChip, Stack } from '@hubtask/design-system/components';
   import type { EntrySteps, StepVerdict, WorkItem } from '@hubtask/sync-engine';
 
   import { customFields } from '../data/customfields.svelte.ts';
@@ -36,7 +36,21 @@
     runs = Boolean(answer?.workflow && status);
   });
 
-  let refusal = $state<{ message: string; details: readonly string[] } | undefined>(undefined);
+  let refusal = $state<{ message: string; details: readonly string[]; fields: ReadonlyMap<string, string> } | undefined>(undefined);
+  let askForm = $state<HTMLElement | undefined>(undefined);
+
+  /** Where the server names an asked field, its error is drawn at that field (§5.10). */
+  const fieldPath = (key: string) => `/custom_fields/${key}`;
+
+  /** What the refusal says that no field of the small form shows: other fields, failing checks. */
+  function notAtAField(said: { details: readonly string[]; fields: ReadonlyMap<string, string> }, step: StepVerdict): string[] {
+    const shown = new Set(askedFields(step).map(fieldPath));
+    const atFields = [...said.fields.values()];
+    return [
+      ...[...said.fields].filter(([path]) => !shown.has(path)).map(([, words]) => words),
+      ...said.details.filter((words) => !atFields.includes(words)),
+    ];
+  }
   let isTaking = $state(false);
 
   function stepName(step: StepVerdict): string {
@@ -79,7 +93,12 @@
       toast.show({ text: t('app.workflows.step_taken', { name: stepName(step) }), tone: 'success' });
     } catch (error) {
       const rendered = renderProblem(error as never, messages);
-      refusal = { message: rendered.message, details: [...rendered.fields.values()] };
+      refusal = { message: rendered.message, details: [...rendered.fields.values(), ...(rendered.wholes ?? [])], fields: rendered.fields };
+      if (asking) {
+        // Focus goes to the first asked field the refusal names (WCAG 3.3.1).
+        await tick();
+        askForm?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      }
     } finally {
       isTaking = false;
     }
@@ -100,7 +119,7 @@
         {/each}
       </div>
     {/if}
-    {#if refusal}
+    {#if refusal && !asking}
       <div class="refusal" role="alert">
         <p>{refusal.message}</p>
         {#if refusal.details.length > 0}
@@ -119,12 +138,18 @@
     dismissLabel={t('app.workflows.cancel')}
     onClose={() => { asking = undefined; }}
   >
-    <Stack gap="200">
+    <div bind:this={askForm}><Stack gap="200">
       {#each askedFields(asked) as key (key)}
-        <Input label={key} bind:value={values[key]} />
+        <Input label={key} bind:value={values[key]} error={refusal?.fields.get(fieldPath(key))} />
       {/each}
-      {#if refusal}<p class="refusal" role="alert">{refusal.message}</p>{/if}
-    </Stack>
+      {#if refusal}
+        {@const rest = notAtAField(refusal, asked)}
+        <Banner tone="danger">
+          {refusal.message}
+          {#if rest.length > 0}<ul class="rest">{#each rest as words (words)}<li>{words}</li>{/each}</ul>{/if}
+        </Banner>
+      {/if}
+    </Stack></div>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (asking = undefined)}>{t('app.workflows.cancel')}</Button>
       <Button tone="primary" data-confirm-step isBusy={isTaking} onclick={() => take(asked)}>
@@ -142,6 +167,8 @@
   .status { margin: 0; }
 
   .steps > .refusal { flex-basis: 100%; }
+
+  .rest { margin: 0; padding-inline-start: var(--sp-200); }
 
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
 

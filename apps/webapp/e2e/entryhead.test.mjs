@@ -37,7 +37,7 @@ const TYPE = {
 };
 const ENTRY = ITEMS[3];
 
-async function open(width, { runs }) {
+async function open(width, { runs, asks = false }) {
   const browser = await chromium.launch();
   const { context, page } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -50,7 +50,23 @@ async function open(width, { runs }) {
     if (runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: ['WORKFLOWS'] } });
     if (runs && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, entry_type: 'incident', status: 'new' } });
     if (runs && read === `/items/${ENTRY.id}/steps`) {
-      return route.fulfill({ json: { workflow: 'incident', status: 'new', steps: [{ key: 'start', name: 'Start work', to: 'in_progress', asks: [] }] } });
+      const steps = [{ key: 'start', name: 'Start work', to: 'in_progress', asks: [] }];
+      if (asks) steps.push({ key: 'resolve', name: 'Resolve', to: 'resolved', asks: ['custom_fields.resolution'] });
+      return route.fulfill({ json: { workflow: 'incident', status: 'new', steps } });
+    }
+    if (asks && read === `/items/${ENTRY.id}:step` && request.method() === 'POST') {
+      return route.fulfill({
+        status: 422,
+        contentType: 'application/problem+json',
+        json: {
+          type: 'about:blank', title: 'validation_failed', status: 422, code: 'validation_failed', detail_code: 'workflows.step_refused',
+          params: { step: 'resolve', count: '2' },
+          field_errors: [
+            { path: '/custom_fields/resolution', code: 'fields.value_required', params: { key: 'resolution' } },
+            { path: '', code: 'workflows.check_failed', params: { check: 'tested', message: 'Attach the test report.' } },
+          ],
+        },
+      });
     }
     if (runs && read === '/workflows') return route.fulfill({ json: { data: [WORKFLOW], scheme: [{ container_id: ENTRY.collection_id, entry_type: null, workflow: 'incident' }] } });
     if (runs && read === '/entry-types') return route.fulfill({ json: { data: [TYPE] } });
@@ -92,6 +108,25 @@ test('chromium: an entry without a workflow keeps its level and column mark', { 
     assert.equal(await page.locator('[data-steps]').count(), 0, 'no status where no workflow runs');
     const marks = (await page.locator('.head .marks').innerText()).trim();
     assert.ok(/\bTask\b/.test(marks), `the level is drawn: ${marks}`);
+  } finally {
+    await close();
+  }
+});
+
+test('chromium: a refused step says at the asked field what it needs, and the failing check inside the dialog', { timeout: 60_000 }, async () => {
+  const { page, close } = await open(1280, { runs: true, asks: true });
+  try {
+    await page.getByRole('button', { name: 'Resolve' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.waitFor({ timeout: 5_000 });
+    await dialog.locator('[data-confirm-step]').click();
+    const banner = dialog.locator('.banner[data-tone=danger]');
+    await banner.waitFor({ timeout: 5_000 });
+    const field = dialog.getByLabel('resolution');
+    assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the asked field carries its error');
+    assert.ok(await field.evaluate((input) => input === document.activeElement), 'focus is on the field');
+    assert.ok((await banner.innerText()).includes('Attach the test report.'), `the check is said: ${await banner.innerText()}`);
+    assert.equal(await page.locator('[data-steps] .refusal').count(), 0, 'nothing is said under the dialog');
   } finally {
     await close();
   }

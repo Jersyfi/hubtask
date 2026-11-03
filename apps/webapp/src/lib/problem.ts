@@ -43,6 +43,11 @@ export interface RenderedProblem {
   /** Path from `field_errors[]` to the sentence for it, for a form to put beside its inputs. */
   readonly fields: ReadonlyMap<string, string>;
   /**
+   * The sentences of field errors that name no field - a step's failing checks - each one, in the
+   * server's order: they are about the whole, and dropping them would hide what is still missing.
+   */
+  readonly wholes?: readonly string[];
+  /**
    * The request id, when there is one that is not already in the sentence. Shown where a person
    * can copy it - an internal error without its reference is a support thread nobody can trace.
    */
@@ -139,9 +144,13 @@ export function renderProblem(error: TransportError, messages: Messages, now: nu
   }
 
   const fields = new Map<string, string>();
+  const wholes: string[] = [];
   for (const field of error.fieldErrors) {
-    if (!field.path) continue;
     const fieldCode = field.code ?? 'usecase.input_invalid';
+    if (!field.path) {
+      if (field.code) wholes.push(messages.t(fieldCode, field.params ?? {}));
+      continue;
+    }
     fields.set(field.path, messages.t(fieldCode, field.params ?? {}));
   }
 
@@ -150,7 +159,7 @@ export function renderProblem(error: TransportError, messages: Messages, now: nu
   rememberReference(error.requestId);
   const reference = error.requestId && !message.includes(error.requestId) ? error.requestId : undefined;
 
-  return { message, sentence, code, fields, reference, requestId: error.requestId, isServerFault };
+  return { message, sentence, code, fields, wholes, reference, requestId: error.requestId, isServerFault };
 }
 
 /** A refusal a job ended with: the code and parameters `GET /jobs/{id}` answers. */

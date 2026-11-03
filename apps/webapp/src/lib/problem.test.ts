@@ -56,6 +56,24 @@ test('a field error lands on its field, by path', () => {
   assert.equal(rendered.message, 'The request contains invalid values.');
 });
 
+test('field errors without a path are each said, not dropped - a step\'s failing checks', () => {
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 422,
+      code: 'validation_failed',
+      detailCode: 'workflows.step_refused',
+      fieldErrors: [
+        { path: '/custom_fields/resolution', code: 'fields.value_required', params: { key: 'custom_fields.resolution' } },
+        { path: '', code: 'workflows.check_failed', params: { check: 'tested', message: 'Attach the test report.' } },
+        { path: '', code: 'workflows.check_failed', params: { check: 'signed', message: 'A reviewer signs it off.' } },
+      ],
+    }),
+    messages,
+  );
+  assert.equal(rendered.fields.size, 1);
+  assert.deepEqual(rendered.wholes, ['Attach the test report.', 'A reviewer signs it off.']);
+});
+
 test('a 500 renders its reference, and does not say it twice', () => {
   const rendered = renderProblem(
     new TransportError('problem', { status: 500, code: 'internal', requestId: '01J9Z2ABCD' }),
