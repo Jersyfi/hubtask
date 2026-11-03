@@ -267,7 +267,7 @@
   {:else if held.length === 0}
     <EmptyState kind="unused" title={accountId ? t('app.tokens.none_service') : t('app.tokens.none')} />
   {:else}
-    <Table
+    <Table isStacked
       label={t('app.tokens.title')}
       isLabelHidden
       {columns}

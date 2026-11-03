@@ -403,7 +403,7 @@
         {#if workspaces.length === 0}
           <Banner tone="info">{t(isNarrowed ? 'app.instance.workspaces_none_found' : 'app.instance.workspaces_none')}</Banner>
         {:else}
-          <Table label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
+          <Table isStacked label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
             {#each workspaces as workspace (workspace.id)}
               <tr>
                 <td>

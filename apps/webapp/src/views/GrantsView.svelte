@@ -68,7 +68,7 @@
       {#if consent.grants.length === 0}
         <EmptyState kind="unused" title={t('app.grants.none')} />
       {:else}
-        <Table
+        <Table isStacked
           label={t('app.grants.title')}
           isLabelHidden
           {columns}

@@ -169,7 +169,7 @@
       {:else if entries.length === 0}
         <Banner tone="info">{t(isNarrowed ? 'app.instance.journal_none_narrowed' : 'app.instance.journal_empty')}</Banner>
       {:else}
-        <Table label={t('app.instance.journal')} isLabelHidden columns={columns}>
+        <Table isStacked label={t('app.instance.journal')} isLabelHidden columns={columns}>
           {#each entries as entry (entry.id)}
             <tr>
               <td class="quiet-cell">{formatDateTime(entry.occurred_at, messages.locale)}</td>

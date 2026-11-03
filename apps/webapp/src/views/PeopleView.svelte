@@ -654,7 +654,7 @@
     {#if holders.length === 0}
       <p class="quiet"><Spinner label={t('app.people.reading')} /> <span>{t('app.people.reading')}</span></p>
     {:else}
-      <Table
+      <Table isStacked
         label={t('app.people.title')}
         isLabelHidden
         {columns}

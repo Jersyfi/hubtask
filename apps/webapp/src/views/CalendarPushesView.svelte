@@ -75,7 +75,7 @@
       {#if pushes.length === 0}
         <EmptyState kind="unused" title={t('app.pushes.none')} />
       {:else}
-        <Table label={t('app.pushes.title')} isLabelHidden {columns}>
+        <Table isStacked label={t('app.pushes.title')} isLabelHidden {columns}>
           {#each pushes as push (push.id)}
             <tr data-push={push.provider}>
               <th scope="row" class="what">

@@ -118,7 +118,7 @@
       {:else if letters.length === 0}
         <Banner tone="success">{t('app.instance.dead_letters_empty')}</Banner>
       {:else}
-        <Table label={t('app.instance.dead_letters')} isLabelHidden columns={columns}>
+        <Table isStacked label={t('app.instance.dead_letters')} isLabelHidden columns={columns}>
           {#each letters as letter (letter.id)}
             <tr>
               <td class="quiet-cell">{letter.finished_at ? formatDateTime(letter.finished_at, messages.locale) : ''}</td>

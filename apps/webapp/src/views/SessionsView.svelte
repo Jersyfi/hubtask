@@ -160,7 +160,7 @@
       {:else if shown.length === 0}
         <EmptyState kind="unused" title={t('app.sessions.none')} />
       {:else}
-        <Table
+        <Table isStacked
           label={t('app.sessions.title')}
           isLabelHidden
           {columns}

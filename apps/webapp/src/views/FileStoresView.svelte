@@ -125,7 +125,7 @@
       {#if connections.length === 0}
         <EmptyState kind="unused" title={t('app.filestores.none')} />
       {:else}
-        <Table label={t('app.filestores.title')} isLabelHidden {columns}>
+        <Table isStacked label={t('app.filestores.title')} isLabelHidden {columns}>
           {#each connections as conn (conn.id)}
             <tr data-file-store={conn.kind}>
               <th scope="row" class="what">{connectionLabel(conn, storeName(conn))}</th>

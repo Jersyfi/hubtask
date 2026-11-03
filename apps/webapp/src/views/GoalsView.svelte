@@ -279,7 +279,7 @@
           <div aria-busy="true"><Skeleton lines={6} /></div>
         {:else}
           <div class="scroll">
-            <Table label={t('app.goals.tree', { period: chosen?.name ?? '' })} columns={goalColumns}>
+            <Table isStacked label={t('app.goals.tree', { period: chosen?.name ?? '' })} columns={goalColumns}>
               {#snippet empty()}<ProductEmpty kind="unused" title={t('app.goals.empty')} create={primary} />{/snippet}
               {#each tree as { goal, depth } (goal.id)}
                 <tr>
@@ -317,7 +317,7 @@
         <div aria-busy="true"><Skeleton lines={4} /></div>
       {:else}
         <div class="scroll">
-          <Table label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
+          <Table isStacked label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
             {#snippet empty()}<ProductEmpty kind="unused" title={t('app.portfolios.empty')} create={primary} />{/snippet}
             {#each portfolioList as each (each.id)}
               <tr>
@@ -339,7 +339,7 @@
         <div aria-busy="true"><Skeleton lines={4} /></div>
       {:else}
         <div class="scroll">
-          <Table label={t('app.goals.tab_dashboards')} isLabelHidden columns={dashboardColumns}>
+          <Table isStacked label={t('app.goals.tab_dashboards')} isLabelHidden columns={dashboardColumns}>
             {#snippet empty()}<ProductEmpty kind="unused" title={t('app.dashboards.empty')} create={primary} />{/snippet}
             {#each dashboardList as each (each.id)}
               <tr>

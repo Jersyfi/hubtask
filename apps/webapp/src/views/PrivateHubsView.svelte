@@ -111,7 +111,7 @@
     {:else if privateHubs.hubs.length === 0}
       <EmptyState kind="unused" title={t('app.private_hubs.empty')} />
     {:else}
-      <Table label={t('app.private_hubs.title')} isLabelHidden {columns}>
+      <Table isStacked label={t('app.private_hubs.title')} isLabelHidden {columns}>
         {#each privateHubs.hubs as hub (hub.id)}
           <tr>
             <th scope="row" class="owners">{ownersOf(hub.owners)}</th>

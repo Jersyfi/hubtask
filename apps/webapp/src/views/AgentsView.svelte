@@ -385,7 +385,7 @@
         <Stack gap="150">
           <p class="quiet">{t('app.agents.models_intro')}</p>
           <div><Button icon="plus" onclick={() => openModel()}>{t('app.agents.new_model')}</Button></div>
-          <Table
+          <Table isStacked
             label={t('app.agents.tab_models')}
             isLabelHidden
             columns={[
@@ -414,7 +414,7 @@
           </Table>
         </Stack>
       {:else if current === 'metering' && administers}
-        <Table
+        <Table isStacked
           label={t('app.agents.metering_caption')}
           columns={[
             { id: 'agent', label: t('app.agents.col_agent') },
