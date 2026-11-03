@@ -26,6 +26,12 @@
 
   const SCOPES: readonly Scope[] = ['everywhere', 'palette', 'list', 'selection'];
 
+  // Where this workspace's people ask and read, set by the workspace or the installation above it;
+  // a contact is a page or an address to write to.
+  const support = $derived(manifest.value?.legal?.support_url);
+  const docs = $derived(manifest.value?.legal?.docs_url);
+  const supportWord = $derived(support?.startsWith('mailto:') ? support.slice('mailto:'.length) : support);
+
   // The workspace's short name, read while the dialog is open; a reader the read refuses copies a dash.
   $effect(() => {
     if (!isOpen) return;
@@ -65,7 +71,17 @@
     <section aria-labelledby="help-support">
       <h3 class="group" id="help-support">{t('app.help.support_title')}</h3>
       <Stack gap="100">
-        <p class="body">{t('app.help.support_body')}</p>
+        <p class="body">{t(support ? 'app.help.support_body_contact' : 'app.help.support_body')}</p>
+        {#if support || docs}
+          <dl class="contacts" data-help-contacts>
+            {#if support}
+              <div><dt>{t('app.help.support_contact')}</dt><dd><a href={support} target="_blank" rel="noopener">{supportWord}</a></dd></div>
+            {/if}
+            {#if docs}
+              <div><dt>{t('app.help.documentation')}</dt><dd><a href={docs} target="_blank" rel="noopener">{docs}</a></dd></div>
+            {/if}
+          </dl>
+        {/if}
         <div><Button icon="copy" onclick={copyDetails}>{t('app.help.copy_details')}</Button></div>
       </Stack>
     </section>
@@ -130,5 +146,13 @@
   .or { color: var(--text-subtle); font-size: var(--fs-075); }
 
   .body { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+
+  .contacts { margin: 0; display: grid; gap: var(--sp-050); font-size: var(--fs-100); }
+  .contacts > div { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  /* Not the shortcut rows' cells above: no rule between them, and an address may wrap. */
+  .contacts dt,
+  .contacts dd { display: block; padding: 0; border: 0; white-space: normal; }
+  .contacts dt { color: var(--text-secondary); }
+  .contacts dd { margin: 0; overflow-wrap: anywhere; }
 
 </style>

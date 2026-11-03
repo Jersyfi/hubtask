@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { signedIn } from './fixture.mjs';
+import { MANIFEST, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -41,5 +41,26 @@ test('chromium: Help copies the details for support, and no search with them', a
   assert.match(copied, /^Workspace: /m);
   assert.match(copied, /^References: /m);
   assert.doesNotMatch(copied, /salary/);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: Help names the support contact and the documentation the workspace set', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await signedIn(browser, 390, 800);
+  t.after(() => context.close());
+  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({
+    json: { ...MANIFEST, legal: { ...(MANIFEST.legal ?? {}), support_url: 'mailto:help@acme.example', docs_url: 'https://acme.example/docs' } },
+  }));
+  await page.goto(`${served.origin}/today`);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.keyboard.press('?');
+  const dialog = page.getByRole('dialog', { name: 'Help and shortcuts' });
+  const contact = dialog.getByRole('link', { name: 'help@acme.example' });
+  await contact.waitFor({ timeout: 5_000 });
+  assert.equal(await contact.getAttribute('href'), 'mailto:help@acme.example');
+  assert.equal(await dialog.getByRole('link', { name: 'https://acme.example/docs' }).getAttribute('href'), 'https://acme.example/docs');
+  // An address does not push the phone-width dialog wider than the screen.
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'the page scrolls sideways');
   assert.deepEqual(failures, []);
 });
