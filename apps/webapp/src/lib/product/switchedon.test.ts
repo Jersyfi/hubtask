@@ -19,6 +19,7 @@ test('every module switched on for the workspace says where to find it or what t
 
 test('switched on at a hub, it is found on the hub\'s own tab', () => {
   assert.deepEqual(switchedOn('KNOWLEDGE', 'h').find, { code: 'app.pages.title', href: '/hubs/h/pages' });
+  assert.equal(switchedOn('SERVICE_DESK', 'h').find?.href, '/hubs/h/desk');
   // A module the hub's strip has no tab for is found at its home.
-  assert.equal(switchedOn('SERVICE_DESK', 'h').find?.href, '/desk');
+  assert.equal(switchedOn('AGENTS', 'h').find?.href, '/agents');
 });
