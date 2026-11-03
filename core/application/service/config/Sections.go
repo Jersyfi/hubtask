@@ -450,11 +450,11 @@ func text(v any) string {
 func workspaceFieldsSection() section {
 	return section{
 		name: sectionFields, list: "ListCustomFields", rows: "data", key: "key",
-		attributes: []string{"kind", "options", "currency", "formula", "is_required", "restricted", "read_restricted", "applies_to"},
+		attributes: []string{"name", "kind", "options", "currency", "formula", "is_required", "restricted", "read_restricted", "applies_to"},
 		fixed:      []string{"kind", "currency", "formula"},
 		create:     "DefineCustomField", change: "UpdateCustomField", remove: "DeleteCustomField",
 		locate: "field_id", locateFrom: "id",
-		changeable: []string{"options", "is_required", "restricted", "read_restricted", "applies_to"},
+		changeable: []string{"name", "options", "is_required", "restricted", "read_restricted", "applies_to"},
 		hides: func(change domain.BlockChange) bool {
 			if change.Op == domain.OpRemove {
 				return true

@@ -320,3 +320,34 @@ func TestACollectionsOwnFieldsTravelWithTheHub(t *testing.T) {
 		t.Errorf("the collection's field was defined as %v", defined)
 	}
 }
+
+// configuration.md §1: a field's name travels in the document - exported, and a changed name
+// applied as a change of the field, not a new definition.
+func TestAFieldsNameTravelsAndIsChangedInPlace(t *testing.T) {
+	f := newFixture()
+	f.world.fields = map[string]map[string]any{"severity": {
+		"id": "0190a8f0-0000-7000-8000-0000000000c1", "key": "severity", "name": "Severity", "kind": "TEXT",
+		"options": []any{}, "applies_to": []any{"TASK"},
+	}}
+	exported := invoke(t, ExportConfig{f.desk}.Descriptor(), person, usecase.Input{})["document"].(map[string]any)
+	if got := block(t, exported, "fields", "severity")["name"]; got != "Severity" {
+		t.Fatalf("the exported field's name reads %v", got)
+	}
+
+	document := map[string]any{"fields": map[string]any{"severity": map[string]any{
+		"name": "How bad", "kind": "TEXT", "applies_to": []any{"TASK"},
+	}}}
+	in := usecase.Input{"document": document, "mode": "MERGE"}
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, in)
+	if plan["plan_hash"] == nil {
+		t.Fatalf("plan %v", plan)
+	}
+	in["plan_hash"], in["acknowledge"] = plan["plan_hash"], true
+	if applied := invoke(t, ApplyConfig{f.desk}.Descriptor(), person, in); applied["state"] != "APPLIED" {
+		t.Fatalf("not applied: %v", applied)
+	}
+	changed := f.world.inputs["UpdateCustomField"]
+	if len(changed) != 1 || changed[0]["name"] != "How bad" {
+		t.Errorf("the field was changed with %v, defined with %v", changed, f.world.inputs["DefineCustomField"])
+	}
+}
