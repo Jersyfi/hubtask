@@ -109,11 +109,16 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
     const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
 
+    // The Today row carries the band's count at desk width; the phone's bar draws marks only.
+    const todayRow = page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).first();
+    if (width >= 1280) await todayRow.filter({ hasText: /1 waiting/u }).waitFor({ timeout: 10_000 });
+
     // Accepted at the row: one decision sent, and the band goes once nothing waits.
     await yes.getByRole('button', { name: 'Approve' }).click();
     for (let tries = 0; tries < 50 && decided.length === 0; tries++) await page.waitForTimeout(100);
     assert.deepEqual(decided.map((each) => each.verdict), ['APPROVE']);
     await yes.waitFor({ state: 'detached', timeout: 10_000 });
+    if (width >= 1280) assert.doesNotMatch((await todayRow.textContent()) ?? '', /waiting/u, 'the count stays once nothing waits');
     assert.deepEqual(failures, []);
   });
 }

@@ -43,6 +43,10 @@
   import { placeTabs, tabNodeId, tabOfNode } from '../workspace/placeTabs.ts';
   import { modules, modulesHere } from '../data/modules.svelte.ts';
   import { newMarks } from '../product/newmark.svelte.ts';
+  import { engine } from '../data/engine.ts';
+  import { myApprovalsPath } from '../data/approvals.svelte.ts';
+  import { productBandsOf, todayRowCountOf } from '../today.ts';
+  import type { ApprovalList } from '@hubtask/sync-engine';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
@@ -70,7 +74,30 @@
    * and the Inbox, so the drawer draws only the places the bar leaves to it (user-experience.md §2.6).
    */
   const places = $derived(primary({ hasJumble, modulesOn }).filter((destination) => hasDestinations || destination.isOffBar));
-  const destinationNodes = $derived(places.map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon })));
+  /**
+   * What waits for the reader's yes, counted on the *Today* row (user-experience.md §3.3); read
+   * only where Today draws that band, from the same list it reads.
+   */
+  let waiting = $state<ApprovalList['data'] | undefined>(undefined);
+  const countsWaiting = $derived(productBandsOf(modulesOn).includes('approvals'));
+  $effect(() => {
+    if (!countsWaiting) {
+      waiting = undefined;
+      return;
+    }
+    return untrack(() => engine.subscribe<ApprovalList>({ path: myApprovalsPath }, (next) => {
+      if (next.status === 'ready') waiting = next.data.data;
+    }));
+  });
+  const todayCount = $derived(todayRowCountOf(waiting));
+  const destinationNodes = $derived(
+    places.map((destination) => ({
+      id: destination.id,
+      label: t(destination.code),
+      icon: destination.icon,
+      ...(destination.id === 'workspace' && todayCount !== undefined ? { meta: t('app.nav.today_waiting', { count: todayCount }) } : {}),
+    })),
+  );
   /** The products band (§2.2): one row per product switched on, under its caption; none while none is on. */
   const productRows = $derived(products({ modulesOn }));
   const productNodes = $derived(

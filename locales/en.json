@@ -2400,6 +2400,7 @@
   "app.nav.hubs": "Hubs",
   "app.nav.private": "Private",
   "app.nav.new_mark": "new",
+  "app.nav.today_waiting": "{count} waiting",
   "app.nav.new": "New",
   "app.nav.new_collection": "Collection in {hub}",
   "app.nav.keeping": "What is kept",

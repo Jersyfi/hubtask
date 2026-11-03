@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, timeTodayOf } from './today.ts';
+import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, timeTodayOf, todayRowCountOf } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -101,4 +101,12 @@ test('time today is the day\'s recorded minutes against the week, with the runni
   assert.deepEqual(timeTodayOf(week, '2026-11-03', { running: false }), { today: 360, week: 600, running: undefined });
   assert.deepEqual(timeTodayOf(week, '2026-11-04', { running: true, elapsed_minutes: 25, entry_id: 'e1' }), { today: 0, week: 600, running: { minutes: 25, entryId: 'e1' } });
   assert.equal(timeTodayOf(undefined, '2026-11-04', { running: false }), undefined, 'not drawn before the week is read');
+});
+
+// user-experience.md §3.3: the products' bands carry their count on the Today row.
+test('the Today row counts what waits for the reader\'s yes, and nothing before it is known', () => {
+  assert.equal(todayRowCountOf(undefined), undefined, 'not drawn before the approvals are read');
+  assert.equal(todayRowCountOf([]), undefined, 'nothing waiting draws no count');
+  assert.equal(todayRowCountOf([{ state: 'PENDING' }, { state: 'APPROVED' }, { state: 'PENDING' }]), 2);
+  assert.equal(todayRowCountOf([{ state: 'DECLINED' }]), undefined);
 });

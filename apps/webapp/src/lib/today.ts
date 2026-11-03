@@ -124,6 +124,15 @@ export function productBandsOf(modulesOn: readonly string[] | undefined): Produc
   ];
 }
 
+/**
+ * The count the *Today* row carries (user-experience.md §3.3): what waits for the reader's yes.
+ * Nothing while unknown or none, so the row never says "0".
+ */
+export function todayRowCountOf(waiting: readonly { readonly state: string }[] | undefined): number | undefined {
+  const count = waiting?.filter((approval) => approval.state === 'PENDING').length ?? 0;
+  return count > 0 ? count : undefined;
+}
+
 /** What *Time today* says: today's recorded minutes, the week's, and the timer while it runs. */
 export interface TimeToday {
   readonly today: number;

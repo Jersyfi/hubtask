@@ -2399,6 +2399,7 @@
   "app.nav.hubs": "Hubs",
   "app.nav.private": "Privat",
   "app.nav.new_mark": "neu",
+  "app.nav.today_waiting": "{count} warten",
   "app.nav.new": "Neu",
   "app.nav.new_collection": "Sammlung in {hub}",
   "app.nav.keeping": "Aufbewahrtes",
