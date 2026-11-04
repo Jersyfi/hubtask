@@ -246,6 +246,26 @@ func TestAwarenessIsRelayedToTheOtherReaders(t *testing.T) {
 	}
 }
 
+// UC-CNV-05 check 3: readers who may not write are on the board like everyone else - each one's
+// cursor and view reach the other.
+func TestAReadOnlyReadersAwarenessIsRelayedBothWays(t *testing.T) {
+	docs := &documents{writable: false}
+	server, _ := serving(t, docs)
+	first, second := dial(t, server), dial(t, server)
+	for _, conn := range []*websocket.Conn{first, second} {
+		next(t, conn) // the drawing so far; a reader is asked for no state of its own
+	}
+
+	send(t, first, Awareness([]byte("reader")))
+	if got := next(t, second); !bytes.Equal(got, Awareness([]byte("reader"))) {
+		t.Errorf("the other reader got %v, want the read-only reader's awareness", got)
+	}
+	send(t, second, Awareness([]byte("other")))
+	if got := next(t, first); !bytes.Equal(got, Awareness([]byte("other"))) {
+		t.Errorf("the read-only reader got %v, want the other's awareness", got)
+	}
+}
+
 func TestTheFramingRoundTrips(t *testing.T) {
 	for _, raw := range [][]byte{SyncStep2([]byte("s")), SyncUpdate(make([]byte, 300)), Awareness([]byte("a"))} {
 		message, err := Decode(raw)
