@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -292,10 +293,12 @@ func TestTheSameProjectsTwiceAreTheSameRowsAndAForeignFileIsRefused(t *testing.T
 	}
 }
 
-// Into a collection that runs its own workflow, the statuses are not carried - only completion.
+// UC-IMP-04 check 7: into a collection that runs its own workflow, the entries land there and the
+// statuses are not carried - only completion.
 func TestIntoACollectionTheWorkflowIsNotReplaced(t *testing.T) {
 	source := trackerSource(t, trackerFile(t))
-	source.Into = &repository.Target{Collection: shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")}
+	into := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
+	source.Into = &repository.Target{Collection: into}
 	result, err := IssueTracker{}.Convert(context.Background(), source)
 	if err != nil {
 		t.Fatal(err)
@@ -307,5 +310,10 @@ func TestIntoACollectionTheWorkflowIsNotReplaced(t *testing.T) {
 	bug := titled(result.Records["work_items"], "Card payment fails on retry")
 	if bug["status"] != nil || bug["is_completed"] != true {
 		t.Errorf("bug = status %v completed %v", bug["status"], bug["is_completed"])
+	}
+	for _, item := range result.Records["work_items"] {
+		if fmt.Sprint(item.Data["collection_id"]) != into.String() {
+			t.Errorf("%v landed in %v, not in the collection named", item.Data["title"], item.Data["collection_id"])
+		}
 	}
 }

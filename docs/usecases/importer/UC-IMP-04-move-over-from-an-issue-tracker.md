@@ -5,7 +5,7 @@ context: importer
 actors: [PE-admin, PE-planner, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [infrastructure/importer/IssueTracker_test.go, test/integration/import_tracker_test.go, core/application/service/importer/Import_test.go, core/application/service/importer/Hold_test.go, core/application/service/work/FormGate_test.go, infrastructure/importer/Csv_test.go, apps/webapp/src/lib/data/imports.test.ts]
 ---
