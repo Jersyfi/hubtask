@@ -327,3 +327,46 @@ func TestADeletedTemplateStaysDeleted(t *testing.T) {
 		t.Fatal("a deleted template was edited")
 	}
 }
+
+// "+3 days" is three days on the calendar of the place the template is used in, also across the
+// night the clocks go back: from midnight on 23 October 2026 in Berlin it is due on the 26th, not
+// at 23:00 on the 25th - which an all-day due date reads as the 25th.
+func TestADayOffsetCountsCalendarDaysAcrossAClockChange(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, test := range map[string]struct {
+		anchor time.Time
+		spec   string
+		want   time.Time
+	}{
+		"autumn, all-day": {
+			time.Date(2026, 10, 23, 0, 0, 0, 0, berlin), "P3D", time.Date(2026, 10, 26, 0, 0, 0, 0, berlin),
+		},
+		"spring, all-day": {
+			time.Date(2026, 3, 27, 0, 0, 0, 0, berlin), "P3D", time.Date(2026, 3, 30, 0, 0, 0, 0, berlin),
+		},
+		"a week back": {
+			time.Date(2026, 10, 30, 0, 0, 0, 0, berlin), "-P1W", time.Date(2026, 10, 23, 0, 0, 0, 0, berlin),
+		},
+		"a day and its hours": {
+			time.Date(2026, 10, 20, 0, 0, 0, 0, berlin), "P1DT9H", time.Date(2026, 10, 21, 9, 0, 0, 0, berlin),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			offset, err := work.ParseTemplateOffset(test.spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			node := work.TemplateNode{DueOffset: &offset, DueDateOnly: true}
+			due, err := node.DueAt(test.anchor, "Europe/Berlin")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !due.At.Equal(test.want) {
+				t.Errorf("due %v, want %v", due.At.In(berlin), test.want)
+			}
+		})
+	}
+}

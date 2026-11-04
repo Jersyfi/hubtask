@@ -260,13 +260,17 @@ func flatten(root TemplateNode) []TemplateNode {
 //
 // The anchor is a moment in the reader's own zone and the offset is added to it, so a template
 // used in Berlin and in São Paulo produces the same *day* in each - which is what "+3 days" means
-// to the person who wrote it (i18n-l10n.md §4).
+// to the person who wrote it (i18n-l10n.md §4). Whole days are calendar days of the anchor's zone
+// and only the rest is a length: 72 hours from midnight before the clocks go back end at 23:00 on
+// the second day, which an all-day due date reads as that day.
 func (n TemplateNode) DueAt(anchor time.Time, zone string) (*DueDate, error) {
 	if n.DueOffset == nil {
 		return nil, nil
 	}
 
-	at := anchor.Add(*n.DueOffset)
+	const day = 24 * time.Hour
+	days, rest := *n.DueOffset/day, *n.DueOffset%day
+	at := anchor.AddDate(0, 0, int(days)).Add(rest)
 	return NewDueDate(&at, n.DueDateOnly, zone)
 }
 
