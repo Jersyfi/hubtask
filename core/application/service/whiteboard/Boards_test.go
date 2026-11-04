@@ -406,6 +406,28 @@ func TestABoardGoesToTheTrashAndComesBack(t *testing.T) {
 	}
 }
 
+// A board comes back from the trash only into a hub with room for it: otherwise the hub would hold
+// more boards than its list shows, and one of them would be out of sight.
+func TestABoardComesBackOnlyIntoAHubWithRoom(t *testing.T) {
+	s, boards, _ := studio(gate{})
+	ctx := context.Background()
+	board, _ := CreateWhiteboard{Studio: s}.Execute(ctx, actor(anna), CreateWhiteboardCommand{HubID: hub, Title: "Retro"})
+	if _, err := (TrashWhiteboard{Studio: s}).Execute(ctx, actor(anna), board.ID); err != nil {
+		t.Fatal(err)
+	}
+	ids := counter{n: 5000}
+	for range domain.MaxBoardsPerHub {
+		id := ids.NewID()
+		boards.boards[id] = domain.Board{ID: id, HubID: hub, Title: "Full", Version: 1}
+	}
+	if _, err := (RestoreWhiteboard{Studio: s}).Execute(ctx, actor(anna), board.ID); detail(err) != "whiteboards.hub_full" {
+		t.Fatalf("a board came back into a full hub: %v", err)
+	}
+	if !boards.boards[board.ID].IsTrashed() {
+		t.Fatal("the refused board left the trash")
+	}
+}
+
 // UC-CNV-01 check 8: a freehand stroke, a web link and a group are read back as drawn.
 func TestAStrokeALinkAndAGroupAreReadBack(t *testing.T) {
 	s, _, _ := studio(gate{})

@@ -63,13 +63,10 @@ func (h CreateWhiteboard) Execute(ctx context.Context, actor appshared.ActorCont
 		if err := h.Studio.hub(ctx, cmd.HubID); err != nil {
 			return err
 		}
-		count, err := h.Studio.Boards.Count(ctx, cmd.HubID)
-		if err != nil {
+		if err := h.Studio.room(ctx, cmd.HubID); err != nil {
 			return err
 		}
-		if count >= domain.MaxBoardsPerHub {
-			return shared.ErrConflict.WithDetail("whiteboards.hub_full").WithParams(map[string]string{"maximum": "1000"})
-		}
+		var err error
 		board, err = domain.NewBoard(domain.NewBoardInput{
 			ID: id, TenantID: actor.TenantID, HubID: cmd.HubID, Title: cmd.Title, Scene: scene,
 			CreatedBy: actor.AccountID, Now: h.Studio.Clock.Now(), Text: h.Studio.Text,
@@ -132,6 +129,18 @@ func (h CreateWhiteboard) Descriptor() usecase.Descriptor {
 			return out, nil
 		}),
 	})
+}
+
+// room refuses a board more in a hub that holds as many as its list shows.
+func (s Studio) room(ctx context.Context, hubID shared.ID) error {
+	count, err := s.Boards.Count(ctx, hubID)
+	if err != nil {
+		return err
+	}
+	if count >= domain.MaxBoardsPerHub {
+		return shared.ErrConflict.WithDetail("whiteboards.hub_full").WithParams(map[string]string{"maximum": "1000"})
+	}
+	return nil
 }
 
 // ReadWhiteboard reads one board with its objects and whether the reader may draw on it.
@@ -356,8 +365,11 @@ func (s Studio) toggle(ctx context.Context, actor appshared.ActorContext, id sha
 			return err
 		}
 		if !trash {
-			// A board comes back only into a hub that is there to hold it.
+			// A board comes back only into a hub that is there to hold it, and has room for it.
 			if err := s.hub(ctx, current.HubID); err != nil {
+				return err
+			}
+			if err := s.room(ctx, current.HubID); err != nil {
 				return err
 			}
 		}
