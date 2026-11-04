@@ -595,6 +595,26 @@ software — go behind *Manage* (one tab that opens them as a second strip), vis
 may run them. A lifecycle state is a non-interactive `Badge`, never a bordered pill that reads as
 a button. A CI's detail shows its relations as a small graph with the list beside it.
 
+As built: the hub's *Assets* has a `PageHeader` with the trail, a figure (*40 configuration items ·
+6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New configuration
+item* as the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
+campaign*, each opening its section's own dialog once. No licence count is drawn: no read answers
+which licences expire. The first strip is *Inventory · Health · Alerts · Groups and map · Manage*;
+*Manage* opens *Runs · Duplicates · Connectors · Campaigns · Register · Software · Import* as a
+second strip and is drawn for whoever may write or shape the hub, the import for a writer only;
+an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
+`ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
+empty inventory offers the create and the import, a reader is told how CIs arrive. A connector is
+a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched
+off*), when it last and next runs, *Pull now* as its one act and the dry run, the full pull,
+*Change* and the credential in its menu; an alert intake shows its address with a line about its
+secret. Alerts narrow in a toolbar; an empty list says how alerts arrive and offers *Set up an
+alert intake* to whoever may define one, narrowed to firing it says *Nothing is firing*. A CI's
+head is a `PageHeader` (trail, class, lifecycle, *Copy the reference*); its relations are drawn
+as what points at it, the CI and what it points at, six a side with the rest counted, beside the
+list from the expanded width and above it on a phone, hidden from assistive technology because
+the list carries every relation with its link.
+
 ### 7.4 Service desk and portal
 
 **The handler's queue** (mockup: `shell.html`, *Desk*) is the desk collection's default view and

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, infrastructure/connector/Pullers_test.go, presentation/intake/InventoryIntake_test.go, presentation/rest/CmdbInventoryController_test.go, presentation/worker/CmdbConnectorPull_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/domain/model/cmdb/Connector_test.go, core/application/service/cmdb/Connectors_test.go, infrastructure/connector/Pullers_test.go, presentation/intake/InventoryIntake_test.go, presentation/rest/CmdbInventoryController_test.go, presentation/worker/CmdbConnectorPull_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/e2e/assetsscreen.test.mjs]
 ---
 
 # Pull our inventory from the tools that already know it

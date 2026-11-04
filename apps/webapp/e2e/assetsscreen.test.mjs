@@ -5,7 +5,8 @@
 // how it stands, the operator's sections behind *Manage* as a second strip that a reader is never
 // shown, a create in the head's list that opens its section's own dialog, connectors as cards with
 // one act and a menu, and alerts that say where they come from when there are none - with no
-// sideways scroll on a phone, full or empty.
+// sideways scroll on a phone, full or empty; and a CI's relations as a small graph beside the list
+// (UC-AST-01 check 8, UC-AST-07 check 7, UC-AST-08 check 7).
 //
 // Chromium only: what this asserts is the rendered screen.
 
