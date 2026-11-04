@@ -16,7 +16,7 @@
 import type { Storage } from './ports.ts';
 import { collectionOf, Replica, META } from './replica.ts';
 import type {
-  ChangeRecord, ConflictRecord, MutationKind, PendingMutation, QueuedWrite, RejectedMutation, StoredRecord,
+  ChangeRecord, ConflictRecord, MutationKind, PendingMutation, QueuedWrite, RefusedField, RejectedMutation, StoredRecord,
   SyncMutation, SyncMutationResult,
 } from './schema.ts';
 
@@ -227,9 +227,13 @@ export class Queue {
       case 'REJECTED': {
         const code = result.error?.code ?? 'rejected';
         const messageCode = result.error?.message_code;
+        const params = textParams(result.error?.params);
+        const fieldErrors = refusedFields(result.error?.field_errors);
         await this.#storage.put<RejectedMutation>(REJECTED, pending.id, {
           id: pending.id, kind: pending.kind, itemId: pending.itemId, code,
           ...(messageCode ? { messageCode } : {}),
+          ...(params ? { params } : {}),
+          ...(fieldErrors.length > 0 ? { fieldErrors } : {}),
           local: localOf(pending.mutation),
           at,
           mutation: pending.mutation,
@@ -342,3 +346,20 @@ function localOf(mutation: SyncMutation): unknown {
 }
 
 export type { MutationKind };
+
+/** A message's values as text, the only kind the server sends (ADR-0011); anything else is left out. */
+function textParams(raw: Record<string, unknown> | null | undefined): Record<string, string> | undefined {
+  if (!raw) return undefined;
+  const params = Object.fromEntries(Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  return Object.keys(params).length > 0 ? params : undefined;
+}
+
+function refusedFields(raw: readonly { path?: string; code?: string; params?: Record<string, unknown> }[] | null | undefined): RefusedField[] {
+  const fields: RefusedField[] = [];
+  for (const field of raw ?? []) {
+    if (!field.path || !field.code) continue;
+    const params = textParams(field.params);
+    fields.push({ path: field.path, code: field.code, ...(params ? { params } : {}) });
+  }
+  return fields;
+}

@@ -129,6 +129,13 @@ export interface PendingMutation {
   readonly attempts: number;
 }
 
+/** One field a refusal names, with the message code and values of its reason. */
+export interface RefusedField {
+  readonly path: string;
+  readonly code: string;
+  readonly params?: Readonly<Record<string, string>>;
+}
+
 /**
  * A mutation the server refused (§9.5): kept with its code until the person dismisses it, so
  * that what they did offline is shown to them rather than swallowed. `sync.gone` (§7) and
@@ -141,6 +148,10 @@ export interface RejectedMutation {
   readonly itemId: string;
   readonly code: string;
   readonly messageCode?: string;
+  /** The values of the message, as the server answered them. */
+  readonly params?: Readonly<Record<string, string>>;
+  /** What the refusal says about single fields: `path` is a JSON Pointer into the values. */
+  readonly fieldErrors?: readonly RefusedField[];
   readonly local: unknown;
   readonly at: number;
   /**

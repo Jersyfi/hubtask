@@ -244,6 +244,24 @@ test('user-experience.md §5.11: a refused change opened as a draft is sent agai
   assert.equal(await engine.resendRejected('no-such-refusal', {}), false);
 });
 
+test('user-experience.md §5.11: a refusal keeps what it says about each field and its values', async () => {
+  const { transport, engine } = await synced();
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id,
+    error: {
+      code: 'invalid', message_code: 'items.title_too_long', params: { max: '500' },
+      field_errors: [{ path: '/title', code: 'items.title_too_long', params: { max: '500' } }],
+    },
+  });
+  transport.down = true;
+  await engine.mutate('PATCH', `/items/${ITEM}`, { title: 'far too long' });
+  transport.down = false;
+  await engine.push();
+  const refused = engine.queueState.rejected[0];
+  assert.deepEqual(refused?.params, { max: '500' });
+  assert.deepEqual(refused?.fieldErrors, [{ path: '/title', code: 'items.title_too_long', params: { max: '500' } }]);
+});
+
 test('§9.3, §7: a sync.gone is discarded, the copy goes, and the local text is offered back', async () => {
   const { transport, engine, storage } = await synced();
   // The shape the server answers: the category as `code`, the message code beside it.
