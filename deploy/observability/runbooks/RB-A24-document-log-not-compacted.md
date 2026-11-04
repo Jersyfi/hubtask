@@ -25,6 +25,10 @@ sum by (outcome) (rate(hubtask_realtime_document_backlog_total[15m]))
   the matter; a current web app answers.
 * **`refused` rising** → a document reached the ceiling. Any current web app opening it is asked
   for a snapshot at once and lifts the refusal; ask its people to open it once.
+* **`incomplete`** → a writer's snapshot lacked updates or deletions the log already holds and was
+  not stored, so nothing was hidden from other openers. One now and then is a writer that had not
+  caught up; a steady rate is a client whose state is out of step with the log - its people reload
+  the document, a current web app's next snapshot covers it.
 
 ## Escalation
 

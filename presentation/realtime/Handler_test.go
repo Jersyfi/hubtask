@@ -41,6 +41,8 @@ type documents struct {
 	// snapshot's place.
 	due       bool
 	compacted []int64
+	// lacking answers every snapshot as one without part of the log.
+	lacking bool
 }
 
 func (d *documents) Open(context.Context, appshared.ActorContext, domain.Ref) (realtimeservice.Opened, error) {
@@ -84,6 +86,9 @@ func (d *documents) Append(_ context.Context, _ appshared.ActorContext, _ domain
 func (d *documents) Compact(_ context.Context, _ appshared.ActorContext, _ domain.Ref, upTo int64, _ []byte) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.lacking {
+		return shared.ErrValidation.WithDetail("realtime.snapshot_incomplete")
+	}
 	d.compacted = append(d.compacted, upTo)
 	return nil
 }
@@ -512,5 +517,35 @@ func TestASnapshotBeyondWhatWasAskedIsNotStored(t *testing.T) {
 	defer docs.mu.Unlock()
 	if len(docs.compacted) != 0 {
 		t.Errorf("stored a snapshot up to %v nobody asked for", docs.compacted)
+	}
+}
+
+// A snapshot that lacks part of the log is not stored and does not end the writer's connection:
+// its words still reach the log, and the refusal is counted for the alert (A-24).
+func TestASnapshotLackingPartOfTheLogKeepsTheConnection(t *testing.T) {
+	docs := &documents{writable: true, due: true, lacking: true}
+	signals := &backlogSignals{}
+	handler := Handler{Documents: docs, Relay: NewRelay(), Signals: signals}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser}, doc, nil, Credential{})
+	}))
+	t.Cleanup(server.Close)
+	writer := dial(t, server)
+	next(t, writer) // the snapshot at 1
+	next(t, writer) // step one
+
+	send(t, writer, SyncUpdate([]byte("mine"))) // stored at 2, compaction due
+	if got := next(t, writer); !bytes.Equal(got, CompactionDue(2)) {
+		t.Fatalf("answered %v, want the request for a snapshot up to 2", got)
+	}
+	send(t, writer, compactMessage(2, []byte("lacking")))
+	send(t, writer, SyncUpdate([]byte("more"))) // still heard: stored at 3, asked again
+	if got := next(t, writer); !bytes.Equal(got, CompactionDue(3)) {
+		t.Fatalf("answered %v, want the request for a snapshot up to 3", got)
+	}
+	signals.mu.Lock()
+	defer signals.mu.Unlock()
+	if len(signals.outcomes) != 1 || signals.outcomes[0] != "incomplete" {
+		t.Errorf("counted %v, want one incomplete snapshot", signals.outcomes)
 	}
 }

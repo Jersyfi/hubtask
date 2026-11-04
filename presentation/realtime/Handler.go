@@ -436,6 +436,13 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 			// Another writer's snapshot came first; this one is not needed.
 			return nil
 		}
+		if coded := (*shared.Error)(nil); errors.As(err, &coded) &&
+			(coded.DetailCode == "realtime.snapshot_incomplete" || coded.DetailCode == "realtime.snapshot_unreadable") {
+			// Not stored, and not the connection's end: the writer's updates still reach the log,
+			// and the next request asks again. Counted, since the log grows meanwhile (A-24).
+			c.signal(ctx, "incomplete")
+			return nil
+		}
 		return err
 	}
 	return nil

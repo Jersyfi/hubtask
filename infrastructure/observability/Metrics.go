@@ -875,7 +875,7 @@ func (m *Metrics) mediaInstruments(meter metric.Meter) error {
 	}
 	if m.documentBacklog, err = meter.Int64Counter(
 		namespace+"_realtime_document_backlog_total",
-		metric.WithDescription("Live document updates landing on a log no writer compacts, by outcome: overdue or refused."),
+		metric.WithDescription("Live document updates landing on a log no writer compacts, by outcome: overdue or refused; incomplete is a writer's snapshot refused for lacking part of the log."),
 	); err != nil {
 		return fmt.Errorf("document backlog counter: %w", err)
 	}
@@ -908,8 +908,8 @@ func (m *Metrics) AwarenessRelayed(ctx context.Context, outcome string) {
 }
 
 // DocumentBacklog counts an update on a live document's log past five rounds of compaction
-// (`overdue`) or refused at its ceiling (`refused`): writers that do not answer the server's
-// request for a snapshot (offline-sync.md SY-F, A-24).
+// (`overdue`) or refused at its ceiling (`refused`), and a writer's snapshot refused for lacking
+// part of the log (`incomplete`): logs that stay uncompacted (offline-sync.md SY-F, A-24).
 func (m *Metrics) DocumentBacklog(ctx context.Context, outcome string) {
 	m.documentBacklog.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", outcome)))
 }
