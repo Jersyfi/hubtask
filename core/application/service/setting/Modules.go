@@ -68,6 +68,15 @@ type Modules struct {
 	// Epochs is the workspace's synchronisation epoch, advanced when a module whose records leave
 	// a device's copy turns on or off at the workspace (offline-sync.md §8). Nil advances nothing.
 	Epochs Epochs
+	// Hold holds the workspace's configuration, the modules among it, for a switch's transaction:
+	// two switches at once otherwise each judge what a module needs on what the other has not
+	// committed yet. Nil holds nothing.
+	Hold Holder
+}
+
+// Holder holds the workspace's configuration until the transaction ends.
+type Holder interface {
+	Hold(ctx context.Context) error
 }
 
 // Epochs advances the workspace's synchronisation epoch inside the caller's transaction.
@@ -218,6 +227,11 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 	}
 	var states []module.State
 	err = m.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if m.Hold != nil {
+			if err := m.Hold.Hold(ctx); err != nil {
+				return err
+			}
+		}
 		layers, err := m.layers(ctx, where.walk)
 		if err != nil {
 			return err

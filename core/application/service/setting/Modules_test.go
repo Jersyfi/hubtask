@@ -530,3 +530,38 @@ func TestWorkflowsIsNotSwitchedOffUnderTheServiceDesk(t *testing.T) {
 		t.Errorf("workflows off once the desk is off = %v, want it switched", err)
 	}
 }
+
+type holder struct{ onHold func() }
+
+func (h *holder) Hold(context.Context) error {
+	if hook := h.onHold; hook != nil {
+		h.onHold = nil
+		hook()
+	}
+	return nil
+}
+
+// The desk switched on by somebody else while Workflows is switched off: the switch holds the
+// workspace's configuration before it reads the modules, so it sees the desk on and is refused
+// rather than leaving the desk on without the workflows it needs.
+func TestAModuleSwitchedMeanwhileIsSeenBeforeANeededOneGoesOff(t *testing.T) {
+	ctx := context.Background()
+	modules, store, _ := fixture()
+	hold := &holder{}
+	modules.Hold = hold
+	set := settingservice.SetModule{Modules: modules}
+	if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Workflows, Switch: settingservice.SwitchOn}); err != nil {
+		t.Fatal(err)
+	}
+	hold.onHold = func() {
+		for place, entries := range store.rows {
+			if _, held := entries[module.Workflows.SettingKey()]; held {
+				store.rows[place][module.ServiceDesk.SettingKey()] = domain.Entry{Value: true, Hold: domain.HoldSet}
+			}
+		}
+	}
+	_, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Workflows, Switch: settingservice.SwitchOff})
+	if !refusedWith(err, "module.needed") {
+		t.Fatalf("workflows off under a desk switched on meanwhile = %v, want module.needed", err)
+	}
+}

@@ -1955,6 +1955,7 @@ func run() error {
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		// A switch of the goals at the workspace resynchronises its devices (offline-sync.md §8).
 		Epochs: postgres.NewEpochRepository(),
+		Hold:   postgres.NewConfigRepository(),
 	}
 	// The configuration document (F-6): read and written through the registry it is part of, so
 	// every block it changes goes through the use case every other door reaches.
