@@ -241,6 +241,7 @@
             <div><dt>{t('app.assets.problems')}</dt><dd>{inventory.wanting}</dd></div>
             <div><dt>{t('app.assets.review_overdue')}</dt><dd>{inventory.reviewOverdue}</dd></div>
           </dl>
+          {#if inventory.wanting > 0}<p class="why">{t('app.assets.attention_why')}</p>{/if}
         </Stack>
       </section>
     {/if}
@@ -364,6 +365,7 @@
   }
   .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
   .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+  .why { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */

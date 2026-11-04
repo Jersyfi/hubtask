@@ -20,7 +20,7 @@
 
   import type { ConfigCheck, ConfigProposalList, ConfigTemplateList, ResourceState } from '@hubtask/sync-engine';
 
-  import { backupState, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
+  import { backupState, limitAmount, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
   import { gapsOf } from '../lib/administration/gaps.ts';
   import FirstStepsCard from '../lib/administration/FirstSteps.svelte';
   import { firstSteps, isOwed } from '../lib/administration/firststeps.ts';
@@ -37,7 +37,6 @@
   import { privacy, standingOf, deadlinePhrase } from '../lib/data/privacy.svelte.ts';
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
-  import { formatBytes } from '../lib/i18n/bytes.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -203,7 +202,7 @@
     'export_jobs', 'ai_tokens_per_day', 'ai_own_tokens_per_day', 'ai_arrival_proposals_per_day', 'accounts',
   ]);
   const limitName = (quota: string) => (KNOWN_LIMITS.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
-  const amount = (quota: string, value: number) => (quota === 'media_bytes' ? formatBytes(value, messages.locale) : String(value));
+  const amount = (quota: string, value: number) => limitAmount(quota, value, messages.locale);
   const at = (iso: string) => formatDateTime(iso, messages.locale);
 
   const LIMIT_TONE = { reached: 'danger', near: 'warning', room: 'neutral' } as const;

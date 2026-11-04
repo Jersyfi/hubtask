@@ -165,7 +165,7 @@
         {#if standing}
           <p class="figure" data-assets-figure>
             <span>{t('app.assets.figure_total', { count: standing.total })}</span>
-            {#if standing.wanting > 0}<span><span aria-hidden="true">·</span> {t('app.assets.figure_wanting', { count: standing.wanting })}</span>{/if}
+            {#if standing.wanting > 0}<span><span aria-hidden="true">·</span> <a href={`/hubs/${hubId}/assets/health`} title={t('app.assets.attention_why')}>{t('app.assets.figure_wanting', { count: standing.wanting })}</a></span>{/if}
             {#if standing.firing}<Badge size="sm" tone="danger" icon="bell">{t('app.assets.figure_firing', { count: standing.firing })}</Badge>{/if}
           </p>
         {/if}
@@ -220,6 +220,8 @@
 <style>
   .assets { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); min-block-size: 0; }
   .figure { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .figure a { color: inherit; text-decoration-line: underline; text-decoration-style: dotted; text-underline-offset: var(--sp-025); }
+  .figure a:hover { color: var(--text-primary); }
   .manage { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-150); }
   .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
 </style>

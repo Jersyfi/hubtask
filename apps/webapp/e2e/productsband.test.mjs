@@ -322,7 +322,9 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     const inventory = page.getByRole('region', { name: 'Inventory across your hubs' });
     await inventory.waitFor({ timeout: 10_000 });
     const figures = await inventory.locator('dl > div').evaluateAll((rows) => rows.map((row) => `${row.querySelector('dt')?.textContent}=${row.querySelector('dd')?.textContent}`));
-    assert.deepEqual(figures, ['Configuration items=42', 'Found wanting=2', 'Review overdue=4']);
+    assert.deepEqual(figures, ['Configuration items=42', 'Need attention=2', 'Review overdue=4']);
+    // What makes one need attention is said beside the figure, not left to guess.
+    await inventory.getByText('A configuration item needs attention when it is incomplete').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `assets ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });

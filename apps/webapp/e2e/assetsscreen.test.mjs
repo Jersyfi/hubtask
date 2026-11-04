@@ -107,6 +107,10 @@ test('chromium: the inventory comes first under its figure, the operator\'s sect
   await figure.waitFor({ timeout: 20_000 });
   await page.getByText('alert firing').waitFor({ timeout: 5_000 });
   assert.match(await figure.innerText(), /40 configuration items[\s\S]*6 need attention[\s\S]*1 alert firing/);
+  // The count opens the health, where each one says why, and its title says what counts.
+  const attention = figure.getByRole('link', { name: '6 need attention' });
+  assert.equal(await attention.getAttribute('href'), `/hubs/${HUB.id}/assets/health`);
+  assert.match(await attention.getAttribute('title') ?? '', /incomplete, stale, orphaned/);
   assert.deepEqual(await tabNames(strips(page).first()), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Manage']);
   assert.equal(await strips(page).count(), 1, 'the second strip shows before Manage is chosen');
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 5_000 });

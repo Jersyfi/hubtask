@@ -10,6 +10,13 @@
  * the first line is the one that most needs somebody.
  */
 
+import { formatBytes } from '../i18n/bytes.ts';
+
+/** A limit's figure as the reader writes numbers (`200,000`, `200.000`); stored bytes as a size. */
+export function limitAmount(quota: string, value: number, locale: string): string {
+  return quota === 'media_bytes' ? formatBytes(value, locale) : new Intl.NumberFormat(locale).format(value);
+}
+
 /** A limit as `/quotas` answers it, the part the overview reads. */
 export interface LimitStanding {
   readonly quota: string;

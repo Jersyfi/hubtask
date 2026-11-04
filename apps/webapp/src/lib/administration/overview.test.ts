@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { backupState, findingsIn, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines } from './overview.ts';
+import { backupState, findingsIn, limitAmount, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines } from './overview.ts';
 
 test('limits: fullest first, reached and near told apart, no line without a ceiling or a count', () => {
   const lines = limitLines([
@@ -121,4 +121,10 @@ test('mailboxes: a switched-on mailbox refusing for over an hour is a line, a qu
     { id: 'd', address: 'off@d.example', enabled: false, failing: true },
   ]);
   assert.deepEqual(lines.map((line) => line.id), ['a', 'b']);
+});
+
+test('a limit\'s figures are grouped the reader\'s way, bytes as sizes', () => {
+  assert.equal(limitAmount('items', 200000, 'en'), '200,000');
+  assert.equal(limitAmount('items', 200000, 'de'), '200.000');
+  assert.match(limitAmount('media_bytes', 2_000_000, 'en'), /MB/);
 });

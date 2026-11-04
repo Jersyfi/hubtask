@@ -171,6 +171,7 @@
 
     <section class="part" aria-labelledby="health-problems">
       <h2 id="health-problems" class="heading">{t('app.assets.problems')}</h2>
+      <p class="meta">{t('app.assets.attention_why')}</p>
       {#if health.problems.length === 0}
         <p class="meta">{t('app.assets.problems_none')}</p>
       {:else}

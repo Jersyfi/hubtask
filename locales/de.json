@@ -3466,7 +3466,7 @@
   "app.admin_overview.waiting_proposals": "{count, plural, one {Eine Konfigurationsänderung vorgeschlagen} other {# Konfigurationsänderungen vorgeschlagen}}",
   "app.admin_overview.waiting_update": "{name}: eine neuere Version",
   "app.admin_overview.open_changes": "Alle Änderungen",
-  "app.admin_overview.health": "Funktionen",
+  "app.admin_overview.health": "Was nicht funktioniert",
   "app.admin_overview.health_fine": "Jede Funktion arbeitet.",
   "app.admin_overview.gap_mail": "Benachrichtigungen gehen nicht per E-Mail hinaus: Diese Installation hat keinen Mailserver. In Hubtask sieht man sie weiterhin; den Mailversand richtet der Betreiber der Installation ein.",
   "app.admin_overview.gap_secrets": "Webhooks können nicht angelegt werden: Diese Installation hat keinen Schlüssel, um ihre Geheimnisse zu verwahren. Den richtet ihr Betreiber ein.",
@@ -10247,8 +10247,8 @@
   "app.assets.duplicates": "Dubletten",
   "app.assets.without_owner": "Ohne Verantwortliche",
   "app.assets.review_overdue": "Prüfung überfällig",
-  "app.assets.problems": "Mit Mängeln",
-  "app.assets.problems_none": "Nichts ist mangelhaft.",
+  "app.assets.problems": "Brauchen Aufmerksamkeit",
+  "app.assets.problems_none": "Nichts braucht Aufmerksamkeit.",
   "app.assets.stale_relations": "Unbestätigte Beziehungen",
   "app.assets.services": "Services",
   "app.assets.services_none": "In diesem Hub gibt es noch keinen Service.",
@@ -12481,5 +12481,6 @@
   "app.time.tab_settings": "Einstellungen",
   "app.agents.scopes_pick_hint": "Nur ankreuzen, was seine Arbeit braucht; ein Token seines Kontos mit mehr wird darauf beschränkt.",
   "app.agents.scopes_advanced": "Erweitert: Bereiche als Text",
-  "app.agents.scopes_typed": "Bereiche"
+  "app.agents.scopes_typed": "Bereiche",
+  "app.assets.attention_why": "Ein Konfigurationselement braucht Aufmerksamkeit, wenn es unvollständig, veraltet, verwaist oder eine Dublette ist, keine Verantwortlichen hat oder seine Prüfung überfällig ist."
 }
