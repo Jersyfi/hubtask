@@ -225,3 +225,24 @@ func TestACampaignIsOverdueOnlyAfterItsDueDay(t *testing.T) {
 	}
 }
 
+// UC-AST-10 check 2: a confirmed CI is reviewed again a period later; a period counted from a
+// month's end ends at the end of a shorter month, not days into the next.
+func TestTheNextReviewFromAMonthsEndStaysInItsMonth(t *testing.T) {
+	cases := []struct {
+		from   string
+		months int
+		want   string
+	}{
+		{"2026-01-31", 1, "2026-02-28"},
+		{"2027-08-31", 6, "2028-02-29"},
+		{"2026-03-31", 1, "2026-04-30"},
+		{"2026-10-29", 12, "2027-10-29"},
+		{"2028-02-29", 12, "2029-02-28"},
+	}
+	for _, c := range cases {
+		from, _ := time.Parse(time.DateOnly, c.from)
+		if got := (Campaign{ReviewMonths: c.months}).NextReview(from.Add(10 * time.Hour)).Format(time.DateOnly); got != c.want {
+			t.Errorf("%s + %d months: %s, want %s", c.from, c.months, got, c.want)
+		}
+	}
+}
