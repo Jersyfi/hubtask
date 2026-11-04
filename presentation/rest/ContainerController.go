@@ -115,6 +115,9 @@ func containerResponse(out usecase.Output) openapi.Container {
 	if handle := out.String("handle"); handle != "" {
 		container.Handle = &handle
 	}
+	if keyPrefix := out.String("key_prefix"); keyPrefix != "" {
+		container.KeyPrefix = &keyPrefix
+	}
 	if policies, ok := out["policies"].(map[string]any); ok {
 		container.Policies = &openapi.ContainerPolicies{}
 		if policy, ok := policies["completion_policy"].(string); ok {
