@@ -13,6 +13,16 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
+  # The database image of the Compose stacks, pinned by digest so a pull never changes the
+  # PostgreSQL minor unseen (deployment.md §2.1); this is what moves the pin, as a reviewed change.
+  - package-ecosystem: docker-compose
+    directory: /deploy/docker
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

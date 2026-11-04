@@ -41,7 +41,7 @@ migrator (`hubtask-migrate`) and the restore drill.
 
 ### 2.1 Self-hosting (Docker/Podman)
 
-The reference is `deploy/docker/compose.yaml`: the database (`pgvector/pgvector:pg16`, so semantic
+The reference is `deploy/docker/compose.yaml`: the database (`pgvector/pgvector:0.8.7-pg16`, pinned by digest and moved by Dependabot, so semantic
 search is available), a one-shot migration service, and the application. The database is not
 published; the application runs `read_only` with `no-new-privileges`, has volumes for media and
 backups, and starts only after the migration ended with `service_completed_successfully`.
