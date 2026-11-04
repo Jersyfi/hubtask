@@ -105,7 +105,7 @@ func readQueryDocument(cli *CLI, source string) (map[string]any, error) {
 	}
 
 	var document map[string]any
-	if err := json.Unmarshal(raw, &document); err != nil {
+	if err := json.Unmarshal(jsonText(raw), &document); err != nil {
 		message, _ := cli.Catalogue.Message("query.document_unreadable", nil)
 		return nil, usageError{error: errorString("--query: " + message)}
 	}

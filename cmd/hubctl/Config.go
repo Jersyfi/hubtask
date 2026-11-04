@@ -143,7 +143,7 @@ func readDocument(cli *CLI, source string) (map[string]any, error) {
 		return nil, usageError{error: errorString("-f: " + err.Error())}
 	}
 	var document map[string]any
-	if err := json.Unmarshal(raw, &document); err != nil {
+	if err := json.Unmarshal(jsonText(raw), &document); err != nil {
 		return nil, usageError{error: errorString("-f: not a JSON document")}
 	}
 	// An export is accepted as it is: its document is what is planned.

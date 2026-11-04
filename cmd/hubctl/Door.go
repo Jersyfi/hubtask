@@ -316,7 +316,7 @@ func readBody(in io.Reader, source string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading --body: %w", err)
 	}
-	if err := json.Unmarshal(raw, &body); err != nil {
+	if err := json.Unmarshal(jsonText(raw), &body); err != nil {
 		return nil, usagef("--body is not a JSON object: %v", err)
 	}
 	return body, nil

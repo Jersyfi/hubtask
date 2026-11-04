@@ -154,7 +154,7 @@ func readTemplateNodes(cli *CLI, source string) ([]openapi.TemplateNode, error) 
 	}
 
 	var nodes []openapi.TemplateNode
-	if err := json.Unmarshal(raw, &nodes); err != nil {
+	if err := json.Unmarshal(jsonText(raw), &nodes); err != nil {
 		message, _ := cli.Catalogue.Message("templates.nodes_unreadable", nil)
 		return nil, usageError{error: errorString("--nodes: " + message)}
 	}
