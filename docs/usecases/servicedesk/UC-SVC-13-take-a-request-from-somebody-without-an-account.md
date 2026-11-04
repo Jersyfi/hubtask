@@ -5,7 +5,7 @@ context: servicedesk
 actors: [PE-requester, PE-handler, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-11, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/domain/model/integration/FormLinkToken_test.go, core/domain/model/servicedesk/PublicForm_test.go, core/application/service/servicedesk/PublicForms_test.go, presentation/rest/PublicFormController_test.go, test/integration/public_form_test.go, test/integration/public_form_challenge_test.go, apps/webapp/src/lib/forms/work.test.ts, apps/webapp/src/lib/data/publicforms.test.ts, apps/webapp/src/lib/data/entryforms.test.ts]
 ---

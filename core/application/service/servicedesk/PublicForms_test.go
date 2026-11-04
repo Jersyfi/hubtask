@@ -350,6 +350,48 @@ func TestAPublicRequestIsFiledOnceAsTheMakerForTheVisitor(t *testing.T) {
 	}
 }
 
+// watchedAccounts answers the maker like makerAccounts and remembers every account it was asked
+// for; any other way into the accounts - by address above all - panics through the nil embed.
+type watchedAccounts struct {
+	makerAccounts
+	asked *[]shared.ID
+}
+
+func (a watchedAccounts) Find(ctx context.Context, id shared.ID) (identity.Account, error) {
+	*a.asked = append(*a.asked, id)
+	return a.makerAccounts.Find(ctx, id)
+}
+
+// UC-SVC-13 check 7: the visitor's address is never looked up among the workspace's accounts - the
+// only account read is the link's maker - and the answer is the same whoever the address belongs
+// to; neither the forms nor the portal hold a mail port, so nothing is mailed on submission.
+func TestAPublicRequestLooksUpNoAccountByItsAddress(t *testing.T) {
+	ctx := context.Background()
+	s := newPublicScene()
+	var asked []shared.ID
+	watched := watchedAccounts{makerAccounts: makerAccounts{status: identity.AccountActive}, asked: &asked}
+	s.forms.Accounts, s.forms.Portal.Accounts = watched, watched
+	token := s.mint(t)
+	submit := SubmitPublicForm{Forms: s.forms}
+	for _, address := range []string{"jonas@example.org", "nobody@example.net"} {
+		challenge, solution := solved(t, s, token)
+		err := submit.Execute(ctx, token, PublicSubmission{
+			EntryType: "feedback", Title: "Drucker", RequesterEmail: address, Challenge: challenge, Solution: solution,
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", address, err)
+		}
+	}
+	if len(asked) == 0 {
+		t.Fatal("the maker was never read; the watch saw nothing")
+	}
+	for _, id := range asked {
+		if id != handlerID {
+			t.Errorf("an account other than the maker was read: %s", id)
+		}
+	}
+}
+
 // UC-SVC-13 check 8: a challenge solved once files one request on whichever server it is sent
 // to, and one requester's address files at most PublicFormRequesterPerHour requests an hour.
 func TestAChallengeIsSpentOnceAcrossServersAndARequesterIsBounded(t *testing.T) {
