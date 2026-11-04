@@ -249,6 +249,9 @@ func up(ctx context.Context, pool, guarded *sql.DB, files fs.FS, pause time.Dura
 			return fmt.Errorf("applying %d: %w", state.Source.Version, err)
 		}
 	}
+	if err := attachPartitionIndexes(ctx, pool); err != nil {
+		return err
+	}
 	if err := refuseInvalidIndexes(ctx, pool, files); err != nil {
 		return err
 	}

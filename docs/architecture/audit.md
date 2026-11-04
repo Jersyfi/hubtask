@@ -171,8 +171,8 @@ old name, and the `action` filter matches both names and the family (`core/port/
 
 **Routes:** `GET /audit` with the shared query DSL (period, `action`, `actor`, `target`, `outcome`,
 and `request_id` - the reference an error answer carries, matched against the entry's context, so
-the sentence a person quotes finds its record; read through the tenant's trail without an index of
-its own, so a period narrows it);
+the sentence a person quotes finds its record; read through `audit_request_idx` on every partition,
+0359);
 `POST /audit:export` as a signed JSON Lines or CSV archive with a checksum manifest and a stated
 period; `POST /audit:verify` for the chain check. Scopes: `audit:read` for reading and verifying,
 `audit:export` for the export — carrying a copy out is a different act.

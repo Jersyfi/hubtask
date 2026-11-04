@@ -21,7 +21,7 @@ const lastReleasedMigration = 206
 
 var (
 	createdTable   = regexp.MustCompile(`(?i)\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
-	createdIndex   = regexp.MustCompile(`(?is)\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?[a-z_0-9]*\s*ON\s+(?:ONLY\s+)?([a-z_][a-z0-9_]*)`)
+	createdIndex   = regexp.MustCompile(`(?is)\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?[a-z_0-9]*\s*ON\s+(ONLY\s+)?([a-z_][a-z0-9_]*)`)
 	alteredTable   = regexp.MustCompile(`(?is)^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([a-z_][a-z0-9_]*)\s+(.*)$`)
 	addsConstraint = regexp.MustCompile(`(?is)\bADD\s+CONSTRAINT\s+([a-z_0-9]+)\s+(CHECK|FOREIGN\s+KEY)\b`)
 	validates      = regexp.MustCompile(`(?is)\bVALIDATE\s+CONSTRAINT\s+([a-z_0-9]+)`)
@@ -102,8 +102,9 @@ func lockViolations(t *testing.T) []lockViolation {
 		addedHere := map[string]bool{}
 		for _, statement := range file.statements {
 			if match := createdIndex.FindStringSubmatch(statement); match != nil &&
-				released[strings.ToLower(match[2])] && match[1] == "" {
-				found = append(found, lockViolation{file.name, "an index on the released table " + match[2] + " without CONCURRENTLY"})
+				released[strings.ToLower(match[3])] && match[1] == "" && match[2] == "" {
+				// ON ONLY builds nothing; the migrator builds each partition's share concurrently.
+				found = append(found, lockViolation{file.name, "an index on the released table " + match[3] + " without CONCURRENTLY"})
 			}
 			altered := alteredTable.FindStringSubmatch(statement)
 			if altered == nil || !released[strings.ToLower(altered[1])] {
