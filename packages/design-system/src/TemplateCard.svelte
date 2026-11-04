@@ -28,6 +28,8 @@
     isNoteNews?: boolean;
     /** The card's act: *Take*, *Update*, *Preview*. */
     action?: Snippet;
+    /** What taking it creates, in words, folded under *Preview* (a `Disclosure`): drawn before the act. */
+    details?: Snippet;
     /** A small drawing of what the template makes, in place of the mark (a board's frames, a page's outline). */
     preview?: Snippet;
     /** The card is the one chosen in a gallery that is a choice (a create dialog); the act says it in words too. */
@@ -36,7 +38,7 @@
     isCompact?: boolean;
   }
 
-  const { name, summary, mark = 'layout-template', products = [], note, isNoteNews = false, action, preview, isChosen = false, isCompact = false, ...rest }: Props = $props();
+  const { name, summary, mark = 'layout-template', products = [], note, isNoteNews = false, action, details, preview, isChosen = false, isCompact = false, ...rest }: Props = $props();
 </script>
 
 <li class="template" data-chosen={isChosen ? '' : undefined} data-compact={isCompact ? '' : undefined} {...rest}>
@@ -53,6 +55,7 @@
     </span>
   {/if}
   {#if note}<span class="note" data-news={isNoteNews ? '' : undefined}>{note}</span>{/if}
+  {#if details}<div class="details">{@render details()}</div>{/if}
   {#if action}<span class="action">{@render action()}</span>{/if}
 </li>
 
@@ -112,5 +115,6 @@
   .note[data-news] { color: var(--text-brand); }
 
   /* The act sits at the card's foot, whatever the sentence above it took. */
+  .details { align-self: stretch; min-inline-size: 0; }
   .action { margin-top: auto; padding-top: var(--sp-050); }
 </style>
