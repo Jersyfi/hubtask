@@ -139,14 +139,31 @@ export class Board {
   /** Every object in drawing order, the last on top. */
   elements(): Element[] {
     const rows: { z: number; element: Element }[] = [];
-    this.#map.forEach((stored, id) => rows.push({ z: Number(stored.get('z') ?? 0), element: read(id, stored) }));
+    this.#map.forEach((stored, id) => {
+      if (this.#attached(stored)) rows.push({ z: Number(stored.get('z') ?? 0), element: read(id, stored) });
+    });
     rows.sort((a, b) => a.z - b.z || (a.element.id < b.element.id ? -1 : a.element.id > b.element.id ? 1 : 0));
     return rows.map((row) => row.element);
   }
 
   get(id: string): Element | undefined {
     const stored = this.#map.get(id);
-    return stored ? read(id, stored) : undefined;
+    return stored && this.#attached(stored) ? read(id, stored) : undefined;
+  }
+
+  /**
+   * Whether an object stands on the board: anything but a connector one of whose ends names an
+   * object that is gone. remove() takes such a connector along, but one attached on another device
+   * at the same moment, or offline, arrives after the removal - drawn and saved, it would dangle,
+   * and the server refuses a scene with a dangling end (`whiteboards.connector_end_unknown`).
+   */
+  #attached(stored: Stored): boolean {
+    if (stored.get('kind') !== 'CONNECTOR') return true;
+    return [stored.get('from'), stored.get('to')].every((end) => {
+      if (typeof end !== 'string' || end === '') return true;
+      const other = this.#map.get(end);
+      return other !== undefined && other.get('kind') !== 'CONNECTOR';
+    });
   }
 
   /** The projection the board saves: the objects in drawing order, in the contract's shape. */

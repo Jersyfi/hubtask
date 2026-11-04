@@ -141,3 +141,19 @@ test('a version brought back is undone in one step', () => {
   history.undo();
   assert.deepEqual(board.elements().map((e) => e.id).sort(), ['a', 'b']);
 });
+
+test('a connector attached, offline or at the same moment, to an object someone else took off is gone with it, so the scene still saves', () => {
+  const anna = new Board(new Y.Doc());
+  anna.add(sticky('a'));
+  anna.add(sticky('b', 300));
+  const bert = new Board(new Y.Doc());
+  Y.applyUpdate(bert.doc, Y.encodeStateAsUpdate(anna.doc));
+  anna.remove(['a']);
+  bert.add({ id: 'l', kind: 'CONNECTOR', from: 'a', to: 'b', x: 0, y: 0, width: 0, height: 0 });
+  Y.applyUpdate(anna.doc, Y.encodeStateAsUpdate(bert.doc));
+  Y.applyUpdate(bert.doc, Y.encodeStateAsUpdate(anna.doc));
+  for (const board of [anna, bert]) {
+    assert.deepEqual(board.scene().map((e) => e.id), ['b']);
+    assert.equal(board.get('l'), undefined);
+  }
+});
