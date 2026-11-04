@@ -2929,6 +2929,7 @@
   "app.modules.on_card": "{module} ist eingeschaltet",
   "app.modules.on_card_close": "Schließen",
   "app.modules.on_find": "Zu finden unter {place}",
+  "app.modules.on_start_with": "Beginnen mit",
   "app.modules.on_setup_desk": "Servicedesk einrichten: Arbeitszeiten und SLA-Richtlinien",
   "app.modules.on_setup_time": "Zeit einrichten: Zeitrichtlinie und Tätigkeiten",
   "app.modules.on_setup_workflows": "Den ersten Workflow gestalten",

@@ -16,7 +16,7 @@
   import { untrack } from 'svelte';
 
   import { Button, Dialog, IconButton, Inline, Spinner, Stack, Switch } from '@hubtask/design-system/components';
-  import type { ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
+  import type { ConfigTemplate, ConfigTemplateList, ModuleList, ModuleReach, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
   import ViewAsFile from '../settings/ViewAsFile.svelte';
@@ -28,15 +28,20 @@
   import { renderProblem } from '../problem.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
-  import { settingsOf, switchedOn } from '../product/switchedon.ts';
-  import { holdsHere } from '../data/capability.svelte.ts';
+  import { settingsOf, startsOf, switchedOn } from '../product/switchedon.ts';
+  import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
+  import { config } from '../data/config.svelte.ts';
+  import CreateContainerDialog from './CreateContainerDialog.svelte';
+  import { afterCreating } from './hubGallery.ts';
 
   interface Props {
     /** The hub to switch for; absent is the workspace. */
     hubId?: string;
+    /** Where a hub made from a *Start with…* template is opened. */
+    onnavigate?: (path: string) => void;
   }
 
-  const { hubId }: Props = $props();
+  const { hubId, onnavigate }: Props = $props();
   const place = $derived(hubId ? 'HUB' : 'WORKSPACE');
 
   let reading = $state<ResourceState<ModuleList>>({ status: 'idle' });
@@ -87,6 +92,26 @@
   let refusal = $state<{ module: ModuleState['module']; message: string } | undefined>(undefined);
   /** The module just switched on here, whose card says where it is now (user-experience.md §2.8). */
   let justOn = $state<ModuleState['module'] | undefined>(undefined);
+
+  // The card's *Start with…* (§2.8) reads the catalogue, which only a `STRUCTURE` holder may; at
+  // the workspace a press makes a hub from the template, so it is offered where a hub may be made.
+  let catalogue = $state<readonly ConfigTemplate[]>([]);
+  const mayStart = $derived(holdsHere('STRUCTURE') === true && (hubId !== undefined || hubCreationHere() === 'shared'));
+  $effect(() => {
+    if (!justOn || !mayStart) return;
+    return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
+      if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
+    }));
+  });
+  const templateName = (template: ConfigTemplate): string =>
+    template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
+  /** The template a new hub is made from, chosen on the card at the workspace. */
+  let startingFrom = $state<string | undefined>(undefined);
+  let isCreatingHub = $state(false);
+  function created(id: string, template?: string): void {
+    startingFrom = undefined;
+    onnavigate?.(afterCreating(id, template, `/hubs/${id}`));
+  }
 
   async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT') {
     refusal = undefined;
@@ -172,6 +197,7 @@
             {#if refusal?.module === state.module}<p class="refusal" role="alert">{refusal.message}</p>{/if}
             {#if justOn === state.module && state.on}
               {@const next = switchedOn(state.module, hubId)}
+              {@const starts = mayStart ? startsOf(state.module, catalogue, hubId) : []}
               <!-- The same card for every module: where it is now, and what it still needs. -->
               <section class="card" aria-label={t('app.modules.on_card', { module: t(codes.name) })} data-switched-on={state.module}>
                 <Inline justify="between" align="center">
@@ -182,6 +208,19 @@
                   {#if next.find}<a class="act" href={next.find.href}>{t('app.modules.on_find', { place: t(next.find.code) })}</a>{/if}
                   {#if next.setup}<a class="act" href={next.setup.href}>{t(next.setup.code)}</a>{/if}
                 </Inline>
+                {#if starts.length > 0}
+                  <Inline gap="150" align="center" isWrapping data-start-with>
+                    <span class="quiet">{t('app.modules.on_start_with')}</span>
+                    {#each starts as start (start.template.key)}
+                      {#if start.href}
+                        <a class="act" href={start.href} data-start-template={start.template.key}>{templateName(start.template)}</a>
+                      {:else}
+                        <Button tone="secondary" size="sm" data-start-template={start.template.key}
+                          onclick={() => { startingFrom = start.template.key; isCreatingHub = true; }}>{templateName(start.template)}</Button>
+                      {/if}
+                    {/each}
+                  </Inline>
+                {/if}
               </section>
             {/if}
           </Stack>
@@ -198,6 +237,10 @@
     {#if hubId}<SectionFindings sections={['scheme', 'tolerance']} {hubId} />{/if}
   {/if}
 </Stack>
+
+{#if isCreatingHub}
+  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={created} />
+{/if}
 
 {#if confirming}
   <Dialog

@@ -146,12 +146,13 @@
 
   // A template chosen on a product's empty home before its hub existed: its plan opens once the
   // list holds it, once. Unknown or no longer offered, the gallery is drawn as always.
-  let isPreselected = false;
+  // Kept per key: the switch-on card links another template's plan onto this same screen.
+  let preselected: string | undefined;
   $effect(() => {
     const key = preselect;
-    if (!key || isPreselected || list?.status !== 'ready') return;
+    if (!key || preselected === key || list?.status !== 'ready') return;
     const template = list.data.data.find((each) => each.key === key);
-    isPreselected = true;
+    preselected = key;
     if (template) untrack(() => void open(template));
   });
 

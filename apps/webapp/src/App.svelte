@@ -477,7 +477,7 @@
   {:else if route.name === 'quotas'}
     <LazyView load={views.QuotasView} />
   {:else if route.name === 'modules'}
-    <LazyView load={views.ModulesView} />
+    <LazyView load={views.ModulesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'entry-types'}
     <LazyView load={views.EntryTypesView} />
   {:else if route.name === 'link-types'}

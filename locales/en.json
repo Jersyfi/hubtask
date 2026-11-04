@@ -2930,6 +2930,7 @@
   "app.modules.on_card": "{module} is on",
   "app.modules.on_card_close": "Close",
   "app.modules.on_find": "Find it in {place}",
+  "app.modules.on_start_with": "Start with",
   "app.modules.on_setup_desk": "Set up the desk: working hours and SLA policies",
   "app.modules.on_setup_time": "Set up time: the time policy and kinds of work",
   "app.modules.on_setup_workflows": "Shape your first workflow",

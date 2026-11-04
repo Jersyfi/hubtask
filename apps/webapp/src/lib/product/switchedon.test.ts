@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { settingsOf, switchedOn } from './switchedon.ts';
+import { settingsOf, startsOf, switchedOn } from './switchedon.ts';
 
 const MODULES = ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS'];
 
@@ -37,4 +37,15 @@ test('a module with settings at its home names them, to whoever that tab is offe
   assert.equal(settingsOf('AGENTS', all), '/agents?tab=settings');
   assert.equal(settingsOf('AGENTS', (permission) => permission === 'STRUCTURE'), undefined);
   for (const module of ['WORKFLOWS', 'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'GOALS']) assert.equal(settingsOf(module, all), undefined, module);
+});
+
+// §2.8: the card's *Start with…* is the templates that switch the module on, one press each - at
+// a hub the press opens that template's plan on the hub's *Products*, at the workspace it is a
+// new hub made from it (no link: the press opens *Create hub*).
+test('the card starts with the templates that need the module, linked to the hub\'s plan there', () => {
+  const desk = { key: 'itil_service_desk', origin: 'HUBTASK', hub_document: {}, document: { modules: { service_desk: { switch: 'ON' } } } };
+  const plain = { key: 'kanban_team', origin: 'HUBTASK', hub_document: {}, document: { modules: { workflows: { switch: 'ON' } } } };
+  assert.deepEqual(startsOf('SERVICE_DESK', [plain, desk]).map(({ template, href }) => [template.key, href]), [['itil_service_desk', undefined]]);
+  assert.deepEqual(startsOf('SERVICE_DESK', [desk], 'h 1').map(({ href }) => href), ['/hubs/h%201/settings/modules?template=itil_service_desk']);
+  assert.deepEqual(startsOf('WHITEBOARD', [plain, desk]), []);
 });

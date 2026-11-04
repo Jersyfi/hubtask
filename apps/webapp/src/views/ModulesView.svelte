@@ -14,6 +14,12 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
+  interface Props {
+    onnavigate?: (path: string) => void;
+  }
+
+  const { onnavigate }: Props = $props();
+
   $effect(() => page.entitle(t('app.modules.title')));
 </script>
 
@@ -33,7 +39,7 @@
 
   <p class="quiet">{t('app.modules.intro')}</p>
 
-  <ModuleSwitches />
+  <ModuleSwitches {onnavigate} />
 
   {#if isModuleOn('PLANNING', manifest.value?.modules_on)}<WorkspaceTolerance />{/if}
 </Stack>

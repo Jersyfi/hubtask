@@ -9,6 +9,7 @@
 
 import { productOf } from '../navigation.ts';
 import { placeTabs } from '../workspace/placeTabs.ts';
+import { productTemplates } from './templates.ts';
 
 export interface SwitchedOn {
   /** Where the product is now: its row's home, or the hub's tab; none for a module without one. */
@@ -45,4 +46,20 @@ export function settingsOf(module: string, holds: (permission: string) => boolea
   }
   if (module === 'AGENTS') return holds('MANAGE_MEMBERS') ? '/agents?tab=settings' : undefined;
   return undefined;
+}
+
+/**
+ * The card's *Start with…* (§2.8): the templates that switch `module` on, as a product's first
+ * visit offers them. At a hub each opens its plan on the hub's *Products*; at the workspace there is
+ * no link - the press makes a hub from it.
+ */
+export function startsOf<T extends Parameters<typeof productTemplates>[0][number]>(
+  module: string,
+  catalogue: readonly T[],
+  hubId?: string,
+): { template: T; href?: string }[] {
+  return productTemplates(catalogue, module).map((template) => ({
+    template,
+    ...(hubId ? { href: `/hubs/${encodeURIComponent(hubId)}/settings/modules?template=${encodeURIComponent(template.key)}` } : {}),
+  }));
 }
