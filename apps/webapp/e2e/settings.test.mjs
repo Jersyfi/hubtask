@@ -941,3 +941,19 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
   }
   assert.ok(rows.includes('Name und Sprache'), rows.join(', '));
 });
+
+test('chromium: 1280 px — You: leaving a choice to the workspace names the workspace\'s value (user-experience.md §8.8)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+  await page.goto(`${served.origin}/profile`);
+  // The fixture's workspace speaks English on UTC and decided no week start.
+  const zone = page.locator('[data-setting="zone"]');
+  await zone.waitFor({ timeout: 15_000 });
+  const optionsOf = (setting) => page.locator(`select[data-setting="${setting}"] option`).allTextContents();
+  await page.waitForFunction(() => [...document.querySelectorAll('option')].some((option) => option.textContent?.includes("Use the workspace's: UTC")));
+  assert.ok((await optionsOf('language')).includes("Use the workspace's: English"), (await optionsOf('language')).join(' | '));
+  assert.ok((await optionsOf('week-start')).includes("Use the workspace's"), 'a week start the workspace never decided was named');
+  assert.deepEqual(failures, []);
+});

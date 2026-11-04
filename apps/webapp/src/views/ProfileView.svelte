@@ -53,7 +53,8 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
-  import { WEEK_STARTS, clearedOr, inForce, languageInForce, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
+  import { WEEK_STARTS, clearedOr, inForce, languageInForce, zoneOptions, localesOf, withWorkspaceChoice, workspaceChoiceLabel } from '../lib/data/preferences.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -69,6 +70,19 @@
   $effect(() => untrack(() => engine.subscribe<OwnSettings>({ path: '/accounts/me/settings' }, (next) => {
     settings = next.status === 'ready' ? next.data : settings;
   })));
+  // The workspace's own value of each, for the choice that leaves it to the workspace (§8.8):
+  // what it decided, else what the installation decided for it - never a guess.
+  $effect(() => untrack(() => workspace.open()));
+  const ownDefaults = $derived(workspace.workspace);
+  const leaveTo = (value: string | undefined) =>
+    workspaceChoiceLabel(t('app.profile.use_workspace'), (named) => t('app.profile.use_workspace_named', { value: named }), value);
+  const workspaceLocale = $derived(ownDefaults ? leaveTo(languageName(ownDefaults.default_locale, messages.locale)) : t('app.profile.use_workspace'));
+  const workspaceZone = $derived(leaveTo(ownDefaults?.default_time_zone));
+  const workspaceWeek = $derived.by(() => {
+    const day = ownDefaults?.default_week_start ?? ownDefaults?.installation_defaults?.week_start;
+    return leaveTo(day && (WEEK_STARTS as readonly string[]).includes(day) ? t(`app.profile.week_${day}`) : undefined);
+  });
+
   const sourceOf = (key: string, label: (value: string) => string) => {
     const resolved = inForce(settings?.data, `localisation.${key}`);
     const held = key === 'locale' ? languageInForce(resolved, messages.locale) : resolved;
@@ -219,7 +233,7 @@
             bind:value={locale}
             options={withWorkspaceChoice(
               locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) })),
-              t('app.profile.use_workspace'),
+              workspaceLocale,
             )}
           />
           {@render inForceLine(sourceOf('locale', (value) => languageName(value, messages.locale)))}
@@ -237,7 +251,7 @@
           data-setting="zone"
           hint={t('app.profile.zone_hint')}
           freeHint={t('app.profile.zone_free')}
-          inheritLabel={t('app.profile.use_workspace')}
+          inheritLabel={workspaceZone}
           bind:value={zone}
         />
         {#if zones.length > 0}{@render inForceLine(sourceOf('time_zone', (value) => value))}{/if}
@@ -249,7 +263,7 @@
           bind:value={weekStart}
           options={withWorkspaceChoice(
             WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
-            t('app.profile.use_workspace'),
+            workspaceWeek,
           )}
         />
         {@render inForceLine(sourceOf('week_start', (value) => t(`app.profile.week_${value}`)))}

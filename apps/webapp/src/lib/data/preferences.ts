@@ -74,6 +74,15 @@ export function clearedOr(value: string): string {
  * day of the week could never un-choose it. The empty value is what `clearedOr`
  * sends, and what the server clears on.
  */
+/**
+ * The words of the choice that leaves a setting to the workspace, naming the workspace's value
+ * where it is known (user-experience.md §8.8), so leaving it says what it means. `named` is the
+ * caller's message for "use the workspace's: {value}"; `plain` stands where the value is unknown.
+ */
+export function workspaceChoiceLabel(plain: string, named: (value: string) => string, value: string | undefined): string {
+  return value ? named(value) : plain;
+}
+
 export function withWorkspaceChoice(
   options: readonly { value: string; label: string }[],
   label: string,

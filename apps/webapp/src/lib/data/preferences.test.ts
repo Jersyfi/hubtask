@@ -18,6 +18,7 @@ import {
   localesOf,
   preferenceFor,
   withWorkspaceChoice,
+  workspaceChoiceLabel,
 } from './preferences.ts';
 
 const manifest = {
@@ -139,4 +140,11 @@ test('a language the browser asks for is named as the browser\'s', () => {
   assert.deepEqual(languageInForce({ value: 'de-AT', source: 'WORKSPACE' }, 'de'), { value: 'de-AT', source: 'WORKSPACE' });
   assert.deepEqual(languageInForce({ value: 'fr', source: 'PERSON' }, 'de'), { value: 'fr', source: 'PERSON' });
   assert.equal(languageInForce(undefined, 'de'), undefined);
+});
+
+test('the choice left to the workspace names its value where it is known', () => {
+  const named = (value: string) => `Use the workspace's: ${value}`;
+  assert.equal(workspaceChoiceLabel('Use the workspace\'s', named, 'English'), "Use the workspace's: English");
+  assert.equal(workspaceChoiceLabel('Use the workspace\'s', named, undefined), "Use the workspace's", 'an unknown value is not guessed');
+  assert.equal(workspaceChoiceLabel('Use the workspace\'s', named, ''), "Use the workspace's");
 });

@@ -7991,6 +7991,7 @@
   "app.profile.week_SUNDAY": "Sunday",
   "app.profile.week_SATURDAY": "Saturday",
   "app.profile.use_workspace": "Use the workspace's",
+  "app.profile.use_workspace_named": "Use the workspace's: {value}",
   "app.profile.in_force": "In force: {value}",
   "app.profile.source_default_value": "Hubtask's default",
   "app.profile.source_person": "Your own",
