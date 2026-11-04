@@ -28,7 +28,9 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CmdbHealth, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
+  import { config } from '../lib/data/config.svelte.ts';
+  import { productTemplates } from '../lib/product/templates.ts';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
@@ -130,11 +132,36 @@
   const creation = $derived(hubCreationHere());
   const mayCreateHub = $derived(creation === 'shared' || creation === 'private');
   let isCreatingHub = $state(false);
+
+  // The first visit's templates (user-experience.md §4): the catalogue's that switch this product
+  // on, read only where the reader may make the hub one starts, and only while there is none.
+  let catalogue = $state<readonly ConfigTemplate[]>([]);
+  const isFirstVisit = $derived(mayCreateHub && !isReading && hubsWith.length === 0);
+  $effect(() => {
+    if (!isFirstVisit) return;
+    return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
+      if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
+    }));
+  });
+  /** The template the new hub is to take, chosen on the empty home. */
+  let startingFrom = $state<string | undefined>(undefined);
+  const templateName = (template: ConfigTemplate): string =>
+    template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
+  const starts = $derived(isFirstVisit ? productTemplates(catalogue, module).map((template) => ({
+    label: templateName(template),
+    onclick: () => { startingFrom = template.key; isCreatingHub = true; },
+  })) : []);
+  const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
+  /** A hub made from a template opens on its *Products* section with that template's plan. */
+  function created(id: string): void {
+    const from = startingFrom;
+    startingFrom = undefined;
+    onnavigate(from ? `/hubs/${id}/settings/modules?template=${encodeURIComponent(from)}` : (hubScreenOf(module, id) ?? `/hubs/${id}`));
+  }
 </script>
 
 {#if module === 'SERVICE_DESK'}
-  <DeskHome hubs={hubsWith} {isReading} {tab} {onnavigate}
-    createHub={mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => (isCreatingHub = true) } : undefined} />
+  <DeskHome hubs={hubsWith} {isReading} {tab} {onnavigate} {createHub} templates={starts} />
 {:else}
 <Stack gap="300">
   <PageHeader
@@ -253,7 +280,8 @@
               icon={row?.icon ?? 'hub'}
               title={t('app.product_home.none', { product: name })}
               description={t(mayCreateHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')}
-              create={mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => (isCreatingHub = true) } : undefined}
+              create={createHub}
+              templates={starts}
             />
           {:else}
             <ul class="hubs">
@@ -276,7 +304,7 @@
 {/if}
 
 {#if isCreatingHub && mayCreateHub}
-  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate(hubScreenOf(module, id) ?? `/hubs/${id}`)} />
+  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={created} />
 {/if}
 
 <style>

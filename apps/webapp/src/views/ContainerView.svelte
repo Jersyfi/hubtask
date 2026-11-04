@@ -143,10 +143,12 @@
      * screen then draws the place's settings instead of what it holds. Absent on the place itself.
      */
     section?: string;
+    /** A template whose plan opens on the hub's *Products* section (`?template=`, §4). */
+    template?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, openItemId, section, onnavigate }: Props = $props();
+  const { id, openItemId, section, template, onnavigate }: Props = $props();
 
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
@@ -1243,7 +1245,7 @@
         {#snippet modulesTab()}
           <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id }} />
           <LazyView load={settingsParts.SampleEntries} props={{ hubId: container.id }} />
-          <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id }} />
+          <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id, preselect: template }} />
         {/snippet}
         {#snippet calendarsTab()}
           <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />

@@ -632,6 +632,7 @@
         id: route.params.id ?? '',
         openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
         section: isSettingsRoute(route.name) ? (route.params.section ?? '') : undefined,
+        template: route.name === 'hub-settings-section' ? route.query['template'] : undefined,
         onnavigate: (path: string) => router.navigate(path),
       }} />
     {/key}

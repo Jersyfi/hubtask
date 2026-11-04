@@ -30,9 +30,11 @@
     tab?: string;
     /** The act that starts a hub, where the reader may; a desk is a template's collection in one. */
     createHub?: { label: string; onclick: () => void };
+    /** The desk's templates on its first visit (user-experience.md §4), each starting a hub from one. */
+    templates?: readonly { label: string; onclick: () => void }[];
     onnavigate: (path: string) => void;
   }
-  const { hubs, isReading, tab, createHub, onnavigate }: Props = $props();
+  const { hubs, isReading, tab, createHub, templates = [], onnavigate }: Props = $props();
 
   const name = $derived(t('app.nav.desk'));
   const tabs = $derived<PlaceTab[]>(homeTabs('SERVICE_DESK').map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
@@ -112,7 +114,7 @@
   {:else if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
       <ProductEmpty kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}
-        description={t(createHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')} create={createHub} />
+        description={t(createHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')} create={createHub} {templates} />
     {:else}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {/if}

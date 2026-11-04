@@ -29,9 +29,11 @@
     hubId?: string;
     /** A collection taking a template's collection part; its hub follows from it. */
     collectionId?: string;
+    /** A template to open the plan of at once, as a product's first visit chose it (§4). */
+    preselect?: string;
   }
 
-  const { hubId, collectionId }: Props = $props();
+  const { hubId, collectionId, preselect }: Props = $props();
   /** Which gallery this is: its heading, its words and what it says when it offers nothing. */
   const scope = $derived(galleryScope(hubId, collectionId));
 
@@ -86,6 +88,17 @@
       busy = undefined;
     }
   }
+
+  // A template chosen on a product's empty home before its hub existed: its plan opens once the
+  // list holds it, once. Unknown or no longer offered, the gallery is drawn as always.
+  let isPreselected = false;
+  $effect(() => {
+    const key = preselect;
+    if (!key || isPreselected || list?.status !== 'ready') return;
+    const template = list.data.data.find((each) => each.key === key);
+    isPreselected = true;
+    if (template) untrack(() => void open(template));
+  });
 
   async function choose(path: string, isTaken: boolean) {
     if (!chosen) return;
