@@ -10,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
@@ -146,5 +148,74 @@ func TestAChatRoomKeepsItsTargetAndIsNotRotated(t *testing.T) {
 	_, err = RotateWebhookSecret{Writer: h.writer}.Execute(t.Context(), actor(), hookID, time.Hour)
 	if got := detailOf(t, err); got != "webhooks.chat_not_signed" {
 		t.Fatalf("rotation: got %s", got)
+	}
+}
+
+// UC-INT-12 check 5: a chat room keeps a subscription's types, scope, condition, retries, dead
+// letter and switching off - it is fanned out and stopped by the same code as any other.
+func TestAChatRoomKeepsTheSubscriptionsNarrowingAndItsStops(t *testing.T) {
+	h, _ := narrowingHarness()
+	h.writer.Compiler = conditions()
+	h.writer.Containers = twoHubs()
+	cmd := validCreate()
+	cmd.TargetURL = "https://matrix.example.org"
+	cmd.Chat = domain.ChatTarget{Format: domain.FormatMatrix, Room: "!team:example.org"}
+	cmd.Credential = secret.New("syt_token")
+	scope := domain.WebhookScope{Level: domain.ScopeHub, ID: homeHub}
+	cmd.Scope, cmd.Filter = &scope, titledShip
+	if _, err := (CreateWebhookSubscription{Writer: h.writer}).Execute(t.Context(), actor(), cmd); err != nil {
+		t.Fatalf("creating the room: %v", err)
+	}
+	queued := &jobs{}
+	out := narrowingFanOut(h, queued)
+
+	for name, e := range map[string]event.Envelope{
+		"another hub's entry":             itemIn(t, workList, "Ship"),
+		"an entry the condition is false": itemIn(t, homeList, "Plan"),
+	} {
+		if err := out.Deliver(t.Context(), e); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(queued.requests) != 0 {
+			t.Fatalf("%s reached the room", name)
+		}
+	}
+	asked := h.store.rows[hookID]
+	h.store.rows[hookID] = withTypes(asked, event.ItemCompleted)
+	if err := out.Deliver(t.Context(), itemIn(t, homeList, "Ship")); err != nil {
+		t.Fatal(err)
+	}
+	if len(queued.requests) != 0 {
+		t.Fatal("a type the room did not ask for reached it")
+	}
+	h.store.rows[hookID] = asked
+	if err := out.Deliver(t.Context(), itemIn(t, homeList, "Ship")); err != nil {
+		t.Fatal(err)
+	}
+	if len(queued.requests) != 1 || queued.requests[0].Kind != queue.KindWebhookDeliver {
+		t.Fatalf("queued %+v, want one delivery to the room", queued.requests)
+	}
+
+	outcomes := Outcomes{Subscriptions: h.store, Audit: h.sink, Notifier: &disableNotices{}, Clock: h.writer.Clock}
+	if err := outcomes.Failed(t.Context(), hookID, "webhooks.target_unreachable", false); err != nil {
+		t.Fatal(err)
+	}
+	if h.store.rows[hookID].Subscription.FailureCount != 0 {
+		t.Error("a retried delivery counted against the room")
+	}
+	for range domain.MaxConsecutiveFailures {
+		if err := outcomes.Failed(t.Context(), hookID, "webhooks.target_unreachable", true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !h.store.rows[hookID].Subscription.IsDisabled() {
+		t.Fatal("a run of dead letters did not switch the room off")
+	}
+	queued.requests = nil
+	if err := out.Deliver(t.Context(), itemIn(t, homeList, "Ship")); err != nil {
+		t.Fatal(err)
+	}
+	if len(queued.requests) != 0 {
+		t.Error("a switched-off room was delivered to")
 	}
 }

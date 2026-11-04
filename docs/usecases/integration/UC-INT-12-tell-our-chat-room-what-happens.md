@@ -5,7 +5,7 @@ context: integration
 actors: [PE-admin, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/integration/DeliveryFormat_test.go, core/application/service/integration/ChatChannel_test.go, infrastructure/webhook/ChatMessage_test.go, cmd/hubctl/Webhook_test.go, apps/webapp/src/lib/data/webhooks.test.ts, test/integration/webhook_chat_test.go, apps/webapp/e2e/chatroom.test.mjs]
 ---
