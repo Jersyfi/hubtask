@@ -31,6 +31,8 @@ type connectorMemory struct {
 	creds   map[shared.ID]repository.Credential
 	alerts  map[string]domain.Alert
 	digests map[string]bool
+	// calls is the order of the lock and the alert reads, for the serialisation of deliveries.
+	calls []string
 }
 
 func newConnectorMemory() *connectorMemory {
@@ -47,7 +49,10 @@ func (m *connectorMemory) ListConnectors(_ context.Context, h shared.ID) ([]doma
 	}
 	return out, nil
 }
-func (m *connectorMemory) FindConnector(_ context.Context, id shared.ID, _ bool) (domain.Connector, error) {
+func (m *connectorMemory) FindConnector(_ context.Context, id shared.ID, lock bool) (domain.Connector, error) {
+	if lock {
+		m.calls = append(m.calls, "lock")
+	}
 	c, ok := m.conns[id]
 	if !ok {
 		return c, shared.ErrNotFound.WithDetail("cmdb.connector_not_found")
@@ -82,6 +87,7 @@ func (m *connectorMemory) RecordRun(_ context.Context, c domain.Connector) error
 	return nil
 }
 func (m *connectorMemory) FindAlert(_ context.Context, conn shared.ID, key string) (domain.Alert, error) {
+	m.calls = append(m.calls, "alert")
 	a, ok := m.alerts[conn.String()+key]
 	if !ok {
 		return a, shared.ErrNotFound
@@ -560,5 +566,21 @@ func TestAConnectorSwitchedOffDuringAPullStaysOff(t *testing.T) {
 	}
 	if c.LastOutcome != domain.ConnectorOK || c.Cursor != "c1" || len(f.m.cis) != 1 {
 		t.Fatalf("the run itself is still recorded: %+v", c)
+	}
+}
+
+// Two deliveries of the same new problem at once - an Alertmanager pair, a retry crossing the
+// first post - both found no alert and both opened an entry, one never completed. Every alert
+// read of a delivery is made under the connector's lock, so that deliveries take turns.
+func TestDeliveriesOfOneIntakeTakeTurnsOnItsAlerts(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	f.store.calls = nil
+	fire := signals(domain.AlertSignal{Key: "a", Status: domain.AlertFiring}, domain.AlertSignal{Key: "b", Status: domain.AlertFiring})
+	if _, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(f.store.calls, ","); got != "lock,alert,lock,alert" {
+		t.Fatalf("each alert is read under the connector's lock: %s", got)
 	}
 }

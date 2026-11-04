@@ -196,6 +196,11 @@ func (s Connectors) receive(ctx context.Context, actor appshared.ActorContext, c
 	var alert domain.Alert
 	var change domain.AlertChange
 	err := s.Inventory.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Deliveries of one intake take turns: two posts of the same new problem at once would
+		// both find no alert and open two entries. The alert row cannot be locked before it exists.
+		if _, err := s.Store.FindConnector(ctx, c.ID, true); err != nil {
+			return err
+		}
 		existing, err := s.Store.FindAlert(ctx, c.ID, sig.Key)
 		if err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return err
