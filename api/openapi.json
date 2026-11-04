@@ -64354,9 +64354,10 @@
               "workflow",
               "custom_role",
               "time_timer",
+              "time_record",
               null
             ],
-            "description": "What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has\none merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a\nmutation carrying `base_version` is applied only on that version and is otherwise\nrejected with the entity's own version conflict, and the device adopts the server's copy\nfrom the next pull; an upsert of one that exists changes it and keeps what can only be\nset at creation. A workflow is written to its draft; publishing it stays online.\n`entry_link` is a presence: drawn or not, never patched, and deleting one already gone\nis applied.\n`time_timer` is the caller's own timer, versioned without a base version: an upsert\nstarts it at the payload's `started_at`, a patch stops it into a record at\n`stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.\n"
+            "description": "What an `ENTITY_*` mutation is about, named as the change log names it. Each entity has\none merge rule. `entry_type`, `link_type`, `workflow` and `custom_role` are versioned: a\nmutation carrying `base_version` is applied only on that version and is otherwise\nrejected with the entity's own version conflict, and the device adopts the server's copy\nfrom the next pull; an upsert of one that exists changes it and keeps what can only be\nset at creation. A workflow is written to its draft; publishing it stays online.\n`entry_link` is a presence: drawn or not, never patched, and deleting one already gone\nis applied.\n`time_timer` is the caller's own timer, versioned without a base version: an upsert\nstarts it at the payload's `started_at`, a patch stops it into a record at\n`stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.\n`time_record` is one of the caller's time records: an upsert records it (its key is\nthe client's identifier, the server names the record by its own), or, carrying\n`corrects` with a record's identifier, records a correction of that record; a patch\nchanges and a deletion deletes the record its key names, each at `base_version`.\n"
           },
           "entity_key": {
             "type": [

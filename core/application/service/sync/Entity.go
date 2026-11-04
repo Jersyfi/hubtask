@@ -25,6 +25,13 @@ type entityWriters struct {
 	key, removeKey string
 	// patch is what a patch performs where it is not the change: a timer's patch stops it.
 	patch string
+	// keyOnChange writes the key only into a change's input: a time record's key is the client's
+	// identifier until the server has named it, so a creation reads nothing of it.
+	keyOnChange bool
+	// removeVersioned passes the base version to the deletion as the expected one.
+	removeVersioned bool
+	// correct is what an upsert carrying `corrects` performs, on the record it names.
+	correct string
 	// createOnly are what only a creation sets. An upsert of an entity that exists drops them, and
 	// the server's value stands: a level, a direction, a cardinality is not changed by a second
 	// device that happened to create the same key.
@@ -57,6 +64,11 @@ func writersOf(entity domain.Entity) (entityWriters, bool) {
 		// A start, a stop and a discard queued offline, at the device's moments (UC-TIM-01).
 		domain.EntityTimer: {
 			create: "StartTimer", patch: "StopTimer", remove: "DiscardTimer",
+		},
+		// A record made, corrected, changed or deleted offline (UC-TIM-01, user-experience.md §5.11).
+		domain.EntityTimeRecord: {
+			create: "LogTime", patch: "UpdateTimeRecord", remove: "DeleteTimeRecord", correct: "CorrectTimeRecord",
+			key: "record_id", removeKey: "record_id", keyOnChange: true, removeVersioned: true,
 		},
 	}[entity]
 	return writers, found
@@ -130,6 +142,16 @@ func (p PushChanges) applyEntity(ctx context.Context, actor appshared.ActorConte
 func (p PushChanges) upsertEntity(
 	ctx context.Context, actor appshared.ActorContext, m Mutation, writers entityWriters,
 ) (Result, error) {
+	if corrects, ok := m.Payload["corrects"].(string); ok && writers.correct != "" {
+		in := entityInput(m, writers, false)
+		delete(in, "corrects")
+		in["record_id"] = corrects
+		out, err := p.Catalogue.Invoke(ctx, writers.correct, actor, in)
+		if err != nil {
+			return Result{}, err
+		}
+		return entityApplied(m, out), nil
+	}
 	if writers.change != "" {
 		out, err := p.Catalogue.Invoke(ctx, writers.change, actor, entityInput(m, writers, true))
 		if err == nil {
@@ -156,6 +178,9 @@ func (p PushChanges) removeEntity(
 	if writers.removeKey != "" {
 		in[writers.removeKey] = m.EntityKey
 	}
+	if writers.removeVersioned && m.BaseVersion != nil {
+		in["expected_version"] = *m.BaseVersion
+	}
 	_, err := p.Catalogue.Invoke(ctx, writers.remove, actor, in)
 	if err != nil && shared.AsError(err).Category != shared.CategoryNotFound {
 		return Result{}, err
@@ -181,7 +206,7 @@ func entityInput(m Mutation, writers entityWriters, change bool) usecase.Input {
 			in["expected_version"] = *m.BaseVersion
 		}
 	}
-	if writers.key != "" {
+	if writers.key != "" && (change || !writers.keyOnChange) {
 		in[writers.key] = m.EntityKey
 	}
 	return in

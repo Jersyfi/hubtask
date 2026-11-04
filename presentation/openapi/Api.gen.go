@@ -9485,6 +9485,7 @@ const (
 	SyncMutationEntityEntryType   SyncMutationEntity = "entry_type"
 	SyncMutationEntityLessThannil SyncMutationEntity = "<nil>"
 	SyncMutationEntityLinkType    SyncMutationEntity = "link_type"
+	SyncMutationEntityTimeRecord  SyncMutationEntity = "time_record"
 	SyncMutationEntityTimeTimer   SyncMutationEntity = "time_timer"
 	SyncMutationEntityWorkflow    SyncMutationEntity = "workflow"
 )
@@ -9501,6 +9502,8 @@ func (e SyncMutationEntity) Valid() bool {
 	case SyncMutationEntityLessThannil:
 		return true
 	case SyncMutationEntityLinkType:
+		return true
+	case SyncMutationEntityTimeRecord:
 		return true
 	case SyncMutationEntityTimeTimer:
 		return true
@@ -23744,6 +23747,10 @@ type SyncMutation struct {
 	// `time_timer` is the caller's own timer, versioned without a base version: an upsert
 	// starts it at the payload's `started_at`, a patch stops it into a record at
 	// `stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.
+	// `time_record` is one of the caller's time records: an upsert records it (its key is
+	// the client's identifier, the server names the record by its own), or, carrying
+	// `corrects` with a record's identifier, records a correction of that record; a patch
+	// changes and a deletion deletes the record its key names, each at `base_version`.
 	Entity *SyncMutationEntity `json:"entity,omitempty"`
 
 	// EntityKey The entity an `ENTITY_*` mutation names: its key, or for an `entry_link` the identifier the client assigned (UUIDv7).
@@ -23782,6 +23789,10 @@ type SyncMutation struct {
 // `time_timer` is the caller's own timer, versioned without a base version: an upsert
 // starts it at the payload's `started_at`, a patch stops it into a record at
 // `stopped_at` in `zone`, a deletion discards it; its key names nothing the server reads.
+// `time_record` is one of the caller's time records: an upsert records it (its key is
+// the client's identifier, the server names the record by its own), or, carrying
+// `corrects` with a record's identifier, records a correction of that record; a patch
+// changes and a deletion deletes the record its key names, each at `base_version`.
 type SyncMutationEntity string
 
 // SyncMutationKind defines model for SyncMutation.Kind.

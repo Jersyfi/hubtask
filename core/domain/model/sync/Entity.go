@@ -15,6 +15,8 @@ const (
 	EntityCustomRole Entity = "custom_role"
 	// EntityTimer is the caller's own timer: started, stopped into a record, or discarded.
 	EntityTimer Entity = "time_timer"
+	// EntityTimeRecord is one of the caller's time records: recorded, corrected, changed or deleted.
+	EntityTimeRecord Entity = "time_record"
 )
 
 // MergeRule is how a device's offline write of an entity meets the server's copy
@@ -34,7 +36,7 @@ const (
 
 // Entities is the closed set, in the contract's order.
 func Entities() []Entity {
-	return []Entity{EntityEntryType, EntityLinkType, EntityEntryLink, EntityWorkflow, EntityCustomRole, EntityTimer}
+	return []Entity{EntityEntryType, EntityLinkType, EntityEntryLink, EntityWorkflow, EntityCustomRole, EntityTimer, EntityTimeRecord}
 }
 
 // Valid reports whether the entity is one the contract names.

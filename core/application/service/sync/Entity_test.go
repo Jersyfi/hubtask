@@ -198,3 +198,63 @@ func TestATimerQueuedOfflineIsStartedStoppedAndDiscarded(t *testing.T) {
 		t.Errorf("a discard of a timer already gone is %+v with %v", discarded, f.catalogue.calls)
 	}
 }
+
+// user-experience.md §5.11: time recorded, corrected, changed and deleted offline is pushed through
+// the use cases a person calls online - LogTime without the client's key, CorrectTimeRecord on the
+// record `corrects` names, UpdateTimeRecord and DeleteTimeRecord on the key at the base version -
+// and a recording is answered under the server's identifier.
+func TestTimeRecordedOfflineIsSentThroughItsUseCases(t *testing.T) {
+	const minted, server, approved = "01936f2a-7c1e-7000-8000-0000000012a1", "01936f2a-7c1e-7000-8000-0000000012a2", "01936f2a-7c1e-7000-8000-0000000012a3"
+	version := 3
+
+	f := pushing(t)
+	f.catalogue.outputs["LogTime"] = usecase.Output{"id": server, "minutes": 45, "version": 1}
+	logged := pushOne(t, f, Mutation{
+		OpID: opA, Kind: domain.EntityUpsert, Entity: domain.EntityTimeRecord, EntityKey: minted,
+		Payload: map[string]any{"day": "2026-11-02", "minutes": 45, "work_type": "development"},
+	})
+	if logged.Result != domain.Applied || logged.EntityID != shared.ID(server) || logged.ServerState["minutes"] != 45 {
+		t.Fatalf("the recording is %+v", logged)
+	}
+	if names := callNames(f); len(names) != 1 || names[0] != "LogTime" {
+		t.Fatalf("a recording called %v, want LogTime alone", names)
+	}
+	if in := f.catalogue.calls[0].in; in["record_id"] != nil || in["minutes"] != 45 || len(in) != 3 {
+		t.Errorf("the recording's input was %v, want the payload and no key", in)
+	}
+
+	f = pushing(t)
+	f.catalogue.outputs["CorrectTimeRecord"] = usecase.Output{"id": server}
+	corrected := pushOne(t, f, Mutation{
+		OpID: opB, Kind: domain.EntityUpsert, Entity: domain.EntityTimeRecord, EntityKey: minted,
+		Payload: map[string]any{"corrects": approved, "day": "2026-11-03", "minutes": -15},
+	})
+	if corrected.Result != domain.Applied || callNames(f)[0] != "CorrectTimeRecord" {
+		t.Fatalf("the correction is %+v, called %v", corrected, callNames(f))
+	}
+	if in := f.catalogue.calls[0].in; in["record_id"] != approved || in["corrects"] != nil || in["minutes"] != -15 {
+		t.Errorf("the correction's input was %v", in)
+	}
+
+	f = pushing(t)
+	f.catalogue.outputs["UpdateTimeRecord"] = usecase.Output{"id": server, "minutes": 30}
+	changed := pushOne(t, f, Mutation{
+		OpID: opA, Kind: domain.EntityPatch, Entity: domain.EntityTimeRecord, EntityKey: server, BaseVersion: &version,
+		Payload: map[string]any{"minutes": 30},
+	})
+	if changed.Result != domain.Applied || callNames(f)[0] != "UpdateTimeRecord" {
+		t.Fatalf("the change is %+v, called %v", changed, callNames(f))
+	}
+	if in := f.catalogue.calls[0].in; in["record_id"] != server || in["expected_version"] != version {
+		t.Errorf("the change's input was %v", in)
+	}
+
+	f = pushing(t)
+	deleted := pushOne(t, f, Mutation{OpID: opB, Kind: domain.EntityDelete, Entity: domain.EntityTimeRecord, EntityKey: server, BaseVersion: &version})
+	if deleted.Result != domain.Applied || callNames(f)[0] != "DeleteTimeRecord" {
+		t.Fatalf("the deletion is %+v, called %v", deleted, callNames(f))
+	}
+	if in := f.catalogue.calls[0].in; in["record_id"] != server || in["expected_version"] != version {
+		t.Errorf("the deletion's input was %v", in)
+	}
+}
