@@ -101,6 +101,9 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 		if _, err := roles.Find(ctx, "service_lead"); err == nil {
 			t.Fatal("B finds A's role")
 		}
+		if _, err := roles.Lock(ctx, role.ID); err == nil {
+			t.Fatal("B holds A's role")
+		}
 		if written, err := roles.Update(ctx, role, 1, now); err != nil || written {
 			t.Fatalf("B changes A's role: %v %v", written, err)
 		}
@@ -128,6 +131,25 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 		}
 		return nil
 	})
+
+	// A held role makes a second holder of it wait.
+	if err := write(ctx, t, tenantA, func(held context.Context) error {
+		locked, err := roles.Lock(held, role.ID)
+		if err != nil || locked.Role.Key != "service_lead" {
+			t.Fatalf("holding A's role: %+v %v", locked, err)
+		}
+		waiting, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+		defer cancel()
+		if err := write(waiting, t, tenantA, func(inner context.Context) error {
+			_, err := roles.Lock(inner, role.ID)
+			return err
+		}); err == nil {
+			t.Error("a second transaction held the same role at once")
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("hold: %v", err)
+	}
 
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		found, err := roles.FindGrant(ctx, grant.ID)

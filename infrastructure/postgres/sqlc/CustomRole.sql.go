@@ -296,6 +296,30 @@ func (q *Queries) ListCustomRoles(ctx context.Context) ([]CustomRole, error) {
 	return items, nil
 }
 
+const lockCustomRole = `-- name: LockCustomRole :one
+SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
+FROM custom_role WHERE id = $1
+FOR UPDATE
+`
+
+// Held for the transaction: a deletion counts the role's grants, and a grant hands out the role's
+// permissions, as they stand once nobody else is changing them.
+func (q *Queries) LockCustomRole(ctx context.Context, id pgtype.UUID) (CustomRole, error) {
+	row := q.db.QueryRow(ctx, lockCustomRole, id)
+	var i CustomRole
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.Key,
+		&i.Name,
+		&i.Permissions,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const revokeCustomRoleGrant = `-- name: RevokeCustomRoleGrant :execrows
 DELETE FROM custom_role_grant WHERE id = $1
 `

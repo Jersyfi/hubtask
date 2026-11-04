@@ -47,6 +47,9 @@ type CustomRoles interface {
 	List(ctx context.Context) ([]CustomRoleRow, error)
 	// Find answers one by key, or an error wrapping shared.ErrNotFound.
 	Find(ctx context.Context, key string) (CustomRoleRow, error)
+	// Lock holds one role by id until the transaction ends and answers it as it then stands, or
+	// an error wrapping shared.ErrNotFound for one deleted meanwhile.
+	Lock(ctx context.Context, roleID shared.ID) (CustomRoleRow, error)
 	Insert(ctx context.Context, role identity.CustomRole, at time.Time) error
 	// Update writes the name and permissions held to the version read; false is a version moved on.
 	Update(ctx context.Context, role identity.CustomRole, version int, at time.Time) (bool, error)

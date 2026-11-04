@@ -64,6 +64,25 @@ func (r CustomRoleRepository) Find(ctx context.Context, key string) (repository.
 	return customRoleFrom(row)
 }
 
+func (r CustomRoleRepository) Lock(ctx context.Context, roleID shared.ID) (repository.CustomRoleRow, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	id, err := uuidOf(roleID)
+	if err != nil {
+		return repository.CustomRoleRow{}, err
+	}
+	row, err := queries.LockCustomRole(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return repository.CustomRoleRow{}, shared.ErrNotFound.WithDetail("roles.not_found")
+		}
+		return repository.CustomRoleRow{}, roleQueryError(err, "holding the custom role")
+	}
+	return customRoleFrom(row)
+}
+
 func (r CustomRoleRepository) Insert(ctx context.Context, role identity.CustomRole, at time.Time) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

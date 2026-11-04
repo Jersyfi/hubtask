@@ -30,6 +30,8 @@ var (
 type roleStore struct {
 	roles  map[string]repository.CustomRoleRow
 	grants map[shared.ID]repository.CustomGrantRow
+	// onLock runs once at Lock, as another transaction committing while this one waited for it.
+	onLock func()
 }
 
 func newRoleStore(roles ...domain.CustomRole) *roleStore {
@@ -54,6 +56,19 @@ func (s *roleStore) Find(_ context.Context, key string) (repository.CustomRoleRo
 		return repository.CustomRoleRow{}, shared.ErrNotFound.WithDetail("roles.not_found")
 	}
 	return row, nil
+}
+
+func (s *roleStore) Lock(_ context.Context, id shared.ID) (repository.CustomRoleRow, error) {
+	if hook := s.onLock; hook != nil {
+		s.onLock = nil
+		hook()
+	}
+	for _, row := range s.roles {
+		if row.Role.ID == id {
+			return row, nil
+		}
+	}
+	return repository.CustomRoleRow{}, shared.ErrNotFound.WithDetail("roles.not_found")
 }
 
 func (s *roleStore) Insert(_ context.Context, role domain.CustomRole, at time.Time) error {
@@ -359,5 +374,58 @@ func TestExplainAccessDoesNotLookIntoAPrivateHubTheCallerCannotReach(t *testing.
 	}
 	if len(held.asked) != 0 {
 		t.Fatalf("read what %v holds in a hub the caller cannot reach", held.asked)
+	}
+}
+
+// A role deleted while somebody grants it: the deletion holds the role before it counts its grants,
+// so a grant committed meanwhile refuses the deletion instead of vanishing with the role by
+// cascade after it was announced and recorded as granted.
+func TestARoleGrantedWhileItIsDeletedStaysWithItsGrant(t *testing.T) {
+	store := newRoleStore(serviceLead(t))
+	store.onLock = func() {
+		store.grants[membershipID] = repository.CustomGrantRow{RoleKey: "service_lead", Grant: domain.CustomGrant{
+			ID: membershipID, TenantID: tenant, AccountID: invitedID, Scope: domain.HubScope(hubID), RoleID: customRoleID,
+		}}
+	}
+	err := (DeleteRole{Roles: rolesWith(store, &authorizer{}, &auditSink{}, &heldBy{})}).Execute(t.Context(), admin(), "service_lead")
+	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "roles.in_use" {
+		t.Fatalf("a role granted meanwhile was deleted: %v", err)
+	}
+	if len(store.roles) != 1 || len(store.grants) != 1 {
+		t.Fatal("the grant went with the role")
+	}
+}
+
+// A grant holds the role it hands out: one deleted meanwhile is not found, and one whose
+// permissions changed meanwhile is asked of the ceiling again as it now stands.
+func TestAGrantHoldsTheRoleItHandsOut(t *testing.T) {
+	store, auth := newRoleStore(serviceLead(t)), &authorizer{}
+	grant := GrantRole{
+		Roles:  rolesWith(store, auth, &auditSink{}, &heldBy{}),
+		Grants: GrantMembership{Accounts: newAccounts(invitedAccount(t)), Groups: newGroups(), Hubs: &hubLocks{}},
+	}
+	command := GrantRoleCommand{Role: "service_lead", AccountID: invitedID, Scope: domain.HubScope(hubID)}
+	store.onLock = func() { delete(store.roles, "service_lead") }
+	if _, err := grant.Execute(t.Context(), admin(), command); shared.AsError(err) == nil || shared.AsError(err).DetailCode != "roles.not_found" {
+		t.Fatalf("a role deleted meanwhile was granted: %v", err)
+	}
+	if len(store.grants) != 0 {
+		t.Fatal("a grant of a deleted role was kept")
+	}
+
+	store.roles["service_lead"] = repository.CustomRoleRow{Role: serviceLead(t), Version: 1}
+	store.onLock = func() {
+		widened := store.roles["service_lead"]
+		widened.Role.Permissions = []string{"MANAGE_MEMBERS", "READ", "STRUCTURE"}
+		widened.Version = 2
+		store.roles["service_lead"] = widened
+	}
+	auth.requests = nil
+	if _, err := grant.Execute(t.Context(), admin(), command); err != nil {
+		t.Fatalf("granting: %v", err)
+	}
+	last := auth.requests[len(auth.requests)-1]
+	if !slices.Equal(last.HandsOut, []string{"MANAGE_MEMBERS", "READ", "STRUCTURE"}) {
+		t.Fatalf("the grant was judged on the permissions read before: %+v", auth.requests)
 	}
 }

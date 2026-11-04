@@ -10,6 +10,13 @@ ORDER BY key;
 SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
 FROM custom_role WHERE key = sqlc.arg('key');
 
+-- name: LockCustomRole :one
+-- Held for the transaction: a deletion counts the role's grants, and a grant hands out the role's
+-- permissions, as they stand once nobody else is changing them.
+SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
+FROM custom_role WHERE id = sqlc.arg('id')
+FOR UPDATE;
+
 -- name: InsertCustomRole :exec
 INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('key'), sqlc.arg('name'),

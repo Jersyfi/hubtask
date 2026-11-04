@@ -515,6 +515,10 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 	}
 	now := h.Roles.Clock.Now()
 	return h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Held before counting: a grant committed meanwhile would otherwise go by cascade.
+		if _, err := h.Roles.Store.Lock(ctx, current.Role.ID); err != nil {
+			return err
+		}
 		grants, err := h.Roles.allGrants(ctx, repository.GrantFilter{RoleID: current.Role.ID}, 0)
 		if err != nil {
 			return err
@@ -593,7 +597,7 @@ func (h GrantRole) Execute(ctx context.Context, actor appshared.ActorContext, cm
 	if err != nil {
 		return repository.CustomGrantRow{}, err
 	}
-	if err := h.Roles.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       pathTo(grant.Scope),
 		Action:     MembershipGrantedAction,
@@ -601,11 +605,24 @@ func (h GrantRole) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		TargetType: membershipTarget,
 		TargetID:   grant.Scope.ID,
 		HandsOut:   role.Role.Permissions,
-	}); err != nil {
+	}
+	if err := h.Roles.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return repository.CustomGrantRow{}, err
 	}
 	now := h.Roles.Clock.Now()
 	err = h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The role as it stands while held: deleted meanwhile is not found, and permissions
+		// changed meanwhile are what the grant hands out and the ceiling is asked about.
+		held, err := h.Roles.Store.Lock(ctx, role.Role.ID)
+		if err != nil {
+			return err
+		}
+		if !slices.Equal(held.Role.Permissions, role.Role.Permissions) {
+			request.HandsOut = held.Role.Permissions
+			if err := h.Roles.Authorizer.Authorize(ctx, actor, request); err != nil {
+				return err
+			}
+		}
 		like := asGrant(grant)
 		if err := h.Grants.subjectExists(ctx, like); err != nil {
 			return err
