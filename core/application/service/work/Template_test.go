@@ -403,6 +403,30 @@ func TestAnAssigneeTheDestinationCannotReachIsReported(t *testing.T) {
 
 // The instantiation asks for the right to create entries where the tree lands, not for the right
 // to define templates: the two are different acts by different people.
+// An instantiated tree stands where the collection's workflow puts a new entry, as a create does:
+// without a status the entries sat outside every column of a board by status.
+func TestAnInstantiatedTreeEntersTheWorkflowInForce(t *testing.T) {
+	h := newTemplateHarness(t)
+	h.instantiate.Workflow = WorkflowGate{Workflows: &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+	}}
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{Spec: moveSpec(t)})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+	if _, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+	}); err != nil {
+		t.Fatalf("instantiating failed: %v", err)
+	}
+	for _, item := range h.items.stored {
+		if item.Status != "todo" {
+			t.Errorf("%q stands in %q, want the workflow's initial status", item.Title, item.Status)
+		}
+	}
+}
+
 func TestInstantiatingAsksForTheRightToCreateEntries(t *testing.T) {
 	h := newTemplateHarness(t)
 	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{

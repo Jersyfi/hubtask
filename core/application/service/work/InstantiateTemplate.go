@@ -55,6 +55,9 @@ type InstantiateTemplate struct {
 	Restrictions RestrictedAccounts
 	Events       outbox.Events
 	Activity     ActivityJournal
+	// Workflow gives each new entry the initial status of the workflow its collection runs for
+	// its type, as a create does. Unwired, the entries carry none.
+	Workflow WorkflowGate
 }
 
 // InstantiateTemplateCommand is the input, typed.
@@ -348,6 +351,9 @@ func (h InstantiateTemplate) write(
 	// already carries, all at once, because there is nothing to decide about them a second time
 	// and writing them through three more statements would spend three versions on an entry that
 	// was born a moment ago (db/queries/Work.sql, CopyWorkItem).
+	if item.Status, err = h.Workflow.initialStatus(ctx, stamp.destination, item); err != nil {
+		return domain.WorkItem{}, err
+	}
 	if err := h.Items.InsertCopy(ctx, repository.Copy{Item: item}); err != nil {
 		return domain.WorkItem{}, err
 	}

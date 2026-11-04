@@ -3530,6 +3530,7 @@ func run() error {
 			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
 			Visibility: authorizer, Restrictions: accounts, Events: outbox, Activity: journal,
+			Workflow: workflowGate,
 		}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
