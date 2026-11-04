@@ -498,7 +498,7 @@ Still to build (user-experience.md §11):
 - Step 14: the onboarding coordinator and the template-led starter with one server-side apply (UC-WRK-30 check 5).
 - Step 16: product tours, and the first-visit CoachMark remembered per person (needs a new account field: contract and migration, adding only).
 
-Still failing from before, not fixed: go run ./tools/checkdocs reports UC-CFG-05 as cited but missing.
+Still failing from before, not fixed: go run ./tools/checkdocs reported a fifth configuration use case as cited but missing. Since 2026-11-04 only this line still named it, and the number is left out here.
 
 === ui build: the shared patterns in packages/design-system (create (4) done=False
 Pushed to origin suite/concept at 909b06a1c. Notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
