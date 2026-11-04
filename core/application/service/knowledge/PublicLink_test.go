@@ -266,3 +266,33 @@ func TestAPublicLinkShowsThePagesPicturesAndItsPublicMentions(t *testing.T) {
 		t.Fatalf("a restricted page's picture opened: %v", err)
 	}
 }
+
+// A mentioned page's title is shown only while that page's own link answers: once its maker is
+// disabled, its title is as hidden as its words.
+func TestAPublicPageShowsNoTitleOfAMentionWhoseLinkNoLongerAnswers(t *testing.T) {
+	f := newFixture()
+	store := &links{byPage: map[shared.ID]domain.PublicLink{}, token: map[shared.ID]string{}}
+	accounts := people{status: map[shared.ID]identity.AccountStatus{anna: identity.AccountActive, bert: identity.AccountActive}}
+	f.space.Public = PublicLinking{
+		Links: store, Settings: &settingsStore{plan: setting.Layer{Level: setting.LevelPlan}},
+		Entropy: &fixedEntropy{}, Accounts: accounts, Modules: &knowledgeOn{},
+	}
+	ctx := context.Background()
+	if _, err := (SetPublicLinksPolicy{Space: f.space}).Execute(ctx, as(anna), true); err != nil {
+		t.Fatal(err)
+	}
+	mentioned := f.create(t, bert, hub, "", "Salary bands 2027", "")
+	page := f.create(t, anna, hub, "", "Guide", "See [](hubtask:page/"+mentioned.ID.String()+").")
+	if _, err := (CreatePagePublicLink{Space: f.space}).Execute(ctx, as(bert), mentioned.ID); err != nil {
+		t.Fatal(err)
+	}
+	minted, err := (CreatePagePublicLink{Space: f.space}).Execute(ctx, as(anna), page.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accounts.status[bert] = identity.AccountDisabled
+	shown, err := (ReadPublicPage{Space: f.space}).Execute(ctx, minted.Token)
+	if err != nil || len(shown.Titles) != 0 {
+		t.Fatalf("titles %v, %v", shown.Titles, err)
+	}
+}

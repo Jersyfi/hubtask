@@ -376,17 +376,34 @@ func (h ReadPublicPage) Execute(ctx context.Context, token integration.PageLinkT
 	}
 	media, mentioned := domain.PublicNames(page.Body)
 	shown := PublicPage{Page: page, Titles: map[shared.ID]string{}}
+	var candidates []mention
 	err = h.Space.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: token.TenantID()}, func(ctx context.Context) error {
 		var err error
 		if shown.Pictures, err = h.pictures(ctx, page.ID, media); err != nil {
 			return err
 		}
-		return h.titles(ctx, mentioned, shown.Titles)
+		candidates, err = h.mentions(ctx, mentioned)
+		return err
 	})
 	if err != nil {
 		return PublicPage{}, err
 	}
+	// A mention's title shows only while its own link answers, judged as its own opening is.
+	for _, candidate := range candidates {
+		if _, err := h.opened(ctx, token.TenantID(), candidate.link); errors.Is(err, shared.ErrNotFound) {
+			continue
+		} else if err != nil {
+			return PublicPage{}, err
+		}
+		shown.Titles[candidate.link.PageID] = candidate.title
+	}
 	return shown, nil
+}
+
+// mention is a mentioned page with a public link of its own, and its title.
+type mention struct {
+	link  domain.PublicLink
+	title string
 }
 
 // Picture answers the tenant a public page's picture is read in, where the link answers and the
@@ -444,16 +461,17 @@ func (h ReadPublicPage) pictures(ctx context.Context, pageID shared.ID, named []
 	return drawn, nil
 }
 
-// titles names the mentioned pages that an unknown visitor could open anyway: live, behind no
-// restriction and with a public link of their own.
-func (h ReadPublicPage) titles(ctx context.Context, mentioned []shared.ID, into map[shared.ID]string) error {
+// mentions answers the mentioned pages an unknown visitor might open anyway: live, behind no
+// restriction and with a public link of their own; whether that link answers is asked after.
+func (h ReadPublicPage) mentions(ctx context.Context, mentioned []shared.ID) ([]mention, error) {
 	if len(mentioned) == 0 {
-		return nil
+		return nil, nil
 	}
 	readers, err := h.Space.Pages.Readers(ctx, mentioned)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var out []mention
 	for _, id := range mentioned {
 		if readers[id].Restricted {
 			continue
@@ -463,15 +481,15 @@ func (h ReadPublicPage) titles(ctx context.Context, mentioned []shared.ID, into 
 			continue
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if _, found, err := h.Space.Public.Links.Find(ctx, id); err != nil {
-			return err
+		if link, found, err := h.Space.Public.Links.Find(ctx, id); err != nil {
+			return nil, err
 		} else if found {
-			into[id] = page.Title
+			out = append(out, mention{link: link, title: page.Title})
 		}
 	}
-	return nil
+	return out, nil
 }
 
 // open answers the page a link opens, as its maker reads it now.
@@ -479,17 +497,30 @@ func (h ReadPublicPage) open(ctx context.Context, token integration.PageLinkToke
 	if token.IsZero() || h.Space.Public.Links == nil || h.Space.Public.Accounts == nil {
 		return domain.Page{}, linkGone()
 	}
-	scope := persistence.Scope{TenantID: token.TenantID()}
+	var link domain.PublicLink
+	err := h.Space.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: token.TenantID()}, func(ctx context.Context) error {
+		var err error
+		link, err = h.Space.Public.Links.FindByToken(ctx, token)
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) {
+		return domain.Page{}, linkGone()
+	}
+	if err != nil {
+		return domain.Page{}, err
+	}
+	return h.opened(ctx, token.TenantID(), link)
+}
+
+// opened answers the page a link opens, as its maker reads it now, or what an unknown token
+// answers.
+func (h ReadPublicPage) opened(ctx context.Context, tenant shared.ID, link domain.PublicLink) (domain.Page, error) {
 	var (
 		page  domain.Page
 		maker appshared.ActorContext
 	)
-	err := h.Space.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		link, err := h.Space.Public.Links.FindByToken(ctx, token)
-		if err != nil {
-			return err
-		}
-		r, err := h.Space.publicLinksAllowed(ctx, token.TenantID())
+	err := h.Space.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenant}, func(ctx context.Context) error {
+		r, err := h.Space.publicLinksAllowed(ctx, tenant)
 		if err != nil {
 			return err
 		}
@@ -514,7 +545,7 @@ func (h ReadPublicPage) open(ctx context.Context, token integration.PageLinkToke
 			return linkGone()
 		}
 		maker = appshared.ActorContext{
-			Kind: appshared.ActorUser, TenantID: token.TenantID(), AccountID: account.ID,
+			Kind: appshared.ActorUser, TenantID: tenant, AccountID: account.ID,
 			AccountName: account.DisplayName, Locale: account.Locale, TimeZone: account.TimeZone,
 			// The one read a link performs, and nothing else.
 			Scopes: []string{pagesRead},
