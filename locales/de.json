@@ -8882,7 +8882,7 @@
   "mail.oauth_url_invalid": "Gib eine https://-Adresse an.",
   "mail.oauth_client_required": "Gib die Client-ID deiner App an.",
   "app.mail.section_mailboxes": "Postfächer",
-  "app.mail.mailboxes_hint": "Ein vorhandenes Postfach genügt – etwa bei Gmail, GMX, web.de oder IONOS. Hubtask liest es jede Minute, nimmt nur Mails, die ab dem Verbinden ankommen, und verschiebt sie nach dem Ablegen in den Ordner „Hubtask“.",
+  "app.mail.mailboxes_hint": "Ein vorhandenes Postfach genügt – etwa bei Gmail, GMX, web.de oder IONOS. Neue Mail kommt meist binnen Sekunden an, und binnen einer Minute, wo der Mailserver sie nicht ankündigen kann. Hubtask übernimmt nur Mail, die nach dem Verbinden eintrifft, und verschiebt jede Nachricht nach dem Ablegen in den Ordner „Hubtask“.",
   "app.mail.provider": "Anbieter",
   "app.mail.provider.gmail": "Gmail",
   "app.mail.provider.gmx": "GMX",
