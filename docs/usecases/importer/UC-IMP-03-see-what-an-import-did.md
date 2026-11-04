@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12]
 state: built
 tasks: [P-08, F6-09]
-checked_by: [core/application/service/importer/Import_test.go, test/integration/import_test.go, core/application/service/importer/Into_test.go]
+checked_by: [core/application/service/importer/Import_test.go, test/integration/import_test.go, core/application/service/importer/Into_test.go, apps/webapp/src/lib/data/imports.test.ts, apps/webapp/e2e/importinto.test.mjs]
 ---
 
 # See what an import did
@@ -39,8 +39,12 @@ appear a moment later.
    misses what the import wrote.
 6. An import's report is readable by whoever may read the hub it landed in; anybody else is
    refused.
+7. Before importing, the import dialog checks the file by a dry run and says in words what the
+   import would create - by collections, columns, labels and entries -, what is already there and
+   left as it is, and which rows would not land; the dry run writes nothing but its report and keeps
+   the file, so the import that follows takes the same upload.
 
 ## Where it ends
 
 * No undo of an import as a whole; its collections are deleted like any others.
-* No preview of the result before the import runs.
+* The dry run counts what the file holds; it shows no entry of it.

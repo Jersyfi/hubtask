@@ -574,6 +574,7 @@ func TestASecondFileUnderATakenNameIsRefusedWithACode(t *testing.T) {
 	}
 }
 
+// UC-IMP-03 check 7.
 func TestADryRunReportsWhatTheImportWouldDoAndChangesNothing(t *testing.T) {
 	run, queued := newRuns(), &jobs{}
 	h := acceptor(&authorizer{}, run, readyObject(), work.Container{ID: hubID, Type: work.ContainerHub}, queued)

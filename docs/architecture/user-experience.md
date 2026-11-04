@@ -824,8 +824,13 @@ inventory — is one anatomy of four steps in one dialog, reached from the place
 4. **The run and its report**: the job's progress, then what arrived with *Open what arrived*; a
    second import of the same file says *left as they are* in the report.
 
-Not built: the importers keep their dialogs as they are today (`ImportDialog`, `PlanImport`,
-`ImportFile`); the dry run is not said through `PlanSummary` yet.
+As built: `ImportDialog` - the sources as cards in four families (spreadsheets, task apps, issue
+trackers, wikis and documents), the limit in the file's hint, the check a dry run of the same
+upload (`POST /imports` with `dry_run`, backup-restore.md §9) said through `PlanSummary` and marked
+stale when the mapping changes, the report in the same words. `PlanImport` and the asset
+`ImportFile` keep their one screen and say their dry runs through `PlanSummary`. Not built: the
+capture's *Import a file* and a product's empty state do not yet open the dialog on a chosen
+source; the plan and asset importers are not on the four-step anatomy.
 
 ---
 
@@ -904,6 +909,7 @@ claims what the code does not do.
 |---|---|
 | UC-WRK-30 check 5 | The first person is asked once what they use Hubtask for, from the template catalogue's families; the chosen template is applied with its modules and marked samples; they can skip it, and everything made can be renamed, changed or removed |
 | UC-WRK-34 | A new check: where a product is on, Today shows its band (*Needs your answer*, *Waiting for your yes*, *Time today*, *Sprint*) fed by the product's own reads, and none where it is off |
+| UC-IMP-03 | A new check 7: the import dialog checks the file by a dry run and says its plan in words before the import; *Where it ends* no longer says there is no preview (§7.11) |
 | UC-INS-21 | Unchanged: a new workspace still starts with no module on (check 1); a template switches a module on only by the person's choice |
 | `design-system.md` §11.3 | Five bands (§2.1); the account group's rows (§2.3) |
 | `design-system.md` §11.8 | A hub's and a collection's tab strip (§2.4); the head's secondary actions are the place's own; creating a hub from a template (§5.2) |
