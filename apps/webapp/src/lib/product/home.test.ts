@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { createOf, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
+import { collectionScreenOf, createOf, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -125,15 +125,29 @@ test('the recent runs across agents, the newest first, at most the limit', () =>
   assert.deepEqual(recentRuns({}, ['a1'], 5), []);
 });
 
-// UX-2, user-experience.md §5.1: every product home with hubs of its own opens on its create act,
-// worded for the product and leading to the hub's screen of it where the hub's own act stands.
-test('the pages, whiteboards and assets homes each carry their create act', () => {
-  for (const module of ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']) {
-    const create = createOf(module);
-    assert.ok(create, `${module}'s home has no create act`);
-    assert.ok(create.code in SOURCE && create.inCode in SOURCE, `${module}: ${create.code}, ${create.inCode}`);
+// UX-2, user-experience.md §5.1/§5.2: every product home's head carries its primary create act,
+// worded for the product and leading to the place's screen of it where the place's own act stands;
+// a home that is its own screen carries the act in that screen's head.
+test('every product home carries its primary create act', () => {
+  const ownScreen: Record<string, string> = {
+    SERVICE_DESK: 'DeskHome words its own',
+    TIME: 'time records on its own page (TimeView, Record time)',
+    GOALS: 'goals create on their own page',
+    AGENTS: 'AgentsView is the home, Add an agent in its head',
+  };
+  const id = '01a0e2e0-0000-7000-8000-000000000002';
+  for (const row of PRODUCTS) {
+    if (ownScreen[row.module]) {
+      assert.equal(createOf(row.module), undefined, `${row.module}: ${ownScreen[row.module]}`);
+      continue;
+    }
+    const create = createOf(row.module);
+    assert.ok(create, `${row.module}'s home has no create act`);
+    assert.ok(create.code in SOURCE && create.inCode in SOURCE, `${row.module}: ${create.code}, ${create.inCode}`);
+    const screen = create.level === 'HUB' ? hubScreenOf(row.module, id) : collectionScreenOf(row.module, id);
+    assert.ok(screen && resolve(ROUTES, screen).name, `${row.module}'s create leads to no route: ${screen}`);
   }
-  assert.equal(createOf('TIME'), undefined, 'time records on its own page');
+  assert.equal(createOf('PLANNING')?.code, 'app.sprints.plan', 'the plans lead to a collection\'s Plan a sprint');
 });
 
 // §4: the first visit is decided by whether anything of the product exists yet, not by whether a

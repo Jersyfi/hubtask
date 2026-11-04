@@ -412,6 +412,23 @@ test('chromium 375 px, dark: the plans\' home lists the releases to come', async
   assert.deepEqual(failures, []);
 });
 
+// §5.1/§5.2: the plans' head carries its primary create act, as every product home does: *Plan a
+// sprint* leads to a collection's sprints, the other collections in its menu.
+test('chromium 1280 px: the plans\' home leads its create act to a collection\'s sprints', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING'] });
+  t.after(close);
+  const plan = page.getByRole('button', { name: 'Plan a sprint' });
+  await plan.waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'In another collection' }).click();
+  await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await plan.click();
+  await page.waitForURL(`**/collections/${DESK.id}/sprints`, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 // §5.3: one search for every kind: entries, pages, boards and places, grouped and filtered by kind;
 // with no entry matching, the screen does not say nothing matches while other kinds do.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {

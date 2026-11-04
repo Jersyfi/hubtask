@@ -6266,6 +6266,7 @@
   "app.product_home.unused_body_templates": "Make the first one in one of your hubs, or start a new hub from a template.",
   "app.product_home.none": "No hub uses {product} yet",
   "app.product_home.new_in": "In another hub",
+  "app.product_home.plan_in": "In another collection",
   "app.product_home.none_body": "Once a hub you can read uses it, it is listed here.",
   "app.product_home.none_body_create": "Create a hub to start with it: a new hub uses what is switched on for the workspace.",
   "app.product_home.tab_spaces": "Spaces",

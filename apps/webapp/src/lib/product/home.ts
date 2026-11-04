@@ -73,22 +73,31 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
 }
 
 /**
- * A product home's create act (UX-2, user-experience.md §5.1): its words, and the words of the
- * menu choosing another hub. It leads to the hub's screen of the product, where the act itself
- * stands, in the hub's own words; the desk words its own (`DeskHome`), time and goals create on
- * their own pages. The plans have no act of making at a hub to lead to, so none here.
+ * A product home's create act (UX-2, user-experience.md §5.1): its words, the words of the menu
+ * choosing another place, and the level of that place. It leads to the place's screen of the
+ * product, where the act itself stands, in the place's own words; the desk words its own
+ * (`DeskHome`), time and goals create on their own pages, the agents' home is their one screen
+ * with *Add an agent* in its head. The plans lead to a collection's sprints, whose head is *Plan a
+ * sprint* (§7.5) - a hub's plan holds its entries' dates and has no act of making.
  */
-export function createOf(module: string): { readonly code: string; readonly inCode: string } | undefined {
+export function createOf(module: string): { readonly code: string; readonly inCode: string; readonly level: 'HUB' | 'COLLECTION' } | undefined {
   switch (module) {
+    case 'PLANNING':
+      return { code: 'app.sprints.plan', inCode: 'app.product_home.plan_in', level: 'COLLECTION' };
     case 'KNOWLEDGE':
-      return { code: 'app.pages.new', inCode: 'app.product_home.new_in' };
+      return { code: 'app.pages.new', inCode: 'app.product_home.new_in', level: 'HUB' };
     case 'WHITEBOARD':
-      return { code: 'app.whiteboards.new', inCode: 'app.product_home.new_in' };
+      return { code: 'app.whiteboards.new', inCode: 'app.product_home.new_in', level: 'HUB' };
     case 'ASSETS':
-      return { code: 'app.assets.new', inCode: 'app.product_home.new_in' };
+      return { code: 'app.assets.new', inCode: 'app.product_home.new_in', level: 'HUB' };
     default:
       return undefined;
   }
+}
+
+/** The screen a create act at a collection leads to: the product's screen there. */
+export function collectionScreenOf(module: string, collectionId: string): string | undefined {
+  return module === 'PLANNING' ? `/collections/${encodeURIComponent(collectionId)}/sprints` : undefined;
 }
 
 /**

@@ -6266,6 +6266,7 @@
   "app.product_home.unused_body_templates": "Lege das Erste in einem deiner Hubs an, oder beginne einen neuen Hub mit einer Vorlage.",
   "app.product_home.none": "Noch kein Hub nutzt {product}",
   "app.product_home.new_in": "In einem anderen Hub",
+  "app.product_home.plan_in": "In einer anderen Sammlung",
   "app.product_home.none_body": "Sobald ein Hub, den du lesen darfst, es nutzt, steht er hier.",
   "app.product_home.none_body_create": "Lege einen Hub an, um damit zu beginnen: ein neuer Hub nutzt, was für den Arbeitsbereich eingeschaltet ist.",
   "app.product_home.tab_spaces": "Bereiche",
