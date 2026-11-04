@@ -36,7 +36,9 @@ const BUNDLED: readonly SupportedLocale[] = [{ locale: SOURCE_LOCALE, direction:
 class ActiveMessages {
   #locale = $state(SOURCE_LOCALE);
   #direction = $state<'ltr' | 'rtl'>('ltr');
-  #catalogues = $state<readonly Catalogue[]>([SOURCE]);
+  // Raw: a catalogue is replaced whole, never changed in place, and a deep proxy of it is not the
+  // `SOURCE` that `createMessages` looks for - the source would be read twice.
+  #catalogues = $state.raw<readonly Catalogue[]>([SOURCE]);
   #messages = $derived(createMessages({ locale: this.#locale, catalogues: this.#catalogues }));
 
   get locale(): string {
