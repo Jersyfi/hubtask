@@ -65,6 +65,24 @@
     if (!asksGroup) return;
     return untrack(() => workspaceGroups.open());
   });
+  // A GROUP question offers to make the group in place (§3.2): where it is created it is the answer.
+  const mayCreateGroup = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  let groupDraft = $state<Record<string, string>>({});
+  async function createGroup(key: string) {
+    const name = (groupDraft[key] ?? '').trim();
+    if (name === '') return;
+    busy = `group:${key}`;
+    dialogFailure = undefined;
+    try {
+      const group = await workspaceGroups.create(name);
+      groupDraft = { ...groupDraft, [key]: '' };
+      await answer(key, group.id);
+    } catch (error) {
+      dialogFailure = renderProblem(error as never, messages).message;
+    } finally {
+      busy = undefined;
+    }
+  }
   let plan = $state<ConfigTemplatePlan>();
   let take = $state<string[]>([]);
   let isOpen = $state(false);
@@ -257,6 +275,15 @@
                     : question.options.map((option) => ({ value: option, label: option }))),
                 ]}
                 onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLSelectElement).value)} />
+              {#if question.kind === 'GROUP' && mayCreateGroup}
+                <div class="create-group" data-create-group={question.key}>
+                  <Input label={t('app.templates.create_group_name')} value={groupDraft[question.key] ?? ''}
+                    oninput={(event: Event) => (groupDraft = { ...groupDraft, [question.key]: (event.currentTarget as HTMLInputElement).value })} />
+                  <Button tone="secondary" size="sm" isBusy={busy === `group:${question.key}`}
+                    disabledReason={(groupDraft[question.key] ?? '').trim() === '' ? t('app.templates.create_group_name_first') : undefined}
+                    onclick={() => createGroup(question.key)}>{t('app.templates.create_group')}</Button>
+                </div>
+              {/if}
             {/if}
           {/each}
         </div>
@@ -333,5 +360,6 @@
   .block h2 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .questions { display: grid; gap: var(--sp-100); }
+  .create-group { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
 </style>
