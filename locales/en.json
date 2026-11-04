@@ -8821,7 +8821,7 @@
   "mail.oauth_refused": "The provider refused the app. Check the client ID, the secret and the redirect URI.",
   "mail.oauth_url_invalid": "Enter an https:// address.",
   "mail.oauth_client_required": "Enter the client ID of your app.",
-  "app.mail.section_mailboxes": "Connect a mailbox",
+  "app.mail.section_mailboxes": "Mailboxes",
   "app.mail.mailboxes_hint": "An existing mailbox is enough - at Gmail, GMX, web.de or IONOS, say. Hubtask reads it every minute, takes only mail that arrives after connecting, and moves each message to the folder \"Hubtask\" once it is filed.",
   "app.mail.provider": "Provider",
   "app.mail.provider.gmail": "Gmail",

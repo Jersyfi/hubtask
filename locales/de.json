@@ -8821,7 +8821,7 @@
   "mail.oauth_refused": "Der Anbieter hat die App abgelehnt. Prüfe Client-ID, Secret und Weiterleitungs-URI.",
   "mail.oauth_url_invalid": "Gib eine https://-Adresse an.",
   "mail.oauth_client_required": "Gib die Client-ID deiner App an.",
-  "app.mail.section_mailboxes": "Postfach verbinden",
+  "app.mail.section_mailboxes": "Postfächer",
   "app.mail.mailboxes_hint": "Ein vorhandenes Postfach genügt – etwa bei Gmail, GMX, web.de oder IONOS. Hubtask liest es jede Minute, nimmt nur Mails, die ab dem Verbinden ankommen, und verschiebt sie nach dem Ablegen in den Ordner „Hubtask“.",
   "app.mail.provider": "Anbieter",
   "app.mail.provider.gmail": "Gmail",

@@ -52,6 +52,16 @@
 
   let { onchange, providerAnswer, onanswered, isAdding = $bindable(false) }: Props = $props();
 
+  /** How a mailbox is reached, in one line: the protocol, the server, the sign-in. */
+  function wayOf(box: Mailbox): string {
+    const server = box.host ?? box.session_url;
+    return [
+      box.protocol,
+      ...(server ? [server] : []),
+      ...(box.auth === 'OAUTH' ? [t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })] : []),
+    ].join(' · ');
+  }
+
   const STATE_TONE: Record<MailboxState, 'success' | 'warning' | 'danger' | 'neutral'> = {
     reading: 'success',
     failed_once: 'warning',
@@ -268,9 +278,7 @@
               <strong class="address">{box.address}</strong>
               <Badge tone={STATE_TONE[state]}>{t(`app.mail.mailbox_state.${state}`)}</Badge>
             </div>
-            <span class="quiet small">
-              {box.protocol}{#if box.host ?? box.session_url} · {box.host ?? box.session_url}{/if}{#if box.auth === 'OAUTH'} · {t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })}{/if}
-            </span>
+            <span class="quiet small">{wayOf(box)}</span>
             <p class="quiet small" data-mailbox-state>
               {#if box.checked_at}
                 {t('app.mail.mailbox_read_at', { when: formatDateTime(box.checked_at, messages.locale) })}
