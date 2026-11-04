@@ -484,3 +484,27 @@ func TestAMoveKeepsTheWholeSubtreeWithinTheTreesDepth(t *testing.T) {
 		t.Fatalf("got %v; want pages.too_deep", err)
 	}
 }
+
+// A trashed page whose parent moved deeper meanwhile comes back at the top of the space when its
+// subtree would no longer fit under it, as it does when its parent is still in the trash.
+func TestARestoredPageThatNoLongerFitsComesBackAtTheTop(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	bottom := shared.ID("")
+	for range domain.MaxDepth - 2 {
+		bottom = f.create(t, anna, hub, bottom, "Level", "").ID
+	}
+	parent := f.create(t, anna, hub, "", "Parent", "")
+	page := f.create(t, anna, hub, parent.ID, "Page", "")
+	f.create(t, anna, hub, page.ID, "Under", "")
+	if _, err := (TrashPage{Space: f.space}).Execute(ctx, as(anna), page.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (MovePage{Space: f.space}).Execute(ctx, as(anna), MovePageCommand{PageID: parent.ID, ParentID: bottom}); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := (RestorePage{Space: f.space}).Execute(ctx, as(anna), page.ID)
+	if err != nil || !restored.ParentID.IsZero() {
+		t.Fatalf("restored under %q, %v; want the top of the space", restored.ParentID, err)
+	}
+}

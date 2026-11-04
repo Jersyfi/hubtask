@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -894,8 +895,13 @@ func (h RestorePage) Execute(ctx context.Context, actor appshared.ActorContext, 
 	var page domain.Page
 	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if !trashed.ParentID.IsZero() {
-			// A page whose parent is still in the trash comes back at the top of the space.
-			if _, err := h.Space.find(ctx, trashed.ParentID, false); err != nil {
+			// A page whose parent is still in the trash, or whose subtree no longer fits under it
+			// since the parent moved deeper, comes back at the top of the space.
+			fits, err := h.fitsUnderParent(ctx, trashed)
+			if err != nil {
+				return err
+			}
+			if !fits {
 				current, err := h.Space.Pages.FindForUpdate(ctx, trashed.ID)
 				if err != nil {
 					return err
@@ -924,12 +930,33 @@ func (h RestorePage) Execute(ctx context.Context, actor appshared.ActorContext, 
 	return page, err
 }
 
+// fitsUnderParent reports whether a trashed page can come back under its parent: the parent is
+// live and the page's subtree stays within the tree's depth there.
+func (h RestorePage) fitsUnderParent(ctx context.Context, trashed domain.Page) (bool, error) {
+	if _, err := h.Space.find(ctx, trashed.ParentID, false); err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	ancestors, err := h.Space.Pages.Ancestors(ctx, trashed.ParentID)
+	if err != nil {
+		return false, err
+	}
+	subtree, err := h.Space.Pages.Subtree(ctx, trashed.ID, true, domain.MaxPagesPerHub)
+	if err != nil {
+		return false, err
+	}
+	return domain.CheckSubtreeDepth(len(ancestors)+2, domain.SubtreeHeight(subtree, trashed.ID)) == nil, nil
+}
+
 // Descriptor is the catalogue entry.
 func (h RestorePage) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: RestorePageName, Permission: service.PermissionWriteItems,
 		Summary: "Brings a trashed page back with the pages that went into the trash with it. A page " +
-			"whose parent is still in the trash comes back at the top of the space.",
+			"whose parent is still in the trash, or whose pages would reach deeper than twelve levels " +
+			"under it, comes back at the top of the space.",
 		SideEffects: "Restores the pages and writes an audit entry.",
 		TokenScope:  pagesWrite,
 		Input:       []usecase.Field{{Name: "page_id", Kind: usecase.KindID, Required: true, Description: "The trashed page."}},
