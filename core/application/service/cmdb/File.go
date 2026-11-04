@@ -75,8 +75,10 @@ func tableRows(format domain.FileFormat, data []byte) ([]map[string]string, erro
 		}
 		return rows, nil
 	}
-	reader := csv.NewReader(bytes.NewReader(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))))
+	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
+	reader := csv.NewReader(bytes.NewReader(data))
 	reader.FieldsPerRecord = -1
+	reader.Comma = separator(data)
 	header, err := reader.Read()
 	if err != nil {
 		return nil, fileInvalid("/content", "cmdb.file_unreadable")
@@ -99,6 +101,16 @@ func tableRows(format domain.FileFormat, data []byte) ([]map[string]string, erro
 		rows = append(rows, row)
 	}
 	return rows, nil
+}
+
+// separator is a table's by its first line, as the import dialog reads it: a semicolon when it
+// holds more of them than commas - a spreadsheet saved as CSV in a German locale - else a comma.
+func separator(data []byte) rune {
+	first, _, _ := bytes.Cut(data, []byte("\n"))
+	if bytes.Count(first, []byte(";")) > bytes.Count(first, []byte(",")) {
+		return ';'
+	}
+	return ','
 }
 
 // workbookRows reads a base64-encoded workbook's first sheet as tableRows reads a CSV table.
