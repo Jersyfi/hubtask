@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	maildomain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -59,8 +60,9 @@ type EntrySummary struct {
 	ID           shared.ID
 	CollectionID shared.ID
 	HubID        shared.ID
-	// Handle is the collection's, for the entry's key (`sup-128`); empty where it has none.
+	// Handle and KeyPrefix are the collection's, for the entry's key (Key); either may be empty.
 	Handle    string
+	KeyPrefix string
 	Level     work.ItemType
 	EntryType string
 	Title     string
@@ -69,6 +71,15 @@ type EntrySummary struct {
 	StartAt   *time.Time
 	DueAt     *time.Time
 	Archived  bool
+}
+
+// Key is the entry's key as every screen draws it, "INC-128" (user-experience.md §5.6); empty
+// where the entry has no number or its collection no word.
+func (s EntrySummary) Key() string {
+	if s.Number <= 0 || (s.Handle == "" && s.KeyPrefix == "") {
+		return ""
+	}
+	return maildomain.Key{Prefix: s.KeyPrefix, Handle: s.Handle, Number: s.Number}.String()
 }
 
 // ContainerSummary is what a hub or a collection shows where something points at it.

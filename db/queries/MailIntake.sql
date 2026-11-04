@@ -87,11 +87,17 @@ WHERE c.handle = sqlc.arg('handle') AND c.type = 'COLLECTION'
   AND hub.deleted_at IS NULL AND hub.archived_at IS NULL;
 
 -- name: ItemByKey :one
+-- A key names its collection by the key prefix or by the handle (migration 0356); the word is
+-- given in lower case, as the handle is written. 0356 keeps a prefix from being another
+-- collection's handle, and the prefix is preferred should two writers have raced past that.
 SELECT wi.id
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
-WHERE c.handle = sqlc.arg('handle') AND wi.number = sqlc.arg('number')::bigint
-  AND wi.deleted_at IS NULL AND c.deleted_at IS NULL;
+WHERE (c.handle = sqlc.arg('handle') OR c.key_prefix = upper(sqlc.arg('handle')))
+  AND wi.number = sqlc.arg('number')::bigint
+  AND wi.deleted_at IS NULL AND c.deleted_at IS NULL
+ORDER BY (c.key_prefix IS NOT NULL AND c.key_prefix = upper(sqlc.arg('handle'))) DESC
+LIMIT 1;
 
 -- name: SetCollectionHandle :execrows
 UPDATE container SET handle = sqlc.arg('handle')
@@ -99,7 +105,7 @@ WHERE id = sqlc.arg('id') AND type = 'COLLECTION';
 
 -- name: ItemKey :one
 -- An entry's ticket key, for the Reply-To of a notification about it.
-SELECT c.handle, wi.number
+SELECT c.handle, c.key_prefix, wi.number
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
 WHERE wi.id = sqlc.arg('id') AND wi.deleted_at IS NULL;

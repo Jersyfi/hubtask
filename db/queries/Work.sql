@@ -35,7 +35,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -82,8 +82,9 @@ INSERT INTO container (
                        'completion_policy', sqlc.arg('completion_policy')::text)
   END
 )
--- The handle the store gave a collection (migration 0204), so the create answers it.
-RETURNING handle;
+-- The handle and the key prefix the store gave a collection (migrations 0204, 0356), so the create
+-- answers them.
+RETURNING handle, key_prefix;
 
 -- name: ListContainers :many
 -- One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -121,7 +122,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -157,7 +158,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, hub.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle,
+  c.private, c.handle, c.key_prefix,
   hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
 FROM container c
 JOIN container hub ON hub.id = c.parent_id
@@ -196,6 +197,9 @@ UPDATE container SET
   description = sqlc.narg('description'),
   icon        = sqlc.narg('icon'),
   color_token = sqlc.narg('color_token'),
+  -- A collection's key prefix; one another collection holds is refused by 0356's trigger as a
+  -- unique violation on container_key_prefix_uq.
+  key_prefix  = sqlc.narg('key_prefix'),
   updated_at  = sqlc.arg('updated_at'),
   version     = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');

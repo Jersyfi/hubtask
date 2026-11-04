@@ -501,7 +501,7 @@ func (q *Queries) ListEntryReferencesFrom(ctx context.Context, arg ListEntryRefe
 }
 
 const listEntrySummaries = `-- name: ListEntrySummaries :many
-SELECT wi.id, wi.collection_id, c.parent_id AS hub_id, c.handle, wi.type::text AS level,
+SELECT wi.id, wi.collection_id, c.parent_id AS hub_id, c.handle, c.key_prefix, wi.type::text AS level,
   wi.entry_type, wi.title, wi.number, wi.is_completed, wi.start_at, wi.due_at, wi.archived_at
 FROM work_item wi
 JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
@@ -514,6 +514,7 @@ type ListEntrySummariesRow struct {
 	CollectionID pgtype.UUID
 	HubID        pgtype.UUID
 	Handle       *string
+	KeyPrefix    *string
 	Level        string
 	EntryType    *string
 	Title        string
@@ -540,6 +541,7 @@ func (q *Queries) ListEntrySummaries(ctx context.Context, ids []pgtype.UUID) ([]
 			&i.CollectionID,
 			&i.HubID,
 			&i.Handle,
+			&i.KeyPrefix,
 			&i.Level,
 			&i.EntryType,
 			&i.Title,

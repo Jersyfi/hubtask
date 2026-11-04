@@ -404,6 +404,7 @@ func (r EntryLinkRepository) Entries(ctx context.Context, ids []shared.ID) ([]re
 		if row.Handle != nil {
 			summary.Handle = *row.Handle
 		}
+		summary.KeyPrefix = stringFrom(row.KeyPrefix)
 		if row.EntryType != nil {
 			summary.EntryType = *row.EntryType
 		}

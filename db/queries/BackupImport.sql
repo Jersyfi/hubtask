@@ -295,7 +295,8 @@ INSERT INTO container (
   version,
   private,
   handle,
-  item_counter
+  item_counter,
+  key_prefix
 )
 SELECT
   r.id,
@@ -323,7 +324,9 @@ SELECT
   -- A collection's handle and count travel with it (migration 0204); an archive written before
   -- carries neither, and the store then gives the handle and the count starts at none.
   r.handle,
-  coalesce(r.item_counter, 0)
+  coalesce(r.item_counter, 0),
+  -- An archive written before 0356 carries none, and the store derives one from the name.
+  r.key_prefix
 FROM jsonb_populate_record(
   NULL::container,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -349,7 +352,8 @@ ON CONFLICT (id) DO UPDATE SET
   version = EXCLUDED.version,
   private = EXCLUDED.private,
   handle = EXCLUDED.handle,
-  item_counter = greatest(container.item_counter, EXCLUDED.item_counter)
+  item_counter = greatest(container.item_counter, EXCLUDED.item_counter),
+  key_prefix = EXCLUDED.key_prefix
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsContainer :one

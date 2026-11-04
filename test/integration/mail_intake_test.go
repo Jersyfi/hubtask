@@ -8,6 +8,8 @@ package integration
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -142,6 +144,77 @@ func TestANameRoutesToItsPlaceAndAHandleChangesOnce(t *testing.T) {
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("a taken handle answered %v", err)
+	}
+}
+
+// A collection's key prefix (migration 0356, user-experience.md §5.6): the store derives it from
+// the name, a key with it names the entry as one with the handle does, only in its own workspace,
+// and a prefix another collection holds is refused.
+func TestACollectionsKeyPrefixNamesItsEntriesInItsWorkspaceOnly(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, collection := freshID(t), freshID(t)
+	var stored work.Container
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, freshName(t), "a0")); err != nil {
+			return err
+		}
+		var err error
+		stored, err = containerRepo().Insert(ctx, collectionIn(tenantA, authorA, collection, hub, "Quality Assurance Desk "+freshName(t)[:4], "a0"))
+		return err
+	}); err != nil {
+		t.Fatalf("writing the collection: %v", err)
+	}
+	if !work.ValidKeyPrefix(stored.KeyPrefix) || stored.KeyPrefix[:3] != "QAD" {
+		t.Fatalf("the insert answered prefix %q, want the initials", stored.KeyPrefix)
+	}
+	entry := freshID(t)
+	var number int64
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		item, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, entry, freshName(t), "a0"))
+		number = item.Number
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	store := postgres.NewMailIntakeRepository()
+	// A key read off a message carries its word in lower case.
+	byPrefix := domain.Key{Handle: strings.ToLower(stored.KeyPrefix), Number: number}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		if found, err := store.ItemByKey(ctx, byPrefix); err != nil || found != entry {
+			t.Errorf("the prefixed key named %s, %v", found, err)
+		}
+		if found, err := store.ItemByKey(ctx, domain.Key{Handle: stored.Handle, Number: number}); err != nil || found != entry {
+			t.Errorf("the handle's key named %s, %v", found, err)
+		}
+		if key, err := store.KeyOf(ctx, entry); err != nil || key.String() != stored.KeyPrefix+"-"+strconv.FormatInt(number, 10) {
+			t.Errorf("the entry's key %+v, %v", key, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := store.ItemByKey(ctx, byPrefix); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("tenant B resolved A's prefixed key: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A prefix another collection holds is a conflict on the field.
+	_, other := hubWithCollection(ctx, t, tenantA, authorA)
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		taken, err := containerRepo().Find(ctx, other)
+		if err != nil {
+			return err
+		}
+		taken.KeyPrefix = stored.KeyPrefix
+		return containerRepo().SetAttributes(ctx, taken, taken.Version)
+	})
+	if got := shared.AsError(err); got == nil || got.DetailCode != "containers.key_prefix_taken" {
+		t.Errorf("a taken prefix answered %v", err)
 	}
 }
 

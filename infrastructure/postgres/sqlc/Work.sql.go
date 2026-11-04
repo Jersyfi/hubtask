@@ -497,7 +497,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -529,6 +529,7 @@ type FindContainerRow struct {
 	Version              int32
 	Private              bool
 	Handle               *string
+	KeyPrefix            *string
 }
 
 // The tenant is never a parameter here: it comes from the transaction's own context through
@@ -585,6 +586,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.Version,
 		&i.Private,
 		&i.Handle,
+		&i.KeyPrefix,
 	)
 	return i, err
 }
@@ -1135,7 +1137,7 @@ INSERT INTO container (
                        'completion_policy', $12::text)
   END
 )
-RETURNING handle
+RETURNING handle, key_prefix
 `
 
 type InsertContainerParams struct {
@@ -1154,14 +1156,20 @@ type InsertContainerParams struct {
 	Structure        []byte
 }
 
+type InsertContainerRow struct {
+	Handle    *string
+	KeyPrefix *string
+}
+
 // The name arrives in Unicode normal form C - the constructor brings it there, behind the
 // Normalizer port, and the description with it (i18n-l10n.md §5): "Übersicht" typed with
 // a combining diaeresis and the same word composed are one name to a person, and the unique
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
 // two cannot disagree.
-// The handle the store gave a collection (migration 0204), so the create answers it.
-func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (*string, error) {
+// The handle and the key prefix the store gave a collection (migrations 0204, 0356), so the create
+// answers them.
+func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (InsertContainerRow, error) {
 	row := q.db.QueryRow(ctx, insertContainer,
 		arg.ID,
 		arg.Type,
@@ -1177,9 +1185,9 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.CompletionPolicy,
 		arg.Structure,
 	)
-	var handle *string
-	err := row.Scan(&handle)
-	return handle, err
+	var i InsertContainerRow
+	err := row.Scan(&i.Handle, &i.KeyPrefix)
+	return i, err
 }
 
 const insertPrivateHubAccess = `-- name: InsertPrivateHubAccess :exec
@@ -1489,7 +1497,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, hub.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle,
+  c.private, c.handle, c.key_prefix,
   hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
 FROM container c
 JOIN container hub ON hub.id = c.parent_id
@@ -1542,6 +1550,7 @@ type ListCollectionsInOrderRow struct {
 	Version              int32
 	Private              bool
 	Handle               *string
+	KeyPrefix            *string
 	HubName              string
 	HubOrderKey          string
 	HubPrivate           bool
@@ -1599,6 +1608,7 @@ func (q *Queries) ListCollectionsInOrder(ctx context.Context, arg ListCollection
 			&i.Version,
 			&i.Private,
 			&i.Handle,
+			&i.KeyPrefix,
 			&i.HubName,
 			&i.HubOrderKey,
 			&i.HubPrivate,
@@ -1623,7 +1633,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private, c.handle
+  c.private, c.handle, c.key_prefix
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -1674,6 +1684,7 @@ type ListContainersRow struct {
 	Version              int32
 	Private              bool
 	Handle               *string
+	KeyPrefix            *string
 }
 
 // One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -1743,6 +1754,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.Version,
 			&i.Private,
 			&i.Handle,
+			&i.KeyPrefix,
 		); err != nil {
 			return nil, err
 		}
@@ -2438,9 +2450,12 @@ UPDATE container SET
   description = $2,
   icon        = $3,
   color_token = $4,
-  updated_at  = $5,
+  -- A collection's key prefix; one another collection holds is refused by 0356's trigger as a
+  -- unique violation on container_key_prefix_uq.
+  key_prefix  = $5,
+  updated_at  = $6,
   version     = version + 1
-WHERE id = $6::uuid AND version = $7
+WHERE id = $7::uuid AND version = $8
 `
 
 type SetContainerAttributesParams struct {
@@ -2448,6 +2463,7 @@ type SetContainerAttributesParams struct {
 	Description     *string
 	Icon            *string
 	ColorToken      *string
+	KeyPrefix       *string
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -2474,6 +2490,7 @@ func (q *Queries) SetContainerAttributes(ctx context.Context, arg SetContainerAt
 		arg.Description,
 		arg.Icon,
 		arg.ColorToken,
+		arg.KeyPrefix,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

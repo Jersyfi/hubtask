@@ -296,7 +296,7 @@ func (MailIntakeRepository) KeyOf(ctx context.Context, itemID shared.ID) (domain
 	if err != nil {
 		return domain.Key{}, mailQueryFailed("reading a ticket key", err)
 	}
-	return domain.Key{Handle: *row.Handle, Number: *row.Number}, nil
+	return domain.Key{Prefix: stringFrom(row.KeyPrefix), Handle: *row.Handle, Number: *row.Number}, nil
 }
 
 func (MailIntakeRepository) SetHandle(ctx context.Context, collectionID shared.ID, handle string) error {

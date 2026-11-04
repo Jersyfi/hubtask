@@ -436,8 +436,11 @@ const itemByKey = `-- name: ItemByKey :one
 SELECT wi.id
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
-WHERE c.handle = $1 AND wi.number = $2::bigint
+WHERE (c.handle = $1 OR c.key_prefix = upper($1))
+  AND wi.number = $2::bigint
   AND wi.deleted_at IS NULL AND c.deleted_at IS NULL
+ORDER BY (c.key_prefix IS NOT NULL AND c.key_prefix = upper($1)) DESC
+LIMIT 1
 `
 
 type ItemByKeyParams struct {
@@ -445,6 +448,9 @@ type ItemByKeyParams struct {
 	Number int64
 }
 
+// A key names its collection by the key prefix or by the handle (migration 0356); the word is
+// given in lower case, as the handle is written. 0356 keeps a prefix from being another
+// collection's handle, and the prefix is preferred should two writers have raced past that.
 func (q *Queries) ItemByKey(ctx context.Context, arg ItemByKeyParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, itemByKey, arg.Handle, arg.Number)
 	var id pgtype.UUID
@@ -453,22 +459,23 @@ func (q *Queries) ItemByKey(ctx context.Context, arg ItemByKeyParams) (pgtype.UU
 }
 
 const itemKey = `-- name: ItemKey :one
-SELECT c.handle, wi.number
+SELECT c.handle, c.key_prefix, wi.number
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
 WHERE wi.id = $1 AND wi.deleted_at IS NULL
 `
 
 type ItemKeyRow struct {
-	Handle *string
-	Number *int64
+	Handle    *string
+	KeyPrefix *string
+	Number    *int64
 }
 
 // An entry's ticket key, for the Reply-To of a notification about it.
 func (q *Queries) ItemKey(ctx context.Context, id pgtype.UUID) (ItemKeyRow, error) {
 	row := q.db.QueryRow(ctx, itemKey, id)
 	var i ItemKeyRow
-	err := row.Scan(&i.Handle, &i.Number)
+	err := row.Scan(&i.Handle, &i.KeyPrefix, &i.Number)
 	return i, err
 }
 

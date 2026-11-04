@@ -46,6 +46,10 @@ const foreignKeyViolation = "23503"
 // reported to the client as a duplicate name.
 const containerNameIndex = "container_name_uq"
 
+// containerKeyPrefixIndex is the key prefix's: the index (0357) and the trigger that stands in for
+// it, which also refuses a prefix another collection holds as its handle (0356).
+const containerKeyPrefixIndex = "container_key_prefix_uq"
+
 // Find returns the container as it is stored, including a trashed or an archived one. What that
 // state means is the domain's decision (I-C2, I-C3); a query that filtered here would turn "it is
 // in the trash" into "it does not exist".
@@ -193,7 +197,7 @@ func (r ContainerRepository) insert(ctx context.Context, container *work.Contain
 		return err
 	}
 
-	handle, err := queries.InsertContainer(ctx, sqlc.InsertContainerParams{
+	given, err := queries.InsertContainer(ctx, sqlc.InsertContainerParams{
 		Structure:        structure,
 		CompletionPolicy: completion,
 		ID:               id,
@@ -209,7 +213,8 @@ func (r ContainerRepository) insert(ctx context.Context, container *work.Contain
 		Private:          container.Private,
 	})
 	if err == nil {
-		container.Handle = stringFrom(handle)
+		container.Handle = stringFrom(given.Handle)
+		container.KeyPrefix = stringFrom(given.KeyPrefix)
 		return nil
 	}
 
@@ -242,6 +247,7 @@ func (r ContainerRepository) SetAttributes(
 		Description: optionalText(container.Description),
 		Icon:        optionalText(container.Icon),
 		ColorToken:  optionalText(container.ColorToken),
+		KeyPrefix:   optionalText(container.KeyPrefix),
 		UpdatedAt:   timestampOf(container.UpdatedAt),
 		ID:          id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
@@ -442,6 +448,12 @@ func containerWriteError(err error, container work.Container, what string) error
 			WithDetail("containers.name_taken").
 			WithParams(map[string]string{"name": container.Name})
 	}
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == containerKeyPrefixIndex {
+		return shared.ErrConflict.
+			WithDetail("containers.key_prefix_taken").
+			WithFields(shared.FieldError{Path: "/key_prefix", Code: "containers.key_prefix_taken"}).
+			WithParams(map[string]string{"key_prefix": container.KeyPrefix})
+	}
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("%s of %s: %w", what, container.ID, err))
@@ -527,6 +539,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		Version:          int(row.Version),
 		Private:          row.Private,
 		Handle:           stringFrom(row.Handle),
+		KeyPrefix:        stringFrom(row.KeyPrefix),
 	}, nil
 }
 

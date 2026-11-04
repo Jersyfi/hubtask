@@ -1515,6 +1515,7 @@ type Container struct {
 	Handle        *string
 	ItemCounter   int64
 	LogoMediaID   pgtype.UUID
+	KeyPrefix     *string
 }
 
 type ContainerMilestone struct {
