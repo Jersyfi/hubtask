@@ -103,9 +103,16 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
   const said = (name, drawn, m) =>
     t.diagnostic(`${name}, ${drawn} groups drawn: ${m.frames} frames, median ${m.median.toFixed(1)} ms (${(1000 / m.median).toFixed(0)} fps), 95th percentile ${m.worst.toFixed(1)} ms`);
 
-  // At the board's own size only what the view shows is drawn.
+  // The board opens showing everything it holds (user-experience.md §7.2); at its own size only
+  // what the view shows is drawn. The view is brought to 100 % the way a person does, step by step.
   assert.match((await canvas.getAttribute('aria-label')) ?? '', /5000/u);
+  const opensWhole = await canvas.locator('g').count();
+  const zoomIn = page.getByRole('button', { name: 'Zoom in' });
+  for (let step = 0; step < 30 && Number.parseInt((await page.locator('.zoom').textContent()) ?? '0', 10) < 100; step += 1) await zoomIn.click();
+  await page.mouse.move(centre.x, centre.y);
+  await page.waitForTimeout(300);
   const near = await canvas.locator('g').count();
+  assert.ok(near < opensWhole, 'the board did not open on everything it holds');
   assert.ok(near < 1000, `${near} groups are drawn at 100 %`);
   const close = await measured();
   said('At 100 %', near, close);

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A template is chosen, then put (UC-CNV-01, SC 3.2.2): a closed native select changes on every
-// arrow key, and a template put on each change filled the shared board with stacked copies for
-// everyone drawing. Looking through the templates from the keyboard puts nothing; the button does.
+// A template is chosen, then put (UC-CNV-04 check 5, SC 3.2.2): a template put on each change of a
+// choice filled the shared board with stacked copies for everyone drawing. In the gallery of
+// *Put a template on the board…* (user-experience.md §7.2) choosing cards puts nothing; the
+// dialog's own button puts the one chosen, once.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +26,7 @@ const BOARD = {
   created_by: ACCOUNT.id, created_at: '2026-10-30T09:00:00Z', updated_by: ACCOUNT.id, updated_at: '2026-10-30T09:00:00Z', version: 1,
 };
 
-test('chromium: arrow keys through the template select put nothing; the button puts one', async (t) => {
+test('chromium: choosing templates in the gallery puts nothing; the button puts the one chosen, once', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context } = await signedIn(browser, 1440, 900);
@@ -40,28 +41,27 @@ test('chromium: arrow keys through the template select put nothing; the button p
   });
   await page.goto(`${served.origin}/whiteboards/${BOARD_ID}`);
   const canvas = page.getByRole('application');
-  const select = page.getByLabel('Template');
-  await select.waitFor({ timeout: 20_000 });
-  const objects = () => canvas.locator('g.object').count();
+  await canvas.waitFor({ timeout: 20_000 });
+  const objects = () => canvas.locator('g.object, g.frame').count();
   assert.equal(await objects(), 0);
 
-  // What an arrow key does to a closed select on Windows: the value changes and `change` fires,
-  // once per press. Chromium on other systems opens the list instead, so the changes are made as
-  // the select would make them.
-  const offered = (await select.locator('option').evaluateAll((options) => options.map((each) => each.value))).filter(Boolean);
-  assert.ok(offered.length >= 3, `the select offers ${offered.length} templates`);
-  for (const each of offered.slice(0, 3)) await select.selectOption(each);
+  await page.locator('[data-board-insert]').click();
+  await page.getByRole('menuitem', { name: 'Put a template on the board…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Put a template on the board…' });
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.locator('[data-board-start=BLANK]').count(), 0, 'a board already open offers no blank start');
+  for (const each of ['BRAINSTORM', 'FLOWCHART', 'USER_STORY_MAP']) {
+    await dialog.locator(`[data-board-start=${each}] button`).click();
+    assert.equal(await dialog.locator(`[data-board-start=${each}] button`).getAttribute('aria-pressed'), 'true');
+  }
   await page.waitForTimeout(300);
-  assert.equal(await select.inputValue(), offered[2]);
-  assert.equal(await objects(), 0, 'looking through the templates put one on the board');
+  assert.equal(await objects(), 0, 'choosing in the gallery put a template on the board');
 
-  await page.locator('[data-put-template]').click();
-  await canvas.locator('g.object').first().waitFor({ timeout: 5_000 });
+  await dialog.locator('[data-put-template]').click();
+  await canvas.locator('g.frame').first().waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.count(), 0, 'the dialog stays open after putting');
   const put = await objects();
   assert.ok(put > 0, 'the button put nothing');
-  // The choice is spent: a second press needs a template chosen again, and says so.
-  assert.equal(await page.locator('[data-put-template]').getAttribute('aria-disabled'), 'true');
-  await page.locator('[data-put-template]').click({ force: true });
   await page.waitForTimeout(300);
   assert.equal(await objects(), put, 'one choice put two templates');
 });

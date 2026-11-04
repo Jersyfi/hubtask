@@ -19,25 +19,29 @@
   // Ctrl or ⌘ with C, X, V and D copy, cut, paste and duplicate, Delete takes it off; the choice is
   // announced.
 
-  import { untrack } from 'svelte';
+  import { tick as settled, untrack, type Snippet } from 'svelte';
   import { tokens } from '@hubtask/design-system';
-  import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Textarea, UploadField } from '@hubtask/design-system/components';
+  import {
+    AvatarGroup, Button, Checkbox, Dialog, IconButton, Inline, Input, Menu, Select, Stack, Textarea, UploadField, VisuallyHidden, type MenuItem,
+  } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
   import type {
     ReferenceTarget, WhiteboardBacklinkList, WhiteboardComment, WhiteboardCommentList, WhiteboardRead, WhiteboardVersion, WorkItem,
   } from '@hubtask/sync-engine';
   import {
-    Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, TEMPLATES, align, bounds, box, connectorPath, copy, culled,
+    Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, align, bounds, box, connectorPath, copy, culled,
     elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, readCopied, snap, strokePath,
     strokesOf, template, toBoard, toSvg, touches, withGroups, withinFrame, zoomAt,
     type Element, type ElementKind, type Guide, type Pen, type Point, type Shape, type TemplateName, type Viewport,
   } from '@hubtask/whiteboard';
+  import type { IconName } from '@hubtask/design-system/icons';
 
   import { announcer } from '../announce.svelte.ts';
   import EntryPicker from '../entries/EntryPicker.svelte';
   import { keyboardTool, sizeOf, tabTarget } from './keys.ts';
   import { keepThenReplace } from './restore.ts';
   import BoardComments from './BoardComments.svelte';
+  import BoardTemplates, { templateOf, type BoardStart, type RetroFormat } from './BoardTemplates.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { engine } from '../data/engine.ts';
@@ -50,6 +54,7 @@
     threadsOf, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { isLiveUnreachable } from '../data/liveunreachable.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -64,9 +69,13 @@
     /** The hub's collections, offered to hold a sticky note made an entry (UC-CNV-02). */
     collections: readonly { id: string; name: string; settings?: { entry_types?: Record<string, readonly string[]> } }[];
     onnavigate: (path: string) => void;
+    /** The board's name and where it lives, at the start of its head. */
+    heading: Snippet;
+    /** The screen's own verbs on the board (rename, the trash), at the end of the board's menu. */
+    boardMenu?: { items: readonly MenuItem[]; onselect: (id: string) => void };
   }
 
-  const { board, collections, onnavigate }: Props = $props();
+  const { board, collections, onnavigate, heading, boardMenu }: Props = $props();
 
   type Tool = 'select' | 'ERASER' | ElementKind;
 
@@ -101,6 +110,7 @@
   let view = $state<Viewport>({ x: -80, y: -80, zoom: 1, width: 1, height: 1 });
   let surface = $state<SVGSVGElement | undefined>(undefined);
   let toolbar = $state<HTMLDivElement | undefined>(undefined);
+  let zoombar = $state<HTMLDivElement | undefined>(undefined);
   let cards = $state<Map<string, ReferenceTarget>>(new Map());
   let isPickingEntry = $state(false);
   let picked = $state<WorkItem | undefined>(undefined);
@@ -110,15 +120,33 @@
   let linkDraft = $state('');
   let linkAt = $state<Point | undefined>(undefined);
   let isGridOn = $state(false);
-  let isMapShown = $state(true);
+  // On a phone the map would cover a third of the board; it is there to be switched on.
+  let isMapShown = $state(untrack(() => !viewport.isCompact));
   let guides = $state<Guide[]>([]);
-  let chosenTemplate = $state<string>('');
+  let isTemplating = $state(false);
+  let templateStart = $state<BoardStart>('RETRO');
+  let templateFormat = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
 
   const byId = $derived(new Map(elements.map((e) => [e.id, e])));
   const shown = $derived(culled(elements, view, 200));
   const frames = $derived(elements.filter((e) => e.kind === 'FRAME'));
   const chosen = $derived(selected.length === 1 ? byId.get(selected[0] ?? '') : undefined);
   const viewBox = $derived(`${view.x} ${view.y} ${view.width / view.zoom} ${view.height / view.zoom}`);
+
+  // A board opens showing all it holds, never larger than its own size, once the stage has been
+  // measured - unless its address names a frame, which the live document's sync then opens on.
+  let isFitted = false;
+  $effect(() => {
+    if (isFitted || view.width <= 1 || view.height <= 1) return;
+    untrack(() => {
+      isFitted = true;
+      if (location.hash.length > 1) return;
+      const all = bounds(elements);
+      if (!all) return;
+      const fitted = fit(view, all);
+      view = fitted.zoom <= 1 ? fitted : { ...view, zoom: 1, x: (all.left + all.right) / 2 - view.width / 2, y: (all.top + all.bottom) / 2 - view.height / 2 };
+    });
+  });
 
   // --- The live document ---------------------------------------------------------------------------
 
@@ -498,7 +526,7 @@
     }
     if (event.key === 'Escape') {
       // A second Escape, with nothing chosen, takes focus out of the board to its tools.
-      if (selected.length === 0 && tool === 'select') toolbar?.querySelector<HTMLElement>('button, select, input')?.focus();
+      if (selected.length === 0 && tool === 'select') (toolbar ?? zoombar)?.querySelector<HTMLElement>('button, select, input')?.focus();
       selected = []; tool = 'select'; following = undefined; return;
     }
     const mod = event.ctrlKey || event.metaKey;
@@ -690,7 +718,7 @@
   // --- Templates (research §4.3) -------------------------------------------------------------------
 
   function putTemplate(name: TemplateName) {
-    chosenTemplate = '';
+    isTemplating = false;
     const next = template(name, { at: centre(), words: (word) => t(`app.whiteboards.word_${word}`), newId: () => elementId() });
     putAll(next, t('app.whiteboards.template_put', { name: t(`app.whiteboards.template_${name.toLowerCase()}`) }));
     const area = bounds(next);
@@ -1037,7 +1065,7 @@
 
   // --- The minimap ---------------------------------------------------------------------------------
 
-  const map = $derived(isMapShown ? minimap(elements, view, MAP) : undefined);
+  const map = $derived(isMapShown && elements.length > 0 ? minimap(elements, view, MAP) : undefined);
   function mapClick(event: MouseEvent) {
     const target = event.currentTarget as SVGSVGElement;
     const rect = target.getBoundingClientRect();
@@ -1064,11 +1092,75 @@
     e.color_token && (BOARD_COLOURS as readonly string[]).includes(e.color_token)
       ? tokens.label[e.color_token as (typeof BOARD_COLOURS)[number]].fg
       : tokens.text.primary;
-  const tools: readonly { tool: Tool; icon: 'hand' | 'square' | 'pencil' | 'arrow-right' | 'layout-template' | 'file-text' | 'zap' | 'x' | 'link' }[] = [
-    { tool: 'select', icon: 'hand' }, { tool: 'STICKY', icon: 'square' }, { tool: 'SHAPE', icon: 'layout-template' },
-    { tool: 'TEXT', icon: 'file-text' }, { tool: 'CONNECTOR', icon: 'arrow-right' }, { tool: 'FRAME', icon: 'file-text' },
-    { tool: 'STROKE', icon: 'pencil' }, { tool: 'ERASER', icon: 'x' }, { tool: 'LINK', icon: 'link' },
+  const tools: readonly { tool: Tool; icon: IconName }[] = [
+    { tool: 'select', icon: 'mouse-pointer-2' }, { tool: 'STICKY', icon: 'sticky-note' }, { tool: 'SHAPE', icon: 'shapes' },
+    { tool: 'TEXT', icon: 'type' }, { tool: 'CONNECTOR', icon: 'move-up-right' }, { tool: 'FRAME', icon: 'frame' },
+    { tool: 'STROKE', icon: 'pencil' }, { tool: 'ERASER', icon: 'eraser' }, { tool: 'LINK', icon: 'link' },
   ];
+
+  // --- The side sheet and the menus (user-experience.md §7.2) --------------------------------------
+
+  /** One sheet open at a time beside the canvas, closed until its control in the head opens it. */
+  type Sheet = 'session' | 'comments' | 'history' | 'links' | 'frames' | 'export';
+  let sheet = $state<Sheet | undefined>(undefined);
+  let sheetTitle = $state<HTMLHeadingElement | undefined>(undefined);
+  /** On a phone the chosen object's properties wait to be asked for; elsewhere they come first. */
+  let propsAsked = $state(false);
+  $effect(() => { if (selected.length === 0) untrack(() => (propsAsked = false)); });
+  const showsProps = $derived(selected.length > 0 && (!viewport.isCompact || propsAsked));
+  const openThreads = $derived(threadsOf(comments, false).length);
+
+  async function toggleSheet(next: Sheet) {
+    sheet = sheet === next ? undefined : next;
+    if (!sheet) return;
+    if (sheet === 'history' && !history) void openHistory();
+    if (sheet === 'links' && !backlinks) void openBacklinks();
+    await settled();
+    sheetTitle?.focus();
+  }
+
+  function closeSheet() {
+    const was = sheet;
+    sheet = undefined;
+    const opener = document.querySelector<HTMLElement>(`[data-board-sheet="${was}"]`);
+    if (opener) opener.focus();
+    else surface?.focus();
+  }
+
+  const menuItems = $derived<MenuItem[]>([
+    ...(writable ? [{ id: 'template', label: t('app.whiteboards.template_put_menu'), icon: 'layout-template' as const }] : []),
+    { id: 'frames', label: t('app.whiteboards.frames'), icon: 'frame' },
+    { id: 'links', label: t('app.whiteboards.backlinks'), icon: 'link' },
+    { id: 'export', label: t('app.whiteboards.export'), icon: 'external-link' },
+    ...(boardMenu?.items ?? []).map((item, i) => (i === 0 ? { ...item, hasSeparatorBefore: true } : item)),
+  ]);
+
+  function menuChose(id: string) {
+    if (id === 'template') isTemplating = true;
+    else if (id === 'frames' || id === 'links' || id === 'export') void toggleSheet(id as Sheet);
+    else boardMenu?.onselect(id);
+  }
+
+  /** On a phone the bar holds the tools used most; the others join *Put on the board*. */
+  const PHONE_TOOLS: readonly Tool[] = ['select', 'STICKY', 'SHAPE', 'STROKE'];
+  const shownTools = $derived(viewport.isCompact ? tools.filter((each) => PHONE_TOOLS.includes(each.tool)) : tools);
+  const foldedTools = $derived(tools.filter((each) => !shownTools.includes(each)));
+
+  const insertItems = $derived<MenuItem[]>([
+    ...foldedTools.map((each) => ({ id: `tool:${each.tool}`, label: t(`app.whiteboards.tool_${each.tool.toLowerCase()}`), icon: each.icon })),
+    ...(viewport.isCompact
+      ? [{ id: 'redo', label: t('app.whiteboards.redo'), icon: 'redo-2' as const, disabledReason: canRedo ? undefined : t('app.whiteboards.nothing_to_redo') }]
+      : []),
+    { id: 'entry', hasSeparatorBefore: foldedTools.length > 0, label: t('app.whiteboards.put_entry'), icon: 'square-check' },
+    { id: 'template', label: t('app.whiteboards.template_put_menu'), icon: 'layout-template', hasSeparatorBefore: true },
+  ]);
+
+  function insertChose(id: string) {
+    if (id.startsWith('tool:')) pickTool(id.slice(5) as Tool, false);
+    else if (id === 'redo') redo();
+    else if (id === 'entry') isPickingEntry = true;
+    else if (id === 'template') isTemplating = true;
+  }
   const editingElement = $derived(editing ? byId.get(editing) : undefined);
   const drafting = $derived(gesture?.kind === 'draw' ? gesture.points : undefined);
 </script>
@@ -1082,65 +1174,38 @@
 
 <svelte:window oncopy={(event) => copied(event, false)} oncut={(event) => copied(event, true)} onpaste={pasted} />
 
-<div class="board">
-  <div class="bar" role="toolbar" aria-label={t('app.whiteboards.tools')} bind:this={toolbar}>
-    <Inline gap="050" align="center">
-      {#if writable}
-        {#each tools as each (each.tool)}
-          <Button size="sm" tone={tool === each.tool ? 'primary' : 'subtle'} icon={each.icon} aria-pressed={tool === each.tool} onclick={(event: MouseEvent) => pickTool(each.tool, event.detail === 0)}>
-            {t(`app.whiteboards.tool_${each.tool.toLowerCase()}`)}
-          </Button>
-        {/each}
-        {#if tool === 'SHAPE'}
-          <Select size="sm" label={t('app.whiteboards.shape')} bind:value={shape} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} />
-        {/if}
-        {#if tool === 'STROKE'}
-          <Select size="sm" label={t('app.whiteboards.pen')} bind:value={pen} options={(['PEN', 'HIGHLIGHTER'] as const).map((each) => ({ value: each, label: t(`app.whiteboards.pen_${each.toLowerCase()}`) }))} />
-        {/if}
-        <Button size="sm" tone="subtle" icon="plus" onclick={() => (isPickingEntry = true)}>{t('app.whiteboards.put_entry')}</Button>
-        <UploadField
-          variant="button"
-          size="sm"
-          label={t('app.whiteboards.put_file')}
-          chooseLabel={isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}
-          disabledReason={isUploading ? t('app.whiteboards.uploading') : undefined}
-          onChoose={(file) => void putFile(file)}
-        />
-        <!-- Chosen, then put: a closed native select changes on every arrow key, and a template
-             put on each would fill the shared board (SC 3.2.2). -->
-        <Select
-          size="sm"
-          label={t('app.whiteboards.template')}
-          placeholder={t('app.whiteboards.template_choose')}
-          bind:value={chosenTemplate}
-          options={TEMPLATES.map((each) => ({ value: each, label: t(`app.whiteboards.template_${each.toLowerCase()}`) }))}
-        />
-        <Button
-          size="sm"
-          tone="subtle"
-          data-put-template
-          disabledReason={chosenTemplate ? undefined : t('app.whiteboards.template_choose_first')}
-          onclick={() => { if (chosenTemplate) putTemplate(chosenTemplate as TemplateName); }}
-        >{t('app.whiteboards.template_put_button')}</Button>
-      {/if}
-      {#if writable}
-        <Button size="sm" tone="subtle" icon="rotate-ccw" aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo}>{t('app.whiteboards.undo')}</Button>
-        <Button size="sm" tone="subtle" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabledReason={canRedo ? undefined : t('app.whiteboards.nothing_to_redo')} onclick={redo}>{t('app.whiteboards.redo')}</Button>
-      {/if}
-      <IconButton size="sm" icon="minus" label={t('app.whiteboards.zoom_out')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1 / 1.25))} />
-      <span class="zoom">{Math.round(view.zoom * 100)}%</span>
-      <IconButton size="sm" icon="plus" label={t('app.whiteboards.zoom_in')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1.25))} />
-      <Button size="sm" tone="subtle" onclick={() => { const all = bounds(elements); if (all) view = fit(view, all); }}>{t('app.whiteboards.fit')}</Button>
-      <Button size="sm" tone={isGridOn ? 'primary' : 'subtle'} icon="columns-3" aria-pressed={isGridOn} onclick={() => (isGridOn = !isGridOn)}>{t('app.whiteboards.grid')}</Button>
-      <Button size="sm" tone={isMapShown ? 'primary' : 'subtle'} icon="compass" aria-pressed={isMapShown} onclick={() => (isMapShown = !isMapShown)}>{t('app.whiteboards.minimap')}</Button>
+<div class="board" data-board>
+  <header class="head">
+    <div class="name">{@render heading()}</div>
+    <div class="aside">
       {#if remaining}
         <span class="clock" class:over={!remaining.running && remaining.left === 0} role="timer" aria-label={t('app.whiteboards.timer_left', { time: clockOf(remaining.left) })}>{clockOf(remaining.left)}</span>
       {/if}
-      <span class="status" aria-live="polite">{statusText}</span>
-    </Inline>
-  </div>
+      <span class="status" aria-live="polite" data-board-status>{statusText}</span>
+      {#if peers.length > 0}
+        <span class="here" data-board-here>
+          <AvatarGroup people={peers.map((peer) => ({ name: peer.name }))} max={3} size="sm" overflowLabel={t('app.whiteboards.here_more', { count: Math.max(0, peers.length - 3) })} />
+          <VisuallyHidden>{t('app.whiteboards.here_now')}: {peers.map((peer) => peer.name).join(', ')}</VisuallyHidden>
+        </span>
+      {/if}
+      {#if viewport.isCompact}
+        <IconButton size="sm" icon="message-square" tone={sheet === 'comments' ? 'primary' : 'subtle'} aria-pressed={sheet === 'comments'} label={openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')} data-board-sheet="comments" onclick={() => toggleSheet('comments')} />
+      {:else}
+        <Button size="sm" tone={sheet === 'comments' ? 'primary' : 'subtle'} icon="message-square" aria-pressed={sheet === 'comments'} data-board-sheet="comments" onclick={() => toggleSheet('comments')}>
+          {openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')}
+        </Button>
+      {/if}
+      <IconButton size="sm" icon="timer" tone={sheet === 'session' ? 'primary' : 'subtle'} aria-pressed={sheet === 'session'} label={t('app.whiteboards.session')} data-board-sheet="session" onclick={() => toggleSheet('session')} />
+      <IconButton size="sm" icon="rotate-ccw-clock" tone={sheet === 'history' ? 'primary' : 'subtle'} aria-pressed={sheet === 'history'} label={t('app.whiteboards.history')} data-board-sheet="history" onclick={() => toggleSheet('history')} />
+      <Menu label={t('app.whiteboards.board_menu')} items={menuItems} onselect={menuChose} placement={{ side: 'block-end', align: 'end' }}>
+        {#snippet trigger(props)}
+          <IconButton size="sm" icon="ellipsis" label={t('app.whiteboards.board_menu')} data-board-menu {...props} />
+        {/snippet}
+      </Menu>
+    </div>
+  </header>
 
-  <div class="stage" bind:clientWidth={view.width} bind:clientHeight={view.height}>
+  <div class="stage" data-sheet={showsProps || sheet ? '' : undefined} bind:clientWidth={view.width} bind:clientHeight={view.height}>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     <svg
       bind:this={surface}
@@ -1149,6 +1214,7 @@
       role="application"
       aria-label={t('app.whiteboards.canvas', { title: board.title, count: String(elements.length) })}
       aria-roledescription={t('app.whiteboards.canvas_role')}
+      aria-describedby="board-canvas-hint"
       tabindex="0"
       {viewBox}
       onpointerdown={down}
@@ -1304,8 +1370,8 @@
           tabindex="-1"
           aria-label={t('app.whiteboards.comment_pin', { count: String(pin.count) })}
           transform={`translate(${pin.at.x} ${pin.at.y}) scale(${1 / view.zoom})`}
-          onpointerdown={(event) => { event.stopPropagation(); openThread = pin.thread.id; }}
-          onkeydown={(event) => { if (event.key === 'Enter') openThread = pin.thread.id; }}
+          onpointerdown={(event) => { event.stopPropagation(); openThread = pin.thread.id; sheet = 'comments'; }}
+          onkeydown={(event) => { if (event.key === 'Enter') { openThread = pin.thread.id; sheet = 'comments'; } }}
         >
           <path d="M 0 0 L 0 -22 Q 0 -30 8 -30 L 26 -30 Q 34 -30 34 -22 L 34 -12 Q 34 -4 26 -4 L 8 -4 Z" />
           <text x="17" y="-12" text-anchor="middle">{pin.count}</text>
@@ -1334,273 +1400,344 @@
         maxlength="2000"
       ></textarea>
     {/if}
-    {#if map}
-      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-      <svg class="minimap" role="img" aria-label={t('app.whiteboards.minimap')} viewBox={`0 0 ${MAP.width} ${MAP.height}`} onclick={mapClick}>
-        {#each map.boxes as b (b.id)}
-          <rect class={`mini ${b.kind.toLowerCase()}`} x={b.left} y={b.top} width={b.width} height={b.height} />
+    <VisuallyHidden><span id="board-canvas-hint">{t(writable ? 'app.whiteboards.hint_write' : 'app.whiteboards.hint_read')}</span></VisuallyHidden>
+    {#if elements.length === 0 && (isLive || status !== 'connecting')}
+      <div class="blank" data-board-blank>
+        <p class="blank-title">{t(writable ? 'app.whiteboards.blank_write' : 'app.whiteboards.blank_read')}</p>
+        {#if writable}
+          <p class="quiet">{t('app.whiteboards.hint_write')}</p>
+          <Button size="sm" tone="secondary" icon="layout-template" onclick={() => (isTemplating = true)}>{t('app.whiteboards.template_put_menu')}</Button>
+        {/if}
+      </div>
+    {/if}
+
+    {#if writable}
+      <div class="tools" role="toolbar" aria-label={t('app.whiteboards.tools')} bind:this={toolbar} data-board-tools>
+        {#each shownTools as each (each.tool)}
+          <IconButton
+            icon={each.icon}
+            tone={tool === each.tool ? 'primary' : 'subtle'}
+            aria-pressed={tool === each.tool}
+            label={t(`app.whiteboards.tool_${each.tool.toLowerCase()}`)}
+            data-tool={each.tool}
+            onclick={(event: MouseEvent) => pickTool(each.tool, event.detail === 0)}
+          />
         {/each}
-        <rect class="mini-view" x={map.view.left} y={map.view.top} width={map.view.width} height={map.view.height} />
-      </svg>
+        <span class="seam" aria-hidden="true"></span>
+        <Menu label={t('app.whiteboards.insert')} items={insertItems} onselect={insertChose} placement={{ side: 'block-end', align: 'start' }}>
+          {#snippet trigger(props)}
+            <IconButton icon="plus" label={t('app.whiteboards.insert')} data-board-insert {...props} />
+          {/snippet}
+        </Menu>
+        <UploadField
+          variant="icon"
+          label={t('app.whiteboards.put_file')}
+          chooseLabel={isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}
+          disabledReason={isUploading ? t('app.whiteboards.uploading') : undefined}
+          onChoose={(file) => void putFile(file)}
+        />
+        <IconButton icon="undo-2" label={t('app.whiteboards.undo')} aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo} />
+        {#if !viewport.isCompact}<IconButton icon="redo-2" label={t('app.whiteboards.redo')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabledReason={canRedo ? undefined : t('app.whiteboards.nothing_to_redo')} onclick={redo} />{/if}
+        {#if viewport.isCompact && selected.length > 0}
+          <IconButton icon="sliders-horizontal" tone={propsAsked ? 'primary' : 'subtle'} aria-pressed={propsAsked} label={t('app.whiteboards.properties')} onclick={() => (propsAsked = !propsAsked)} />
+        {/if}
+      </div>
+      {#if tool === 'SHAPE' || tool === 'STROKE'}
+        <div class="variant">
+          {#if tool === 'SHAPE'}
+            <Select size="sm" label={t('app.whiteboards.shape')} bind:value={shape} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} />
+          {:else}
+            <Select size="sm" label={t('app.whiteboards.pen')} bind:value={pen} options={(['PEN', 'HIGHLIGHTER'] as const).map((each) => ({ value: each, label: t(`app.whiteboards.pen_${each.toLowerCase()}`) }))} />
+          {/if}
+        </div>
+      {/if}
+    {/if}
+
+    <div class="corner">
+      {#if map}
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+        <svg class="minimap" role="img" aria-label={t('app.whiteboards.minimap')} viewBox={`0 0 ${MAP.width} ${MAP.height}`} onclick={mapClick}>
+          {#each map.boxes as b (b.id)}
+            <rect class={`mini ${b.kind.toLowerCase()}`} x={b.left} y={b.top} width={b.width} height={b.height} />
+          {/each}
+          <rect class="mini-view" x={map.view.left} y={map.view.top} width={map.view.width} height={map.view.height} />
+        </svg>
+      {/if}
+      <div class="zoombar" role="group" aria-label={t('app.whiteboards.view_controls')} bind:this={zoombar}>
+        <IconButton size="sm" icon="minus" label={t('app.whiteboards.zoom_out')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1 / 1.25))} />
+        <span class="zoom">{Math.round(view.zoom * 100)}%</span>
+        <IconButton size="sm" icon="plus" label={t('app.whiteboards.zoom_in')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1.25))} />
+        <IconButton size="sm" icon="maximize-2" label={t('app.whiteboards.fit')} onclick={() => { const all = bounds(elements); if (all) view = fit(view, all); }} />
+        <IconButton size="sm" icon="columns-3" tone={isGridOn ? 'primary' : 'subtle'} aria-pressed={isGridOn} label={t('app.whiteboards.grid')} onclick={() => (isGridOn = !isGridOn)} />
+        <IconButton size="sm" icon="map" tone={isMapShown ? 'primary' : 'subtle'} aria-pressed={isMapShown} label={t('app.whiteboards.minimap')} onclick={() => (isMapShown = !isMapShown)} />
+      </div>
+    </div>
+
+    {#if showsProps || sheet}
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <aside class="sheet" aria-label={t('app.whiteboards.side')} data-board-side onkeydown={(event) => { if (event.key === 'Escape' && sheet) { event.stopPropagation(); closeSheet(); } }}>
+        {#if showsProps}
+          <section class="part" aria-label={t('app.whiteboards.properties')} data-board-props>
+            {#if chosen}
+              <Stack gap="100">
+                <h2 class="part-title">{t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`)}</h2>
+                {#if chosen.kind === 'CARD' && cardOf(chosen)?.available}
+                  {@const card = cardOf(chosen)}
+                  <Inline gap="050">
+                    <Button size="sm" tone="secondary" icon="arrow-right" onclick={() => openCard(chosen)}>{t('app.whiteboards.card_open_entry')}</Button>
+                    {#if writable}
+                      <Button size="sm" tone="subtle" icon="square-check" aria-pressed={card?.completed ?? false} onclick={() => void tick(chosen)}>
+                        {t(card?.completed ? 'app.whiteboards.card_undone' : 'app.whiteboards.card_done')}
+                      </Button>
+                    {/if}
+                  </Inline>
+                {/if}
+                {#if chosen.kind === 'FILE' && chosen.media_id}
+                  <Button size="sm" tone="secondary" icon="file-text" onclick={() => void openFile(chosen.media_id)}>{t('app.whiteboards.file_open_button')}</Button>
+                {/if}
+                {#if writable && !chosen.locked}
+                  {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || chosen.kind === 'STROKE'}
+                    <div class="swatches" role="radiogroup" aria-label={t('app.whiteboards.colour')}>
+                      {#each BOARD_COLOURS as colour (colour)}
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={chosen.color_token === colour}
+                          aria-label={t(`app.colour.${colour}`)}
+                          class="swatch"
+                          style:background={tokens.label[colour].bg}
+                          onclick={() => model.update(chosen.id, { color_token: colour })}
+                        ></button>
+                      {/each}
+                    </div>
+                  {/if}
+                  {#if chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE'}
+                    <Inline gap="050">
+                      <Input size="sm" type="number" min="24" label={t('app.whiteboards.width')} value={String(chosen.width)} onchange={(event: Event) => { const width = sizeOf((event.currentTarget as HTMLInputElement).value); if (width) model.update(chosen.id, { width }); }} />
+                      <Input size="sm" type="number" min="24" label={t('app.whiteboards.height')} value={String(chosen.height)} onchange={(event: Event) => { const height = sizeOf((event.currentTarget as HTMLInputElement).value); if (height) model.update(chosen.id, { height }); }} />
+                    </Inline>
+                    {#if others([chosen.id]).length > 0}
+                      <Select size="sm" label={t('app.whiteboards.connect_to')} placeholder={t('app.whiteboards.connect_to_choose')} value="" options={others([chosen.id])} onchange={(event: Event) => { const select = event.currentTarget as HTMLSelectElement; connectTo(chosen.id, select.value); select.value = ''; }} />
+                    {/if}
+                  {/if}
+                  {#if chosen.kind === 'SHAPE'}
+                    <Select size="sm" label={t('app.whiteboards.shape')} value={chosen.shape ?? 'RECTANGLE'} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { shape: (event.currentTarget as HTMLSelectElement).value as Shape })} />
+                  {/if}
+                  {#if chosen.kind === 'CONNECTOR'}
+                    <Select size="sm" label={t('app.whiteboards.route')} value={chosen.route ?? 'STRAIGHT'} options={ROUTES.map((each) => ({ value: each, label: t(`app.whiteboards.route_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { route: (event.currentTarget as HTMLSelectElement).value as Element['route'] })} />
+                    <Textarea label={t('app.whiteboards.label')} rows={2} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
+                  {/if}
+                  {#if chosen.kind === 'FRAME'}
+                    <Textarea label={t('app.whiteboards.frame_title')} rows={1} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
+                  {/if}
+                  {#if chosen.kind === 'LINK'}
+                    <Input size="sm" label={t('app.whiteboards.link_address')} value={chosen.url ?? ''} onchange={(event: Event) => { const url = (event.currentTarget as HTMLInputElement).value.trim(); if (url) model.update(chosen.id, { url }); }} />
+                  {/if}
+                  {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || (chosen.kind === 'FRAME' && notesToTurn.length > 0)}
+                    <Button size="sm" tone="secondary" icon="square-check" onclick={() => { isMakingEntry = !isMakingEntry; entryCollection = collections[0]?.id ?? ''; entryKind = ''; }}>
+                      {chosen.kind === 'FRAME' ? t('app.whiteboards.make_entries', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry')}
+                    </Button>
+                    {#if isMakingEntry}
+                      {#if collections.length === 0}
+                        <p class="quiet">{t('app.whiteboards.no_collections')}</p>
+                      {:else}
+                        <Select size="sm" label={t('app.whiteboards.entry_in')} bind:value={entryCollection} options={collections.map((each) => ({ value: each.id, label: each.name }))} />
+                        {#if kinds.length > 1}
+                          <Select size="sm" label={t('app.whiteboards.entry_type')} bind:value={entryKind} options={kinds.map((each) => ({ value: each.key, label: each.name ?? t('app.whiteboards.entry_type_task') }))} />
+                        {/if}
+                        <Button size="sm" tone="primary" onclick={() => void makeEntries()}>{t('app.whiteboards.make_entry_confirm')}</Button>
+                      {/if}
+                    {/if}
+                  {/if}
+                  <Inline gap="050">
+                    <Button size="sm" tone="subtle" onclick={() => model.front(chosen.id)}>{t('app.whiteboards.front')}</Button>
+                    <Button size="sm" tone="subtle" onclick={() => model.back(chosen.id)}>{t('app.whiteboards.back')}</Button>
+                    <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
+                  </Inline>
+                {/if}
+                {@render addToSelection()}
+                {#if writable}
+                  <Button size="sm" tone="subtle" icon="lock" onclick={() => model.update(chosen.id, { locked: !chosen.locked })}>
+                    {t(chosen.locked ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')}
+                  </Button>
+                {/if}
+              </Stack>
+            {:else if selected.length > 1}
+              <Stack gap="100">
+                <h2 class="part-title">{t('app.whiteboards.several', { count: String(selected.length) })}</h2>
+                {@render addToSelection()}
+                {#if writable}
+                  <Inline gap="050">
+                    {#if isGrouped}
+                      <Button size="sm" tone="subtle" icon="folder-plus" onclick={ungroup}>{t('app.whiteboards.ungroup')}</Button>
+                    {:else}
+                      <Button size="sm" tone="subtle" icon="folder-plus" onclick={group}>{t('app.whiteboards.group')}</Button>
+                    {/if}
+                    <Button size="sm" tone="subtle" icon="copy" onclick={duplicate}>{t('app.whiteboards.duplicate')}</Button>
+                    <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
+                  </Inline>
+                {/if}
+              </Stack>
+            {/if}
+          </section>
+        {/if}
+        {#if sheet}
+          <section class="part" aria-labelledby="board-sheet-title" data-board-part={sheet}>
+            <div class="part-head">
+              <h2 class="part-title" id="board-sheet-title" tabindex="-1" bind:this={sheetTitle}>{t(`app.whiteboards.sheet_${sheet}`)}</h2>
+              <IconButton size="sm" icon="x" label={t('app.whiteboards.sheet_close')} onclick={closeSheet} />
+            </div>
+            {#if sheet === 'session'}
+              <Stack gap="150">
+                {#if voting || writable}
+                  <Stack gap="050">
+                    <h3 class="heading">{t('app.whiteboards.voting')}</h3>
+                    {#if voting?.open}
+                      <p class="quiet">{t(voting.anonymous ? 'app.whiteboards.voting_open_anonymous' : 'app.whiteboards.voting_open', { remaining: String(votesLeft), count: String(voting.perPerson) })}</p>
+                      {#if writable && chosen}
+                        <Inline gap="050">
+                          <Button size="sm" tone="secondary" icon="star" disabledReason={votesLeft > 0 ? undefined : t('app.whiteboards.no_votes_left')} onclick={() => vote(chosen.id)}>{t('app.whiteboards.vote')}</Button>
+                          {#if myVotes.includes(chosen.id)}
+                            <Button size="sm" tone="subtle" onclick={() => unvote(chosen.id)}>{t('app.whiteboards.unvote')}</Button>
+                          {/if}
+                        </Inline>
+                      {/if}
+                      {#if writable}<Button size="sm" tone="subtle" onclick={() => session.endVoting()}>{t('app.whiteboards.voting_end')}</Button>{/if}
+                    {:else if writable}
+                      <Inline gap="050" align="end">
+                        <Select size="sm" label={t('app.whiteboards.votes_per_person')} bind:value={votesPerPerson} options={['1', '2', '3', '5', '10'].map((n) => ({ value: n, label: n }))} />
+                        <Checkbox label={t('app.whiteboards.anonymous')} bind:checked={isAnonymous} />
+                      </Inline>
+                      <Button size="sm" tone="secondary" icon="star" onclick={startVoting}>{t('app.whiteboards.voting_start')}</Button>
+                    {/if}
+                    {#if voting}
+                      <p class="quiet">{t('app.whiteboards.voters', { count: String(results.voters) })}</p>
+                      <ol class="choices" aria-label={t('app.whiteboards.results')}>
+                        {#each resultsShown as row (row.id)}
+                          <li><button type="button" class="choice" onclick={() => row.element && choose([row.element.id])}>{row.count} · {wordsOf(row.element as Element) || t(`app.whiteboards.kind_${(row.element as Element).kind.toLowerCase()}`)}</button></li>
+                        {/each}
+                      </ol>
+                      {#if writable && !voting.open}<Button size="sm" tone="subtle" onclick={() => session.clearVoting()}>{t('app.whiteboards.voting_clear')}</Button>{/if}
+                    {/if}
+                  </Stack>
+                {/if}
+                {#if timerState || writable}
+                  <Stack gap="050">
+                    <h3 class="heading">{t('app.whiteboards.timer')}</h3>
+                    {#if remaining}
+                      <p class="quiet">{remaining.running ? t('app.whiteboards.timer_left', { time: clockOf(remaining.left) }) : remaining.left === 0 ? t('app.whiteboards.time_up') : t('app.whiteboards.timer_paused', { time: clockOf(remaining.left) })}</p>
+                    {/if}
+                    {#if writable}
+                      <Inline gap="050" align="end">
+                        {#if !remaining || (!remaining.running && remaining.left === 0)}
+                          <Select size="sm" label={t('app.whiteboards.timer_minutes')} bind:value={timerMinutes} options={['1', '3', '5', '10', '15', '30'].map((n) => ({ value: n, label: n }))} />
+                          <Button size="sm" tone="secondary" icon="clock" onclick={() => session.startTimer(Number(timerMinutes) * 60 * 1000, Date.now())}>{t('app.whiteboards.timer_start')}</Button>
+                        {:else if remaining.running}
+                          <Button size="sm" tone="subtle" icon="pause" onclick={() => session.pauseTimer(Date.now())}>{t('app.whiteboards.timer_pause')}</Button>
+                        {:else}
+                          <Button size="sm" tone="subtle" icon="play" onclick={() => session.resumeTimer(Date.now())}>{t('app.whiteboards.timer_resume')}</Button>
+                        {/if}
+                        {#if remaining}<Button size="sm" tone="subtle" onclick={() => session.stopTimer()}>{t('app.whiteboards.timer_stop')}</Button>{/if}
+                      </Inline>
+                    {/if}
+                  </Stack>
+                {/if}
+                <Stack gap="050">
+                  <h3 class="heading">{t('app.whiteboards.here_now')}</h3>
+                  {#each peers as peer (peer.id)}
+                    <Inline gap="050" align="center" justify="between">
+                      <span class="peer-name" style:color={tokens.label[peerColour(peer.id)].fg}>{peer.name}</span>
+                      {#if peer.view}
+                        <Button size="sm" tone={following === peer.id ? 'primary' : 'subtle'} icon="eye" aria-pressed={following === peer.id} onclick={() => { following = following === peer.id ? undefined : peer.id; peersChanged(); }}>
+                          {t(following === peer.id ? 'app.whiteboards.unfollow' : 'app.whiteboards.follow')}
+                        </Button>
+                      {/if}
+                    </Inline>
+                  {:else}
+                    <p class="quiet">{t('app.whiteboards.alone')}</p>
+                  {/each}
+                </Stack>
+              </Stack>
+            {:else if sheet === 'comments'}
+              <BoardComments
+                boardId={board.id}
+                {writable}
+                {comments}
+                pin={pinHere}
+                pinLabel={chosen ? t('app.whiteboards.comment_at_object', { kind: t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`) }) : t('app.whiteboards.comment_at_view')}
+                bind:open={openThread}
+                bind:withResolved
+                onshow={showThread}
+              />
+            {:else if sheet === 'history'}
+              <Stack gap="050">
+                {#if !history}
+                  <Button size="sm" tone="subtle" icon="clock" onclick={() => void openHistory()}>{t('app.whiteboards.history_show')}</Button>
+                {:else}
+                  <ol class="choices" aria-label={t('app.whiteboards.history')}>
+                    {#each history as version (version.seq)}
+                      <li class="version">
+                        <span>{version.name ?? formatDateTime(version.created_at, messages.locale)} · {t('app.whiteboards.objects', { count: String(version.element_count) })}</span>
+                        {#if writable && isLive}
+                          <Inline gap="050">
+                            <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => { restoring = version; isRestoreAsked = true; }}>{t('app.whiteboards.version_restore')}</Button>
+                            <Button size="sm" tone="subtle" icon="tag" onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }}>{t('app.whiteboards.version_name')}</Button>
+                          </Inline>
+                          {#if namingSeq === version.seq}
+                            <Inline gap="050" align="end">
+                              <Input size="sm" label={t('app.whiteboards.version_name')} bind:value={nameDraft} maxlength={120} />
+                              <Button size="sm" tone="primary" onclick={() => void nameVersion(version.seq)}>{t('app.whiteboards.version_name_save')}</Button>
+                            </Inline>
+                          {/if}
+                        {/if}
+                      </li>
+                    {:else}
+                      <li class="quiet">{t('app.whiteboards.history_empty')}</li>
+                    {/each}
+                  </ol>
+                {/if}
+              </Stack>
+            {:else if sheet === 'links'}
+              <Stack gap="050">
+                {#if !backlinks}
+                  <Button size="sm" tone="subtle" icon="link" onclick={() => void openBacklinks()}>{t('app.whiteboards.backlinks_show')}</Button>
+                {:else}
+                  <ul class="choices" aria-label={t('app.whiteboards.backlinks')}>
+                    {#each backlinks as link (link.source_kind + link.source_id)}
+                      <li>
+                        <a href={backlinkHref(link)}>{link.title}</a>
+                        <span class="quiet">{t(`app.whiteboards.backlink.${link.source_kind}`)} · {t(`app.whiteboards.strength.${link.strength}`)}</span>
+                      </li>
+                    {:else}
+                      <li class="quiet">{t('app.whiteboards.no_backlinks')}</li>
+                    {/each}
+                  </ul>
+                {/if}
+              </Stack>
+            {:else if sheet === 'frames'}
+              <Stack gap="050">
+                {#each frames as frame (frame.id)}
+                  <button type="button" class="choice" onclick={() => { view = fit(view, box(frame)); choose([frame.id]); }}>{frame.text || t('app.whiteboards.kind_frame')}</button>
+                {:else}
+                  <p class="quiet">{t('app.whiteboards.no_frames')}</p>
+                {/each}
+              </Stack>
+            {:else if sheet === 'export'}
+              <Stack gap="050">
+                <Inline gap="050">
+                  <Button size="sm" tone="subtle" onclick={() => void saveSvg(which)}>SVG</Button>
+                  <Button size="sm" tone="subtle" onclick={() => void savePng(which)}>PNG</Button>
+                  <Button size="sm" tone="subtle" onclick={() => void savePdf(which)}>PDF</Button>
+                  <Button size="sm" tone="subtle" onclick={() => void saveNative()}>{t('app.whiteboards.export_native')}</Button>
+                </Inline>
+                <p class="quiet">{t(which === 'frame' ? 'app.whiteboards.export_frame' : which === 'selection' ? 'app.whiteboards.export_selection' : 'app.whiteboards.export_board')}</p>
+              </Stack>
+            {/if}
+          </section>
+        {/if}
+      </aside>
     {/if}
   </div>
-
-  <aside class="side" aria-label={t('app.whiteboards.side')}>
-    <Stack gap="150">
-      {#if chosen}
-        <Stack gap="100">
-          <h3 class="heading">{t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`)}</h3>
-          {#if chosen.kind === 'CARD' && cardOf(chosen)?.available}
-            {@const card = cardOf(chosen)}
-            <Inline gap="050">
-              <Button size="sm" tone="secondary" icon="arrow-right" onclick={() => openCard(chosen)}>{t('app.whiteboards.card_open_entry')}</Button>
-              {#if writable}
-                <Button size="sm" tone="subtle" icon="square-check" aria-pressed={card?.completed ?? false} onclick={() => void tick(chosen)}>
-                  {t(card?.completed ? 'app.whiteboards.card_undone' : 'app.whiteboards.card_done')}
-                </Button>
-              {/if}
-            </Inline>
-          {/if}
-          {#if chosen.kind === 'FILE' && chosen.media_id}
-            <Button size="sm" tone="secondary" icon="file-text" onclick={() => void openFile(chosen.media_id)}>{t('app.whiteboards.file_open_button')}</Button>
-          {/if}
-          {#if writable && !chosen.locked}
-            {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || chosen.kind === 'STROKE'}
-              <div class="swatches" role="radiogroup" aria-label={t('app.whiteboards.colour')}>
-                {#each BOARD_COLOURS as colour (colour)}
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={chosen.color_token === colour}
-                    aria-label={t(`app.colour.${colour}`)}
-                    class="swatch"
-                    style:background={tokens.label[colour].bg}
-                    onclick={() => model.update(chosen.id, { color_token: colour })}
-                  ></button>
-                {/each}
-              </div>
-            {/if}
-            {#if chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE'}
-              <Inline gap="050">
-                <Input size="sm" type="number" min="24" label={t('app.whiteboards.width')} value={String(chosen.width)} onchange={(event: Event) => { const width = sizeOf((event.currentTarget as HTMLInputElement).value); if (width) model.update(chosen.id, { width }); }} />
-                <Input size="sm" type="number" min="24" label={t('app.whiteboards.height')} value={String(chosen.height)} onchange={(event: Event) => { const height = sizeOf((event.currentTarget as HTMLInputElement).value); if (height) model.update(chosen.id, { height }); }} />
-              </Inline>
-              {#if others([chosen.id]).length > 0}
-                <Select size="sm" label={t('app.whiteboards.connect_to')} placeholder={t('app.whiteboards.connect_to_choose')} value="" options={others([chosen.id])} onchange={(event: Event) => { const select = event.currentTarget as HTMLSelectElement; connectTo(chosen.id, select.value); select.value = ''; }} />
-              {/if}
-            {/if}
-            {#if chosen.kind === 'SHAPE'}
-              <Select size="sm" label={t('app.whiteboards.shape')} value={chosen.shape ?? 'RECTANGLE'} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { shape: (event.currentTarget as HTMLSelectElement).value as Shape })} />
-            {/if}
-            {#if chosen.kind === 'CONNECTOR'}
-              <Select size="sm" label={t('app.whiteboards.route')} value={chosen.route ?? 'STRAIGHT'} options={ROUTES.map((each) => ({ value: each, label: t(`app.whiteboards.route_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { route: (event.currentTarget as HTMLSelectElement).value as Element['route'] })} />
-              <Textarea label={t('app.whiteboards.label')} rows={2} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
-            {/if}
-            {#if chosen.kind === 'FRAME'}
-              <Textarea label={t('app.whiteboards.frame_title')} rows={1} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
-            {/if}
-            {#if chosen.kind === 'LINK'}
-              <Input size="sm" label={t('app.whiteboards.link_address')} value={chosen.url ?? ''} onchange={(event: Event) => { const url = (event.currentTarget as HTMLInputElement).value.trim(); if (url) model.update(chosen.id, { url }); }} />
-            {/if}
-            {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || (chosen.kind === 'FRAME' && notesToTurn.length > 0)}
-              <Button size="sm" tone="secondary" icon="square-check" onclick={() => { isMakingEntry = !isMakingEntry; entryCollection = collections[0]?.id ?? ''; entryKind = ''; }}>
-                {chosen.kind === 'FRAME' ? t('app.whiteboards.make_entries', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry')}
-              </Button>
-              {#if isMakingEntry}
-                {#if collections.length === 0}
-                  <p class="quiet">{t('app.whiteboards.no_collections')}</p>
-                {:else}
-                  <Select size="sm" label={t('app.whiteboards.entry_in')} bind:value={entryCollection} options={collections.map((each) => ({ value: each.id, label: each.name }))} />
-                  {#if kinds.length > 1}
-                    <Select size="sm" label={t('app.whiteboards.entry_type')} bind:value={entryKind} options={kinds.map((each) => ({ value: each.key, label: each.name ?? t('app.whiteboards.entry_type_task') }))} />
-                  {/if}
-                  <Button size="sm" tone="primary" onclick={() => void makeEntries()}>{t('app.whiteboards.make_entry_confirm')}</Button>
-                {/if}
-              {/if}
-            {/if}
-            <Inline gap="050">
-              <Button size="sm" tone="subtle" onclick={() => model.front(chosen.id)}>{t('app.whiteboards.front')}</Button>
-              <Button size="sm" tone="subtle" onclick={() => model.back(chosen.id)}>{t('app.whiteboards.back')}</Button>
-              <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
-            </Inline>
-          {/if}
-          {@render addToSelection()}
-          {#if writable}
-            <Button size="sm" tone="subtle" icon="lock" onclick={() => model.update(chosen.id, { locked: !chosen.locked })}>
-              {t(chosen.locked ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')}
-            </Button>
-          {/if}
-        </Stack>
-      {:else if selected.length > 1}
-        <Stack gap="100">
-          <h3 class="heading">{t('app.whiteboards.several', { count: String(selected.length) })}</h3>
-          {@render addToSelection()}
-          {#if writable}
-            <Inline gap="050">
-              {#if isGrouped}
-                <Button size="sm" tone="subtle" icon="folder-plus" onclick={ungroup}>{t('app.whiteboards.ungroup')}</Button>
-              {:else}
-                <Button size="sm" tone="subtle" icon="folder-plus" onclick={group}>{t('app.whiteboards.group')}</Button>
-              {/if}
-              <Button size="sm" tone="subtle" icon="copy" onclick={duplicate}>{t('app.whiteboards.duplicate')}</Button>
-              <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
-            </Inline>
-          {/if}
-        </Stack>
-      {:else}
-        <p class="quiet">{t(writable ? 'app.whiteboards.hint_write' : 'app.whiteboards.hint_read')}</p>
-      {/if}
-
-      {#if voting || writable}
-        <Stack gap="050">
-          <h3 class="heading">{t('app.whiteboards.voting')}</h3>
-          {#if voting?.open}
-            <p class="quiet">{t(voting.anonymous ? 'app.whiteboards.voting_open_anonymous' : 'app.whiteboards.voting_open', { remaining: String(votesLeft), count: String(voting.perPerson) })}</p>
-            {#if writable && chosen}
-              <Inline gap="050">
-                <Button size="sm" tone="secondary" icon="star" disabledReason={votesLeft > 0 ? undefined : t('app.whiteboards.no_votes_left')} onclick={() => vote(chosen.id)}>{t('app.whiteboards.vote')}</Button>
-                {#if myVotes.includes(chosen.id)}
-                  <Button size="sm" tone="subtle" onclick={() => unvote(chosen.id)}>{t('app.whiteboards.unvote')}</Button>
-                {/if}
-              </Inline>
-            {/if}
-            {#if writable}<Button size="sm" tone="subtle" onclick={() => session.endVoting()}>{t('app.whiteboards.voting_end')}</Button>{/if}
-          {:else if writable}
-            <Inline gap="050" align="end">
-              <Select size="sm" label={t('app.whiteboards.votes_per_person')} bind:value={votesPerPerson} options={['1', '2', '3', '5', '10'].map((n) => ({ value: n, label: n }))} />
-              <Checkbox label={t('app.whiteboards.anonymous')} bind:checked={isAnonymous} />
-            </Inline>
-            <Button size="sm" tone="secondary" icon="star" onclick={startVoting}>{t('app.whiteboards.voting_start')}</Button>
-          {/if}
-          {#if voting}
-            <p class="quiet">{t('app.whiteboards.voters', { count: String(results.voters) })}</p>
-            <ol class="choices" aria-label={t('app.whiteboards.results')}>
-              {#each resultsShown as row (row.id)}
-                <li><button type="button" class="choice" onclick={() => row.element && choose([row.element.id])}>{row.count} · {wordsOf(row.element as Element) || t(`app.whiteboards.kind_${(row.element as Element).kind.toLowerCase()}`)}</button></li>
-              {/each}
-            </ol>
-            {#if writable && !voting.open}<Button size="sm" tone="subtle" onclick={() => session.clearVoting()}>{t('app.whiteboards.voting_clear')}</Button>{/if}
-          {/if}
-        </Stack>
-      {/if}
-
-      {#if timerState || writable}
-        <Stack gap="050">
-          <h3 class="heading">{t('app.whiteboards.timer')}</h3>
-          {#if remaining}
-            <p class="quiet">{remaining.running ? t('app.whiteboards.timer_left', { time: clockOf(remaining.left) }) : remaining.left === 0 ? t('app.whiteboards.time_up') : t('app.whiteboards.timer_paused', { time: clockOf(remaining.left) })}</p>
-          {/if}
-          {#if writable}
-            <Inline gap="050" align="end">
-              {#if !remaining || (!remaining.running && remaining.left === 0)}
-                <Select size="sm" label={t('app.whiteboards.timer_minutes')} bind:value={timerMinutes} options={['1', '3', '5', '10', '15', '30'].map((n) => ({ value: n, label: n }))} />
-                <Button size="sm" tone="secondary" icon="clock" onclick={() => session.startTimer(Number(timerMinutes) * 60 * 1000, Date.now())}>{t('app.whiteboards.timer_start')}</Button>
-              {:else if remaining.running}
-                <Button size="sm" tone="subtle" icon="pause" onclick={() => session.pauseTimer(Date.now())}>{t('app.whiteboards.timer_pause')}</Button>
-              {:else}
-                <Button size="sm" tone="subtle" icon="play" onclick={() => session.resumeTimer(Date.now())}>{t('app.whiteboards.timer_resume')}</Button>
-              {/if}
-              {#if remaining}<Button size="sm" tone="subtle" onclick={() => session.stopTimer()}>{t('app.whiteboards.timer_stop')}</Button>{/if}
-            </Inline>
-          {/if}
-        </Stack>
-      {/if}
-
-      <Stack gap="050">
-        <h3 class="heading">{t('app.whiteboards.here_now')}</h3>
-        {#each peers as peer (peer.id)}
-          <Inline gap="050" align="center" justify="between">
-            <span class="peer-name" style:color={tokens.label[peerColour(peer.id)].fg}>{peer.name}</span>
-            {#if peer.view}
-              <Button size="sm" tone={following === peer.id ? 'primary' : 'subtle'} icon="eye" aria-pressed={following === peer.id} onclick={() => { following = following === peer.id ? undefined : peer.id; peersChanged(); }}>
-                {t(following === peer.id ? 'app.whiteboards.unfollow' : 'app.whiteboards.follow')}
-              </Button>
-            {/if}
-          </Inline>
-        {:else}
-          <p class="quiet">{t('app.whiteboards.alone')}</p>
-        {/each}
-      </Stack>
-
-      <BoardComments
-        boardId={board.id}
-        {writable}
-        {comments}
-        pin={pinHere}
-        pinLabel={chosen ? t('app.whiteboards.comment_at_object', { kind: t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`) }) : t('app.whiteboards.comment_at_view')}
-        bind:open={openThread}
-        bind:withResolved
-        onshow={showThread}
-      />
-
-      <Stack gap="050">
-        <h3 class="heading">{t('app.whiteboards.history')}</h3>
-        {#if !history}
-          <Button size="sm" tone="subtle" icon="clock" onclick={() => void openHistory()}>{t('app.whiteboards.history_show')}</Button>
-        {:else}
-          <ol class="choices" aria-label={t('app.whiteboards.history')}>
-            {#each history as version (version.seq)}
-              <li class="version">
-                <span>{version.name ?? formatDateTime(version.created_at, messages.locale)} · {t('app.whiteboards.objects', { count: String(version.element_count) })}</span>
-                {#if writable && isLive}
-                  <Inline gap="050">
-                    <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => { restoring = version; isRestoreAsked = true; }}>{t('app.whiteboards.version_restore')}</Button>
-                    <Button size="sm" tone="subtle" icon="tag" onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }}>{t('app.whiteboards.version_name')}</Button>
-                  </Inline>
-                  {#if namingSeq === version.seq}
-                    <Inline gap="050" align="end">
-                      <Input size="sm" label={t('app.whiteboards.version_name')} bind:value={nameDraft} maxlength={120} />
-                      <Button size="sm" tone="primary" onclick={() => void nameVersion(version.seq)}>{t('app.whiteboards.version_name_save')}</Button>
-                    </Inline>
-                  {/if}
-                {/if}
-              </li>
-            {:else}
-              <li class="quiet">{t('app.whiteboards.history_empty')}</li>
-            {/each}
-          </ol>
-        {/if}
-      </Stack>
-
-      <Stack gap="050">
-        <h3 class="heading">{t('app.whiteboards.backlinks')}</h3>
-        {#if !backlinks}
-          <Button size="sm" tone="subtle" icon="link" onclick={() => void openBacklinks()}>{t('app.whiteboards.backlinks_show')}</Button>
-        {:else}
-          <ul class="choices" aria-label={t('app.whiteboards.backlinks')}>
-            {#each backlinks as link (link.source_kind + link.source_id)}
-              <li>
-                <a href={backlinkHref(link)}>{link.title}</a>
-                <span class="quiet">{t(`app.whiteboards.backlink.${link.source_kind}`)} · {t(`app.whiteboards.strength.${link.strength}`)}</span>
-              </li>
-            {:else}
-              <li class="quiet">{t('app.whiteboards.no_backlinks')}</li>
-            {/each}
-          </ul>
-        {/if}
-      </Stack>
-
-      <Stack gap="050">
-        <h3 class="heading">{t('app.whiteboards.frames')}</h3>
-        {#each frames as frame (frame.id)}
-          <button type="button" class="choice" onclick={() => { view = fit(view, box(frame)); choose([frame.id]); }}>{frame.text || t('app.whiteboards.kind_frame')}</button>
-        {:else}
-          <p class="quiet">{t('app.whiteboards.no_frames')}</p>
-        {/each}
-      </Stack>
-
-      <Stack gap="050">
-        <h3 class="heading">{t('app.whiteboards.export')}</h3>
-        <Inline gap="050">
-          <Button size="sm" tone="subtle" onclick={() => void saveSvg(which)}>SVG</Button>
-          <Button size="sm" tone="subtle" onclick={() => void savePng(which)}>PNG</Button>
-          <Button size="sm" tone="subtle" onclick={() => void savePdf(which)}>PDF</Button>
-          <Button size="sm" tone="subtle" onclick={() => void saveNative()}>{t('app.whiteboards.export_native')}</Button>
-        </Inline>
-        <p class="quiet">{t(which === 'frame' ? 'app.whiteboards.export_frame' : which === 'selection' ? 'app.whiteboards.export_selection' : 'app.whiteboards.export_board')}</p>
-      </Stack>
-    </Stack>
-  </aside>
 </div>
 
 {#if isPickingEntry}
@@ -1624,6 +1761,16 @@
   </Dialog>
 {/if}
 
+{#if isTemplating}
+  <Dialog bind:isOpen={isTemplating} title={t('app.whiteboards.template_put_menu')} dismissLabel={t('app.links.cancel')} isWide>
+    <BoardTemplates bind:chosen={templateStart} bind:format={templateFormat} withBlank={false} />
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isTemplating = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" data-put-template onclick={() => { const name = templateOf(templateStart, templateFormat); if (name) putTemplate(name); }}>{t('app.whiteboards.template_put_button')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 {#if isLinking}
   <Dialog bind:isOpen={isLinking} title={t('app.whiteboards.link_put')} dismissLabel={t('app.links.cancel')}>
     <Input label={t('app.whiteboards.link_address')} type="url" bind:value={linkDraft} error={linkError} placeholder="https://" />
@@ -1635,24 +1782,158 @@
 {/if}
 
 <style>
+  /* The board is the screen (user-experience.md §7.2): a one-row head, and under it the canvas
+     edge to edge with its tools floating over it. Below `expanded` the frame gives the page no
+     height of its own, so the board takes the window's less the bars. */
   .board {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-    gap: var(--sp-100);
     block-size: 100%;
-    min-block-size: var(--sp-1000);
+    min-block-size: 0;
   }
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
-  @media (width >= 905px) {
-    .board { grid-template-columns: minmax(0, 1fr) var(--layout-panel-width); }
-    .side { grid-row: 1 / span 2; grid-column: 2; }
+  @media (width < 905px) {
+    .board { block-size: calc(100dvh - var(--layout-appbar-height) - var(--layout-bottombar-height)); }
   }
-  .bar { padding-block: var(--sp-050); }
-  .zoom, .status { color: var(--text-subtle); font-size: var(--fs-075); }
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-100);
+    min-inline-size: 0;
+    padding: var(--sp-050) var(--sp-150);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
+  .name { min-inline-size: 0; flex: 1 1 auto; }
+  .aside { display: flex; align-items: center; gap: var(--sp-050); flex: 0 0 auto; }
+  .here { display: inline-flex; }
+  .status { color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
   .clock { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text-primary); }
   .clock.over { color: var(--text-danger); }
-  .stage { position: relative; min-block-size: var(--sp-1000); overflow: hidden; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface-sunken); }
+
+  .stage { position: relative; min-block-size: 0; overflow: hidden; background: var(--bg-surface-sunken); }
+
+  /* The tools float at the top centre, one row of icons; on a phone they are a sheet at the foot. */
+  .tools, .zoombar, .variant {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-025);
+    padding: var(--sp-050);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+  }
+  .tools {
+    position: absolute;
+    inset-block-start: var(--sp-150);
+    inset-inline: 0;
+    margin-inline: auto;
+    inline-size: fit-content;
+    max-inline-size: calc(100% - 2 * var(--sp-150));
+    box-sizing: border-box;
+    overflow-x: auto;
+  }
+  .seam { align-self: stretch; inline-size: var(--bw-hairline); margin-inline: var(--sp-025); background: var(--border-subtle); }
+  .variant {
+    position: absolute;
+    inset-block-start: calc(var(--sp-150) + var(--density-control-md-min) + var(--sp-200));
+    inset-inline: 0;
+    margin-inline: auto;
+    inline-size: fit-content;
+  }
+  .corner {
+    position: absolute;
+    inset-block-end: var(--sp-150);
+    inset-inline-end: var(--sp-150);
+    display: grid;
+    justify-items: end;
+    gap: var(--sp-100);
+  }
+  .zoom { min-inline-size: var(--sp-500); text-align: center; color: var(--text-secondary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
+  .minimap {
+    inline-size: var(--layout-gallery-card);
+    block-size: var(--sp-1600);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-raised);
+    cursor: pointer;
+  }
+
+  /* An empty board says what to do in its middle, where the eye is. */
+  .blank {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    inline-size: fit-content;
+    block-size: fit-content;
+    display: grid;
+    justify-items: center;
+    gap: var(--sp-100);
+    max-inline-size: min(calc(100% - 2 * var(--sp-300)), var(--layout-pane-width));
+    text-align: center;
+    pointer-events: none;
+  }
+  .blank :global(button) { pointer-events: auto; }
+  .blank-title { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); color: var(--text-primary); }
+
+  /* The side sheet lies over the canvas rather than beside it, so opening it never moves the board. */
+  .sheet {
+    position: absolute;
+    inset-block-start: var(--sp-150);
+    inset-inline-end: var(--sp-150);
+    max-block-size: calc(100% - 2 * var(--sp-150));
+    box-sizing: border-box;
+    inline-size: min(var(--layout-pane-width), calc(100% - 2 * var(--sp-150)));
+    display: grid;
+    align-content: start;
+    gap: var(--sp-200);
+    padding: var(--sp-200);
+    overflow-y: auto;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+  }
+  /* With the sheet open the tools, the corner and an empty board's words keep to the canvas left beside it. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
+    .stage[data-sheet] .tools,
+    .stage[data-sheet] .variant,
+    .stage[data-sheet] .blank { inset-inline-end: calc(var(--layout-pane-width) + 2 * var(--sp-150)); }
+    .stage[data-sheet] .corner { inset-inline-end: calc(var(--layout-pane-width) + 2 * var(--sp-150)); }
+  }
+  .part { display: grid; gap: var(--sp-100); }
+  .part + .part { padding-block-start: var(--sp-200); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .part-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .part-title { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+  .part-title:focus { outline: none; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .head { padding-inline: var(--sp-100); }
+    .status { display: none; }
+    .tools {
+      inset-block-start: auto;
+      inset-block-end: var(--sp-100);
+      inset-inline: var(--sp-100);
+      inline-size: auto;
+      max-inline-size: none;
+    }
+    .variant { inset-block-start: var(--sp-100); }
+    .corner { inset-block-end: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-300)); inset-inline-end: var(--sp-100); }
+    .sheet {
+      inset-block: auto 0;
+      inset-inline: 0;
+      inline-size: auto;
+      max-block-size: 60%;
+      border-radius: var(--r-xl) var(--r-xl) 0 0;
+    }
+  }
+  .clock { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text-primary); }
+  .clock.over { color: var(--text-danger); }
   .canvas { display: block; inline-size: 100%; block-size: 100%; touch-action: none; cursor: grab; }
   .canvas.drawing { cursor: crosshair; }
   .canvas:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--bw-ring)); }
@@ -1692,17 +1973,6 @@
   .peer path { fill: currentColor; stroke: var(--bg-surface); stroke-width: 1; }
   .peer text { fill: currentColor; font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .peer-name { font-weight: var(--fw-semibold); }
-  .minimap {
-    position: absolute;
-    inset-block-end: var(--sp-100);
-    inset-inline-end: var(--sp-100);
-    inline-size: var(--layout-gallery-card);
-    block-size: var(--sp-1600);
-    border: var(--bw-hairline) solid var(--border-default);
-    border-radius: var(--r-sm);
-    background: var(--bg-surface);
-    cursor: pointer;
-  }
   .mini { fill: var(--border-strong); }
   .mini.frame { fill: none; stroke: var(--border-default); }
   .mini-view { fill: none; stroke: var(--accent-primary); stroke-width: 2; }
@@ -1716,7 +1986,6 @@
     font: inherit;
     resize: none;
   }
-  .side { display: grid; align-content: start; gap: var(--sp-150); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); }
   .swatches { display: flex; flex-wrap: wrap; gap: var(--sp-050); }

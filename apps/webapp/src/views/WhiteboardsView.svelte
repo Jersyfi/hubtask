@@ -1,16 +1,20 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Whiteboards* in a hub (M4, UC-CNV-01 … UC-CNV-03): the hub's boards, the last changed first,
-  // and one board drawn (`BoardCanvas`). A board is made empty or from an exported native document,
-  // renamed, put in the trash and brought back.
+  // *Whiteboards* in a hub (M4, UC-CNV-01 … UC-CNV-03; user-experience.md §7.2): the hub's boards
+  // as preview cards, the last changed first, and one board drawn full-bleed (`BoardCanvas`). A
+  // board is made from the template gallery, blank or from an exported native document, renamed,
+  // put in the trash and brought back.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // sees the boards and is offered no write; the board's own `writable` says the same for it.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, EmptyState, IconButton, Inline, Input, Spinner, Stack, UploadField } from '@hubtask/design-system/components';
+  import {
+    Banner, Button, Dialog, Disclosure, EmptyState, Input, PageHeader, Skeleton, Spinner, Stack, UploadField,
+  } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardList, WhiteboardRead } from '@hubtask/sync-engine';
+  import { elementId } from '@hubtask/whiteboard';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -21,10 +25,13 @@
   import { boardPath, boardsPath, readNative, trashedBoardsPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
+  import BoardCard from '../lib/whiteboards/BoardCard.svelte';
+  import BoardTemplates, { startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
 
   interface Props {
@@ -43,6 +50,8 @@
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
 
   $effect(() => frame.entitle(current?.title ?? t('app.whiteboards.title')));
+  // A board is a canvas, not a document: it takes the content region whole (`page.fill`).
+  $effect(() => (boardId ? frame.fill() : undefined));
 
   let list = $state<readonly Whiteboard[] | undefined>(undefined);
   let trash = $state<readonly Whiteboard[]>([]);
@@ -64,6 +73,8 @@
       return () => stops.forEach((stop) => stop());
     });
   });
+  /** Recent first, whatever order the list arrived in (§2.2). */
+  const boards = $derived([...(list ?? [])].sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
 
   const mayWrite = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted' : false,
@@ -71,9 +82,30 @@
 
   let isCreating = $state(false);
   let titleDraft = $state('');
+  let start = $state<BoardStart>('BLANK');
+  let format = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
   let imported = $state<{ title: string; elements: unknown[] } | undefined>(undefined);
+  let isImportOpen = $state(false);
   let renaming = $state(false);
   let showsTrash = $state(false);
+
+  /** The name a template suggests, kept only while the person has not typed one of their own. */
+  const suggested = (choice: BoardStart) => (choice === 'BLANK' ? '' : t(`app.whiteboards.start_${choice.toLowerCase()}`));
+  let lastSuggested = '';
+  $effect(() => {
+    const name = suggested(start);
+    untrack(() => {
+      if (!imported && (titleDraft.trim() === '' || titleDraft === lastSuggested)) titleDraft = name;
+      lastSuggested = name;
+    });
+  });
+
+  function startCreate(choice: BoardStart = 'BLANK') {
+    start = choice;
+    titleDraft = suggested(choice);
+    lastSuggested = titleDraft;
+    isCreating = true;
+  }
 
   async function act<T>(run: () => Promise<T>, done?: string): Promise<T | undefined> {
     try {
@@ -90,19 +122,25 @@
   // what was typed and chosen (user-experience.md §5.10).
   let createFailure = $state<string | undefined>(undefined);
   let importFailure = $state<string | undefined>(undefined);
+  let isMaking = $state(false);
 
   async function create() {
     const title = titleDraft.trim();
-    if (!title || !hubId) return;
+    if (!title || !hubId || isMaking) return;
     createFailure = undefined;
+    const name = templateOf(start, format);
+    const elements = imported?.elements ?? (name ? startElements(name, (key) => t(`app.whiteboards.word_${key}`), elementId) : undefined);
+    isMaking = true;
     try {
-      const made = await whiteboards.create(hubId, { title, ...(imported ? { elements: imported.elements as never } : {}) });
+      const made = await whiteboards.create(hubId, { title, ...(elements && elements.length > 0 ? { elements: elements as never } : {}) });
       isCreating = false;
       imported = undefined;
       titleDraft = '';
       onnavigate(`/whiteboards/${made.id}`);
     } catch (error) {
       createFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isMaking = false;
     }
   }
 
@@ -129,105 +167,142 @@
     if (done && boardId) onnavigate(`/hubs/${board.hub_id}/whiteboards`);
   }
 
-  const when = (at: string) => formatDateTime(at, messages.locale);
+  const metaOf = (board: Whiteboard) =>
+    [t('app.whiteboards.objects', { count: String(board.element_count) }), formatRelative(board.updated_at, messages.locale)].join(' · ');
   const collections = $derived(hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name, settings: each.structure?.settings })) : []);
+  const boardMenu = $derived(
+    current?.writable
+      ? {
+          items: [
+            { id: 'rename', label: t('app.whiteboards.rename'), icon: 'pencil' as const },
+            { id: 'trash', label: t('app.whiteboards.trash'), icon: 'trash' as const, isDestructive: true },
+          ],
+          onselect: (id: string) => {
+            if (!current) return;
+            if (id === 'rename') { titleDraft = current.title; renaming = true; }
+            if (id === 'trash') void trashBoard(current);
+          },
+        }
+      : undefined,
+  );
 </script>
 
 {#if boardId}
-  <div class="one">
-    {#if openRefusal || !current}
+  {#if openRefusal || !current}
+    <div class="waiting">
       <h1 class="title">{t('app.whiteboards.title')}</h1>
-    {/if}
-    {#if openRefusal}
-      <Banner tone="danger">{openRefusal}</Banner>
-    {:else if !current}
-      <Spinner label={t('app.whiteboards.loading')} />
-    {:else}
-      <Inline justify="between" align="center">
-        <Stack gap="025">
-          {#if hub}<a class="hub" href={`/hubs/${hub.id}/whiteboards`}>{hub.name} · {t('app.whiteboards.title')}</a>{/if}
-          <h1 class="title">{current.title}</h1>
-        </Stack>
-        {#if current.writable}
-          <Inline gap="050">
-            <IconButton icon="pencil" label={t('app.whiteboards.rename')} onclick={() => { titleDraft = current.title; renaming = true; }} />
-            <IconButton icon="trash" label={t('app.whiteboards.trash')} onclick={() => void trashBoard(current)} />
-          </Inline>
-        {/if}
-      </Inline>
-      {#key current.id}
-        <BoardCanvas board={current} {collections} {onnavigate} />
-      {/key}
-    {/if}
-  </div>
+      {#if openRefusal}
+        <Banner tone="danger">{openRefusal}</Banner>
+      {:else}
+        <Spinner label={t('app.whiteboards.loading')} />
+      {/if}
+    </div>
+  {:else}
+    {#key current.id}
+      <BoardCanvas board={current} {collections} {onnavigate} {boardMenu}>
+        {#snippet heading()}
+          <div class="trail">
+            {#if hub}<a class="hub" href={`/hubs/${hub.id}/whiteboards`}>{hub.name}</a><span class="sep" aria-hidden="true">/</span>{/if}
+            <h1 class="board-title" title={current.title}>{current.title}</h1>
+          </div>
+        {/snippet}
+      </BoardCanvas>
+    {/key}
+  {/if}
 {:else}
-  <div class="list">
-    <Inline justify="between" align="center">
-      <Stack gap="025">
-        {#if hub}<a class="hub" href={`/hubs/${hub.id}`}>{hub.name}</a>{/if}
-        <h1 class="title">{t('app.whiteboards.title')}</h1>
-      </Stack>
-      {#if mayWrite}<Button icon="plus" onclick={() => (isCreating = true)}>{t('app.whiteboards.new')}</Button>{/if}
-    </Inline>
+  <Stack gap="300">
+    <PageHeader
+      title={t('app.whiteboards.title')}
+      isTitleInBar={viewport.isCompact}
+      breadcrumb={hub
+        ? {
+            trail: [{ id: 'place', label: hub.name, href: `/hubs/${hub.id}` }, { id: 'whiteboards', label: t('app.whiteboards.title') }],
+            label: t('app.whiteboards.trail'),
+            expandLabel: t('app.admin.expand_trail'),
+            onnavigate: () => onnavigate(`/hubs/${hubId}`),
+          }
+        : undefined}
+      primary={mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => startCreate() } : undefined}
+      menu={mayWrite
+        ? {
+            label: t('app.whiteboards.list_menu'),
+            items: [{ id: 'trash', label: showsTrash ? t('app.whiteboards.trash_hide') : t('app.whiteboards.trash_list'), icon: 'trash' }],
+            onselect: () => (showsTrash = !showsTrash),
+          }
+        : undefined}
+    />
     {#if hubFromRoute}<PlaceStrip placeId={hubFromRoute} current="whiteboards" {onnavigate} />{/if}
+
     {#if listRefusal}
       <Banner tone="danger">{listRefusal}</Banner>
     {:else if !list}
-      <Spinner label={t('app.whiteboards.loading')} />
-    {:else if list.length === 0}
-      <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_hint')} icon="layout-template">
-        {#snippet action()}
-          {#if mayWrite}<Button icon="plus" onclick={() => (isCreating = true)}>{t('app.whiteboards.new')}</Button>{/if}
-        {/snippet}
-      </EmptyState>
+      <div aria-busy="true"><Skeleton lines={3} /></div>
+    {:else if boards.length === 0}
+      <!-- An empty hub starts a board from a template in one press (user-experience.md §4, §5.5). -->
+      <div class="start" data-boards-start>
+        {#if mayWrite}
+          <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_hint')} icon="layout-template" />
+          <BoardTemplates
+            chosen={'BLANK'}
+            {format}
+            onpick={(choice) => startCreate(choice)}
+          />
+        {:else}
+          <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_reader')} icon="layout-template" />
+        {/if}
+      </div>
     {:else}
-      <ul class="boards">
-        {#each list as board (board.id)}
-          <li class="row">
-            <a href={`/whiteboards/${board.id}`}>{board.title}</a>
-            <span class="meta">{t('app.whiteboards.objects', { count: String(board.element_count) })} · {when(board.updated_at)}</span>
-          </li>
+      <ul class="boards" data-boards>
+        {#each boards as board (board.id)}
+          <li><BoardCard {board} meta={metaOf(board)} onopen={onnavigate} /></li>
         {/each}
       </ul>
     {/if}
-    {#if mayWrite}
-      <div>
-        <Button size="sm" tone="subtle" icon="trash" onclick={() => (showsTrash = !showsTrash)}>{t('app.whiteboards.trash_list')}</Button>
-        {#if showsTrash}
-          <ul class="boards">
-            {#each trash as board (board.id)}
-              <li class="row">
-                <span>{board.title}</span>
-                <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void act(() => whiteboards.restore(board), t('app.whiteboards.restored', { title: board.title }))}>{t('app.whiteboards.restore')}</Button>
-              </li>
-            {:else}
-              <li class="meta">{t('app.whiteboards.trash_empty')}</li>
-            {/each}
-          </ul>
-        {/if}
-      </div>
+
+    {#if mayWrite && showsTrash}
+      <section class="trash" aria-labelledby="boards-trash">
+        <h2 class="heading" id="boards-trash">{t('app.whiteboards.trash_list')}</h2>
+        <ul class="rows">
+          {#each trash as board (board.id)}
+            <li class="row">
+              <span>{board.title}</span>
+              <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void act(() => whiteboards.restore(board), t('app.whiteboards.restored', { title: board.title }))}>{t('app.whiteboards.restore')}</Button>
+            </li>
+          {:else}
+            <li class="meta">{t('app.whiteboards.trash_empty')}</li>
+          {/each}
+        </ul>
+      </section>
     {/if}
-  </div>
+  </Stack>
 {/if}
 
 {#if isCreating}
-  <Dialog bind:isOpen={isCreating} title={t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')} onClose={() => { imported = undefined; titleDraft = ''; createFailure = undefined; importFailure = undefined; }}>
-    <Stack gap="150">
+  <Dialog bind:isOpen={isCreating} title={t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')} isWide onClose={() => { imported = undefined; titleDraft = ''; createFailure = undefined; importFailure = undefined; isImportOpen = false; }}>
+    <Stack gap="200">
       <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} maxlength={200} />
-      <UploadField
-        label={t('app.whiteboards.import')}
-        chooseLabel={t('app.import.choose')}
-        dropLabel={t('app.media.drop')}
-        accept="application/json,.json"
-        error={importFailure}
-        onChoose={(file) => void readFile(file)}
-      />
-      {#if imported}<p class="meta">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</p>{/if}
+      {#if imported}
+        <Banner tone="info">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</Banner>
+      {:else}
+        <BoardTemplates bind:chosen={start} bind:format />
+      {/if}
+      {#if hub}<p class="meta" data-board-place>{t('app.whiteboards.made_in', { place: hub.name })}</p>{/if}
+      <Disclosure label={t('app.whiteboards.import_fold')} description={t('app.whiteboards.import_fold_hint')} tone="quiet" bind:isOpen={isImportOpen}>
+        <UploadField
+          label={t('app.whiteboards.import')}
+          chooseLabel={t('app.import.choose')}
+          dropLabel={t('app.media.drop')}
+          accept="application/json,.json"
+          error={importFailure}
+          onChoose={(file) => void readFile(file)}
+        />
+        {#if imported}<Button size="sm" tone="subtle" icon="x" onclick={() => (imported = undefined)}>{t('app.whiteboards.import_drop')}</Button>{/if}
+      </Disclosure>
       {#if createFailure}<Banner tone="danger">{createFailure}</Banner>{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" disabledReason={titleDraft.trim() ? undefined : t('app.whiteboards.needs_title')} onclick={() => void create()}>{t('app.whiteboards.create')}</Button>
+      <Button tone="primary" busyLabel={isMaking ? t('app.whiteboards.making') : undefined} disabledReason={titleDraft.trim() ? undefined : t('app.whiteboards.needs_title')} onclick={() => void create()}>{t('app.whiteboards.create')}</Button>
     {/snippet}
   </Dialog>
 {/if}
@@ -243,17 +318,25 @@
 {/if}
 
 <style>
-  .one, .list { display: grid; gap: var(--sp-150); min-block-size: 0; }
-  .one { grid-template-rows: auto minmax(0, 1fr); block-size: 100%; }
+  .waiting { display: grid; gap: var(--sp-150); padding: var(--sp-300); }
   .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
-  .hub { color: var(--text-secondary); font-size: var(--fs-075); }
-  .boards { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
+  .trail { display: flex; align-items: baseline; gap: var(--sp-050); min-inline-size: 0; }
+  .hub { flex: 0 1 auto; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  .sep { color: var(--text-subtle); font-size: var(--fs-075); }
+  .board-title { margin: 0; overflow: hidden; font-size: var(--fs-200); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .hub, .sep { display: none; }
+  }
+  .start { display: grid; gap: var(--sp-200); }
+  .boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
+  .trash { display: grid; gap: var(--sp-100); }
+  .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
   .row {
     display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100);
     padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
     background: var(--bg-surface);
   }
-  .row a { color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
-  .row a:hover { text-decoration: underline; }
-  .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
+  .meta { color: var(--text-secondary); font-size: var(--fs-075); margin: 0; }
 </style>

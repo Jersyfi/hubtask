@@ -27,6 +27,7 @@
   import { heldActRows } from '../lib/today.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
+  import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
   import type { AgentJobList, AgentList, AgentRequestList, CmdbHealth, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
@@ -359,11 +360,7 @@
           <ul class="cards">
             {#each boards as board (board.id)}
               <li>
-                <a class="card" href={`/whiteboards/${board.id}`}>
-                  <span class="card-mark" aria-hidden="true"><Icon name="layout-template" size="md" /></span>
-                  <span class="card-title" title={board.title}>{board.title}</span>
-                  <span class="card-meta">{[hubName(board.hub_id), t('app.whiteboards.objects', { count: String(board.element_count) }), formatRelative(board.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
-                </a>
+                <BoardCard {board} meta={[hubName(board.hub_id), t('app.whiteboards.objects', { count: String(board.element_count) }), formatRelative(board.updated_at, messages.locale)].filter(Boolean).join(' · ')} onopen={onnavigate} />
               </li>
             {/each}
           </ul>
@@ -409,23 +406,7 @@
 
 <style>
   /* Boards are visual, so they are cards (§5.1), as many to a row as fit. */
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24ch), 1fr)); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
-  .card {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--sp-050);
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    text-decoration: none;
-  }
-  .card:hover { background: var(--bg-surface-hover); }
-  .card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
-  .card-mark { display: inline-flex; color: var(--text-subtle); }
-  .card-title { overflow: hidden; font-weight: var(--fw-medium); text-overflow: ellipsis; white-space: nowrap; }
-  .card-meta { overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
   .purpose { display: block; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   /* The same figures as a hub's health section draws (lib/assets/Health.svelte). */
   .figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--sp-1600)), 1fr)); gap: var(--sp-100); margin: 0; }
