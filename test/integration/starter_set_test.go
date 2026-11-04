@@ -13,6 +13,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
@@ -157,5 +158,77 @@ func TestAMemberMayNotApplyAStarterSet(t *testing.T) {
 	member := personIn(ctx, t, tenant, "MEMBER")
 	if _, _, err := apply.Execute(ctx, member, teamSet()); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a member applying a set answered %v, want forbidden", err)
+	}
+}
+
+// templateTaker stands for the configuration's plan and apply: it records the order of the parts
+// and refuses the hub part when told to.
+type templateTaker struct {
+	steps       []string
+	hub         shared.ID
+	refuseOnHub bool
+}
+
+func (r *templateTaker) TakeForWorkspace(context.Context, appshared.ActorContext, work.StarterTemplate) error {
+	r.steps = append(r.steps, "workspace")
+	return nil
+}
+
+func (r *templateTaker) TakeForHub(_ context.Context, _ appshared.ActorContext, _ work.StarterTemplate, hub shared.ID) error {
+	r.steps = append(r.steps, "hub")
+	r.hub = hub
+	if r.refuseOnHub {
+		return shared.ErrValidation.WithDetail("config.refused")
+	}
+	return nil
+}
+
+// A set built on a template takes its workspace part before the hub exists and its hub part into
+// the hub just made; a refused part leaves nothing behind and the question open (UC-WRK-30 check 5).
+func TestAStarterSetOnATemplateLandsWholeOrNotAtAll(t *testing.T) {
+	ctx := context.Background()
+	apply := starterSetDesk(t)
+	tenant, owner := freshWorkspace(ctx, t, "OWNER")
+	cmd := teamSet("Queue")
+	cmd.Template = work.StarterTemplate{Key: "itil_service_desk", Samples: true}
+
+	refusing := &templateTaker{refuseOnHub: true}
+	apply.Templates = refusing
+	if _, _, err := apply.Execute(ctx, owner, cmd); err == nil {
+		t.Fatal("a set whose template's hub part was refused landed")
+	}
+	if n := containersOf(ctx, t, tenant); n != 0 {
+		t.Errorf("a refused template left %d containers behind", n)
+	}
+	if !offered(ctx, t, apply.Starter, owner) {
+		t.Fatal("a refused template closed the first start")
+	}
+
+	taking := &templateTaker{}
+	apply.Templates = taking
+	hub, _, err := apply.Execute(ctx, owner, cmd)
+	if err != nil {
+		t.Fatalf("the set on a template answered %v", err)
+	}
+	if len(taking.steps) != 2 || taking.steps[0] != "workspace" || taking.steps[1] != "hub" || taking.hub != hub.ID {
+		t.Errorf("the template was taken as %v into %s, want the workspace part, then the hub part into %s", taking.steps, taking.hub, hub.ID)
+	}
+	if offered(ctx, t, apply.Starter, owner) {
+		t.Error("the first start is still offered after its set landed")
+	}
+}
+
+// A set naming a template where none can be taken is refused before anything is written.
+func TestAStarterSetNamingATemplateNeedsATaker(t *testing.T) {
+	ctx := context.Background()
+	apply := starterSetDesk(t)
+	tenant, owner := freshWorkspace(ctx, t, "OWNER")
+	cmd := teamSet()
+	cmd.Template = work.StarterTemplate{Key: "kanban_team"}
+	if _, _, err := apply.Execute(ctx, owner, cmd); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a set naming a template without a taker answered %v, want a validation refusal", err)
+	}
+	if n := containersOf(ctx, t, tenant); n != 0 {
+		t.Errorf("the refused set left %d containers", n)
 	}
 }

@@ -16992,8 +16992,9 @@ paths:
       x-hubtask-rest-location: /containers/{id}
       summary: Answers the first start's question with its starter set
       description: >
-        Creates the starter set - a hub and its collections, each on its preset - and closes the
-        first start, in one transaction: either all of it lands or nothing does. Sent with an
+        Creates the starter set - a hub and its collections, each on its preset, and with
+        `template` that template's workspace and hub parts - and closes the first start, in one
+        transaction: either all of it lands or nothing does. Sent with an
         `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second
         set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or
         once the workspace holds anything somebody made. The names are the client's, in the reader's
@@ -33241,6 +33242,28 @@ components:
           description: The hub's collections, in their order.
           items:
             $ref: "#/components/schemas/StarterCollection"
+        template:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: >
+            A template of the catalogue (`GET /config/templates`) the set is built on, by its key.
+            In the same transaction its workspace part is applied first, then the hub is made and
+            takes the template's hub part - as `POST /config:apply` with `template` would, under the
+            same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted,
+            the set is hubs and collections on presets alone.
+        answers:
+          type: object
+          additionalProperties: { type: string }
+          description: The template's questions answered, by key; an open question takes its default.
+        samples:
+          type: boolean
+          description: True takes the template's sample entries into the hub, marked and removable at once.
+        acknowledge:
+          type: boolean
+          description: >
+            True once the person has seen that the template's plan hides data or changes
+            permissions; required when it does, as on `POST /config:apply`.
 
     StarterCollection:
       type: object

@@ -36,10 +36,30 @@ type StarterPlace struct {
 	Preset domain.PresetKey
 }
 
-// ApplyStarterCommand is the set: one hub and its collections, in their order.
+// ApplyStarterCommand is the set: one hub and its collections, in their order, and the template
+// it is built on, if any.
 type ApplyStarterCommand struct {
 	Hub         StarterPlace
 	Collections []StarterPlace
+	Template    StarterTemplate
+}
+
+// StarterTemplate is the template a set is built on: its key, its questions answered, whether its
+// sample entries come along, and whether the person has seen a plan that hides data or changes
+// permissions. A zero Key builds the set on presets alone.
+type StarterTemplate struct {
+	Key         string
+	Answers     map[string]string
+	Samples     bool
+	Acknowledge bool
+}
+
+// StarterTemplates takes a template's parts for the first start inside the transaction it is
+// called in, through the configuration's own plan and apply (configuration.md §6): the workspace
+// part before the hub exists, the hub part once it does. Each refuses as the apply does.
+type StarterTemplates interface {
+	TakeForWorkspace(ctx context.Context, actor appshared.ActorContext, take StarterTemplate) error
+	TakeForHub(ctx context.Context, actor appshared.ActorContext, take StarterTemplate, hub shared.ID) error
 }
 
 // ApplyStarter answers the first start with its set (UC-WRK-30 check 5). The hub, the collections
@@ -50,13 +70,15 @@ type ApplyStarterCommand struct {
 type ApplyStarter struct {
 	Starter    Starter
 	Containers CreateContainer
+	// Templates takes a set's template; a set naming one is refused where it is not wired.
+	Templates StarterTemplates
 }
 
 // Execute makes the set and answers its hub, with the hub's structure.
 func (h ApplyStarter) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ApplyStarterCommand,
 ) (domain.Container, *domain.EffectiveStructure, error) {
-	if err := validStarterSet(cmd); err != nil {
+	if err := validStarterSet(cmd, h.Templates); err != nil {
 		return domain.Container{}, nil, err
 	}
 	s := h.Starter
@@ -83,6 +105,11 @@ func (h ApplyStarter) Execute(
 		if !closed {
 			return shared.ErrConflict.WithDetail(CodeStarterClosed)
 		}
+		if cmd.Template.Key != "" {
+			if err := h.Templates.TakeForWorkspace(ctx, actor, cmd.Template); err != nil {
+				return err
+			}
+		}
 		if hub, structure, err = h.Containers.create(ctx, actor, CreateContainerCommand{
 			Type: domain.ContainerHub, Name: cmd.Hub.Name, Preset: cmd.Hub.Preset,
 		}); err != nil {
@@ -92,6 +119,11 @@ func (h ApplyStarter) Execute(
 			if _, _, err := h.Containers.create(ctx, actor, CreateContainerCommand{
 				Type: domain.ContainerCollection, ParentID: hub.ID, Name: place.Name, Preset: place.Preset,
 			}); err != nil {
+				return err
+			}
+		}
+		if cmd.Template.Key != "" {
+			if err := h.Templates.TakeForHub(ctx, actor, cmd.Template, hub.ID); err != nil {
 				return err
 			}
 		}
@@ -117,7 +149,10 @@ func (h ApplyStarter) Execute(
 
 // validStarterSet refuses a set the contract does not describe before anything is read: only
 // Hubtask's own presets, and at most maxStarterCollections collections.
-func validStarterSet(cmd ApplyStarterCommand) error {
+func validStarterSet(cmd ApplyStarterCommand, templates StarterTemplates) error {
+	if cmd.Template.Key != "" && templates == nil {
+		return invalidStarterField("/template", "usecase.field_not_in_enum")
+	}
 	if !cmd.Hub.Preset.BuiltIn() {
 		return invalidStarterField("/hub_preset", "usecase.field_not_in_enum")
 	}
@@ -159,17 +194,39 @@ func starterPlacesFrom(raw any) ([]StarterPlace, error) {
 	return places, nil
 }
 
+// starterAnswersFrom reads the template's answers: text by the question's key.
+func starterAnswersFrom(raw any) (map[string]string, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	object, ok := raw.(map[string]any)
+	if !ok {
+		return nil, invalidStarterField("/answers", "usecase.field_type_invalid")
+	}
+	answers := make(map[string]string, len(object))
+	for key, value := range object {
+		text, ok := value.(string)
+		if !ok {
+			return nil, invalidStarterField("/answers/"+key, "usecase.field_type_invalid")
+		}
+		answers[key] = text
+	}
+	return answers, nil
+}
+
 // Descriptor is the catalogue entry.
 func (h ApplyStarter) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Permission: service.PermissionStructure,
 		Name:       ApplyStarterName,
 		Summary: "Answers the workspace's first start with its starter set: creates a hub and its " +
-			"collections, each on its preset, and closes the first start, all in one transaction. " +
+			"collections, each on its preset - with a template, its workspace and hub parts as " +
+			"ApplyConfig would apply them - and closes the first start, all in one transaction. " +
 			"Refused with " + CodeStarterClosed + " once the first start was answered or skipped, or " +
 			"the workspace holds anything somebody made. Needs the right to change the workspace's shape.",
 		SideEffects: "Writes the hub and each collection as CreateContainer does - events, changes, " +
-			"columns and audit entries - the moment the first start was closed, and its audit entry.",
+			"columns and audit entries - the moment the first start was closed, and its audit entry; " +
+			"with a template, the configuration versions and audit entries ApplyConfig writes.",
 		TokenScope: workspaceManageScope,
 		Input: []usecase.Field{
 			{Name: "hub_name", Kind: usecase.KindString, Required: true, Description: "Up to 200 characters, on one line."},
@@ -185,6 +242,17 @@ func (h ApplyStarter) Descriptor() usecase.Descriptor {
 				Name: "collections", Kind: usecase.KindList,
 				Description: "The hub's collections, in their order: {name, preset}; a collection " +
 					"without a preset follows its hub. At most ten.",
+			},
+			{
+				Name: "template", Kind: usecase.KindString,
+				Description: "A template the set is built on, by key: its workspace part is applied " +
+					"first, then the hub takes its hub part, in the same transaction.",
+			},
+			{Name: "answers", Kind: usecase.KindObject, Description: "The template's questions answered, by key."},
+			{Name: "samples", Kind: usecase.KindBool, Description: "True takes the template's sample entries into the hub."},
+			{
+				Name: "acknowledge", Kind: usecase.KindBool,
+				Description: "True once the person has seen that the template's plan hides data or changes permissions.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -206,9 +274,17 @@ func (h ApplyStarter) invoke(
 	if err != nil {
 		return nil, err
 	}
+	answers, err := starterAnswersFrom(in["answers"])
+	if err != nil {
+		return nil, err
+	}
 	hub, structure, err := h.Execute(ctx, actor, ApplyStarterCommand{
 		Hub:         StarterPlace{Name: in.String("hub_name"), Preset: domain.PresetKey(in.String("hub_preset"))},
 		Collections: collections,
+		Template: StarterTemplate{
+			Key: in.String("template"), Answers: answers,
+			Samples: in.Bool("samples"), Acknowledge: in.Bool("acknowledge"),
+		},
 	})
 	if err != nil {
 		return nil, err

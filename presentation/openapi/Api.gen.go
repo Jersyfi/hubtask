@@ -23333,10 +23333,22 @@ type StarterCollectionPreset string
 
 // StarterSet defines model for StarterSet.
 type StarterSet struct {
+	// Acknowledge True once the person has seen that the template's plan hides data or changes permissions; required when it does, as on `POST /config:apply`.
+	Acknowledge *bool `json:"acknowledge,omitempty"`
+
+	// Answers The template's questions answered, by key; an open question takes its default.
+	Answers *map[string]string `json:"answers,omitempty"`
+
 	// Collections The hub's collections, in their order.
 	Collections *[]StarterCollection `json:"collections,omitempty"`
 	HubName     string               `json:"hub_name"`
 	HubPreset   StarterSetHubPreset  `json:"hub_preset"`
+
+	// Samples True takes the template's sample entries into the hub, marked and removable at once.
+	Samples *bool `json:"samples,omitempty"`
+
+	// Template A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.
+	Template *string `json:"template,omitempty"`
 }
 
 // StarterSetHubPreset defines model for StarterSet.HubPreset.

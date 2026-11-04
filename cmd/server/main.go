@@ -3243,7 +3243,9 @@ func run() error {
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),
 		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),
 		work.CloseStarter{Starter: starter}.Descriptor(),
-		work.ApplyStarter{Starter: starter, Containers: createContainer}.Descriptor(),
+		work.ApplyStarter{
+			Starter: starter, Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
+		}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

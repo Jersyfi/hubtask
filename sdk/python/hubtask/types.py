@@ -3510,6 +3510,10 @@ class StarterSet(TypedDict, total=False):
     hub_name: Required[str]
     hub_preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"]]
     collections: list["StarterCollection"]
+    template: str
+    answers: dict[str, Any]
+    samples: bool
+    acknowledge: bool
 
 class StarterCollection(TypedDict, total=False):
     name: Required[str]
