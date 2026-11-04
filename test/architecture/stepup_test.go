@@ -29,6 +29,7 @@ var privilegedUseCases = map[string]string{
 	"GrantMembership":                          "granting OWNER is changing the OWNER role",
 	"OpenPrivateHub":                           "it opens a hub nobody else reaches, a fresh proof and a reason (ADR-0073 §4)",
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
+	"RenewInvitation":                          "a link answered to the caller instead of mailed to the person is a way into that account (identity.md §12)",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
 	"ResetSecondFactor":                        "an administrator removes somebody else's second factor (identity.md §9)",
 	"StartProviderConnect":                     "a provider connected from a session is a new way into the account (identity.md §11)",

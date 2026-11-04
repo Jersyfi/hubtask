@@ -5698,6 +5698,21 @@ func (e InvitationDeliveryState) Valid() bool {
 	}
 }
 
+// Defines values for InvitationRenewalDelivery.
+const (
+	InvitationRenewalDeliveryLINK InvitationRenewalDelivery = "LINK"
+)
+
+// Valid indicates whether the value is a known member of the InvitationRenewalDelivery enum.
+func (e InvitationRenewalDelivery) Valid() bool {
+	switch e {
+	case InvitationRenewalDeliveryLINK:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -17894,7 +17909,7 @@ type InstanceSettingsPlanAppliedThrough string
 type InvitationDelivery struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
-	// At When it ended, or - while queued or being sent - when it was queued.
+	// At When it was sent or ended, or - while it waits - when it was queued or prepared.
 	At time.Time `json:"at"`
 
 	// Code The message code of the last failure, where an attempt failed.
@@ -17903,11 +17918,11 @@ type InvitationDelivery struct {
 	// Params The failure's parameters, beside its code.
 	Params *map[string]string `json:"params,omitempty"`
 
-	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 	State InvitationDeliveryState `json:"state"`
 }
 
-// InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+// InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 type InvitationDeliveryState string
 
 // InvitationInspection defines model for InvitationInspection.
@@ -17933,6 +17948,15 @@ type InvitationRedemption struct {
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
 }
+
+// InvitationRenewal defines model for InvitationRenewal.
+type InvitationRenewal struct {
+	// Delivery LINK answers the new invitation link to hand over by hand, also where this installation sends mail. Omitted, the invitation goes out the installation's own way.
+	Delivery *InvitationRenewalDelivery `json:"delivery,omitempty"`
+}
+
+// InvitationRenewalDelivery LINK answers the new invitation link to hand over by hand, also where this installation sends mail. Omitted, the invitation goes out the installation's own way.
+type InvitationRenewalDelivery string
 
 // InvitationSummary What the invitation card names before anything is typed.
 type InvitationSummary struct {
@@ -26153,6 +26177,9 @@ type IssueStartPasswordParams struct {
 type RenewInvitationParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ResetSecondFactorParams defines parameters for ResetSecondFactor.
@@ -29019,6 +29046,9 @@ type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountP
 
 // RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
 type RequestAddressJSONRequestBody = AddressRequest
+
+// RenewInvitationJSONRequestBody defines body for RenewInvitation for application/json ContentType.
+type RenewInvitationJSONRequestBody = InvitationRenewal
 
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
@@ -33708,6 +33738,25 @@ func (siw *ServerInterfaceWrapper) RenewInvitation(w http.ResponseWriter, r *htt
 		}
 
 		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
 
 	}
 

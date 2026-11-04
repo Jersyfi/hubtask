@@ -21,6 +21,10 @@ import (
 // ReadInvitationDeliveriesName is the people list's read of how each invitation mail went.
 const ReadInvitationDeliveriesName = "ReadInvitationDeliveries"
 
+// MailReplacedByLink is the reason an unsent invitation mail was set aside: its invitation was
+// handed over by link instead (RenewInvitation, delivery LINK).
+const MailReplacedByLink = "notifications.replaced_by_link"
+
 // InvitationDelivery is the last invitation mail to one account in the people list's words.
 type InvitationDelivery struct {
 	AccountID shared.ID
@@ -81,7 +85,13 @@ func (h ReadInvitationDeliveries) Execute(
 		case "RUNNING":
 			delivery.State = "SENDING"
 		case "SUCCEEDED":
-			delivery.State, delivery.At = "SENT", job.FinishedAt
+			// The job recorded the notification and queued its delivery; what the mail did is the
+			// record's. No record: nothing went out to say anything about.
+			mail, said := mailDelivery(job)
+			if !said {
+				continue
+			}
+			delivery = mail
 		case "CANCELLED":
 			delivery.State, delivery.At = "CANCELLED", job.FinishedAt
 		default:
@@ -94,6 +104,36 @@ func (h ReadInvitationDeliveries) Execute(
 		out = append(out, delivery)
 	}
 	return out, nil
+}
+
+// mailDelivery is a recorded invitation in the list's words: waiting for its delivery, sent, or
+// failed with the record's reason - a suppressed one (no address, no mail server) is a mail that
+// did not go out, and so a failure the inviter can act on.
+func mailDelivery(job repository.InvitationJob) (InvitationDelivery, bool) {
+	delivery := InvitationDelivery{AccountID: job.AccountID, At: job.FinishedAt, Code: job.MailReason}
+	switch job.MailState {
+	case "PENDING":
+		delivery.State = "QUEUED"
+	case "SENT":
+		delivery.State = "SENT"
+		if !job.MailSentAt.IsZero() {
+			delivery.At = job.MailSentAt
+		}
+	case "SUPPRESSED":
+		delivery.State = "FAILED"
+		if job.MailReason == MailReplacedByLink {
+			// Set aside for a link handed over instead: withdrawn, not failed.
+			delivery.State, delivery.Code = "CANCELLED", ""
+		}
+	case "FAILED":
+		delivery.State = "FAILED"
+	default:
+		return InvitationDelivery{}, false
+	}
+	if delivery.At.IsZero() {
+		delivery.At = job.QueuedAt
+	}
+	return delivery, true
 }
 
 // Descriptor registers the use case in all three channels.

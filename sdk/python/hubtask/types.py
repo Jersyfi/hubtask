@@ -3284,6 +3284,9 @@ class ProviderStepUpAuthorization(TypedDict, total=False):
     provider_id: Required[str]
     provider_name: Required[str]
 
+class InvitationRenewal(TypedDict, total=False):
+    delivery: Literal["LINK"]
+
 class StepUpGrant(TypedDict, total=False):
     step_up_token: Required[str]
     expires_at: Required[str]

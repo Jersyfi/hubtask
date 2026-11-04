@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -58,6 +59,13 @@ func (r InvitationJobRepository) Latest(
 		if row.LastError != nil {
 			job.Code = *row.LastError
 		}
+		job.MailState = row.MailState
+		if row.MailReason != nil {
+			job.MailReason = *row.MailReason
+		}
+		if row.MailSentAt.Valid {
+			job.MailSentAt = row.MailSentAt.Time
+		}
 		if len(row.LastErrorParams) > 0 {
 			if err := json.Unmarshal(row.LastErrorParams, &job.Params); err != nil {
 				job.Params = nil
@@ -66,4 +74,44 @@ func (r InvitationJobRepository) Latest(
 		out = append(out, job)
 	}
 	return out, nil
+}
+
+// CancelOpen cancels the invitation mail still waiting for one account, in the transaction's
+// workspace, and sets its unsent record aside; one being sent right now is a conflict.
+func (r InvitationJobRepository) CancelOpen(ctx context.Context, accountID shared.ID, now time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	tenant, err := tenantOfTransaction(ctx)
+	if err != nil {
+		return 0, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return 0, err
+	}
+	failed := func(what string, err error) error {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("%s: %w", what, err))
+	}
+	sending, err := queries.InvitationMailSending(ctx, sqlc.InvitationMailSendingParams{TenantID: tenant, AccountID: account})
+	if err != nil {
+		return 0, failed("reading the invitation mail being sent", err)
+	}
+	if sending {
+		return 0, shared.ErrConflict.WithDetail("accounts.invitation_mail_sending")
+	}
+	cancelled, err := queries.CancelOpenInvitationMail(ctx, sqlc.CancelOpenInvitationMailParams{
+		Now: timestampOf(now), TenantID: tenant, AccountID: account,
+	})
+	if err != nil {
+		return 0, failed("cancelling the invitation mail", err)
+	}
+	if _, err := queries.SupersedePendingInvitationMail(ctx, sqlc.SupersedePendingInvitationMailParams{
+		TenantID: tenant, AccountID: account,
+	}); err != nil {
+		return 0, failed("setting the unsent invitation mail aside", err)
+	}
+	return int(cancelled), nil
 }

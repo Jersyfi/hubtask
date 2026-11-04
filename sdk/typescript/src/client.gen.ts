@@ -1981,8 +1981,8 @@ export class HubtaskClient {
   }
 
   /** Give an invitation not yet accepted a new link */
-  renewInvitation(accountId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["renewInvitation"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/accounts/{accountId}:renew-invitation", { "accountId": accountId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  renewInvitation(accountId: string, body: NonNullable<operations["renewInvitation"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string; readonly stepUp?: string } = {}): Promise<operations["renewInvitation"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/{accountId}:renew-invitation", { "accountId": accountId }, undefined, { "Idempotency-Key": options.idempotencyKey, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Give somebody an account without a mail address */

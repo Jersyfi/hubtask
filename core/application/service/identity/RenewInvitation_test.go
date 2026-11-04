@@ -159,3 +159,69 @@ func TestARenewalRacingTheAcceptanceIsNotInvited(t *testing.T) {
 		t.Fatalf("answered %q (%v), want accounts.not_invited", got, err)
 	}
 }
+
+// *Copy invitation link* where mail is configured (user-experience.md §8.3): the renewal answers a
+// link instead of queuing a mail, cancels the mail still queued so its token never replaces the
+// handed-over one, asks for a fresh proof and is held to the role ceiling, and the trail says LINK.
+func TestARenewalByLinkWhereMailIsSentCancelsTheMailAndAsksForAProof(t *testing.T) {
+	setUp := func(t *testing.T, proof bool) (*renewFixture, *invitationJobsDouble, *stepUpFake) {
+		t.Helper()
+		f := newRenewFixture(t, domain.AccountInvited, false)
+		jobs := &invitationJobsDouble{open: 1}
+		proofs := &stepUpFake{satisfied: proof}
+		f.handler.HandOver = InvitationLinks{Minter: f.minter, Address: WorkspaceAddress{BaseURL: homeBase}}
+		f.handler.Jobs, f.handler.StepUp = jobs, proofs
+		return f, jobs, proofs
+	}
+	byLink := func(t *testing.T, f *renewFixture) (usecase.Output, error) {
+		t.Helper()
+		registry, err := usecase.NewRegistry(nil, f.handler.Descriptor())
+		if err != nil {
+			t.Fatalf("registering: %v", err)
+		}
+		return registry.Invoke(t.Context(), RenewInvitationName, admin(), usecase.Input{
+			"account_id": invitedID.String(), "delivery": "LINK", "step_up_token": "fresh",
+		})
+	}
+
+	t.Run("with a proof", func(t *testing.T) {
+		f, jobs, proofs := setUp(t, true)
+		out, err := byLink(t, f)
+		if err != nil {
+			t.Fatalf("renewing by link: %v", err)
+		}
+		if _, linked := out["invitation_link"]; !linked {
+			t.Error("no link was answered")
+		}
+		if len(f.queued.requests) != 0 || len(f.minter.minted) != 1 {
+			t.Errorf("queued %v, minted %v; want one token and no mail", f.queued.requests, f.minter.minted)
+		}
+		if len(jobs.cancelled) != 1 || jobs.cancelled[0] != invitedID {
+			t.Errorf("cancelled the mail of %v, want the invited account's", jobs.cancelled)
+		}
+		if len(proofs.presented) != 1 {
+			t.Errorf("the proof was presented %d times, want once", len(proofs.presented))
+		}
+		if len(f.sink.entries) != 1 || stringOf(f.sink.entries[0].Changes["delivery"]) != DeliveryLink {
+			t.Errorf("trail %v, want one renewal by link", f.sink.entries)
+		}
+	})
+
+	t.Run("without a proof", func(t *testing.T) {
+		f, jobs, _ := setUp(t, false)
+		if _, err := byLink(t, f); !errors.Is(err, shared.ErrForbidden) {
+			t.Fatalf("renewing by link without a proof answered %v, want a refusal", err)
+		}
+		if len(jobs.cancelled) != 0 || len(f.minter.minted) != 0 || len(f.queued.requests) != 0 {
+			t.Errorf("a refused renewal cancelled %v, minted %v, queued %v", jobs.cancelled, f.minter.minted, f.queued.requests)
+		}
+	})
+
+	t.Run("without the hand-over wired", func(t *testing.T) {
+		f, _, _ := setUp(t, true)
+		f.handler.HandOver = InvitationLinks{}
+		if _, err := byLink(t, f); err == nil || len(f.queued.requests) != 0 {
+			t.Errorf("renewing by link with nothing to mint answered %v and queued %v", err, f.queued.requests)
+		}
+	})
+}

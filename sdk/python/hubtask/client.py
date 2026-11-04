@@ -1587,9 +1587,9 @@ class Client:
         """Invite a person into this workspace"""
         return self._call("POST", "/accounts:invite", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def renew_invitation(self, account_id: str, *, idempotency_key: str | None = None) -> "InvitedAccount":
+    def renew_invitation(self, account_id: str, body: "InvitationRenewal", *, idempotency_key: str | None = None, step_up: str | None = None) -> "InvitedAccount":
         """Give an invitation not yet accepted a new link"""
-        return self._call("POST", "/accounts/{accountId}:renew-invitation", {"accountId": account_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+        return self._call("POST", "/accounts/{accountId}:renew-invitation", {"accountId": account_id}, None, {"Idempotency-Key": idempotency_key, "X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
     def create_managed_account(self, body: "ManagedAccountCreate", *, step_up: str | None = None) -> "ManagedAccountCreated":
         """Give somebody an account without a mail address"""

@@ -456,7 +456,12 @@ safeguard belongs to connecting, not to the provider kind.
   delivery mints a token of its own on every attempt and would kill a handed-over link. A rule's run
   is refused there (`accounts.invitation_needs_a_person`).
 * `POST /accounts/{id}:renew-invitation` gives an invitation not yet accepted a new way to arrive -
-  the mail again, or a new link shown once; the earlier link dies. An address already invited is
+  the mail again, or a new link shown once; the earlier link dies. With `delivery: LINK` it answers
+  a link where mail is sent too, behind §16's step-up and the role ceiling: the invitation job and
+  the delivery still waiting are cancelled and the unsent notification set aside
+  (`notifications.replaced_by_link`) before the token is minted - never both. A delivery being sent
+  is detached and cannot be stopped, so the renewal is refused meanwhile
+  (`accounts.invitation_mail_sending`). An address already invited is
   `accounts.already_invited`, one already here `accounts.email_taken`.
 * The mail links `<base>/redeem#token=…`, the token in the **fragment** (§14.4);
   `POST /auth/invitations:redeem` sets the first password through `SetPassword` (§6) and activates
@@ -690,7 +695,8 @@ a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
 destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
-configuring or removing one of the installation's own backup targets (backup-restore.md §2).
+configuring or removing one of the installation's own backup targets (backup-restore.md §2), and an
+invitation renewed as a link where mail is sent (§12).
 
 ---
 

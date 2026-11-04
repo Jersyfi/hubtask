@@ -2982,6 +2982,9 @@ CREATE UNIQUE INDEX notification_event_recipient_idx
 CREATE INDEX notification_pending_idx
   ON notification (tenant_id, created_at) WHERE state = 'PENDING';
 CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
+-- The last invitation notification per account, for the people list (migration 0363).
+CREATE INDEX notification_invitation_idx ON notification (tenant_id, recipient_id, created_at DESC)
+  WHERE category = 'INVITATION';
 -- A purged entry's notifications, which its cascade takes (0335).
 CREATE INDEX notification_item_idx ON notification (tenant_id, item_id) WHERE item_id IS NOT NULL;
 -- What a revocation's cascade finds its records by.

@@ -5704,6 +5704,21 @@ func (e InvitationDeliveryState) Valid() bool {
 	}
 }
 
+// Defines values for InvitationRenewalDelivery.
+const (
+	InvitationRenewalDeliveryLINK InvitationRenewalDelivery = "LINK"
+)
+
+// Valid indicates whether the value is a known member of the InvitationRenewalDelivery enum.
+func (e InvitationRenewalDelivery) Valid() bool {
+	switch e {
+	case InvitationRenewalDeliveryLINK:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -17900,7 +17915,7 @@ type InstanceSettingsPlanAppliedThrough string
 type InvitationDelivery struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
-	// At When it ended, or - while queued or being sent - when it was queued.
+	// At When it was sent or ended, or - while it waits - when it was queued or prepared.
 	At time.Time `json:"at"`
 
 	// Code The message code of the last failure, where an attempt failed.
@@ -17909,11 +17924,11 @@ type InvitationDelivery struct {
 	// Params The failure's parameters, beside its code.
 	Params *map[string]string `json:"params,omitempty"`
 
-	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 	State InvitationDeliveryState `json:"state"`
 }
 
-// InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+// InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 type InvitationDeliveryState string
 
 // InvitationInspection defines model for InvitationInspection.
@@ -17939,6 +17954,15 @@ type InvitationRedemption struct {
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
 }
+
+// InvitationRenewal defines model for InvitationRenewal.
+type InvitationRenewal struct {
+	// Delivery LINK answers the new invitation link to hand over by hand, also where this installation sends mail. Omitted, the invitation goes out the installation's own way.
+	Delivery *InvitationRenewalDelivery `json:"delivery,omitempty"`
+}
+
+// InvitationRenewalDelivery LINK answers the new invitation link to hand over by hand, also where this installation sends mail. Omitted, the invitation goes out the installation's own way.
+type InvitationRenewalDelivery string
 
 // InvitationSummary What the invitation card names before anything is typed.
 type InvitationSummary struct {
@@ -26159,6 +26183,9 @@ type IssueStartPasswordParams struct {
 type RenewInvitationParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ResetSecondFactorParams defines parameters for ResetSecondFactor.
@@ -29026,6 +29053,9 @@ type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountP
 // RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
 type RequestAddressJSONRequestBody = AddressRequest
 
+// RenewInvitationJSONRequestBody defines body for RenewInvitation for application/json ContentType.
+type RenewInvitationJSONRequestBody = InvitationRenewal
+
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
@@ -31134,6 +31164,35 @@ type ClientInterface interface {
 	// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
 	IssueStartPassword(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RenewInvitationWithBody Give an invitation not yet accepted a new link
+	//
+	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+	// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+	// people limit; renewing it at the limit is `422 capacity.accounts`.
+	//
+	// **Where this installation sends mail**, the invitation mail is queued again and the answer
+	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+	// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+	// with `accounts.invitation_needs_a_person`.
+	//
+	// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+	// queued invitation mail is cancelled, so its token can never replace the new one, and the
+	// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+	// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+	// because the link is answered to the caller rather than mailed to the person. Never both a
+	// mail and a link.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+	// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+	// administrator only one whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+	RenewInvitationWithBody(ctx context.Context, accountId AccountId, params *RenewInvitationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RenewInvitation Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -31146,13 +31205,22 @@ type ClientInterface interface {
 	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
 	// with `accounts.invitation_needs_a_person`.
 	//
-	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
-	// a way into the account, so it is also held to the role ceiling: an owner renews any
-	// invitation, an administrator only one whose roles are all at or below their own - otherwise
-	// `403 access.role_above_own` with the `role`. Auditable.
+	// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+	// queued invitation mail is cancelled, so its token can never replace the new one, and the
+	// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+	// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+	// because the link is answered to the caller rather than mailed to the person. Never both a
+	// mail and a link.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+	// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+	// administrator only one whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+	//
+	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
-	RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, body RenewInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResetSecondFactor Reset a person's second factor
 	//
@@ -42509,6 +42577,45 @@ func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, pa
 	return c.Client.Do(req)
 }
 
+// RenewInvitationWithBody Give an invitation not yet accepted a new link
+//
+// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+// people limit; renewing it at the limit is `422 capacity.accounts`.
+//
+// **Where this installation sends mail**, the invitation mail is queued again and the answer
+// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+// with `accounts.invitation_needs_a_person`.
+//
+// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+// queued invitation mail is cancelled, so its token can never replace the new one, and the
+// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+// because the link is answered to the caller rather than mailed to the person. Never both a
+// mail and a link.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+// administrator only one whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+func (c *Client) RenewInvitationWithBody(ctx context.Context, accountId AccountId, params *RenewInvitationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenewInvitationRequestWithBody(c.Server, accountId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RenewInvitation Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -42521,14 +42628,23 @@ func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, pa
 // earlier link stops working at once. Without mail, an act an automation rule runs is refused
 // with `accounts.invitation_needs_a_person`.
 //
-// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
-// a way into the account, so it is also held to the role ceiling: an owner renews any
-// invitation, an administrator only one whose roles are all at or below their own - otherwise
-// `403 access.role_above_own` with the `role`. Auditable.
+// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+// queued invitation mail is cancelled, so its token can never replace the new one, and the
+// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+// because the link is answered to the caller rather than mailed to the person. Never both a
+// mail and a link.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+// administrator only one whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+//
+// Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
-func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRenewInvitationRequest(c.Server, accountId, params)
+func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, body RenewInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenewInvitationRequest(c.Server, accountId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -65907,8 +66023,19 @@ func NewIssueStartPasswordRequest(server string, accountId AccountId, params *Is
 	return req, nil
 }
 
-// NewRenewInvitationRequest constructs an http.Request for the RenewInvitation method
-func NewRenewInvitationRequest(server string, accountId AccountId, params *RenewInvitationParams) (*http.Request, error) {
+// NewRenewInvitationRequest calls the generic RenewInvitation builder with application/json body
+func NewRenewInvitationRequest(server string, accountId AccountId, params *RenewInvitationParams, body RenewInvitationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRenewInvitationRequestWithBody(server, accountId, params, "application/json", bodyReader)
+}
+
+// NewRenewInvitationRequestWithBody constructs an http.Request for the RenewInvitation method, with any body, and a specified content type
+func NewRenewInvitationRequestWithBody(server string, accountId AccountId, params *RenewInvitationParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -65933,10 +66060,12 @@ func NewRenewInvitationRequest(server string, accountId AccountId, params *Renew
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -65949,6 +66078,17 @@ func NewRenewInvitationRequest(server string, accountId AccountId, params *Renew
 			}
 
 			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
 		}
 
 	}
@@ -104718,6 +104858,35 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
 	IssueStartPasswordWithResponse(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*IssueStartPasswordResult, error)
 
+	// RenewInvitationWithBodyWithResponse Give an invitation not yet accepted a new link
+	//
+	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+	// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+	// people limit; renewing it at the limit is `422 capacity.accounts`.
+	//
+	// **Where this installation sends mail**, the invitation mail is queued again and the answer
+	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+	// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+	// with `accounts.invitation_needs_a_person`.
+	//
+	// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+	// queued invitation mail is cancelled, so its token can never replace the new one, and the
+	// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+	// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+	// because the link is answered to the caller rather than mailed to the person. Never both a
+	// mail and a link.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+	// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+	// administrator only one whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+	RenewInvitationWithBodyWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error)
+
 	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -104730,15 +104899,22 @@ type ClientWithResponsesInterface interface {
 	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
 	// with `accounts.invitation_needs_a_person`.
 	//
-	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
-	// a way into the account, so it is also held to the role ceiling: an owner renews any
-	// invitation, an administrator only one whose roles are all at or below their own - otherwise
-	// `403 access.role_above_own` with the `role`. Auditable.
+	// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+	// queued invitation mail is cancelled, so its token can never replace the new one, and the
+	// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+	// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+	// because the link is answered to the caller rather than mailed to the person. Never both a
+	// mail and a link.
 	//
-	// Returns a wrapper object for the known response body format(s).
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+	// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+	// administrator only one whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
-	RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error)
+	RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, body RenewInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error)
 
 	// ResetSecondFactorWithResponse Reset a person's second factor
 	//
@@ -157348,6 +157524,41 @@ func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context
 	return ParseIssueStartPasswordResult(rsp)
 }
 
+// RenewInvitationWithBodyWithResponse Give an invitation not yet accepted a new link
+//
+// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+// people limit; renewing it at the limit is `422 capacity.accounts`.
+//
+// **Where this installation sends mail**, the invitation mail is queued again and the answer
+// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+// with `accounts.invitation_needs_a_person`.
+//
+// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+// queued invitation mail is cancelled, so its token can never replace the new one, and the
+// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+// because the link is answered to the caller rather than mailed to the person. Never both a
+// mail and a link.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+// administrator only one whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+func (c *ClientWithResponses) RenewInvitationWithBodyWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error) {
+	rsp, err := c.RenewInvitationWithBody(ctx, accountId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenewInvitationResult(rsp)
+}
+
 // RenewInvitationWithResponse Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -157360,16 +157571,23 @@ func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context
 // earlier link stops working at once. Without mail, an act an automation rule runs is refused
 // with `accounts.invitation_needs_a_person`.
 //
-// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
-// a way into the account, so it is also held to the role ceiling: an owner renews any
-// invitation, an administrator only one whose roles are all at or below their own - otherwise
-// `403 access.role_above_own` with the `role`. Auditable.
+// **`delivery: LINK` where mail is sent** hands the invitation over by hand instead: the
+// queued invitation mail is cancelled, so its token can never replace the new one, and the
+// answer carries a new `invitation_link`, shown once; the earlier link stops working at once.
+// It needs a fresh proof in `X-Hubtask-Step-Up` (`403 auth.step_up_required` without one),
+// because the link is answered to the caller rather than mailed to the person. Never both a
+// mail and a link.
 //
-// Returns a wrapper object for the known response body format(s).
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. A new link is a way into
+// the account, so it is also held to the role ceiling: an owner renews any invitation, an
+// administrator only one whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`. Auditable, with how it went out.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
-func (c *ClientWithResponses) RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error) {
-	rsp, err := c.RenewInvitation(ctx, accountId, params, reqEditors...)
+func (c *ClientWithResponses) RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, body RenewInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error) {
+	rsp, err := c.RenewInvitation(ctx, accountId, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

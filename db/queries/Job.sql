@@ -455,11 +455,73 @@ SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_a
 -- How the last invitation mail to each of these accounts went (0362): the newest job of the
 -- invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
 -- statement here. No payload is read: it holds identifiers only, and the answer needs none.
+--
+-- The job only records the notification and queues its delivery, so once it has succeeded what
+-- the mail did is the newest INVITATION notification of the account written since (0363): sent,
+-- failed or suppressed, with its reason code. Account identifiers are compared as text, the form
+-- the dedupe key has.
 -- name: LatestInvitationDeliveries :many
-SELECT DISTINCT ON (dedupe_key)
-       dedupe_key::text AS account_id, state, last_error, last_error_params, created_at, finished_at
-FROM job
-WHERE tenant_id = sqlc.arg('tenant_id')
-  AND kind = 'notification.invitation'
-  AND dedupe_key = ANY(sqlc.arg('account_ids')::text[])
-ORDER BY dedupe_key, created_at DESC, id DESC;
+SELECT j.account_id, j.state, j.last_error, j.last_error_params, j.created_at, j.finished_at,
+       coalesce(n.state, '')::text AS mail_state, n.reason AS mail_reason, n.sent_at AS mail_sent_at
+FROM (
+  SELECT DISTINCT ON (jj.dedupe_key)
+         jj.tenant_id AS job_tenant_id, jj.dedupe_key::text AS account_id, jj.state, jj.last_error,
+         jj.last_error_params, jj.created_at, jj.finished_at
+  FROM job jj
+  WHERE jj.tenant_id = sqlc.arg('tenant_id')::uuid
+    AND jj.kind = 'notification.invitation'
+    AND jj.dedupe_key = ANY(sqlc.arg('account_ids')::text[])
+  ORDER BY jj.dedupe_key, jj.created_at DESC, jj.id DESC
+) j
+LEFT JOIN LATERAL (
+  SELECT nn.state, nn.reason, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = j.job_tenant_id
+    AND nn.category = 'INVITATION'
+    AND nn.recipient_id::text = j.account_id
+    AND nn.created_at >= j.created_at
+  ORDER BY nn.created_at DESC
+  LIMIT 1
+) n ON true;
+
+-- The invitation mail to one account being sent right now (identity.md §12, "Never both"). Its
+-- delivery is detached and mints its token outside the runner's transaction, so cancelling it
+-- would not stop the token: a hand-over by link waits until it has finished. The tenant is named,
+-- as in every statement here.
+-- name: InvitationMailSending :one
+SELECT EXISTS (
+  SELECT 1 FROM job j
+  JOIN notification n ON n.tenant_id = j.tenant_id AND n.id::text = j.dedupe_key
+  WHERE j.tenant_id = sqlc.arg('tenant_id')::uuid
+    AND j.kind = 'notification.deliver'
+    AND j.state = 'RUNNING'
+    AND n.category = 'INVITATION'
+    AND n.recipient_id = sqlc.arg('account_id')::uuid
+)::boolean AS sending;
+
+-- Cancels the invitation mail to one account still waiting before its invitation is handed over
+-- by link: the invitation job not yet run (which records nothing once cancelled; one under way
+-- rolls back at its next write) and the delivery of a recorded invitation not yet sent. The
+-- delivery mints a token of its own and the newest wins, so a mail left waiting would kill the
+-- handed-over link.
+-- name: CancelOpenInvitationMail :execrows
+UPDATE job j SET
+  state        = 'CANCELLED',
+  finished_at  = sqlc.arg('now'),
+  locked_until = NULL
+WHERE j.tenant_id = sqlc.arg('tenant_id')::uuid
+  AND j.state IN ('PENDING', 'RUNNING')
+  AND (
+    (j.kind = 'notification.invitation' AND j.dedupe_key = sqlc.arg('account_id')::uuid::text)
+    OR (j.kind = 'notification.deliver' AND j.state = 'PENDING' AND j.dedupe_key IN (
+      SELECT n.id::text FROM notification n
+      WHERE n.tenant_id = sqlc.arg('tenant_id')::uuid AND n.category = 'INVITATION'
+        AND n.recipient_id = sqlc.arg('account_id')::uuid AND n.state = 'PENDING'))
+  );
+
+-- The recorded invitation mails to one account not yet sent, set aside for the link that replaced
+-- them, so nothing sends them later and the people list says why they did not go.
+-- name: SupersedePendingInvitationMail :execrows
+UPDATE notification SET state = 'SUPPRESSED', reason = 'notifications.replaced_by_link'
+WHERE tenant_id = sqlc.arg('tenant_id')::uuid AND category = 'INVITATION'
+  AND recipient_id = sqlc.arg('account_id')::uuid AND state = 'PENDING';

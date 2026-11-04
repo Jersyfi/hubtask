@@ -95,6 +95,41 @@ func (q *Queries) CancelJob(ctx context.Context, arg CancelJobParams) (CancelJob
 	return i, err
 }
 
+const cancelOpenInvitationMail = `-- name: CancelOpenInvitationMail :execrows
+UPDATE job j SET
+  state        = 'CANCELLED',
+  finished_at  = $1,
+  locked_until = NULL
+WHERE j.tenant_id = $2::uuid
+  AND j.state IN ('PENDING', 'RUNNING')
+  AND (
+    (j.kind = 'notification.invitation' AND j.dedupe_key = $3::uuid::text)
+    OR (j.kind = 'notification.deliver' AND j.state = 'PENDING' AND j.dedupe_key IN (
+      SELECT n.id::text FROM notification n
+      WHERE n.tenant_id = $2::uuid AND n.category = 'INVITATION'
+        AND n.recipient_id = $3::uuid AND n.state = 'PENDING'))
+  )
+`
+
+type CancelOpenInvitationMailParams struct {
+	Now       pgtype.Timestamptz
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// Cancels the invitation mail to one account still waiting before its invitation is handed over
+// by link: the invitation job not yet run (which records nothing once cancelled; one under way
+// rolls back at its next write) and the delivery of a recorded invitation not yet sent. The
+// delivery mints a token of its own and the newest wins, so a mail left waiting would kill the
+// handed-over link.
+func (q *Queries) CancelOpenInvitationMail(ctx context.Context, arg CancelOpenInvitationMailParams) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelOpenInvitationMail, arg.Now, arg.TenantID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const claimJobs = `-- name: ClaimJobs :many
 WITH due AS (
   SELECT d.id AS due_id, d.tenant_id AS due_tenant, d.priority AS due_priority,
@@ -633,6 +668,34 @@ func (q *Queries) InvalidIndexCount(ctx context.Context) (int64, error) {
 	return invalid, err
 }
 
+const invitationMailSending = `-- name: InvitationMailSending :one
+SELECT EXISTS (
+  SELECT 1 FROM job j
+  JOIN notification n ON n.tenant_id = j.tenant_id AND n.id::text = j.dedupe_key
+  WHERE j.tenant_id = $1::uuid
+    AND j.kind = 'notification.deliver'
+    AND j.state = 'RUNNING'
+    AND n.category = 'INVITATION'
+    AND n.recipient_id = $2::uuid
+)::boolean AS sending
+`
+
+type InvitationMailSendingParams struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// The invitation mail to one account being sent right now (identity.md §12, "Never both"). Its
+// delivery is detached and mints its token outside the runner's transaction, so cancelling it
+// would not stop the token: a hand-over by link waits until it has finished. The tenant is named,
+// as in every statement here.
+func (q *Queries) InvitationMailSending(ctx context.Context, arg InvitationMailSendingParams) (bool, error) {
+	row := q.db.QueryRow(ctx, invitationMailSending, arg.TenantID, arg.AccountID)
+	var sending bool
+	err := row.Scan(&sending)
+	return sending, err
+}
+
 const isDeadLetter = `-- name: IsDeadLetter :one
 SELECT EXISTS (SELECT 1 FROM job WHERE id = $1 AND state = 'DEAD_LETTER')
 `
@@ -681,13 +744,28 @@ func (q *Queries) JobQueueDepth(ctx context.Context, now pgtype.Timestamptz) ([]
 }
 
 const latestInvitationDeliveries = `-- name: LatestInvitationDeliveries :many
-SELECT DISTINCT ON (dedupe_key)
-       dedupe_key::text AS account_id, state, last_error, last_error_params, created_at, finished_at
-FROM job
-WHERE tenant_id = $1
-  AND kind = 'notification.invitation'
-  AND dedupe_key = ANY($2::text[])
-ORDER BY dedupe_key, created_at DESC, id DESC
+SELECT j.account_id, j.state, j.last_error, j.last_error_params, j.created_at, j.finished_at,
+       coalesce(n.state, '')::text AS mail_state, n.reason AS mail_reason, n.sent_at AS mail_sent_at
+FROM (
+  SELECT DISTINCT ON (jj.dedupe_key)
+         jj.tenant_id AS job_tenant_id, jj.dedupe_key::text AS account_id, jj.state, jj.last_error,
+         jj.last_error_params, jj.created_at, jj.finished_at
+  FROM job jj
+  WHERE jj.tenant_id = $1::uuid
+    AND jj.kind = 'notification.invitation'
+    AND jj.dedupe_key = ANY($2::text[])
+  ORDER BY jj.dedupe_key, jj.created_at DESC, jj.id DESC
+) j
+LEFT JOIN LATERAL (
+  SELECT nn.state, nn.reason, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = j.job_tenant_id
+    AND nn.category = 'INVITATION'
+    AND nn.recipient_id::text = j.account_id
+    AND nn.created_at >= j.created_at
+  ORDER BY nn.created_at DESC
+  LIMIT 1
+) n ON true
 `
 
 type LatestInvitationDeliveriesParams struct {
@@ -702,11 +780,19 @@ type LatestInvitationDeliveriesRow struct {
 	LastErrorParams []byte
 	CreatedAt       pgtype.Timestamptz
 	FinishedAt      pgtype.Timestamptz
+	MailState       string
+	MailReason      *string
+	MailSentAt      pgtype.Timestamptz
 }
 
 // How the last invitation mail to each of these accounts went (0362): the newest job of the
 // invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
 // statement here. No payload is read: it holds identifiers only, and the answer needs none.
+//
+// The job only records the notification and queues its delivery, so once it has succeeded what
+// the mail did is the newest INVITATION notification of the account written since (0363): sent,
+// failed or suppressed, with its reason code. Account identifiers are compared as text, the form
+// the dedupe key has.
 func (q *Queries) LatestInvitationDeliveries(ctx context.Context, arg LatestInvitationDeliveriesParams) ([]LatestInvitationDeliveriesRow, error) {
 	rows, err := q.db.Query(ctx, latestInvitationDeliveries, arg.TenantID, arg.AccountIds)
 	if err != nil {
@@ -723,6 +809,9 @@ func (q *Queries) LatestInvitationDeliveries(ctx context.Context, arg LatestInvi
 			&i.LastErrorParams,
 			&i.CreatedAt,
 			&i.FinishedAt,
+			&i.MailState,
+			&i.MailReason,
+			&i.MailSentAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1178,6 +1267,27 @@ type SetJobProgressParams struct {
 func (q *Queries) SetJobProgress(ctx context.Context, arg SetJobProgressParams) error {
 	_, err := q.db.Exec(ctx, setJobProgress, arg.Progress, arg.ID, arg.Lease)
 	return err
+}
+
+const supersedePendingInvitationMail = `-- name: SupersedePendingInvitationMail :execrows
+UPDATE notification SET state = 'SUPPRESSED', reason = 'notifications.replaced_by_link'
+WHERE tenant_id = $1::uuid AND category = 'INVITATION'
+  AND recipient_id = $2::uuid AND state = 'PENDING'
+`
+
+type SupersedePendingInvitationMailParams struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// The recorded invitation mails to one account not yet sent, set aside for the link that replaced
+// them, so nothing sends them later and the people list says why they did not go.
+func (q *Queries) SupersedePendingInvitationMail(ctx context.Context, arg SupersedePendingInvitationMailParams) (int64, error) {
+	result, err := q.db.Exec(ctx, supersedePendingInvitationMail, arg.TenantID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const unsettledDutyCount = `-- name: UnsettledDutyCount :one

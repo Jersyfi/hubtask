@@ -602,7 +602,7 @@ var restDoors = map[string]restDoor{
 	"renameContainer":                   {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"renameOwnPasskey":                  {UseCase: "RenameOwnPasskey", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renderReplyTemplate":               {UseCase: "RenderReplyTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"renewInvitation":                   {UseCase: "RenewInvitation", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
+	"renewInvitation":                   {UseCase: "RenewInvitation", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ShownOnce: "invitation_link"},
 	"reopenWorkItem":                    {UseCase: "ReopenWorkItem", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderBucket":                     {UseCase: "ReorderBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"reorderContainer":                  {UseCase: "ReorderContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4617,7 +4617,8 @@ func (c *RestController) RenderReplyTemplate(w http.ResponseWriter, r *http.Requ
 
 // RenewInvitation answers POST /accounts/{accountId}:renew-invitation by the generated mapping.
 func (c *RestController) RenewInvitation(w http.ResponseWriter, r *http.Request, accountId openapi.AccountId, params openapi.RenewInvitationParams) {
-	c.door(w, r, restDoors["renewInvitation"], usecase.Input{"account_id": accountId.String()}, params, nil, answerBy(invitedAccountResponse))
+	var body openapi.RenewInvitationJSONRequestBody
+	c.door(w, r, restDoors["renewInvitation"], usecase.Input{"account_id": accountId.String()}, params, &body, answerBy(invitedAccountResponse))
 }
 
 // ReopenWorkItem answers POST /items/{itemId}:reopen by the generated mapping.

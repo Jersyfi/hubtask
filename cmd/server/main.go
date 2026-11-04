@@ -2698,6 +2698,8 @@ func run() error {
 			Accounts: accounts, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
 			Notifier: jobs, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
+			HandOver: handOverLinks(cfg, signInStore, unitOfWork),
+			Jobs:     postgres.NewInvitationJobRepository(), StepUp: stepUpVerifier,
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
@@ -5860,6 +5862,14 @@ func invitationLinks(
 	if cfg.Mail.Configured() {
 		return identity.InvitationLinks{}
 	}
+	return handOverLinks(cfg, store, unitOfWork)
+}
+
+// handOverLinks mints an invitation's link to hand over by hand, whether or not mail is sent: a
+// renewal by link (*Copy invitation link*) asks for it where mail is configured too.
+func handOverLinks(
+	cfg envport.Config, store identity.RedemptionTokenStore, unitOfWork persistenceport.UnitOfWork,
+) identity.InvitationLinks {
 	return identity.InvitationLinks{
 		Minter: identity.MintRedemptionToken{
 			Accounts: store, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
