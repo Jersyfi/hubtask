@@ -106,3 +106,57 @@ test('chromium: an empty workspace switches Workflows on and takes Scrum team', 
   assert.ok(written.some((write) => write.path === '/config:apply'), 'the template was not applied');
   assert.deepEqual(failures, []);
 });
+
+// §3.2: a GROUP question in an empty workspace offers *Create a group* in place, and the group made
+// there is the answer - the plan is asked again with it - so no part is left out for want of one.
+test('chromium: a group question makes its group in place and answers with it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const ITIL = { ...SCRUM, key: 'itil_service_desk', name: 'ITIL service desk', provenance: 'itil_service_desk@1',
+    questions: [{ key: 'first_group', kind: 'GROUP', required: false, options: [] }] };
+  const GROUP = { id: '01a0e2e0-0000-7000-8000-0000000007a1', name: 'First line', description: null, version: 1, member_count: 0 };
+  const groups = [];
+  const plans = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    const method = request.method();
+    if (path === '/meta/capabilities') return route.fulfill({ json: MANIFEST });
+    if (path === '/tenant' && method === 'GET') return route.fulfill({ json: { ...WORKSPACE, structure: { ...DEFAULT_STRUCTURE, default_preset: null, default_preset_id: null } } });
+    if (path === '/presets' && method === 'GET') return route.fulfill({ json: PRESETS });
+    if (path === '/config/templates' && method === 'GET') return route.fulfill({ json: { data: [ITIL] } });
+    if (path === `/config/templates/${ITIL.key}:plan`) {
+      plans.push(request.postDataJSON());
+      return route.fulfill({ json: { ...planned, template: ITIL.key } });
+    }
+    if (path === '/groups' && method === 'GET') return route.fulfill({ json: { ...PAGE, data: groups } });
+    if (path === '/groups' && method === 'POST') {
+      groups.push({ ...GROUP, name: request.postDataJSON().name });
+      return route.fulfill({ status: 201, json: groups[0] });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/administration/presets`);
+  const card = page.locator(`[data-template="${ITIL.key}"]`);
+  await card.waitFor({ timeout: 15_000 });
+  await card.locator(`[data-take="${ITIL.key}"]`).click();
+  const dialog = page.getByRole('dialog');
+  const make = dialog.locator('[data-create-group="first_group"]');
+  await make.waitFor({ timeout: 5_000 });
+  await make.getByLabel('Or a new group').fill('First line');
+  await make.getByRole('button', { name: 'Create a group' }).click();
+  await page.waitForFunction(() => document.querySelector('[data-question="first_group"]')?.value?.length > 0, null, { timeout: 5_000 });
+  assert.equal(await dialog.locator('[data-question="first_group"] option:checked').textContent(), 'First line');
+  assert.equal(plans.at(-1)?.answers?.first_group, GROUP.id, 'the plan was not asked again with the new group');
+  assert.deepEqual(failures, []);
+});
