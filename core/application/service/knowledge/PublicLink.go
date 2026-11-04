@@ -6,7 +6,9 @@ package knowledge
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
+	"strings"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
@@ -17,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -346,9 +349,14 @@ func (h DeletePagePublicLink) Descriptor() usecase.Descriptor {
 	})
 }
 
-// PublicPage is a page as its public link shows it: the page alone, as it stands now.
+// PublicPage is a page as its public link shows it: the page alone, as it stands now, with the
+// pictures it may draw and the titles of the public pages it mentions (domain.PublicView).
 type PublicPage struct {
 	Page domain.Page
+	// Pictures are the media the body draws that the page holds and that are pictures, ready.
+	Pictures []shared.ID
+	// Titles are the mentioned pages that have a public link of their own, unrestricted.
+	Titles map[shared.ID]string
 }
 
 // ReadPublicPage answers what a public link shows. Not a use case and not in the catalogue, for
@@ -362,8 +370,114 @@ type ReadPublicPage struct{ Space Space }
 
 // Execute answers the page, or that there is none.
 func (h ReadPublicPage) Execute(ctx context.Context, token integration.PageLinkToken) (PublicPage, error) {
+	page, err := h.open(ctx, token)
+	if err != nil {
+		return PublicPage{}, err
+	}
+	media, mentioned := domain.PublicNames(page.Body)
+	shown := PublicPage{Page: page, Titles: map[shared.ID]string{}}
+	err = h.Space.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: token.TenantID()}, func(ctx context.Context) error {
+		var err error
+		if shown.Pictures, err = h.pictures(ctx, page.ID, media); err != nil {
+			return err
+		}
+		return h.titles(ctx, mentioned, shown.Titles)
+	})
+	if err != nil {
+		return PublicPage{}, err
+	}
+	return shown, nil
+}
+
+// Picture answers the tenant a public page's picture is read in, where the link answers and the
+// picture is one the page draws; anything else is what an unknown token answers (T-21).
+func (h ReadPublicPage) Picture(ctx context.Context, token integration.PageLinkToken, mediaID shared.ID) (shared.ID, error) {
+	page, err := h.open(ctx, token)
+	if err != nil {
+		return "", err
+	}
+	media, _ := domain.PublicNames(page.Body)
+	if !slices.Contains(media, mediaID) {
+		return "", linkGone()
+	}
+	var drawn []shared.ID
+	err = h.Space.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: token.TenantID()}, func(ctx context.Context) error {
+		var err error
+		drawn, err = h.pictures(ctx, page.ID, []shared.ID{mediaID})
+		return err
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(drawn) == 0 {
+		return "", linkGone()
+	}
+	return token.TenantID(), nil
+}
+
+// pictures keeps of the media named those the page holds that are ready pictures: a file that is
+// no picture, or one another page holds alone, is left out.
+func (h ReadPublicPage) pictures(ctx context.Context, pageID shared.ID, named []shared.ID) ([]shared.ID, error) {
+	if h.Space.Media == nil {
+		return nil, nil
+	}
+	var drawn []shared.ID
+	for _, id := range named {
+		object, err := h.Space.Media.Find(ctx, id)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if object.Status != media.StatusReady || object.DeletedAt != nil || !strings.HasPrefix(object.ContentType, "image/") {
+			continue
+		}
+		holders, err := h.Space.Media.ReferencingPages(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if slices.Contains(holders, pageID) {
+			drawn = append(drawn, id)
+		}
+	}
+	return drawn, nil
+}
+
+// titles names the mentioned pages that an unknown visitor could open anyway: live, behind no
+// restriction and with a public link of their own.
+func (h ReadPublicPage) titles(ctx context.Context, mentioned []shared.ID, into map[shared.ID]string) error {
+	if len(mentioned) == 0 {
+		return nil
+	}
+	readers, err := h.Space.Pages.Readers(ctx, mentioned)
+	if err != nil {
+		return err
+	}
+	for _, id := range mentioned {
+		if readers[id].Restricted {
+			continue
+		}
+		page, err := h.Space.find(ctx, id, false)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if _, found, err := h.Space.Public.Links.Find(ctx, id); err != nil {
+			return err
+		} else if found {
+			into[id] = page.Title
+		}
+	}
+	return nil
+}
+
+// open answers the page a link opens, as its maker reads it now.
+func (h ReadPublicPage) open(ctx context.Context, token integration.PageLinkToken) (domain.Page, error) {
 	if token.IsZero() || h.Space.Public.Links == nil || h.Space.Public.Accounts == nil {
-		return PublicPage{}, linkGone()
+		return domain.Page{}, linkGone()
 	}
 	scope := persistence.Scope{TenantID: token.TenantID()}
 	var (
@@ -409,28 +523,28 @@ func (h ReadPublicPage) Execute(ctx context.Context, token integration.PageLinkT
 	})
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return PublicPage{}, linkGone()
+			return domain.Page{}, linkGone()
 		}
-		return PublicPage{}, err
+		return domain.Page{}, err
 	}
 	if h.Space.Public.Modules != nil {
 		on, err := h.Space.Public.Modules.On(ctx, maker, page.HubID)
 		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return PublicPage{}, err
+			return domain.Page{}, err
 		}
 		if !on.Has(module.Knowledge) {
-			return PublicPage{}, linkGone()
+			return domain.Page{}, linkGone()
 		}
 	}
 	reads, err := h.Space.Authorizer.Permits(ctx, maker, h.Space.request(page.HubID, service.PermissionRead,
 		PageReadAction, pagesRead, pageTarget, page.ID))
 	if err != nil {
-		return PublicPage{}, err
+		return domain.Page{}, err
 	}
 	if !reads {
-		return PublicPage{}, linkGone()
+		return domain.Page{}, linkGone()
 	}
-	return PublicPage{Page: page}, nil
+	return page, nil
 }
 
 // linkGone is the one answer every refusal on the public route gives (T-21).

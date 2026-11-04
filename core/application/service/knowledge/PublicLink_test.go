@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -209,5 +210,59 @@ func TestAPlanLocksPublicLinksOff(t *testing.T) {
 	agent.Kind = appshared.ActorAIAgent
 	if _, err := (SetPublicLinksPolicy{Space: f.space}).Execute(ctx, agent, true); code(err) != "pages.agent_decides_policy_not" {
 		t.Fatalf("an agent decided public links: %v", err)
+	}
+}
+
+// UC-DOC-08 check 5: the public page draws the pictures the page holds and names a mentioned page
+// only where that page has a public link of its own; a file that is no picture, another page's
+// picture and a picture the body does not draw open nothing through the link.
+func TestAPublicLinkShowsThePagesPicturesAndItsPublicMentions(t *testing.T) {
+	f := newFixture()
+	store := &links{byPage: map[shared.ID]domain.PublicLink{}, token: map[shared.ID]string{}}
+	settings := &settingsStore{plan: setting.Layer{Level: setting.LevelPlan}}
+	accounts := people{status: map[shared.ID]identity.AccountStatus{anna: identity.AccountActive}}
+	f.space.Public = PublicLinking{Links: store, Settings: settings, Entropy: &fixedEntropy{}, Accounts: accounts, Modules: &knowledgeOn{}}
+	f.space.Media = uploads{store: f.store}
+	ctx := context.Background()
+	if _, err := (SetPublicLinksPolicy{Space: f.space}).Execute(ctx, as(anna), true); err != nil {
+		t.Fatal(err)
+	}
+	public := f.create(t, anna, hub, "", "Getting started", "")
+	internal := f.create(t, anna, hub, "", "Salaries", "")
+	elsewhere := f.create(t, anna, hub, "", "Other", "")
+	page := f.create(t, anna, hub, "", "Guide", "See [](hubtask:page/"+public.ID.String()+") and [](hubtask:page/"+internal.ID.String()+").\n\n"+
+		"![](hubtask:media/"+annasPicture.String()+")\n\n![](hubtask:media/"+annasFile.String()+")\n\n![](hubtask:media/"+privatePic.String()+")\n")
+	f.store.media = map[shared.ID][]shared.ID{page.ID: {annasPicture, annasFile}, elsewhere.ID: {privatePic}}
+	if _, err := (CreatePagePublicLink{Space: f.space}).Execute(ctx, as(anna), public.ID); err != nil {
+		t.Fatal(err)
+	}
+	minted, err := (CreatePagePublicLink{Space: f.space}).Execute(ctx, as(anna), page.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := ReadPublicPage{Space: f.space}
+	shown, err := read.Execute(ctx, minted.Token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(shown.Pictures, []shared.ID{annasPicture}) {
+		t.Errorf("pictures = %v", shown.Pictures)
+	}
+	if len(shown.Titles) != 1 || shown.Titles[public.ID] != "Getting started" {
+		t.Errorf("titles = %v", shown.Titles)
+	}
+	if tenant, err := read.Picture(ctx, minted.Token, annasPicture); err != nil || tenant != minted.Token.TenantID() {
+		t.Fatalf("the page's picture: %v %v", tenant, err)
+	}
+	for _, id := range []shared.ID{annasFile, privatePic, pendingPic} {
+		if _, err := read.Picture(ctx, minted.Token, id); code(err) != "pages.link_not_found" {
+			t.Errorf("%v opened through the link: %v", id, err)
+		}
+	}
+	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(anna), RestrictPageCommand{PageID: page.ID, AccountIDs: []shared.ID{anna}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := read.Picture(ctx, minted.Token, annasPicture); code(err) != "pages.link_not_found" {
+		t.Fatalf("a restricted page's picture opened: %v", err)
 	}
 }

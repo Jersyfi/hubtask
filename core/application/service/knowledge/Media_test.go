@@ -16,6 +16,7 @@ var (
 	annasPicture = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000c201")
 	privatePic   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000c202")
 	pendingPic   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000c203")
+	annasFile    = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000c204")
 )
 
 // uploads are Anna's two pictures and Bert's upload not confirmed; which pages hold them is the
@@ -25,7 +26,9 @@ type uploads struct{ store *store }
 func (uploads) Find(_ context.Context, id shared.ID) (media.Object, error) {
 	switch id {
 	case annasPicture, privatePic:
-		return media.Object{ID: id, Status: media.StatusReady, CreatedBy: anna}, nil
+		return media.Object{ID: id, Status: media.StatusReady, CreatedBy: anna, ContentType: "image/png"}, nil
+	case annasFile:
+		return media.Object{ID: id, Status: media.StatusReady, CreatedBy: anna, ContentType: "application/pdf"}, nil
 	case pendingPic:
 		return media.Object{ID: id, Status: media.StatusPending, CreatedBy: bert}, nil
 	}
