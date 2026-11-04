@@ -30,6 +30,8 @@ async function requester(browser, portals) {
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_access: false, portals } });
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: [] } });
+    // As the server answers somebody holding nothing at the workspace: the start must not wait on it.
+    if (path === '/tenant') return route.fulfill({ status: 403, json: { type: 'about:blank', title: 'Forbidden', status: 403, code: 'forbidden' } });
     if (path === '/memberships') return route.fulfill({ json: { ...PAGE, data: [], grantable_roles: [] } });
     if (path === '/request-catalogue') return route.fulfill({ json: { desk: { name: DESK.name, description: '', icon: null, color_token: null, logo_media_id: null }, data: [] } });
     return stub(route);
