@@ -15,8 +15,8 @@ import (
 
 // Store keeps the configuration's history in the transaction's workspace.
 type Store interface {
-	// Hold holds the workspace's configuration until the transaction ends: an apply that holds it
-	// waits for one running, and reads what that one left.
+	// Hold holds the workspace's configuration and its sandbox until the transaction ends: an
+	// apply or a sandbox write that holds it waits for one running, and reads what that one left.
 	Hold(ctx context.Context) error
 	// Latest answers the newest version, false where none was applied yet.
 	Latest(ctx context.Context) (domain.Revision, bool, error)

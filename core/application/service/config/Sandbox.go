@@ -116,6 +116,10 @@ func (h WriteConfigSandbox) Descriptor() usecase.Descriptor {
 func (d Desk) writeSandbox(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// One sandbox per workspace: a second writer waits and builds on what the first left.
+		if err := d.Store.Hold(ctx); err != nil {
+			return err
+		}
 		at := d.Clock.Now()
 		if in.Bool("discard") {
 			if in.Present("document") || in.Bool("reset") {

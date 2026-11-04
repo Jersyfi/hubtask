@@ -168,8 +168,8 @@ SELECT pg_advisory_xact_lock(hashtextextended('config/' || current_tenant_id()::
 
 // The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
 // is the transaction's in every statement (ADR-0010).
-// One hold per workspace for the length of an apply: it plans, runs and records against the
-// configuration as it stands, which another apply through any door may be changing.
+// One hold per workspace for the length of an apply or a sandbox write: each reads, changes and
+// records the configuration (or its one sandbox) as it stands, which another may be changing.
 func (q *Queries) HoldConfiguration(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, holdConfiguration)
 	return err
