@@ -130,3 +130,39 @@ func TestTheWikiBlocksExportAsWhatTheyAre(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A table as the editor writes it (packages/editor, markdown.ts) exports as a table: its first row
+// the header, an escaped pipe a pipe in its cell, a cell's words escaped.
+func TestATableExportsAsATable(t *testing.T) {
+	body := "Before.\n\n| Name | Note |\n| --- | --- |\n| **Ada** | a \\| b <c> |\n| Bob |  |\n\nAfter."
+	out := HTMLFile(newPage(t, "People", body))
+	want := "<table>\n<thead>\n<tr><th>Name</th><th>Note</th></tr>\n</thead>\n<tbody>\n" +
+		"<tr><td><strong>Ada</strong></td><td>a | b &lt;c&gt;</td></tr>\n<tr><td>Bob</td><td></td></tr>\n</tbody>\n</table>\n<p>After.</p>"
+	if !strings.Contains(out, want) {
+		t.Errorf("the HTML lacks the table:\n%s", out)
+	}
+	if strings.Contains(out, "| ---") {
+		t.Errorf("the HTML carries the delimiter row:\n%s", out)
+	}
+	encoded, err := DOCXFile(newPage(t, "People", body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := base64.StdEncoding.DecodeString(encoded)
+	archive, _ := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
+	var document string
+	for _, f := range archive.File {
+		if f.Name == "word/document.xml" {
+			r, _ := f.Open()
+			b, _ := io.ReadAll(r)
+			document = string(b)
+		}
+	}
+	if strings.Count(document, "<w:tr>") != 3 || strings.Count(document, "<w:tc>") != 6 || !strings.Contains(document, "a | b &lt;c&gt;") {
+		t.Errorf("the document lacks the table's three rows of two cells:\n%s", document)
+	}
+	// A pipe line without a delimiter row under it is a paragraph, as before.
+	if out := HTMLFile(newPage(t, "Pipes", "| not a table |")); !strings.Contains(out, "<p>| not a table |</p>") {
+		t.Errorf("a lone pipe line became something else:\n%s", out)
+	}
+}

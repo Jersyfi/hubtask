@@ -52,13 +52,14 @@ func (f Format) Binary() bool { return f == FormatDOCX }
 
 // block is one block of a body, as the editor writes it (packages/editor, markdown.ts).
 type block struct {
-	kind    string // heading, paragraph, item, quote, code, rule, reference, open, close, toc, children, embed
+	kind    string // heading, paragraph, item, quote, code, rule, reference, open, close, toc, children, embed, table
 	level   int    // a heading's level, an item's depth
 	ordered bool
 	number  int
 	task    int // 0 no checkbox, 1 open, 2 done
 	text    string
-	variant string // an opened container's tone, or details
+	variant string     // an opened container's tone, or details
+	rows    [][]string // a table's cells, its first row the header
 }
 
 var (
@@ -74,9 +75,12 @@ var (
 	containerLine = regexp.MustCompile(`^(:{3,})(info|warning|success|error|details)(?:\s+(.*?))?\s*$`)
 	closeLine     = regexp.MustCompile(`^:{3,}\s*$`)
 	leafLine      = regexp.MustCompile(`^::(toc|children|embed)(?:\s+(https://\S+))?\s*$`)
-	dayChip       = regexp.MustCompile(`:date\[(\d{4}-\d{2}-\d{2})\]`)
-	statusChip    = regexp.MustCompile(`:status\[([^\]\n]+)\]\{[a-z]+\}`)
-	inlinePattern = regexp.MustCompile("(!?)\\[((?:\\\\.|[^\\]\\\\])*)\\]\\(([^)\\s]+)\\)|\\*\\*([^*]+)\\*\\*|~~([^~]+)~~|\\*([^*]+)\\*|_([^_]+)_|`([^`]+)`|\\\\([\\\\`*_~\\[\\]#])")
+	// A table as GitHub's Markdown writes one, which is how the editor writes it: a row of pipes,
+	// then a delimiter row, then a line per row.
+	tableDelimiter = regexp.MustCompile(`^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$`)
+	dayChip        = regexp.MustCompile(`:date\[(\d{4}-\d{2}-\d{2})\]`)
+	statusChip     = regexp.MustCompile(`:status\[([^\]\n]+)\]\{[a-z]+\}`)
+	inlinePattern  = regexp.MustCompile("(!?)\\[((?:\\\\.|[^\\]\\\\])*)\\]\\(([^)\\s]+)\\)|\\*\\*([^*]+)\\*\\*|~~([^~]+)~~|\\*([^*]+)\\*|_([^_]+)_|`([^`]+)`|\\\\([\\\\`*_~\\[\\]#])")
 )
 
 // blocks reads a body into its blocks. What it does not know is a paragraph of its text.
@@ -109,6 +113,13 @@ func blocks(body string) []block {
 		case leafLine.MatchString(line) && (leafLine.FindStringSubmatch(line)[1] != "embed" || leafLine.FindStringSubmatch(line)[2] != ""):
 			m := leafLine.FindStringSubmatch(line)
 			out = append(out, block{kind: m[1], text: m[2]})
+		case strings.HasPrefix(trimmed, "|") && i+1 < len(lines) && tableDelimiter.MatchString(strings.TrimSpace(lines[i+1])):
+			rows := [][]string{tableCells(trimmed)}
+			for i += 2; i < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i]), "|"); i++ {
+				rows = append(rows, tableCells(strings.TrimSpace(lines[i])))
+			}
+			i--
+			out = append(out, block{kind: "table", rows: rows})
 		case blockRefLine.MatchString(line):
 			out = append(out, block{kind: "reference", text: blockRefLine.FindStringSubmatch(line)[1]})
 		case strings.HasPrefix(line, ">"):
@@ -137,6 +148,26 @@ func blocks(body string) []block {
 		}
 	}
 	return out
+}
+
+// tableCells splits a table line at its pipes, an escaped pipe kept as a pipe in its cell.
+func tableCells(line string) []string {
+	line = strings.TrimSuffix(strings.TrimPrefix(line, "|"), "|")
+	var cells []string
+	var cell strings.Builder
+	for i := 0; i < len(line); i++ {
+		switch {
+		case line[i] == '\\' && i+1 < len(line) && line[i+1] == '|':
+			cell.WriteByte('|')
+			i++
+		case line[i] == '|':
+			cells = append(cells, strings.TrimSpace(cell.String()))
+			cell.Reset()
+		default:
+			cell.WriteByte(line[i])
+		}
+	}
+	return append(cells, strings.TrimSpace(cell.String()))
 }
 
 func startsBlock(line string) bool {
@@ -270,6 +301,30 @@ func htmlFile(page Page, view *PublicView) string {
 			out.WriteString("<pre><code>" + html.EscapeString(b.text) + "</code></pre>\n")
 		case "rule":
 			out.WriteString("<hr>\n")
+		case "table":
+			out.WriteString("<table>\n")
+			for at, row := range b.rows {
+				cell := "td"
+				switch at {
+				case 0:
+					cell = "th"
+					out.WriteString("<thead>\n")
+				case 1:
+					out.WriteString("<tbody>\n")
+				}
+				out.WriteString("<tr>")
+				for _, text := range row {
+					out.WriteString("<" + cell + ">" + view.spans(spans(text)) + "</" + cell + ">")
+				}
+				out.WriteString("</tr>\n")
+				if at == 0 {
+					out.WriteString("</thead>\n")
+				}
+			}
+			if len(b.rows) > 1 {
+				out.WriteString("</tbody>\n")
+			}
+			out.WriteString("</table>\n")
 		case "reference":
 			if view == nil {
 				out.WriteString("<p><a href=\"" + html.EscapeString(b.text) + "\">" + html.EscapeString(b.text) + "</a></p>\n")
@@ -398,6 +453,32 @@ func DOCXFile(page Page) (string, error) {
 			}
 		case "rule":
 			paragraph("", "", []span{{text: "———"}}, 0)
+		case "table":
+			// Borders of its own: the package's styles define no table style to lean on.
+			body.WriteString(`<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders>`)
+			for _, edge := range []string{"top", "left", "bottom", "right", "insideH", "insideV"} {
+				body.WriteString(`<w:` + edge + ` w:val="single" w:sz="4" w:space="0" w:color="auto"/>`)
+			}
+			body.WriteString(`</w:tblBorders></w:tblPr><w:tblGrid>`)
+			width := 0
+			for _, row := range b.rows {
+				width = max(width, len(row))
+			}
+			body.WriteString(strings.Repeat(`<w:gridCol/>`, width) + `</w:tblGrid>`)
+			for at, row := range b.rows {
+				body.WriteString("<w:tr>")
+				for _, text := range row {
+					runs := spans(text)
+					if at == 0 {
+						runs = boldened(runs)
+					}
+					body.WriteString("<w:tc>")
+					paragraph("", "", runs, 0)
+					body.WriteString("</w:tc>")
+				}
+				body.WriteString("</w:tr>")
+			}
+			body.WriteString("</w:tbl>")
 		case "reference":
 			paragraph("", "", []span{{text: b.text}}, 0)
 		case "item":
