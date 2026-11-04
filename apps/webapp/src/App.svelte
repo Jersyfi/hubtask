@@ -19,6 +19,8 @@
   import ViewFailed from './lib/frame/ViewFailed.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
+  import { leaveGuard } from './lib/frame/leave.svelte.ts';
+  import LeaveDialog from './lib/frame/LeaveDialog.svelte';
   import { loadReleaseAt } from './lib/frame/release.ts';
   import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
@@ -137,7 +139,8 @@
     SignInSettingsView: () => import('./views/SignInSettingsView.svelte'),
   };
 
-  const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt });
+  const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
+  $effect(() => leaveGuard.connect((path) => router.navigate(path)));
   let route = $state<Resolution>(router.current);
 
   /**
@@ -649,6 +652,7 @@
   {/snippet}
   </svelte:boundary>
 </LazyFrame>
+<LeaveDialog />
 {/if}
 {#snippet failed(error)}
   <main><ViewFailed {error} /></main>

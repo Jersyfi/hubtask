@@ -130,19 +130,23 @@ export class Router {
   readonly #listeners = new Set<(resolution: Resolution) => void>();
   #current: Resolution;
   readonly #fullLoad?: (path: string) => boolean;
+  readonly #admits?: (path: string) => boolean;
 
   /**
    * `fullLoad` may take a navigation as a full page load instead - a newer release to load
-   * (`frame/release.ts`) - and answers whether it did.
+   * (`frame/release.ts`) - and answers whether it did. `admits` may hold a move the reader has
+   * not agreed to yet - a screen with unsaved changes (`frame/leave.ts`) - and answers whether it
+   * goes; a held move is made later through `navigate`.
    */
   constructor(
     routes: readonly Route[],
     initialPath: string = window.location.pathname + window.location.search,
-    options: { fullLoad?: (path: string) => boolean } = {},
+    options: { fullLoad?: (path: string) => boolean; admits?: (path: string) => boolean } = {},
   ) {
     this.#routes = routes;
     this.#current = resolve(routes, initialPath);
     this.#fullLoad = options.fullLoad;
+    this.#admits = options.admits;
   }
 
   get current(): Resolution {
@@ -158,6 +162,7 @@ export class Router {
   /** Navigate to a path, entering it into the session history. */
   navigate(path: string): void {
     if (addressOf(path) === this.#address()) return;
+    if (this.#admits && !this.#admits(path)) return;
     if (this.#fullLoad?.(path)) return;
     history.pushState(null, '', path);
     this.#apply(path);
@@ -184,7 +189,16 @@ export class Router {
    * stays with the browser.
    */
   start(): Unsubscribe {
-    const onPopState = () => this.#apply(window.location.pathname + window.location.search);
+    const onPopState = () => {
+      const path = window.location.pathname + window.location.search;
+      // The browser has already moved the address; a held move puts it back, so the address and
+      // the screen agree while the reader decides.
+      if (this.#admits && addressOf(path) !== this.#address() && !this.#admits(path)) {
+        history.pushState(null, '', this.#address());
+        return;
+      }
+      this.#apply(path);
+    };
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0) return;
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

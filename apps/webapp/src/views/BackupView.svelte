@@ -48,6 +48,7 @@
   import { assertZipComplete, zipComplete } from '../lib/data/zipComplete.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
@@ -185,7 +186,11 @@
         ...(Number.isFinite(floor) && floor > 0 ? { retention: { min_keep: floor } } : {}),
       }), t('app.backup.schedule_added_announced')
     );
+    // Added: the form is empty again, so a second schedule starts from nothing and the leave
+    // guard holds nothing that is already saved.
+    if (failure === undefined) scheduleTarget = '';
   }
+
 
   /**
    * The empty screen's one act (user-experience.md §8.3): a target in the installation's backup
@@ -268,6 +273,13 @@
    */
   const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
   const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
+
+  const sections = $derived([
+    { id: 'backup-part-targets', label: t('app.backup.targets_title') },
+    { id: 'backup-part-schedules', label: t('app.backup.schedules_title') },
+    ...(mayOwn ? [{ id: 'backup-part-download', label: t('app.backup.download_title') }] : []),
+  ]);
+
   /** Why a schedule's switch is off for this reader, where it is. */
   const ownRefusal = $derived(workspaceRefusal('DELETE_CONTAINER'));
 
@@ -278,6 +290,11 @@
   let isDownloading = $state(false);
   /** Encrypts the file to it when given; stored nowhere, so it is the one key to the file. */
   let downloadPassphrase = $state('');
+  /**
+   * What is chosen or typed and not yet sent, for the leave guard: every act here is its own write,
+   * so there is no save bar. The schedule form counts once a target is chosen in it.
+   */
+  const changes = $derived([scheduleTarget !== '', downloadPassphrase !== ''].filter(Boolean).length);
   async function downloadWorkspace(): Promise<void> {
     // The picker first, while the press still counts: a whole workspace goes to the disk as it
     // arrives where the browser offers that, and through memory only where it does not.
@@ -384,8 +401,9 @@
     {/if}
 
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.backup.targets_title')}</h2>
+    <SettingsPage label={t('app.settings_page.sections', { name: t('app.backup.title') })} {sections} {changes}>
+    <section id="backup-part-targets" class="part" aria-labelledby="backup-targets">
+      <h2 class="section" id="backup-targets">{t('app.backup.targets_title')}</h2>
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="waiting">
@@ -583,10 +601,10 @@
         />
         {/snippet}
       </WorkspaceGate>
-    </Stack>
+    </section>
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.backup.schedules_title')}</h2>
+    <section id="backup-part-schedules" class="part" aria-labelledby="backup-schedules">
+      <h2 class="section" id="backup-schedules">{t('app.backup.schedules_title')}</h2>
       <p class="quiet small">{t('app.backup.schedules_intro')}</p>
 
       {#each schedules as schedule (schedule.id)}
@@ -712,12 +730,12 @@
           {/snippet}
         </WorkspaceGate>
       {/if}
-    </Stack>
+    </section>
 
     {#if mayOwn}
-      <section class="panel">
+      <section id="backup-part-download" class="panel" aria-labelledby="backup-download">
         <Stack gap="100">
-          <h2 class="section">{t('app.backup.download_title')}</h2>
+          <h2 class="section" id="backup-download">{t('app.backup.download_title')}</h2>
           <p class="quiet">{t('app.backup.download_intro')}</p>
           <Input
             label={t('app.backup.download_passphrase')}
@@ -736,6 +754,7 @@
         </Stack>
       </section>
     {/if}
+    </SettingsPage>
     </Stack>
 </Stack>
 
@@ -808,6 +827,8 @@
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
      around a screen that is not a document. */
+
+  .part { display: flex; flex-direction: column; gap: var(--sp-150); }
 
   .section {
     margin: 0;

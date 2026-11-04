@@ -12356,5 +12356,10 @@
   "workflows.group_unknown": "Der Workflow nennt die Gruppe {group}, die es in diesem Arbeitsbereich nicht gibt.",
   "workflows.key_required": "Nennen Sie den Workflow, der kopiert werden soll.",
   "workspace.not_found": "Diesen Arbeitsbereich gibt es nicht.",
-  "workspace.version_stale": "Die Einstellungen des Arbeitsbereichs haben sich inzwischen geändert. Laden Sie neu und versuchen Sie es erneut."
+  "workspace.version_stale": "Die Einstellungen des Arbeitsbereichs haben sich inzwischen geändert. Laden Sie neu und versuchen Sie es erneut.",
+  "app.leave.title": "Ohne Speichern verlassen?",
+  "app.leave.body": "{count, plural, one {# Änderung auf dieser Seite ist noch nicht gespeichert. Beim Verlassen geht sie verloren.} other {# Änderungen auf dieser Seite sind noch nicht gespeichert. Beim Verlassen gehen sie verloren.}}",
+  "app.leave.leave": "Ohne Speichern verlassen",
+  "app.leave.stay": "Bleiben",
+  "app.settings_page.sections": "Abschnitte von {name}"
 }

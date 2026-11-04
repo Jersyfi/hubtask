@@ -12356,5 +12356,10 @@
   "workflows.group_unknown": "The workflow names the group {group}, which does not exist in this workspace.",
   "workflows.key_required": "Name the workflow to copy.",
   "workspace.not_found": "That workspace does not exist.",
-  "workspace.version_stale": "The workspace's settings changed in the meantime. Reload and try again."
+  "workspace.version_stale": "The workspace's settings changed in the meantime. Reload and try again.",
+  "app.leave.title": "Leave without saving?",
+  "app.leave.body": "{count, plural, one {# change on this screen is not saved yet. Leaving drops it.} other {# changes on this screen are not saved yet. Leaving drops them.}}",
+  "app.leave.leave": "Leave without saving",
+  "app.leave.stay": "Stay",
+  "app.settings_page.sections": "Sections of {name}"
 }

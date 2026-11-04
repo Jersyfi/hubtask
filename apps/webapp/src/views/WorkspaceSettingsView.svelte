@@ -43,6 +43,7 @@
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   let displayName = $state('');
   let locale = $state('');
@@ -171,6 +172,9 @@
       {/if}
 
       <WorkspaceGate permission="STRUCTURE">
+        <!-- One part, and the form keeps its own save bar inside it, where Enter submits: the shell
+             adds the leave guard. -->
+        <SettingsPage label={t('app.settings_page.sections', { name: t('app.workspace.title') })} sections={[]} changes={changedCount}>
         <form class="panel" bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="200">
             <Input
@@ -256,6 +260,7 @@
         <PublicLinksSwitch />
         <PublicFormsSwitch />
         <PublicRoadmapsSwitch />
+        </SettingsPage>
       </WorkspaceGate>
     {/if}
     </Stack>

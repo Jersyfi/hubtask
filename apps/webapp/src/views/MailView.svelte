@@ -53,6 +53,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import MailboxSection from '../lib/mail/MailboxSection.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   interface Props {
     /** What a mail provider sent back after connecting a mailbox (`/administration/mail/oauth`). */
@@ -109,12 +110,44 @@
   });
 
   // A name on the receiving domain is suggested from the workspace's own, until somebody types one.
-  $effect(() => {
+  const suggested = $derived.by(() => {
     const own = workspace.workspace?.slug || workspace.workspace?.display_name;
-    if (loaded?.domain && !loaded.name && name === '' && own) {
-      name = suggestedName(own);
-    }
+    return loaded?.domain && !loaded.name && own ? suggestedName(own) : '';
   });
+  $effect(() => {
+    if (suggested && name === '') name = suggested;
+  });
+
+  /**
+   * How many of the intake's settings differ from what is saved: the save bar's count and the
+   * leave guard's. A suggested name is not a change of the reader's; it is written with the first
+   * save that has one.
+   */
+  const changes = $derived.by(() => {
+    const held = loaded;
+    if (!held) return 0;
+    const routesOf = (rows: readonly { match: string; collection: string }[]) =>
+      rows.filter((row) => row.match.trim() !== '').map((row) => `${row.match.trim()}\u0000${row.collection}`).join('\n');
+    return [
+      enabled !== held.enabled,
+      name.trim() !== (held.name ?? suggested),
+      defaultPlace !== (held.default_collection_id ?? ''),
+      level !== held.senders.level,
+      linesOf(allowed).join('\n') !== held.senders.allowed.join('\n'),
+      linesOf(blocked).join('\n') !== held.senders.blocked.join('\n'),
+      routesOf(routes) !== routesOf(held.sender_routes.map((route) => ({ match: route.match, collection: route.collection_id }))),
+    ].filter(Boolean).length;
+  });
+
+  const sections = $derived([
+    { id: 'mail-part-mailboxes', label: t('app.mail.section_mailboxes') },
+    { id: 'mail-part-on', label: t('app.mail.section_on') },
+    { id: 'mail-part-senders', label: t('app.mail.section_senders') },
+    { id: 'mail-part-routes', label: t('app.mail.section_routes') },
+    { id: 'mail-part-order', label: t('app.mail.section_order') },
+    { id: 'mail-part-handles', label: t('app.mail.section_handles') },
+    { id: 'mail-part-log', label: t('app.mail.section_log') },
+  ]);
 
   $effect(() => untrack(() => containers.start()));
   $effect(() => {
@@ -228,15 +261,30 @@
       {:else if !loaded}
         <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
       {:else}
-        <Stack gap="400">
-          <section aria-labelledby="mail-mailboxes" data-mail-mailboxes>
+        <SettingsPage
+          label={t('app.settings_page.sections', { name: t('app.mail.title') })}
+          {sections}
+          {changes}
+          save={{
+            label: t('app.mail.save'),
+            savingLabel: t('app.mail.saving'),
+            isSaving,
+            onSave: () => void save(),
+            onDiscard: () => {
+              saveFailure = undefined;
+              if (loaded) take(loaded);
+            },
+          }}
+        >
+          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
+          <section id="mail-part-mailboxes" aria-labelledby="mail-mailboxes" data-mail-mailboxes>
             <Stack gap="150">
               <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>
               <MailboxSection {providerAnswer} {onanswered} bind:isAdding={isAddingMailbox} onchange={(next) => (mailboxes = next)} />
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="mail-on" data-mail-on>
+          <section id="mail-part-on" class="panel" aria-labelledby="mail-on" data-mail-on>
             <Stack gap="150">
               <h2 class="section" id="mail-on">{t('app.mail.section_on')}</h2>
               <Switch label={t('app.mail.enabled')} hint={t('app.mail.enabled_hint')} bind:checked={enabled} />
@@ -260,7 +308,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="mail-senders" data-mail-senders>
+          <section id="mail-part-senders" class="panel" aria-labelledby="mail-senders" data-mail-senders>
             <Stack gap="150">
               <h2 class="section" id="mail-senders">{t('app.mail.section_senders')}</h2>
               <Radio label={t('app.mail.level')} options={levels} bind:value={() => level, (next) => (level = next as SenderLevel)} />
@@ -271,7 +319,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="mail-routes" data-mail-routes>
+          <section id="mail-part-routes" class="panel" aria-labelledby="mail-routes" data-mail-routes>
             <Stack gap="150">
               <h2 class="section" id="mail-routes">{t('app.mail.section_routes')}</h2>
               <p class="quiet small">{t('app.mail.routes_hint')}</p>
@@ -286,10 +334,7 @@
             </Stack>
           </section>
 
-          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
-          <div><Button tone="primary" isBusy={isSaving} busyLabel={t('app.mail.saving')} onclick={() => void save()}>{t('app.mail.save')}</Button></div>
-
-          <section class="panel" aria-labelledby="mail-order" data-mail-order>
+          <section id="mail-part-order" class="panel" aria-labelledby="mail-order" data-mail-order>
             <Stack gap="150">
               <h2 class="section" id="mail-order">{t('app.mail.section_order')}</h2>
               <ol class="order">
@@ -302,7 +347,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="mail-handles" data-mail-handles>
+          <section id="mail-part-handles" class="panel" aria-labelledby="mail-handles" data-mail-handles>
             <Stack gap="150">
               <h2 class="section" id="mail-handles">{t('app.mail.section_handles')}</h2>
               <p class="quiet small">{t('app.mail.handles_hint')}</p>
@@ -323,7 +368,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="mail-log" data-mail-log>
+          <section id="mail-part-log" class="panel" aria-labelledby="mail-log" data-mail-log>
             <Stack gap="150">
               <h2 class="section" id="mail-log">{t('app.mail.section_log')}</h2>
               {#if receipts.length === 0}
@@ -343,7 +388,7 @@
               {/if}
             </Stack>
           </section>
-        </Stack>
+        </SettingsPage>
       {/if}
     {/snippet}
   </WorkspaceGate>

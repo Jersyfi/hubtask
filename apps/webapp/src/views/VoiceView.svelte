@@ -51,6 +51,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
 
   interface DraftAlias {
@@ -78,20 +79,43 @@
     if (!mayShape) return;
     untrack(() => {
       void readVoiceSettings()
-        .then((settings) => {
-          if (!settings) return;
-          loaded = { ...settings, aliases: settings.aliases ?? [] };
-          enabled = settings.enabled === true;
-          defaultList = settings.default_collection_id ?? '';
-          skillId = settings.skill_id ?? '';
-          invocation = settings.invocation_name ?? '';
-          aliases = (settings.aliases ?? []).map((alias) => ({
-            key: crypto.randomUUID(), phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '',
-          }));
-        })
+        .then((settings) => settings && take(settings))
         .catch((error) => (readFailure = renderProblem(error as never, messages).message));
     });
   });
+
+  function take(settings: VoiceSettings) {
+    loaded = { ...settings, aliases: settings.aliases ?? [] };
+    enabled = settings.enabled === true;
+    defaultList = settings.default_collection_id ?? '';
+    skillId = settings.skill_id ?? '';
+    invocation = settings.invocation_name ?? '';
+    aliases = (settings.aliases ?? []).map((alias) => ({
+      key: crypto.randomUUID(), phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '',
+    }));
+  }
+
+  /** How many of the settings differ from what is saved: the save bar's count and the leave guard's. */
+  const changes = $derived.by(() => {
+    const held = loaded;
+    if (!held) return 0;
+    const aliasesOf = (rows: readonly { phrase: string; collection: string; label: string }[]) =>
+      rows.filter((row) => row.phrase.trim() !== '').map((row) => `${row.phrase.trim()}\u0000${row.collection}\u0000${row.label}`).join('\n');
+    return [
+      enabled !== (held.enabled === true),
+      defaultList !== (held.default_collection_id ?? ''),
+      skillId.trim() !== (held.skill_id ?? ''),
+      invocation.trim().toLowerCase() !== (held.invocation_name ?? ''),
+      aliasesOf(aliases) !== aliasesOf((held.aliases ?? []).map((alias) => ({ phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '' }))),
+    ].filter(Boolean).length;
+  });
+
+  const sections = $derived([
+    { id: 'voice-part-on', label: t('app.voice.section_on') },
+    { id: 'voice-part-names', label: t('app.voice.section_names') },
+    { id: 'voice-part-try', label: t('app.voice.section_try') },
+    { id: 'voice-part-alexa', label: t('app.voice.section_alexa') },
+  ]);
 
   // The tree is not drawn in the administration, so the lists are read here.
   $effect(() => untrack(() => containers.start()));
@@ -128,7 +152,7 @@
     saveFailure = undefined;
     isSaving = true;
     try {
-      loaded = await saveVoiceSettings({
+      take(await saveVoiceSettings({
         enabled,
         default_collection_id: defaultList || null,
         skill_id: skillId.trim() || null,
@@ -136,7 +160,7 @@
         aliases: aliases
           .filter((alias) => alias.phrase.trim() !== '')
           .map((alias) => ({ phrase: alias.phrase.trim(), collection_id: alias.collection, ...(alias.label ? { label_id: alias.label } : {}) })),
-      });
+      }));
       announcer.say(t('app.voice.saved'));
     } catch (error) {
       saveFailure = renderProblem(error as never, messages).message;
@@ -265,8 +289,23 @@
       {:else if !loaded}
         <p class="quiet"><Spinner label={t('app.voice.reading')} /> {t('app.voice.reading')}</p>
       {:else}
-        <Stack gap="400">
-          <section class="panel" aria-labelledby="voice-on" data-voice-settings>
+        <SettingsPage
+          label={t('app.settings_page.sections', { name: t('app.voice.title') })}
+          {sections}
+          {changes}
+          save={{
+            label: t('app.voice.save'),
+            savingLabel: t('app.voice.saving'),
+            isSaving,
+            onSave: () => void save(),
+            onDiscard: () => {
+              saveFailure = undefined;
+              if (loaded) take(loaded);
+            },
+          }}
+        >
+          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
+          <section id="voice-part-on" class="panel" aria-labelledby="voice-on" data-voice-settings>
             <Stack gap="150">
               <h2 class="section" id="voice-on">{t('app.voice.section_on')}</h2>
               <Switch label={t('app.voice.enabled')} hint={t('app.voice.enabled_hint')} bind:checked={enabled} />
@@ -276,7 +315,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="voice-names" data-voice-names>
+          <section id="voice-part-names" class="panel" aria-labelledby="voice-names" data-voice-names>
             <Stack gap="150">
               <h2 class="section" id="voice-names">{t('app.voice.section_names')}</h2>
               <p class="quiet small">{t('app.voice.names_hint')}</p>
@@ -292,10 +331,7 @@
             </Stack>
           </section>
 
-          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
-          <div><Button tone="primary" isBusy={isSaving} busyLabel={t('app.voice.saving')} onclick={() => void save()}>{t('app.voice.save')}</Button></div>
-
-          <section class="panel" aria-labelledby="voice-try" data-voice-try>
+          <section id="voice-part-try" class="panel" aria-labelledby="voice-try" data-voice-try>
             <Stack gap="150">
               <h2 class="section" id="voice-try">{t('app.voice.section_try')}</h2>
               <p class="quiet small">{t('app.voice.try_hint')}</p>
@@ -319,7 +355,7 @@
             </Stack>
           </section>
 
-          <section class="panel" aria-labelledby="voice-alexa" data-voice-alexa>
+          <section id="voice-part-alexa" class="panel" aria-labelledby="voice-alexa" data-voice-alexa>
             <Stack gap="200">
               <h2 class="section" id="voice-alexa">{t('app.voice.section_alexa')}</h2>
               {#if loaded.installation_skill}
@@ -395,7 +431,7 @@
               {/if}
             </Stack>
           </section>
-        </Stack>
+        </SettingsPage>
       {/if}
     {/snippet}
   </WorkspaceGate>

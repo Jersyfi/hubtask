@@ -30,6 +30,8 @@
 
   import { EmptyState, Badge, Banner, Button, Checkbox, Dialog, Disclosure, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
+
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { keepsSecrets } from '../lib/administration/gaps.ts';
   import {
@@ -331,6 +333,8 @@
 
     {#if failureShown && !isAdding}{@render failureBanner(failureShown)}{/if}
 
+    <!-- One part, so the shell draws no list of sections: the webhooks are the screen. -->
+    <SettingsPage label={t('app.settings_page.sections', { name: t('app.webhooks.title') })} sections={[]}>
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting">
         <Spinner label={t('app.webhooks.reading')} /> <span>{t('app.webhooks.reading')}</span>
@@ -626,6 +630,7 @@
         <EmptyState kind="unused" icon="send" title={t('app.webhooks.empty_title')} description={t('app.webhooks.empty_body')} action={mayAdd ? addAct : undefined} />
       {/each}
     {/if}
+    </SettingsPage>
 
     {#if !resting && !keepsSecrets(manifest.value?.features)}
       <!-- Each subscription's secret is sealed under the installation's key; without one the
