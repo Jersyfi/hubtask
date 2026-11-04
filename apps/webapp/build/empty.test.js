@@ -79,3 +79,37 @@ test('every product screen draws its empty answer through ProductEmpty', () => {
     assert.match(source, /<ProductEmpty\b/, `${name} draws no ProductEmpty`);
   }
 });
+
+// §5.5: a first use links the product's guide and, for a reader who may not create, says whom to
+// ask - from the place's explanation (`place`) or in the screen's own words (`whoCan`). Every
+// ProductEmpty that can be `unused` names its product and one of the two, unless it is listed here
+// with why.
+const SRC = path.resolve(VIEWS, '..');
+const NO_ONE_TO_ASK = new Map([
+  ['views/PortalView.svelte', 'a requester with no request of their own raises one on the same screen'],
+  ['views/PublicRoadmapView.svelte', 'an anonymous reader of a shared roadmap has nobody here to ask'],
+]);
+
+function svelteFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) return svelteFiles(full);
+    return entry.name.endsWith('.svelte') ? [full] : [];
+  });
+}
+
+test('every first use names its product\'s guide and whom to ask', () => {
+  const missing = [];
+  for (const file of svelteFiles(SRC)) {
+    const name = path.relative(SRC, file).split(path.sep).join('/');
+    if (name === 'lib/product/ProductEmpty.svelte') continue;
+    const source = fs.readFileSync(file, 'utf8');
+    for (const match of source.matchAll(/<ProductEmpty\b[\s\S]*?\/>/g)) {
+      const element = match[0];
+      if (!/kind=(?:"unused"|\{[^}]*'unused')/.test(element)) continue;
+      if (!/\bproduct=/.test(element)) missing.push(`${name}: no product=`);
+      if (!/\b(?:place|whoCan)=/.test(element) && !NO_ONE_TO_ASK.has(name)) missing.push(`${name}: no place= or whoCan=`);
+    }
+  }
+  assert.deepEqual(missing, [], 'give each first use its product and whom to ask (place= or whoCan=)');
+});

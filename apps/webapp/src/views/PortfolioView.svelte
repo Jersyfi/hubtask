@@ -260,7 +260,7 @@
     <section class="block" aria-labelledby="portfolio-projects">
       <h2 id="portfolio-projects" class="heading">{t('app.portfolios.projects', { count: String(portfolio.items.length) })}</h2>
       {#if portfolio.items.length === 0}
-        <ProductEmpty kind="unused" icon="briefcase" title={t('app.portfolios.no_projects')} description={t('app.portfolios.no_projects_body')}
+        <ProductEmpty product="GOALS" kind="unused" icon="briefcase" title={t('app.portfolios.no_projects')} description={t('app.portfolios.no_projects_body')}
           create={mayWrite ? { label: t('app.portfolios.add_project'), onclick: () => openProject() } : undefined} whoCan={t('app.portfolios.who_can')} />
       {:else}
         <Table isStacked label={t('app.portfolios.projects', { count: String(portfolio.items.length) })} isLabelHidden {columns}>

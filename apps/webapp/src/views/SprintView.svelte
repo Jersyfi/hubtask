@@ -340,7 +340,7 @@
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     {#if list.length === 0}
-      <ProductEmpty kind="unused" title={t('app.sprints.none_title')} description={t('app.sprints.none_hint')} create={mayWrite ? { label: t('app.sprints.plan'), onclick: () => openPlan(undefined) } : undefined} />
+      <ProductEmpty product="PLANNING" place={{ type: 'COLLECTION', id: collectionId }} kind="unused" title={t('app.sprints.none_title')} description={t('app.sprints.none_hint')} create={mayWrite ? { label: t('app.sprints.plan'), onclick: () => openPlan(undefined) } : undefined} />
     {:else if chosen}
       <div class="controls">
         {#if list.length > 1}

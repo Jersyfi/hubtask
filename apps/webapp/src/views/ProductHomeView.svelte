@@ -236,7 +236,7 @@
     {#if reachesAdministrationArea() === true}<CmdbView isEmbedded />{/if}
   {:else}
     {#if isUnusedHere}
-      <ProductEmpty
+      <ProductEmpty product={module} place={{ type: 'TENANT' }}
         kind="unused"
         icon={row?.icon ?? 'hub'}
         title={t('app.product_home.unused', { product: name })}
@@ -334,7 +334,7 @@
           {#if isReading && hubsWith.length === 0}
             <div aria-busy="true"><Skeleton lines={3} /></div>
           {:else if hubsWith.length === 0}
-            <ProductEmpty
+            <ProductEmpty product={module} place={{ type: 'TENANT' }}
               kind="unused"
               icon={row?.icon ?? 'hub'}
               title={t('app.product_home.none', { product: name })}

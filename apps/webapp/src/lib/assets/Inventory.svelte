@@ -137,7 +137,7 @@
   {:else if !first}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if all.length === 0 && !shown}
-    <ProductEmpty
+    <ProductEmpty product="ASSETS" place={{ type: 'HUB', id: hubId }}
       kind="unused"
       icon="shield"
       title={t('app.assets.empty')}

@@ -49,7 +49,7 @@
     </p>
     <p class="quiet">{t('app.roadmap.shared_note')}</p>
     {#if rows.length === 0}
-      <ProductEmpty kind="unused" title={t('app.roadmap.empty')} />
+      <ProductEmpty product="GOALS" kind="unused" title={t('app.roadmap.empty')} />
     {:else}
       <Table label={t('app.roadmap.table')} {columns}>
         {#each rows as row (row.id)}

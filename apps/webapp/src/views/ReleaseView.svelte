@@ -245,7 +245,7 @@
   {:else if !list}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else if list.length === 0}
-    <ProductEmpty
+    <ProductEmpty product="PLANNING" place={{ type: 'HUB', id: hubId }}
       kind="unused"
       title={t('app.releases.none')}
       description={t('app.releases.none_hint')}

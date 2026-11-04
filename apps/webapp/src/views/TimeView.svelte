@@ -438,7 +438,7 @@
       </ol>
 
       {#if sheet.records.length === 0}
-        <ProductEmpty kind={isOpen ? 'unused' : 'settled'} icon="clock" title={t('app.time.week_empty')}
+        <ProductEmpty product="TIME" place={{ type: 'TENANT' }} kind={isOpen ? 'unused' : 'settled'} icon="clock" title={t('app.time.week_empty')}
           description={isOpen ? t('app.time.week_empty_body') : undefined} create={recordPrimary} isInHead={current === 'week'} />
       {:else}
         {#if !viewport.isCompact}

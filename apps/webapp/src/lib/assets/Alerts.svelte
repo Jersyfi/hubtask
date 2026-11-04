@@ -74,7 +74,7 @@
   {:else if !alerts}
     <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if alerts.length === 0 && !narrowed}
-    <ProductEmpty
+    <ProductEmpty product="ASSETS" place={{ type: 'HUB', id: hubId }}
       kind="unused"
       icon="bell"
       title={t('app.assets.alerts_empty')}

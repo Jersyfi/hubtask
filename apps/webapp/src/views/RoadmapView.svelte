@@ -139,7 +139,7 @@
   {:else if !roadmap}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else if health.projects === 0}
-    <ProductEmpty
+    <ProductEmpty product="GOALS" place={{ type: 'TENANT' }}
       kind="unused"
       title={t('app.roadmap.none')}
       description={t('app.roadmap.none_hint')}

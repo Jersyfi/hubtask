@@ -113,13 +113,13 @@
     <ServiceDeskView isEmbedded {onnavigate} />
   {:else if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
-      <ProductEmpty kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}
+      <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}
         description={t(createHub ? 'app.product_home.none_body_create' : 'app.product_home.none_body')} create={createHub} isInHead {templates} />
     {:else}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {/if}
   {:else if desks.length === 0}
-    <ProductEmpty kind="unused" icon="inbox" title={t('app.desk_home.no_desk')} description={t('app.desk_home.no_desk_body')} create={createHub} isInHead {templates} />
+    <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.desk_home.no_desk')} description={t('app.desk_home.no_desk_body')} create={createHub} isInHead {templates} />
   {:else if current === 'desks'}
     <ul class="rows" aria-label={t('app.desk_queues.desks')}>
       {#each desks as { desk, hub } (desk.id)}

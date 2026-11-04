@@ -245,7 +245,7 @@
             { value: 'ORGANISATION', label: t('app.portal.whose_organisation', { name: organisation?.name ?? '' }) }]} />
       {/if}
       {#if shown.state.status === 'ready' && requests.length === 0}
-        <ProductEmpty kind="unused" title={t('app.portal.mine_none')} />
+        <ProductEmpty product="SERVICE_DESK" kind="unused" title={t('app.portal.mine_none')} />
       {:else if shown.state.status === 'ready'}
         {#each requests as request (request.id)}
           <ListRow href={`/portal/requests/${request.id}`} onactivate={() => onnavigate?.(`/portal/requests/${request.id}`)}>

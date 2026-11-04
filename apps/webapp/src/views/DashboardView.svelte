@@ -311,7 +311,7 @@
     {#if isEditing}<p class="quiet">{t('app.dashboards.editing_hint')}</p>{/if}
 
     {#if ordered.length === 0}
-      <ProductEmpty kind={mayEdit ? 'unused' : 'settled'} icon="gauge" title={t('app.dashboards.no_widgets_title')}
+      <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind={mayEdit ? 'unused' : 'settled'} icon="gauge" title={t('app.dashboards.no_widgets_title')}
         description={mayEdit ? t('app.dashboards.no_widgets') : undefined}
         create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
     {:else}

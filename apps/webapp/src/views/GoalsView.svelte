@@ -297,7 +297,7 @@
     {:else if !periods}
       <div aria-busy="true"><Skeleton lines={5} /></div>
     {:else if periods.length === 0}
-      <ProductEmpty kind="unused" icon="flag" title={t('app.goals.no_periods_title')} description={t('app.goals.no_periods')}
+      <ProductEmpty product="GOALS" kind="unused" icon="flag" title={t('app.goals.no_periods_title')} description={t('app.goals.no_periods')}
         create={mayStructure ? { label: t('app.goals.start_quarter', { name: quarterName }), onclick: () => void startQuarter() } : undefined}
         templates={mayStructure ? [{ label: t('app.goals.another_period'), onclick: () => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; } }] : []}
         whoCan={t('app.goals.who_starts_periods')} />
@@ -318,7 +318,7 @@
       {:else if !goalList}
         <div aria-busy="true"><Skeleton lines={6} /></div>
       {:else if tree.length === 0}
-        <ProductEmpty kind={chosen?.state === 'OPEN' ? 'unused' : 'settled'} icon="flag" title={t('app.goals.empty')}
+        <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind={chosen?.state === 'OPEN' ? 'unused' : 'settled'} icon="flag" title={t('app.goals.empty')}
           description={chosen?.state === 'OPEN' ? t('app.goals.empty_body') : undefined} create={primary} />
       {:else}
         <ul class="goals" aria-label={t('app.goals.tree', { period: chosen?.name ?? '' })}>
@@ -365,7 +365,7 @@
     {:else if !portfolioList}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if portfolioList.length === 0}
-      <ProductEmpty kind="unused" icon="briefcase" title={t('app.portfolios.empty')} description={t('app.portfolios.empty_body')} create={primary}
+      <ProductEmpty product="GOALS" kind="unused" icon="briefcase" title={t('app.portfolios.empty')} description={t('app.portfolios.empty_body')} create={primary}
         whoCan={t('app.portfolios.who_can')} />
     {:else}
       <Table isStacked label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
@@ -387,7 +387,7 @@
     {:else if !dashboardList}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if dashboardList.length === 0}
-      <ProductEmpty kind="unused" icon="gauge" title={t('app.dashboards.empty')} description={t('app.dashboards.empty_body')} create={primary} />
+      <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind="unused" icon="gauge" title={t('app.dashboards.empty')} description={t('app.dashboards.empty_body')} create={primary} />
     {:else}
       <ul class="cards" aria-label={heading}>
         {#each dashboardList as each (each.id)}

@@ -90,7 +90,7 @@
     {#if answer.aggregated}<p class="quiet">{t('app.workload.aggregated')}</p>{/if}
     <div class="scroll">
       <Table label={t('app.workload.title')} isLabelHidden {columns}>
-        {#snippet empty()}<ProductEmpty kind="unused" title={t('app.workload.empty')} />{/snippet}
+        {#snippet empty()}<ProductEmpty product="PLANNING" place={{ type: containers.find(planId)?.type === 'HUB' ? 'HUB' : 'COLLECTION', id: planId }} kind="unused" title={t('app.workload.empty')} />{/snippet}
         {#if answer.aggregated}
           {#if answer.team.length > 0}
             <tr>

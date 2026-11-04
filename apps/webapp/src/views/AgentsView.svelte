@@ -555,7 +555,7 @@
       </section>
     </Stack>
   {:else if all.length === 0}
-    <ProductEmpty
+    <ProductEmpty product="AGENTS"
       kind="unused"
       icon="zap"
       title={t('app.agents.empty_title')}

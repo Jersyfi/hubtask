@@ -87,7 +87,7 @@
     <p class="quiet">{t('app.actuals.summary', { estimate: hoursClockText(answer.estimate_hours), actual: minutesText(answer.minutes) })}</p>
     <div class="scroll">
       <Table label={t('app.actuals.title')} isLabelHidden {columns}>
-        {#snippet empty()}<ProductEmpty kind="unused" title={t('app.actuals.empty')} />{/snippet}
+        {#snippet empty()}<ProductEmpty product="PLANNING" place={{ type: containers.find(planId)?.type === 'HUB' ? 'HUB' : 'COLLECTION', id: planId }} kind="unused" title={t('app.actuals.empty')} />{/snippet}
         {#each rows as { row, depth } (row.entry_id)}
           <tr>
             <th scope="row"><span class="indent" style:--depth={depth}><a href={`/items/${row.entry_id}`}>{row.title}</a></span>{#if row.done}<span class="note">{t('app.actuals.done')}</span>{/if}</th>

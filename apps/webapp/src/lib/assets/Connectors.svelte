@@ -246,7 +246,7 @@
   {:else if !connectors}
     <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if connectors.length === 0}
-    <ProductEmpty
+    <ProductEmpty product="ASSETS" place={{ type: 'HUB', id: hubId }}
       kind="unused"
       icon="link"
       title={t('app.assets.connectors_empty')}

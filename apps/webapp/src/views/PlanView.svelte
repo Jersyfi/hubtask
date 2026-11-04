@@ -474,7 +474,7 @@
   {:else if !schedule}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else if rows.length === 0 && undated.length === 0}
-    <ProductEmpty
+    <ProductEmpty product="PLANNING" place={{ type: containers.find(planId)?.type === 'HUB' ? 'HUB' : 'COLLECTION', id: planId }}
       kind="unused"
       title={t('app.planning.none')}
       description={t('app.planning.none_hint')}
