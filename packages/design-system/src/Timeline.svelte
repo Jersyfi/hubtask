@@ -796,7 +796,7 @@
 
   /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
      descendant of an unpositioned scroller overflows the page instead. */
-  .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); }
+  .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); container-type: inline-size; }
 
   /* `max-content`, so the box is exactly as wide as the columns in it. A grid that filled its
      container would leave the tracks at their own width inside a wider box, and every measurement
@@ -1162,4 +1162,24 @@
   }
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* Narrow - a phone, a narrow pane - the chart comes first (user-experience.md §7.5): a column of
+     titles would leave the bars a sliver, so each title stands on its own line above its bar, as
+     wide as what is visible and kept in view while the chart scrolls within itself. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .axis { margin-inline-start: 0; }
+    .rows { inline-size: max-content; min-inline-size: 100%; }
+    .row { flex-direction: column; align-items: flex-start; gap: 0; }
+    .lead {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+      box-sizing: border-box;
+      inline-size: 100cqi;
+      background: var(--bg-canvas);
+    }
+    .lanes { flex: none; }
+    .grip { display: none; }
+  }
 </style>

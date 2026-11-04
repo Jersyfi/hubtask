@@ -56,9 +56,9 @@ const SCHEDULE = {
 const BASELINE = { id: '01a0e2e0-0000-7000-8000-0000000f1b01', plan_id: COLLECTION.id, name: 'Agreed 1 Oct', taken_at: '2026-10-01T09:00:00Z', taken_by: null, entry_count: 3 };
 
 /** The collection's plan, with every write recorded and answered with what it makes. */
-async function plan(browser) {
+async function plan(browser, width = 1280) {
   const written = [];
-  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900, { timezoneId: 'UTC' });
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -307,4 +307,36 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
+});
+
+// §7.5 on a phone, the chart first: each title stands above its bar as wide as the screen and
+// stays in view while the chart scrolls within itself; the bars start at the screen's start.
+test('chromium: 375 px — the chart takes the width and its titles stand above the bars', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await plan(browser, 375);
+  t.after(close);
+  const at = await page.evaluate(() => {
+    const scroller = document.querySelector('.timeline .scroller');
+    const box = scroller.getBoundingClientRect();
+    const title = document.querySelector('.timeline .lead').getBoundingClientRect();
+    const axis = document.querySelector('.timeline .axis').getBoundingClientRect();
+    const lanes = document.querySelector('.timeline .lanes').getBoundingClientRect();
+    const bars = [...document.querySelectorAll('.timeline .cell[data-filled]')].map((each) => each.getBoundingClientRect())
+      .filter((each) => each.right > box.left && each.left < box.right);
+    return { width: box.width, title: title.width, titleBottom: title.bottom, lanesTop: lanes.top, axis: axis.left, lanes: lanes.left, bars: bars.length, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+  });
+  assert.ok(at.title >= at.width * 0.95, `the title takes ${Math.round(at.title)} of ${Math.round(at.width)} px`);
+  assert.ok(at.titleBottom <= at.lanesTop + 1, 'the title stands above its bar');
+  assert.equal(Math.round(at.lanes), Math.round(at.axis), 'the bars start where the axis does');
+  assert.ok(at.bars > 0, 'bars are drawn in view');
+  assert.ok(at.sideways <= 0, `the page scrolls ${at.sideways} px sideways`);
+  const scrolled = await page.evaluate(() => {
+    const scroller = document.querySelector('.timeline .scroller');
+    scroller.scrollLeft = scroller.scrollWidth;
+    const box = scroller.getBoundingClientRect();
+    const title = document.querySelector('.timeline .lead').getBoundingClientRect();
+    return { box: box.left, title: title.left };
+  });
+  assert.equal(Math.round(scrolled.title), Math.round(scrolled.box), 'the title stays in view as the chart scrolls');
 });
