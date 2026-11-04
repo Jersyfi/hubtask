@@ -11,6 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearMailUndeliverable = `-- name: ClearMailUndeliverable :exec
+DELETE FROM mail_undeliverable WHERE account_id = $1::uuid
+`
+
+func (q *Queries) ClearMailUndeliverable(ctx context.Context, accountID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, clearMailUndeliverable, accountID)
+	return err
+}
+
 const countExpiredNotifications = `-- name: CountExpiredNotifications :one
 SELECT count(*) FROM (
   SELECT 1 FROM notification AS expired
@@ -60,6 +69,22 @@ func (q *Queries) DeleteExpiredNotifications(ctx context.Context, arg DeleteExpi
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const findMailUndeliverable = `-- name: FindMailUndeliverable :one
+SELECT address, since FROM mail_undeliverable WHERE account_id = $1::uuid
+`
+
+type FindMailUndeliverableRow struct {
+	Address string
+	Since   pgtype.Timestamptz
+}
+
+func (q *Queries) FindMailUndeliverable(ctx context.Context, accountID pgtype.UUID) (FindMailUndeliverableRow, error) {
+	row := q.db.QueryRow(ctx, findMailUndeliverable, accountID)
+	var i FindMailUndeliverableRow
+	err := row.Scan(&i.Address, &i.Since)
+	return i, err
 }
 
 const findNotification = `-- name: FindNotification :one
@@ -261,6 +286,28 @@ func (q *Queries) ListNotificationPreferences(ctx context.Context, accountID pgt
 		return nil, err
 	}
 	return items, nil
+}
+
+const markMailUndeliverable = `-- name: MarkMailUndeliverable :exec
+INSERT INTO mail_undeliverable (tenant_id, account_id, address, since)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  since   = EXCLUDED.since
+WHERE mail_undeliverable.address <> EXCLUDED.address
+`
+
+type MarkMailUndeliverableParams struct {
+	AccountID pgtype.UUID
+	Address   string
+	Since     pgtype.Timestamptz
+}
+
+// The address the mail server refused for good. A later refusal at a new address moves the mark
+// to it and keeps nothing of the old one.
+func (q *Queries) MarkMailUndeliverable(ctx context.Context, arg MarkMailUndeliverableParams) error {
+	_, err := q.db.Exec(ctx, markMailUndeliverable, arg.AccountID, arg.Address, arg.Since)
+	return err
 }
 
 const saveNotificationOutcome = `-- name: SaveNotificationOutcome :execrows

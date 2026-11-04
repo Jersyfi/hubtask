@@ -70,3 +70,14 @@ type Preferences interface {
 	// transaction's (ADR-0010).
 	ListForAccount(ctx context.Context, accountID shared.ID) ([]domain.Preference, error)
 }
+
+// Undeliverable holds, per account, the address the mail server refused for good (a 5xx at RCPT
+// or DATA), so the queue stops sending to it until the person clears the mark.
+type Undeliverable interface {
+	// Mark records the refusal. A mark at the same address keeps its first time.
+	Mark(ctx context.Context, accountID shared.ID, address string, since time.Time) error
+	// Find returns the marked address and since when, or ErrNotFound where none is marked.
+	Find(ctx context.Context, accountID shared.ID) (address string, since time.Time, err error)
+	// Clear removes the mark; clearing none is no error.
+	Clear(ctx context.Context, accountID shared.ID) error
+}

@@ -179,6 +179,9 @@ const (
 	// ReasonDeliveryFailed is what a delivery that used up its attempts leaves behind. The detail
 	// of which failure it was belongs in the log and the metric, not in a column a person reads.
 	ReasonDeliveryFailed = "notifications.delivery_failed"
+	// ReasonUndeliverable is an address the mail server refused for good before: a suppression
+	// until the person clears the mark, since every further try would be refused as well.
+	ReasonUndeliverable = "notifications.undeliverable"
 )
 
 // Notification is one thing somebody is to be told.

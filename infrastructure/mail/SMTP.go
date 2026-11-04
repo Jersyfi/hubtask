@@ -345,7 +345,7 @@ func unavailable(cause error) error {
 
 // RecipientRejected is the code of a message the mail server refused for good (a 5xx reply at RCPT
 // or DATA).
-const RecipientRejected = "mail.recipient_rejected"
+const RecipientRejected = port.RecipientRejected
 
 // replyFailure is what a refusal from the server becomes: the step and the reply code, never the
 // reply text.

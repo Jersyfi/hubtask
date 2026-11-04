@@ -95,3 +95,7 @@ var ErrAttachmentRefused = shared.ErrInternal.WithDetail("mail.attachment_refuse
 type Sender interface {
 	Send(ctx context.Context, message Message) error
 }
+
+// RecipientRejected is the detail code of a message the mail server refused for good (a 5xx reply
+// at RCPT or DATA): the address will refuse the next message too.
+const RecipientRejected = "mail.recipient_rejected"

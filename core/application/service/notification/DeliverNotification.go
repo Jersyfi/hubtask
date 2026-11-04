@@ -198,6 +198,9 @@ type DeliverNotification struct {
 	// Addresses answers the workspace's address, so an email carries a link somebody can click. Nil
 	// composes none: a relative path in an email is a dead link.
 	Addresses WorkspaceAddresses
+	// Undeliverable holds the addresses the mail server refused for good: a recipient whose
+	// address is marked is suppressed, and a refusal marks it. Nil marks and skips nothing.
+	Undeliverable repository.Undeliverable
 	// Redemptions mints the credential an invitation mail carries: minted here, at
 	// delivery, so the queue's payload stays identifiers-only and the plaintext exists exactly
 	// once, in the message on its way out. Nil composes the plain link, which is what an
@@ -313,6 +316,8 @@ type subject struct {
 	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
 	// which a member reaches without the administration.
 	personalRule bool
+	// undeliverable is whether the recipient's address is marked refused for good.
+	undeliverable bool
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -418,6 +423,17 @@ func (d DeliverNotification) load(
 		loaded.decision = domain.Decide(record, domain.Recipient{
 			AccountID: record.RecipientID, HasAddress: recipient.Email != "",
 		}, preference)
+		if loaded.decision.Send && d.Undeliverable != nil {
+			address, _, err := d.Undeliverable.Find(ctx, record.RecipientID)
+			switch {
+			case errors.Is(err, shared.ErrNotFound):
+			case err != nil:
+				return err
+			case strings.EqualFold(address, recipient.Email):
+				// A mark at an address the person has since changed holds nothing.
+				loaded.decision = domain.Decision{Reason: domain.ReasonUndeliverable}
+			}
+		}
 
 		if !record.ActorID.IsZero() {
 			actor, err := d.Accounts.Find(ctx, record.ActorID)
@@ -880,6 +896,14 @@ func (d DeliverNotification) recordFailure(
 	final := lastAttempt || shared.AsError(cause).Category == shared.CategoryValidation
 	if err := d.write(ctx, scope, loaded.record.Failed(final)); err != nil {
 		return err
+	}
+	if d.Undeliverable != nil && shared.AsError(cause).DetailCode == mail.RecipientRejected &&
+		loaded.recipient.address != "" {
+		if err := d.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+			return d.Undeliverable.Mark(ctx, loaded.record.RecipientID, loaded.recipient.address, d.Clock.Now())
+		}); err != nil {
+			return err
+		}
 	}
 	if d.Signals != nil {
 		d.Signals.NotificationFailed(ctx,

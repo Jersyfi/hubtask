@@ -2187,6 +2187,13 @@ type MailSetting struct {
 	UpdatedBy           pgtype.UUID
 }
 
+type MailUndeliverable struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	Address   string
+	Since     pgtype.Timestamptz
+}
+
 type Mailbox struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID

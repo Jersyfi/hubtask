@@ -101,3 +101,19 @@ SELECT tenant_id, account_id, category, channel, enabled, include_title, updated
 FROM notification_preference
 WHERE account_id = sqlc.arg('account_id')::uuid
 ORDER BY category, channel;
+
+-- name: MarkMailUndeliverable :exec
+-- The address the mail server refused for good. A later refusal at a new address moves the mark
+-- to it and keeps nothing of the old one.
+INSERT INTO mail_undeliverable (tenant_id, account_id, address, since)
+VALUES (current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('address'), sqlc.arg('since'))
+ON CONFLICT (tenant_id, account_id) DO UPDATE SET
+  address = EXCLUDED.address,
+  since   = EXCLUDED.since
+WHERE mail_undeliverable.address <> EXCLUDED.address;
+
+-- name: FindMailUndeliverable :one
+SELECT address, since FROM mail_undeliverable WHERE account_id = sqlc.arg('account_id')::uuid;
+
+-- name: ClearMailUndeliverable :exec
+DELETE FROM mail_undeliverable WHERE account_id = sqlc.arg('account_id')::uuid;

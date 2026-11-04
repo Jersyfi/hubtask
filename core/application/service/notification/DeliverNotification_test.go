@@ -349,6 +349,80 @@ func TestARefusedRecipientFailsTheRecordAtOnce(t *testing.T) {
 	}
 }
 
+// undeliverableStore is the marks of addresses refused for good, by account.
+type undeliverableStore struct {
+	address map[shared.ID]string
+}
+
+func (u *undeliverableStore) Mark(_ context.Context, account shared.ID, address string, _ time.Time) error {
+	if u.address == nil {
+		u.address = map[shared.ID]string{}
+	}
+	u.address[account] = address
+	return nil
+}
+
+func (u *undeliverableStore) Find(_ context.Context, account shared.ID) (string, time.Time, error) {
+	if address, ok := u.address[account]; ok {
+		return address, now, nil
+	}
+	return "", time.Time{}, shared.ErrNotFound
+}
+
+func (u *undeliverableStore) Clear(_ context.Context, account shared.ID) error {
+	delete(u.address, account)
+	return nil
+}
+
+// A refusal for good marks the recipient's address, and the next message to it is not tried: it
+// is suppressed with the reason the person reads, not refused again by the server.
+func TestARefusedAddressIsMarkedAndSkippedAfterwards(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	marks := &undeliverableStore{}
+	fixture.delivery.Undeliverable = marks
+	fixture.mailbox.err = shared.ErrValidation.WithDetail("mail.recipient_rejected")
+
+	_ = fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false)
+	if marks.address[bert] != "bert@example.org" {
+		t.Fatalf("marks %v, want Bert's address marked", marks.address)
+	}
+
+	next := delivery(t, domain.CategoryComment, true)
+	next.delivery.Undeliverable = marks
+	if err := next.delivery.Execute(t.Context(), tenant, next.record.ID, false); err != nil {
+		t.Fatalf("a marked address: %v", err)
+	}
+	if len(next.mailbox.sent) != 0 {
+		t.Error("a message was sent to an address refused for good")
+	}
+	if stored := next.stored(t); stored.State != domain.StateSuppressed || stored.Reason != domain.ReasonUndeliverable {
+		t.Errorf("record %+v, want SUPPRESSED as undeliverable", stored)
+	}
+}
+
+// A mark at an address the person has since changed holds nothing, and a passing failure marks
+// nothing: only the server's refusal for good does.
+func TestAMarkAtAnOldAddressOrAPassingFailureSkipsNothing(t *testing.T) {
+	fixture := delivery(t, domain.CategoryComment, true)
+	marks := &undeliverableStore{address: map[shared.ID]string{bert: "bert@old.example.org"}}
+	fixture.delivery.Undeliverable = marks
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(fixture.mailbox.sent) != 1 {
+		t.Errorf("%d sent, want the new address tried", len(fixture.mailbox.sent))
+	}
+
+	passing := delivery(t, domain.CategoryComment, true)
+	fresh := &undeliverableStore{}
+	passing.delivery.Undeliverable = fresh
+	passing.mailbox.err = shared.ErrUnavailable.WithDetail("dependency.unavailable")
+	_ = passing.delivery.Execute(t.Context(), tenant, passing.record.ID, false)
+	if len(fresh.address) != 0 {
+		t.Errorf("marks %v after a passing failure", fresh.address)
+	}
+}
+
 // A record the retention sweep took while the job waited is a job that is done, not one that
 // failed: retrying it forever would fill a dead letter with ninety-day-old notifications.
 func TestARecordThatIsGoneIsNotAFailure(t *testing.T) {
