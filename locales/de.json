@@ -9590,6 +9590,7 @@
   "app.whiteboards.export_frame": "Exportiert den gewählten Rahmen.",
   "app.whiteboards.export_selection": "Exportiert die gewählten Objekte als Bild.",
   "app.assets.title": "Assets",
+  "app.assets.graph_more": "{count, plural, one {und # weitere} other {und # weitere}}",
   "app.assets.intake_address_hint": "Jede Sendung trägt das Geheimnis dieses Eingangs; es wird im Menü der Karte gezogen.",
   "app.assets.trail": "Wo die Assets liegen",
   "app.assets.create_more": "Weitere Wege ins Inventar",

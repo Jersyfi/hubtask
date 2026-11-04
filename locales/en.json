@@ -9590,6 +9590,7 @@
   "app.whiteboards.export_frame": "Exports the chosen frame.",
   "app.whiteboards.export_selection": "Exports the chosen objects as a picture.",
   "app.assets.title": "Assets",
+  "app.assets.graph_more": "{count, plural, one {and # more} other {and # more}}",
   "app.assets.intake_address_hint": "Each post carries this intake's secret, drawn from the card's menu.",
   "app.assets.trail": "Where the assets are",
   "app.assets.create_more": "More ways to add to the inventory",

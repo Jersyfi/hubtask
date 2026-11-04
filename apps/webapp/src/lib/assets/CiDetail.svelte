@@ -11,19 +11,20 @@
   // no relate and no remove.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, Checkbox, Input, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, PageHeader, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
   import type { CiBacklinkList, CiClass, CiCompliance, CiImpact, CiRelationType, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import {
     attributeText, changedAttributes, ciReferenceText, cisPath, classWord, cmdb, DIMENSIONS, impactByDepth, PROTECTION_LEVELS, protectionRows, refinements,
-    relationRows, relationWord, typeAllows, type Dimension, type Level, type Words,
+    relationRows, relationSides, relationWord, typeAllows, type RelationRow, type Dimension, type Level, type Words,
   } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { groups } from '../data/groups.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { backlinkHref } from '../data/whiteboards.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -37,9 +38,11 @@
     words: Words;
     mayWrite: boolean;
     onnavigate: (path: string) => void;
+    /** The hub the CI is in, for the trail back to its assets. */
+    hub?: { readonly id: string; readonly name: string };
   }
 
-  const { ci, classes, types, words, mayWrite, onnavigate }: Props = $props();
+  const { ci, classes, types, words, mayWrite, onnavigate, hub }: Props = $props();
 
   const klass = $derived(classes.find((each) => each.key === ci.class));
   const attributes = $derived(klass?.all_attributes ?? []);
@@ -78,6 +81,7 @@
   const nameOf = (id: string) => known.get(id)?.name ?? t('app.assets.unknown_ci');
 
   const rows = $derived(relationRows(ci.id, ci.relations ?? []));
+  const sides = $derived(relationSides(rows));
   $effect(() => {
     const unknown = rows.map((row) => row.other).filter((id) => !known.has(id));
     if (unknown.length === 0) return;
@@ -261,16 +265,33 @@
 </script>
 
 <Stack gap="200">
-  <header class="head">
-    <span class="meta">{classWord(ci.class, classes, words)}</span>
-    <h1 class="title">{ci.name}</h1>
-    <span class="facts">
-      <Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>
-      <Badge size="sm" tone={ci.status === 'OK' ? 'neutral' : 'warning'}>{t(`app.assets.status.${ci.status}`)}</Badge>
-      <span class="meta">{ci.last_seen_at ? t('app.assets.last_seen', { when: when(ci.last_seen_at) }) : t('app.assets.never_seen')}</span>
-    </span>
-    <div><Button size="sm" tone="subtle" icon="link" onclick={() => void copyReference()}>{t('app.assets.copy_reference')}</Button></div>
-  </header>
+  <PageHeader
+    title={ci.name}
+    subtitle={classWord(ci.class, classes, words)}
+    isTitleInBar={viewport.isCompact}
+    breadcrumb={hub
+      ? {
+          trail: [
+            { id: 'place', label: hub.name, href: `/hubs/${hub.id}` },
+            { id: 'assets', label: t('app.assets.title'), href: `/hubs/${hub.id}/assets` },
+            { id: 'ci', label: ci.name },
+          ],
+          label: t('app.assets.trail'),
+          expandLabel: t('app.admin.expand_trail'),
+          onnavigate: (id) => onnavigate(id === 'place' ? `/hubs/${hub.id}` : `/hubs/${hub.id}/assets`),
+        }
+      : undefined}
+    secondary={[{ label: t('app.assets.copy_reference'), icon: 'link', onclick: () => void copyReference() }]}
+  >
+    {#snippet figure()}
+      <!-- The lifecycle and the state are said, not offered: badges without a control's look. -->
+      <span class="facts">
+        <Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>
+        {#if ci.status !== 'OK'}<Badge size="sm" tone="warning">{t(`app.assets.status.${ci.status}`)}</Badge>{/if}
+        <span class="meta">{ci.last_seen_at ? t('app.assets.last_seen', { when: when(ci.last_seen_at) }) : t('app.assets.never_seen')}</span>
+      </span>
+    {/snippet}
+  </PageHeader>
 
   {#if ci.merged_into}
     <Banner tone="info">
@@ -322,21 +343,40 @@
     {#if rows.length === 0}
       <p class="meta">{t('app.assets.no_relations')}</p>
     {:else}
-      <ul class="rows">
-        {#each rows as row (row.id)}
-          <li class="row">
-            <span>
-              {relationWord(types.find((each) => each.key === row.type), row.type, row.outgoing, words)}
-              <a href={`/cis/${row.other}`}>{nameOf(row.other)}</a>
-              <span class="meta">{t('app.assets.from_source', { source: row.source })}</span>
-            </span>
-            {#if mayWrite}
-              {@const relation = ci.relations?.find((each) => each.id === row.id)}
-              {#if relation}<Button size="sm" tone="subtle" icon="x" onclick={() => void act(() => cmdb.unrelate(ci.hub_id, relation), t('app.assets.unrelated'))}>{t('app.assets.unrelate')}</Button>{/if}
-            {/if}
-          </li>
-        {/each}
-      </ul>
+      <div class="relations-frame"><div class="relations">
+        <!-- The picture of the list beside it, which carries every relation with its link; read once. -->
+        <div class="graph" aria-hidden="true" data-ci-graph>
+          {#snippet side(each: readonly RelationRow[], more: number, kind: 'in' | 'out')}
+            <ul class="side" data-side={kind}>
+              {#each each as row (row.id)}
+                <li class="node">
+                  <span class="node-word">{relationWord(types.find((type) => type.key === row.type), row.type, row.outgoing, words)}</span>
+                  <span class="node-name">{nameOf(row.other)}</span>
+                </li>
+              {/each}
+              {#if more > 0}<li class="more">{t('app.assets.graph_more', { count: more })}</li>{/if}
+            </ul>
+          {/snippet}
+          {@render side(sides.incoming, sides.moreIncoming, 'in')}
+          <div class="centre"><span class="node-name">{ci.name}</span></div>
+          {@render side(sides.outgoing, sides.moreOutgoing, 'out')}
+        </div>
+        <ul class="rows">
+          {#each rows as row (row.id)}
+            <li class="row">
+              <span>
+                {relationWord(types.find((each) => each.key === row.type), row.type, row.outgoing, words)}
+                <a href={`/cis/${row.other}`}>{nameOf(row.other)}</a>
+                <span class="meta">{t('app.assets.from_source', { source: row.source })}</span>
+              </span>
+              {#if mayWrite}
+                {@const relation = ci.relations?.find((each) => each.id === row.id)}
+                {#if relation}<Button size="sm" tone="subtle" icon="x" onclick={() => void act(() => cmdb.unrelate(ci.hub_id, relation), t('app.assets.unrelated'))}>{t('app.assets.unrelate')}</Button>{/if}
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </div></div>
     {/if}
     {#if mayWrite && !ci.merged_into}
       <div class="relate">
@@ -469,8 +509,6 @@
 </Stack>
 
 <style>
-  .head { display: grid; gap: var(--sp-050); }
-  .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
   .part { display: grid; gap: var(--sp-100); }
   .part-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
@@ -478,7 +516,29 @@
   .pairs { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: var(--sp-050) var(--sp-150); margin: 0; }
   .pairs dt { color: var(--text-secondary); }
   .pairs dd { margin: 0; display: flex; flex-wrap: wrap; gap: var(--sp-050); align-items: baseline; overflow-wrap: anywhere; }
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); align-content: start; }
+  /* The graph beside its list from a desk's width, above it on a phone; the lines are each node's
+     own edge towards the centre, so nothing is measured. */
+  .relations-frame { container-type: inline-size; }
+  .relations { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); }
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a container query cannot read a custom property. */
+  @container (inline-size >= 905px) { .relations { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
+  .graph {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(0, 1fr); align-items: center; gap: var(--sp-300);
+    padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface-sunken);
+  }
+  .side { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
+  .node, .centre {
+    position: relative; display: grid; gap: var(--sp-025); padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); background: var(--bg-surface); min-inline-size: 0;
+  }
+  .centre { border-color: var(--accent-primary); border-width: var(--bw-thick); font-weight: var(--fw-semibold); }
+  .node::after { content: ''; position: absolute; inset-block-start: 50%; inline-size: var(--sp-300); border-block-start: var(--bw-hairline) solid var(--border-strong); }
+  .side[data-side='in'] .node::after { inset-inline-start: 100%; }
+  .side[data-side='out'] .node::after { inset-inline-end: 100%; }
+  .node-word { color: var(--text-subtle); font-size: var(--fs-050); }
+  .node-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more { color: var(--text-subtle); font-size: var(--fs-075); padding-inline: var(--sp-100); }
   .row {
     display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100);
     padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);

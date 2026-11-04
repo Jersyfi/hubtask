@@ -12,7 +12,7 @@ import {
   alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
   changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
-  sideBySide, typeAllows, assetStrips, assetsFigure,
+  sideBySide, typeAllows, assetStrips, assetsFigure, relationSides, GRAPH_SIDE,
 } from './cmdb.ts';
 import {
   aliasDefine, assetDraft, assetMissing, assetMoves, assetRegister, assetsPath, assetTone, attestationsInOrder, attestPath, campaignClosePath,
@@ -472,4 +472,15 @@ test('the Assets head says how many CIs there are, how many need attention and h
   const health = { total: 218, problems: [{}, {}, {}, {}, {}, {}] };
   assert.deepEqual(assetsFigure(health, undefined), { total: 218, wanting: 6, firing: undefined });
   assert.deepEqual(assetsFigure(health, [{ status: 'FIRING' }, { status: 'RESOLVED' }, { status: 'FIRING' }]), { total: 218, wanting: 6, firing: 2 });
+});
+
+test('a CI\'s relation graph draws what points at it and what it points at, the rest counted', () => {
+  const row = (id: string, outgoing: boolean) => ({ id, type: 'runs_on', outgoing, other: `o-${id}`, source: 'manual', lastSeen: '' });
+  const rows = [...Array.from({ length: GRAPH_SIDE + 2 }, (_, at) => row(`out${at}`, true)), row('in0', false)];
+  const sides = relationSides(rows);
+  assert.equal(sides.outgoing.length, GRAPH_SIDE);
+  assert.equal(sides.moreOutgoing, 2);
+  assert.deepEqual(sides.incoming.map((each) => each.id), ['in0']);
+  assert.equal(sides.moreIncoming, 0);
+  assert.deepEqual(relationSides([]), { incoming: [], outgoing: [], moreIncoming: 0, moreOutgoing: 0 });
 });

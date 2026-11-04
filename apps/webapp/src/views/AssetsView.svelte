@@ -128,7 +128,6 @@
 
 <div class="assets">
   {#if ciId}
-    {#if hub}<a class="hub" href={`/hubs/${hub.id}/assets`}>{hub.name} · {t('app.assets.title')}</a>{/if}
     {#if openRefusal || !current || classesRead.state.status !== 'ready'}
       <h1 class="title">{t('app.assets.title')}</h1>
     {/if}
@@ -138,7 +137,7 @@
       <Spinner label={t('app.assets.loading')} />
     {:else}
       {#key current.id}
-        <CiDetail ci={current} {classes} {types} {words} {mayWrite} {onnavigate} />
+        <CiDetail ci={current} {classes} {types} {words} {mayWrite} {onnavigate} hub={hub ? { id: hub.id, name: hub.name } : undefined} />
       {/key}
     {/if}
   {:else}
@@ -223,5 +222,4 @@
   .figure { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .manage { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-150); }
   .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
-  .hub { color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

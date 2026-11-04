@@ -211,6 +211,30 @@ export function relationRows(ciId: string, relations: readonly CiRelation[]): Re
 }
 
 /** Whether a type may join a CI of one class to one of another; no pair joins any (`Allows`). */
+/** How many neighbours a side of a CI's relation graph draws before it says how many more. */
+export const GRAPH_SIDE = 6;
+
+/**
+ * A CI's relations as its small graph's two sides (user-experience.md §7.3): what points at it and
+ * what it points at, each at most `GRAPH_SIDE` with the rest counted. The list beside the graph
+ * holds every relation; the graph is the picture of it.
+ */
+export function relationSides(rows: readonly RelationRow[]): {
+  readonly incoming: readonly RelationRow[];
+  readonly outgoing: readonly RelationRow[];
+  readonly moreIncoming: number;
+  readonly moreOutgoing: number;
+} {
+  const incoming = rows.filter((each) => !each.outgoing);
+  const outgoing = rows.filter((each) => each.outgoing);
+  return {
+    incoming: incoming.slice(0, GRAPH_SIDE),
+    outgoing: outgoing.slice(0, GRAPH_SIDE),
+    moreIncoming: Math.max(0, incoming.length - GRAPH_SIDE),
+    moreOutgoing: Math.max(0, outgoing.length - GRAPH_SIDE),
+  };
+}
+
 export function typeAllows(type: CiRelationType, from: CiClass | undefined, to: CiClass | undefined): boolean {
   if (type.archived) return false;
   if (type.pairs.length === 0) return true;

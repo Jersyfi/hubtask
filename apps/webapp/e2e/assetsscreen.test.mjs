@@ -197,3 +197,35 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     assert.deepEqual(failures, []);
   });
 }
+
+const RELATED = {
+  ...MANY[1],
+  relations: [
+    ...MANY.slice(2, 10).map((other, at) => ({ id: `r-out-${at}`, type: 'runs_on', source_ci_id: MANY[1].id, target_ci_id: other.id, data_source: 'manual', last_seen: '2026-11-01T08:00:00Z' })),
+    { id: 'r-in-0', type: 'runs_on', source_ci_id: MANY[0].id, target_ci_id: MANY[1].id, data_source: 'netbox', last_seen: '2026-11-01T08:00:00Z' },
+  ],
+};
+
+for (const width of [1280, 375]) {
+  test(`chromium ${width} px: a CI's relations are a small graph with the list beside it`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await open(browser, { width, height: 900, path: `/cis/${RELATED.id}` });
+    t.after(() => context.close());
+    await context.route(`**/api/v1/cis/${RELATED.id}`, (route) => route.fulfill({ json: RELATED }));
+    await context.route(`**/api/v1/cis/${RELATED.id}/impact**`, (route) => route.fulfill({ json: { ci_id: RELATED.id, direction: 'DOWNSTREAM', reached: [], services: [] } }));
+    await page.reload();
+
+    const graph = page.locator('[data-ci-graph]');
+    await graph.waitFor({ timeout: 20_000 });
+    assert.equal(await graph.getAttribute('aria-hidden'), 'true', 'the graph is read a second time');
+    // Six of the eight it points at, the rest counted; the one pointing at it on the other side.
+    assert.equal(await graph.locator('[data-side=out] .node').count(), 6);
+    assert.match(await graph.locator('[data-side=out]').innerText(), /and 2 more/);
+    assert.equal(await graph.locator('[data-side=in] .node').count(), 1);
+    // The list carries every relation with its link.
+    assert.equal(await page.locator('section[aria-labelledby=ci-relations] .rows a').count(), 9);
+    await noSidewaysScroll(page, `ci ${width}`);
+    assert.deepEqual(failures, []);
+  });
+}
