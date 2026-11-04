@@ -99,6 +99,24 @@ test('chromium: a private installation sees only its own model, as always', asyn
   assert.doesNotMatch(text ?? '', /your provider|offered|This workspace may use|must process content/i);
 });
 
+// The head says what answers, and an offered model the installation withdrew is the one state
+// that broke: nothing answers, said in the head and counted on the column's *AI* row
+// (user-experience.md §7.10).
+test('chromium: a withdrawn offered model is said in the head and counted in the column', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, sourceRoutes(sourceUnder('OFFERED', { source: 'OFFERED' })));
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/people`);
+  const column = page.getByRole('navigation', { name: 'Administration' });
+  await column.getByText('Nothing answers').waitFor({ timeout: 15_000 });
+  assert.equal(await column.getByRole('treeitem', { name: /Nothing answers/ }).count(), 1, 'the figure is not heard with the row');
+
+  await page.goto(`${served.origin}/administration/ai`);
+  await page.locator('[data-ai-answering="withdrawn"]').getByText('the offered model was withdrawn', { exact: false }).waitFor({ timeout: 15_000 });
+});
+
 // D5 (UC-AI-05 checks 1, 2; UC-AI-02 check 5): the offered model locked - one card, one switch,
 // processor and where in words, and no own form. Switching it on is the consent, one request.
 test('chromium: a consumer switches on the offered model with one control', async (t) => {

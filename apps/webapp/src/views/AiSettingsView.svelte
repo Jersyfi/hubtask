@@ -25,9 +25,14 @@
   // processor and where - and the own model's form only where the workspace may use its own. With
   // nothing offered and nothing decided this is the screen it always was (P-10).
 
+  //
+  // **The head says what answers** (user-experience.md §7.10), as a badge in words: an offered
+  // model, the own one, or why nothing does - a withdrawn offered model being the one that broke.
+
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
+  import { AI_ANSWERING_TONE, aiAnsweringOf } from '../lib/data/aianswering.ts';
   import { TransportError } from '@hubtask/sync-engine';
   import type { AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
@@ -140,6 +145,8 @@
 
   const reading = $derived(aiProvider.state);
   const provider = $derived(aiProvider.provider);
+  const answering = $derived(aiAnsweringOf(source, provider));
+  const isAnsweringKnown = $derived(reading.status === 'ready' || (reading.status === 'failed' && reading.error.status === 404));
 
   /** A `404` is a workspace that has never configured one — the form, not an error. */
   const unconfigured = $derived(reading.status === 'failed' && reading.error.status === 404);
@@ -307,7 +314,13 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet figure()}
+      {#if isAnsweringKnown && source}
+        <span data-ai-answering={answering}><Badge tone={AI_ANSWERING_TONE[answering]}>{t(`app.ai.answering_${answering}`)}</Badge></span>
+      {/if}
+    {/snippet}
+  </PageHeader>
   <div class="file"><ViewSectionsAsFile {...pagePart('/administration/ai')} /></div>
 
     <Stack gap="300">

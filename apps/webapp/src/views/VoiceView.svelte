@@ -12,10 +12,15 @@
   //
   // **Where the installation publishes a skill**, all of that is the operator's: the page says to
   // enable it in the Alexa app and link the account.
+  //
+  // **The head says what is connected** (user-experience.md §7.10), from what is saved rather
+  // than the draft: spoken entries on or off, and whether a skill answers. Nothing here fails on
+  // its own - a skill that stops answering is Alexa's to say - so nothing is counted in the column.
 
   import { untrack } from 'svelte';
 
   import {
+    Badge,
     Banner,
     Button,
     IconButton,
@@ -56,6 +61,7 @@
   }
 
   let loaded = $state<VoiceSettings | undefined>(undefined);
+  const isSkillConnected = $derived(loaded?.installation_skill === true || Boolean(loaded?.skill_id));
   let readFailure = $state<string | undefined>(undefined);
   let enabled = $state(false);
   let defaultList = $state('');
@@ -240,7 +246,16 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet figure()}
+      {#if loaded}
+        <span class="figure" data-voice-figure>
+          <Badge tone={loaded.enabled ? 'success' : 'neutral'}>{t(loaded.enabled ? 'app.voice.state_on' : 'app.voice.state_off')}</Badge>
+          <Badge tone={isSkillConnected ? 'success' : 'neutral'}>{t(isSkillConnected ? 'app.voice.state_skill' : 'app.voice.state_no_skill')}</Badge>
+        </span>
+      {/if}
+    {/snippet}
+  </PageHeader>
   <p class="quiet">{t('app.voice.intro')}</p>
 
   <WorkspaceGate permission="AUTOMATION">
@@ -387,6 +402,8 @@
 </Stack>
 
 <style>
+  .figure { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); }
+
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   h3 { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }

@@ -56,6 +56,10 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       await page.goto(`${served.origin}/administration/voice`);
       const on = page.locator('[data-voice-settings]');
       await on.waitFor({ timeout: 15_000 });
+      // The head says what is connected, from what is saved (user-experience.md §7.10).
+      const figure = page.locator('[data-voice-figure]');
+      await figure.getByText('Spoken entries off').waitFor();
+      await figure.getByText('Alexa not connected yet').waitFor();
 
       // UC-WRK-35 check 1 and UC-WRK-35 check 2: on, a default list, a name - saved together.
       await on.getByText('Take spoken entries').click();
@@ -69,6 +73,7 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       assert.equal(saved?.body.enabled, true);
       assert.equal(saved?.body.default_collection_id, COLLECTION.id);
       assert.deepEqual(saved?.body.aliases, [{ phrase: 'fridge', collection_id: COLLECTION.id }]);
+      await figure.getByText('Spoken entries on').waitFor({ timeout: 5_000 });
 
       // UC-WRK-35 check 3: a sentence tried, nothing added.
       const trying = page.locator('[data-voice-try]');

@@ -73,6 +73,8 @@
   import { calendarPushesPath, pushColumnFigure } from '../data/calendarpush.ts';
   import { MAILBOXES, mailboxColumnFigure, type MailboxesRead } from '../data/mailintake.svelte.ts';
   import { engine } from '../data/engine.ts';
+  import { aiProvider } from '../data/aiprovider.svelte.ts';
+  import { aiAnsweringOf, aiColumnFigure } from '../data/aianswering.ts';
   import type { CalendarPushList } from '@hubtask/sync-engine';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -168,6 +170,11 @@
       engine.subscribe<MailboxesRead>({ path: MAILBOXES }, (next) => (mailboxes = next.status === 'ready' ? (next.data.mailboxes ?? []) : [])),
     );
   });
+  // And which AI answers, for an offered model the installation withdrew: nothing answers then.
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => aiProvider.open());
+  });
   let pushes = $state<CalendarPushList['data']>([]);
   $effect(() => {
     if (!session.isSignedIn || route.area !== 'profile') return;
@@ -182,6 +189,8 @@
       if (switchedOff) figures['webhooks'] = switchedOff;
       const failing = holdsHere('AUTOMATION') === true ? mailboxColumnFigure(mailboxes, t) : undefined;
       if (failing) figures['mail'] = failing;
+      const silent = aiProvider.source ? aiColumnFigure(aiAnsweringOf(aiProvider.source, aiProvider.provider), t) : undefined;
+      if (silent) figures['ai'] = silent;
     }
     if (route.area === 'profile') {
       const stopped = pushColumnFigure(pushes, t);
