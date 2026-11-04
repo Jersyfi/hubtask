@@ -54,7 +54,7 @@
       failure =
         cause instanceof TransportError
           ? renderProblem(cause, messages)
-          : { message: messages.t('errors.internal', {}) };
+          : { message: messages.t('app.something_went_wrong') };
     } finally {
       working = undefined;
     }

@@ -98,7 +98,7 @@
   function problemOf(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
 
   function bodyOf(d: Draft): LdapDirectoryConfiguration {

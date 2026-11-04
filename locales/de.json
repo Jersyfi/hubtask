@@ -5804,6 +5804,7 @@
   "app.archive.entries_search": "Archivierte Einträge in der Suche",
   "app.trash.title": "Papierkorb",
   "app.trash.empty": "Nichts wurde gelöscht.",
+  "app.trash.empty_detail": "Was du löschst, landet zuerst hier und lässt sich von hier aus wiederherstellen, bis es endgültig verschwindet.",
   "app.trash.empty_body": "Das lässt sich nicht rückgängig machen. Löschungen hier: {count}. Jede nimmt alles mit, was mit ihr hineingekommen ist. Nichts unter einer rechtlichen Sperre wird entfernt.",
   "app.trash.deleted_at": "Gelöscht {when}",
   "app.trash.deleted_by": "von {name}",

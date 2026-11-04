@@ -275,7 +275,7 @@
   function problemOf(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.

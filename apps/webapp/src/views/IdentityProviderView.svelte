@@ -213,7 +213,7 @@
   function problemOf(cause: unknown): ReturnType<typeof renderProblem> {
     return cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
   /** Whether the reader may configure the workspace's providers (`MANAGE_MEMBERS`). */
   const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');

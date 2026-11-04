@@ -571,7 +571,7 @@ class Session {
       return true;
     } catch (error) {
       // Everything the engine throws is a `TransportError`; anything else would be a defect in
-      // the seam rather than an answer, and `errors.internal` is what a reader is owed for one.
+      // the seam rather than an answer, with no reference to quote.
       if (isPaused(error)) {
         // Not a refusal of what the person typed: the workspace is paused, and the screen says so
         // in its own words rather than as a red sentence beside the form.
@@ -584,7 +584,7 @@ class Session {
       } else {
         this.#problem = error instanceof TransportError
           ? renderProblem(error, messages)
-          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+          : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
       }
       if (error instanceof TransportError) options.onRefusal?.(error);
       this.#discard({ keepUnsent: true });

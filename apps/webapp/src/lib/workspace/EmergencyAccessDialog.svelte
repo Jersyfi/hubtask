@@ -53,7 +53,7 @@
         reasonError = problem.fields.get('/reason');
         refusal = reasonError ? undefined : problem.message;
       } else {
-        refusal = t('errors.internal');
+        refusal = t('app.something_went_wrong');
       }
     } finally {
       isWorking = false;
