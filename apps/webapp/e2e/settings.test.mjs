@@ -858,6 +858,9 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
   await page.goto(`${served.origin}/profile/tokens`);
   const token = page.getByRole('row', { name: /Nightly script/ });
   await token.waitFor({ timeout: 15_000 });
+  // What it may do is said in words, never as the scope's key (user-experience.md §5.4).
+  await token.getByText('Read your entries').waitFor({ timeout: 5_000 });
+  assert.equal(await token.getByText('items:read', { exact: true }).count(), 0, 'the scope is shown as its key');
   await ask(token.getByRole('button', { name: 'Withdraw' }), 'Withdraw Nightly script?', 'Withdraw');
   assert.equal(sent.length, 1, `withdrawing the token sent ${sent.join(', ')}`);
 });

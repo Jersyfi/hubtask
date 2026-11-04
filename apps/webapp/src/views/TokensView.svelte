@@ -44,6 +44,7 @@
   import { deviceZone, endOfDayIn, todayIn } from '../lib/i18n/zone.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { scopeWordCode } from '../lib/data/agents.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { check, focusFirst, isComplete, without, type Missing } from '../lib/forms/missing.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
@@ -232,6 +233,12 @@
       isWorking = false;
     }
   }
+
+  /**
+   * A scope in the consent screen's words, its identifier where this build has none: the renderer
+   * would humanise an unknown code into a sentence nobody wrote (ConsentView's `wordFor`).
+   */
+  const scopeWord = (scope: string): string => (messages.has(scopeWordCode(scope)) ? t(scopeWordCode(scope)) : scope);
 </script>
 
 <Stack gap="300">
@@ -277,7 +284,7 @@
       {#each order.rows as token (token.id)}
         <tr>
           <th scope="row" class="name">{token.name}</th>
-          <td class="scopes">{token.scopes.join(', ')}</td>
+          <td class="scopes">{token.scopes.map(scopeWord).join(', ')}</td>
           <td>{when(token.expires_at)}</td>
           <td>{when(token.last_used_at) ?? t('app.tokens.never_used')}</td>
           <td>
@@ -358,7 +365,7 @@
           <CheckboxGroup
             label={t('app.tokens.scopes')}
             hint={t('app.tokens.scopes_hint')}
-            options={scopes.map((scope) => ({ value: scope, label: scope }))}
+            options={scopes.map((scope) => ({ value: scope, label: scopeWord(scope), hint: scopeWord(scope) === scope ? undefined : scope }))}
             selected={chosen}
             error={missing.scopes ? t(missing.scopes) : undefined}
             onChange={(next) => {
