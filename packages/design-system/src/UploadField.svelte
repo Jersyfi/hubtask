@@ -19,6 +19,7 @@
   // than swallowed — the reader learns before the upload rather than after it.
 
   import Button from './Button.svelte';
+  import IconButton from './IconButton.svelte';
   import ProgressBar from './ProgressBar.svelte';
   import type { ControlSize, Disableable } from './control.ts';
   import ReasonMark from './_ReasonMark.svelte';
@@ -34,9 +35,10 @@
     /**
      * `target` draws a drop area around the button, for a form; `button` draws the button alone,
      * for a toolbar, where the button's words are the visible name and the label is kept for the
-     * accessibility tree only (user-experience.md §5.10).
+     * accessibility tree only (user-experience.md §5.10). `icon` is the button as a paperclip
+     * alone, for a bar of icon buttons (a whiteboard's tools), its words the button's name.
      */
-    variant?: 'target' | 'button';
+    variant?: 'target' | 'button' | 'icon';
     /** The button's size; a toolbar's `sm`. */
     size?: ControlSize;
     /** What the drop target says. An addition to the button, never the only way in. */
@@ -158,9 +160,13 @@
       onchange={(event) => take((event.currentTarget as HTMLInputElement).files)}
     />
     <span class="painted">
-      <Button tone={variant === 'button' ? 'subtle' : 'secondary'} {size} icon={variant === 'button' ? 'paperclip' : undefined} disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
-        {chooseLabel}
-      </Button>
+      {#if variant === 'icon'}
+        <IconButton icon="paperclip" label={chooseLabel} {size} {disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()} />
+      {:else}
+        <Button tone={variant === 'button' ? 'subtle' : 'secondary'} {size} icon={variant === 'button' ? 'paperclip' : undefined} disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
+          {chooseLabel}
+        </Button>
+      {/if}
       {#if variant === 'target' && dropLabel}<span class="drop">{dropLabel}</span>{/if}
     </span>
   </div>
@@ -216,11 +222,11 @@
 
   /* The button alone: no area, no gap, and the label for the accessibility tree only - the
      button's words are what a sighted reader sees. */
-  .field[data-variant='button'] { display: inline-flex; }
+  .field:is([data-variant='button'], [data-variant='icon']) { display: inline-flex; }
 
-  .field[data-variant='button'] .target { border: none; padding: 0; border-radius: var(--r-sm); }
+  .field:is([data-variant='button'], [data-variant='icon']) .target { border: none; padding: 0; border-radius: var(--r-sm); }
 
-  .field[data-variant='button'] .label {
+  .field:is([data-variant='button'], [data-variant='icon']) .label {
     position: absolute;
     /* VisuallyHidden's clip pattern: the one pixel is not a design value (see there). */
     /* design-system-lint-ignore */

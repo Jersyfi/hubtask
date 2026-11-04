@@ -28,13 +28,23 @@
     isNoteNews?: boolean;
     /** The card's act: *Take*, *Update*, *Preview*. */
     action?: Snippet;
+    /** A small drawing of what the template makes, in place of the mark (a board's frames, a page's outline). */
+    preview?: Snippet;
+    /** The card is the one chosen in a gallery that is a choice (a create dialog); the act says it in words too. */
+    isChosen?: boolean;
+    /** Tighter, for a gallery inside a dialog where the cards share the space with a form. */
+    isCompact?: boolean;
   }
 
-  const { name, summary, mark = 'layout-template', products = [], note, isNoteNews = false, action, ...rest }: Props = $props();
+  const { name, summary, mark = 'layout-template', products = [], note, isNoteNews = false, action, preview, isChosen = false, isCompact = false, ...rest }: Props = $props();
 </script>
 
-<li class="template" {...rest}>
-  <span class="mark" aria-hidden="true"><Icon name={mark} /></span>
+<li class="template" data-chosen={isChosen ? '' : undefined} data-compact={isCompact ? '' : undefined} {...rest}>
+  {#if preview}
+    <span class="preview" aria-hidden="true">{@render preview()}</span>
+  {:else}
+    <span class="mark" aria-hidden="true"><Icon name={mark} /></span>
+  {/if}
   <span class="name">{name}</span>
   {#if summary}<span class="summary">{summary}</span>{/if}
   {#if products.length > 0}
@@ -59,6 +69,24 @@
     box-shadow: var(--shadow-raised);
     min-inline-size: 0;
   }
+
+  /* The chosen card differs by its edge's width as well as its colour (SC 1.4.1). */
+  .template[data-chosen] {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 var(--bw-thick) var(--accent-primary);
+  }
+
+  .preview {
+    display: block;
+    align-self: stretch;
+    block-size: var(--sp-1000);
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+    overflow: hidden;
+  }
+
+  .template[data-compact] { padding: var(--sp-100); gap: var(--sp-025); }
+  .template[data-compact] .preview { block-size: var(--sp-800); }
 
   .mark {
     display: inline-flex;

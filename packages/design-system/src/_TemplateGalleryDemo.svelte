@@ -6,7 +6,7 @@
   import TemplateCard from './TemplateCard.svelte';
   import TemplateGallery from './TemplateGallery.svelte';
 
-  const { mode = 'family' }: { mode?: 'family' | 'long' } = $props();
+  const { mode = 'family' }: { mode?: 'family' | 'long' | 'choice' } = $props();
 </script>
 
 {#if mode === 'family'}
@@ -18,6 +18,17 @@
       {#snippet action()}<Button size="sm">Update</Button>{/snippet}
     </TemplateCard>
     <TemplateCard name="Internal IT" note="In use" />
+  </TemplateGallery>
+{:else if mode === 'choice'}
+  <TemplateGallery label="Templates">
+    {#each [{ name: 'Blank', summary: '' }, { name: 'Retrospective', summary: 'Went well, to improve, actions' }, { name: 'Brainstorm', summary: 'A topic with ideas around it' }] as { name, summary }, i (name)}
+      <TemplateCard {name} {summary} isChosen={i === 1}>
+        {#snippet preview()}
+          <svg viewBox="0 0 120 60" width="100%" height="100%"><rect x={10 + i * 30} y="10" width="30" height="40" rx="3" fill="currentColor" opacity="0.3" /></svg>
+        {/snippet}
+        {#snippet action()}<Button size="sm" tone={i === 1 ? 'primary' : 'secondary'} aria-pressed={i === 1}>{i === 1 ? 'Chosen' : 'Choose'}</Button>{/snippet}
+      </TemplateCard>
+    {/each}
   </TemplateGallery>
 {:else}
   <TemplateGallery label="Vorlagen für Dienstleistungen und Kundenbetreuung">

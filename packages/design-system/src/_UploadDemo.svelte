@@ -30,6 +30,7 @@
   </InContext>
 {:else if mode === 'button'}
   <UploadField variant="button" size="sm" label="Attachment" chooseLabel="Insert a file" onChoose={() => {}} />
+  <UploadField variant="icon" label="Attachment" chooseLabel="Put a file on the board" onChoose={() => {}} />
 {:else}
 <UploadField
   label="Attachment"

@@ -22,3 +22,9 @@ export const long: Story = {
   about: 'The name wraps rather than widening the card; the chips wrap under it.',
   args: { mode: 'long' },
 };
+
+export const choice: Story = {
+  name: 'A choice with previews',
+  about: 'A create dialog’s gallery: each card shows a drawing of what it makes in place of the mark, and the chosen one has a thicker brand edge and says *Chosen* on its act.',
+  args: { mode: 'choice' },
+};
