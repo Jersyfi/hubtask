@@ -36,3 +36,26 @@ func TestATimerQueuedOfflineKeepsTheDevicesMoments(t *testing.T) {
 		t.Fatalf("a start a day and more ago: %v", err)
 	}
 }
+
+// UC-TIM-01 checks 3 and 9, user-experience.md §7.6: a timer left running past a day is stopped at
+// a moment within a day of its start - a stop queued offline and synced days later, or *Record
+// until…* - and records that span on its start's day; stopped now it is still refused.
+func TestATimerLeftRunningIsStoppedAtAMomentWithinADayOfItsStart(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	f.clock.now = monday
+	if _, err := (StartTimer{Keeper: f.keeper}).Execute(ctx, as(ana), checkout, "development", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	f.clock.now = monday.Add(3 * 24 * time.Hour)
+	if _, err := (StopTimer{Keeper: f.keeper}).Execute(ctx, as(ana), time.UTC); detail(err) != "timers.ran_too_long" {
+		t.Fatalf("a stop now, three days on: %v, want timers.ran_too_long", err)
+	}
+	if _, err := (StopTimer{Keeper: f.keeper}).ExecuteAt(ctx, as(ana), time.UTC, monday.Add(25*time.Hour)); detail(err) != "timers.ran_too_long" {
+		t.Fatalf("a stop more than a day after the start: %v, want timers.ran_too_long", err)
+	}
+	r, err := StopTimer{Keeper: f.keeper}.ExecuteAt(ctx, as(ana), time.UTC, monday.Add(8*time.Hour))
+	if err != nil || r.Minutes != 480 || r.Day.String() != "2026-11-02" {
+		t.Fatalf("a stop at the start's day's end of work: %+v %v, want 480 minutes on 2026-11-02", r, err)
+	}
+}

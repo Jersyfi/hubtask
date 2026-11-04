@@ -100,7 +100,7 @@ func timerInput() []usecase.Field {
 	}
 }
 
-// deviceMoment is the moment a device says a timer started or stopped, held to the server's clock:
+// deviceMoment is the moment a device says a timer started, held to the server's clock:
 // a moment ahead of it is now - a device's clock running fast -, and one more than a day before it
 // is a timer run too long. Without one it is now.
 func deviceMoment(at, now time.Time) (time.Time, error) {
@@ -170,12 +170,14 @@ func (h StopTimer) ExecuteAt(ctx context.Context, actor appshared.ActorContext, 
 		return domain.Record{}, err
 	}
 	now := h.Keeper.Clock.Now()
-	stopped, err := deviceMoment(at, now)
-	if err != nil {
-		return domain.Record{}, err
+	// A past moment is not held to a day before now as a start is: the span from the start bounds
+	// it (Timer.Stop), so a stop synced days later or *Record until…* keeps its time.
+	stopped := at
+	if at.IsZero() || at.After(now) {
+		stopped = now
 	}
 	var record domain.Record
-	err = h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		timer, running, err := h.Keeper.Store.Timer(ctx, actor.AccountID)
 		if err != nil {
 			return err
@@ -217,12 +219,12 @@ func (h StopTimer) Descriptor() usecase.Descriptor {
 		Name: StopTimerName,
 		Summary: "Stops the caller's timer and records its time, rounded up to the started minute, on the day it " +
 			"started in the zone. A timer run longer than a day is refused (timers.ran_too_long) and keeps running " +
-			"until it is discarded.",
+			"until it is discarded or stopped at a moment within a day of its start.",
 		SideEffects: "Deletes the timer, writes the record and an audit entry.",
 		TokenScope:  itemsWrite,
 		Input: []usecase.Field{
 			{Name: "zone", Kind: usecase.KindString, Description: "The person's time zone (IANA); UTC without."},
-			{Name: "stopped_at", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "When the device stopped it (RFC 3339), a stop queued offline; now without one."},
+			{Name: "stopped_at", Kind: usecase.KindString, Format: usecase.FormatDateTime, Description: "When it stopped (RFC 3339): a stop queued offline, or a moment within a day of the start for a timer left running; now without one."},
 		},
 		Audit: usecase.AuditDeclaration{Action: TimerStoppedAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {

@@ -28546,7 +28546,7 @@ type StartTimerJSONBody struct {
 
 // StopTimerJSONBody defines parameters for StopTimer.
 type StopTimerJSONBody struct {
-	// StoppedAt When the device stopped it, for a stop made while the server was away; now without one, and a moment ahead of the server's clock is now.
+	// StoppedAt When it stopped: a stop made while the server was away, or a moment within a day of the start for a timer left running; now without one, and a moment ahead of the server's clock is now.
 	StoppedAt *time.Time `json:"stopped_at,omitempty"`
 
 	// Zone An IANA time zone; UTC without.
@@ -40752,7 +40752,7 @@ type ClientInterface interface {
 
 	// StopTimerWithBody Stop the timer into a record
 	//
-	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40761,7 +40761,7 @@ type ClientInterface interface {
 
 	// StopTimer Stop the timer into a record
 	//
-	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -63207,7 +63207,7 @@ func (c *Client) StartTimer(ctx context.Context, body StartTimerJSONRequestBody,
 
 // StopTimerWithBody Stop the timer into a record
 //
-// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63226,7 +63226,7 @@ func (c *Client) StopTimerWithBody(ctx context.Context, contentType string, body
 
 // StopTimer Stop the timer into a record
 //
-// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -114785,7 +114785,7 @@ type ClientWithResponsesInterface interface {
 
 	// StopTimerWithBodyWithResponse Stop the timer into a record
 	//
-	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -114794,7 +114794,7 @@ type ClientWithResponsesInterface interface {
 
 	// StopTimerWithResponse Stop the timer into a record
 	//
-	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+	// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -173797,7 +173797,7 @@ func (c *ClientWithResponses) StartTimerWithResponse(ctx context.Context, body S
 
 // StopTimerWithBodyWithResponse Stop the timer into a record
 //
-// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -173812,7 +173812,7 @@ func (c *ClientWithResponses) StopTimerWithBodyWithResponse(ctx context.Context,
 
 // StopTimerWithResponse Stop the timer into a record
 //
-// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.
+// Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

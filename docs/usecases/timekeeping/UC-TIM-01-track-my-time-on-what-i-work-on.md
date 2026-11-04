@@ -33,7 +33,7 @@ meeting on no entry.
    not found, an unknown or archived kind `work_types.not_found`.
 3. One timer runs per person (`timers.running`); stopped, it is a record of the day it started
    in the person's zone, and a timer run longer than a day is refused with `timers.ran_too_long`
-   until it is discarded.
+   until it is discarded or stopped at a moment within a day of its start.
 4. A person changes and removes only their own records; another person's record answers not found.
 5. The note never reaches the audit trail; the day, the minutes, the kind, the entry and the
    billable flag do.

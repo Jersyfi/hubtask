@@ -28540,7 +28540,7 @@ type StartTimerJSONBody struct {
 
 // StopTimerJSONBody defines parameters for StopTimer.
 type StopTimerJSONBody struct {
-	// StoppedAt When the device stopped it, for a stop made while the server was away; now without one, and a moment ahead of the server's clock is now.
+	// StoppedAt When it stopped: a stop made while the server was away, or a moment within a day of the start for a timer left running; now without one, and a moment ahead of the server's clock is now.
 	StoppedAt *time.Time `json:"stopped_at,omitempty"`
 
 	// Zone An IANA time zone; UTC without.

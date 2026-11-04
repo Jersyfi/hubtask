@@ -4767,7 +4767,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "timer stop",
         "summary": "Stop the timer into a record",
-        "description": "Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`) and is discarded instead.\n",
+        "description": "Its time, rounded up to the started minute, on the day it started in the zone. A timer run longer than a day is refused (`timers.ran_too_long`); it is discarded, or stopped at a moment within a day of its start.\n",
         "requestBody": {
           "required": false,
           "content": {
@@ -4782,7 +4782,7 @@
                   "stopped_at": {
                     "type": "string",
                     "format": "date-time",
-                    "description": "When the device stopped it, for a stop made while the server was away; now without one, and a moment ahead of the server's clock is now.\n"
+                    "description": "When it stopped: a stop made while the server was away, or a moment within a day of the start for a timer left running; now without one, and a moment ahead of the server's clock is now.\n"
                   }
                 }
               }
