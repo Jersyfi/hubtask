@@ -1923,7 +1923,9 @@
       max-inline-size: none;
     }
     .variant { inset-block-start: var(--sp-100); }
-    .corner { inset-block-end: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-300)); inset-inline-end: var(--sp-100); }
+    .corner { inset-block-end: var(--sp-100); inset-inline-end: var(--sp-100); }
+    /* Above the tool sheet where there is one; a reader has none. */
+    .tools ~ .corner { inset-block-end: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-300)); }
     .sheet {
       inset-block: auto 0;
       inset-inline: 0;
