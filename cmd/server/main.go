@@ -161,6 +161,10 @@ const defaultOpsPort = 9090
 // already bounded by its own timeout.
 const healthSampleInterval = 30 * time.Second
 
+// previousUIAssets is where the release image keeps the previous release's interface assets.
+const previousUIAssets = "/app/ui-previous"
+
+
 // poolCloseDeadline bounds a pool's Close, which waits for every connection to come back: one held
 // by a loop abandoned at the grace period would otherwise keep the process alive after SIGTERM.
 const poolCloseDeadline = 5 * time.Second
@@ -4268,6 +4272,11 @@ func run() error {
 			handler, uiErr := webui.NewHandler(files, rest.WriteSecurityHeaders, mediaOrigin, cfg.UI.FrameAncestors...)
 			if uiErr != nil {
 				return fmt.Errorf("web interface: %w", uiErr)
+			}
+			// The previous release's content-hashed assets, where the image carries them
+			// (deployment.md §5): a tab still on that release asks this pod for its chunks.
+			if info, statErr := os.Stat(previousUIAssets); statErr == nil && info.IsDir() {
+				handler = handler.WithPrevious(os.DirFS(previousUIAssets))
 			}
 			ui = handler.FramingSources(cfg.UI.FrameSources)
 			build = webui.Build(files)

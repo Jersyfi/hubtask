@@ -10,6 +10,11 @@
 # self-hosting stays two containers: this one and PostgreSQL. A UI container plus a proxy would be
 # four, and would make it possible to run an interface against an API of a different version.
 
+# The previous release's image, whose content-hashed interface assets this image carries beside
+# its own (deployment.md §5): during a rolling update a tab loaded from the previous release asks
+# a new pod for a chunk of its own release. The release build names it; any other build has none.
+ARG PREVIOUS_IMAGE=scratch
+
 # The line here is the line in .nvmrc, and it moves with it, never ahead of it - the interface in
 # the release image is built by the Node that CI verified. Moving it past 24 also costs a line:
 # Node stopped shipping corepack in v25, so `corepack enable` becomes `npm install -g corepack`
@@ -77,6 +82,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # them with. See the COPY below for why they must exist in the image at all.
 RUN mkdir -p /out/state/media /out/state/backups
 
+# The previous release's assets, where its image has them (from the release after the one that
+# first wrote /app/ui/assets); an empty directory otherwise.
+FROM ${PREVIOUS_IMAGE} AS previous
+FROM alpine:3.24 AS previous-assets
+RUN --mount=type=bind,from=previous,target=/previous \
+    mkdir -p /out/assets && \
+    if [ -d /previous/app/ui/assets ]; then cp -R /previous/app/ui/assets/. /out/assets/; fi
+
 # Time zone data and root certificates from a package image, not hand-assembled.
 FROM alpine:3.24 AS certs
 RUN apk add --no-cache ca-certificates tzdata
@@ -92,6 +105,10 @@ COPY --from=build /out/hubtask-migrate /usr/local/bin/hubtask-migrate
 # (backup-restore.md §8.5). Nothing starts it in Compose; it is here because one image is the rule.
 COPY --from=build /out/hubtask-restore-drill /usr/local/bin/hubtask-restore-drill
 COPY --from=build /src/locales /app/locales
+# This release's assets as files, for the next release to carry, and the previous release's,
+# which the server serves where its own bundle lacks a content-hashed file.
+COPY --from=ui /ui/apps/webapp/dist/assets /app/ui/assets
+COPY --from=previous-assets /out /app/ui-previous
 # The notices, at the path the container ecosystem looks for them. They are not decoration: this
 # image is published to a registry on every release, which is a distribution to third parties, and
 # 14 of the dependencies are BSD-3-Clause - "redistributions in binary form must reproduce the

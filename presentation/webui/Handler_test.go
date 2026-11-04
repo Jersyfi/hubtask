@@ -366,3 +366,36 @@ func TestTheBuildIsTheEntryScriptAndMarksEveryAnswer(t *testing.T) {
 		t.Errorf("a document without an entry script has build %q, want none", got)
 	}
 }
+
+// During a rolling update a tab loaded from the previous release asks the new pod for a chunk of
+// its own release. The previous release's hashed assets answer it, immutable like any other;
+// a file that is not content-hashed, or one the bundle holds itself, is never taken from them.
+func TestAPreviousReleasesHashedAssetIsStillServed(t *testing.T) {
+	t.Parallel()
+	previous := fstest.MapFS{
+		"assets/editor-Bq3xYwZ1.js": {Data: []byte("old chunk")},
+		"assets/index-CBRxRnMw.js":  {Data: []byte("not this one")},
+		"assets/stable.js":          {Data: []byte("stable name")},
+		"index.html":                {Data: []byte("the previous document")},
+	}
+	h := handler(t).WithPrevious(previous)
+
+	old := get(t, h, "/assets/editor-Bq3xYwZ1.js")
+	if old.Code != http.StatusOK || old.Body.String() != "old chunk" ||
+		!strings.Contains(old.Header().Get("Cache-Control"), "immutable") {
+		t.Errorf("the previous release's chunk = %d %q (%s), want it, immutable",
+			old.Code, old.Body.String(), old.Header().Get("Cache-Control"))
+	}
+	if own := get(t, h, "/assets/index-CBRxRnMw.js"); own.Body.String() != "console.log(1)" {
+		t.Errorf("a chunk the bundle holds = %q, want the bundle's own", own.Body.String())
+	}
+	if stable := get(t, h, "/assets/stable.js"); stable.Code != http.StatusNotFound {
+		t.Errorf("a stable name from the previous release = %d, want 404", stable.Code)
+	}
+	if document := get(t, h, "/"); strings.Contains(document.Body.String(), "previous") {
+		t.Error("the document came from the previous release")
+	}
+	if gone := get(t, handler(t), "/assets/editor-Bq3xYwZ1.js"); gone.Code != http.StatusNotFound {
+		t.Errorf("without a previous release the chunk = %d, want 404", gone.Code)
+	}
+}

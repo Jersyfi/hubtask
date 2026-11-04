@@ -145,6 +145,17 @@ type Handler struct {
 	policy string
 	// build is the bundle's entry script (Build), empty for a document without one.
 	build string
+	// previous is the previous release's content-hashed assets (WithPrevious), nil for none.
+	previous fs.FS
+}
+
+// WithPrevious answers the handler with the previous release's assets beside its own bundle: a
+// content-hashed file the bundle lacks is taken from them. During a rolling update a tab loaded
+// from the previous release asks a new pod for a chunk of its own release, and would otherwise
+// get a 404 and fail to open a screen (deployment.md §5). Nothing else is ever taken from them.
+func (h Handler) WithPrevious(previous fs.FS) Handler {
+	h.previous = previous
+	return h
 }
 
 // buildHeader is rest.BuildHeader, written out because this adapter does not import that one.
@@ -233,6 +244,14 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = file.Close() }()
 		if info, statErr := file.Stat(); statErr == nil && !info.IsDir() {
 			h.serve(w, r, name)
+			return
+		}
+	}
+
+	if h.previous != nil && contentHashed.MatchString(name) {
+		if info, err := fs.Stat(h.previous, name); err == nil && !info.IsDir() {
+			w.Header().Set("Cache-Control", immutableCache)
+			http.ServeFileFS(w, r, h.previous, name) //nolint:gosec // G703: an fs.FS cannot be escaped
 			return
 		}
 	}
