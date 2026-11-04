@@ -26,6 +26,9 @@ export interface FirstStepFacts {
   readonly hasMailbox: Fact;
   readonly hasSignIn: Fact;
   readonly hasNightlyBackup: Fact;
+  /** Whether this workspace may add a backup target of its own (the manifest's `backup_targets`):
+   * where the operator keeps the backups, the step could never be ticked. */
+  readonly mayAddBackupTarget: boolean;
   readonly hasSupportContact: Fact;
 }
 
@@ -54,7 +57,7 @@ const STEPS: readonly {
   { id: 'products', permission: 'STRUCTURE', page: '/administration/modules', fact: (facts) => facts.hasModuleOn },
   { id: 'mailbox', permission: 'AUTOMATION', page: '/administration/mail', fact: (facts) => facts.hasMailbox, applies: (facts) => facts.isDeskOn },
   { id: 'signin', permission: 'STRUCTURE', page: '/administration/sign-in', fact: (facts) => facts.hasSignIn },
-  { id: 'backup', permission: 'DELETE_CONTAINER', page: '/administration/backup', fact: (facts) => facts.hasNightlyBackup },
+  { id: 'backup', permission: 'DELETE_CONTAINER', page: '/administration/backup', fact: (facts) => facts.hasNightlyBackup, applies: (facts) => facts.mayAddBackupTarget },
   { id: 'support', permission: 'STRUCTURE', page: '/administration/legal', fact: (facts) => facts.hasSupportContact },
 ];
 

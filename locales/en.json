@@ -5149,6 +5149,8 @@
   "app.backup.download_done": "The workspace was downloaded.",
   "app.backup.download_incomplete": "The download broke off before the archive was complete, so the file was discarded. Download it again.",
   "app.backup.no_targets": "No target is configured, so nothing is being backed up.",
+  "app.backup.operator_keeps_title": "The operator of this installation backs this workspace up.",
+  "app.backup.operator_keeps_description": "This installation keeps the backups of its workspaces itself, so a workspace adds no target of its own. Ask the operator how often it runs and how a workspace is restored.",
   "app.backup.guided_title": "Nothing in this workspace is backed up yet.",
   "app.backup.guided_description": "One press backs it up every night at 3:00 into this installation's backup volume. Each Sunday's archive is a full one and is read back to prove it opens, and older archives are thinned out by day, week, month and year, never below three.",
   "app.backup.guided_start": "Back up this workspace every night",

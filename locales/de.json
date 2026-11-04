@@ -4480,6 +4480,8 @@
   "app.backup.download_done": "Der Arbeitsbereich wurde heruntergeladen.",
   "app.backup.download_incomplete": "Der Download brach ab, bevor das Archiv vollständig war; die Datei wurde verworfen. Lade den Arbeitsbereich erneut herunter.",
   "app.backup.no_targets": "Kein Ziel ist eingerichtet, darum wird nichts gesichert.",
+  "app.backup.operator_keeps_title": "Der Betreiber dieser Installation sichert diesen Arbeitsbereich.",
+  "app.backup.operator_keeps_description": "Diese Installation sichert ihre Arbeitsbereiche selbst, darum fügt ein Arbeitsbereich kein eigenes Ziel hinzu. Frage den Betreiber, wie oft gesichert wird und wie ein Arbeitsbereich wiederhergestellt wird.",
   "app.backup.guided_title": "In diesem Arbeitsbereich ist noch nichts gesichert.",
   "app.backup.guided_description": "Ein Klick sichert ihn jede Nacht um 3:00 Uhr in das Sicherungsvolume dieser Installation. Das Archiv jedes Sonntags ist ein vollständiges und wird zur Probe zurückgelesen, und ältere Archive werden nach Tag, Woche, Monat und Jahr ausgedünnt, nie unter drei.",
   "app.backup.guided_start": "Diesen Arbeitsbereich jede Nacht sichern",

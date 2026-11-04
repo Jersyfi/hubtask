@@ -180,7 +180,7 @@ export const MANIFEST = {
   // The role matrix as the server publishes it (domain-model.md §3.2), strongest first - the order
   // the effective role along a path is taken in, and the per-entry cells the screens offer from.
   roles: ROLES,
-  limits: { max_bulk_operations: 100 }, features: {},
+  limits: { max_bulk_operations: 100 }, features: { backup_targets: true },
   // What the reader - the workspace's owner - holds on the workspace itself, as the server answers
   // a signed-in caller. A walk as another role answers `PERMISSIONS[role]` instead.
   workspace_permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'DELETE_CONTAINER', 'READ_CONFIGURATION', 'AUDIT_READ'],

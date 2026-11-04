@@ -166,6 +166,7 @@
     ),
     hasNightlyBackup: factOf(backup.schedules.status, () =>
       backup.schedules.status === 'ready' && backup.schedules.data.some((schedule) => schedule.enabled !== false)),
+    mayAddBackupTarget: manifest.value?.features?.backup_targets === true,
     hasSupportContact: manifest.value === undefined ? undefined : Boolean(manifest.value.legal?.support_url),
   }));
   // Put away by one reader in one browser - a convenience, so kept there and not on the server.

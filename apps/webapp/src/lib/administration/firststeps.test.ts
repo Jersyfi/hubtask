@@ -14,6 +14,7 @@ const owner: FirstStepFacts = {
   hasMailbox: false,
   hasSignIn: false,
   hasNightlyBackup: true,
+  mayAddBackupTarget: true,
   hasSupportContact: false,
 };
 
@@ -37,6 +38,11 @@ test('a step is shown only to whoever may act on it', () => {
 
 test('the mailbox step is the service desk\'s', () => {
   assert.equal(firstSteps({ ...owner, isDeskOn: false }).steps.some((step) => step.id === 'mailbox'), false);
+});
+
+test('the backup step is left out where the operator keeps the backups', () => {
+  const steps = firstSteps({ ...owner, hasNightlyBackup: false, mayAddBackupTarget: false });
+  assert.equal(steps.steps.some((step) => step.id === 'backup'), false, 'a step the workspace may never tick is not drawn');
 });
 
 test('the card waits for every fact a shown step needs', () => {

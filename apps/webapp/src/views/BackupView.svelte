@@ -43,6 +43,7 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
   import { assertZipComplete, zipComplete } from '../lib/data/zipComplete.ts';
@@ -273,6 +274,9 @@
    */
   const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
   const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
+  /** Whether this workspace may add a target at all: in provider operation the operator's switch
+   * (backup-restore.md §2). Where it is off, a form or a one-press start would only be refused. */
+  const mayAddTarget = $derived(manifest.value?.features?.backup_targets === true);
 
   const sections = $derived([
     { id: 'backup-part-targets', label: t('app.backup.targets_title') },
@@ -562,7 +566,9 @@
             </Stack>
           </section>
         {:else}
-          {#if mayOwn}
+          {#if !mayAddTarget}
+            <EmptyState kind="unused" icon="archive" title={t('app.backup.operator_keeps_title')} description={t('app.backup.operator_keeps_description')} />
+          {:else if mayOwn}
             <EmptyState kind="unused" icon="archive" title={t('app.backup.guided_title')} description={t('app.backup.guided_description')}>
               {#snippet action()}
                 <Button tone="primary" isBusy={isGuiding} busyLabel={t('app.backup.guided_working')} onclick={() => void backUpNightly()}>
@@ -575,7 +581,7 @@
             <EmptyState kind="unused" icon="archive" title={t('app.backup.no_targets')} />
           {/if}
         {/each}
-        {#if onlyHere && mayOwn}
+        {#if onlyHere && mayOwn && mayAddTarget}
           <aside class="panel suggestion" aria-labelledby="backup-offsite">
             <Stack gap="050">
               <h3 class="section" id="backup-offsite">{t('app.backup.offsite_title')}</h3>
@@ -585,6 +591,7 @@
         {/if}
       {/if}
 
+      {#if mayAddTarget}
       <WorkspaceGate permission="DELETE_CONTAINER">
         {#snippet actions()}
         <TargetForm
@@ -601,6 +608,7 @@
         />
         {/snippet}
       </WorkspaceGate>
+      {/if}
     </section>
 
     <section id="backup-part-schedules" class="part" aria-labelledby="backup-schedules">
