@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Today's product bands (user-experience.md §3.3, UC-WRK-34 check 8): *Waiting for your yes*
-// where the service desk is on, *Time today* where time is on, each fed by its product's own read,
-// and neither - nor its read - where the module is off. Walked at desk and phone width, light and
-// dark.
+// Today's product bands (user-experience.md §3.3, UC-WRK-34 check 8): *Needs your answer* and
+// *Waiting for your yes* where the service desk is on - the latter with page reviews where pages
+// are on -, *Time today* where time is on, *Sprint* where planning is on, each fed by its
+// product's own read, and none - nor its read - where the module is off. Walked at desk and phone
+// width, light and dark.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,11 +34,45 @@ const AGENT = { id: '01a0e2e0-0000-7000-8000-0000000000c1', account_id: null, na
 const act = (n, kind) => ({ id: `01a0e2e0-0000-7000-8000-0000000000d${n}`, agent_id: AGENT.id, use_case: 'UpdateItem', class: kind, input: {}, status: 'PENDING', decided_by: null, decided_at: null, code: '', created_at: new Date(Date.now() - 600_000).toISOString() });
 const ACTS = [act(1, 'REVERSIBLE'), act(2, 'IRREVERSIBLE')];
 
+const HOUR = 3_600_000;
+const DESK_ENTRY = { id: '01a0e2e0-0000-7000-8000-0000000000e1', title: 'Printer on floor 3 jams', type: 'TASK', version: 1, collection_id: '01a0e2e0-0000-7000-8000-0000000000e2', completion: { is_completed: false } };
+const SLA_GOAL = {
+  goal: 'RESOLUTION', kind: 'SLA', policy_key: 'standard', assignee_group: null, standing: 'RUNNING', target_seconds: 28_800,
+  armed_at: new Date(Date.now() - 6 * HOUR).toISOString(), due_at: new Date(Date.now() + 2 * HOUR).toISOString(), at_risk_at: null, met_at: null, breached_at: null,
+};
+const REVIEW = {
+  id: '01a0e2e0-0000-7000-8000-0000000000e3', hub_id: HUB.id, parent_id: null, title: 'On-call handbook', icon: '', order_key: 'a0', template: false,
+  owner_id: ACCOUNT.id, verified_until: '2026-10-01T00:00:00Z', verified_at: '2026-07-01T00:00:00Z', verified_by: ACCOUNT.id, due_for_review: true,
+  archived: false, restricted: false, daily_for: null, trashed_at: null, updated_at: '2026-09-01T00:00:00Z', version: 1,
+};
+const day = (offset) => new Date(Date.now() + offset * 24 * HOUR).toISOString().slice(0, 10);
+const SPRINT = {
+  id: '01a0e2e0-0000-7000-8000-0000000000e4', collection_id: '01a0e2e0-0000-7000-8000-0000000000e5', name: 'Sprint 12', goal: '',
+  start_on: day(-4), end_on: day(5), state: 'ACTIVE', unit: 'POINTS', committed_value: 20, committed_count: 6, completed_value: 8, completed_count: 2,
+  started_at: `${day(-4)}T08:00:00Z`, closed_at: null, version: 2,
+};
+const BURNDOWN = [0, 1, 2, 3, 4].map((n) => ({ day: day(n - 4), remaining: 20 - 3 * n, scope: 20, ideal: 20 - 2 * n }));
+
 function stubFor({ modulesOn, asked, decided }) {
   return async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
+    if (path.endsWith('/api/v1/items:query') && JSON.stringify(request.postDataJSON()?.filter ?? {}).includes('sla_due')) {
+      asked.push('desk');
+      return route.fulfill({ json: { data: [DESK_ENTRY], page: { next_cursor: null, has_more: false } } });
+    }
+    if (path.endsWith(`/api/v1/items/${DESK_ENTRY.id}/sla`)) return route.fulfill({ json: { data: [SLA_GOAL] } });
+    if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: modulesOn } });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`)) {
+      asked.push('pages');
+      return route.fulfill({ json: { data: [REVIEW] } });
+    }
+    if (path.endsWith('/api/v1/sprints')) {
+      asked.push('sprints');
+      return route.fulfill({ json: { data: [{ sprint: SPRINT, hub_id: HUB.id, my_entries: 3 }] } });
+    }
+    if (path.endsWith(`/api/v1/sprints/${SPRINT.id}`)) return route.fulfill({ json: { sprint: SPRINT, entries: [], burndown: BURNDOWN } });
     if (path.endsWith('/api/v1/stream')) return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
     if (path.endsWith('/api/v1/sync:snapshot')) {
       const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB.id, container_id: null, payload: HUB });
@@ -139,14 +174,15 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
   });
 }
 
-test('chromium 1280 px: with the desk and time off, Today draws neither band and asks neither read', async (t) => {
+test('chromium 1280 px: with the products off, Today draws no product band and asks no product read', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, asked, close } = await open(browser, { width: 1280, modulesOn: ['KNOWLEDGE'] });
+  const { page, failures, asked, close } = await open(browser, { width: 1280, modulesOn: ['GOALS'] });
   t.after(close);
   await page.waitForLoadState('networkidle');
-  assert.equal(await page.getByRole('region', { name: 'Waiting for your yes' }).count(), 0);
-  assert.equal(await page.getByRole('region', { name: 'Time today' }).count(), 0);
+  for (const band of ['Needs your answer', 'Waiting for your yes', 'Time today', 'Sprint']) {
+    assert.equal(await page.getByRole('region', { name: band }).count(), 0, band);
+  }
   assert.deepEqual(asked, [], 'a read of a module that is off was sent');
   assert.deepEqual(failures, []);
 });
@@ -174,6 +210,39 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     for (let tries = 0; tries < 50 && decided.length === 0; tries++) await page.waitForTimeout(100);
     assert.deepEqual(decided, [{ act: ACTS[1].id, approve: false }]);
     await irreversible.waitFor({ state: 'detached', timeout: 10_000 });
+    assert.deepEqual(failures, []);
+  });
+}
+
+// §3.3: the desk entries on the reader with an SLA running, the pages waiting for their review and
+// the running sprint they are in, each where its product is on.
+for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], [375, 'dark']]) {
+  test(`chromium ${width} px, ${scheme}: Needs your answer, a page review and the Sprint stand on Today`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures, asked, close } = await open(browser, { width, scheme, modulesOn: ['SERVICE_DESK', 'KNOWLEDGE', 'PLANNING'] });
+    t.after(close);
+
+    const desk = page.getByRole('region', { name: 'Needs your answer' });
+    await desk.waitFor({ timeout: 10_000 });
+    assert.equal(await desk.getByRole('link', { name: DESK_ENTRY.title }).getAttribute('href'), `/items/${DESK_ENTRY.id}`);
+    await desk.getByText(/left/u).first().waitFor({ timeout: 10_000 });
+
+    const yes = page.getByRole('region', { name: 'Waiting for your yes' });
+    await yes.waitFor({ timeout: 10_000 });
+    assert.equal(await yes.getByRole('link', { name: `Review ${REVIEW.title}` }).getAttribute('href'), `/pages/${REVIEW.id}`);
+
+    const sprint = page.getByRole('region', { name: 'Sprint' });
+    await sprint.waitFor({ timeout: 10_000 });
+    assert.equal(await sprint.getByRole('link', { name: SPRINT.name }).getAttribute('href'), `/collections/${SPRINT.collection_id}/sprints`);
+    const words = (await sprint.textContent()) ?? '';
+    assert.match(words, /6 days left · 3 of your entries/u, words);
+    await sprint.getByRole('img', { name: /^Burndown: 8 points left/u }).waitFor({ timeout: 10_000 });
+    assert.match((await sprint.textContent()) ?? '', /12 of 20 points done/u);
+
+    for (const read of ['desk', 'pages', 'sprints']) assert.ok(asked.includes(read), `${read} was not read`);
+    const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
+    assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
     assert.deepEqual(failures, []);
   });
 }

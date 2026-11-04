@@ -33,7 +33,7 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 
 ## Today
 
-* Check 8: not met — *Needs your answer* and *Sprint* are missing (no read answers the desk entries a reader holds with a running SLA target across hubs, nor the running sprint a reader is in), *Waiting for your yes* lists approvals and agents' held acts but not pages waiting for review (no workspace-wide read answers the pages a reader must review; the pages' home asks every hub); the *Today* row counts what waits for the reader's yes, the one band with a count today; tracked in `user-experience.md` §11 step 15.
+* Check 8: partly met — every band stands where its product is on: *Needs your answer* (the open entries on the reader with an SLA target running, the nearest first at each hub, through each hub's `POST /items:query`), *Waiting for your yes* (approvals, agents' held acts, and the pages the reader answers for whose verification ran out, read from each hub where pages are on), *Time today* and *Sprint* (`GET /sprints`, the running sprints holding the reader's entries, each with its burndown and days left). Still open: *Needs your answer* lists what the reader holds, not what their groups queue — an entry is on a person, and a group appears only as an OLA's measure, so there is no group queue to read; across several hubs the rows are nearest first within each hub, not across them; and the *Today* row counts approvals and held acts, not the page reviews, whose read is a hub at a time. Tracked in `user-experience.md` §11 step 15.
 
 ## Where it ends
 

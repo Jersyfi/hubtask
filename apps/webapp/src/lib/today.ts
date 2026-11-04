@@ -110,19 +110,50 @@ export function greetingOf(zone: string, now: number): DayPart {
 }
 
 /** A band *Today* draws for a product (user-experience.md §3.3), in the order it is drawn. */
-export type ProductBand = 'approvals' | 'agent_acts' | 'time';
+export type ProductBand = 'desk' | 'approvals' | 'agent_acts' | 'reviews' | 'time' | 'sprint';
 
 /**
  * The product bands, each only where its module is on (UC-WRK-34 check 8): none while the modules
  * are unknown, because a band whose read the server refuses would be an error, not a day.
+ * *Waiting for your yes* gathers three of them: approvals, agents' held acts and page reviews.
  */
 export function productBandsOf(modulesOn: readonly string[] | undefined): ProductBand[] {
   const on = new Set(modulesOn ?? []);
   return [
-    ...(on.has('SERVICE_DESK') ? ['approvals' as const] : []),
+    ...(on.has('SERVICE_DESK') ? ['desk' as const, 'approvals' as const] : []),
     ...(on.has('AGENTS') ? ['agent_acts' as const] : []),
+    ...(on.has('KNOWLEDGE') ? ['reviews' as const] : []),
     ...(on.has('TIME') ? ['time' as const] : []),
+    ...(on.has('PLANNING') ? ['sprint' as const] : []),
   ];
+}
+
+/**
+ * *Needs your answer* at one hub (§3.3): the open entries on the reader whose SLA target runs -
+ * `sla_due` is absent where none runs -, the one about to breach first. A hub at a time, because
+ * the query needs a scope (api-guidelines.md, "Scope").
+ */
+export function deskAnswerQuery(hubId: string, size: number): Record<string, unknown> {
+  return {
+    scope: { container_id: hubId, include_descendants: true },
+    filter: {
+      op: 'AND',
+      nodes: [
+        { op: 'EQ', field: 'is_completed', value: false },
+        // `@me` is resolved on the server: the client never names who is signed in.
+        { op: 'EQ', field: 'assignee_id', value: '@me' },
+        { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'sla_due' }] },
+      ],
+    },
+    sort: [{ field: 'sla_due', dir: 'ASC', nulls: 'LAST' }],
+    page: { size },
+  };
+}
+
+/** The days a sprint has left, today among them: one on its last day, none after it. */
+export function sprintDaysLeft(endOn: string, today: string): number {
+  const days = (Date.parse(`${endOn}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000;
+  return Math.max(0, Math.round(days) + 1);
 }
 
 /**

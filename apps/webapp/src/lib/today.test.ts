@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
+import { bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -91,11 +91,36 @@ test('the greeting follows the hour where the person is, not where the device is
 test('a product band stands only where its module is on, and none before the modules are known', () => {
   assert.deepEqual(productBandsOf(undefined), []);
   assert.deepEqual(productBandsOf([]), []);
-  assert.deepEqual(productBandsOf(['KNOWLEDGE', 'GOALS']), []);
+  assert.deepEqual(productBandsOf(['GOALS']), []);
   assert.deepEqual(productBandsOf(['TIME']), ['time']);
-  assert.deepEqual(productBandsOf(['TIME', 'SERVICE_DESK', 'PLANNING']), ['approvals', 'time']);
-  assert.deepEqual(productBandsOf(['AGENTS', 'TIME', 'SERVICE_DESK']), ['approvals', 'agent_acts', 'time']);
+  assert.deepEqual(productBandsOf(['KNOWLEDGE']), ['reviews']);
+  assert.deepEqual(productBandsOf(['PLANNING']), ['sprint']);
+  assert.deepEqual(productBandsOf(['TIME', 'SERVICE_DESK', 'PLANNING']), ['desk', 'approvals', 'time', 'sprint']);
+  assert.deepEqual(productBandsOf(['AGENTS', 'TIME', 'SERVICE_DESK', 'KNOWLEDGE']), ['desk', 'approvals', 'agent_acts', 'reviews', 'time']);
   assert.deepEqual(productBandsOf(['AGENTS']), ['agent_acts']);
+});
+
+test('Needs your answer asks a hub for the open entries on the reader with an SLA running, the nearest first', () => {
+  assert.deepEqual(deskAnswerQuery('h-1', 5), {
+    scope: { container_id: 'h-1', include_descendants: true },
+    filter: {
+      op: 'AND',
+      nodes: [
+        { op: 'EQ', field: 'is_completed', value: false },
+        { op: 'EQ', field: 'assignee_id', value: '@me' },
+        { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'sla_due' }] },
+      ],
+    },
+    sort: [{ field: 'sla_due', dir: 'ASC', nulls: 'LAST' }],
+    page: { size: 5 },
+  });
+});
+
+test('a sprint has the days left counted with today, none once its last day is past', () => {
+  assert.equal(sprintDaysLeft('2026-11-13', '2026-11-04'), 10);
+  assert.equal(sprintDaysLeft('2026-11-04', '2026-11-04'), 1);
+  assert.equal(sprintDaysLeft('2026-11-03', '2026-11-04'), 0);
+  assert.equal(sprintDaysLeft('2026-11-30', '2026-10-31'), 31);
 });
 
 test('time today is the day\'s recorded minutes against the week, with the running timer beside', () => {

@@ -967,6 +967,7 @@ export type BaselineComparison = components['schemas']['BaselineComparison'];
 /** A collection's sprints, their entries and burndown, the backlog, the velocity and an estimate (M2). */
 export type Sprint = components['schemas']['Sprint'];
 export type SprintList = components['schemas']['SprintList'];
+export type MySprintList = components['schemas']['MySprintList'];
 export type SprintDetail = components['schemas']['SprintDetail'];
 export type SprintEntry = components['schemas']['SprintEntry'];
 export type SprintClosure = components['schemas']['SprintClosure'];

@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, MySprintList, PageList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
@@ -58,7 +58,13 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { bandsOf, greetingOf, heldActRows, isListFigure, isProjectFigure, productBandsOf, timeTodayOf } from '../lib/today.ts';
+  import { bandsOf, deskAnswerQuery, greetingOf, heldActRows, isListFigure, isProjectFigure, productBandsOf, sprintDaysLeft, timeTodayOf } from '../lib/today.ts';
+  import { modules } from '../lib/data/modules.svelte.ts';
+  import { pagesPath } from '../lib/data/pages.svelte.ts';
+  import { burndownLine, burndownTop, sprintDays } from '../lib/data/sprints.ts';
+  import { sprintPath } from '../lib/data/sprints.svelte.ts';
+  import { pagesToReview } from '../lib/product/home.ts';
+  import SlaRemaining from '../lib/servicedesk/SlaRemaining.svelte';
   import { agents, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
   import { approvals, myApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
@@ -417,7 +423,82 @@
       writeFailure = renderProblem(error as never, messages);
     }
   }
-  const waitingCount = $derived((waitingApprovals?.length ?? 0) + heldRows.length);
+  /**
+   * The pages waiting for the reader's review (§3.3), at each hub where pages are on there: the
+   * pages' own read, a hub at a time, as the pages' home reads them.
+   */
+  let pagesOnAt = $state<Record<string, boolean>>({});
+  let pagesAt = $state<Record<string, PageList['data']>>({});
+  $effect(() => {
+    const ids = productBands.includes('reviews') && hubIds ? hubIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
+        if (next.status === 'ready') pagesOnAt = { ...pagesOnAt, [hubId]: Array.isArray(next.data.modules_on) && next.data.modules_on.includes('KNOWLEDGE') };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const pageHubs = $derived(productBands.includes('reviews') && hubIds ? hubIds.split(' ').filter((id) => pagesOnAt[id] === true).join(' ') : '');
+  $effect(() => {
+    const ids = pageHubs ? pageHubs.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((hubId) => engine.subscribe<PageList>({ path: pagesPath(hubId) }, (next) => {
+        if (next.status === 'ready') pagesAt = { ...pagesAt, [hubId]: next.data.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const reviews = $derived(pageHubs ? pagesToReview(pagesAt, pageHubs.split(' '), actor.account?.id) : []);
+  const waitingCount = $derived((waitingApprovals?.length ?? 0) + heldRows.length + reviews.length);
+
+  /**
+   * *Needs your answer* (§3.3): the desk entries on the reader with an SLA target running, the one
+   * about to breach first at each hub, the hubs in the order the navigation draws them.
+   */
+  const DESK_SHOWN = 5;
+  let deskAt = $state<Record<string, WorkItem[]>>({});
+  $effect(() => {
+    const ids = productBands.includes('desk') && hubIds ? hubIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((hubId) => engine.subscribe<ItemQueryResult>({ path: '/items:query', body: deskAnswerQuery(hubId, DESK_SHOWN) }, (next) => {
+        if (next.status === 'ready') deskAt = { ...deskAt, [hubId]: next.data.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const deskRows = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').flatMap((id) => deskAt[id] ?? []).slice(0, DESK_SHOWN) : []);
+  // The rows' time left is read against this moment; it moves on while the page stays open.
+  let deskNow = $state(new Date());
+  $effect(() => {
+    if (deskRows.length === 0) return;
+    const every = setInterval(() => (deskNow = new Date()), 60_000);
+    return () => clearInterval(every);
+  });
+
+  /** *Sprint* (§3.3): the running sprints the reader holds entries in, each with its burndown. */
+  const SPRINTS_SHOWN = 2;
+  let mySprints = $state<MySprintList['data']>([]);
+  $effect(() => {
+    if (!productBands.includes('sprint')) {
+      mySprints = [];
+      return;
+    }
+    return untrack(() => engine.subscribe<MySprintList>({ path: '/sprints' }, (next) => {
+      if (next.status === 'ready') mySprints = next.data.data;
+    }));
+  });
+  let sprintDetails = $state<Record<string, SprintDetail>>({});
+  const sprintIds = $derived(mySprints.slice(0, SPRINTS_SHOWN).map((each) => each.sprint.id).join(' '));
+  $effect(() => {
+    const ids = sprintIds ? sprintIds.split(' ') : [];
+    const at = zone;
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<SprintDetail>({ path: sprintPath(id, at) }, (next) => {
+        if (next.status === 'ready') sprintDetails = { ...sprintDetails, [id]: next.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
   const day = $derived(todayIn(zone));
   let week = $state<TimesheetWeek | undefined>(undefined);
   let timer = $state<TimeTimer | undefined>(undefined);
@@ -448,7 +529,7 @@
     const at = timeTodayOf(week, day, timer);
     return at?.running && timer?.started_at ? { ...at, running: { ...at.running, minutes: elapsedMinutes(timer.started_at, tick) } } : at;
   });
-  const hasProductBands = $derived(waitingCount > 0 || timeToday !== undefined);
+  const hasProductBands = $derived(deskRows.length > 0 || waitingCount > 0 || timeToday !== undefined || mySprints.length > 0);
 
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
   const hasSide = $derived(inUse || hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
@@ -603,6 +684,23 @@
       {#if hasSide}
       <div class="side">
         <!-- The products' bands first, where the products meet the reader's day (check 8). -->
+        {#if deskRows.length > 0}
+          <section class="panel" aria-labelledby="today-desk" data-band="desk">
+            <Stack gap="100">
+              <h2 class="head" id="today-desk">{t('app.today.desk')}</h2>
+              <ul class="inbox">
+                {#each deskRows as entry (entry.id)}
+                  <li class="arrival" data-desk-entry={entry.id}>
+                    <span class="channel" aria-hidden="true"><Icon name="inbox" size="sm" /></span>
+                    <a class="subject" href={`/items/${entry.id}`}>{entry.title}</a>
+                    <span class="from">{#key entry.id}<SlaRemaining itemId={entry.id} now={deskNow} />{/key}</span>
+                  </li>
+                {/each}
+              </ul>
+              <p class="more"><a href="/desk">{t('app.today.desk_all')} →</a></p>
+            </Stack>
+          </section>
+        {/if}
         {#if waitingCount > 0}
           <section class="panel" aria-labelledby="today-approvals" data-band="approvals">
             <Stack gap="100">
@@ -641,6 +739,13 @@
                     </span>
                   </li>
                 {/each}
+                {#each reviews.slice(0, 3) as review (review.id)}
+                  <li class="arrival" data-review={review.id}>
+                    <span class="channel" aria-hidden="true"><Icon name="file-text" size="sm" /></span>
+                    <a class="subject" href={`/pages/${review.id}`}>{t('app.today.review_page', { title: review.title })}</a>
+                    <span class="from">{formatRelative(review.updated_at, messages.locale)}</span>
+                  </li>
+                {/each}
               </ul>
               {#if waitingCount > 0}<p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>{/if}
             </Stack>
@@ -655,6 +760,33 @@
                 <p class="running"><span class="running-mark" aria-hidden="true"><Icon name="clock" size="sm" /></span><span>{t('app.time.timer_running', { minutes: minutesText(timeToday.running.minutes) })}</span>{#if timeToday.running.entryId}<span aria-hidden="true">·</span><a href={`/items/${timeToday.running.entryId}`}>{timeToday.running.entryTitle ? t('app.time.timer_on', { title: timeToday.running.entryTitle }) : t('app.time.timer_open')}</a>{/if}</p>
               {/if}
               <p class="more"><a href="/time">{t('app.today.time_open')} →</a></p>
+            </Stack>
+          </section>
+        {/if}
+        {#if mySprints.length > 0}
+          <section class="panel" aria-labelledby="today-sprint" data-band="sprint">
+            <Stack gap="100">
+              <h2 class="head" id="today-sprint">{t('app.today.sprint')}</h2>
+              <ul class="sprints">
+                {#each mySprints.slice(0, SPRINTS_SHOWN) as mine (mine.sprint.id)}
+                  {@const detail = sprintDetails[mine.sprint.id]}
+                  {@const unit = t(`app.sprints.unit_${mine.sprint.unit}`)}
+                  {@const last = detail?.burndown.at(-1)}
+                  <li class="sprint" data-sprint={mine.sprint.id}>
+                    <a class="subject" href={`/collections/${mine.sprint.collection_id}/sprints`}>{mine.sprint.name}</a>
+                    <span class="from">{[t('app.today.sprint_left', { count: sprintDaysLeft(mine.sprint.end_on, day) }), t('app.today.sprint_mine', { count: mine.my_entries })].join(' · ')}</span>
+                    {#if detail && detail.burndown.length > 0}
+                      {@const days = sprintDays(detail.sprint)}
+                      {@const top = burndownTop(detail.sprint, detail.burndown)}
+                      <svg class="spark" viewBox="0 0 400 100" preserveAspectRatio="none" role="img" aria-label={t('app.sprints.burndown_label', { remaining: String(last?.remaining ?? 0), unit })}>
+                        <polyline class="ideal" points={burndownLine(detail.burndown, 'ideal', days, top, 400, 100)} />
+                        <polyline class="remaining" points={burndownLine(detail.burndown, 'remaining', days, top, 400, 100)} />
+                      </svg>
+                      {#if last}<span class="from">{t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit })}</span>{/if}
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
             </Stack>
           </section>
         {/if}
@@ -897,6 +1029,14 @@
   .subject:hover { text-decoration: underline; }
   .from { grid-area: from; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .acts { grid-area: acts; display: inline-flex; align-items: center; gap: var(--sp-050); }
+  /* A running sprint: its name, the days left and the reader's share, and its burndown below. */
+  .sprints { display: grid; gap: var(--sp-200); margin: 0; padding: 0; list-style: none; }
+  .sprint { display: grid; gap: var(--sp-050); }
+  .sprint .subject, .sprint .from { grid-area: auto; }
+  .spark { inline-size: 100%; block-size: var(--sp-500); border-radius: var(--r-sm); background: var(--bg-surface-sunken); }
+  .spark polyline { fill: none; stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
+  .spark .remaining { stroke: var(--accent-primary); }
+  .spark .ideal { stroke: var(--border-strong); }
 
   /* What was opened last, as tiles two to a row: the mark, the title, the place and when. */
   .recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22ch), 1fr)); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }

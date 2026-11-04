@@ -233,6 +233,7 @@ export type {
   BaselineComparison,
   Sprint,
   SprintList,
+  MySprintList,
   SprintDetail,
   SprintEntry,
   SprintClosure,
