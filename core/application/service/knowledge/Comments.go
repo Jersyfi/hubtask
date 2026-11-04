@@ -202,8 +202,10 @@ func (h ChangePageComment) Execute(ctx context.Context, actor appshared.ActorCon
 		if current, err = h.Space.Pages.FindComment(ctx, cmd.CommentID); err != nil {
 			return err
 		}
-		page, err = h.Space.find(ctx, current.PageID, false)
-		return err
+		if page, err = h.Space.find(ctx, current.PageID, false); err != nil {
+			return err
+		}
+		return h.Space.admitted(ctx, actor, page.ID)
 	})
 	if err != nil {
 		return domain.Comment{}, err

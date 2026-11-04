@@ -322,3 +322,43 @@ func TestADailyNoteOpensInAPersonalSpace(t *testing.T) {
 		t.Error("somebody else read the daily note")
 	}
 }
+
+// A restriction holds for a page's comments and its trash too: who it shuts out neither resolves
+// nor rewrites a comment beside the page - nor reads its words in the answer - and does not bring
+// the page back out of the trash.
+func TestARestrictionHoldsForThePagesCommentsAndItsTrash(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	page := f.create(t, anna, hub, "", "Salaries", "budget lines")
+	annas, err := (AddPageComment{Space: f.space}).Execute(ctx, as(anna), AddPageCommentCommand{PageID: page.ID, Body: "Raise for Carla"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	berts, err := (AddPageComment{Space: f.space}).Execute(ctx, as(bert), AddPageCommentCommand{PageID: page.ID, Body: "Mine"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(anna), RestrictPageCommand{PageID: page.ID, AccountIDs: []shared.ID{anna, carla}}); err != nil {
+		t.Fatal(err)
+	}
+	resolved := true
+	if got, err := (ChangePageComment{Space: f.space}).Execute(ctx, as(bert), ChangePageCommentCommand{CommentID: annas.ID, Resolved: &resolved}); code(err) != "pages.not_found" {
+		t.Errorf("Bert resolved a comment past the restriction (%q), %v", got.Body, err)
+	}
+	if _, err := (ChangePageComment{Space: f.space}).Execute(ctx, as(bert), ChangePageCommentCommand{CommentID: berts.ID, Body: ptr("Still mine")}); code(err) != "pages.not_found" {
+		t.Errorf("Bert rewrote a comment past the restriction: %v", err)
+	}
+	if _, err := (ChangePageComment{Space: f.space}).Execute(ctx, as(carla), ChangePageCommentCommand{CommentID: annas.ID, Resolved: &resolved}); err != nil {
+		t.Errorf("Carla, named, could not resolve: %v", err)
+	}
+
+	if _, err := (TrashPage{Space: f.space}).Execute(ctx, as(anna), page.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := (RestorePage{Space: f.space}).Execute(ctx, as(bert), page.ID); code(err) != "pages.not_found" {
+		t.Errorf("Bert brought back %q past the restriction: %v", got.Title, err)
+	}
+	if _, err := (RestorePage{Space: f.space}).Execute(ctx, as(carla), page.ID); err != nil {
+		t.Errorf("Carla, named, could not restore: %v", err)
+	}
+}

@@ -872,8 +872,10 @@ func (h RestorePage) Execute(ctx context.Context, actor appshared.ActorContext, 
 	var trashed domain.Page
 	err := h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		trashed, err = h.Space.Pages.Find(ctx, id)
-		return err
+		if trashed, err = h.Space.Pages.Find(ctx, id); err != nil {
+			return err
+		}
+		return h.Space.admitted(ctx, actor, trashed.ID)
 	})
 	if err != nil {
 		return domain.Page{}, err
