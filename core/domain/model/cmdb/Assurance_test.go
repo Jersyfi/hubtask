@@ -83,7 +83,7 @@ func TestACampaignIsScoredByItsAnswersAndClosedTakesNone(t *testing.T) {
 	if _, err := c.Answer(a, VerdictPending, id("05"), now); err == nil {
 		t.Fatal("pending is no answer")
 	}
-	s := c.Tally([]Attestation{a, {Verdict: VerdictDisputed}, {Verdict: VerdictPending}, {Verdict: VerdictPending}}, now.AddDate(0, 0, 2))
+	s := c.Tally([]Attestation{a, {Verdict: VerdictDisputed}, {Verdict: VerdictPending}, {Verdict: VerdictPending}}, now.AddDate(0, 0, 3))
 	if s.Total != 4 || s.Confirmed != 1 || s.Disputed != 1 || s.Pending != 2 || s.Overdue != 2 || s.Rate != 0.5 {
 		t.Fatalf("score: %+v", s)
 	}
@@ -211,3 +211,17 @@ func TestSoftwareIsGroupedByItsNormalisedProductAndAnAliasWins(t *testing.T) {
 		t.Error("an alias matching nothing")
 	}
 }
+
+// UC-AST-10 check 3: pending answers are overdue after the due day, not during it.
+func TestACampaignIsOverdueOnlyAfterItsDueDay(t *testing.T) {
+	due := time.Date(2026, 11, 30, 0, 0, 0, 0, time.UTC)
+	c := Campaign{DueOn: due, ReviewMonths: 12}
+	pending := []Attestation{{Verdict: VerdictPending}}
+	if s := c.Tally(pending, due.Add(15*time.Hour)); s.Overdue != 0 {
+		t.Fatalf("on the due day itself: %+v", s)
+	}
+	if s := c.Tally(pending, due.Add(24*time.Hour+time.Minute)); s.Overdue != 1 {
+		t.Fatalf("the day after: %+v", s)
+	}
+}
+

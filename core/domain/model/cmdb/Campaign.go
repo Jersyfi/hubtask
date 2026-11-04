@@ -160,7 +160,8 @@ func (c Campaign) Tally(as []Attestation, now time.Time) Score {
 			s.Pending++
 		}
 	}
-	if now.After(c.DueOn) {
+	// The due day counts to its end, as a review day does in the health.
+	if now.After(c.DueOn.Add(24 * time.Hour)) {
 		s.Overdue = s.Pending
 	}
 	s.Rate = 1
