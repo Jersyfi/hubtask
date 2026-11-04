@@ -204,21 +204,29 @@ func (h NamePageVersion) Descriptor() usecase.Descriptor {
 }
 
 // RestorePageVersion brings an older version back as the page's newest: nothing in between is
-// lost, the restore is a version of its own (P-03, UC-DOC-06).
+// lost, the restore is a version of its own (P-03, UC-DOC-06). In a space with drafts a published
+// page's restore waits in its draft, as any change to its title and body does (UC-DOC-15).
 type RestorePageVersion struct{ Space Space }
 
 // Execute restores the version.
 func (h RestorePageVersion) Execute(
 	ctx context.Context, actor appshared.ActorContext, pageID shared.ID, seq, expected int,
 ) (domain.Page, error) {
+	written, err := h.restore(ctx, actor, pageID, seq, expected)
+	return written.Page, err
+}
+
+func (h RestorePageVersion) restore(
+	ctx context.Context, actor appshared.ActorContext, pageID shared.ID, seq, expected int,
+) (Written, error) {
 	place, err := h.Space.placeOf(ctx, actor, pageID)
 	if err != nil {
-		return domain.Page{}, err
+		return Written{}, err
 	}
 	if err := h.Space.authorizeWrite(ctx, actor, place.HubID, place.ID, PageVersionBackAction, pageTarget); err != nil {
-		return domain.Page{}, err
+		return Written{}, err
 	}
-	var page domain.Page
+	var out Written
 	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		current, err := h.Space.find(ctx, pageID, true)
 		if err != nil {
@@ -231,18 +239,33 @@ func (h RestorePageVersion) Execute(
 		if err != nil {
 			return err
 		}
+		now := h.Space.Clock.Now()
+		audited := []audit.Change{{Field: "seq", Classification: audit.Open, To: seq}}
+		if out.Drafts, err = h.Space.drafting(ctx, actor.TenantID, current.HubID); err != nil {
+			return err
+		}
+		if out.Draft, err = h.Space.draftOf(ctx, current.ID); err != nil {
+			return err
+		}
+		if out.Drafts && (out.Draft == nil || out.Draft.Pending()) {
+			out.Page = current
+			if out.Draft, err = h.Space.saveDraft(ctx, actor, current, out.Draft,
+				domain.Change{Title: &version.Title, Body: &version.Body}); err != nil {
+				return err
+			}
+			return h.Space.record(ctx, actor, PageVersionBackAction, pageTarget, current.ID, audited, now)
+		}
 		last, found, err := h.Space.Pages.LastVersion(ctx, current.ID)
 		if err != nil {
 			return err
 		}
-		now := h.Space.Clock.Now()
 		next := current
 		next.Title, next.Body, next.UpdatedBy, next.UpdatedAt = version.Title, version.Body, actor.AccountID, now
 		if err := h.Space.Pages.Update(ctx, next, current.Version); err != nil {
 			return err
 		}
 		next.Version = current.Version + 1
-		page = next
+		out.Page = next
 		restored := domain.Version{
 			PageID: current.ID, Seq: 1, Title: version.Title, Body: version.Body, AuthorID: actor.AccountID,
 			Restored: seq, CreatedAt: now,
@@ -256,11 +279,9 @@ func (h RestorePageVersion) Execute(
 		if err := h.Space.announce(ctx, actor, next); err != nil {
 			return err
 		}
-		return h.Space.record(ctx, actor, PageVersionBackAction, pageTarget, current.ID, []audit.Change{
-			{Field: "seq", Classification: audit.Open, To: seq},
-		}, now)
+		return h.Space.record(ctx, actor, PageVersionBackAction, pageTarget, current.ID, audited, now)
 	})
-	return page, err
+	return out, err
 }
 
 // Descriptor is the catalogue entry.
@@ -268,8 +289,9 @@ func (h RestorePageVersion) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: RestorePageVersionName, Permission: service.PermissionWriteItems,
 		Summary: "Brings an older version of a page back: its title and body become the page's, written " +
-			"as a new version that names the one it restored, so nothing in between is lost.",
-		SideEffects: "Writes the page, a new version and an audit entry.",
+			"as a new version that names the one it restored, so nothing in between is lost. In a " +
+			"space with drafts a published page's restore waits in its draft until it is published.",
+		SideEffects: "Writes the page and a new version - or the page's draft in a space with drafts - and an audit entry.",
 		TokenScope:  pagesWrite,
 		Input: []usecase.Field{
 			{Name: "page_id", Kind: usecase.KindID, Required: true, Description: "The page."},
@@ -282,11 +304,14 @@ func (h RestorePageVersion) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			page, err := h.Execute(ctx, actor, id, in.Int("seq"), in.Int("expected_version"))
+			written, err := h.restore(ctx, actor, id, in.Int("seq"), in.Int("expected_version"))
 			if err != nil {
 				return nil, err
 			}
-			return PageOutput(page, true, h.Space.Clock.Now()), nil
+			out := PageOutput(written.Page, true, h.Space.Clock.Now())
+			out["drafts"], out["draft"] = written.Drafts, DraftOutput(written.Draft)
+			out["unpublished"] = written.Draft != nil && written.Draft.Unpublished
+			return out, nil
 		}),
 	})
 }

@@ -176,3 +176,42 @@ func TestASpaceWithDraftsPublishesWhatItsWritersPrepared(t *testing.T) {
 		t.Fatalf("live document %+v", place)
 	}
 }
+
+// UC-DOC-15 check 2: bringing an older version back is a change to a published page's title and
+// body, so in a space with drafts it waits in the draft - readers keep reading what was published.
+func TestARestoredVersionWaitsInTheDraft(t *testing.T) {
+	f := draftsFixture()
+	ctx := context.Background()
+	if _, err := (SetSpaceDrafts{Space: f.space}).Execute(ctx, as(anna), SetSpaceDraftsCommand{HubID: hub, Drafts: true}); err != nil {
+		t.Fatal(err)
+	}
+	page := f.create(t, anna, hub, "", "Handbook", "v1")
+	page, err := (PublishPage{Space: f.space}).Execute(ctx, as(anna), PublishPageCommand{PageID: page.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (UpdatePage{Space: f.space}).Execute(ctx, as(bert), UpdatePageCommand{PageID: page.ID, Change: domain.Change{Body: ptr("v2")}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (PublishPage{Space: f.space}).Execute(ctx, as(bert), PublishPageCommand{PageID: page.ID}); err != nil {
+		t.Fatal(err)
+	}
+	versions := len(f.store.versions[page.ID])
+	if _, err := (RestorePageVersion{Space: f.space}).Execute(ctx, as(anna), page.ID, 1, 0); err != nil {
+		t.Fatal(err)
+	}
+	if read, err := (ReadPage{Space: f.space}).Execute(ctx, asReader(carl), page.ID); err != nil || read.Page.Body != "v2" {
+		t.Fatalf("the reader reads %+v, %v", read.Page, err)
+	}
+	read, err := (ReadPage{Space: f.space}).Execute(ctx, as(anna), page.ID)
+	if err != nil || read.Page.Body != "v2" || read.Draft == nil || read.Draft.Body != "v1" {
+		t.Fatalf("the writer's %+v, draft %+v, %v", read.Page, read.Draft, err)
+	}
+	if len(f.store.versions[page.ID]) != versions {
+		t.Fatalf("a restore waiting in the draft wrote a version")
+	}
+	published, err := (PublishPage{Space: f.space}).Execute(ctx, as(anna), PublishPageCommand{PageID: page.ID})
+	if err != nil || published.Body != "v1" {
+		t.Fatalf("published %+v, %v", published, err)
+	}
+}
