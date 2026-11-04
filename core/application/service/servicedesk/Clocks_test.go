@@ -159,7 +159,7 @@ func (c calendarStore) List(context.Context) ([]domain.Calendar, error) {
 	}
 	return []domain.Calendar{c.office}, nil
 }
-func (c calendarStore) Delete(context.Context, string) error            { return nil }
+func (c calendarStore) Delete(context.Context, string) error { return nil }
 
 type itemStore struct {
 	workrepo.Items
