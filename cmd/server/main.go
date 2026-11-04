@@ -5601,12 +5601,12 @@ func run() error {
 // closeWithin runs a close and waits for it no longer than the deadline, saying which stage gave
 // up. It reports whether the close finished. A close that never returns is left behind: the
 // process is on its way out, and an exit is what releases what it holds.
-func closeWithin(stage string, deadline time.Duration, close func()) bool {
+func closeWithin(stage string, deadline time.Duration, closer func()) bool {
 	slog.Info("shutdown: closing", slog.String("stage", stage))
 	done := make(chan struct{}, 1)
 	concurrency.Go(context.Background(), "shutdown."+stage, func(context.Context) {
 		defer func() { done <- struct{}{} }()
-		close()
+		closer()
 	})
 	timer := time.NewTimer(deadline)
 	defer timer.Stop()

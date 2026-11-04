@@ -199,7 +199,7 @@ func accountResponse(out usecase.Output) openapi.Account {
 	if rows, held := out["portals"].([]usecase.Output); held {
 		// The caller's own account only: where a requester is sent (UC-SVC-05).
 		var portals []struct {
-			CollectionId openapi_types.UUID `json:"collection_id"`
+			CollectionId openapi_types.UUID `json:"collection_id"` //nolint:revive // var-naming: the generated type's field
 			Name         string             `json:"name"`
 		}
 		if throughJSON(rows, &portals) == nil {

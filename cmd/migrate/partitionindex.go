@@ -107,7 +107,7 @@ func attachPartitionIndexes(ctx context.Context, pool *sql.DB) error {
 		}
 		// DDL takes no parameter; every name is the catalogue's, quoted.
 		if invalid {
-			if _, err := pool.ExecContext(ctx, "DROP INDEX CONCURRENTLY IF EXISTS "+qualified); err != nil { //nolint:gosec // G202, see above
+			if _, err := pool.ExecContext(ctx, "DROP INDEX CONCURRENTLY IF EXISTS "+qualified); err != nil {
 				return fmt.Errorf("dropping the invalid index %s: %w", name, err)
 			}
 		}

@@ -316,8 +316,6 @@ type subject struct {
 	// personalRule is a rule the record names that is a person's own: its screen is the profile's,
 	// which a member reaches without the administration.
 	personalRule bool
-	// undeliverable is whether the recipient's address is marked refused for good.
-	undeliverable bool
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
