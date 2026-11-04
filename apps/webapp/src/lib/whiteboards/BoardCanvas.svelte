@@ -40,6 +40,7 @@
   import EntryPicker from '../entries/EntryPicker.svelte';
   import { keyboardTool, sizeOf, tabTarget } from './keys.ts';
   import { keepThenReplace } from './restore.ts';
+  import { followedViewport, peersOf, stillFollowing, type Peer } from './peers.ts';
   import BoardComments from './BoardComments.svelte';
   import BoardTemplates, { templateOf, type BoardStart, type RetroFormat } from './BoardTemplates.svelte';
   import { actor } from '../data/account.svelte.ts';
@@ -224,7 +225,6 @@
 
   // --- Who else is here (research §4.1: cursors, presence, follow) ---------------------------------
 
-  interface Peer { id: number; name: string; cursor?: Point; view?: { x: number; y: number; zoom: number } }
   let peers = $state<Peer[]>([]);
   let following = $state<number | undefined>(undefined);
   let cursorSent = 0;
@@ -234,19 +234,11 @@
   function peersChanged() {
     const live = connection;
     if (!live) return;
-    const next: Peer[] = [];
-    live.awareness.getStates().forEach((state, id) => {
-      if (id === doc.clientID || !state) return;
-      const s = state as { name?: unknown; cursor?: Point; view?: Peer['view'] };
-      next.push({ id, name: typeof s.name === 'string' && s.name ? s.name : t('app.whiteboards.someone'), cursor: s.cursor, view: s.view });
-    });
+    const next = peersOf(live.awareness.getStates(), doc.clientID, t('app.whiteboards.someone'));
     peers = next;
-    const leader = following === undefined ? undefined : next.find((p) => p.id === following);
-    if (following !== undefined && !leader) following = undefined;
-    if (leader?.view) {
-      const zoom = leader.view.zoom;
-      view = { ...view, zoom, x: leader.view.x - view.width / zoom / 2, y: leader.view.y - view.height / zoom / 2 };
-    }
+    following = stillFollowing(next, following);
+    const centred = followedViewport(next, following, view);
+    if (centred) view = { ...view, ...centred };
   }
 
   function tellWhere(at?: Point) {
