@@ -4527,6 +4527,8 @@
   "app.today.jumble_more": "Open the inbox ({count})",
   "app.today.jumble_more_than": "Open the inbox (more than {count})",
   "app.today.recent": "Recently opened",
+  "app.today.in_use": "In use here",
+  "app.today.in_use_collections": "{count, plural, one {# collection} other {# collections}}",
   "app.today.more": "More in Hubtask",
   "app.today.more_dismiss": "Hide More in Hubtask for good",
   "app.today.more_try": "Try it",

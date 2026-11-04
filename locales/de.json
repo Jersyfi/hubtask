@@ -3857,6 +3857,8 @@
   "app.today.jumble_more": "Eingang öffnen ({count})",
   "app.today.jumble_more_than": "Eingang öffnen (mehr als {count})",
   "app.today.recent": "Zuletzt geöffnet",
+  "app.today.in_use": "Hier in Gebrauch",
+  "app.today.in_use_collections": "{count, plural, one {# Sammlung} other {# Sammlungen}}",
   "app.today.more": "Mehr in Hubtask",
   "app.today.more_dismiss": "Mehr in Hubtask dauerhaft ausblenden",
   "app.today.more_try": "Ausprobieren",

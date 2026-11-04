@@ -236,7 +236,9 @@ each only where its module is on and fed by the product's own reads, each with i
 
 Then today's bands (*On you*, *Lists*, *Projects*, *Inbox*, *Recently opened*).
 
-**First steps** for a workspace with nothing for the reader yet: *Choose what you use Hubtask for*
+**First steps** for a workspace with nothing for the reader yet and no entry in any hub they can
+see (one in use, where nothing is on the reader, shows *In use here* instead: its hubs and its
+products, each leading there): *Choose what you use Hubtask for*
 (where the starter was skipped), *Create a hub*, *Capture*, *Invite*, and **More in Hubtask**: a
 strip of the switched-off products, each with a one-line value and *Try it*, which takes the
 matching template through §3.2's dialog — for holders of `STRUCTURE` only; nobody else sees a

@@ -1081,9 +1081,13 @@ A card with nothing to say is not drawn; with nothing beside it *On you* takes t
 shows six rows at most, then how many more and the way to the search, and its count in its head;
 empty, it says so with *Capture*. A workspace with nothing for the reader yet - no entry on them,
 no list, no project, nothing opened, nothing waiting - shows *First steps* instead, each with its
-act. It uses only existing reads — the workspace-wide search with a filter
+act, but only while no hub holds an entry the reader can see. Where one does (an owner of a busy
+workspace who holds nothing themselves), *On you* says it is empty and *In use here* stands beside
+it: the hubs that hold entries, each with its count of collections, and the products switched on,
+each leading to its home. It uses only existing reads — the workspace-wide search with a filter
 ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)), each hub's collections with their figures,
-one anchored query per project, and the jumble's first page.
+one anchored query per project, the jumble's first page and, while the page looks new, one anchored
+query of one entry per hub.
 
 **The archive (`/archive`)** lists the archived containers and entries the reader may see, each with
 where it lives and the way back, from the container list and the collection's query with

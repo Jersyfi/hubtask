@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, ErrorState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -65,6 +65,7 @@
   import { todayIn } from '../lib/i18n/zone.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { moreInHubtask } from '../lib/product/home.ts';
+  import { products } from '../lib/navigation.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { afterCreating } from '../lib/workspace/hubGallery.ts';
   import { config } from '../lib/data/config.svelte.ts';
@@ -284,9 +285,36 @@
    * A workspace with nothing in it yet for this reader: no entry on them, no list, no project,
    * nothing opened, nothing waiting. Instead of empty cards, the first steps (concept round 2, §1).
    */
-  const isNewWorkspace = $derived(
+  const looksNew = $derived(
     !isLoading && !failure && !(hasJumble && isJumbleLoading) && isMineEmpty && lists.length === 0 && projects.length === 0 && recents.rows.length === 0 && (!hasJumble || waiting.length === 0),
   );
+  /**
+   * Whether a hub holds an entry the reader can see, asked only while the page looks new: nothing
+   * on the reader is no sign of a new workspace - an owner of a busy one holds nothing themselves,
+   * and *First steps* there would tell them to create the hub that exists. One entry a hub.
+   */
+  let hubUse = $state<Record<string, boolean>>({});
+  $effect(() => {
+    if (!looksNew) return;
+    const ids = hubIds ? hubIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<ItemQueryResult>(
+        { path: '/items:query', body: { scope: { container_id: id, include_descendants: true }, page: { size: 1 } } },
+        (next) => {
+          if (next.status === 'ready') hubUse = { ...hubUse, [id]: next.data.data.length > 0 };
+          // A hub that cannot be read is not counted as used: the steps stay a newcomer's.
+          if (next.status === 'failed') hubUse = { ...hubUse, [id]: false };
+        },
+      ));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const isWorkspaceUsed = $derived(containers.hubs.some((hub) => hubUse[hub.id] === true));
+  const isUseSettled = $derived(containers.hubs.every((hub) => hubUse[hub.id] !== undefined));
+  const isNewWorkspace = $derived(looksNew && isUseSettled && !isWorkspaceUsed);
+  /** *In use here*: the hubs and the products of a workspace that holds work the reader has none of. */
+  const inUse = $derived(looksNew && isWorkspaceUsed);
+  const inUseProducts = $derived(products({ modulesOn: manifest.value?.modules_on }));
   const mayInvite = $derived(holdsHere('MANAGE_MEMBERS') === true);
 
   /**
@@ -422,7 +450,7 @@
   const hasProductBands = $derived(waitingCount > 0 || timeToday !== undefined);
 
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
-  const hasSide = $derived(hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
+  const hasSide = $derived(inUse || hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
 
   const moment = $derived(celebration.current);
 
@@ -529,7 +557,7 @@
               retryLabel={t('app.retry')}
               onRetry={() => today.open()()}
             />
-          {:else if isLoading}
+          {:else if isLoading || (looksNew && !isUseSettled)}
             <div aria-busy="true"><Skeleton lines={3} /></div>
           {:else if isNewWorkspace}
             <!-- The first steps, each ticked where it is already done, each with its act. -->
@@ -716,6 +744,35 @@
               <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
               <p class="none">{t('app.today.jumble_none')}</p>
               <IntakeAddress address={jumbleAddress} lead={t('app.mail.jumble_lead')} />
+            </Stack>
+          </section>
+        {/if}
+
+        <!-- A workspace in use where nothing is on the reader yet: the way into what exists. -->
+        {#if inUse}
+          <section class="panel" aria-labelledby="today-in-use" data-band="in-use">
+            <Stack gap="100">
+              <h2 class="head" id="today-in-use">{t('app.today.in_use')}</h2>
+              <ul class="offers">
+                {#each containers.hubs.filter((hub) => hubUse[hub.id]).slice(0, 5) as hub (hub.id)}
+                  <li>
+                    <span class="offer-mark" aria-hidden="true"><ContainerMark look={hub} size="md" /></span>
+                    <span class="offer-words">
+                      <a class="offer-name" href={`/hubs/${hub.id}`}>{hub.name}</a>
+                      <span class="offer-what">{t('app.today.in_use_collections', { count: containers.collectionsOf(hub.id).length })}</span>
+                    </span>
+                  </li>
+                {/each}
+                {#each inUseProducts as product (product.id)}
+                  <li>
+                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                    <span class="offer-words">
+                      <a class="offer-name" href={product.path}>{t(product.code)}</a>
+                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                    </span>
+                  </li>
+                {/each}
+              </ul>
             </Stack>
           </section>
         {/if}

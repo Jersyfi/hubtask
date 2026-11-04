@@ -17,7 +17,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import {
-  ACCOUNT, COLLECTION, PAGE, TODAY_ARRIVALS, TODAY_COLLECTIONS, TODAY_HUB, TODAY_ITEMS, TODAY_STEP,
+  ACCOUNT, COLLECTION, HUB, PAGE, TODAY_ARRIVALS, TODAY_COLLECTIONS, TODAY_HUB, TODAY_ITEMS, TODAY_STEP,
   dayCompletionsSoFar, showToday, signedIn,
 } from './fixture.mjs';
 
@@ -52,9 +52,27 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   const browser = await chromium.launch();
   t.after(() => browser.close());
 
-  // The shared fixture without the day: nothing is on the reader.
+  // The shared fixture without the day: nothing is on the reader, but its hub holds entries - an
+  // owner of a busy workspace. Not the first steps, which would ask for the hub that exists, but
+  // the way into what is there.
+  const used = await signedIn(browser, 1280, 900);
+  t.after(() => used.context.close());
+  await used.page.goto(`${served.origin}/`);
+  const inUse = used.page.getByRole('region', { name: 'In use here' });
+  await inUse.waitFor({ timeout: 15_000 });
+  assert.equal(await inUse.getByRole('link', { name: HUB.name }).getAttribute('href'), `/hubs/${HUB.id}`);
+  assert.equal(await used.page.getByRole('region', { name: 'First steps' }).count(), 0, 'a used workspace is offered its first steps');
+  await used.page.getByText('Nothing assigned to you has a date on it.').waitFor();
+  assert.deepEqual(used.failures, []);
+
+  // The same tree with no entry in any hub: a new workspace.
   const empty = await signedIn(browser, 1280, 900);
   t.after(() => empty.context.close());
+  await empty.context.route('**/api/v1/items:query', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.scope?.container_id === HUB.id && body.page?.size === 1) return route.fulfill({ json: { data: [], groups: [], page: { next_cursor: null, has_more: false } } });
+    return route.fallback();
+  });
   await empty.page.goto(`${served.origin}/`);
   // Nothing on the reader, no list, no project, nothing opened, nothing waiting: not empty cards
   // but the first steps, each with its act (concept round 2, §1).
