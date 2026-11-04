@@ -132,10 +132,15 @@ type source struct {
 	fail    error
 	cursors []string
 	secrets []string
+	// during runs while a page is fetched, as a person's change made meanwhile.
+	during func()
 }
 
 func (s *source) Pull(_ context.Context, p connectorport.Pull) (connectorport.Page, error) {
 	s.cursors, s.secrets = append(s.cursors, p.Cursor), append(s.secrets, p.Credential.Reveal())
+	if s.during != nil {
+		s.during()
+	}
 	if s.fail != nil {
 		return connectorport.Page{}, s.fail
 	}
@@ -503,5 +508,31 @@ func TestAConnectorThatSwitchesItselfOffIsToldOnce(t *testing.T) {
 	}
 	if len(told.told) != 1 || told.told[0] != id {
 		t.Errorf("told %v, want [%v] once", told.told, id)
+	}
+}
+
+// The usual order in the web app: the connector first, its credential in a second step. A
+// scheduled pull owed before the credential arrives waits for it instead of failing for good.
+func TestAScheduledConnectorDefinedBeforeItsCredentialWaitsForIt(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org", "every_minutes": 60}))
+	next, err := f.c.RunScheduled(context.Background(), tenant, id)
+	if err != nil || !next.IsZero() || len(f.src.cursors) != 0 {
+		t.Fatalf("no credential yet: the job ends without a failure: %v %v", next, err)
+	}
+	if c := f.store.conns[id]; c.Failures != 0 || c.LastOutcome != domain.ConnectorNeverRan {
+		t.Fatalf("nothing ran: %+v", c)
+	}
+	asked := len(f.jobs.asked)
+	if _, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.jobs.asked) != asked+1 || f.jobs.asked[asked].Kind != queue.KindCmdbConnectorPull || !f.jobs.asked[asked].RunAt.Equal(start) {
+		t.Fatalf("the credential seeds the pull again: %+v", f.jobs.asked)
+	}
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}}}
+	if next, err = f.c.RunScheduled(context.Background(), tenant, id); err != nil || len(f.m.cis) != 1 || next.IsZero() {
+		t.Fatalf("and then it pulls: %v %v", next, err)
 	}
 }

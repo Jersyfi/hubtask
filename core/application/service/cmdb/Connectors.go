@@ -387,6 +387,10 @@ func (s Connectors) setCredential(ctx context.Context, actor appshared.ActorCont
 		if err := s.Store.SetCredential(ctx, c.ID, sealed.Ciphertext, sealed.KeyID, now); err != nil {
 			return err
 		}
+		// A scheduled pull owed before its credential ended without one; this seeds it again.
+		if err := s.schedule(ctx, actor.TenantID, c); err != nil {
+			return err
+		}
 		return s.Inventory.record(ctx, actor, ConnectorCredentialAction, connectorTarget, c.ID,
 			audit.Change{Field: "credential", Classification: audit.Secret})
 	})
@@ -659,7 +663,8 @@ func (s Connectors) RunScheduled(ctx context.Context, tenantID, id shared.ID) (t
 		}
 		return time.Time{}, err
 	}
-	if !c.Enabled || c.Every == 0 || c.NextRunAt == nil || c.Spec().Push {
+	if !c.Enabled || c.Every == 0 || c.NextRunAt == nil || c.Spec().Push || !c.HasCredential {
+		// Without a credential nothing can be pulled; setting it seeds the pull again.
 		return time.Time{}, nil
 	}
 	now := s.Inventory.Clock.Now()
