@@ -122,6 +122,15 @@ func acceptsCSV(r *http.Request) bool {
 	return false
 }
 
+// spreadsheetText is a text cell a spreadsheet reads as text: one starting with a character that
+// opens a formula is prefixed with a quote mark, so that it never runs.
+func spreadsheetText(v string) string {
+	if v != "" && strings.ContainsRune("=+-@\t\r", rune(v[0])) {
+		return "'" + v
+	}
+	return v
+}
+
 // timeRecordCell writes one cell of a time record; a text a spreadsheet would read as a formula - a
 // note starting with "=" - is prefixed with a quote mark, so that it never runs.
 func timeRecordCell(value any) string {
@@ -129,10 +138,7 @@ func timeRecordCell(value any) string {
 	case nil:
 		return ""
 	case string:
-		if v != "" && strings.ContainsRune("=+-@\t\r", rune(v[0])) {
-			return "'" + v
-		}
-		return v
+		return spreadsheetText(v)
 	case bool:
 		return strconv.FormatBool(v)
 	case int:

@@ -152,6 +152,35 @@ func TestTheCSVExportIsAFixedShapeInTheCallersZone(t *testing.T) {
 	}
 }
 
+// A title or notes a spreadsheet would read as a formula is written as text, as the time export
+// writes its notes: an entry titled "=HYPERLINK(...)" must not become a live cell in the file a
+// colleague opens.
+func TestTheCSVExportWritesAFormulaAsText(t *testing.T) {
+	rows := exportedRows()
+	list := rows["rows"].([]usecase.Output)
+	list[0]["title"] = "=HYPERLINK(\"https://evil.example\",\"open\")"
+	list[1]["notes"] = "@SUM(A1:A9)"
+	list[2]["title"] = "-1 day buffer"
+	recorder := postExport(t, &catalogue{out: rows}, `{"format":"CSV"}`)
+
+	records, err := csv.NewReader(strings.NewReader(recorder.Body.String())).ReadAll()
+	if err != nil {
+		t.Fatalf("the body is not a spreadsheet: %v", err)
+	}
+	if got := records[1][2]; got != "'=HYPERLINK(\"https://evil.example\",\"open\")" {
+		t.Errorf("the formula title came out as %q", got)
+	}
+	if got := records[2][3]; got != "'@SUM(A1:A9)" {
+		t.Errorf("the formula notes came out as %q", got)
+	}
+	if got := records[3][2]; got != "'-1 day buffer" {
+		t.Errorf("a title starting with a minus came out as %q", got)
+	}
+	if got := records[1][0]; strings.HasPrefix(got, "'") {
+		t.Errorf("an identifier was quoted: %q", got)
+	}
+}
+
 // The calendar rendering: only the dated entries, the all-day one as a date in its own zone, and
 // the document delivered as a document.
 func TestTheICSExportIsTheDatedEntriesOnly(t *testing.T) {

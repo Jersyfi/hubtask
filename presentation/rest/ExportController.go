@@ -175,7 +175,9 @@ func csvValue(row usecase.Output, column string, zone *time.Location) string {
 	case "start_at", "due_at", "created_at", "updated_at":
 		return timeCell(row[column], zone)
 	default:
-		return row.String(column)
+		// Through spreadsheetText, as the time export: a title is somebody's text, and one
+		// starting with "=" must not become a live formula in a colleague's spreadsheet.
+		return spreadsheetText(row.String(column))
 	}
 }
 
