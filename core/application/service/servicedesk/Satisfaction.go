@@ -7,6 +7,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
@@ -56,16 +57,19 @@ func (h RateMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 	if err != nil {
 		return domain.Rating{}, err
 	}
-	if comment := strings.TrimSpace(cmd.Comment); comment != "" {
-		// Before the score, so that a comment refused - too long, say - leaves no score without
-		// the words the requester meant to go with it.
-		if _, err := h.Portal.Entries.Invoke(ctx, addCommentUseCase, portal(actor), usecase.Input{
-			"item_id": item.ID.String(), "body": comment,
-		}); err != nil {
-			return domain.Rating{}, err
+	// The words and the score are written in one transaction, so a score that cannot be stored
+	// takes its words with it and a retry writes them once. AddComment's refusal is held until the
+	// transaction ends; the words come first, so one refused - too long, say - stores no score.
+	writing, refusals := access.HoldRefusals(ctx)
+	defer refusals.Record(ctx)
+	err = h.Portal.Desk.UnitOfWork.Within(writing, actor.PersistenceScope(), func(ctx context.Context) error {
+		if comment := strings.TrimSpace(cmd.Comment); comment != "" {
+			if _, err := h.Portal.Entries.Invoke(ctx, addCommentUseCase, portal(actor), usecase.Input{
+				"item_id": item.ID.String(), "body": comment,
+			}); err != nil {
+				return err
+			}
 		}
-	}
-	err = h.Portal.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if rating, err = h.Portal.Desk.Ratings.Save(ctx, rating); err != nil {
 			return err
 		}

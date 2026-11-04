@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 type ratingStore struct{ rows map[shared.ID]domain.Rating }
@@ -109,5 +110,46 @@ func TestTheRequesterReadsTheirOwnScoreWithTheRequest(t *testing.T) {
 	portal.Desk.Ratings.(*ratingStore).rows[itemID] = domain.Rating{ItemID: itemID, Score: 4, RatedAt: monday}
 	if got, _ := read().(usecase.Output); got == nil || got["score"] != 4 {
 		t.Errorf("the requester's own score reads %v", got)
+	}
+}
+
+// failingRatings refuses to store a score, as a database gone for a moment does.
+type failingRatings struct{ ratingStore }
+
+func (failingRatings) Save(context.Context, domain.Rating) (domain.Rating, error) {
+	return domain.Rating{}, shared.ErrUnavailable
+}
+
+// commentsUndone keeps the comments only when the transaction they were written in commits.
+type commentsUndone struct {
+	inline
+	comments *invocations
+}
+
+func (u commentsUndone) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	before := len(u.comments.calls)
+	if err := fn(ctx); err != nil {
+		u.comments.calls = u.comments.calls[:before]
+		return err
+	}
+	return nil
+}
+
+// UC-SVC-07 check 1: a score that cannot be stored takes its words with it, so the requester's
+// retry writes them once, not a second copy beside the first.
+func TestAScoreNotStoredLeavesNoCommentBehind(t *testing.T) {
+	f := newFixture(t)
+	f.items.item.Completion.IsCompleted = true
+	comments := &invocations{}
+	rate := RateMyRequest{Portal: Portal{
+		Entries: comments, Items: f.items, Containers: containerStore{},
+		Desk: Desk{Ratings: &failingRatings{}, Authorizer: &gate{allow: true}, UnitOfWork: commentsUndone{comments: comments},
+			Audit: discard{}, Clock: at(monday), IDs: f.ids},
+	}}
+	if _, err := rate.Execute(context.Background(), requester(), RateMyRequestCommand{ItemID: itemID, Score: 2, Comment: "Took long."}); !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("the rating answered %v", err)
+	}
+	if len(comments.calls) != 0 {
+		t.Errorf("a score not stored left its words: %+v", comments.calls)
 	}
 }
