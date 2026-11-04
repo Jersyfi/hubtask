@@ -300,6 +300,13 @@ applying person's locale (else the workspace default) at apply time and stored a
 afterwards, so it stays editable. `locales/ShippedTemplateWord_test.go` extends from the
 template's name and questions to every name and option in each catalogue.
 
+**The default containers in the owner's language.** Provisioning names the default hub, the
+example collection, its columns and its labels in the workspace's language, because the owner's is
+not known yet. The owner's redemption sends the language the invitation card was read in, and
+whatever of that seed is still untouched — at its first version, under the name the workspace's
+language gives it — is renamed into it, with the events and change entries a rename owes
+(`admin.LocaliseSeed`). Anybody else's redemption renames nothing.
+
 ---
 
 ## 5. The shared patterns

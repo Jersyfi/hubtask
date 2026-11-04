@@ -382,7 +382,7 @@ func (h ProvisionTenant) seedStructure(
 
 	hub, err := h.seedContainer(ctx, work.NewContainerInput{
 		ID: h.IDs.NewID(), TenantID: tenant.ID, Type: work.ContainerHub,
-		Name: name("seed.hub.name"), OrderKey: firstOrderKey(), Text: h.Text,
+		Name: name(seedHubName), OrderKey: firstOrderKey(), Text: h.Text,
 		CreatedBy: owner.ID, Now: now,
 	}, eventActor, now)
 	if err != nil {
@@ -391,7 +391,7 @@ func (h ProvisionTenant) seedStructure(
 
 	collection, err := h.seedContainer(ctx, work.NewContainerInput{
 		ID: h.IDs.NewID(), TenantID: tenant.ID, Type: work.ContainerCollection,
-		ParentID: hub.ID, Name: name("seed.collection.name"), OrderKey: firstOrderKey(), Text: h.Text,
+		ParentID: hub.ID, Name: name(seedCollectionName), OrderKey: firstOrderKey(), Text: h.Text,
 		CreatedBy: owner.ID, Now: now,
 	}, eventActor, now)
 	if err != nil {

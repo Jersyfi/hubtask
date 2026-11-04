@@ -2853,7 +2853,14 @@ func run() error {
 		identity.RevokeOtherSessions{Writer: sessionWriter}.Descriptor(),
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
-		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
+		identity.RedeemInvitation{
+			Writer: sessionWriter, Passwords: &passwordWriter,
+			// The provisioned owner's untouched defaults, in the language the card was read in.
+			Seed: adminservice.LocaliseSeed{
+				Tenants: provisioning.Tenants, Containers: containers, Buckets: buckets, Labels: labels,
+				Events: outbox, Changes: changes, Renderer: renderer, Text: forms, IDs: ids, HLC: hybrid,
+			},
+		}.Descriptor(),
 		identity.SetUpInstallation{
 			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
