@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, ITEMS, OTHER } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, HUB, ITEMS, OTHER, PAGE } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -62,7 +62,13 @@ function deskBackend() {
     }
     if (path === '/reply-templates' && method === 'GET') return { json: { data: [] } };
     // The pickers' values (user-experience.md §5.4): the workspace's types, choice fields and statuses.
-    if (path === '/entry-types' && method === 'GET') return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false }] } };
+    // A desk: its collection offers the request type, which the portal takes (UC-SVC-05).
+    if (path === '/entry-types' && method === 'GET') {
+      return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, form: { channels: [{ channel: 'PORTAL' }] } }] } };
+    }
+    const desk = { ...COLLECTION, structure: { ...COLLECTION.structure, settings: { ...COLLECTION.structure.settings, entry_types: { TASK: ['request'] } } } };
+    if (path === `/containers/${COLLECTION.id}` && method === 'GET') return { json: desk };
+    if (path === '/containers' && method === 'GET' && query.get('parent_id') === HUB.id) return { json: { ...PAGE, data: [desk] } };
     if (path === '/custom-fields' && method === 'GET') {
       return { json: [{ id: id(), collection_id: null, hub_id: null, key: 'priority', name: 'Priority', kind: 'SELECT', options: ['P1', 'P2'], is_required: false, restricted: false, read_restricted: false, applies_to: ['TASK'] }] };
     }
