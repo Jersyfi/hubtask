@@ -35,6 +35,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if offered, held := out["private_hubs_offered"].(bool); held {
 		answer.PrivateHubsOffered = &offered
 	}
+	if offered, held := out["starter_offered"].(bool); held {
+		answer.StarterOffered = &offered
+	}
 	if updated, held := out["updated_at"].(time.Time); held && !updated.IsZero() {
 		answer.UpdatedAt = &updated
 	}

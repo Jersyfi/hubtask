@@ -90,6 +90,32 @@ func TestReadingTheWorkspaceAnswersItsConfigurationAndAnETag(t *testing.T) {
 	}
 }
 
+// The first-start question opens only on starter_offered: the field travels as the use case
+// answered it, true and false alike, and stays away where the use case did not answer it.
+func TestTheWorkspaceAnswersWhetherTheStarterIsOffered(t *testing.T) {
+	for _, offered := range []bool{true, false} {
+		out := storedWorkspace()
+		out["starter_offered"] = offered
+		recorder := workspaceRequest(t, &catalogue{out: out}, http.MethodGet, "", "")
+		var body map[string]any
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decoding: %v", err)
+		}
+		if got, held := body["starter_offered"]; !held || got != offered {
+			t.Errorf("starter_offered = %v (held %v), want %v", got, held, offered)
+		}
+	}
+
+	recorder := workspaceRequest(t, &catalogue{out: storedWorkspace()}, http.MethodGet, "", "")
+	var body map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if got, held := body["starter_offered"]; held {
+		t.Errorf("an unanswered starter travelled as %v", got)
+	}
+}
+
 // The anchoring target is read on the workspace - null where anchoring is off, the
 // identifier where it is on - and written nowhere but PUT /audit/anchoring.
 func TestTheWorkspaceAnswersItsAnchoringTarget(t *testing.T) {
