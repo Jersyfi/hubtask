@@ -453,6 +453,11 @@ templates*, so *Templates* means one thing. A test pins the section order per le
   and passes `retry_at` from `Retry-After` (*Try again in 2 minutes*); `access.not_permitted`
   names the place and who may grant it, or links the explain view. A reference (`Reference:
   <hex>`) is behind *Details*, with *Copy*, never in the sentence.
+* **One shape for a failure.** A refused act is `FailureNote` (a danger banner; what else the
+  refusal holds, such as its field sentences, comes inside it); a screen or list that could not be
+  read is `FailureState` (`ErrorState` with *Try again*). Both fold the reference and the code behind
+  *Details for support* (`FailureDetails`). `apps/webapp/build/failure.test.js` refuses a bare
+  `<ErrorState>` or a hand-written reference line outside them.
 * **Every user-facing code has a catalogue entry.** The catalogue gate (`make locales`,
   `gate-architecture`) is extended: every code used as a validation, conflict, forbidden or
   rate-limited detail, or as a `FieldError.Code`, must be in the source catalogue; internal codes
