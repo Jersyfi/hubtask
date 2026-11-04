@@ -153,12 +153,12 @@
   })) : []);
   const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
   // The home's create act (UX-2): the product's own words, leading to the hub's screen of it -
-  // the first hub's, the others in its menu; without a hub, making one.
+  // the first hub's, the others in its menu. Without a hub the empty state's *Create hub* is it.
   const createAct = $derived(createOf(module));
   const primary = $derived.by(() => {
     if (!createAct || isReading || currentTab !== tabs[0]?.id) return undefined;
     const first = hubsWith[0];
-    if (!first) return createHub ? { label: createHub.label, icon: 'plus' as const, onclick: createHub.onclick } : undefined;
+    if (!first) return undefined;
     const go = (id: string) => onnavigate(hubScreenOf(module, id) ?? `/hubs/${id}`);
     return {
       label: t(createAct.code),
