@@ -158,3 +158,24 @@ test('the space fits a phone without scrolling sideways', async () => {
     await browser.close();
   }
 });
+
+test("the drafts switch is among the hub's settings, not beside the tree", async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await opened(browser, FULL);
+    await page.goto(`${served.origin}/hubs/${HUB.id}/pages`);
+    await page.locator('[data-page-head]').waitFor({ timeout: 15_000 });
+    assert.equal(await page.getByLabel('Drafts and publishing').count(), 0);
+    await page.goto(`${served.origin}/hubs/${HUB.id}/settings`);
+    const drafts = page.locator('[data-page-drafts]');
+    await drafts.getByLabel('Drafts and publishing').waitFor({ timeout: 15_000 });
+    const sent = page.waitForRequest((request) => request.method() === 'PUT' && request.url().endsWith(`/hubs/${HUB.id}/page-drafts`), { timeout: 10_000 });
+    await drafts.getByLabel('Drafts and publishing').click();
+    assert.deepEqual((await sent).postDataJSON(), { drafts: true });
+    assert.equal(written.filter((write) => write.method === 'PUT').length, 1);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});

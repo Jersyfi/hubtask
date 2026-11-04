@@ -1321,6 +1321,8 @@ export function fallback(route, request, path) {
   // Pages, request forms and roadmaps open by a public link as the installation's default allows; no day locked, time seen in
   // full; no kind of work defined (`PublicLinksPolicy`, `TimePolicy`, `WorkTypeList`).
   if (read === '/pages:public-links' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
+  // A hub's pages are a live document, as a hub starts (`PageSpaceDrafts`).
+  if (/^\/hubs\/[^/]+\/page-drafts$/.test(read) && request.method() === 'GET') return route.fulfill({ json: { hub_id: read.split('/')[2], drafts: false } });
   if (read === '/public-forms:policy' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
   if (read === '/portfolios:public-links' && request.method() === 'GET') return route.fulfill({ json: { allowed: true, source: 'DEFAULT' } });
   if (read === '/time-policy' && request.method() === 'GET') return route.fulfill({ json: { locked_through: null, visibility: 'FULL', version: 1 } });
