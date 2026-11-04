@@ -44,6 +44,9 @@ type Store interface {
 	FindAgent(ctx context.Context, id shared.ID) (domain.Agent, error)
 	// FindAgentByAccount answers the agent acting as an account, ErrNotFound for any other.
 	FindAgentByAccount(ctx context.Context, account shared.ID) (domain.Agent, error)
+	// LockAgent answers the agent as it stands and holds its row until the transaction ends, so
+	// that two acts of one agent are judged one after the other.
+	LockAgent(ctx context.Context, id shared.ID) (domain.Agent, error)
 	InsertAgent(ctx context.Context, a domain.Agent) error
 	UpdateAgent(ctx context.Context, a domain.Agent, expected int, at time.Time) error
 

@@ -223,6 +223,22 @@ func (AgentRepository) FindAgentByAccount(ctx context.Context, account shared.ID
 	return agentOf(sqlc.FindAgentRow(row))
 }
 
+func (AgentRepository) LockAgent(ctx context.Context, id shared.ID) (domain.Agent, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Agent{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return domain.Agent{}, err
+	}
+	row, err := queries.LockAgent(ctx, key)
+	if err != nil {
+		return domain.Agent{}, agentError(err, "holding an agent")
+	}
+	return agentOf(sqlc.FindAgentRow(row))
+}
+
 func (AgentRepository) InsertAgent(ctx context.Context, a domain.Agent) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

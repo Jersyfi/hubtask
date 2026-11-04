@@ -164,7 +164,7 @@ func (g Gate) narrowed(actor appshared.ActorContext, a domain.Agent) appshared.A
 }
 
 // judge decides an act and writes it to the ledger - and a held act's request - in one
-// transaction, so a burst of acts counts each one.
+// transaction under the agent's row lock, so a burst of acts counts each one.
 func (g Gate) judge(
 	ctx context.Context, actor appshared.ActorContext, a domain.Agent, name string, class domain.Class, in usecase.Input,
 ) (domain.Decision, shared.ID, error, error) {
@@ -173,6 +173,13 @@ func (g Gate) judge(
 	var refusal error
 	var request shared.ID
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Held first: parallel acts would otherwise all count the same usage and all pass, and a
+		// suspension since the agent was read would go unseen.
+		held, err := d.Store.LockAgent(ctx, a.ID)
+		if err != nil {
+			return err
+		}
+		a = held
 		situation, err := d.situation(ctx, a)
 		if err != nil {
 			return err

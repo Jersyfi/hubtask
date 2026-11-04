@@ -61,6 +61,17 @@ SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_
 FROM agent
 WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::uuid;
 
+-- name: LockAgent :one
+-- The agent as it stands, held until the transaction ends: an act is judged after the one before
+-- it was counted, and on the agent's status and budget of that moment.
+SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible,
+       policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status,
+       approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by,
+       created_at, updated_at, version
+FROM agent
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
+FOR UPDATE;
+
 -- name: InsertAgent :exec
 INSERT INTO agent (id, tenant_id, account_id, name, purpose, kind, owner_id, risk_class, scopes,
   model_id, policy_reversible, policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs,

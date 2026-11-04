@@ -80,6 +80,18 @@ type store struct {
 	runs     []domain.Run
 	marks    []domain.Mark
 	jobs     map[shared.ID]domain.Job
+	// calls is the order the gate asked in; stale, where set, is the agent an earlier read answers
+	// while the stored one has moved on.
+	calls []string
+	stale *domain.Agent
+}
+
+func (s *store) LockAgent(_ context.Context, id shared.ID) (domain.Agent, error) {
+	s.calls = append(s.calls, "lock")
+	if a, ok := s.agents[id]; ok {
+		return a, nil
+	}
+	return domain.Agent{}, notFound()
 }
 
 func newStore() *store {
@@ -129,6 +141,9 @@ func (s *store) FindAgent(_ context.Context, id shared.ID) (domain.Agent, error)
 	return domain.Agent{}, notFound()
 }
 func (s *store) FindAgentByAccount(_ context.Context, account shared.ID) (domain.Agent, error) {
+	if s.stale != nil && s.stale.AccountID == account {
+		return *s.stale, nil
+	}
 	for _, a := range s.agents {
 		if a.AccountID == account {
 			return a, nil
@@ -155,6 +170,7 @@ func (s *store) RecordAction(_ context.Context, a domain.Action) error {
 	return nil
 }
 func (s *store) Usage(_ context.Context, agent shared.ID, hourFrom, dayFrom time.Time) (domain.Usage, error) {
+	s.calls = append(s.calls, "usage")
 	var u domain.Usage
 	for _, a := range s.actions {
 		if a.AgentID != agent {
@@ -490,6 +506,42 @@ func TestTheKillSwitchesAndTheBudgetStopAnAgent(t *testing.T) {
 	}
 	if err := run(); code(err) != "agents.halted" {
 		t.Fatalf("a halted workspace's agent acted: %v", err)
+	}
+}
+
+// UC-AGT-02 checks 6 and 7 under concurrency: an agent's acts are judged one after another, the
+// agent held before its budget is counted - parallel tool calls would otherwise all read the same
+// count and all pass - and judged as it stands then, so an agent suspended a moment ago is refused.
+func TestAnActIsJudgedOnTheAgentHeldAsItStands(t *testing.T) {
+	f := newFixture()
+	a := f.register(t, usecase.Input{
+		"kind": "EXTERNAL", "policy": map[string]any{"reversible": "ALLOW"}, "budget": map[string]any{"actions_per_hour": float64(5)},
+	})
+	f.live(t, a)
+	write := usecase.Descriptor{Name: "UpdateWorkItem"}
+	actor := appshared.ActorContext{Kind: appshared.ActorAIAgent, TenantID: tenantID, AccountID: a.AccountID}
+	run := func() error {
+		next := usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+			return usecase.Output{}, nil
+		})
+		_, err := Gate{Desk: f.desk}.Wrap(nil)(write, next).Invoke(context.Background(), actor, usecase.Input{})
+		return err
+	}
+	f.store.calls = nil
+	if err := run(); err != nil {
+		t.Fatalf("an allowed write: %v", err)
+	}
+	if len(f.store.calls) < 2 || f.store.calls[0] != "lock" || f.store.calls[1] != "usage" {
+		t.Errorf("asked in the order %v, want the agent held before its usage is counted", f.store.calls)
+	}
+
+	active := f.store.agents[a.ID]
+	f.store.stale = &active
+	if _, err := (SuspendAgent{Desk: f.desk}).Descriptor().Handler.Invoke(context.Background(), person(ana), usecase.Input{"agent_id": a.ID.String()}); err != nil {
+		t.Fatalf("its owner could not stop it: %v", err)
+	}
+	if err := run(); code(err) != "agents.suspended" {
+		t.Errorf("an agent suspended after the first read acted: %v", err)
 	}
 }
 

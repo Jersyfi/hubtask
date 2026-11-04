@@ -1405,6 +1405,79 @@ func (q *Queries) ListAiProvenance(ctx context.Context, arg ListAiProvenancePara
 	return items, nil
 }
 
+const lockAgent = `-- name: LockAgent :one
+SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible,
+       policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status,
+       approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by,
+       created_at, updated_at, version
+FROM agent
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+FOR UPDATE
+`
+
+type LockAgentRow struct {
+	ID                    pgtype.UUID
+	AccountID             pgtype.UUID
+	Name                  string
+	Purpose               string
+	Kind                  string
+	OwnerID               pgtype.UUID
+	RiskClass             string
+	Scopes                []string
+	ModelID               pgtype.UUID
+	PolicyReversible      string
+	PolicyIrreversible    string
+	TokensPerDay          int64
+	ActionsPerHour        int32
+	ConcurrentRuns        int32
+	MinAccuracy           int16
+	Status                string
+	ApprovedBy            pgtype.UUID
+	ApprovedAt            pgtype.Timestamptz
+	ApprovedModelRevision int32
+	SuspendedBy           pgtype.UUID
+	SuspendedAt           pgtype.Timestamptz
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+// The agent as it stands, held until the transaction ends: an act is judged after the one before
+// it was counted, and on the agent's status and budget of that moment.
+func (q *Queries) LockAgent(ctx context.Context, id pgtype.UUID) (LockAgentRow, error) {
+	row := q.db.QueryRow(ctx, lockAgent, id)
+	var i LockAgentRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Name,
+		&i.Purpose,
+		&i.Kind,
+		&i.OwnerID,
+		&i.RiskClass,
+		&i.Scopes,
+		&i.ModelID,
+		&i.PolicyReversible,
+		&i.PolicyIrreversible,
+		&i.TokensPerDay,
+		&i.ActionsPerHour,
+		&i.ConcurrentRuns,
+		&i.MinAccuracy,
+		&i.Status,
+		&i.ApprovedBy,
+		&i.ApprovedAt,
+		&i.ApprovedModelRevision,
+		&i.SuspendedBy,
+		&i.SuspendedAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const putAgentHalt = `-- name: PutAgentHalt :exec
 INSERT INTO agent_halt (id, tenant_id, halted, set_by, set_at)
 VALUES ($1, current_tenant_id(), $2, $3, $4)

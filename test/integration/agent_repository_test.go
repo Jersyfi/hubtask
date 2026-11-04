@@ -138,6 +138,21 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		held, err := store.LockAgent(ctx, a.ID)
+		if err == nil && (held.ID != a.ID || held.AccountID != a.AccountID) {
+			t.Errorf("held = %+v", held)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("holding the agent: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := store.LockAgent(ctx, a.ID)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the other workspace holds the agent: %v", err)
+	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		return store.UpdateAgent(ctx, a, 1, now)
 	}); !errors.Is(err, shared.ErrVersionConflict) {

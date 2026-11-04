@@ -104,6 +104,12 @@ func (h StartAgentJob) invoke(ctx context.Context, actor appshared.ActorContext,
 		StartedBy: actor.AccountID, StartedAt: now,
 	}
 	err = d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Held, so that two starts at once do not both find a run free.
+		held, err := d.Store.LockAgent(ctx, a.ID)
+		if err != nil {
+			return err
+		}
+		a = held
 		situation, err := d.situation(ctx, a)
 		if err != nil {
 			return err
