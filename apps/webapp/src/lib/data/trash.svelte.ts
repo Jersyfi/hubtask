@@ -23,6 +23,7 @@
 import type { PurgeSummary, TrashEntry, TrashPage, TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import type { TrashKind } from './lifecycle.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 const PATH = '/trash';
@@ -31,7 +32,7 @@ const PAGE_SIZE = 50;
 const MAX_PAGES = 20;
 
 /** What a write to the trash makes stale: the trash, and wherever a restored thing came back to. */
-const TOUCHES = ['/trash', ENTRY_LISTS, ANY_ENTRY_DOCUMENT, '/containers'];
+const TOUCHES = ['/trash', ENTRY_LISTS, ANY_ENTRY_DOCUMENT, '/containers', '/hubs'];
 
 class Trash {
   #rows = $state<readonly TrashEntry[]>([]);
@@ -56,8 +57,11 @@ class Trash {
     return this.#isPartial;
   }
 
-  /** Reads the whole trash, walking past the short pages the contract warns about. */
-  async load(): Promise<void> {
+  /**
+   * Reads the whole trash, walking past the short pages the contract warns about - every kind, or
+   * the one `kind` names (the one trash's filter, user-experience.md §5.9).
+   */
+  async load(kind?: TrashKind): Promise<void> {
     this.#status = 'loading';
     this.#error = undefined;
     this.#isPartial = false;
@@ -69,6 +73,7 @@ class Trash {
       for (let page = 0; page < MAX_PAGES; page += 1) {
         const query = new URLSearchParams({ page_size: String(PAGE_SIZE) });
         if (cursor) query.set('cursor', cursor);
+        if (kind) query.set('kind', kind);
         const answer = await engine.refresh<TrashPage>({ path: `${PATH}?${query}` });
         if (answer.status !== 'ready') {
           this.#error = answer.status === 'failed' ? answer.error : undefined;
@@ -102,12 +107,12 @@ class Trash {
    * swallowed, and the screen says what happened including what was **kept**: a legal hold stays
    * and is counted in the answer rather than failing the call.
    */
-  async empty(idempotencyKey: string): Promise<PurgeSummary> {
+  async empty(idempotencyKey: string, kind?: TrashKind): Promise<PurgeSummary> {
     const summary = await engine.mutate<PurgeSummary>('POST', '/trash:empty', undefined, {
       idempotencyKey,
       invalidates: TOUCHES,
     });
-    await this.load();
+    await this.load(kind);
     return summary;
   }
 }

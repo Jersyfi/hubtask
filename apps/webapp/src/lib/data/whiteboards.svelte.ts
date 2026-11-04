@@ -57,7 +57,7 @@ class Whiteboards {
     return engine.mutate<Whiteboard>('DELETE', boardPath(board.id), undefined, { invalidates: touched(board.hub_id, board.id) });
   }
 
-  restore(board: Whiteboard): Promise<Whiteboard> {
+  restore(board: Pick<Whiteboard, 'id' | 'hub_id'>): Promise<Whiteboard> {
     return engine.mutate<Whiteboard>('POST', `${boardPath(board.id)}:restore`, undefined, { invalidates: touched(board.hub_id, board.id) });
   }
 

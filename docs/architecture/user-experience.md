@@ -515,9 +515,15 @@ templates*, so *Templates* means one thing. A test pins the section order per le
 Today: role deletion goes through the plan (`BlockRemoval`: the REMOVE's reach and refusals, the
 acknowledgement, *Undo* planning the block back). The erasure's preview answers `lines` from
 `PlanErasure` - counted for comments, writings, assignments, entries and held intake, uncounted for
-what only the erasure counts - and the confirmation lists them; the mode note does not repeat them
-yet. The one trash is not built: `/trash` still lists entries and containers only, pages and
-whiteboards keep their hub's own trash lists.
+what only the erasure counts - and the mode note and the confirmation list them through one
+component (`ErasureLines`). `/trash` lists containers, entries, pages and whiteboards with the same
+`purge_after` and `held` and a `kind` filter, which the trash screen offers; a page tree is listed
+once at its root, keyed on that page, a restricted page only to whom it admits, and emptying the
+trash takes pages and boards too. `TestEveryKindWithARestoreIsInTheOneTrash` holds every
+`:restore` to a listed kind (a label's and a page version's restore take nothing out of a trash).
+The hubs' own page and whiteboard trash lists still exist beside it; they are not yet links into
+`/trash` narrowed to their kind, and who trashed a page or a board is not recorded, so its row names
+nobody.
 
 ### 5.10 Forms and errors
 
