@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery } from '@hubtask/design-system/components';
-  import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState } from '@hubtask/sync-engine';
+  import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -84,6 +84,8 @@
     }
   }
   let plan = $state<ConfigTemplatePlan>();
+  /** The plan shown is the workspace's part, which this place's waits on; its own follows it. */
+  let isWorkspaceFirst = $state(false);
   let take = $state<string[]>([]);
   let isOpen = $state(false);
   let acknowledged = $state(false);
@@ -99,12 +101,27 @@
     withSamples = false;
     acknowledged = false;
     dialogFailure = undefined;
+    isWorkspaceFirst = false;
     try {
       plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers), false, collectionId);
       take = takenFirst(plan.upgrade);
       isOpen = true;
     } catch (error) {
-      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      // A hub or a collection takes its part once the workspace took the template's own. Whoever
+      // may change the workspace is shown that part's plan first, in the same dialog, rather than
+      // a refusal (user-experience.md §5.2); anybody else reads why.
+      if ((hubId || collectionId) && (error as TransportError).detailCode === 'config.template_workspace_first' && holdsHere('STRUCTURE') === true) {
+        try {
+          plan = await config.planTemplate(template.key, undefined, undefined, answersOf(template.questions, answers), false);
+          take = takenFirst(plan.upgrade);
+          isWorkspaceFirst = true;
+          isOpen = true;
+        } catch (inner) {
+          toast.show({ text: renderProblem(inner as never, messages).message, tone: 'danger' });
+        }
+      } else {
+        toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+      }
     } finally {
       busy = undefined;
     }
@@ -126,7 +143,7 @@
     take = isTaken ? [...take, path] : take.filter((each) => each !== path);
     dialogFailure = undefined;
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
+      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
     } catch (error) {
       dialogFailure = renderProblem(error as never, messages).message;
     }
@@ -138,7 +155,7 @@
     answers = { ...answers, [key]: value };
     dialogFailure = undefined;
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
+      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
     } catch (error) {
       dialogFailure = renderProblem(error as never, messages).message;
     }
@@ -150,7 +167,7 @@
     withSamples = on;
     dialogFailure = undefined;
     try {
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
+      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
     } catch (error) {
       dialogFailure = renderProblem(error as never, messages).message;
     }
@@ -162,6 +179,14 @@
     dialogFailure = undefined;
     try {
       await config.applyTemplate(plan, acknowledged);
+      if (isWorkspaceFirst) {
+        // The workspace's part is in force: the place's own is planned now, the answers kept.
+        isWorkspaceFirst = false;
+        acknowledged = false;
+        plan = await config.planTemplate(chosen.key, undefined, hubId, answersOf(chosen.questions, answers), false, collectionId);
+        take = takenFirst(plan.upgrade);
+        return;
+      }
       toast.show({ text: t('app.templates.taken', { name: nameOf(chosen) }), tone: 'success' });
       isOpen = false;
       // A collection's own part leaves the reader where they are; a hub's or the workspace's
@@ -190,7 +215,7 @@
     dialogFailure = undefined;
     try {
       for (const key of needed) await modules.switch(key as Parameters<typeof modules.switch>[0], 'ON');
-      plan = await config.planTemplate(chosen.key, take, hubId, answersOf(chosen.questions, answers), withSamples, collectionId);
+      plan = await config.planTemplate(chosen.key, take, isWorkspaceFirst ? undefined : hubId, answersOf(chosen.questions, answers), !isWorkspaceFirst && withSamples, isWorkspaceFirst ? undefined : collectionId);
     } catch (error) {
       dialogFailure = renderProblem(error as never, messages).message;
     } finally {
@@ -257,6 +282,11 @@
 {#if plan && chosen}
   <Dialog bind:isOpen title={nameOf(chosen)} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
+      {#if isWorkspaceFirst}
+        <Banner tone="info" title={t('app.templates.workspace_first_title')}>
+          <p class="quiet" data-template-workspace-first>{t(collectionId ? 'app.templates.workspace_first_collection' : 'app.templates.workspace_first_hub')}</p>
+        </Banner>
+      {/if}
       {#if chosen.questions && chosen.questions.length > 0}
         <div class="questions" data-template-questions>
           <p class="quiet">{t('app.templates.questions_about')}</p>
@@ -288,7 +318,7 @@
           {/each}
         </div>
       {/if}
-      {#if samplesOffered}
+      {#if samplesOffered && !isWorkspaceFirst}
         <Checkbox label={t('app.templates.samples')} hint={t('app.templates.samples_hint')} checked={withSamples}
           data-template-samples
           onchange={(event: Event) => sampled((event.currentTarget as HTMLInputElement).checked)} />

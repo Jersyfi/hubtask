@@ -152,3 +152,66 @@ test('chromium: the desk without a desk offers its templates though hubs exist',
   assert.equal(await page.getByRole('button', { name: 'Scrum team', exact: true }).count(), 0, 'a template that does not switch the desk on is offered');
   assert.deepEqual(failures, []);
 });
+
+// §5.2: a hub takes its part once the workspace took the template's own. Whoever may change the
+// workspace is shown the workspace's part first in the same dialog, then the hub's - no refusal.
+test('chromium: a template the workspace has not taken is planned for the workspace first, then for the hub', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const hub = { id: NEW_HUB, type: 'HUB', parent_id: null, name: 'Delivery', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  let workspaceTook = false;
+  const plans = [];
+  const applied = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    const method = request.method();
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: ['WORKFLOWS', 'KNOWLEDGE', 'PLANNING'] } });
+    if (path === '/sync:snapshot') {
+      const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: hub.id, container_id: null, payload: hub });
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
+    }
+    if (path === '/containers' && method === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [] } });
+    if (path === `/containers/${NEW_HUB}` && method === 'GET') return route.fulfill({ json: hub });
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
+      return route.fulfill({ json: { ...PAGE, data: [{ id: 'm-new', scope_type: 'HUB', scope_id: hub.id, account_id: ACCOUNT.id, role: 'OWNER' }], grantable_roles: [] } });
+    }
+    if (path === '/config/templates' && method === 'GET') return route.fulfill({ json: { data: [SCRUM] } });
+    if (path === `/config/templates/${SCRUM.key}:plan`) {
+      const forHub = request.postDataJSON()?.hub_id ?? '';
+      plans.push(forHub);
+      if (forHub && !workspaceTook) {
+        return route.fulfill({ status: 409, contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 409, code: 'errors.conflict', detail_code: 'config.template_workspace_first', params: { template: SCRUM.key } }) });
+      }
+      return route.fulfill({ json: { ...planned, hub_id: forHub || null } });
+    }
+    if (path === '/config:apply') {
+      const body = request.postDataJSON();
+      applied.push(body.hub_id ?? '');
+      if (!body.hub_id) workspaceTook = true;
+      return route.fulfill({ json: { version: 2, applied: true } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`);
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('[data-template-workspace-first]').waitFor({ timeout: 15_000 });
+  await dialog.locator('[data-apply-template]').click();
+  await dialog.locator('[data-template-workspace-first]').waitFor({ state: 'detached', timeout: 10_000 });
+  await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
+  assert.deepEqual(applied, [''], 'the workspace part was not applied first, alone');
+  assert.deepEqual(plans, [NEW_HUB, '', NEW_HUB], 'the plans were not hub, workspace, hub');
+  assert.deepEqual(failures, []);
+});
