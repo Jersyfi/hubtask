@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
-import { changesBetween, countOf, documentOf, draftEntry, isOfferedAiReachable, lockCode, planBodyOf, rowsOf } from './values.ts';
+import { changesBetween, countOf, documentOf, draftEntry, installationFile, isOfferedAiReachable, lockCode, planBodyOf, rowsOf } from './values.ts';
 
 const count = (extra: Partial<InstanceSetting> = {}): InstanceSetting => ({
   set: false, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, workspace_may: 'TIGHTEN', ...extra,
@@ -127,4 +127,19 @@ test('an offered model is reachable only where the installation lets workspaces 
   assert.equal(isOfferedAiReachable(sources({ set: true, value: 'NONE', locked: true })), false);
   assert.equal(isOfferedAiReachable(sources({ set: true, value: 'OFFERED' })), true);
   assert.equal(isOfferedAiReachable(sources({ set: true, value: 'EITHER' })), true);
+});
+
+// The installation's *Configuration file* (user-experience.md §8.4): every key of every area as the
+// document holds it, a decided value as the installation's and locked where it is; the AI area left
+// out where the screen leaves it out, on an installation of one workspace.
+test('the installation file holds every key in force, its source and its lock', () => {
+  const settings = {
+    sign_in: { min_length: { ...count(), set: true, locked: true, value: 12 } },
+    ai: { sources: { set: false, locked: false, kind: 'CHOICE', value: 'EITHER' } },
+  } as unknown as InstanceSettings;
+  assert.deepEqual(installationFile(settings, false), [
+    { key: 'sign_in.min_length', value: 12, source: 'INSTANCE', lockedBy: 'INSTANCE' },
+    { key: 'ai.sources', value: 'EITHER', source: 'DEFAULT', lockedBy: undefined },
+  ]);
+  assert.deepEqual(installationFile(settings, true).map((each) => each.key), ['sign_in.min_length']);
 });

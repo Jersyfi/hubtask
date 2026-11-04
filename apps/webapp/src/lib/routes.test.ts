@@ -104,13 +104,16 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // (multi-tenancy.md §5), the subscriptions of a purchase platform (§4.3), and the keyring's census
   // — here by the parity rule (ADR-0070 §5). None reads into a workspace: four are the
   // installation's own rows, the other a count per key that names no workspace at all. *Usage* is
-  // counts per workspace and day, the metering read `hubctl admin usage` already has.
+  // counts per workspace and day, the metering read `hubctl admin usage` already has. *Templates*
+  // and *Configuration file* are the installation's own level too: its presets and its settings
+  // as the document, neither reading into a workspace.
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
     'instance',
     'instance-ai',
     'instance-dead-letters',
     'instance-encryption',
+    'instance-file',
     'instance-journal',
     'instance-operators',
     'instance-plan',
@@ -119,6 +122,7 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
     'instance-providers',
     'instance-settings',
     'instance-targets',
+    'instance-templates',
     'instance-usage',
     'instance-workspaces',
   ]);

@@ -42,7 +42,6 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
-  import InstallationPresets from '../lib/instance/InstallationPresets.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
   import ViewAsFile from '../lib/settings/ViewAsFile.svelte';
   import { AREAS, changesBetween, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
@@ -441,10 +440,6 @@
           </section>
         {/if}
 
-        {#if manifest.isMultiTenant && !draft}
-          <!-- The installation's presets (UC-INS-18): a level a single installation does not have. -->
-          <InstallationPresets isEnforced={enforced} />
-        {/if}
       {/if}
     </Stack>
   </InstanceGate>

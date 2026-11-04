@@ -237,6 +237,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'instance-journal', pattern: '/instance/journal', area: 'instance' },
   { name: 'instance-dead-letters', pattern: '/instance/dead-letters', area: 'instance' },
   { name: 'instance-usage', pattern: '/instance/usage', area: 'instance' },
+  { name: 'instance-templates', pattern: '/instance/templates', area: 'instance' },
+  { name: 'instance-file', pattern: '/instance/configuration-file', area: 'instance' },
 ];
 
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */

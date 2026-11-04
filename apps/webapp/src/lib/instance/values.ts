@@ -35,6 +35,23 @@ export function rowsOf(settings: InstanceSettings | undefined): Row[] {
   );
 }
 
+/**
+ * The installation's level as *View as file* and the *Configuration file* screen show it
+ * (configuration/ui.md A10): each key with its value, the installation as its source where it
+ * decided one, and its lock. Without the AI area on an installation of one workspace, as its
+ * settings screen draws none.
+ */
+export function installationFile(settings: InstanceSettings, isSingleWorkspace: boolean): { key: string; value: unknown; source: string; lockedBy: string | undefined }[] {
+  return rowsOf(settings)
+    .filter((row) => !(row.area === 'ai' && isSingleWorkspace))
+    .map((row) => ({
+      key: `${row.area}.${row.key}`,
+      value: row.setting.value,
+      source: row.setting.set ? 'INSTANCE' : 'DEFAULT',
+      lockedBy: row.setting.locked ? 'INSTANCE' : undefined,
+    }));
+}
+
 /** The code of a key's name in words. */
 export const nameCode = (area: Area, key: string): string => `app.instance.setting.${area}.${key}`;
 

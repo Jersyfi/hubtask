@@ -317,15 +317,17 @@ test('on a single-workspace installation the installation is the administration\
 
 // UC-AI-06 check 8: a single-workspace installation has no model to offer anybody, so its
 // installation section has no *AI*; a multi-workspace one keeps it.
-test('the installation offers no AI, platform, plans or usage row where it runs one workspace', () => {
+test('the installation offers no AI, platform, plans, usage or templates row where it runs one workspace', () => {
   const rowsOf = (single: boolean) => instanceSection({ isSingleWorkspace: single }).flatMap((group) => group.rows.map((row) => row.id));
   assert.ok(!rowsOf(true).includes('ai'), 'a private installation is offered an AI row');
   assert.ok(!rowsOf(true).includes('platform'), 'a private installation is offered a purchase platform');
   assert.ok(!rowsOf(true).includes('plans'), 'a private installation is offered plans');
   // Single mode offers no usage read (`admin.multi_mode_required`).
   assert.ok(!rowsOf(true).includes('usage'), 'a private installation is offered usage');
-  assert.ok(['ai', 'platform', 'plans', 'usage'].every((id) => rowsOf(false).includes(id)), 'a multi-workspace installation lost a row');
-  assert.deepEqual(rowsOf(true), rowsOf(false).filter((id) => !['ai', 'platform', 'plans', 'usage'].includes(id)), 'more than the four rows went');
+  // The installation's presets are a level a single installation does not have (UC-INS-18).
+  assert.ok(!rowsOf(true).includes('templates'), 'a private installation is offered templates');
+  assert.ok(['ai', 'platform', 'plans', 'usage', 'templates'].every((id) => rowsOf(false).includes(id)), 'a multi-workspace installation lost a row');
+  assert.deepEqual(rowsOf(true), rowsOf(false).filter((id) => !['ai', 'platform', 'plans', 'usage', 'templates'].includes(id)), 'more than the five rows went');
 });
 
 test('the jumble is a place only for somebody it is drawn for', () => {

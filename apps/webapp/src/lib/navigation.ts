@@ -528,6 +528,11 @@ export const INSTANCE: readonly SectionGroup[] = [
       { id: 'usage', icon: 'gauge', code: 'app.instance.usage', path: '/instance/usage', routes: ['instance-usage'] },
       { id: 'plans', icon: 'sliders-horizontal', code: 'app.instance.plans', path: '/instance/plans', routes: ['instance-plans', 'instance-plan'] },
       { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
+      // The workspace's anatomy at this level (user-experience.md §8.4): its templates, its
+      // module switches - the settings' *Modules* area - and the file in force.
+      { id: 'templates', icon: 'layout-template', code: 'app.instance.templates', path: '/instance/templates', routes: ['instance-templates'] },
+      { id: 'modules', icon: 'shapes', code: 'app.instance.modules', path: '/instance/settings?tab=module', routes: [] },
+      { id: 'file', icon: 'code', code: 'app.instance.file', path: '/instance/configuration-file', routes: ['instance-file'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
       { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },
       { id: 'targets', icon: 'cloud-upload', code: 'app.instance.targets', path: '/instance/backup-targets', routes: ['instance-targets'] },
@@ -552,7 +557,7 @@ export const INSTANCE: readonly SectionGroup[] = [
  * (UC-AI-06 check 8) - and without the events to a purchase platform, which single mode offers
  * none of (UC-INS-14 check 7), nor plans (multi-tenancy.md §4.2).
  */
-const MULTI_ONLY = new Set(['ai', 'platform', 'plans', 'usage']);
+const MULTI_ONLY = new Set(['ai', 'platform', 'plans', 'usage', 'templates']);
 
 export function instanceSection(options: { readonly isSingleWorkspace: boolean }): readonly SectionGroup[] {
   if (!options.isSingleWorkspace) return INSTANCE;

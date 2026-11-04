@@ -67,6 +67,8 @@
     InstanceJournalView: () => import('./views/InstanceJournalView.svelte'),
     InstanceDeadLettersView: () => import('./views/InstanceDeadLettersView.svelte'),
     InstanceUsageView: () => import('./views/InstanceUsageView.svelte'),
+    InstanceTemplatesView: () => import('./views/InstanceTemplatesView.svelte'),
+    InstanceFileView: () => import('./views/InstanceFileView.svelte'),
     InstanceOperatorsView: () => import('./views/InstanceOperatorsView.svelte'),
     InstanceOverviewView: () => import('./views/InstanceOverviewView.svelte'),
     InstanceProvidersView: () => import('./views/InstanceProvidersView.svelte'),
@@ -438,6 +440,10 @@
     <LazyView load={views.InstanceDeadLettersView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'instance-usage'}
     <LazyView load={views.InstanceUsageView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'instance-templates'}
+    <LazyView load={views.InstanceTemplatesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'instance-file'}
+    <LazyView load={views.InstanceFileView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'administration'}
     <LazyView load={views.AdministrationOverviewView} />
   {:else if route.name === 'workspace-settings'}
