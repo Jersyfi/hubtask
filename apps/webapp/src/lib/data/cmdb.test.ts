@@ -12,7 +12,7 @@ import {
   alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
   changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
-  sideBySide, typeAllows,
+  sideBySide, typeAllows, assetStrips, assetsFigure,
 } from './cmdb.ts';
 import {
   aliasDefine, assetDraft, assetMissing, assetMoves, assetRegister, assetsPath, assetTone, attestationsInOrder, attestPath, campaignClosePath,
@@ -443,4 +443,33 @@ test('software is narrowed by its words and an alias for any publisher sends non
   const all = [product('mozilla', 'firefox', 3), product('microsoft', 'office', 9), product('microsoft', 'edge', 9)];
   assert.deepEqual(matchingProducts(all, '').map((each) => each.product), ['edge', 'office', 'firefox']);
   assert.deepEqual(matchingProducts(all, 'MICRO off').map((each) => each.product), ['office']);
+});
+
+test('the Assets screen opens on the inventory and keeps the operator\'s sections behind Manage (user-experience.md §7.3)', () => {
+  const operator = assetStrips('connectors', { write: true, shape: true });
+  assert.deepEqual(operator.top, ['inventory', 'health', 'alerts', 'groups', 'manage']);
+  assert.deepEqual(operator.manage, ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software', 'import']);
+  assert.equal(operator.selected, 'manage');
+  assert.equal(operator.shown, 'connectors');
+
+  assert.equal(assetStrips('alerts', { write: true, shape: false }).selected, 'alerts');
+  // A member who may write runs pulls and resolves duplicates; one who only shapes defines connectors.
+  assert.deepEqual(assetStrips('runs', { write: false, shape: true }).manage, ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software']);
+
+  // Manage is visible to whoever may run what is behind it; a reader is shown the inventory instead.
+  const reader = assetStrips('connectors', { write: false, shape: false });
+  assert.deepEqual(reader.top, ['inventory', 'health', 'alerts', 'groups']);
+  assert.deepEqual(reader.manage, []);
+  assert.equal(reader.shown, 'inventory');
+  assert.equal(reader.selected, 'inventory');
+  assert.equal(assetStrips('import', { write: false, shape: true }).shown, 'inventory');
+});
+
+test('the Assets head says how many CIs there are, how many need attention and how many alerts fire', () => {
+  assert.deepEqual(assetsFigure(undefined, undefined), undefined);
+  assert.deepEqual(assetsFigure({} as never, {} as never), undefined);
+  assert.deepEqual(assetsFigure({ total: 3, problems: [] }, {} as never), { total: 3, wanting: 0, firing: undefined });
+  const health = { total: 218, problems: [{}, {}, {}, {}, {}, {}] };
+  assert.deepEqual(assetsFigure(health, undefined), { total: 218, wanting: 6, firing: undefined });
+  assert.deepEqual(assetsFigure(health, [{ status: 'FIRING' }, { status: 'RESOLVED' }, { status: 'FIRING' }]), { total: 218, wanting: 6, firing: 2 });
 });

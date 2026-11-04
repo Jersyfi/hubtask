@@ -26,9 +26,12 @@
     classes: readonly CiClass[];
     words: Words;
     mayWrite: boolean;
+    /** The head asked for a new one; the dialog opens once and `onasked` gives the ask back. */
+    isAsked?: boolean;
+    onasked?: () => void;
   }
 
-  const { hubId, classes, words, mayWrite }: Props = $props();
+  const { hubId, classes, words, mayWrite, isAsked = false, onasked }: Props = $props();
 
   let groups = $state<readonly CiGroup[] | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
@@ -87,6 +90,14 @@
   const missing = $derived(groupMissing(draft, !editing));
   const classChecks = $derived(instantiable(classes).map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
   const stageChecks = $derived(CI_STAGES.map((each) => ({ value: each, label: t(`app.assets.stage.${each}`) })));
+
+  $effect(() => {
+    if (!isAsked || !mayWrite) return;
+    untrack(() => {
+      openDefine();
+      onasked?.();
+    });
+  });
 
   function openDefine(of?: CiGroup) {
     editing = of;

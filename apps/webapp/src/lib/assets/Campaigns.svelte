@@ -31,9 +31,12 @@
     classes: readonly CiClass[];
     words: Words;
     mayWrite: boolean;
+    /** The head asked for a new one; the dialog opens once and `onasked` gives the ask back. */
+    isAsked?: boolean;
+    onasked?: () => void;
   }
 
-  const { hubId, classes, words, mayWrite }: Props = $props();
+  const { hubId, classes, words, mayWrite, isAsked = false, onasked }: Props = $props();
 
   const me = $derived(actor.account?.id);
   const when = (at: string) => formatDateTime(at, messages.locale);
@@ -85,6 +88,14 @@
   const today = () => todayIn(actor.zone);
   const missing = $derived(campaignMissing(draft, today()));
   const classChecks = $derived(instantiable(classes).map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
+
+  $effect(() => {
+    if (!isAsked || !mayWrite) return;
+    untrack(() => {
+      openStart();
+      onasked?.();
+    });
+  });
 
   function openStart() {
     draft = campaignDraft();

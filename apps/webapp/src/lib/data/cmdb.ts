@@ -45,6 +45,49 @@ export type AssetSection = (typeof ASSET_SECTIONS)[number];
 export const sectionOf = (name: string | undefined): AssetSection =>
   (ASSET_SECTIONS as readonly string[]).includes(name ?? '') ? (name as AssetSection) : 'inventory';
 
+/** What a reader of a hub's assets is shown first, *Manage* last where the reader may run it (user-experience.md §7.3). */
+const READER_SECTIONS = ['inventory', 'health', 'alerts', 'groups'] as const satisfies readonly AssetSection[];
+/** The operator's sections, a second strip behind *Manage*; the import last, as the head's create list reaches it too. */
+const MANAGE_SECTIONS = ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software', 'import'] as const satisfies readonly AssetSection[];
+
+export interface AssetStrips {
+  /** The first strip's tabs: the reader's sections and, where it holds anything, `manage`. */
+  readonly top: readonly string[];
+  /** The second strip, under *Manage*; empty for a reader who may run none of it. */
+  readonly manage: readonly AssetSection[];
+  /** The first strip's selected tab. */
+  readonly selected: string;
+  /** The section drawn: the one asked for, or the inventory where the reader may not reach it. */
+  readonly shown: AssetSection;
+}
+
+/**
+ * The two strips of a hub's *Assets* for a reader. *Manage* is drawn for whoever may run what is
+ * behind it - writing runs pulls and settles duplicates, shaping defines connectors -, and the
+ * import only for a writer, because it writes; an address naming a section the reader cannot
+ * reach shows the inventory rather than an empty strip.
+ */
+export function assetStrips(section: AssetSection, may: { readonly write: boolean; readonly shape: boolean }): AssetStrips {
+  const manage = may.write || may.shape ? MANAGE_SECTIONS.filter((each) => each !== 'import' || may.write) : [];
+  const top = [...READER_SECTIONS, ...(manage.length > 0 ? ['manage'] : [])];
+  const reachable = (READER_SECTIONS as readonly string[]).includes(section) || (manage as readonly string[]).includes(section);
+  const shown = reachable ? section : 'inventory';
+  return { top, manage, selected: (manage as readonly string[]).includes(shown) ? 'manage' : shown, shown };
+}
+
+/**
+ * The head's figure: CIs in all, those found wanting, and the firing alerts once they are read. An
+ * answer without its counts draws no figure rather than taking the screen down with it.
+ */
+export function assetsFigure(
+  health: { readonly total: number; readonly problems: readonly unknown[] } | undefined,
+  alerts: readonly { readonly status: string }[] | undefined,
+): { readonly total: number; readonly wanting: number; readonly firing: number | undefined } | undefined {
+  if (!health || typeof health.total !== 'number' || !Array.isArray(health.problems)) return undefined;
+  const firing = Array.isArray(alerts) ? alerts.filter((each) => each.status === 'FIRING').length : undefined;
+  return { total: health.total, wanting: health.problems.length, firing };
+}
+
 /** Looks a word up and says whether the catalogue has it; the screen passes its `t`. */
 export type Words = (code: string) => string | undefined;
 
