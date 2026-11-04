@@ -15559,13 +15559,28 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "trashEntryResponse",
         "summary": "What is in the trash",
-        "description": "One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.\nThe list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false.\n",
+        "description": "One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.\nIt is the one trash: hubs, collections, entries, pages and whiteboards, each with the same `purge_after` and `held`, and restored through its own kind's `:restore`. `kind` narrows it to one kind; a hub's trashed pages are the same list narrowed to that kind.\nThe list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false. A restricted page is listed only to the people its restriction admits.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/Cursor"
           },
           {
             "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "description": "Only deletions of this kind. Omitted lists every kind.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CONTAINER",
+                "ITEM",
+                "PAGE",
+                "WHITEBOARD"
+              ]
+            }
           }
         ],
         "responses": {
@@ -15595,7 +15610,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "purgeSummaryResponse",
         "summary": "Remove everything in the trash for good",
-        "description": "Irreversible, and it reaches hubs and collections as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.\nAnything under a legal hold stays, and is counted in the answer rather than failing the call. A large trash takes more than one pass: `matched` says how many rows this pass considered, and calling again continues where it left off.\n",
+        "description": "Irreversible, and it reaches hubs, collections, pages and whiteboards as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.\nAnything under a legal hold stays, and is counted in the answer rather than failing the call. A large trash takes more than one pass: `matched` says how many rows this pass considered, and calling again continues where it left off.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -63738,9 +63753,11 @@
             "type": "string",
             "enum": [
               "CONTAINER",
-              "ITEM"
+              "ITEM",
+              "PAGE",
+              "WHITEBOARD"
             ],
-            "description": "Which of the two endpoints restores it."
+            "description": "Which endpoint restores it: a container's, an entry's, a page's or a whiteboard's `:restore`. A client meeting a kind it does not know shows the entry without a restore.\n"
           },
           "id": {
             "type": "string",
@@ -63749,7 +63766,7 @@
           "trash_batch_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together.\n"
+            "description": "The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together. A page's or a whiteboard's is its own identifier: a page goes with the pages under it that were trashed at the same moment, and its restore brings back exactly those.\n"
           },
           "deleted_at": {
             "type": "string",
@@ -63790,11 +63807,11 @@
           },
           "title": {
             "type": "string",
-            "description": "The container's name or the entry's title."
+            "description": "The container's name, the entry's, the page's or the whiteboard's title."
           },
           "subtype": {
             "type": "string",
-            "description": "HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry."
+            "description": "HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry, PAGE for a page and WHITEBOARD for a whiteboard.\n"
           },
           "hub_id": {
             "type": [
@@ -63802,7 +63819,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.\n"
+            "description": "The hub it sits under, a page's and a whiteboard's included. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes kinds by design, so a field that appeared only for some rows would be one a client could not read unconditionally.\n"
           },
           "collection_id": {
             "type": [
@@ -63810,7 +63827,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "The collection an entry belongs to. Null for a container."
+            "description": "The collection an entry belongs to. Null for a container, a page and a whiteboard."
           },
           "parent_id": {
             "type": [
@@ -63818,7 +63835,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "Where it would go back to - the hub of a collection, the entry above an entry."
+            "description": "Where it would go back to - the hub of a collection, the entry above an entry, the page above a page. Null for a whiteboard, which sits in its hub.\n"
           },
           "version": {
             "type": "integer",

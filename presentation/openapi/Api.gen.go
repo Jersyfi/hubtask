@@ -9939,8 +9939,10 @@ func (e TrashEntryHeldBy) Valid() bool {
 
 // Defines values for TrashEntryKind.
 const (
-	TrashEntryKindCONTAINER TrashEntryKind = "CONTAINER"
-	TrashEntryKindITEM      TrashEntryKind = "ITEM"
+	TrashEntryKindCONTAINER  TrashEntryKind = "CONTAINER"
+	TrashEntryKindITEM       TrashEntryKind = "ITEM"
+	TrashEntryKindPAGE       TrashEntryKind = "PAGE"
+	TrashEntryKindWHITEBOARD TrashEntryKind = "WHITEBOARD"
 )
 
 // Valid indicates whether the value is a known member of the TrashEntryKind enum.
@@ -9949,6 +9951,10 @@ func (e TrashEntryKind) Valid() bool {
 	case TrashEntryKindCONTAINER:
 		return true
 	case TrashEntryKindITEM:
+		return true
+	case TrashEntryKindPAGE:
+		return true
+	case TrashEntryKindWHITEBOARD:
 		return true
 	default:
 		return false
@@ -11419,6 +11425,30 @@ func (e ListTimesheetsParamsState) Valid() bool {
 	case ListTimesheetsParamsStateREJECTED:
 		return true
 	case ListTimesheetsParamsStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashParamsKind.
+const (
+	ListTrashParamsKindCONTAINER  ListTrashParamsKind = "CONTAINER"
+	ListTrashParamsKindITEM       ListTrashParamsKind = "ITEM"
+	ListTrashParamsKindPAGE       ListTrashParamsKind = "PAGE"
+	ListTrashParamsKindWHITEBOARD ListTrashParamsKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashParamsKind enum.
+func (e ListTrashParamsKind) Valid() bool {
+	switch e {
+	case ListTrashParamsKindCONTAINER:
+		return true
+	case ListTrashParamsKindITEM:
+		return true
+	case ListTrashParamsKindPAGE:
+		return true
+	case ListTrashParamsKindWHITEBOARD:
 		return true
 	default:
 		return false
@@ -24563,7 +24593,7 @@ type TotpEnrollmentStart struct {
 
 // TrashEntry One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint.
 type TrashEntry struct {
-	// CollectionId The collection an entry belongs to. Null for a container.
+	// CollectionId The collection an entry belongs to. Null for a container, a page and a whiteboard.
 	CollectionId *openapi_types.UUID `json:"collection_id"`
 
 	// DeletedAt When it went in, and the moment the retention period runs from.
@@ -24578,26 +24608,26 @@ type TrashEntry struct {
 	// HeldBy What keeps the deletion while `held` is true - a legal hold before a restriction where both apply - and null while it is not held.
 	HeldBy *TrashEntryHeldBy `json:"held_by,omitempty"`
 
-	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
+	// HubId The hub it sits under, a page's and a whiteboard's included. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes kinds by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
 	HubId *openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID  `json:"id"`
 
-	// Kind Which of the two endpoints restores it.
+	// Kind Which endpoint restores it: a container's, an entry's, a page's or a whiteboard's `:restore`. A client meeting a kind it does not know shows the entry without a restore.
 	Kind TrashEntryKind `json:"kind"`
 
-	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
+	// ParentId Where it would go back to - the hub of a collection, the entry above an entry, the page above a page. Null for a whiteboard, which sits in its hub.
 	ParentId *openapi_types.UUID `json:"parent_id"`
 
 	// PurgeAfter The earliest moment the automatic removal takes it, unless a legal hold or a restriction of processing keeps it (`held`): the workspace's trash period from `deleted_at`, and never sooner than the longest a device may stay offline, so that every device has learnt of the deletion first. The removal runs on its own schedule, so it goes at the first run after this moment. Deleting it for good or emptying the trash takes it at once.
 	PurgeAfter time.Time `json:"purge_after"`
 
-	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry, PAGE for a page and WHITEBOARD for a whiteboard.
 	Subtype string `json:"subtype"`
 
-	// Title The container's name or the entry's title.
+	// Title The container's name, the entry's, the page's or the whiteboard's title.
 	Title string `json:"title"`
 
-	// TrashBatchId The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together.
+	// TrashBatchId The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together. A page's or a whiteboard's is its own identifier: a page goes with the pages under it that were trashed at the same moment, and its restore brings back exactly those.
 	TrashBatchId openapi_types.UUID `json:"trash_batch_id"`
 
 	// Version The row's version, so a restore can be sent with the version it was read at.
@@ -24607,7 +24637,7 @@ type TrashEntry struct {
 // TrashEntryHeldBy What keeps the deletion while `held` is true - a legal hold before a restriction where both apply - and null while it is not held.
 type TrashEntryHeldBy string
 
-// TrashEntryKind Which of the two endpoints restores it.
+// TrashEntryKind Which endpoint restores it: a container's, an entry's, a page's or a whiteboard's `:restore`. A client meeting a kind it does not know shows the entry without a restore.
 type TrashEntryKind string
 
 // TrashPage defines model for TrashPage.
@@ -28854,7 +28884,13 @@ type RejectTimesheetJSONBody struct {
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Kind Only deletions of this kind. Omitted lists every kind.
+	Kind *ListTrashParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
 }
+
+// ListTrashParamsKind defines parameters for ListTrash.
+type ListTrashParamsKind string
 
 // EmptyTrashParams defines parameters for EmptyTrash.
 type EmptyTrashParams struct {
@@ -59533,6 +59569,19 @@ func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Requ
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
 		}
 		return
 	}

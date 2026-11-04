@@ -1501,6 +1501,7 @@
   "items.parent_is_self": "Ein Eintrag lässt sich nicht in sich selbst verschieben.",
   "items.parent_in_own_subtree": "Ein Eintrag lässt sich nicht in etwas verschieben, das in ihm liegt.",
   "items.trashed": "Dieser Eintrag liegt im Papierkorb. Stell ihn wieder her, bevor du ihn änderst.",
+  "trash.kind_unknown": "Im Papierkorb gibt es keine Art „{kind}“. Wähle Hubs und Sammlungen, Einträge, Seiten oder Whiteboards.",
   "items.not_trashed": "Dieser Eintrag liegt nicht im Papierkorb. Lösche ihn zuerst – das lässt sich rückgängig machen, das hier nicht.",
   "items.archived": "Dieser Eintrag ist archiviert. Hol ihn aus dem Archiv, bevor du ihn änderst.",
   "items.item_id_required": "Sag, welcher Eintrag geändert werden soll.",

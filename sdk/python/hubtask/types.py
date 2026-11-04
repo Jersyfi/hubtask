@@ -5305,7 +5305,7 @@ class ActivityEntry(TypedDict, total=False):
 
 class TrashEntry(TypedDict, total=False):
     """One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint."""
-    kind: Required[Literal["CONTAINER", "ITEM"]]
+    kind: Required[Literal["CONTAINER", "ITEM", "PAGE", "WHITEBOARD"]]
     id: Required[str]
     trash_batch_id: Required[str]
     deleted_at: Required[str]

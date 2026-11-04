@@ -172,9 +172,10 @@ RETURNING id;
 -- somebody whose right sits on the hub above it - and the trash is the one view that spans hubs, so
 -- there is no path parameter to read it from. For a hub it is null: the hub is its own level.
 --
--- Both branches read through the partial trash indices, and the joins are primary key lookups.
+-- Every branch reads through its table's partial trash index, and the joins are primary key
+-- lookups.
 --
--- The keyset is (deleted_at, id) descending, which is the order the page is in. A UNION of two
+-- The keyset is (deleted_at, id) descending, which is the order the page is in. A UNION of four
 -- tables cannot be walked by an index alone, so the sort is real - bounded by the size of the trash,
 -- which is bounded in turn by the retention period that empties it.
 SELECT kind, id, trash_batch_id, deleted_at, deleted_by_type, deleted_by_id, title, subtype,
@@ -210,11 +211,37 @@ FROM (
   WHERE i.deleted_at IS NOT NULL
     AND col.trash_batch_id IS DISTINCT FROM i.trash_batch_id
     AND ip.trash_batch_id IS DISTINCT FROM i.trash_batch_id
+
+  UNION ALL
+
+  -- A page goes with the pages under it trashed at the same moment (TrashPageSubtree), so the
+  -- root is a page whose parent was not trashed at that moment. Its deletion is keyed on the page
+  -- itself, which is what its restore takes. Who trashed it is not recorded on the row.
+  SELECT
+    'PAGE'::text, p.id, p.id, p.deleted_at, NULL::text, NULL::uuid,
+    p.title, 'PAGE'::text,
+    p.hub_id, NULL::uuid, p.parent_id, p.version
+  FROM page p
+  LEFT JOIN page pp ON pp.tenant_id = p.tenant_id AND pp.id = p.parent_id
+  WHERE p.tenant_id = current_tenant_id()
+    AND p.deleted_at IS NOT NULL
+    AND pp.deleted_at IS DISTINCT FROM p.deleted_at
+
+  UNION ALL
+
+  SELECT
+    'WHITEBOARD'::text, w.id, w.id, w.deleted_at, NULL::text, NULL::uuid,
+    w.title, 'WHITEBOARD'::text,
+    w.hub_id, NULL::uuid, NULL::uuid, w.version
+  FROM whiteboard w
+  WHERE w.tenant_id = current_tenant_id()
+    AND w.deleted_at IS NOT NULL
 ) entries
 WHERE (
   sqlc.narg('cursor_deleted_at')::timestamptz IS NULL
   OR (deleted_at, id) < (sqlc.narg('cursor_deleted_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
 )
+  AND (sqlc.narg('kind')::text IS NULL OR kind = sqlc.narg('kind')::text)
 ORDER BY deleted_at DESC, id DESC
 LIMIT sqlc.arg('page_size');
 
@@ -255,28 +282,74 @@ WHERE id = ANY(sqlc.arg('ids')::uuid[]);
 
 -- name: TrashBatchMembers :many
 -- Every row still in the trash that one of these deletions took, the root included, with the
--- levels a legal hold could name it by: an entry's hub, collection and path, a container's hub.
+-- levels a legal hold could name it by: an entry's hub, collection and path, a container's hub, a
+-- page's or a whiteboard's hub and the accounts whose own words are in it.
 --
 -- Read for the trash list, which says whether a hold keeps a deletion by judging each of its rows
 -- as the retention pass does (`lifecycle.Holds.Blocking`). The tenant is the transaction's, as row
 -- level security has it; naming it again keeps the partial trash indices in play.
+--
+-- A page's deletion is keyed on the page: its members are it and every trashed page below it,
+-- since the pass removes a page only once nothing is left under it (DocumentRetention.sql). The
+-- contributors are the pass's own: the creator and the authors of its versions and comments.
+WITH RECURSIVE down (batch_id, id, depth) AS (
+  SELECT p.id, p.id, 0 FROM page p
+   WHERE p.tenant_id = current_tenant_id() AND p.deleted_at IS NOT NULL
+     AND p.id = ANY(sqlc.arg('batch_ids')::uuid[])
+  UNION ALL
+  SELECT down.batch_id, p.id, down.depth + 1 FROM page p JOIN down ON p.parent_id = down.id
+   WHERE p.tenant_id = current_tenant_id() AND p.deleted_at IS NOT NULL AND down.depth < 16
+)
 SELECT 'ITEM'::text      AS kind,
        i.id              AS id,
        i.trash_batch_id  AS trash_batch_id,
        col.parent_id     AS hub_id,
        i.collection_id   AS collection_id,
-       i.path            AS path
+       i.path            AS path,
+       '{}'::uuid[]      AS contributors
 FROM work_item i
 JOIN container col ON col.id = i.collection_id
 WHERE i.tenant_id = current_tenant_id()
   AND i.deleted_at IS NOT NULL
   AND i.trash_batch_id = ANY(sqlc.arg('batch_ids')::uuid[])
 UNION ALL
-SELECT 'CONTAINER'::text, c.id, c.trash_batch_id, c.parent_id, NULL::uuid, ''::text
+SELECT 'CONTAINER'::text, c.id, c.trash_batch_id, c.parent_id, NULL::uuid, ''::text, '{}'::uuid[]
 FROM container c
 WHERE c.tenant_id = current_tenant_id()
   AND c.deleted_at IS NOT NULL
-  AND c.trash_batch_id = ANY(sqlc.arg('batch_ids')::uuid[]);
+  AND c.trash_batch_id = ANY(sqlc.arg('batch_ids')::uuid[])
+UNION ALL
+SELECT 'PAGE'::text, p.id, down.batch_id, p.hub_id, NULL::uuid, ''::text,
+       ARRAY(
+         SELECT DISTINCT who FROM (
+           SELECT p.created_by AS who
+           UNION ALL
+           SELECT v.author_id FROM page_version v
+            WHERE v.tenant_id = p.tenant_id AND v.page_id = p.id AND v.author_id IS NOT NULL
+           UNION ALL
+           SELECT pc.author_id FROM page_comment pc
+            WHERE pc.tenant_id = p.tenant_id AND pc.page_id = p.id AND pc.author_id IS NOT NULL
+         ) AS contributed
+       )::uuid[]
+FROM down
+JOIN page p ON p.tenant_id = current_tenant_id() AND p.id = down.id
+UNION ALL
+SELECT 'WHITEBOARD'::text, w.id, w.id, w.hub_id, NULL::uuid, ''::text,
+       ARRAY(
+         SELECT DISTINCT who FROM (
+           SELECT w.created_by AS who
+           UNION ALL
+           SELECT v.author_id FROM whiteboard_version v
+            WHERE v.tenant_id = w.tenant_id AND v.whiteboard_id = w.id AND v.author_id IS NOT NULL
+           UNION ALL
+           SELECT wc.author_id FROM whiteboard_comment wc
+            WHERE wc.tenant_id = w.tenant_id AND wc.whiteboard_id = w.id AND wc.author_id IS NOT NULL
+         ) AS contributed
+       )::uuid[]
+FROM whiteboard w
+WHERE w.tenant_id = current_tenant_id()
+  AND w.deleted_at IS NOT NULL
+  AND w.id = ANY(sqlc.arg('batch_ids')::uuid[]);
 
 -- name: TrashKeptBelow :many
 -- What stays below each of these when a purge removes only the rows it was handed

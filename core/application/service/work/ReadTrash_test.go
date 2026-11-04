@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -22,6 +23,7 @@ import (
 type trashStore struct {
 	page       repository.TrashPage
 	asked      repository.Page
+	askedKind  domain.TrashKind
 	listErr    error
 	subtree    []shared.ID
 	purgedItem []shared.ID
@@ -31,8 +33,8 @@ type trashStore struct {
 	askedBatches []shared.ID
 }
 
-func (s *trashStore) List(_ context.Context, page repository.Page) (repository.TrashPage, error) {
-	s.asked = page
+func (s *trashStore) List(_ context.Context, page repository.Page, kind domain.TrashKind) (repository.TrashPage, error) {
+	s.asked, s.askedKind = page, kind
 	if s.listErr != nil {
 		return repository.TrashPage{}, s.listErr
 	}
@@ -502,6 +504,126 @@ func TestATrashEntrySaysWhenARestrictionKeepsIt(t *testing.T) {
 			rows, _ := out["data"].([]usecase.Output)
 			if len(rows) != 1 || rows[0]["held"] != true || rows[0]["held_by"] != c.heldBy {
 				t.Fatalf("the entry reads %v, want held by %s", rows, c.heldBy)
+			}
+		})
+	}
+}
+
+// pageReaders answers each page's readers beyond its hub.
+type pageReaders map[shared.ID]knowledge.Readers
+
+func (p pageReaders) Readers(context.Context, []shared.ID) (map[shared.ID]knowledge.Readers, error) {
+	return p, nil
+}
+
+// The one trash (user-experience.md §5.9): a page and a whiteboard are listed beside entries and
+// containers, judged on their hub, and a restricted page only to whom it admits.
+func TestTheOneTrashListsPagesAndWhiteboardsOnTheirHub(t *testing.T) {
+	var (
+		openPage   = shared.MustParseID("0192f000-0000-7000-8000-0000000005a1")
+		closedPage = shared.MustParseID("0192f000-0000-7000-8000-0000000005a2")
+		board      = shared.MustParseID("0192f000-0000-7000-8000-0000000005b1")
+	)
+	page := trashEntry(domain.TrashPageKind, openPage, hubID, shared.ID(""), "PAGE")
+	closed := trashEntry(domain.TrashPageKind, closedPage, hubID, shared.ID(""), "PAGE")
+	drawn := trashEntry(domain.TrashWhiteboardKind, board, hubID, shared.ID(""), "WHITEBOARD")
+
+	handler, _, permitted := newTrashReader(page, closed, drawn)
+	handler.PageReaders = pageReaders{closedPage: {Restricted: true, Accounts: []shared.ID{shared.MustParseID("0192f000-0000-7000-8000-0000000005e1")}}}
+
+	listing, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{})
+	if err != nil {
+		t.Fatalf("reading the trash was refused: %v", err)
+	}
+	got := map[shared.ID]bool{}
+	for _, entry := range listing.Entries {
+		got[entry.ID] = true
+	}
+	if !got[openPage] || !got[board] {
+		t.Errorf("the trash lists %v, want the open page and the board", got)
+	}
+	if got[closedPage] {
+		t.Error("a restricted page was listed to somebody its restriction does not admit")
+	}
+	for _, path := range permitted.asked {
+		if last := path[len(path)-1]; last != identity.HubScope(hubID) {
+			t.Errorf("a page or board was judged at %v, want its hub", last)
+		}
+	}
+
+	handler.PageReaders = nil
+	listing, err = handler.Execute(t.Context(), itemActor(), ListTrashQuery{})
+	if err != nil {
+		t.Fatalf("reading the trash was refused: %v", err)
+	}
+	for _, entry := range listing.Entries {
+		if entry.Kind == domain.TrashPageKind {
+			t.Error("a page was listed unchecked although nobody can say whom it admits")
+		}
+	}
+}
+
+func TestTheTrashIsNarrowedToOneKindOrRefusesAnUnknownOne(t *testing.T) {
+	handler, store, _ := newTrashReader()
+	if _, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{Kind: "PAGE"}); err != nil {
+		t.Fatalf("narrowing to pages was refused: %v", err)
+	}
+	if store.askedKind != domain.TrashPageKind {
+		t.Errorf("the store was asked for %q, want PAGE", store.askedKind)
+	}
+	_, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{Kind: "PAGES"})
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("an unknown kind answered %v, want a validation error", err)
+	}
+}
+
+// A page or a board is held as the retention pass holds it: by its hub or by somebody whose own
+// words are in it - and a page also by a trashed page below it.
+func TestATrashedPageOrBoardIsHeldByItsHubOrItsContributors(t *testing.T) {
+	var (
+		pageID  = shared.MustParseID("0192f000-0000-7000-8000-0000000005c1")
+		below   = shared.MustParseID("0192f000-0000-7000-8000-0000000005c2")
+		boardID = shared.MustParseID("0192f000-0000-7000-8000-0000000005c3")
+		writer  = shared.MustParseID("0192f000-0000-7000-8000-0000000005d1")
+		drawer  = shared.MustParseID("0192f000-0000-7000-8000-0000000005d2")
+	)
+	members := []repository.TrashMember{
+		{BatchID: pageID, Kind: domain.TrashPageKind, ID: pageID, HubID: hubID},
+		{BatchID: pageID, Kind: domain.TrashPageKind, ID: below, HubID: hubID, Contributors: []shared.ID{writer}},
+		{BatchID: boardID, Kind: domain.TrashWhiteboardKind, ID: boardID, HubID: hubID, Contributors: []shared.ID{drawer}},
+	}
+	hold := func(scope lifecycle.HoldScope, id shared.ID) lifecycle.LegalHold {
+		return lifecycle.LegalHold{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005f1"), Scope: scope, ScopeID: id}
+	}
+	for _, c := range []struct {
+		name        string
+		holds       []lifecycle.LegalHold
+		page, board bool
+	}{
+		{name: "no hold"},
+		{name: "the hub", holds: []lifecycle.LegalHold{hold(lifecycle.HoldContainer, hubID)}, page: true, board: true},
+		{name: "the writer of a page below", holds: []lifecycle.LegalHold{hold(lifecycle.HoldAccount, writer)}, page: true},
+		{name: "the board's drawer", holds: []lifecycle.LegalHold{hold(lifecycle.HoldAccount, drawer)}, board: true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			page := trashEntry(domain.TrashPageKind, pageID, hubID, shared.ID(""), "PAGE")
+			page.BatchID = pageID
+			board := trashEntry(domain.TrashWhiteboardKind, boardID, hubID, shared.ID(""), "WHITEBOARD")
+			board.BatchID = boardID
+			handler, store, _ := newTrashReader(page, board)
+			handler.PageReaders = pageReaders{}
+			store.members = members
+			handler.Holds = &trashHolds{holds: c.holds}
+
+			listing, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{})
+			if err != nil {
+				t.Fatalf("reading the trash was refused: %v", err)
+			}
+			if got := listing.Held(page); got != c.page {
+				t.Errorf("the page held = %v, want %v", got, c.page)
+			}
+			if got := listing.Held(board); got != c.board {
+				t.Errorf("the board held = %v, want %v", got, c.board)
 			}
 		})
 	}

@@ -15,6 +15,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -62,6 +63,14 @@ type ListTrash struct {
 	// Restrictions is whose processing is restricted: the automatic pass keeps what such a person
 	// contributed as it keeps a held account's (data-retention.md §4 item 2), so the listing says so.
 	Restrictions privacyrepo.Restrictions
+	// PageReaders is who a restricted page admits beyond its hub. A trashed page is listed only to
+	// them, as the hub's own trash list does; wired without it, no restricted page is listed.
+	PageReaders PageReaders
+}
+
+// PageReaders answers, per page, who reads it beyond what its hub allows.
+type PageReaders interface {
+	Readers(ctx context.Context, ids []shared.ID) (map[shared.ID]knowledge.Readers, error)
 }
 
 // TrashListing is one page of the trash, when the automatic pass may take each entry, and which a
@@ -95,6 +104,8 @@ func (l TrashListing) PurgeAfter(entry domain.TrashEntry) time.Time {
 type ListTrashQuery struct {
 	Cursor string
 	Size   int
+	// Kind narrows the trash to one kind; empty lists every kind.
+	Kind string
 }
 
 // Execute returns one page of the trash.
@@ -107,12 +118,16 @@ type ListTrashQuery struct {
 func (h ListTrash) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListTrashQuery,
 ) (TrashListing, error) {
+	kind, err := domain.ParseTrashKind(query.Kind)
+	if err != nil {
+		return TrashListing{}, err
+	}
 	listing := TrashListing{window: h.TombstoneWindow}
-	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		listing.TrashPage, err = h.Trash.List(ctx, repository.Page{
 			Cursor: query.Cursor, Size: PageSize(query.Size),
-		})
+		}, kind)
 		if err != nil {
 			return err
 		}
@@ -192,7 +207,13 @@ func (h ListTrash) heldBatches(
 				continue
 			}
 			target := lifecycle.Target{ContainerIDs: presentIDs(member.HubID, member.ID)}
-			if member.Kind == domain.TrashItemKind {
+			switch member.Kind {
+			case domain.TrashPageKind, domain.TrashWhiteboardKind:
+				// As the pass judges a trashed page or board: its hub and whose words are in it.
+				target = lifecycle.Target{
+					ContainerIDs: presentIDs(member.HubID), Contributors: member.Contributors,
+				}
+			case domain.TrashItemKind:
 				target = lifecycle.Target{
 					ItemID:          member.ID,
 					ContainerIDs:    presentIDs(member.HubID, member.CollectionID),
@@ -276,7 +297,44 @@ func (h ListTrash) visible(
 			visible = append(visible, entry)
 		}
 	}
-	return visible, nil
+	return h.admittedPages(ctx, actor, visible)
+}
+
+// admittedPages drops a trashed page whose restriction does not admit the actor: the hub's right
+// is not enough for a restricted page, in the trash as anywhere else. Without PageReaders wired
+// every page is dropped rather than shown unchecked.
+func (h ListTrash) admittedPages(
+	ctx context.Context, actor appshared.ActorContext, entries []domain.TrashEntry,
+) ([]domain.TrashEntry, error) {
+	pages := make([]shared.ID, 0)
+	for _, entry := range entries {
+		if entry.Kind == domain.TrashPageKind {
+			pages = append(pages, entry.ID)
+		}
+	}
+	if len(pages) == 0 {
+		return entries, nil
+	}
+	// An unrestricted page has no row in the answer, and its zero Readers admits.
+	var readers map[shared.ID]knowledge.Readers
+	if h.PageReaders != nil {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			readers, err = h.PageReaders.Readers(ctx, pages)
+			return err
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	kept := entries[:0:0]
+	for _, entry := range entries {
+		if entry.Kind == domain.TrashPageKind && (readers == nil || !readers[entry.ID].Admits(actor.AccountID)) {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	return kept, nil
 }
 
 // trashEntryPath is the scope chain a deleted thing is judged against.
@@ -292,6 +350,8 @@ func trashEntryPath(entry domain.TrashEntry) []identity.Scope {
 	}
 
 	switch {
+	case entry.Kind == domain.TrashPageKind || entry.Kind == domain.TrashWhiteboardKind:
+		// Read on its hub, as its own endpoints ask.
 	case entry.Kind == domain.TrashContainerKind && entry.HubID.IsZero():
 		// A hub. It is the level itself rather than something inside one.
 		path = append(path, identity.HubScope(entry.ID))
@@ -326,6 +386,11 @@ func (h ListTrash) Descriptor() usecase.Descriptor {
 				Name: "size", Kind: usecase.KindInt,
 				Description: "How many deletions to return. Clamped to the contract's maximum.",
 			},
+			{
+				Name: "kind", Kind: usecase.KindString,
+				Description: "Only deletions of this kind: CONTAINER, ITEM, PAGE or WHITEBOARD. " +
+					"Omitted lists every kind.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TrashReadAction, TargetType: trashTarget,
@@ -339,7 +404,7 @@ func (h ListTrash) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	page, err := h.Execute(ctx, actor, ListTrashQuery{
-		Cursor: in.String("cursor"), Size: in.Int("size"),
+		Cursor: in.String("cursor"), Size: in.Int("size"), Kind: in.String("kind"),
 	})
 	if err != nil {
 		return nil, err

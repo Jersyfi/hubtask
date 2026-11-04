@@ -2940,6 +2940,7 @@ var generatedCommands = []door{
 	{Group: "trash", Verb: "ls", OperationID: "listTrash", Method: "GET", Path: "/trash", Summary: "What is in the trash",
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "kind", Kind: "string", Help: "Only deletions of this kind", Required: false},
 			{Name: "size", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "kind", "subtype", "title", "deleted_at", "version"}},

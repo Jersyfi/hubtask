@@ -1177,6 +1177,10 @@ type TrashMember struct {
 	CollectionID shared.ID
 	// Path is an entry's materialised path, its ancestors and itself; empty for a container.
 	Path string
+	// Contributors are the accounts whose own words are in a page or a whiteboard - its creator and
+	// the authors of its versions and comments, as the retention pass reads them. Empty for an
+	// entry and a container, whose contributors the lifecycle reader answers.
+	Contributors []shared.ID
 }
 
 // Trash reads what is in the trash and finally removes it.
@@ -1188,7 +1192,8 @@ type Trash interface {
 	// List returns one page of the trash: one entry per deletion, not one per deleted row. The
 	// entry is the batch's root - the thing somebody deleted - and what came along with it is
 	// reached through the batch.
-	List(ctx context.Context, page Page) (TrashPage, error)
+	// An empty kind lists every kind.
+	List(ctx context.Context, page Page, kind work.TrashKind) (TrashPage, error)
 
 	// SubtreeIDs returns every identifier in one item's subtree, the item included.
 	//

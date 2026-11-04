@@ -9945,8 +9945,10 @@ func (e TrashEntryHeldBy) Valid() bool {
 
 // Defines values for TrashEntryKind.
 const (
-	TrashEntryKindCONTAINER TrashEntryKind = "CONTAINER"
-	TrashEntryKindITEM      TrashEntryKind = "ITEM"
+	TrashEntryKindCONTAINER  TrashEntryKind = "CONTAINER"
+	TrashEntryKindITEM       TrashEntryKind = "ITEM"
+	TrashEntryKindPAGE       TrashEntryKind = "PAGE"
+	TrashEntryKindWHITEBOARD TrashEntryKind = "WHITEBOARD"
 )
 
 // Valid indicates whether the value is a known member of the TrashEntryKind enum.
@@ -9955,6 +9957,10 @@ func (e TrashEntryKind) Valid() bool {
 	case TrashEntryKindCONTAINER:
 		return true
 	case TrashEntryKindITEM:
+		return true
+	case TrashEntryKindPAGE:
+		return true
+	case TrashEntryKindWHITEBOARD:
 		return true
 	default:
 		return false
@@ -11425,6 +11431,30 @@ func (e ListTimesheetsParamsState) Valid() bool {
 	case ListTimesheetsParamsStateREJECTED:
 		return true
 	case ListTimesheetsParamsStateSUBMITTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTrashParamsKind.
+const (
+	ListTrashParamsKindCONTAINER  ListTrashParamsKind = "CONTAINER"
+	ListTrashParamsKindITEM       ListTrashParamsKind = "ITEM"
+	ListTrashParamsKindPAGE       ListTrashParamsKind = "PAGE"
+	ListTrashParamsKindWHITEBOARD ListTrashParamsKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the ListTrashParamsKind enum.
+func (e ListTrashParamsKind) Valid() bool {
+	switch e {
+	case ListTrashParamsKindCONTAINER:
+		return true
+	case ListTrashParamsKindITEM:
+		return true
+	case ListTrashParamsKindPAGE:
+		return true
+	case ListTrashParamsKindWHITEBOARD:
 		return true
 	default:
 		return false
@@ -24569,7 +24599,7 @@ type TotpEnrollmentStart struct {
 
 // TrashEntry One deletion, as the trash lists it. A projection rather than the object: it carries what the view shows and what restoring it needs, and reading the entry back in full is a second request to the object's own endpoint.
 type TrashEntry struct {
-	// CollectionId The collection an entry belongs to. Null for a container.
+	// CollectionId The collection an entry belongs to. Null for a container, a page and a whiteboard.
 	CollectionId *openapi_types.UUID `json:"collection_id"`
 
 	// DeletedAt When it went in, and the moment the retention period runs from.
@@ -24584,26 +24614,26 @@ type TrashEntry struct {
 	// HeldBy What keeps the deletion while `held` is true - a legal hold before a restriction where both apply - and null while it is not held.
 	HeldBy *TrashEntryHeldBy `json:"held_by,omitempty"`
 
-	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
+	// HubId The hub it sits under, a page's and a whiteboard's included. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes kinds by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
 	HubId *openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID  `json:"id"`
 
-	// Kind Which of the two endpoints restores it.
+	// Kind Which endpoint restores it: a container's, an entry's, a page's or a whiteboard's `:restore`. A client meeting a kind it does not know shows the entry without a restore.
 	Kind TrashEntryKind `json:"kind"`
 
-	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
+	// ParentId Where it would go back to - the hub of a collection, the entry above an entry, the page above a page. Null for a whiteboard, which sits in its hub.
 	ParentId *openapi_types.UUID `json:"parent_id"`
 
 	// PurgeAfter The earliest moment the automatic removal takes it, unless a legal hold or a restriction of processing keeps it (`held`): the workspace's trash period from `deleted_at`, and never sooner than the longest a device may stay offline, so that every device has learnt of the deletion first. The removal runs on its own schedule, so it goes at the first run after this moment. Deleting it for good or emptying the trash takes it at once.
 	PurgeAfter time.Time `json:"purge_after"`
 
-	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
+	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry, PAGE for a page and WHITEBOARD for a whiteboard.
 	Subtype string `json:"subtype"`
 
-	// Title The container's name or the entry's title.
+	// Title The container's name, the entry's, the page's or the whiteboard's title.
 	Title string `json:"title"`
 
-	// TrashBatchId The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together.
+	// TrashBatchId The deletion every row of one act shares. It is what a restore is keyed on, and what tells a client that two entries went together. A page's or a whiteboard's is its own identifier: a page goes with the pages under it that were trashed at the same moment, and its restore brings back exactly those.
 	TrashBatchId openapi_types.UUID `json:"trash_batch_id"`
 
 	// Version The row's version, so a restore can be sent with the version it was read at.
@@ -24613,7 +24643,7 @@ type TrashEntry struct {
 // TrashEntryHeldBy What keeps the deletion while `held` is true - a legal hold before a restriction where both apply - and null while it is not held.
 type TrashEntryHeldBy string
 
-// TrashEntryKind Which of the two endpoints restores it.
+// TrashEntryKind Which endpoint restores it: a container's, an entry's, a page's or a whiteboard's `:restore`. A client meeting a kind it does not know shows the entry without a restore.
 type TrashEntryKind string
 
 // TrashPage defines model for TrashPage.
@@ -28860,7 +28890,13 @@ type RejectTimesheetJSONBody struct {
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Kind Only deletions of this kind. Omitted lists every kind.
+	Kind *ListTrashParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
 }
+
+// ListTrashParamsKind defines parameters for ListTrash.
+type ListTrashParamsKind string
 
 // EmptyTrashParams defines parameters for EmptyTrash.
 type EmptyTrashParams struct {
@@ -41186,14 +41222,15 @@ type ClientInterface interface {
 	// ListTrash What is in the trash
 	//
 	// One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.
-	// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false.
+	// It is the one trash: hubs, collections, entries, pages and whiteboards, each with the same `purge_after` and `held`, and restored through its own kind's `:restore`. `kind` narrows it to one kind; a hub's trashed pages are the same list narrowed to that kind.
+	// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false. A restricted page is listed only to the people its restriction admits.
 	//
 	// Corresponds with GET /trash (the `ListTrash` operationId).
 	ListTrash(ctx context.Context, params *ListTrashParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// EmptyTrash Remove everything in the trash for good
 	//
-	// Irreversible, and it reaches hubs and collections as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
+	// Irreversible, and it reaches hubs, collections, pages and whiteboards as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
 	// Anything under a legal hold stays, and is counted in the answer rather than failing the call. A large trash takes more than one pass: `matched` says how many rows this pass considered, and calling again continues where it left off.
 	//
 	// Corresponds with POST /trash:empty (the `EmptyTrash` operationId).
@@ -63880,7 +63917,8 @@ func (c *Client) WithdrawTimesheet(ctx context.Context, week WeekOfTimesheet, re
 // ListTrash What is in the trash
 //
 // One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.
-// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false.
+// It is the one trash: hubs, collections, entries, pages and whiteboards, each with the same `purge_after` and `held`, and restored through its own kind's `:restore`. `kind` narrows it to one kind; a hub's trashed pages are the same list narrowed to that kind.
+// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false. A restricted page is listed only to the people its restriction admits.
 //
 // Corresponds with GET /trash (the `ListTrash` operationId).
 func (c *Client) ListTrash(ctx context.Context, params *ListTrashParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -63897,7 +63935,7 @@ func (c *Client) ListTrash(ctx context.Context, params *ListTrashParams, reqEdit
 
 // EmptyTrash Remove everything in the trash for good
 //
-// Irreversible, and it reaches hubs and collections as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
+// Irreversible, and it reaches hubs, collections, pages and whiteboards as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
 // Anything under a legal hold stays, and is counted in the answer rather than failing the call. A large trash takes more than one pass: `matched` says how many rows this pass considered, and calling again continues where it left off.
 //
 // Corresponds with POST /trash:empty (the `EmptyTrash` operationId).
@@ -102303,6 +102341,18 @@ func NewListTrashRequest(server string, params *ListTrashParams) (*http.Request,
 
 		}
 
+		if params.Kind != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "kind", *params.Kind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -115678,7 +115728,8 @@ type ClientWithResponsesInterface interface {
 	// ListTrashWithResponse What is in the trash
 	//
 	// One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.
-	// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false.
+	// It is the one trash: hubs, collections, entries, pages and whiteboards, each with the same `purge_after` and `held`, and restored through its own kind's `:restore`. `kind` narrows it to one kind; a hub's trashed pages are the same list narrowed to that kind.
+	// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false. A restricted page is listed only to the people its restriction admits.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -115687,7 +115738,7 @@ type ClientWithResponsesInterface interface {
 
 	// EmptyTrashWithResponse Remove everything in the trash for good
 	//
-	// Irreversible, and it reaches hubs and collections as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
+	// Irreversible, and it reaches hubs, collections, pages and whiteboards as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
 	// Anything under a legal hold stays, and is counted in the answer rather than failing the call. A large trash takes more than one pass: `matched` says how many rows this pass considered, and calling again continues where it left off.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -175099,7 +175150,8 @@ func (c *ClientWithResponses) WithdrawTimesheetWithResponse(ctx context.Context,
 // ListTrashWithResponse What is in the trash
 //
 // One entry per deletion, newest first - not one per deleted row. A hub with two hundred entries under it went into the trash as one act and comes back as one act, so what is listed is the root of each deletion: the thing somebody deleted. The batch beside it is what took the rest, and restoring the root brings all of it back.
-// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false.
+// It is the one trash: hubs, collections, entries, pages and whiteboards, each with the same `purge_after` and `held`, and restored through its own kind's `:restore`. `kind` narrows it to one kind; a hub's trashed pages are the same list narrowed to that kind.
+// The list spans hubs, so it is narrowed to what the caller may see rather than refused: an entry deleted out of a hub the caller has no access to is not in the page. Pages can therefore be shorter than the requested size; walk on until has_more is false. A restricted page is listed only to the people its restriction admits.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -175114,7 +175166,7 @@ func (c *ClientWithResponses) ListTrashWithResponse(ctx context.Context, params 
 
 // EmptyTrashWithResponse Remove everything in the trash for good
 //
-// Irreversible, and it reaches hubs and collections as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
+// Irreversible, and it reaches hubs, collections, pages and whiteboards as readily as entries - which is why it needs the owner's right to delete a container rather than the right to write entries.
 // Anything under a legal hold stays, and is counted in the answer rather than failing the call. A large trash takes more than one pass: `matched` says how many rows this pass considered, and calling again continues where it left off.
 //
 // Returns a wrapper object for the known response body format(s).
