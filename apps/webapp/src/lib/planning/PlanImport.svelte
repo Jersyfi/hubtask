@@ -16,7 +16,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { namesOf } from '../data/kudos.ts';
-  import { projectFormatOf, projectPlanOf } from '../data/planning.ts';
+  import { projectFileOf, projectPlanOf } from '../data/planning.ts';
   import { schedulePath } from '../data/planning.svelte.ts';
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -82,8 +82,7 @@
     chosen = file;
     content = '';
     if (file.size > MAX_BYTES) return;
-    content = await file.text();
-    format = projectFormatOf(file.name, content);
+    ({ content, format } = projectFileOf(file.name, new Uint8Array(await file.arrayBuffer())));
   }
 
   async function send(dryRun: boolean) {

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
-import { PLAN_CSV_HEADS, dependencyDrawn, fitWindow, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFormatOf, projectPlanOf, proposedMoves } from './planning.ts';
+import { PLAN_CSV_HEADS, dependencyDrawn, fitWindow, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFileOf, projectFormatOf, projectPlanOf, proposedMoves } from './planning.ts';
 
 const entry = (id: string, more: Partial<PlanScheduleEntry> = {}): PlanScheduleEntry => ({
   item_id: id, title: id, parent_id: null, collection_id: 'c', start: '2026-11-02', finish: '2026-11-04',
@@ -164,4 +164,11 @@ test('the window fits the plan, the scale chosen by its length', () => {
   assert.equal(quarter?.scale, 'month');
   assert.ok(quarter && quarter.from < '2026-01-05' && quarter.to > '2026-04-30');
   assert.equal(fitWindow([{ start: '2026-01-01', due: '2028-12-31' }])?.scale, 'year');
+});
+
+test('a project file saved in a Western European code page keeps its umlauts', () => {
+  // "Name\nPrüfung" as a spreadsheet's CSV export on Windows writes it: ü is the single byte 0xFC.
+  const windows1252 = new Uint8Array([0x4e, 0x61, 0x6d, 0x65, 0x0a, 0x50, 0x72, 0xfc, 0x66, 0x75, 0x6e, 0x67]);
+  assert.deepEqual(projectFileOf('plan.csv', windows1252), { content: 'Name\nPrüfung', format: 'CSV' });
+  assert.deepEqual(projectFileOf('plan', new TextEncoder().encode('<Project/>')), { content: '<Project/>', format: 'MSPROJECT_XML' });
 });

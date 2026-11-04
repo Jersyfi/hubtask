@@ -22,6 +22,18 @@ import type { ImportKind, ImportRequest, ImportRun } from '@hubtask/sync-engine'
 
 export type { ImportKind, ImportRequest, ImportRun };
 
+/**
+ * A text file's words: UTF-8 when it is, else the Western European code page a spreadsheet's
+ * "CSV" export on Windows writes, so that its umlauts are not lost as replacement characters.
+ */
+export function fileText(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
+
 /** The kinds, in the order they are offered. Every value of the contract's enum, and nothing else. */
 export const IMPORT_KINDS = [
   'CSV', 'XLSX', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX',

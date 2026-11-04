@@ -15,7 +15,7 @@
 
 import type { BaselineComparison, PlanImport, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
-import type { PlanWords } from './imports.ts';
+import { fileText, type PlanWords } from './imports.ts';
 import type { Path } from './people.ts';
 import type { Scale } from './schedule.ts';
 import { xlsxOf } from './xlsx.ts';
@@ -216,6 +216,12 @@ export function projectPlanOf(
   }
   if (answer.flattened > 0) lines.push({ tone: 'change', text: words.t(`app.planning.import_flattened_${tense}`, { count: String(answer.flattened) }) });
   return lines;
+}
+
+/** A project file's words, decoded as `fileText` does, and the format they are read in. */
+export function projectFileOf(fileName: string, bytes: Uint8Array): { content: string; format: 'MSPROJECT_XML' | 'CSV' } {
+  const content = fileText(bytes);
+  return { content, format: projectFormatOf(fileName, content) };
 }
 
 /** A project file's format from its name, else from its first character. */
