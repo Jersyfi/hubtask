@@ -68,6 +68,9 @@ function queueOf(body) {
 const queries = [];
 const releaseOf = (n, name, on, state = 'PLANNED') => ({ id: `01a0e2e0-0000-7000-8000-0000000007${n}`, hub_id: HUB.id, name, description: '', release_on: on, state, released_at: null, notes_page_id: null, version: 1 });
 const RELEASES = [releaseOf('01', 'Winter release with the new planning board and the reworked reports', '2026-12-10'), releaseOf('02', 'Autumn fixes', '2026-11-20'), releaseOf('03', 'Summer', '2026-07-01', 'RELEASED')];
+const PORTFOLIOS = [{ id: '01a0e2e0-0000-7000-8000-000000000811', parent_id: null, name: 'Wachstum im Norden', description: '', owner_id: null, status: 'ON_TRACK', items: [], progress: 0, version: 1 }];
+const DASHBOARDS = [{ id: '01a0e2e0-0000-7000-8000-000000000821', hub_id: null, owner_id: ACCOUNT.id, name: 'Betrieb am Morgen', sharing: 'PRIVATE', widgets: [], version: 1 }];
+const SPRINTS = [{ id: '01a0e2e0-0000-7000-8000-000000000831', collection_id: SCRUM.id, name: 'Sprint Kranich', goal: '', start_on: '2026-11-02', end_on: '2026-11-13', state: 'ACTIVE', unit: 'POINTS', committed_value: 0, committed_count: 0, completed_value: 0, completed_count: 0, started_at: null, closed_at: null, version: 1 }];
 const GOAL_ROWS = [{ id: '01a0e2e0-0000-7000-8000-000000000801', period_id: 'p1', hub_id: null, parent_id: null, title: 'Mehr Kundinnen gewinnen', description: '', owner_id: null, status: 'ON_TRACK', confidence: null, grade: null, key_results: [], entries: [], child_count: 0, progress: 0, version: 1 }];
 const CIS = [{ id: '01a0e2e0-0000-7000-8000-000000000901', hub_id: HUB.id, class: 'firewall', name: 'FortiGate 60F', stage: 'LIVE', status: 'OK', attributes: {}, provenance: {}, protection: null, quantity: 1, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version: 1 }];
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
@@ -94,7 +97,11 @@ function stubFor({ modulesOn, hubModules }) {
     if (/\/api\/v1\/agents\/[^/]+\/jobs$/.test(path)) return route.fulfill({ json: { data: [] } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
     if (path.endsWith('/api/v1/goals')) return route.fulfill({ json: { data: GOAL_ROWS } });
-    if (path.endsWith(`/api/v1/hubs/${HUB.id}/cis`)) return route.fulfill({ json: { data: CIS, next_after: null } });
+    if (path.endsWith('/api/v1/portfolios')) return route.fulfill({ json: { data: PORTFOLIOS } });
+    if (path.endsWith('/api/v1/dashboards')) return route.fulfill({ json: { data: DASHBOARDS } });
+    if (path.endsWith(`/api/v1/collections/${SCRUM.id}/sprints`)) return route.fulfill({ json: { data: SPRINTS, runs_sprints: true } });
+    if (/\/api\/v1\/collections\/[^/]+\/sprints$/.test(path)) return route.fulfill({ json: { data: [], runs_sprints: false } });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/cis`)) { ciLimits.push(url.searchParams.get('limit')); return route.fulfill({ json: { data: CIS, next_after: null } }); }
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/releases`)) return route.fulfill({ json: { data: RELEASES } });
@@ -119,6 +126,7 @@ function stubFor({ modulesOn, hubModules }) {
   };
 }
 
+const ciLimits = [];
 const served = await serve(DIST);
 test.after(() => served.close());
 
@@ -478,5 +486,37 @@ test('chromium 1280 px: the search finds goals and configuration items, the pale
   await page.locator('#search-menu').getByRole('option', { name: /Kick-off/u }).waitFor({ timeout: 10_000 });
   await palette.fill('kundinnen');
   await page.locator('#search-menu').getByRole('option', { name: /Mehr Kundinnen gewinnen/u }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+// §5.3: portfolios, dashboards, releases and sprints are found too, by the search and the palette,
+// from the same sources; a hub's inventory is read in its largest page, not the first hundred.
+test('chromium 1280 px: the search and the palette find portfolios, dashboards, releases and sprints', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  ciLimits.length = 0;
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['GOALS', 'ASSETS', 'PLANNING'] });
+  t.after(close);
+  const field = page.getByRole('searchbox', { name: 'Search everything you can see' });
+  for (const [words, region, href] of [
+    ['wachstum', 'Portfolios', `/portfolios/${PORTFOLIOS[0].id}`],
+    ['morgen', 'Dashboards', `/dashboards/${DASHBOARDS[0].id}`],
+    ['autumn', 'Releases', `/hubs/${HUB.id}/releases`],
+    ['kranich', 'Sprints', `/collections/${SCRUM.id}/sprints`],
+    ['fortigate', 'Assets', `/cis/${CIS[0].id}`],
+  ]) {
+    await field.fill(words);
+    const found = page.getByRole('region', { name: region });
+    await found.waitFor({ timeout: 10_000 });
+    assert.equal(await found.getByRole('link').first().getAttribute('href'), href, region);
+  }
+  assert.ok(ciLimits.length > 0 && ciLimits.every((limit) => limit === '500'), `the inventory was read in pages of ${ciLimits.join(', ')}`);
+
+  const palette = page.getByRole('combobox', { name: 'Search everything' });
+  await palette.click();
+  await palette.fill('wachstum');
+  await page.locator('#search-menu').getByRole('option', { name: /Wachstum im Norden/u }).waitFor({ timeout: 10_000 });
+  await palette.fill('kranich');
+  await page.locator('#search-menu').getByRole('option', { name: /Sprint Kranich/u }).waitFor({ timeout: 10_000 });
   assert.deepEqual(failures, []);
 });
