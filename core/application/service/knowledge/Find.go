@@ -23,6 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The use case names.
@@ -85,10 +86,15 @@ type SearchPages struct {
 
 // Execute searches.
 func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, q SearchPagesQuery) ([]repository.Hit, error) {
-	if err := actor.RequireScope(pagesRead); err != nil {
+	err := actor.RequireScope(pagesRead)
+	if err != nil {
 		return nil, err
 	}
-	query, err := searchQuery(q)
+	// Compared in the form the bodies are stored in (i18n-l10n.md §5).
+	if q.Text, err = shared.NFC(q.Text, h.Space.Text); err != nil {
+		return nil, err
+	}
+	query, err := searchQuery(q, h.Space.Text)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +152,7 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 
 // searchQuery checks a search: a text, a label or an author at least - a window of moments alone
 // would be every page of every readable space.
-func searchQuery(q SearchPagesQuery) (repository.PageQuery, error) {
+func searchQuery(q SearchPagesQuery, form text.Normalizer) (repository.PageQuery, error) {
 	text := strings.TrimSpace(q.Text)
 	if utf8.RuneCountInString(text) > maxSearchText {
 		return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.search_too_long").
@@ -156,7 +162,7 @@ func searchQuery(q SearchPagesQuery) (repository.PageQuery, error) {
 	label := ""
 	if strings.TrimSpace(q.Label) != "" {
 		var err error
-		if label, err = domain.Label(q.Label); err != nil {
+		if label, err = domain.Label(q.Label, form); err != nil {
 			return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.label_malformed").
 				WithFields(shared.FieldError{Path: "/label", Code: "pages.label_malformed"})
 		}

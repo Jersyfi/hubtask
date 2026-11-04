@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 func TestAPagesLabelsHaveOneWrittenForm(t *testing.T) {
@@ -22,6 +24,7 @@ func TestAPagesLabelsHaveOneWrittenForm(t *testing.T) {
 	}{
 		{name: "lower case, each once, alphabetical", raw: []string{" Onboarding", "hr", "onboarding", "v1.2"}, want: []string{"hr", "onboarding", "v1.2"}},
 		{name: "letters of any script", raw: []string{"Übergabe", "how-to", "q_3"}, want: []string{"how-to", "q_3", "übergabe"}},
+		{name: "in decomposed letters, one form", raw: []string{"Cafe\u0301", "caf\u00e9"}, want: []string{"caf\u00e9"}},
 		{name: "none", raw: nil, want: []string{}},
 		{name: "empty", raw: []string{"  "}, code: "pages.label_empty"},
 		{name: "two words", raw: []string{"two words"}, code: "pages.label_malformed"},
@@ -31,7 +34,7 @@ func TestAPagesLabelsHaveOneWrittenForm(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Labels(tt.raw)
+			got, err := Labels(tt.raw, text.Composing{})
 			if tt.code != "" {
 				if detail(err) != tt.code {
 					t.Fatalf("Labels(%q) = %v, want %s", tt.raw, err, tt.code)

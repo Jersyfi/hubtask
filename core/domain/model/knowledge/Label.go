@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // The bounds of a page's labels (UC-DOC-01 check 9).
@@ -25,10 +26,13 @@ const (
 // lower case, so that "Onboarding" and "onboarding" are not two facets of the same space. A space's
 // vocabulary is whatever its pages carry - there is no list to define first, as a collection's
 // labels have, because a page's labels are found rather than kept.
-func Labels(raw []string) ([]string, error) {
+func Labels(raw []string, form text.Normalizer) ([]string, error) {
 	out := make([]string, 0, len(raw))
 	for i, value := range raw {
-		label := strings.ToLower(strings.TrimSpace(value))
+		label, err := shared.NFC(strings.ToLower(strings.TrimSpace(value)), form)
+		if err != nil {
+			return nil, err
+		}
 		path := "/labels/" + strconv.Itoa(i)
 		switch {
 		case label == "":
@@ -56,8 +60,8 @@ func Labels(raw []string) ([]string, error) {
 }
 
 // Label answers one label in its written form, for a filter.
-func Label(raw string) (string, error) {
-	labels, err := Labels([]string{raw})
+func Label(raw string, form text.Normalizer) (string, error) {
+	labels, err := Labels([]string{raw}, form)
 	if err != nil {
 		return "", err
 	}

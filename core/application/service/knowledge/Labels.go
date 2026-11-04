@@ -78,7 +78,7 @@ type SetPageLabels struct{ Space Space }
 
 // Execute writes the labels and answers them as they stand.
 func (h SetPageLabels) Execute(ctx context.Context, actor appshared.ActorContext, pageID shared.ID, raw []string) ([]string, error) {
-	labels, err := domain.Labels(raw)
+	labels, err := domain.Labels(raw, h.Space.Text)
 	if err != nil {
 		return nil, err
 	}

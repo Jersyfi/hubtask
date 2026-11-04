@@ -13,6 +13,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // searcher is an index other than the page store, recording the spaces it was handed.
@@ -74,5 +75,17 @@ func TestAPageTreeIsExportedAndRecorded(t *testing.T) {
 	pages, _ := last.Changes["pages"].(map[string]any)
 	if last.Action != PageExportedAction || fmt.Sprint(pages["to"]) != "2" {
 		t.Errorf("the trail recorded %s with %v", last.Action, last.Changes)
+	}
+}
+
+// A search typed in another Unicode form finds the page: the words are compared in normal form
+// C, as the page's body is stored (i18n-l10n.md §5).
+func TestASearchInDecomposedLettersFindsThePage(t *testing.T) {
+	f := newFixture()
+	f.space.Text = text.Composing{}
+	page := f.create(t, anna, hub, "", "Menu", "Café opens at nine")
+	hits, err := (SearchPages{Space: f.space}).Execute(context.Background(), as(bert), SearchPagesQuery{Text: "Café", Limit: 10})
+	if err != nil || len(hits) != 1 || hits[0].ID != page.ID {
+		t.Fatalf("hits %+v, %v", hits, err)
 	}
 }
