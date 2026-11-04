@@ -94,6 +94,10 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
 
   await start.click();
   const dialog = page.getByRole('dialog');
+  // The dialog's gallery (§5.2) holds the template pressed as the one chosen, among the families.
+  await dialog.locator('[data-hub-template="scrum_team"] button[aria-pressed="true"]').waitFor({ timeout: 10_000 });
+  assert.equal(await dialog.locator('[data-family="teams"] [data-hub-template]').count(), 2, 'the teams family does not hold both team templates');
+  assert.equal(await dialog.locator('[data-family="simple"]').count(), 1, 'the presets are not the Simple family');
   await dialog.getByLabel('Hub name').fill('Delivery');
   await dialog.getByRole('button', { name: 'Create hub', exact: true }).click();
   await page.waitForURL(`**/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`, { timeout: 10_000 });

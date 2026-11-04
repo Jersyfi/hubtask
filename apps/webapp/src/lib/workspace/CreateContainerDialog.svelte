@@ -26,10 +26,21 @@
   // *How much structure* (UC-WRK-23 check 1): one of the presets, or nothing chosen - a collection
   // then follows its hub, now and later, and a hub starts from the workspace's default preset.
   // Offered where the installation answers presets; without them the server decides as before.
+  //
+  // A hub is chosen from the template gallery instead (user-experience.md §5.2): the presets as its
+  // *Simple* family, then the catalogue's templates with a hub part by family, for whoever may read
+  // the catalogue (`STRUCTURE`). A template is not sent with the create: the hub is made as from the
+  // workspace's default and opens on its *Products* section with that template's plan (§8.11), so
+  // the plan is read in words before anything else is applied.
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, Input, Radio, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, Radio, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
+  import type { ConfigTemplate, ConfigTemplateList } from '@hubtask/sync-engine';
+
+  import { config } from '../data/config.svelte.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
+  import { hubFamilies, switchedOn } from './hubGallery.ts';
 
   import { containers } from '../data/containers.svelte.ts';
   import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
@@ -54,17 +65,24 @@
      * collection.
      */
     isPrivateOnly?: boolean;
-    /** Ran after the write succeeded, with the container the server answered. */
-    oncreated?: (id: string) => void;
+    /** A catalogue template chosen before the dialog opened (a product's first visit). */
+    template?: string;
+    /**
+     * Ran after the write succeeded, with the container the server answered and, for a hub, the
+     * catalogue template chosen for it to take next.
+     */
+    oncreated?: (id: string, template?: string) => void;
   }
 
-  let { isOpen = $bindable(), type, parentId, isPrivateOnly = false, oncreated }: Props = $props();
+  let { isOpen = $bindable(), type, parentId, isPrivateOnly = false, template: preselected, oncreated }: Props = $props();
 
   let name = $state('');
   let description = $state('');
   let isPrivate = $state(false);
   /** The preset chosen, or empty for the hub's (a collection) or the workspace's default (a hub). */
   let preset = $state('');
+  /** The catalogue template chosen for a hub, or empty where a preset (or the default) is. */
+  let fromTemplate = $state('');
   let symbol = $state<PlaceSymbol | undefined>(undefined);
   let colour = $state<LabelToken | undefined>(undefined);
   let isSaving = $state(false);
@@ -78,6 +96,7 @@
     description = '';
     isPrivate = false;
     preset = '';
+    fromTemplate = '';
     symbol = undefined;
     colour = undefined;
     failure = undefined;
@@ -85,6 +104,33 @@
   });
 
   const isHub = $derived(type === 'HUB');
+
+  $effect(() => {
+    if (isOpen && preselected) untrack(() => { fromTemplate = preselected; preset = ''; });
+  });
+
+  /** The catalogue, for a shared hub and a reader who may read it; else only the presets. */
+  const offersCatalogue = $derived(isHub && !isPrivateOnly && holdsHere('STRUCTURE') === true);
+  let catalogue = $state<readonly ConfigTemplate[]>([]);
+  $effect(() => {
+    if (!isOpen || !offersCatalogue) return;
+    return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
+      if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
+    }));
+  });
+  const families = $derived(offersCatalogue ? hubFamilies(catalogue) : []);
+  const templateName = (each: ConfigTemplate): string =>
+    each.origin === 'HUBTASK' ? t(`app.structure.preset.${each.key.toUpperCase()}`) : each.name;
+  const productsOf = (each: ConfigTemplate): string[] =>
+    switchedOn(each).map((module) => t(`app.modules.name_${module.toLowerCase()}`));
+  function pickPreset(value: string): void {
+    preset = value;
+    fromTemplate = '';
+  }
+  function pickTemplate(key: string): void {
+    fromTemplate = key;
+    preset = '';
+  }
 
   $effect(() => {
     if (!isOpen) return;
@@ -108,6 +154,11 @@
           })),
         ],
   );
+
+  // Without presets answered, the *Simple* family is the workspace's default alone, so a template
+  // chosen can always be unchosen.
+  const simple = $derived(presetOptions.length > 0 ? presetOptions
+    : [{ value: '', label: t('app.structure.preset_workspace_default'), hint: t('app.structure.preset_workspace_default_about') }]);
 
   $effect(() => {
     if (!isOpen || type !== 'HUB' || isPrivateOnly) return;
@@ -148,8 +199,9 @@
       );
       // It appears because the write invalidated the level and the engine re-read it. Nothing is
       // inserted into the sidebar or the list by hand.
+      const chosenTemplate = isHub && fromTemplate ? fromTemplate : undefined;
       isOpen = false;
-      oncreated?.(created.id);
+      oncreated?.(created.id, chosenTemplate);
     } catch (error) {
       const problem = error as TransportError;
       failure = renderProblem(problem, messages);
@@ -176,7 +228,44 @@
     />
     <Textarea label={t('app.workspace.description')} bind:value={description} />
     <LookFields {type} bind:symbol bind:colour />
-    {#if presetOptions.length > 0}
+    {#if isHub && (presetOptions.length > 0 || families.length > 0)}
+      <div class="gallery" data-hub-gallery>
+        <p class="lead">{t('app.workspace.hub_gallery_about')}</p>
+        <div data-family="simple">
+          <TemplateGallery label={t('app.workspace.hub_family.simple')}>
+            {#each simple as option (option.value)}
+              {@const isChosen = fromTemplate === '' && preset === option.value}
+              <TemplateCard name={option.label} summary={option.hint} {isChosen} isCompact data-hub-preset={option.value || 'default'}>
+                {#snippet action()}
+                  <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickPreset(option.value)}>
+                    {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${option.label}`}</VisuallyHidden>
+                  </Button>
+                {/snippet}
+              </TemplateCard>
+            {/each}
+          </TemplateGallery>
+        </div>
+        {#each families as group (group.family)}
+          <div data-family={group.family}>
+            <TemplateGallery label={t(`app.workspace.hub_family.${group.family}`)}>
+              {#each group.templates as each (each.key)}
+                {@const isChosen = fromTemplate === each.key}
+                {@const name = templateName(each)}
+                <TemplateCard {name} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
+                  note={each.taken_version == null ? undefined : t('app.workspace.hub_template_in_workspace')}>
+                  {#snippet action()}
+                    <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickTemplate(each.key)}>
+                      {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${name}`}</VisuallyHidden>
+                    </Button>
+                  {/snippet}
+                </TemplateCard>
+              {/each}
+            </TemplateGallery>
+          </div>
+        {/each}
+        {#if fromTemplate}<p class="lead" data-hub-template-next>{t('app.workspace.hub_template_next')}</p>{/if}
+      </div>
+    {:else if presetOptions.length > 0}
       <Radio label={t('app.structure.preset_at_creation')} options={presetOptions} bind:value={preset} />
     {/if}
     {#if isPrivateHubOnly}
@@ -206,5 +295,7 @@
 
 <style>
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+  .gallery { display: flex; flex-direction: column; gap: var(--sp-150); }
+  .lead { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); max-width: 64ch; }
   .private { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }
 </style>

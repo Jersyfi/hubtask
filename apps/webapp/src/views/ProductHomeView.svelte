@@ -10,6 +10,7 @@
   import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import { afterCreating } from '../lib/workspace/hubGallery.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { markOf } from '../lib/workspace/look.ts';
   import { hubCreationHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
@@ -172,10 +173,9 @@
     };
   });
   /** A hub made from a template opens on its *Products* section with that template's plan. */
-  function created(id: string): void {
-    const from = startingFrom;
+  function created(id: string, template?: string): void {
     startingFrom = undefined;
-    onnavigate(from ? `/hubs/${id}/settings/modules?template=${encodeURIComponent(from)}` : (hubScreenOf(module, id) ?? `/hubs/${id}`));
+    onnavigate(afterCreating(id, template, hubScreenOf(module, id) ?? `/hubs/${id}`));
   }
 </script>
 
@@ -324,7 +324,7 @@
 {/if}
 
 {#if isCreatingHub && mayCreateHub}
-  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={created} />
+  <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={startingFrom} oncreated={created} />
 {/if}
 
 <style>

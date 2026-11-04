@@ -21,6 +21,7 @@
   import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import { afterCreating } from '../workspace/hubGallery.ts';
   import ReplicaMark from './ReplicaMark.svelte';
   import { chosenSymbol, markOf } from '../workspace/look.ts';
 
@@ -555,7 +556,7 @@
   bind:isOpen={isCreatingHub}
   type="HUB"
   isPrivateOnly={creation === 'private'}
-  oncreated={(id) => onnavigate(`/hubs/${id}`)}
+  oncreated={(id, template) => onnavigate(afterCreating(id, template, `/hubs/${id}`))}
 />
 {#if collectionHubId}
   <CreateContainerDialog

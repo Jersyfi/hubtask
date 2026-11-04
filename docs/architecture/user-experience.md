@@ -1069,6 +1069,15 @@ workspace's — English*), so leaving it says what it means.
   plan open, so taking it is one more press. Workflows, which every shipped template switches on,
   offers none. Not built here: a preview per template and the hub's name prefilled from it; the
   assets have no shipped template that switches them on, so their home offers none.
+* **Creating a hub** (§5.2): the dialog draws the gallery - *Simple* (the workspace's default and
+  the presets), then the catalogue's templates with a hub part by the families of
+  `configuration.md` §9, placed by key on the client (`workspace/hubGallery.ts`, the contract
+  carries no family), a published one under its origin. The catalogue is offered to whoever holds
+  `STRUCTURE` on the workspace, which its read asks; a private hub's creator sees *Simple* alone. A
+  template chosen opens the new hub on its plan as above. Where the workspace has not taken the
+  template yet, the hub's (or collection's) plan dialog shows the workspace's part first and,
+  once applied, the place's own - two applies in one dialog, not yet the single server-side apply
+  of §3.2. Not built: a sentence per template and *Ask an administrator* with names.
 * **The installation's anatomy** (§8.4): *Templates* (`/instance/templates`, the installation's
   presets, on an installation of many workspaces), *Modules* (the settings' *Modules* area,
   `/instance/settings?tab=module`) and *Configuration file* (`/instance/configuration-file`, every
