@@ -135,6 +135,11 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const promised = page.getByRole('list', { name: 'Promised times' });
   await promised.waitFor({ timeout: 5_000 });
   assert.match(await promised.innerText(), /First reply/);
+  // §5.6: a desk entry's promised times sit under the head, above the notes.
+  assert.equal(await promised.evaluate((node) => {
+    const notes = document.querySelector('[aria-label="Notes"]');
+    return notes !== null && Boolean(node.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }), true, 'the promised times stand above the notes');
   const requester = page.getByRole('region', { name: 'Requester' });
   await requester.getByText('Acme Plumbing').waitFor({ timeout: 5_000 });
   assert.match(await requester.innerText(), new RegExp(OTHER.display_name));

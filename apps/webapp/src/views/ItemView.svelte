@@ -1311,6 +1311,11 @@
       {/if}
 
       <div class="main-column">
+        <!-- A desk entry's promised times first, directly under the head and above the notes
+             (user-experience.md §5.6; UC-SVC-02 check 6): the handler reads what breaks first. -->
+        {#if modulesOn.includes('SERVICE_DESK')}
+          {#key item.id}<EntrySla itemId={item.id} />{/key}
+        {/if}
         <!-- The description first in the main column, as the concept draws it: a box that reads
              as text, one quiet line while empty (concept round 2, §4). -->
           {#if !isTypeKnown}
@@ -1379,8 +1384,6 @@
         {/if}
         <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
         {#if modulesOn.includes('SERVICE_DESK')}
-          <!-- Its promised times (UC-SVC-02 check 6). -->
-          {#key item.id}<EntrySla itemId={item.id} />{/key}
           <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7). -->
           {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
           {#key item.id}<EntryApprovals itemId={item.id} />{/key}
