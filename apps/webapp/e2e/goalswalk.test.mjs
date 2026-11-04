@@ -253,3 +253,32 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+// UX-5: an address after /goals/ that names no goal - not an id, or one the server does not know -
+// says so with a way back to Goals; a malformed id is not even asked for.
+test('chromium: an address naming no goal is a not-found state with a way back', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const asked = [];
+  const answer = goalsBackend();
+  const walk = await productWalk(browser, {
+    modules: ['GOALS'],
+    answer: (method, path, ...rest) => {
+      if (/^\/goals\/[^/]+$/u.test(path)) asked.push(path);
+      if (path === '/goals/01a0e2e0-0000-7000-8000-00000000a9f0') return { status: 404, json: { type: 'about:blank', title: 'not_found', status: 404, code: 'not_found' } };
+      return answer(method, path, ...rest);
+    },
+  });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/goals/dashboards`);
+  await page.getByText('No goal at this address').waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByText('cannot read').count(), 0);
+  assert.deepEqual(asked, [], 'a malformed id was asked for');
+
+  await page.goto(`${served.origin}/goals/01a0e2e0-0000-7000-8000-00000000a9f0`);
+  await page.getByText('No goal at this address').waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Go to Goals' }).click();
+  await page.waitForFunction(() => location.pathname === '/goals', null, { timeout: 5_000 });
+});

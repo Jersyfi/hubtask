@@ -14,7 +14,7 @@
 
   import { untrack } from 'svelte';
   import {
-    Badge, Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Banner, Button, Dialog, EmptyState, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
   import type { Goal, GoalCheckInList, GoalList, KeyResultWrite, SavedView, WorkItem } from '@hubtask/sync-engine';
@@ -36,7 +36,7 @@
   import { goalTone } from '../lib/goals/tone.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
+  import { isNoSuchObject, isObjectId, renderProblem } from '../lib/problem.ts';
 
   interface Props {
     goalId: string;
@@ -47,11 +47,17 @@
 
   let goal = $state<Goal | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
+  /** The address names no goal: an id in no id's shape is not asked for at all (UX-5). */
+  let isMissing = $state(false);
   $effect(() => {
+    if (!isObjectId(goalId)) { isMissing = true; return; }
     const path = goalPath(goalId);
     return untrack(() => engine.subscribe<Goal>({ path }, (next) => {
-      if (next.status === 'ready') { goal = next.data; refusal = undefined; }
-      if (next.status === 'failed') refusal = renderProblem(next.error, messages).message;
+      if (next.status === 'ready') { goal = next.data; refusal = undefined; isMissing = false; }
+      if (next.status === 'failed') {
+        isMissing = isNoSuchObject(next.error);
+        refusal = isMissing ? undefined : renderProblem(next.error, messages).message;
+      }
     }));
   });
   $effect(() => frame.entitle(goal ? goal.title : t('app.goals.goal')));
@@ -288,7 +294,11 @@
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
-  {#if refusal}
+  {#if isMissing}
+    <EmptyState kind="unused" icon="flag" title={t('app.goals.missing_title')} description={t('app.goals.missing_body')}>
+      {#snippet action()}<Button tone="primary" onclick={() => onnavigate('/goals')}>{t('app.goals.missing_back')}</Button>{/snippet}
+    </EmptyState>
+  {:else if refusal}
     <Banner tone="danger">{refusal}</Banner>
   {:else if !goal}
     <div aria-busy="true"><Skeleton lines={8} /></div>

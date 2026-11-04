@@ -177,3 +177,19 @@ export function renderRefusal(refusal: Refusal, messages: Messages): string {
   const code = messages.has(refusal.code) ? refusal.code : 'app.something_went_wrong';
   return messages.t(code, readable(refusal.params, messages));
 }
+
+/**
+ * Whether a read failed because the address names no object: the server's not-found, or a
+ * parameter in no id's shape (`request.parameter_invalid`). A screen shows that as "not here",
+ * with a way back - never as an answer this build cannot read.
+ */
+export function isNoSuchObject(error: TransportError): boolean {
+  return error.kind === 'problem' && (error.status === 404 || error.detailCode === 'request.parameter_invalid');
+}
+
+const OBJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+/** Whether an address's id has an object id's shape, so a screen need not ask the server first. */
+export function isObjectId(id: string): boolean {
+  return OBJECT_ID.test(id);
+}

@@ -8,7 +8,7 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { formatDateTime } from './i18n/datetime.ts';
 import { createMessages } from './i18n/messages.ts';
-import { renderProblem, renderRefusal } from './problem.ts';
+import { isNoSuchObject, isObjectId, renderProblem, renderRefusal } from './problem.ts';
 
 const messages = createMessages({ locale: 'en', onProblem: () => {} });
 
@@ -308,4 +308,15 @@ test('the sentence without its reference is handed over for a fold that carries 
   const internal = renderProblem(new TransportError('problem', { status: 500, code: 'internal', requestId: 'r-78' }), messages);
   assert.ok(!internal.sentence?.includes('r-78'), internal.sentence);
   assert.ok(internal.sentence !== undefined && !internal.sentence.includes('{'), internal.sentence);
+});
+
+// UX-5: an address naming no object - a not-found, or an id in no id's shape - is a not-found
+// state with a way back, not "this version cannot read the answer".
+test('an address that names no object is told apart from a failure', () => {
+  assert.equal(isNoSuchObject(new TransportError('problem', { status: 404, code: 'not_found' })), true);
+  assert.equal(isNoSuchObject(new TransportError('problem', { status: 400, code: 'malformed_request', detailCode: 'request.parameter_invalid' })), true);
+  assert.equal(isNoSuchObject(new TransportError('problem', { status: 403, code: 'forbidden' })), false);
+  assert.equal(isNoSuchObject(new TransportError('malformed', { status: 200 })), false);
+  assert.equal(isObjectId('01a0e2e0-0000-7000-8000-0000000018c1'), true);
+  assert.equal(isObjectId('dashboards'), false);
 });
