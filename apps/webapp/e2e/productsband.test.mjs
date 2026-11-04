@@ -335,16 +335,16 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     queries.length = 0;
-    const { page, failures, close } = await open(browser, { width, scheme, path: '/desk', modulesOn: ['SERVICE_DESK'] });
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/desk', modulesOn: ['WORKFLOWS', 'SERVICE_DESK'] });
     t.after(close);
-    const queues = page.getByRole('tablist', { name: 'Queues' });
-    await queues.getByRole('tab', { name: 'Mine (1)' }).waitFor({ timeout: 10_000 });
-    assert.deepEqual(await queues.getByRole('tab').allTextContents(), ['Mine (1)', 'Unassigned (2)', 'About to breach (0)', 'All open (3)']);
+    const queues = page.getByRole('radiogroup', { name: 'Queues' });
+    await queues.getByRole('radio', { name: 'Mine (1)' }).waitFor({ timeout: 10_000 });
+    assert.deepEqual((await queues.getByRole('radio').allTextContents()).map((each) => each.trim()), ['Mine (1)', 'Unassigned (2)', 'About to breach (0)', 'All open (3)']);
     // Only the desk is asked, by what breaks first, counted.
     assert.ok(queries.length > 0 && queries.every((body) => JSON.stringify(body.filter.nodes[0]) === JSON.stringify({ op: 'IN', field: 'collection_id', value: [DESK.id] }) && body.sort[0].field === 'sla_due' && body.count === 'exact'), JSON.stringify(queries));
     // §7.4: the open requests as a table, the SLA said in words beside its bar, never by colour alone.
-    const panel = page.getByRole('tabpanel');
-    await queues.getByRole('tab', { name: 'All open (3)' }).click();
+    const panel = page.getByRole('region', { name: 'All open', exact: true });
+    await queues.getByRole('radio', { name: 'All open (3)' }).click();
     const table = panel.getByRole('table', { name: 'Requests in All open' });
     await table.locator('[data-sla="breached"]').waitFor({ timeout: 10_000 });
     const headings = await table.locator('thead th').allTextContents();
@@ -354,10 +354,15 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
       ['INC-1', ACCOUNT.display_name, 'P2', '1 h 0 min left'], ['INC-2', ACCOUNT.display_name, 'P3', 'Breached 18 min ago'], ['INC-3', ACCOUNT.display_name, 'P4', 'Paused'],
     ], JSON.stringify(cells));
     assert.equal(await page.locator('[data-desk-figure]').textContent(), '3 open · 2 unassigned');
-    await queues.getByRole('tab', { name: 'Unassigned (2)' }).click();
-    await panel.getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 5_000 });
-    await queues.getByRole('tab', { name: 'About to breach (0)' }).click();
-    await panel.getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
+    // All seven columns fit beside the tree: none hides behind the edge fade.
+    const frame = await table.evaluate((node) => { const scroller = node.closest('.scroll'); return [scroller.scrollWidth, scroller.clientWidth]; });
+    assert.ok(frame[0] <= frame[1] + 1, `the queue table scrolls sideways: ${frame}`);
+    // One strip of tabs only: the queues are a segmented choice under the home's tabs.
+    assert.equal(await page.getByRole('tablist').count(), 0, 'a second tab strip');
+    await queues.getByRole('radio', { name: 'Unassigned (2)' }).click();
+    await page.getByRole('region', { name: 'Unassigned', exact: true }).getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 5_000 });
+    await queues.getByRole('radio', { name: 'About to breach (0)' }).click();
+    await page.getByRole('region', { name: 'About to breach', exact: true }).getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `desk home ${width} ${scheme}`);
 
     await page.goto(`${served.origin}/hubs/${HUB.id}/desk`);
@@ -367,11 +372,29 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     const desks = page.getByRole('region', { name: 'Desks' });
     await desks.waitFor({ timeout: 10_000 });
     assert.deepEqual(await desks.locator('.name').allTextContents(), [DESK.name]);
-    await page.getByRole('tab', { name: 'All open (3)' }).waitFor({ timeout: 10_000 });
+    await page.getByRole('radio', { name: 'All open (3)' }).waitFor({ timeout: 10_000 });
     await noSidewaysScroll(page, `hub desk ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
 }
+
+// A handler with nothing of their own opens on the first queue that holds a request, not on an
+// empty *Mine* while requests wait unassigned.
+test('chromium 1280 px: the desk opens on the first queue that holds a request', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const mine = QUEUES.mine;
+  QUEUES.mine = [];
+  t.after(() => { QUEUES.mine = mine; });
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/desk', modulesOn: ['WORKFLOWS', 'SERVICE_DESK'] });
+  t.after(close);
+  const queues = page.getByRole('radiogroup', { name: 'Queues' });
+  await queues.getByRole('radio', { name: 'Unassigned (2)', checked: true }).waitFor({ timeout: 10_000 });
+  await page.getByRole('region', { name: 'Unassigned', exact: true }).getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 5_000 });
+  await queues.getByRole('radio', { name: 'Mine (0)' }).click();
+  await page.getByRole('region', { name: 'Mine', exact: true }).getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
 
 // §2.2: the plans' home lists the releases still to go out, the soonest first.
 test('chromium 375 px, dark: the plans\' home lists the releases to come', async (t) => {

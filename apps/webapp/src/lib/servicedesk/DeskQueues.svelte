@@ -2,14 +2,15 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The handler's queues (user-experience.md §2.2, §7.4; UC-SVC-03): *Mine*, *Unassigned*,
-  // *About to breach* and *All open* as tabs with their exact counts, the chosen queue's open
+  // *About to breach* and *All open* with their exact counts - a segmented choice, not a second
+  // tab strip under the home's, since each is the same open requests narrowed - the chosen queue's open
   // requests below as a table - key, request, requester, status, priority, SLA, assignee - what
   // breaks first on top. One query per queue and hub (`queues.ts`); across hubs the requests stand
   // hub by hub, each hub's in its own order, because the order is the server's and a client cannot
   // merge two orders by a moment it is not sent. The SLA is one read per row shown (at most
   // `QUEUE_SHOWN` a hub): the query answers no goal.
   import { untrack } from 'svelte';
-  import { Avatar, Banner, EmptyState, LabelChip, Skeleton, Stack, Table, Tabs } from '@hubtask/design-system/components';
+  import { Avatar, Banner, EmptyState, LabelChip, Skeleton, Stack, Table, ViewSwitcher } from '@hubtask/design-system/components';
   import type { ItemQueryResult, SlaPolicyList, WorkItem } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -36,7 +37,8 @@
   }
   const { desks, withHub = false, onnavigate, ontotals }: Props = $props();
 
-  let selected = $state<DeskQueue>('mine');
+  /** The queue the reader chose; until then the first that holds a request, once all answered. */
+  let chosen = $state<DeskQueue | undefined>(undefined);
   let answers = $state<Record<string, ItemQueryResult>>({});
   let refusal = $state<string | undefined>(undefined);
   const at = (queue: DeskQueue, hubId: string) => `${queue}:${hubId}`;
@@ -67,6 +69,12 @@
       return { id: queue, label: total === undefined ? name : t('app.desk_queues.with_count', { queue: name, count: String(total) }) };
     }),
   );
+  const selected = $derived.by((): DeskQueue => {
+    if (chosen) return chosen;
+    const totals = DESK_QUEUES.map((queue) => totalOf(queue));
+    if (totals.some((total) => total === undefined)) return 'mine';
+    return DESK_QUEUES.find((_queue, index) => (totals[index] ?? 0) > 0) ?? 'mine';
+  });
   $effect(() => {
     const totals = Object.fromEntries(DESK_QUEUES.map((queue) => [queue, totalOf(queue)]).filter(([, total]) => total !== undefined));
     untrack(() => ontotals?.(totals));
@@ -109,7 +117,9 @@
   };
 </script>
 
-<Tabs label={t('app.desk_queues.label')} {tabs} selected={selected} onselect={(id) => (selected = id as DeskQueue)}>
+<Stack gap="200">
+  <div class="queues"><ViewSwitcher label={t('app.desk_queues.label')} views={tabs} {selected} onselect={(id) => (chosen = id as DeskQueue)} /></div>
+  <div role="region" aria-label={t(`app.desk_queues.${selected}`)}>
   {#if refusal}
     <Banner tone="danger">{refusal}</Banner>
   {:else if rows.length === 0 && isReading}
@@ -149,12 +159,17 @@
       {/each}
     </Stack>
   {/if}
-</Tabs>
+  </div>
+</Stack>
 
 <style>
+  /* Four queues with their counts are wider than a phone: the choice scrolls, the page does not. */
+  .queues { overflow-x: auto; }
   .request { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
-  /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5). */
-  .title { display: block; max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
+  /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5). At
+     most a third of the table (the stacked table is its container), so the six columns beside it
+     fit at a desktop's width rather than behind the edge fade. */
+  .title { display: block; max-inline-size: min(48ch, 30cqi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
   .title:hover { text-decoration: underline; }
   .quiet { color: var(--text-secondary); }
   .who { white-space: nowrap; }
