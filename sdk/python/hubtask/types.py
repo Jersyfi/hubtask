@@ -2886,6 +2886,7 @@ class ConfigTemplate(TypedDict, total=False):
     created_at: Required[str]
     taken_version: int | None
     update_available: Required[bool]
+    workspace_first: bool
     hub_document: "ConfigDocument" | Any
     collection_document: "ConfigDocument" | Any
     questions: list["ConfigTemplateQuestion"]

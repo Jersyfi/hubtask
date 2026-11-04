@@ -31605,6 +31605,12 @@ components:
         created_at: { type: string, format: date-time }
         taken_version: { type: [integer, "null"] }
         update_available: { type: boolean }
+        workspace_first:
+          type: boolean
+          description: >-
+            Listed for a hub or a collection only: the template has a workspace part the workspace
+            has not taken, so the place may take it only once somebody who may change the workspace
+            took that part.
         hub_document:
           description: The part a hub takes - a hub's own document; null for a template of the workspace only.
           oneOf:

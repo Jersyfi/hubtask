@@ -14940,6 +14940,9 @@ type ConfigTemplate struct {
 	TakenVersion    *int                      `json:"taken_version,omitempty"`
 	UpdateAvailable bool                      `json:"update_available"`
 	Version         int                       `json:"version"`
+
+	// WorkspaceFirst Listed for a hub or a collection only: the template has a workspace part the workspace has not taken, so the place may take it only once somebody who may change the workspace took that part.
+	WorkspaceFirst *bool `json:"workspace_first,omitempty"`
 }
 
 // ConfigTemplateOrigin defines model for ConfigTemplate.Origin.

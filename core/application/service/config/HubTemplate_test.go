@@ -24,6 +24,10 @@ func TestAHubTakesATemplatesHubPart(t *testing.T) {
 		t.Fatalf("the hub part was not kept: %v", published)
 	}
 
+	// The hub's gallery says so before anybody chooses it (user-experience.md §5.2).
+	if row := listedAt(t, f, supportHub)["desk"]; row["workspace_first"] != true {
+		t.Errorf("before the workspace took it the hub's row is %v, want workspace_first", row)
+	}
 	_, err := PlanConfigTemplate{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{"key": "desk", "hub_id": supportHub})
 	if refusals := refusalsIn(err); len(refusals) != 1 || refusals[0].Code != "config.template_workspace_first" {
 		t.Fatalf("a hub took the template before the workspace: %v", err)
@@ -33,6 +37,9 @@ func TestAHubTakesATemplatesHubPart(t *testing.T) {
 		"document": take["document"], "plan_hash": take["plan_hash"], "template": take["template"],
 	})
 
+	if row := listedAt(t, f, supportHub)["desk"]; row["workspace_first"] != false {
+		t.Errorf("once the workspace took it the hub's row is %v", row)
+	}
 	f.world.preview = usecase.Output{"entries": 2, "moves": []usecase.Output{}, "removed": []usecase.Output{}}
 	hubPlan := invoke(t, PlanConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{"key": "desk", "hub_id": supportHub})
 	if hubPlan["hub_id"] != supportHub || hubPlan["plan_hash"] == nil {
@@ -99,4 +106,15 @@ func TestABrokenHubPartIsNotPublished(t *testing.T) {
 	if refusals := refusalsIn(err); len(refusals) != 1 || refusals[0].Path != "/hub_document/types" {
 		t.Errorf("a hub part with a workspace section was published: %v", err)
 	}
+}
+
+// listedAt answers a hub's templates by key.
+func listedAt(t *testing.T, f fixture, hub string) map[string]usecase.Output {
+	t.Helper()
+	listed := invoke(t, ListConfigTemplates{f.desk}.Descriptor(), person, usecase.Input{"hub_id": hub})["data"].([]usecase.Output)
+	byKey := map[string]usecase.Output{}
+	for _, row := range listed {
+		byKey[row["key"].(string)] = row
+	}
+	return byKey
 }

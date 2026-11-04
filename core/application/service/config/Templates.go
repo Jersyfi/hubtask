@@ -133,7 +133,8 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 			"tasks, project, flow), the installation's, the workspace's and the reader's own by identifier - and " +
 			"Hubtask's own document templates (itil_service_desk). With hub_id, the templates a hub can take - " +
 			"those with a hub part - with the version that hub took; with collection_id, those with a " +
-			"collection part, with the version that collection took.",
+			"collection part, with the version that collection took, and whether the workspace has to take " +
+			"the template's workspace part first.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  scopeRead,
 		ReadOnly:    true,
@@ -166,6 +167,14 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 				for i := range uses {
 					byKey[uses[i].TemplateKey] = &uses[i]
 				}
+				// At a place, what the workspace took decides whether the place may take a template
+				// at all (hubTemplate, collectionTemplate); the gallery says so before the choice.
+				var workspace []domain.TemplateUse
+				if !place.IsZero() {
+					if workspace, err = h.Desk.Store.TemplateUses(ctx, ""); err != nil {
+						return err
+					}
+				}
 				newest := map[string]domain.Template{}
 				var order []string
 				presets, err := h.Desk.presetTemplates(ctx, actor)
@@ -185,7 +194,12 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 					if !collection.IsZero() && !newest[key].ForCollections() || collection.IsZero() && !hub.IsZero() && !newest[key].ForHubs() {
 						continue
 					}
-					rows = append(rows, TemplateOutput(newest[key], byKey[key]))
+					row := TemplateOutput(newest[key], byKey[key])
+					if !place.IsZero() {
+						row["workspace_first"] = len(newest[key].Document) > 0 &&
+							!slices.ContainsFunc(workspace, func(u domain.TemplateUse) bool { return u.TemplateKey == key })
+					}
+					rows = append(rows, row)
 				}
 				return nil
 			})
