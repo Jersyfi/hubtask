@@ -243,3 +243,29 @@ test('connections that never open are counted, and one that opens clears the cou
   assert.equal(live.failedAttempts, 0);
   live.destroy();
 });
+
+test('a socket held without an answer is given up at its deadline and counted as failed', async () => {
+  const held = new FakeSocket();
+  const next = new FakeSocket();
+  const opened = [held, next];
+  let expire: () => void = () => {};
+  let retry: () => void = () => {};
+  const live = new LiveDocument(new Y.Doc(), {
+    open: () => opened.shift()!, writable: true,
+    schedule: (run) => { retry = run; return () => {}; },
+    deadline: (run) => { expire = run; return () => {}; },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(live.status, 'connecting');
+  // A proxy that takes the upgrade and never answers it: no open, no close.
+  expire();
+  assert.equal(held.readyState, 3, 'the held socket is closed');
+  assert.equal(live.status, 'offline');
+  assert.equal(live.failedAttempts, 1);
+  retry();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  next.open();
+  expire();
+  assert.equal(live.status, 'connected', 'the deadline of an opened socket changes nothing');
+  live.destroy();
+});

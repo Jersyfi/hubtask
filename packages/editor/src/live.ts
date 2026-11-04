@@ -33,6 +33,11 @@ const MESSAGE_COMPACTION_DUE = 101;
 
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
+/**
+ * How long a socket may take to open. A proxy that holds the upgrade without answering would
+ * otherwise leave the document "connecting" for ever, never counted as a failed attempt (rule 7).
+ */
+export const OPEN_DEADLINE_MS = 10_000;
 
 /** The close code the server ends a connection with when access ends while connected. */
 export const CLOSE_ACCESS_ENDED = 4403;
@@ -64,6 +69,8 @@ export interface LiveDocumentOptions {
   readonly onSynced?: () => void;
   /** The timer, injected so a test can run the reconnect at once (rule 4). */
   readonly schedule?: (run: () => void, ms: number) => () => void;
+  /** The timer for a socket's opening deadline, injected like `schedule`. */
+  readonly deadline?: (run: () => void, ms: number) => () => void;
   /**
    * Keeps a writer's words the server has not had yet on the device, so a tab closed or reloaded
    * offline loses none: what it loads is applied before the first connection and sent on it.
@@ -81,6 +88,11 @@ export interface UpdateKeeper {
 
 const OPEN = 1;
 
+function later(run: () => void, ms: number): () => void {
+  const handle = setTimeout(run, ms);
+  return () => clearTimeout(handle);
+}
+
 export class LiveDocument {
   readonly doc: Y.Doc;
   readonly awareness: awarenessProtocol.Awareness;
@@ -89,6 +101,7 @@ export class LiveDocument {
   #status: LiveStatus = 'connecting';
   #attempt = 0;
   #cancelRetry: (() => void) | undefined;
+  #cancelDeadline: (() => void) | undefined;
   #destroyed = false;
   #synced = false;
   /** The server's snapshot and log on this connection, until its state vector arrives. */
@@ -157,6 +170,7 @@ export class LiveDocument {
   destroy(): void {
     this.#destroyed = true;
     this.#cancelRetry?.();
+    this.#cancelDeadline?.();
     this.doc.off('update', this.#onUpdate);
     this.awareness.off('update', this.#onAwareness);
     awarenessProtocol.removeAwarenessStates(this.awareness, [this.doc.clientID], 'destroy');
@@ -184,7 +198,14 @@ export class LiveDocument {
     this.#held = [];
     this.#answered = false;
     socket.binaryType = 'arraybuffer';
+    this.#cancelDeadline = (this.#options.deadline ?? later)(() => {
+      if (this.#socket !== socket || socket.readyState === OPEN) return;
+      this.#socket = undefined;
+      socket.close(1000);
+      this.#retry();
+    }, OPEN_DEADLINE_MS);
     socket.onopen = () => {
+      this.#cancelDeadline?.();
       this.#attempt = 0;
       this.#setStatus('connected');
       if (this.#options.writable) {
@@ -200,6 +221,7 @@ export class LiveDocument {
     socket.onmessage = (event) => this.#receive(new Uint8Array(event.data as ArrayBuffer));
     socket.onclose = (event) => {
       if (this.#socket !== socket) return;
+      this.#cancelDeadline?.();
       this.#socket = undefined;
       // Other people's cursors are gone with the connection.
       const others = [...this.awareness.getStates().keys()].filter((id) => id !== this.doc.clientID);
@@ -223,11 +245,7 @@ export class LiveDocument {
     if (this.#destroyed) return;
     this.#setStatus('offline');
     const wait = Math.max(atLeast, Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** this.#attempt++));
-    const schedule = this.#options.schedule ?? ((run, ms) => {
-      const handle = setTimeout(run, ms);
-      return () => clearTimeout(handle);
-    });
-    this.#cancelRetry = schedule(() => void this.#connect(), wait);
+    this.#cancelRetry = (this.#options.schedule ?? later)(() => void this.#connect(), wait);
   }
 
   #receive(data: Uint8Array): void {
