@@ -1228,7 +1228,7 @@ SELECT
      WHERE h.tenant_id = current_tenant_id() AND h.enabled AND h.run_as = $1)::int AS hooks,
   (SELECT count(*) FROM agent a
      WHERE a.tenant_id = current_tenant_id() AND a.owner_id = $1
-       AND a.status IN ('APPROVED', 'ACTIVE'))::int AS agents
+       AND a.status <> 'RETIRED')::int AS agents
 `
 
 type IntegrationsRunningAsRow struct {
@@ -1238,7 +1238,9 @@ type IntegrationsRunningAsRow struct {
 }
 
 // The integrations that act as one account and would fail on every run once it is gone, counted
-// before a full deletion as the rules are: none has a foreign key to refuse it.
+// before a full deletion as the rules are: none has a foreign key to refuse it. A connector or
+// hook switched off takes a new run_as when it is switched on again; an agent keeps its owner, so
+// every agent but a retired one counts - a drafted or suspended one can be put live again.
 func (q *Queries) IntegrationsRunningAs(ctx context.Context, accountID pgtype.UUID) (IntegrationsRunningAsRow, error) {
 	row := q.db.QueryRow(ctx, integrationsRunningAs, accountID)
 	var i IntegrationsRunningAsRow

@@ -440,7 +440,7 @@ type AddressMail interface {
 }
 
 // IntegrationsAs is how many of each integration act as one account: the inventory connectors and
-// forge hooks switched on with it as run_as, and the approved or active agents it owns.
+// forge hooks switched on with it as run_as, and the agents it owns that are not retired.
 type IntegrationsAs struct {
 	Connectors int
 	Hooks      int
