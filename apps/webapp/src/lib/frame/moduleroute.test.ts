@@ -9,7 +9,7 @@ import { isModuleOn, isProductHome, offModuleOf } from './moduleroute.ts';
 
 test('a module page whose module is off says so before it reads anything', () => {
   assert.equal(offModuleOf('service-desk', ['WORKFLOWS']), 'SERVICE_DESK');
-  assert.equal(offModuleOf('service-desk', ['SERVICE_DESK']), undefined);
+  assert.equal(offModuleOf('service-desk', ['SERVICE_DESK', 'WORKFLOWS']), undefined);
   assert.equal(offModuleOf('workflows', []), 'WORKFLOWS');
   assert.equal(offModuleOf('service-desk', undefined), undefined, 'a manifest not read yet withholds nothing');
   assert.equal(offModuleOf('webhooks', []), undefined, 'a page of no module');
@@ -30,4 +30,14 @@ test('every product\'s home says its module is off, before it reads anything', (
     assert.equal(isProductHome(home), true, `${row.id} is not drawn as a product`);
   }
   assert.equal(isProductHome('service-desk'), false, 'an administration page is not a product home');
+});
+
+// A desk is entry types and their workflows: with Workflows off, the desk's pages would ask
+// `/entry-types` and be refused, and the home would say no desk takes requests. The page says
+// Workflows is off instead, with its switch.
+test('a module page whose needed module is off names that one', () => {
+  assert.equal(offModuleOf('desk-home', ['SERVICE_DESK']), 'WORKFLOWS');
+  assert.equal(offModuleOf('desk-desks', ['SERVICE_DESK']), 'WORKFLOWS');
+  assert.equal(offModuleOf('desk-home', ['SERVICE_DESK', 'WORKFLOWS']), undefined);
+  assert.equal(offModuleOf('desk-home', ['WORKFLOWS']), 'SERVICE_DESK', 'its own switch first');
 });

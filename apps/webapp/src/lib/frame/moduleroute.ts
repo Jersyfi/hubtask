@@ -47,8 +47,13 @@ export const isProductHome = (route: string): boolean => route in PRODUCT_HOMES 
  */
 export function offModuleOf(route: string, modulesOn: readonly string[] | undefined): string | undefined {
   const module = moduleOfRoute(route);
-  return module && modulesOn && !modulesOn.includes(module) ? module : undefined;
+  if (!module || !modulesOn) return undefined;
+  if (!modulesOn.includes(module)) return module;
+  return (NEEDS[module] ?? []).find((needed) => !modulesOn.includes(needed));
 }
+
+/** What a module cannot work without, as the server's `Key.Needs` answers it. */
+const NEEDS: Readonly<Record<string, readonly string[]>> = { SERVICE_DESK: ['WORKFLOWS'] };
 
 /**
  * Whether a section of a module is drawn: only once the manifest says the module is on, since a
