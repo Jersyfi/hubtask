@@ -115,8 +115,8 @@ move an entry further from its form** (`CheckFormWrite`): a creation needs every
 every validation; an edit may not change a field that was read-only or hidden as the entry stood,
 clear a required one, or make a validation fail that held - an entry created before its form is not
 refused for what it already lacked. A creation starts with the channel's presets and the fields'
-defaults for what the request left out; a field the channel hides takes its preset whatever was
-sent. The refusal is `forms.refused` naming each field (`fields.value_required`,
+defaults for what the request left out; a field the channel hides takes its preset, else its
+default, else nothing, whatever was sent. The refusal is `forms.refused` naming each field (`fields.value_required`,
 `forms.field_read_only`, `forms.field_hidden`, `forms.validation_failed`), and a closed channel is
 `forms.channel_closed`. `EvaluateEntryForm` answers the same state for a draft, so an editor unfolds
 what the form asks before it sends: the browser renders the server's answer rather than evaluating

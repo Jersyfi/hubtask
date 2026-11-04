@@ -384,6 +384,12 @@ func (h CreateWorkItem) Execute(
 				merged[key] = value
 			}
 			for key, value := range starting {
+				if value == nil {
+					// A field the channel hides, with neither preset nor default: what was
+					// sent for it is not the form's (Form.Starting).
+					delete(merged, key)
+					continue
+				}
 				merged[key] = value
 			}
 			cmd.CustomFields = merged

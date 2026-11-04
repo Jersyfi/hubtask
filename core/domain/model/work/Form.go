@@ -455,8 +455,9 @@ func (f Form) State(channel FormChannel, answer FormAnswer) (FormState, error) {
 
 // Starting answers what a new entry starts with through a channel: the channel's presets, then the
 // fields' defaults, for each custom field the caller sent nothing for. A field the channel hides
-// takes its preset whatever was sent: nobody on that channel could have seen it. Keyed by the
-// custom key.
+// starts with its preset, else its default, else nothing, whatever was sent: nobody on that channel
+// could have seen it, so a value sent for it is not the form's. Nothing is answered as the key
+// with a nil value - the caller drops what was sent for it. Keyed by the custom key.
 func (f Form) Starting(channel FormChannel, sent map[string]any) map[string]any {
 	rule := f.Channel(channel)
 	out := map[string]any{}
@@ -465,14 +466,17 @@ func (f Form) Starting(channel FormChannel, sent map[string]any) map[string]any 
 		if !custom {
 			continue
 		}
-		_, preset := rule.Presets[field.Key]
-		if _, given := sent[key]; given && (!preset || !slices.Contains(rule.Hidden, field.Key)) {
+		hidden := slices.Contains(rule.Hidden, field.Key)
+		_, given := sent[key]
+		if given && !hidden {
 			continue
 		}
 		if preset, found := rule.Presets[field.Key]; found {
 			out[key] = preset
 		} else if field.Default != nil {
 			out[key] = field.Default
+		} else if given {
+			out[key] = nil
 		}
 	}
 	return out

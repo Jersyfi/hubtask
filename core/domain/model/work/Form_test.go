@@ -114,6 +114,35 @@ func TestFormState(t *testing.T) {
 	}
 }
 
+// A field the channel hides starts as the form says whatever was sent: its preset, else its
+// default, else nothing - a requester at the portal cannot set the priority the portal hides by
+// sending it anyway. A field the channel shows keeps what was sent.
+func TestAHiddenFieldStartsAsTheFormSaysWhateverWasSent(t *testing.T) {
+	form := work.Form{
+		Fields: []work.FormField{
+			{Key: "custom_fields.severity"},
+			{Key: "custom_fields.priority", Default: "normal"},
+			{Key: "custom_fields.queue"},
+			{Key: "custom_fields.summary", Default: "none"},
+		},
+		Channels: []work.FormChannelRule{{Channel: work.ChannelPortal,
+			Hidden:  []string{"custom_fields.severity", "custom_fields.priority", "custom_fields.queue"},
+			Presets: map[string]any{"custom_fields.severity": "low"}}},
+	}
+	sent := map[string]any{"severity": "critical", "priority": "urgent", "queue": "vip", "summary": "mine"}
+
+	starting := form.Starting(work.ChannelPortal, sent)
+	if starting["severity"] != "low" || starting["priority"] != "normal" {
+		t.Errorf("a hidden field kept what was sent: %v", starting)
+	}
+	if value, named := starting["queue"]; !named || value != nil {
+		t.Errorf("a hidden field without preset or default kept %v, want it cleared", starting["queue"])
+	}
+	if _, named := starting["summary"]; named {
+		t.Errorf("a shown field that was sent was overridden: %v", starting["summary"])
+	}
+}
+
 // A write may not move an entry further from its form; what an old entry already lacked is not
 // held against an unrelated write.
 func TestCheckFormWrite(t *testing.T) {

@@ -1751,3 +1751,36 @@ func TestALabelOnATypeWithoutLabelsRefusesTheCreation(t *testing.T) {
 		t.Errorf("fields = %+v, want the refusal at /label_ids/0", typed.Fields)
 	}
 }
+
+// A value sent for a field the channel hides, with neither preset nor default, is not written: a
+// requester at the portal cannot fill the field the portal hides from them by sending it anyway.
+func TestACreateDropsAValueSentForAFieldTheChannelHides(t *testing.T) {
+	h := newItemHarness()
+	h.profiles.rows = fieldProfiles()
+	h.withFieldDefinition(t, "priority", domain.CustomFieldSelect, "high", "low")
+	h.handler.Gate.Forms = FormGate{Types: formedTypes(domain.Form{
+		Fields:   []domain.FormField{{Key: "title"}, {Key: "custom_fields.priority"}},
+		Channels: []domain.FormChannelRule{{Channel: domain.ChannelPortal, Hidden: []string{"custom_fields.priority"}}},
+	}), Compiler: &answers{of: map[string]bool{}}}
+
+	requester := itemActor()
+	requester.Channel = string(domain.ChannelPortal)
+	cmd := taskCommand()
+	cmd.CustomFields = map[string]any{"priority": "high"}
+	created, _, err := h.handler.Execute(context.Background(), requester, cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if _, written := created.CustomFields["priority"]; written {
+		t.Fatalf("the hidden field was written: %+v", created.CustomFields)
+	}
+
+	cmd.CustomFields = map[string]any{"priority": "high"}
+	created, _, err = h.handler.Execute(context.Background(), itemActor(), cmd)
+	if err != nil {
+		t.Fatalf("error = %v", err)
+	}
+	if created.CustomFields["priority"] != "high" {
+		t.Fatalf("the app, which shows the field, lost the value: %+v", created.CustomFields)
+	}
+}
