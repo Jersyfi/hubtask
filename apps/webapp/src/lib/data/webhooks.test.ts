@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { scopeChoiceOf, scopeOfChoice, subscriptionBody } from './webhooks.ts';
+import { eventGroups, eventKey, scopeChoiceOf, scopeOfChoice, subscriptionBody, webhookFigure } from './webhooks.ts';
 
 const HUB = '01936f2a-7c1e-7000-8000-000000000f31';
 
@@ -92,4 +92,25 @@ test('a chat room sends its format and language, and only a Matrix room its room
     target_url: 'https://example.org/hooks',
     event_types: ['de.hubtask.work.item.created.v1'],
   });
+});
+
+// user-experience.md §5.4, §7.10: an event type is offered by its words, never by its key; the
+// types the manifest declares are grouped by what they are about, in the manifest's order.
+test('an event type reads by its words, grouped by what it is about', () => {
+  assert.equal(eventKey('de.hubtask.work.item.created.v1'), 'work.item.created');
+  assert.equal(eventKey('de.hubtask.automation.rule_run.failed.v1'), 'automation.rule_run.failed');
+  assert.equal(eventKey('somebody.else.v2'), 'somebody.else.v2', 'a type of another shape is kept whole');
+  const groups = eventGroups([
+    'de.hubtask.work.container.created.v1', 'de.hubtask.work.item.created.v1', 'de.hubtask.work.comment.created.v1',
+    'de.hubtask.work.bucket.created.v1', 'de.hubtask.work.label.created.v1', 'de.hubtask.work.attachment.added.v1',
+    'de.hubtask.automation.rule_run.failed.v1', 'de.hubtask.jumble.entry.received.v1', 'de.hubtask.work.recurrence.occurrence_created.v1', 'other.v1',
+  ]);
+  assert.deepEqual(groups.map((group) => [group.id, group.types.length]), [
+    ['entries', 3], ['comments', 1], ['places', 1], ['board', 2], ['automation', 1], ['inbox', 1], ['other', 1],
+  ]);
+});
+
+test('the head says how many deliver and how many were switched off after failures', () => {
+  assert.deepEqual(webhookFigure([{ state: 'ACTIVE' }, { state: 'ACTIVE' }, { state: 'PAUSED' }, { state: 'DISABLED' }]), { active: 2, paused: 1, disabled: 1 });
+  assert.deepEqual(webhookFigure([]), { active: 0, paused: 0, disabled: 0 });
 });

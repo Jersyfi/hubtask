@@ -64,12 +64,13 @@ test('chromium: a Matrix room is subscribed by homeserver, room and token, and s
 
   await page.goto(`${served.origin}/administration/webhooks`);
 
+  await page.getByRole('button', { name: 'Add a webhook' }).first().click();
   await page.getByLabel('Delivered as').selectOption({ label: 'Matrix room' });
   await page.getByLabel('Where to deliver').fill('https://matrix.example.org');
   await page.getByLabel('Room', { exact: true }).fill(ROOM);
   await page.getByLabel('Access token').fill('syt_e2e_token');
   await page.getByLabel('Language').fill('de');
-  await page.getByLabel(CREATED).check();
+  await page.getByLabel('An entry is created', { exact: true }).check();
   const posted = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/integrations/webhooks'), { timeout: 5_000 });
   await page.getByRole('button', { name: 'Subscribe', exact: true }).click();
   await posted;

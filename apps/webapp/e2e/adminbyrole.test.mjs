@@ -68,7 +68,7 @@ const SCREENS = [
   { path: '/administration/privacy', buttons: ['Record it'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/rules', buttons: ['Write a rule'], gates: ['AUTOMATION'] },
   { path: '/administration/rules/new', buttons: ['Save the rule'], gates: ['AUTOMATION'] },
-  { path: '/administration/webhooks', buttons: ['Subscribe'], gates: ['AUTOMATION'] },
+  { path: '/administration/webhooks', buttons: ['Add a webhook'], gates: ['AUTOMATION'] },
   { path: '/administration/ai', buttons: ['Save'], gates: ['STRUCTURE'] },
   { path: '/administration/backup', buttons: ['Add'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
   { path: '/administration/retention', buttons: ['Write it', 'Place it'], gates: ['DELETE_CONTAINER'] },

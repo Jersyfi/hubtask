@@ -82,8 +82,9 @@ test('chromium: a subscription takes a condition and a scope, and says both back
   assert.equal(await page.locator('ul.deliveries').getByText(/^Attempt/).count(), 0);
 
   // The form sends both, the scope with its level.
+  await page.getByRole('button', { name: 'Add a webhook' }).first().click();
   await page.getByLabel('Where to deliver').fill('https://example.org/hooks/narrow');
-  await page.getByLabel(CREATED).check();
+  await page.getByLabel('An entry is created', { exact: true }).check();
   await page.getByLabel('Where it listens').selectOption({ label: `The collection ${HUB.name} · ${COLLECTION.name}` });
   await page.getByLabel('Only when (optional)').fill('data.title.startsWith("Ship")');
   const posted = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/integrations/webhooks'), { timeout: 5_000 });

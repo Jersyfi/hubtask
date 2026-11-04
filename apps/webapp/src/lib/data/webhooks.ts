@@ -82,3 +82,37 @@ export function subscriptionBody(draft: SubscriptionDraft): {
     ...(locale ? { locale } : {}),
   };
 }
+
+/** An event type without its namespace and version - the part its words are keyed by. */
+export function eventKey(type: string): string {
+  const match = /^de\.hubtask\.(.+)\.v\d+$/u.exec(type);
+  return match?.[1] ?? type;
+}
+
+export type EventGroupId = 'entries' | 'comments' | 'places' | 'board' | 'automation' | 'inbox' | 'other';
+
+const GROUP_ORDER: readonly EventGroupId[] = ['entries', 'comments', 'places', 'board', 'automation', 'inbox', 'other'];
+
+function groupOf(key: string): EventGroupId {
+  if (/^work\.(item|attachment|recurrence|template)\./u.test(key)) return 'entries';
+  if (key.startsWith('work.comment.')) return 'comments';
+  if (key.startsWith('work.container.')) return 'places';
+  if (/^work\.(bucket|label)\./u.test(key)) return 'board';
+  if (key.startsWith('automation.')) return 'automation';
+  if (key.startsWith('jumble.')) return 'inbox';
+  return 'other';
+}
+
+/** The declared event types by what they are about, each group in the manifest's order; empty groups left out. */
+export function eventGroups(types: readonly string[]): { readonly id: EventGroupId; readonly types: readonly string[] }[] {
+  return GROUP_ORDER.map((id) => ({ id, types: types.filter((type) => groupOf(eventKey(type)) === id) })).filter((group) => group.types.length > 0);
+}
+
+/** The head's figure: the subscriptions delivering, paused by somebody, and switched off after failures. */
+export function webhookFigure(list: readonly { readonly state: string }[]): { active: number; paused: number; disabled: number } {
+  return {
+    active: list.filter((each) => each.state === 'ACTIVE').length,
+    paused: list.filter((each) => each.state === 'PAUSED').length,
+    disabled: list.filter((each) => each.state === 'DISABLED').length,
+  };
+}
