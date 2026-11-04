@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import type { CollectionFigure } from '@hubtask/sync-engine';
 
 import {
+  asOfMessage,
   barShare,
   durationText,
   figureTargets,
@@ -128,4 +129,13 @@ test('UC-WRK-31 check 3: a column over its limit is marked in the head and the r
   assert.equal(overLimitMessage(of({ kind: 'FLOW', completed: 3, average_seconds: 3_600, over_limit: 0 })), undefined);
   assert.equal(overLimitMessage(of({ kind: 'OPEN', open: 3 })), undefined);
   assert.equal(overLimitMessage(of({ kind: 'FLOW', unavailable: true })), undefined);
+});
+
+test('a kept count answered after a change is shown as of its time (UC-WRK-29 check 8)', () => {
+  const stale = of({ kind: 'OPEN', open: 5, counted_at: '2026-10-22T12:05:00Z' });
+  assert.deepEqual(asOfMessage(stale, 'en-GB', 'UTC'), { code: 'app.figure.as_of', params: { time: '12:05' } });
+  assert.deepEqual(asOfMessage(stale, 'de-DE', 'Europe/Berlin'), { code: 'app.figure.as_of', params: { time: '14:05' } });
+  assert.equal(asOfMessage(of({ kind: 'OPEN', open: 5 }), 'en-GB', 'UTC'), undefined);
+  assert.equal(asOfMessage(of({ kind: 'OPEN', unavailable: true, counted_at: '2026-10-22T12:05:00Z' }), 'en-GB'), undefined);
+  assert.equal(asOfMessage(of({ kind: 'OPEN', open: 1, counted_at: 'not a time' }), 'en-GB'), undefined);
 });

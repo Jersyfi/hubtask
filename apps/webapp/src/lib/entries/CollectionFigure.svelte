@@ -10,7 +10,7 @@
   import { ProgressBar } from '@hubtask/design-system/components';
 
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { barShare, headMessage, overLimitMessage, rhythmMarks } from '../data/figure.ts';
+  import { asOfMessage, barShare, headMessage, overLimitMessage, rhythmMarks } from '../data/figure.ts';
 
   interface Props {
     figure: CollectionFigure;
@@ -24,6 +24,7 @@
   const share = $derived(barShare(figure));
   const marks = $derived(rhythmMarks(figure));
   const overLimit = $derived(overLimitMessage(figure));
+  const asOf = $derived(asOfMessage(figure, messages.locale));
 </script>
 
 {#if message}
@@ -37,6 +38,9 @@
       </span>
     {/if}
     <span class="text">{t(message.code, message.params)}</span>
+    {#if asOf}
+      <span class="as-of" data-as-of>{t(asOf.code, asOf.params)}</span>
+    {/if}
     {#if overLimit}
       <span class="over" data-over-limit>{t(overLimit.code, overLimit.params)}</span>
     {/if}
@@ -68,6 +72,9 @@
   }
 
   .figure[data-unavailable] .text { font-style: italic; }
+
+  /* The last kept count while a newer one is counted: said quietly, beside the number. */
+  .as-of { color: var(--text-subtle); }
 
   /* A column over its limit: advice, so a tinted mark rather than an error. */
   .over {
