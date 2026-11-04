@@ -3,7 +3,9 @@
 
 // *Changes* shows a plan before it applies (UC-CFG-01 check 7): an agent's proposal with the same
 // preview - its changes and what it reaches, planned afresh and writing nothing -, applied only once
-// what it hides was acknowledged; the sandbox's promotion with its reach. Against a stubbed API.
+// what it hides was acknowledged; the sandbox's promotion with its reach. The page answers what
+// waits and what changed first, the expert's parts folded unless a sandbox runs
+// (user-experience.md §8.6). Against a stubbed API.
 // Chromium only.
 
 import { test } from 'node:test';
@@ -104,5 +106,40 @@ test('chromium: a proposal is previewed with its reach and applied only once ack
   const decided = page.waitForRequest((request) => request.url().endsWith(`/config/proposals/${PROPOSAL.id}:decide`), { timeout: 10_000 });
   await apply.click();
   assert.deepEqual((await decided).postDataJSON(), { decision: 'APPLY', acknowledge: true });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: with nothing waiting the page says so in one line and folds the expert\'s parts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/config/proposals') return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === '/config/versions') return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === '/config' && request.method() === 'GET') return route.fulfill({ json: { document: {}, hash: 'h1', withheld: [] } });
+    if (path === '/config/sandbox' && request.method() === 'GET') return route.fulfill({ json: { exists: false } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/administration/changes`);
+  await page.locator('[data-waiting]').getByText(/Nothing waits for your word/).waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('[data-proposals], [data-drafts]').count(), 0, 'empty lists were drawn beside the one line');
+  // What waits comes before what changed.
+  const order = await page.locator('[data-waiting], [data-versions]').evaluateAll((sections) => sections.map((section) => section.hasAttribute('data-waiting') ? 'waiting' : 'versions'));
+  assert.deepEqual(order, ['waiting', 'versions']);
+  // The sandbox and the file are folded while no sandbox runs.
+  assert.equal(await page.locator('[data-sandbox], [data-file]').count(), 0, 'the expert\'s parts were open');
+  await page.getByRole('button', { name: /Advanced/ }).click();
+  await page.locator('[data-file]').waitFor();
+  await page.locator('[data-sandbox]').waitFor();
   assert.deepEqual(failures, []);
 });

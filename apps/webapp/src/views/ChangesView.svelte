@@ -11,7 +11,7 @@
   // not drawn** (P-05): without STRUCTURE the page lists and offers no control.
 
   import { untrack } from 'svelte';
-  import { EmptyState, Banner, Button, Checkbox, CodeBlock, Dialog, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, Checkbox, CodeBlock, Dialog, Disclosure, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { ConfigDraftList, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -199,6 +199,20 @@
   let acknowledgePromotion = $state(false);
   let sandboxBusy = $state(false);
 
+  // The page answers two questions first - what waits for a person's word, what was changed - and
+  // folds the expert's parts (user-experience.md §8.6). The fold opens by itself while a sandbox
+  // exists, so nothing running is hidden; once opened it stays as the reader leaves it.
+  const showsProposals = $derived(!(waiting?.status === 'ready' && waiting.data.data.length === 0));
+  const nothingWaits = $derived(!showsProposals && drafts.length === 0);
+  let isAdvancedOpen = $state(false);
+  let wasOpenedBySandbox = false;
+  $effect(() => {
+    if (!wasOpenedBySandbox && sandbox?.status === 'ready' && sandbox.data.exists) {
+      wasOpenedBySandbox = true;
+      isAdvancedOpen = true;
+    }
+  });
+
   async function sandboxStep(step: () => Promise<unknown>, done: string) {
     sandboxBusy = true;
     try {
@@ -228,8 +242,14 @@
 
   <p class="quiet">{t('app.changes.intro')}</p>
 
-  <section class="panel" data-proposals>
-    <h2>{t('app.changes.proposed')}</h2>
+  <section class="panel" data-waiting>
+    <h2>{t('app.changes.waiting')}</h2>
+    {#if nothingWaits}
+      <p class="quiet">{t('app.changes.none_waiting')}</p>
+    {:else}
+      {#if showsProposals}
+      <div class="part" data-proposals>
+        <h3>{t('app.changes.proposed')}</h3>
     {#if refusalOf(waiting)}
       <Banner tone="danger" title={refusalOf(waiting)?.message ?? ''} />
     {:else if waiting?.status !== 'ready'}
@@ -269,22 +289,31 @@
         {/each}
       </ul>
     {/if}
-  </section>
-
-  {#if agentApply !== undefined}
-    <section class="panel" data-agent-apply>
-      <h2>{t('app.changes.agent_apply')}</h2>
-      <p class="quiet">{t('app.changes.agent_apply_explain')}</p>
-      {#if mayChange}
-        <Select label={t('app.changes.agent_apply')} bind:value={agentApplyDraft} options={agentApplyOptions} />
-        <div class="actions">
-          <Button tone="secondary" size="sm" isBusy={policyBusy} data-agent-apply-save onclick={() => void saveAgentApply()}>{t('app.changes.agent_apply_save')}</Button>
-        </div>
-      {:else}
-        <p class="note">{t('app.changes.agent_apply_option', { value: agentApply })}</p>
+      </div>
       {/if}
-    </section>
-  {/if}
+      {#if drafts.length > 0}
+      <div class="part" data-drafts>
+        <h3>{t('app.changes.drafts')}</h3>
+    {#if drafts.length === 0}
+      <p class="quiet">{t('app.changes.no_drafts')}</p>
+    {:else}
+      <ul class="rows">
+        {#each drafts as draft (draft.path)}
+          <li class="row" data-draft={draft.path}>
+            <div class="identity">
+              <code class="name">{draft.path}</code>
+              {#if draft.name}<span class="note">{draft.name}</span>{/if}
+              <span class="note">{draft.savedAt ? t('app.changes.draft_saved', { at: at(draft.savedAt) }) : t('app.changes.draft_unpublished')}</span>
+            </div>
+            <a class="open" href={draft.href}>{t('app.changes.open_draft')}</a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+      </div>
+      {/if}
+    {/if}
+  </section>
 
   <section class="panel" data-versions>
     <h2>{t('app.changes.history')}</h2>
@@ -316,25 +345,22 @@
     {/if}
   </section>
 
-  <section class="panel" data-drafts>
-    <h2>{t('app.changes.drafts')}</h2>
-    {#if drafts.length === 0}
-      <p class="quiet">{t('app.changes.no_drafts')}</p>
-    {:else}
-      <ul class="rows">
-        {#each drafts as draft (draft.path)}
-          <li class="row" data-draft={draft.path}>
-            <div class="identity">
-              <code class="name">{draft.path}</code>
-              {#if draft.name}<span class="note">{draft.name}</span>{/if}
-              <span class="note">{draft.savedAt ? t('app.changes.draft_saved', { at: at(draft.savedAt) }) : t('app.changes.draft_unpublished')}</span>
-            </div>
-            <a class="open" href={draft.href}>{t('app.changes.open_draft')}</a>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-  </section>
+  <Disclosure label={t('app.changes.advanced')} description={t('app.changes.advanced_says')} bind:isOpen={isAdvancedOpen}>
+    <Stack gap="300">
+  {#if agentApply !== undefined}
+    <section class="panel" data-agent-apply>
+      <h2>{t('app.changes.agent_apply')}</h2>
+      <p class="quiet">{t('app.changes.agent_apply_explain')}</p>
+      {#if mayChange}
+        <Select label={t('app.changes.agent_apply')} bind:value={agentApplyDraft} options={agentApplyOptions} />
+        <div class="actions">
+          <Button tone="secondary" size="sm" isBusy={policyBusy} data-agent-apply-save onclick={() => void saveAgentApply()}>{t('app.changes.agent_apply_save')}</Button>
+        </div>
+      {:else}
+        <p class="note">{t('app.changes.agent_apply_option', { value: agentApply })}</p>
+      {/if}
+    </section>
+  {/if}
 
   {#if versions?.status === 'ready' && versions.data.data.length > 1}
     <section class="panel" data-compare>
@@ -421,13 +447,15 @@
     <h2>{t('app.changes.file')}</h2>
     <p class="quiet">{t('app.changes.file_explain')}</p>
     {#if current?.status === 'ready'}
-      <CodeBlock code={file} label={t('app.changes.file')} language="json" />
+      <CodeBlock code={file} label={t('app.changes.file')} language="json" copyLabel={t('app.apps.copy')} copiedLabel={t('app.apps.copied')} />
     {:else if refusalOf(current)}
       <Banner tone="danger" title={refusalOf(current)?.message ?? ''} />
     {:else}
       <Spinner label={t('app.changes.reading')} />
     {/if}
   </section>
+    </Stack>
+  </Disclosure>
 </Stack>
 
 {#if previewed}
@@ -488,6 +516,9 @@
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
   h2 { margin: 0 0 var(--sp-150); font-size: var(--fs-200); }
+  h3 { margin: 0 0 var(--sp-100); font-size: var(--fs-100); font-weight: var(--fw-semibold); color: var(--text-secondary); }
+
+  .part + .part { margin-block-start: var(--sp-200); }
 
   .panel {
     padding: var(--sp-250);

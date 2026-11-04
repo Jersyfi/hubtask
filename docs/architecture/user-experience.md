@@ -955,7 +955,7 @@ and folds (UX-4).
 
 * **Waiting for your word** joins the changes an agent proposed and the drafts not yet published,
   each as its plan in words (§5.4) with its acts. Where nothing waits, one settled line.
-* **History**: the versions, newest first, each with when, how it came (*proposed by an agent*,
+* **Versions**: newest first, each with when, how it came (*proposed by an agent*,
   *from the template …*, *a rollback to version n*) and *Roll back to this* as a plan first.
 * **Advanced**, folded under one `Disclosure`: comparing two versions, the sandbox, an agent's
   right to apply, and **the configuration file** in force (read-only, with *Copy*). The fold
