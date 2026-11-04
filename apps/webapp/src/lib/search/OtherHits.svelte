@@ -2,23 +2,19 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The search's other kinds below its entries (user-experience.md §5.3): pages through the pages'
-  // own search over every space the reader may read, boards by their title from each hub's list,
-  // goals by their title from the goals the reader may read, configuration items by their name
-  // from each hub's inventory (its first page), and hubs and collections by name from what the tree holds - each with one `ListRow` anatomy,
-  // each only where its module is on. Every read is the reader's own, so what they may not read is
-  // not found.
+  // own search over every space the reader may read, the modules' named objects through the
+  // sources the palette reads too (`objects.ts`), and hubs and collections by name from what the
+  // tree holds - each with one `ListRow` anatomy, each only where its module is on.
   import { untrack } from 'svelte';
   import { Icon, ListRow, Stack } from '@hubtask/design-system/components';
-  import type { ConfigurationItemList, GoalList, PageHitList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { PageHitList } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
-  import { engine } from '../data/engine.ts';
   import { pages } from '../data/pages.svelte.ts';
-  import { boardsPath } from '../data/whiteboards.svelte.ts';
-  import { cisPath, matchingCis } from '../data/cmdb.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { markOf } from '../workspace/look.ts';
   import { nameMatches, shows, type SearchKind } from './kinds.ts';
+  import { OBJECT_SOURCES, objectHits, readObjects, readsOf, sourcesWanted, type ObjectRow } from './objects.svelte.ts';
 
   /** How long the words rest before the pages are asked: one read per pause, not per key. */
   const SETTLE_MS = 250;
@@ -55,48 +51,22 @@
     return () => { isCurrent = false; clearTimeout(timer); };
   });
 
-  // The boards are read once per hub while the search is open, and matched as the words change.
-  const wantsBoards = $derived(asked !== '' && shows(kind, 'boards') && isOn('WHITEBOARD'));
-  const hubKey = $derived(wantsBoards ? containers.hubs.map((hub) => hub.id).join(',') : '');
-  let boardsAt = $state<Record<string, WhiteboardList['data']>>({});
-  $effect(() => {
-    const ids = hubKey === '' ? [] : hubKey.split(',');
-    return untrack(() => {
-      const stops = ids.map((hubId) =>
-        engine.subscribe<WhiteboardList>({ path: boardsPath(hubId) }, (next) => {
-          if (next.status === 'ready') boardsAt = { ...boardsAt, [hubId]: next.data.data };
-        }),
-      );
-      return () => stops.forEach((stop) => stop());
-    });
-  });
-  const boardHits = $derived(
-    wantsBoards ? Object.values(boardsAt).flat().filter((board) => nameMatches(board.title, asked)).slice(0, SHOWN) : [],
+  // Each list is read once while the search is open, and matched as the words change.
+  const sources = $derived(sourcesWanted(modulesOn, (each) => shows(kind, each)));
+  const reads = $derived(
+    asked === ''
+      ? []
+      : readsOf(sources, { hubs: containers.hubs.map((hub) => hub.id), collections: containers.loadedCollections.map((collection) => collection.id) }),
   );
-
-  const wantsGoals = $derived(asked !== '' && shows(kind, 'goals') && isOn('GOALS'));
-  let goals = $state<GoalList['data']>([]);
+  /** The reads by their paths, so a new word does not read anew. */
+  const readKey = $derived(reads.map((read) => read.path).join(' '));
+  let objectsRead = $state<Record<string, readonly ObjectRow[]>>({});
   $effect(() => {
-    if (!wantsGoals) return;
-    return untrack(() => engine.subscribe<GoalList>({ path: '/goals' }, (next) => { if (next.status === 'ready') goals = next.data.data; }));
+    void readKey;
+    return untrack(() => readObjects(reads, (path, rows) => { objectsRead = { ...objectsRead, [path]: rows }; }));
   });
-  const goalHits = $derived(wantsGoals ? goals.filter((goal) => nameMatches(goal.title, asked)).slice(0, SHOWN) : []);
-
-  const wantsCis = $derived(asked !== '' && shows(kind, 'assets') && isOn('ASSETS'));
-  const ciHubKey = $derived(wantsCis ? containers.hubs.map((hub) => hub.id).join(',') : '');
-  let cisAt = $state<Record<string, ConfigurationItemList['data']>>({});
-  $effect(() => {
-    const ids = ciHubKey === '' ? [] : ciHubKey.split(',');
-    return untrack(() => {
-      const stops = ids.map((hubId) =>
-        engine.subscribe<ConfigurationItemList>({ path: cisPath(hubId) }, (next) => {
-          if (next.status === 'ready') cisAt = { ...cisAt, [hubId]: next.data.data };
-        }),
-      );
-      return () => stops.forEach((stop) => stop());
-    });
-  });
-  const ciHits = $derived(wantsCis ? matchingCis(Object.values(cisAt).flat(), asked, SHOWN) : []);
+  // A list read for a kind no longer wanted is kept but not drawn.
+  const objectRows = $derived(readKey === '' ? [] : objectHits(objectsRead, asked, SHOWN).filter((row) => sources.some((source) => source.kind === row.kind)));
 
   const placeHits = $derived(
     asked !== '' && shows(kind, 'places')
@@ -104,7 +74,7 @@
       : [],
   );
 
-  $effect(() => oncount(pageHits.length + boardHits.length + goalHits.length + ciHits.length + placeHits.length));
+  $effect(() => oncount(pageHits.length + objectRows.length + placeHits.length));
 
   const hubName = (id: string) => containers.find(id)?.name ?? '';
   const go = (path: string) => onnavigate?.(path);
@@ -135,21 +105,14 @@
     meta: [hubName(hit.hub_id), hit.excerpt.replace(/[«»]/gu, '')].filter(Boolean).join(' · '),
   })))}
 {/if}
-{#if boardHits.length > 0}
-  {@render section('search-boards', t('app.search.kind.boards'), boardHits.map((board) => ({
-    id: board.id, title: board.title, href: `/whiteboards/${board.id}`, icon: 'layout-template', meta: hubName(board.hub_id),
-  })))}
-{/if}
-{#if goalHits.length > 0}
-  {@render section('search-goals', t('app.search.kind.goals'), goalHits.map((goal) => ({
-    id: goal.id, title: goal.title, href: `/goals/${goal.id}`, icon: 'flag', meta: goal.hub_id ? hubName(goal.hub_id) : '',
-  })))}
-{/if}
-{#if ciHits.length > 0}
-  {@render section('search-assets', t('app.search.kind.assets'), ciHits.map((ci) => ({
-    id: ci.id, title: ci.name, href: `/cis/${ci.id}`, icon: 'shield', meta: hubName(ci.hub_id),
-  })))}
-{/if}
+{#each OBJECT_SOURCES as source (source.kind)}
+  {@const rows = objectRows.filter((row) => row.kind === source.kind)}
+  {#if rows.length > 0}
+    {@render section(`search-${source.kind}`, t(`app.search.kind.${source.kind}`), rows.map((row) => ({
+      id: row.id, title: row.title, href: row.href, icon: source.icon, meta: row.placeId ? hubName(row.placeId) : '',
+    })))}
+  {/if}
+{/each}
 {#if placeHits.length > 0}
   {@render section('search-places', t('app.search.kind.places'), placeHits.map((place) => ({
     id: place.id, title: place.name, href: place.type === 'HUB' ? `/hubs/${place.id}` : `/collections/${place.id}`, icon: markOf(place),

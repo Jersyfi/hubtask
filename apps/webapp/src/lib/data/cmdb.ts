@@ -23,10 +23,11 @@ export const classesPath = '/cmdb/classes';
 export const relationTypesPath = '/cmdb/relation-types';
 export const sourcesPath = '/cmdb/sources';
 
-export function cisPath(hubId: string, options: { class?: string; after?: string; includeMerged?: boolean } = {}): string {
+export function cisPath(hubId: string, options: { class?: string; after?: string; includeMerged?: boolean; limit?: number } = {}): string {
   const query = new URLSearchParams();
   if (options.class) query.set('class', options.class);
   if (options.after) query.set('after', options.after);
+  if (options.limit) query.set('limit', String(options.limit));
   if (options.includeMerged) query.set('include_merged', 'true');
   const tail = query.toString();
   return `/hubs/${hubId}/cis${tail ? `?${tail}` : ''}`;
