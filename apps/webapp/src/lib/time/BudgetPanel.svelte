@@ -14,7 +14,7 @@
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import { budgetPath, burnShare, minorDigits, minorOf, minutesOfHours, minutesText, moneyText, time } from '../data/time.svelte.ts';
+  import { budgetPath, burnShare, minorDigits, minorOf, minutesOfHours, minutesText, moneyText, time, weekText } from '../data/time.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { decimalSeparatorOf } from '../i18n/number.ts';
@@ -114,7 +114,7 @@
         <Table label={t('app.budget.burn')} {columns}>
           {#each burn.weeks as week (week.week)}
             <tr>
-              <th scope="row">{week.week}</th>
+              <th scope="row">{weekText(week.week, locale)}</th>
               <td class="number">{minutesText(week.minutes)}</td>
               <td class="number">{burn.currency ? money(week.amount_minor) : ''}</td>
             </tr>

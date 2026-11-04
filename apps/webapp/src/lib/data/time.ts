@@ -209,9 +209,9 @@ export function actualsTree(data: EstimatesVsActuals['data']): ActualsRow[] {
   return out;
 }
 
-/** Hours with at most two decimals, as a plain number for a table cell. */
-export function hoursText(hours: number): string {
-  return String(Math.round(hours * 100) / 100);
+/** Hours as `h:mm`, as recorded time is written, so a table reads one time format (§5.10). */
+export function hoursClockText(hours: number): string {
+  return minutesText(hours * 60);
 }
 
 /**
@@ -231,6 +231,13 @@ export function exportCsv(answer: TimeExport): string {
     lines.push(answer.columns.map((column) => cell(record[column])).join(','));
   }
   return `${lines.join('\r\n')}\r\n`;
+}
+
+/** A week by its Monday - "26 Oct 2026" - in the reader's language; the day itself if unread. */
+export function weekText(day: string, locale: string): string {
+  const at = epochOf(day);
+  if (at === undefined) return day;
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(at);
 }
 
 /** A day of the week grid's head - "Mon 2" - in the reader's language; the day itself if unread. */

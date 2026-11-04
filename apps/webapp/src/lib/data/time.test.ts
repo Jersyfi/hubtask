@@ -9,7 +9,7 @@ import type { PlacedTimeRecord } from '@hubtask/sync-engine';
 import {
   ranTooLong, usualEnd,
   absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel,
-  minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf,
+  hoursClockText, minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf, weekText,
 } from './time.ts';
 
 const record = (id: string, day: string, minutes: number, entry: string | null, workType = 'dev'): PlacedTimeRecord => ({
@@ -175,4 +175,19 @@ test('a timer left running is offered to stop at its day’s usual end of work',
   // A day off or no capacity at all: eight hours; never past the day's last minute.
   assert.deepEqual(usualEnd('2026-11-07T08:00:00Z', 'Europe/Berlin', capacities), { day: '2026-11-07', time: '17:00' });
   assert.deepEqual(usualEnd('2026-11-02T19:00:00Z', 'Europe/Berlin', []), { day: '2026-11-02', time: '23:59' });
+});
+
+// §5.10: no ISO string reaches a person - a burn week is a date in the reader's language.
+test('a week is named by its Monday in the reader\'s language', () => {
+  assert.equal(weekText('2026-10-26', 'en-GB'), '26 Oct 2026');
+  assert.equal(weekText('2026-10-26', 'de'), '26. Okt. 2026');
+  assert.equal(weekText('2026-10', 'en'), '2026-10');
+});
+
+// §5.10: one time format per table - estimates, remaining and variance in h:mm like recorded time.
+test('hours are written as hours and minutes, signed', () => {
+  assert.equal(hoursClockText(1.5), '1:30');
+  assert.equal(hoursClockText(0), '0:00');
+  assert.equal(hoursClockText(-2.25), '−2:15');
+  assert.equal(hoursClockText(0.333), '0:20');
 });

@@ -17,7 +17,7 @@
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
-  import { actualsPath, actualsTree, hoursText, minutesText } from '../lib/data/time.svelte.ts';
+  import { actualsPath, actualsTree, hoursClockText, minutesText } from '../lib/data/time.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -84,19 +84,19 @@
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
-    <p class="quiet">{t('app.actuals.summary', { estimate: hoursText(answer.estimate_hours), actual: minutesText(answer.minutes) })}</p>
+    <p class="quiet">{t('app.actuals.summary', { estimate: hoursClockText(answer.estimate_hours), actual: minutesText(answer.minutes) })}</p>
     <div class="scroll">
       <Table label={t('app.actuals.title')} isLabelHidden {columns}>
         {#snippet empty()}<ProductEmpty kind="unused" title={t('app.actuals.empty')} />{/snippet}
         {#each rows as { row, depth } (row.entry_id)}
           <tr>
             <th scope="row"><span class="indent" style:--depth={depth}><a href={`/items/${row.entry_id}`}>{row.title}</a></span>{#if row.done}<span class="note">{t('app.actuals.done')}</span>{/if}</th>
-            <td class="number">{row.estimate_hours === null ? '' : hoursText(row.estimate_hours)}</td>
+            <td class="number">{row.estimate_hours === null ? '' : hoursClockText(row.estimate_hours)}</td>
             <td class="number">{minutesText(row.minutes)}</td>
-            <td class="number">{hoursText(row.rolled_estimate_hours)}</td>
+            <td class="number">{hoursClockText(row.rolled_estimate_hours)}</td>
             <td class="number">{minutesText(row.rolled_minutes)}</td>
-            <td class="number">{hoursText(row.remaining_hours)}</td>
-            <td class="number" class:over={row.variance_hours > 0}>{hoursText(row.variance_hours)}</td>
+            <td class="number">{hoursClockText(row.remaining_hours)}</td>
+            <td class="number" class:over={row.variance_hours > 0}>{hoursClockText(row.variance_hours)}</td>
           </tr>
         {/each}
       </Table>
