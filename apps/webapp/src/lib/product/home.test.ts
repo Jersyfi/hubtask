@@ -39,6 +39,12 @@ test('the pages home holds My notes as its second tab, at its own address', () =
   assert.deepEqual(homeTabs('WHITEBOARD'), []);
 });
 
+// user-experience.md §5.1, §7.4: the desk's home is Queues · Desks · Settings, Settings last.
+test('the desk home holds its queues, its desks and its settings, settings last', () => {
+  assert.deepEqual(homeTabs('SERVICE_DESK').map((tab) => tab.id), ['queues', 'desks', 'settings']);
+  assert.deepEqual(productDoors('SERVICE_DESK', { isAdministrationReachable: true }), []);
+});
+
 // user-experience.md §3.3: the switched-off products are offered to whoever may switch one on, and
 // to nobody else; nothing while the manifest is unread.
 test('More in Hubtask lists the products that are off, for a holder of STRUCTURE only', () => {

@@ -528,6 +528,8 @@
   {:else if route.name === 'notes'}
     <!-- *My notes* is the pages' home's second tab (user-experience.md §2.2), at its own address. -->
     <LazyView load={views.ProductHomeView} props={{ module: 'KNOWLEDGE', tab: 'notes', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'desk-desks' || route.name === 'desk-settings'}
+    <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name === 'desk-desks' ? 'desks' : 'settings', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name && PRODUCT_HOMES[route.name]}
     <LazyView load={views.ProductHomeView} props={{ module: PRODUCT_HOMES[route.name], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal'}

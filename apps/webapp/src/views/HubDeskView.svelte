@@ -36,12 +36,26 @@
   const isReading = $derived(containers.isLevelLoading(hubId) || typesStatus === undefined || typesStatus === 'idle' || typesStatus === 'loading');
   const deskIds = $derived(isReading ? [] : desksOf(containers.collectionsOf(hubId), entryTypes.all));
   const desks = $derived(containers.collectionsOf(hubId).filter((collection) => deskIds.includes(collection.id)));
+  // *New request* opens the desk's list, where an entry is captured (§5.2); each other desk in its list.
+  const primary = $derived.by(() => {
+    const first = desks[0];
+    if (!first) return undefined;
+    return {
+      label: t('app.desk_home.new_request'),
+      icon: 'plus' as const,
+      onclick: () => onnavigate(`/collections/${first.id}`),
+      menu: desks.length > 1
+        ? { label: t('app.desk_home.new_request_in'), items: desks.map((desk) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })), onselect: (id: string) => onnavigate(`/collections/${id}`) }
+        : undefined,
+    };
+  });
 </script>
 
 <Stack gap="300">
   <PageHeader
     title={t('app.place_tabs.desk')}
     isTitleInBar={viewport.isCompact}
+    {primary}
     breadcrumb={hub
       ? {
           trail: [{ id: 'place', label: hub.name, href: `/hubs/${hubId}` }, { id: 'desk', label: t('app.place_tabs.desk') }],

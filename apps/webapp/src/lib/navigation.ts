@@ -171,7 +171,7 @@ export const PRODUCTS: readonly ProductRow[] = [
   // *My notes* is a tab of the pages' home (§2.2); its own address is kept and is this row's.
   { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'] },
   { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'] },
-  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home'] },
+  { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-settings'] },
   { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home'] },
   { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'] },
   { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'portfolio', 'dashboard'] },

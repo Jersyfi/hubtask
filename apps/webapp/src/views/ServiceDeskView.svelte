@@ -37,7 +37,11 @@
   import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
 
-  $effect(() => page.entitle(t('app.desk.title')));
+  // On the desk's home its *Settings* tab (user-experience.md §7.4), under the home's own head.
+  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
+  $effect(() => {
+    if (!isEmbedded) page.entitle(t('app.desk.title'));
+  });
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
 
   const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
@@ -198,7 +202,7 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.desk.title')} subtitle={t('app.desk.subtitle')} isTitleInBar={viewport.isCompact}
+  {#if !isEmbedded}<PageHeader title={t('app.desk.title')} subtitle={t('app.desk.subtitle')} isTitleInBar={viewport.isCompact}
     breadcrumb={{
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
@@ -206,7 +210,7 @@
       ],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
-    }} />
+    }} />{/if}
   <Tabs label={t('app.desk.title')} selected={current} onselect={(id) => (current = id as typeof current)}
     tabs={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: tab, label: t(`app.desk.tab.${tab}`) }))}>
     {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}

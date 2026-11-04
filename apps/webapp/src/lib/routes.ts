@@ -155,6 +155,9 @@ export const ROUTES: readonly Route[] = [
   { name: 'pages-home', pattern: '/pages' },
   { name: 'whiteboards-home', pattern: '/whiteboards' },
   { name: 'desk-home', pattern: '/desk' },
+  // The desk's home's other views (§7.4): the desks across hubs and the desk's settings.
+  { name: 'desk-desks', pattern: '/desk/desks' },
+  { name: 'desk-settings', pattern: '/desk/settings' },
   { name: 'assets-home', pattern: '/assets' },
   { name: 'agents-home', pattern: '/agents' },
   { name: 'goals', pattern: '/goals' },

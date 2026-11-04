@@ -35,13 +35,20 @@ const PAGES = [
   pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true }),
 ];
 const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
-const DESK = { id: '01a0e2e0-0000-7000-8000-000000000501', type: 'COLLECTION', parent_id: HUB.id, name: 'IT help desk for every office and every remote worker', order_key: 'a0', version: 1, structure: { settings: { entry_types: { TASK: ['incident'] } } } };
+const DESK = { id: '01a0e2e0-0000-7000-8000-000000000501', type: 'COLLECTION', parent_id: HUB.id, name: 'IT help desk for every office and every remote worker', handle: 'it', key_prefix: 'INC', order_key: 'a0', version: 1, structure: { settings: { entry_types: { TASK: ['incident'] } } } };
 const SCRUM = { id: '01a0e2e0-0000-7000-8000-000000000502', type: 'COLLECTION', parent_id: HUB.id, name: 'Sprint work', order_key: 'a1', version: 1, structure: { settings: { entry_types: { TASK: ['story'] } } } };
 const TYPES = [
   { key: 'incident', level: 'TASK', name: 'Incident', system: false, position: 1, archived: false, form: { channels: [{ channel: 'PORTAL' }] } },
   { key: 'story', level: 'TASK', name: 'Story', system: false, position: 2, archived: false },
 ];
-const ticket = (n, title) => ({ id: `01a0e2e0-0000-7000-8000-0000000006${n}`, type: 'TASK', entry_type: 'incident', collection_id: DESK.id, title, completion: { mode: 'BINARY', is_completed: false }, version: 1 });
+const ticket = (n, title) => ({ id: `01a0e2e0-0000-7000-8000-0000000006${n}`, type: 'TASK', entry_type: 'incident', collection_id: DESK.id, title, number: Number(n), created_by: ACCOUNT.id, custom_fields: { priority: `P${Number(n) + 1}` }, completion: { mode: 'BINARY', is_completed: false }, version: 1 });
+/** Each ticket's goals: the first running with an hour left, the second breached, the third paused. */
+const goalOf = (standing, due, breached) => ({ goal: 'RESOLUTION', kind: 'SLA', policy_key: 'standard', assignee_group: null, standing, target_seconds: 7200, armed_at: new Date(Date.now() - 3_600_000).toISOString(), due_at: due, at_risk_at: null, met_at: null, breached_at: breached });
+const GOALS = {
+  '01': [goalOf('RUNNING', new Date(Date.now() + 3_600_000 + 20_000).toISOString(), null)],
+  '02': [goalOf('BREACHED', null, new Date(Date.now() - 18 * 60_000).toISOString())],
+  '03': [goalOf('PAUSED', null, null)],
+};
 /** Each queue's answer, by its narrowing: what the server would hold for this reader. */
 const QUEUES = {
   mine: [ticket('01', 'The printer on the third floor prints every page twice and nobody knows why')],
@@ -88,6 +95,10 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith('/api/v1/pages:search')) return route.fulfill({ json: { data: [{ id: PAGES[0].id, hub_id: HUB.id, parent_id: null, title: 'Onboarding guide', icon: null, excerpt: 'Your first «release» week', rank: 1, updated_at: PAGES[0].updated_at }] } });
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [], page: { next_cursor: null, has_more: false } } });
     if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: TYPES } });
+    const sla = /\/api\/v1\/items\/01a0e2e0-0000-7000-8000-0000000006(\d\d)\/sla$/.exec(path);
+    if (sla) return route.fulfill({ json: { data: GOALS[sla[1]] ?? [] } });
+    if (path.endsWith('/api/v1/accounts:resolve')) return route.fulfill({ json: { data: [{ id: ACCOUNT.id, display_name: ACCOUNT.display_name }] } });
+    if (path.endsWith('/api/v1/sla-policies')) return route.fulfill({ json: { data: [] } });
     if (path.endsWith('/api/v1/items:query')) {
       const body = route.request().postDataJSON();
       queries.push(body);
@@ -318,8 +329,19 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     assert.deepEqual(await queues.getByRole('tab').allTextContents(), ['Mine (1)', 'Unassigned (2)', 'About to breach (0)', 'All open (3)']);
     // Only the desk is asked, by what breaks first, counted.
     assert.ok(queries.length > 0 && queries.every((body) => JSON.stringify(body.filter.nodes[0]) === JSON.stringify({ op: 'IN', field: 'collection_id', value: [DESK.id] }) && body.sort[0].field === 'sla_due' && body.count === 'exact'), JSON.stringify(queries));
-    await queues.getByRole('tab', { name: 'Unassigned (2)' }).click();
+    // §7.4: the open requests as a table, the SLA said in words beside its bar, never by colour alone.
     const panel = page.getByRole('tabpanel');
+    await queues.getByRole('tab', { name: 'All open (3)' }).click();
+    const table = panel.getByRole('table', { name: 'Requests in All open' });
+    await table.locator('[data-sla="breached"]').waitFor({ timeout: 10_000 });
+    const headings = await table.locator('thead th').allTextContents();
+    assert.deepEqual(headings.map((each) => each.trim()), ['Key', 'Request', 'Requester', 'Status', 'Priority', 'SLA', 'Assignee']);
+    const cells = await table.locator('[data-queue-row]').evaluateAll((rows) => rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent.trim().replace(/\s+/g, ' '))));
+    assert.deepEqual(cells.map((row) => [row[0], row[2], row[4], row[5]]), [
+      ['INC-1', ACCOUNT.display_name, 'P2', '1 h 0 min left'], ['INC-2', ACCOUNT.display_name, 'P3', 'Breached 18 min ago'], ['INC-3', ACCOUNT.display_name, 'P4', 'Paused'],
+    ], JSON.stringify(cells));
+    assert.equal(await page.locator('[data-desk-figure]').textContent(), '3 open · 2 unassigned');
+    await queues.getByRole('tab', { name: 'Unassigned (2)' }).click();
     await panel.getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 5_000 });
     await queues.getByRole('tab', { name: 'About to breach (0)' }).click();
     await panel.getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });

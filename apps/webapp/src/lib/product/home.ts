@@ -26,6 +26,14 @@ export interface Door {
 
 /** A home's views where it has several; one view draws no strip. */
 export function homeTabs(module: string): readonly HomeTab[] {
+  if (module === 'SERVICE_DESK') {
+    // Settings last (§5.1): the desk is set up at its home (§7.4).
+    return [
+      { id: 'queues', code: 'app.desk_queues.label', path: '/desk' },
+      { id: 'desks', code: 'app.desk_queues.desks', path: '/desk/desks' },
+      { id: 'settings', code: 'app.product_home.tab_settings', path: '/desk/settings' },
+    ];
+  }
   if (module === 'KNOWLEDGE') {
     return [
       { id: 'spaces', code: 'app.product_home.tab_spaces', path: '/pages' },
@@ -60,13 +68,8 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
 /** The workspace-wide screens a product already has, drawn above its hubs. */
 export function productDoors(module: string, options: { readonly isAdministrationReachable: boolean }): readonly Door[] {
   switch (module) {
-    case 'SERVICE_DESK':
-      return [
-        { id: 'approvals', code: 'app.nav.approvals', icon: 'user-check', path: '/approvals' },
-        ...(options.isAdministrationReachable
-          ? [{ id: 'settings', code: 'app.product_home.desk_settings', icon: 'settings' as const, path: '/administration/service-desk' }]
-          : []),
-      ];
+    // The desk's approvals are *Waiting for your yes* in the places band, its settings its home's
+    // last tab (§7.4): no door repeats either.
     case 'ASSETS':
       return options.isAdministrationReachable
         ? [{ id: 'settings', code: 'app.product_home.cmdb_settings', icon: 'settings', path: '/administration/configuration-items' }]
