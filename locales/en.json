@@ -10515,6 +10515,8 @@
   "app.portal.team_view_body": "Requesters raise and follow their requests here. You are part of the team, so this account asks nothing here. To let somebody ask, give them a role that holds Raise requests (area Portal) at this collection, under People; what the team sets up for the portal is below.",
   "app.portal.ask": "What do you need?",
   "app.portal.kind": "Kind of request",
+  "app.portal.kind_choose": "Ask for this",
+  "app.portal.kind_chosen": "Chosen",
   "app.portal.kind_first": "Choose a kind of request first.",
   "app.portal.request_title": "In a few words",
   "app.portal.request_title_hint": "Articles that may already answer it appear as you type.",

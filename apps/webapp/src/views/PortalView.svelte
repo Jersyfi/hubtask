@@ -11,10 +11,12 @@
   // name, description and mark - and the kinds are named in the reader's language (UC-SVC-05
   // checks 7 and 8); before the catalogue answers, the portal's own words stand in.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import {
-    Badge, Button, EmptyState, ErrorState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, Textarea,
+    Badge, Button, EmptyState, ErrorState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
+    type IconName,
   } from '@hubtask/design-system/components';
+  import { ICON_NAMES } from '@hubtask/design-system/icons';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { ApprovalList, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
 
@@ -80,6 +82,13 @@
     if (kind === '' && kinds.length === 1) kind = kinds[0]?.key ?? '';
   });
   const chosen = $derived(kinds.find((each) => each.key === kind));
+  // A kind's own mark where the type names one this client draws, else the portal's inbox.
+  const markOfKind = (icon: string): IconName => ((ICON_NAMES as readonly string[]).includes(icon) ? (icon as IconName) : 'inbox');
+  // The form follows the chosen tile; choosing moves the reader to its first field, once.
+  function choose(key: string) {
+    kind = key;
+    void tick().then(() => document.querySelector<HTMLInputElement>('[data-portal-ask] input')?.focus());
+  }
   const questions = $derived(chosen ? askable(chosen.questions) : []);
   const fieldOf = (key: string) => chosen?.form.fields?.find((field) => field.key === `custom_fields.${key}`);
 
@@ -140,24 +149,47 @@
     <form class="raise" onsubmit={(event) => void raise(event)} aria-labelledby="portal-ask">
       <Stack gap="150">
         <h2 class="heading" id="portal-ask">{t('app.portal.ask')}</h2>
-        <Radio label={t('app.portal.kind')} name="portal-kind" bind:value={kind}
-          options={kinds.map((each) => ({ value: each.key, label: each.name || each.key, hint: each.description || undefined }))} />
-        <Input label={t('app.portal.request_title')} hint={t('app.portal.request_title_hint')} isRequired maxlength={500} bind:value={title} />
-        {#key typed}
-          <ArticleSuggestions {collectionId} text={typed} onopen={(pageId) => onnavigate?.(`/portal/${collectionId}/articles/${pageId}`)} />
-        {/key}
-        <Textarea label={t('app.portal.request_notes')} rows={5} bind:value={notes} />
-        {#each questions as question (question.key)}
-          <Question {question} help={fieldOf(question.key)?.help} isRequired={fieldOf(question.key)?.required ?? false}
-            bind:value={answers[question.key]} />
-        {/each}
+        <!-- The kinds as tiles with a sentence each (user-experience.md §7.4), the form below
+             the chosen one; the choice is said by the button's state and its words. -->
+        {#if kinds.length > 1}
+          <TemplateGallery label={t('app.portal.kind')}>
+            {#each kinds as each (each.key)}
+              {@const isChosen = each.key === kind}
+              <TemplateCard name={each.name || each.key} summary={each.description || undefined} mark={markOfKind(each.icon)} {isChosen} isCompact data-portal-kind={each.key}>
+                {#snippet action()}
+                  <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => choose(each.key)}>
+                    {t(isChosen ? 'app.portal.kind_chosen' : 'app.portal.kind_choose')}<VisuallyHidden>{` ${each.name || each.key}`}</VisuallyHidden>
+                  </Button>
+                {/snippet}
+              </TemplateCard>
+            {/each}
+          </TemplateGallery>
+        {/if}
+        {#if chosen}
+          <div class="ask" data-portal-ask>
+            <Stack gap="150">
+              <Input label={t('app.portal.request_title')} hint={t('app.portal.request_title_hint')} isRequired maxlength={500} bind:value={title} />
+              <Textarea label={t('app.portal.request_notes')} rows={5} bind:value={notes} />
+              {#each questions as question (question.key)}
+                <Question {question} help={fieldOf(question.key)?.help} isRequired={fieldOf(question.key)?.required ?? false}
+                  bind:value={answers[question.key]} />
+              {/each}
+            </Stack>
+            <!-- Answers from the knowledge base beside the form as the reader types (§7.4). -->
+            <aside class="answers">
+              {#key typed}
+                <ArticleSuggestions {collectionId} text={typed} onopen={(pageId) => onnavigate?.(`/portal/${collectionId}/articles/${pageId}`)} />
+              {/key}
+            </aside>
+          </div>
+        {/if}
         {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
-        <div>
+        {#if chosen}<div>
           <Button type="submit" tone="primary" icon="send" isBusy={isRaising} busyLabel={t('app.portal.raising')}
             disabledReason={!chosen ? t('app.portal.kind_first') : title.trim() === '' ? t('app.portal.title_first') : undefined}>
             {t('app.portal.raise')}
           </Button>
-        </div>
+        </div>{/if}
       </Stack>
     </form>
   {/if}
@@ -212,6 +244,13 @@
   .logo { inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); object-fit: contain; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .refusal { margin: 0; color: var(--text-danger); }
-  .raise { margin: 0; max-inline-size: 72ch; }
+  .raise { margin: 0; container-type: inline-size; }
+  /* The form and the articles side by side where there is room, the articles under it on a phone. */
+  .ask { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); max-inline-size: 72ch; }
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a container query cannot read a custom property. */
+  @container (inline-size >= 905px) {
+    .ask { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); max-inline-size: none; }
+  }
+  .answers { min-inline-size: 0; }
   .meta { display: inline-flex; gap: var(--sp-100); align-items: center; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
