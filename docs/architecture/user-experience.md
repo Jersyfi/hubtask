@@ -971,8 +971,13 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   handed-over one (identity.md §12, "Never both", holds). A self-hosting alert fires when
   `hubtask_notification_failures_total` rises above its threshold for a period.
   Today: an invited person's row shows the last invitation mail's state, time and failure
-  (`POST /accounts:invitation-deliveries`, read from the queue); a person's other mail is not
-  shown there. *Copy invitation link* where mail is configured is not built.
+  (`POST /accounts:invitation-deliveries`): the queue's invitation job until it has recorded the
+  mail, then the invitation notification - sent, failed or suppressed with its reason, or
+  withdrawn for a link. A person's other mail is not shown there. *Copy invitation link* where
+  mail is configured is `delivery: LINK` on the renewal, behind step-up and the role ceiling,
+  audited as `LINK`; it cancels the waiting invitation job and delivery and sets the unsent record
+  aside, and is refused (`accounts.invitation_mail_sending`) while a delivery is being sent, since
+  a detached delivery cannot be stopped mid-send.
 * **Erasure**: §5.9.
 * **Changes and drafts**: `PlanSummary` everywhere (§5.4).
 

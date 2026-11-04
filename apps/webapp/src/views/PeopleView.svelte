@@ -485,6 +485,22 @@
     });
   }
 
+  /**
+   * Hands an invitation over by link where mail is sent: the mail still waiting is cancelled, so
+   * the mailed link never replaces this one.
+   */
+  async function handOver(holder: Holder): Promise<void> {
+    if (!holder.accountId) return;
+    invited = undefined;
+    handedOver = undefined;
+    const accountId = holder.accountId;
+    await attempt(async () => {
+      const link = await people.handOverInvitation(accountId);
+      if (link !== undefined) await showLink(nameOf(holder), link, t('app.people.renew_link_announced'));
+      readDeliveries(invitedIds);
+    });
+  }
+
   /** Shows the one answer's link, and takes the reader to it: it may be drawn far from the press. */
   async function showLink(who: string, link: string, said: string): Promise<void> {
     handedOver = { who, link };
@@ -783,6 +799,19 @@
                   >
                     {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
                   </Button>
+                  {#if way === 'mail' && mayWayIn(holder)}
+                    <!-- Where the mail does not arrive: a link to hand over instead, the waiting
+                         mail cancelled - never both (identity.md §12). -->
+                    <Button
+                      size="sm"
+                      tone="secondary"
+                      isBusy={isWriting}
+                      busyLabel={t('app.people.working')}
+                      onclick={() => void handOver(holder)}
+                    >
+                      {t('app.people.copy_invitation_link')}
+                    </Button>
+                  {/if}
                 {/if}
                 {#if isManaged(holder) && mayWayIn(holder)}
                   <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>

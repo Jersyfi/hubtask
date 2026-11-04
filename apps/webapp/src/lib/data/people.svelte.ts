@@ -267,6 +267,24 @@ class People {
   }
 
   /**
+   * *Copy invitation link* where mail is sent (user-experience.md §8.3): a renewal that answers a
+   * link instead of queuing the mail, and cancels the mail still waiting. The link is a way in for
+   * the reader, so it asks for a fresh proof first. No idempotency key: the answer carries the
+   * link, which the server stores nowhere a replay could read it back from.
+   */
+  async handOverInvitation(accountId: string): Promise<string | undefined> {
+    const answer = await stepUp.around((stepUpToken) =>
+      engine.mutate<{ invitation_link?: string | null } | undefined>(
+        'POST',
+        `/accounts/${accountId}:renew-invitation`,
+        { delivery: 'LINK' },
+        { invalidates: TOUCHES, stepUpToken },
+      ),
+    );
+    return handedOverLink(answer);
+  }
+
+  /**
    * Gives somebody without a mail address an account, and the role, in one call (ADR-0074).
    *
    * **One call, unlike the invitation.** The server creates the account and places it together, so
