@@ -5,6 +5,7 @@ package servicedesk
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -155,5 +156,45 @@ func TestAMergedRequestsRequesterReadsTheSurvivingOne(t *testing.T) {
 	portal.Links = portalLinks{{Type: work.LinkTypeDuplicates, SourceID: merged, TargetID: survivor}}
 	if got := read()["merged_into"]; got != nil {
 		t.Errorf("a trashed survivor was named: %+v", got)
+	}
+}
+
+// pagedComments answers a discussion oldest first, a page at a time, as the store does.
+type pagedComments struct {
+	workrepo.Comments
+	rows []work.Comment
+}
+
+func (s pagedComments) List(_ context.Context, _ shared.ID, page workrepo.Page) (workrepo.CommentPage, error) {
+	from, _ := strconv.Atoi(page.Cursor)
+	to := min(from+page.Size, len(s.rows))
+	out := workrepo.CommentPage{Comments: s.rows[from:to]}
+	if to < len(s.rows) {
+		out.Info = workrepo.PageInfo{HasMore: true, NextCursor: strconv.Itoa(to)}
+	}
+	return out, nil
+}
+
+// UC-SVC-05 check 4: a discussion longer than one read answers its newest public replies, so the
+// requester reads the team's latest answer, not the first two hundred.
+func TestALongDiscussionReadsItsNewestReplies(t *testing.T) {
+	request := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007b1")
+	rows := make([]work.Comment, 0, 250)
+	for i := range 250 {
+		rows = append(rows, work.Comment{ID: shared.ID("c" + strconv.Itoa(i)), AuthorID: handlerID, Body: "reply", Kind: work.CommentByUser})
+	}
+	portal := Portal{
+		Items:      portalItems{rows: map[shared.ID]work.WorkItem{request: {ID: request, CreatedBy: requesterID, Title: "Drucker"}}},
+		Containers: containerStore{}, Comments: pagedComments{rows: rows},
+		Desk: Desk{Records: &recordStore{}, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday)},
+	}
+	answer, err := ReadMyRequest{Portal: portal}.Execute(context.Background(), requester(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(answer.Comments) != MaxPortalComments || answer.Comments[0].ID != "c50" ||
+		answer.Comments[len(answer.Comments)-1].ID != "c249" {
+		t.Errorf("the requester reads %d replies, from %s to %s", len(answer.Comments),
+			answer.Comments[0].ID, answer.Comments[len(answer.Comments)-1].ID)
 	}
 }

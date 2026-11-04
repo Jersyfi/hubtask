@@ -628,14 +628,16 @@ func (p Portal) publicView(ctx context.Context, itemID shared.ID) ([]workdomain.
 		if err != nil {
 			return nil, nil, err
 		}
+		// The store reads oldest first, so the newest are only known at the end: the walk goes on
+		// to the last page and keeps a window of the newest.
 		comments = append(comments, PublicComments(page.Comments)...)
-		if !page.Info.HasMore || len(comments) >= MaxPortalComments {
+		if len(comments) > MaxPortalComments {
+			comments = slices.Clone(comments[len(comments)-MaxPortalComments:])
+		}
+		if !page.Info.HasMore {
 			break
 		}
 		cursor = page.Info.NextCursor
-	}
-	if len(comments) > MaxPortalComments {
-		comments = comments[len(comments)-MaxPortalComments:]
 	}
 	goals, err := p.Desk.Records.OfItem(ctx, itemID)
 	return comments, goals, err
