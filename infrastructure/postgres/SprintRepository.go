@@ -114,6 +114,59 @@ func (PlanningSprints) Find(ctx context.Context, id shared.ID) (planning.Sprint,
 	return sprintFrom(row)
 }
 
+// Lock returns a sprint under its row lock.
+func (PlanningSprints) Lock(ctx context.Context, id shared.ID) (planning.Sprint, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return planning.Sprint{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return planning.Sprint{}, err
+	}
+	row, err := queries.LockSprint(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return planning.Sprint{}, shared.ErrNotFound.WithDetail("sprints.not_found")
+	}
+	if err != nil {
+		return planning.Sprint{}, planningError(err, "locking a sprint")
+	}
+	return sprintFrom(sqlc.FindSprintRow(row))
+}
+
+// Count answers a sprint's membership rows.
+func (PlanningSprints) Count(ctx context.Context, sprintID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	key, err := uuidOf(sprintID)
+	if err != nil {
+		return 0, err
+	}
+	n, err := queries.CountSprintEntries(ctx, key)
+	if err != nil {
+		return 0, planningError(err, "counting a sprint's entries")
+	}
+	return int(n), nil
+}
+
+// ReturnOpen closes the memberships of a sprint no outcome reached as returned.
+func (PlanningSprints) ReturnOpen(ctx context.Context, sprintID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(sprintID)
+	if err != nil {
+		return err
+	}
+	if err := queries.ReturnOpenSprintEntries(ctx, key); err != nil {
+		return planningError(err, "returning a sprint's entries")
+	}
+	return nil
+}
+
 // List returns a collection's sprints, the latest first.
 func (PlanningSprints) List(ctx context.Context, collectionID shared.ID, state planning.SprintState, limit int) ([]planning.Sprint, error) {
 	queries, err := queriesFrom(ctx)

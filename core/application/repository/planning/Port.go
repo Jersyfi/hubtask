@@ -92,6 +92,12 @@ type Sprints interface {
 	Update(ctx context.Context, sprint planning.Sprint, expected int) error
 	// Find returns a sprint, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (planning.Sprint, error)
+	// Lock returns a sprint read under its row lock until the transaction ends, or ErrNotFound.
+	Lock(ctx context.Context, id shared.ID) (planning.Sprint, error)
+	// Count answers how many membership rows a sprint holds, open and past.
+	Count(ctx context.Context, sprintID shared.ID) (int, error)
+	// ReturnOpen sends every membership of a sprint no outcome reached back to the backlog.
+	ReturnOpen(ctx context.Context, sprintID shared.ID) error
 	// List returns a collection's sprints, the latest first, of one state or all, at most max.
 	List(ctx context.Context, collectionID shared.ID, state planning.SprintState, limit int) ([]planning.Sprint, error)
 	// Delete removes a sprint and its memberships, or reports ErrNotFound.

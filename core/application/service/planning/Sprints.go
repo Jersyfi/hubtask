@@ -607,6 +607,13 @@ func (h DeleteSprint) Execute(ctx context.Context, actor appshared.ActorContext,
 	}
 	now := h.Planner.Clock.Now()
 	return h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		locked, err := h.Planner.Sprints.Lock(ctx, sprint.ID)
+		if err != nil {
+			return err
+		}
+		if locked.State != domain.SprintPlanned {
+			return shared.ErrConflict.WithDetail("sprints.not_planned")
+		}
 		open, _, err := h.Planner.openMembers(ctx, sprint.ID)
 		if err != nil {
 			return err
@@ -669,6 +676,11 @@ func (h AddSprintEntries) Execute(ctx context.Context, actor appshared.ActorCont
 	}
 	now := h.Planner.Clock.Now()
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		locked, err := h.Planner.lockOpen(ctx, sprint.ID)
+		if err != nil {
+			return err
+		}
+		sprint = locked
 		open, err := h.Planner.Sprints.OpenMemberships(ctx, items)
 		if err != nil {
 			return err
@@ -683,13 +695,25 @@ func (h AddSprintEntries) Execute(ctx context.Context, actor appshared.ActorCont
 		}
 		added := make([]shared.ID, 0, len(items))
 		for _, item := range items {
-			if already[item] {
-				continue
+			if !already[item] {
+				already[item] = true
+				added = append(added, item)
 			}
+		}
+		// Its start and close read at most MaxSprintEntries rows; one more would be left out of
+		// both. A row that left and joins again is counted twice here, never too few.
+		held, err := h.Planner.Sprints.Count(ctx, sprint.ID)
+		if err != nil {
+			return err
+		}
+		if held+len(added) > domain.MaxSprintEntries {
+			return shared.ErrValidation.WithDetail("sprints.full").
+				WithParams(map[string]string{"maximum": strconv.Itoa(domain.MaxSprintEntries)})
+		}
+		for _, item := range added {
 			if err := h.Planner.Sprints.Add(ctx, sprint.ID, item, now, false); err != nil {
 				return err
 			}
-			added = append(added, item)
 		}
 		if err := h.Planner.membershipsChanged(ctx, actor, sprint.CollectionID, sprint.ID, false, added); err != nil {
 			return err
@@ -698,6 +722,20 @@ func (h AddSprintEntries) Execute(ctx context.Context, actor appshared.ActorCont
 			audit.Change{Field: "entries", Classification: audit.Open, To: strconv.Itoa(len(added))})
 	})
 	return sprint, err
+}
+
+// lockOpen reads a sprint again under its row lock inside the caller's transaction, as every
+// change of a sprint does: a start, close or delete made since the first read is seen, not undone,
+// and a sprint closed meanwhile takes no entry in or out.
+func (p Planner) lockOpen(ctx context.Context, id shared.ID) (domain.Sprint, error) {
+	sprint, err := p.Sprints.Lock(ctx, id)
+	if err != nil {
+		return domain.Sprint{}, err
+	}
+	if !sprint.Open() {
+		return domain.Sprint{}, shared.ErrConflict.WithDetail("sprints.closed")
+	}
+	return sprint, nil
 }
 
 // checkBatch bounds the entries one call names.
@@ -753,7 +791,7 @@ func (h AddSprintEntries) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: AddSprintEntriesName, Permission: service.PermissionWriteItems,
 		Summary: "Puts entries of the sprint's collection into a planned or running sprint, all or none, at most " +
-			"500. An entry is in one open sprint at a time (sprints.entry_in_another_sprint); one joining a " +
+			"500; a sprint holds at most 1000 (sprints.full). An entry is in one open sprint at a time (sprints.entry_in_another_sprint); one joining a " +
 			"running sprint widens its scope, not its commitment.",
 		SideEffects: "Writes the memberships and an audit entry.",
 		TokenScope:  itemsWrite,
@@ -799,6 +837,9 @@ func (h RemoveSprintEntries) Execute(ctx context.Context, actor appshared.ActorC
 	}
 	now := h.Planner.Clock.Now()
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if _, err := h.Planner.lockOpen(ctx, sprint.ID); err != nil {
+			return err
+		}
 		removed := make([]shared.ID, 0, len(items))
 		for _, item := range items {
 			ok, err := h.Planner.Sprints.Remove(ctx, sprint.ID, item, now)
@@ -880,6 +921,11 @@ func (h StartSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 	}
 	now := h.Planner.Clock.Now()
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		locked, err := h.Planner.Sprints.Lock(ctx, sprint.ID)
+		if err != nil {
+			return err
+		}
+		sprint = locked
 		entries, estimates, err := h.Planner.openMembers(ctx, sprint.ID)
 		if err != nil {
 			return err
@@ -975,6 +1021,20 @@ func (h CloseSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 	now := h.Planner.Clock.Now()
 	result := CloseSprintResult{CarryTo: carryTo}
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		locked, err := h.Planner.Sprints.Lock(ctx, sprint.ID)
+		if err != nil {
+			return err
+		}
+		sprint = locked
+		if !carryTo.IsZero() {
+			next, err := h.Planner.Sprints.Lock(ctx, carryTo)
+			if err != nil {
+				return err
+			}
+			if next.State != domain.SprintPlanned {
+				return invalid("/carry_to_sprint_id", "sprints.carry_to_not_planned")
+			}
+		}
 		entries, estimates, err := h.Planner.openMembers(ctx, sprint.ID)
 		if err != nil {
 			return err
@@ -1005,6 +1065,9 @@ func (h CloseSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 			if err := h.Planner.Sprints.SetOutcomes(ctx, sprint.ID, outcome, ids); err != nil {
 				return err
 			}
+		}
+		if err := h.Planner.Sprints.ReturnOpen(ctx, sprint.ID); err != nil {
+			return err
 		}
 		for _, item := range carried {
 			if err := h.Planner.Sprints.Add(ctx, carryTo, item, now, false); err != nil {

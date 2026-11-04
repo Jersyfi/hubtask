@@ -10822,6 +10822,7 @@
   "sprints.entries_required": "Wähle mindestens einen Eintrag.",
   "sprints.entry_elsewhere": "Nur Einträge der Sammlung des Sprints können hinein.",
   "sprints.entry_in_another_sprint": "Dieser Eintrag ist schon in einem anderen offenen Sprint.",
+  "sprints.full": "Ein Sprint fasst höchstens {maximum} Einträge, auch die, die ihn wieder verlassen haben. Plane für den Rest einen weiteren Sprint.",
   "sprints.goal_too_long": "Das Ziel eines Sprints hat höchstens {maximum} Zeichen.",
   "sprints.id_required": "Sag, welcher Sprint.",
   "sprints.identity_incomplete": "Diese Installation ist fehlerhaft eingerichtet und konnte den Sprint nicht planen.",

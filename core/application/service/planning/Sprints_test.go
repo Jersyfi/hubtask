@@ -25,12 +25,18 @@ type sprintStore struct {
 	members   map[shared.ID][]planrepo.SprintMember
 	estimates map[shared.ID]domain.Estimate
 	done      map[shared.ID]*time.Time
+	// stale is what a read outside a transaction answers: the sprint as another request saw it
+	// before a concurrent change; a locked read answers the row as it stands.
+	stale map[shared.ID]domain.Sprint
+	// trashed entries are left out of a sprint's entries, as the store's read leaves them out.
+	trashed map[shared.ID]bool
 }
 
 func newSprintStore() *sprintStore {
 	return &sprintStore{
 		sprints: map[shared.ID]domain.Sprint{}, members: map[shared.ID][]planrepo.SprintMember{},
 		estimates: map[shared.ID]domain.Estimate{}, done: map[shared.ID]*time.Time{},
+		stale: map[shared.ID]domain.Sprint{}, trashed: map[shared.ID]bool{},
 	}
 }
 
@@ -54,10 +60,33 @@ func (s *sprintStore) Update(_ context.Context, sprint domain.Sprint, expected i
 }
 
 func (s *sprintStore) Find(_ context.Context, id shared.ID) (domain.Sprint, error) {
+	if sprint, ok := s.stale[id]; ok {
+		return sprint, nil
+	}
 	if sprint, ok := s.sprints[id]; ok {
 		return sprint, nil
 	}
 	return domain.Sprint{}, shared.ErrNotFound.WithDetail("sprints.not_found")
+}
+
+func (s *sprintStore) Lock(_ context.Context, id shared.ID) (domain.Sprint, error) {
+	if sprint, ok := s.sprints[id]; ok {
+		return sprint, nil
+	}
+	return domain.Sprint{}, shared.ErrNotFound.WithDetail("sprints.not_found")
+}
+
+func (s *sprintStore) Count(_ context.Context, id shared.ID) (int, error) {
+	return len(s.members[id]), nil
+}
+
+func (s *sprintStore) ReturnOpen(_ context.Context, id shared.ID) error {
+	for i, m := range s.members[id] {
+		if m.RemovedAt == nil && m.Outcome == "" {
+			s.members[id][i].Outcome = domain.OutcomeReturned
+		}
+	}
+	return nil
 }
 
 func (s *sprintStore) List(_ context.Context, c shared.ID, state domain.SprintState, _ int) ([]domain.Sprint, error) {
@@ -78,10 +107,14 @@ func (s *sprintStore) Delete(_ context.Context, id shared.ID) error {
 }
 
 func (s *sprintStore) Entries(_ context.Context, id shared.ID, _ int) ([]planrepo.SprintMember, error) {
-	out := slices.Clone(s.members[id])
-	for i := range out {
-		out[i].CompletedAt = s.done[out[i].EntryID]
-		out[i].Done = out[i].CompletedAt != nil
+	out := make([]planrepo.SprintMember, 0, len(s.members[id]))
+	for _, m := range s.members[id] {
+		if s.trashed[m.EntryID] {
+			continue
+		}
+		m.CompletedAt = s.done[m.EntryID]
+		m.Done = m.CompletedAt != nil
+		out = append(out, m)
 	}
 	return out, nil
 }
@@ -413,5 +446,81 @@ func TestACollectionRunsSprintsWhereOneWasPlannedOrItsTemplateBringsThem(t *test
 	planSprint(t, f, "Sprint 1", "2026-11-02")
 	if got := runs("CLOSED"); got != true {
 		t.Errorf("a collection with a planned sprint does not run sprints when closed ones are asked: %v", got)
+	}
+}
+
+// UC-PLN-06: an entry trashed while its sprint runs is not read at the close; its membership is
+// closed all the same, so that once restored it is back in the backlog and may join another
+// sprint rather than being held for ever by a closed one.
+func TestAnEntryTrashedDuringASprintIsFreeAfterItsClose(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	sprint := planSprint(t, f, "Sprint 1", "2026-11-02")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{design, build}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (StartSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID); err != nil {
+		t.Fatal(err)
+	}
+	store.trashed[build] = true
+	if _, err := (CloseSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	delete(store.trashed, build)
+	if open, _ := store.OpenMemberships(ctx, []shared.ID{build}); len(open) != 0 {
+		t.Errorf("the restored entry is still held by the closed sprint: %+v", open)
+	}
+	next := planSprint(t, f, "Sprint 2", "2026-11-16")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), next.ID, []shared.ID{build}); err != nil {
+		t.Errorf("the restored entry did not join the next sprint: %v", err)
+	}
+}
+
+// UC-PLN-06: a sprint holds at most 1000 entries, those once in it among them - what its start and
+// close read; one more is refused rather than left out of the commitment and held open at the close.
+func TestASprintHoldsAtMostItsEntries(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	sprint := planSprint(t, f, "Sprint 1", "2026-11-02")
+	for range domain.MaxSprintEntries {
+		store.members[sprint.ID] = append(store.members[sprint.ID], planrepo.SprintMember{
+			SprintEntry: domain.SprintEntry{SprintID: sprint.ID, EntryID: shared.ID("01936f2a-7c1e-7000-8000-00000000ffff")},
+		})
+	}
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{design}); detail(err) != "sprints.full" {
+		t.Errorf("the 1001st entry joined: %v", err)
+	}
+}
+
+// UC-PLN-06: what changes a sprint's entries or state reads the sprint again under its lock, so a
+// close, start or delete that another request made meanwhile is not undone by a stale read.
+func TestASprintChangedMeanwhileIsReadUnderItsLock(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	sprint := planSprint(t, f, "Sprint 1", "2026-11-02")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{design}); err != nil {
+		t.Fatal(err)
+	}
+	planned := store.sprints[sprint.ID]
+	if _, err := (StartSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID); err != nil {
+		t.Fatal(err)
+	}
+	store.stale[sprint.ID] = planned
+	if err := (DeleteSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID); detail(err) != "sprints.not_planned" {
+		t.Errorf("a sprint started meanwhile was deleted: %v", err)
+	}
+	running := store.sprints[sprint.ID]
+	if _, err := (CloseSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	store.stale[sprint.ID] = running
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{build}); detail(err) != "sprints.closed" {
+		t.Errorf("an entry joined a sprint closed meanwhile: %v", err)
+	}
+	if _, err := (RemoveSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{design}); detail(err) != "sprints.closed" {
+		t.Errorf("an entry left a sprint closed meanwhile: %v", err)
+	}
+	if open, _ := store.OpenMemberships(ctx, []shared.ID{build}); len(open) != 0 {
+		t.Errorf("the entry is held by a closed sprint: %+v", open)
 	}
 }

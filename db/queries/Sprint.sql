@@ -28,6 +28,28 @@ SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_v
 FROM sprint
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
 
+-- name: LockSprint :one
+-- A sprint read under its row lock, so that a change of its entries or state waits for a start,
+-- close or delete running meanwhile and then sees what it left.
+SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_value,
+  committed_count, completed_value, completed_count, started_at, closed_at, created_at,
+  created_by, updated_at, version
+FROM sprint
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
+FOR UPDATE;
+
+-- name: CountSprintEntries :one
+-- Every membership row of a sprint, open and past, trashed entries' among them.
+SELECT count(*)::int FROM sprint_entry
+WHERE tenant_id = current_tenant_id() AND sprint_id = sqlc.arg('sprint_id')::uuid;
+
+-- name: ReturnOpenSprintEntries :exec
+-- At a close, the memberships no outcome reached - a trashed entry's, which the close does not
+-- read - go back to the backlog, so that no closed sprint holds an entry open.
+UPDATE sprint_entry SET outcome = 'RETURNED'
+WHERE tenant_id = current_tenant_id() AND sprint_id = sqlc.arg('sprint_id')::uuid
+  AND removed_at IS NULL AND outcome IS NULL;
+
 -- name: ListSprints :many
 -- A collection's sprints, the latest first, bounded.
 SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_value,

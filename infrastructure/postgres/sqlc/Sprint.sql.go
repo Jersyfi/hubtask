@@ -48,6 +48,19 @@ func (q *Queries) CommitSprintEntries(ctx context.Context, sprintID pgtype.UUID)
 	return err
 }
 
+const countSprintEntries = `-- name: CountSprintEntries :one
+SELECT count(*)::int FROM sprint_entry
+WHERE tenant_id = current_tenant_id() AND sprint_id = $1::uuid
+`
+
+// Every membership row of a sprint, open and past, trashed entries' among them.
+func (q *Queries) CountSprintEntries(ctx context.Context, sprintID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countSprintEntries, sprintID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteEntryEstimate = `-- name: DeleteEntryEstimate :execrows
 DELETE FROM entry_estimate WHERE tenant_id = current_tenant_id() AND entry_id = $1::uuid
 `
@@ -381,6 +394,64 @@ func (q *Queries) ListSprints(ctx context.Context, arg ListSprintsParams) ([]Lis
 	return items, nil
 }
 
+const lockSprint = `-- name: LockSprint :one
+SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_value,
+  committed_count, completed_value, completed_count, started_at, closed_at, created_at,
+  created_by, updated_at, version
+FROM sprint
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+FOR UPDATE
+`
+
+type LockSprintRow struct {
+	ID             pgtype.UUID
+	CollectionID   pgtype.UUID
+	Name           string
+	Goal           string
+	StartOn        pgtype.Date
+	EndOn          pgtype.Date
+	State          string
+	Unit           string
+	CommittedValue float64
+	CommittedCount int32
+	CompletedValue float64
+	CompletedCount int32
+	StartedAt      pgtype.Timestamptz
+	ClosedAt       pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
+// A sprint read under its row lock, so that a change of its entries or state waits for a start,
+// close or delete running meanwhile and then sees what it left.
+func (q *Queries) LockSprint(ctx context.Context, id pgtype.UUID) (LockSprintRow, error) {
+	row := q.db.QueryRow(ctx, lockSprint, id)
+	var i LockSprintRow
+	err := row.Scan(
+		&i.ID,
+		&i.CollectionID,
+		&i.Name,
+		&i.Goal,
+		&i.StartOn,
+		&i.EndOn,
+		&i.State,
+		&i.Unit,
+		&i.CommittedValue,
+		&i.CommittedCount,
+		&i.CompletedValue,
+		&i.CompletedCount,
+		&i.StartedAt,
+		&i.ClosedAt,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const removeSprintEntry = `-- name: RemoveSprintEntry :execrows
 UPDATE sprint_entry SET removed_at = $1
 WHERE tenant_id = current_tenant_id() AND sprint_id = $2::uuid
@@ -399,6 +470,19 @@ func (q *Queries) RemoveSprintEntry(ctx context.Context, arg RemoveSprintEntryPa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const returnOpenSprintEntries = `-- name: ReturnOpenSprintEntries :exec
+UPDATE sprint_entry SET outcome = 'RETURNED'
+WHERE tenant_id = current_tenant_id() AND sprint_id = $1::uuid
+  AND removed_at IS NULL AND outcome IS NULL
+`
+
+// At a close, the memberships no outcome reached - a trashed entry's, which the close does not
+// read - go back to the backlog, so that no closed sprint holds an entry open.
+func (q *Queries) ReturnOpenSprintEntries(ctx context.Context, sprintID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, returnOpenSprintEntries, sprintID)
+	return err
 }
 
 const setSprintEntryOutcomes = `-- name: SetSprintEntryOutcomes :exec

@@ -10822,6 +10822,7 @@
   "sprints.entries_required": "Pick at least one entry.",
   "sprints.entry_elsewhere": "Only entries of the sprint's collection can join it.",
   "sprints.entry_in_another_sprint": "This entry is already in another open sprint.",
+  "sprints.full": "A sprint holds at most {maximum} entries, those that left it among them. Plan another sprint for the rest.",
   "sprints.goal_too_long": "A sprint's goal is at most {maximum} characters.",
   "sprints.id_required": "Say which sprint.",
   "sprints.identity_incomplete": "This installation is misconfigured and could not plan that sprint.",

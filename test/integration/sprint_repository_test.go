@@ -89,6 +89,18 @@ func TestASprintStaysInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		locked, err := sprints.Lock(ctx, first.ID)
+		if err != nil || locked.State != planning.SprintActive {
+			t.Errorf("locked = %+v, %v", locked, err)
+		}
+		if n, err := sprints.Count(ctx, first.ID); err != nil || n != 1 {
+			t.Errorf("count = %d, %v", n, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if _, err := sprints.Find(ctx, first.ID); !errors.Is(err, shared.ErrNotFound) {
 			t.Errorf("the other workspace reads the sprint: %v", err)
@@ -103,6 +115,40 @@ func TestASprintStaysInItsWorkspace(t *testing.T) {
 			t.Errorf("the other workspace reads the estimates: %v %v", estimates, err)
 		}
 		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := sprints.Lock(ctx, first.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the other workspace locked the sprint: %v", err)
+		}
+		if n, err := sprints.Count(ctx, first.ID); err != nil || n != 0 {
+			t.Errorf("the other workspace counts the members: %d %v", n, err)
+		}
+		return sprints.ReturnOpen(ctx, first.ID)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		open, err := sprints.OpenMemberships(ctx, tasks[:1])
+		if err == nil && len(open) != 1 {
+			t.Errorf("the other workspace returned the entries: %+v", open)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return sprints.ReturnOpen(ctx, first.ID)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		open, err := sprints.OpenMemberships(ctx, tasks[:1])
+		if err == nil && len(open) != 0 {
+			t.Errorf("a returned entry is still held: %+v", open)
+		}
+		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
