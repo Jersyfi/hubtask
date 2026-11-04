@@ -24,6 +24,7 @@ test.after(() => served.close());
 
 /** This walk's own identifiers: no other fixture record uses them. */
 const STARTED_HUB = '01a0e2e0-0000-7000-8000-0000000028a1';
+const FIRST_LINE = '01a0e2e0-0000-7000-8000-0000000028a2';
 
 /** A template of the catalogue with a hub part, its question and its samples. */
 const DESK = {
@@ -72,6 +73,10 @@ async function as(browser, offered, { failFirstApply = false } = {}) {
     }
     if (path === '/config/templates/itil_service_desk:plan' && request.method() === 'POST') {
       return route.fulfill({ json: PLAN });
+    }
+    if (path === '/groups' && request.method() === 'POST') {
+      sent.push({ path, body: request.postDataJSON() });
+      return route.fulfill({ status: 201, json: { id: FIRST_LINE, name: request.postDataJSON().name, description: null, member_count: 0, created_at: '2026-01-01T00:00:00Z' } });
     }
     if (path === '/containers' && request.method() === 'POST') {
       sent.push({ path, body: request.postDataJSON() });
@@ -182,9 +187,17 @@ test('chromium: the first start on a template - its family, its plan in words, t
   await dialog.locator('[data-plan-changes] li').first().waitFor({ timeout: 10_000 });
   assert.match(await dialog.locator('[data-plan-changes]').innerText(), /Adds the .*Incident/, 'the plan is not said in words');
   assert.equal(await dialog.locator('input[data-template-samples]').isChecked(), true, 'sample entries are not on by default');
+  // A GROUP question makes its group in place, and the new group is the answer (§3.2).
+  const makeGroup = dialog.locator('[data-create-group="first_group"]');
+  await makeGroup.locator('input').fill('First line');
+  await makeGroup.locator('button').click();
+  await page.waitForFunction(() => document.querySelector('[data-create-group="first_group"] input')?.value === '', undefined, { timeout: 10_000 });
   await page.locator('[data-starter-start]').click();
   await page.waitForURL(new RegExp(STARTED_HUB), { timeout: 10_000 });
 
+  assert.deepEqual(sent.find((write) => write.path === '/groups')?.body, { name: 'First line' });
+  assert.equal(sent.find((write) => write.path === '/tenant/starter:apply').body.answers?.first_group, FIRST_LINE, 'the group made is not the answer');
+  sent.splice(0, sent.length, ...sent.filter((write) => write.path !== '/groups'));
   assert.deepEqual(sent.map((write) => write.path), ['/tenant/starter:apply'], 'more than the one command was written');
   assert.equal(sent[0].body.template, 'itil_service_desk');
   assert.equal(sent[0].body.samples, true);

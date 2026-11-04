@@ -24,6 +24,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
   import { answersOf, changeWords, offersSamples } from '../data/configtemplates.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -92,6 +93,26 @@
     if (!asksGroup) return;
     return untrack(() => workspaceGroups.open());
   });
+
+  // A GROUP question offers to make the group in place (§3.2): where it is created it is the answer.
+  const mayCreateGroup = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  let groupDraft = $state<Record<string, string>>({});
+  let groupBusy = $state<string>();
+  async function createGroup(key: string) {
+    const name = (groupDraft[key] ?? '').trim();
+    if (name === '') return;
+    groupBusy = key;
+    failure = undefined;
+    try {
+      const group = await workspaceGroups.create(name);
+      groupDraft = { ...groupDraft, [key]: '' };
+      answer(key, group.id);
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages).message;
+    } finally {
+      groupBusy = undefined;
+    }
+  }
 
   /** The workspace part's plan, in words: what the set will change before *Set up* (§5.4). */
   async function replan() {
@@ -262,6 +283,15 @@
                       : question.options.map((option) => ({ value: option, label: option }))),
                   ]}
                   onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLSelectElement).value)} />
+                {#if question.kind === 'GROUP' && mayCreateGroup}
+                  <div class="create-group" data-create-group={question.key}>
+                    <Input label={t('app.templates.create_group_name')} value={groupDraft[question.key] ?? ''}
+                      oninput={(event: Event) => (groupDraft = { ...groupDraft, [question.key]: (event.currentTarget as HTMLInputElement).value })} />
+                    <Button tone="secondary" size="sm" isBusy={groupBusy === question.key}
+                      disabledReason={(groupDraft[question.key] ?? '').trim() === '' ? t('app.templates.create_group_name_first') : undefined}
+                      onclick={() => createGroup(question.key)}>{t('app.templates.create_group')}</Button>
+                  </div>
+                {/if}
               {/if}
             {/each}
           </div>
@@ -308,6 +338,7 @@
 <style>
   .hint { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }
   .questions { display: grid; gap: var(--sp-100); }
+  .create-group { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .plan { display: grid; gap: var(--sp-100); }
   .plan h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); }
