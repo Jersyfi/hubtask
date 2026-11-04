@@ -957,3 +957,34 @@ test('chromium: 1280 px — You: leaving a choice to the workspace names the wor
   assert.ok((await optionsOf('week-start')).includes("Use the workspace's"), 'a week start the workspace never decided was named');
   assert.deepEqual(failures, []);
 });
+
+// UC-ID-03 check 3: the profile counts the recovery codes left, and none left is said in words -
+// a sentence in a banner, not only a red number.
+test('chromium: 1280 px — the security page says in words that no recovery code is left', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let left = 0;
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, has_authenticator_app: true, authenticator_app_removable: true, recovery_codes_remaining: left } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  const none = page.getByText('None left. Make new ones before your authenticator is out of reach.');
+  await none.waitFor();
+  assert.equal(await page.getByText(/^Left: \d+ of 10\.$/).count(), 0, 'zero is not drawn as a count');
+
+  left = 3;
+  await page.reload();
+  await page.getByText('Left: 3 of 10.').waitFor();
+  assert.equal(await none.count(), 0, 'the sentence for none left stays away while codes remain');
+});
