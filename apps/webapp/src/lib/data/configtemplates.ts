@@ -78,7 +78,13 @@ export function galleryScope(hubId: string | undefined, collectionId: string | u
 
 /** A plan's refusal or change as the contract answers it, what the words below read of it. */
 interface Refused { readonly path: string; readonly code: string; readonly params?: Readonly<Record<string, string>> }
-interface Changed { readonly section: string; readonly key: string; readonly op: 'ADD' | 'CHANGE' | 'REMOVE' }
+interface Changed {
+  readonly section: string;
+  readonly key: string;
+  readonly op: 'ADD' | 'CHANGE' | 'REMOVE';
+  readonly before?: Readonly<Record<string, unknown>> | null;
+  readonly after?: Readonly<Record<string, unknown>> | null;
+}
 
 /** The configuration's sections a template may bring, each with a word for it (`app.templates.section_*`). */
 export const SECTIONS: readonly string[] = [
@@ -101,8 +107,12 @@ export function modulesToSwitchOn(refusals: readonly Refused[]): string[] {
 }
 
 /** A change of a plan in words: what it does to which part, as code and parameters. */
-export function changeWords(change: Changed): { code: string; section: string; key: string } {
-  return { code: `app.templates.change_${change.op.toLowerCase()}`, section: sectionWord(change.section), key: change.key };
+export function changeWords(change: Changed): { code: string; section: string; key: string; module?: string } {
+  const code = `app.templates.change_${change.op.toLowerCase()}`;
+  // A module is named by its product's word, a block with a name by that name (§5.4).
+  if (change.section === 'modules') return { code, section: sectionWord(change.section), key: change.key, module: `app.modules.name_${change.key.toLowerCase()}` };
+  const named = [change.after?.['name'], change.before?.['name']].find((each): each is string => typeof each === 'string' && each.trim() !== '');
+  return { code, section: sectionWord(change.section), key: named ?? change.key };
 }
 
 /** A refusal in words: the section it is about, and the server's message code for why. */

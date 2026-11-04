@@ -68,6 +68,11 @@ test('a plan is said in words: no message code and no key path is shown', () => 
   assert.deepEqual(changeWords({ section: 'structure', key: 'automation', op: 'ADD' }),
     { code: 'app.templates.change_add', section: 'app.templates.section_structure', key: 'automation' });
   assert.equal(changeWords({ section: 'something_new', key: 'k', op: 'REMOVE' }).section, 'app.templates.section_other');
+  // §5.4: a block with a name is named by it, a module by its product's word - never a key.
+  assert.equal(changeWords({ section: 'roles', key: 'cab_member', op: 'ADD', after: { name: 'CAB member' } }).key, 'CAB member');
+  assert.equal(changeWords({ section: 'fields', key: 'responding_group', op: 'REMOVE', before: { name: 'Responding group' }, after: null }).key, 'Responding group');
+  assert.deepEqual(changeWords({ section: 'modules', key: 'knowledge', op: 'CHANGE', after: { switch: 'ON' } }),
+    { code: 'app.templates.change_change', section: 'app.templates.section_modules', key: 'knowledge', module: 'app.modules.name_knowledge' });
   assert.deepEqual(refusalWords({ path: '/workflows', code: 'module.off', params: { module: 'WORKFLOWS' } }),
     { section: 'app.templates.section_workflows', code: 'app.templates.needs_module', module: 'app.modules.name_workflows' });
   assert.deepEqual(refusalWords({ path: '/settings/ai.source', code: 'config.section_withheld' }),
