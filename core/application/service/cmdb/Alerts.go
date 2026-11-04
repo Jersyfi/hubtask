@@ -266,7 +266,9 @@ func (s Connectors) entry(ctx context.Context, actor appshared.ActorContext, c d
 	}
 	var err error
 	switch {
-	case a.Entry.IsZero() && (change == domain.AlertOpened || change == domain.AlertReopened):
+	// A firing alert without its entry - the first write of it failed - opens it at its next
+	// firing too.
+	case a.Entry.IsZero() && (change == domain.AlertOpened || change == domain.AlertReopened || change == domain.AlertRepeated):
 		title := a.Title
 		if title == "" {
 			title = a.Key

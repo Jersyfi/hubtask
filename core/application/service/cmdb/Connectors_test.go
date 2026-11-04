@@ -158,10 +158,16 @@ func (s *source) Pull(_ context.Context, p connectorport.Pull) (connectorport.Pa
 type entries struct {
 	calls []string
 	ins   []usecase.Input
+	// failing refuses so many calls first, as a database away for a moment.
+	failing int
 }
 
 func (e *entries) Invoke(_ context.Context, name string, _ appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	e.calls, e.ins = append(e.calls, name), append(e.ins, in)
+	if e.failing > 0 {
+		e.failing--
+		return nil, shared.ErrUnavailable
+	}
 	return usecase.Output{"id": "01936f2a-7c1e-7000-8000-00000000e001"}, nil
 }
 
@@ -582,5 +588,28 @@ func TestDeliveriesOfOneIntakeTakeTurnsOnItsAlerts(t *testing.T) {
 	}
 	if got := strings.Join(f.store.calls, ","); got != "lock,alert,lock,alert" {
 		t.Fatalf("each alert is read under the connector's lock: %s", got)
+	}
+}
+
+// UC-AST-08 check 5: a firing alert has its entry. When the first write of it failed, the
+// alert's next firing opens it, rather than the problem going on without one until it resolves.
+func TestAnAlertWhoseEntryCouldNotBeOpenedOpensItAtItsNextFiring(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	ctx := context.Background()
+	fire := signals(domain.AlertSignal{Key: "fp1", Status: domain.AlertFiring, Title: "disk full"})
+	f.entries.failing = 1
+	r, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire)
+	if err != nil || r.EntriesFailed != 1 || !f.store.alerts[id.String()+"fp1"].Entry.IsZero() {
+		t.Fatalf("the entry failed, the alert is kept: %+v %v", r, err)
+	}
+	if r, err = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil || r.EntriesFailed != 0 {
+		t.Fatalf("fired again: %+v %v", r, err)
+	}
+	if a := f.store.alerts[id.String()+"fp1"]; a.Entry.IsZero() || len(f.entries.calls) != 2 || f.entries.calls[1] != "CreateWorkItem" {
+		t.Fatalf("the next firing opens it: %+v %v", a, f.entries.calls)
+	}
+	if _, err = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil || len(f.entries.calls) != 2 {
+		t.Fatalf("and only once: %v %v", f.entries.calls, err)
 	}
 }
