@@ -35,6 +35,7 @@ export {
   canExtend,
   canStart,
   confirmsStart,
+  erasureLinePhrase,
   keptPartPhrase,
   keptPhrase,
   deadlineOfDay,

@@ -19,6 +19,7 @@
  */
 
 import type {
+  ErasureLine,
   DataSubjectRequest,
   DataSubjectRequestExtension,
   DataSubjectRequestExtensionReason,
@@ -86,6 +87,14 @@ export function keptPartPhrase(part: ErasureKept, scope: string): KeptPhrase {
       intake: part.intake,
     },
   };
+}
+
+/**
+ * One line of what an erasure does, kind by kind (user-experience.md §5.9): the sentence of its
+ * fate, which names the kind and its count. Said before the start, from the eraser's own list.
+ */
+export function erasureLinePhrase(line: ErasureLine): KeptPhrase {
+  return { code: `app.privacy.line_${line.fate.toLowerCase()}`, params: { kind: line.kind, count: line.count ?? 0 } };
 }
 
 /**

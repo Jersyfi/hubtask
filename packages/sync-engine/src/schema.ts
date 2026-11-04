@@ -597,6 +597,8 @@ export type RetentionPolicy = components['schemas']['RetentionPolicy'];
 /** What one legal hold keeps, or kept, of an erasure, and what all of them would keep of one. */
 export type ErasureKept = components['schemas']['ErasureKept'];
 export type ErasurePreview = components['schemas']['ErasurePreview'];
+/** What an erasure does to one kind of data, counted where the preview reads the rows. */
+export type ErasureLine = components['schemas']['ErasureLine'];
 
 /**
  * How a workspace signs its people in through its own provider, and how that is set.

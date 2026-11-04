@@ -5,6 +5,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+import { format } from '../i18n/format.ts';
 
 import {
   byDeadline,
@@ -18,6 +21,7 @@ import {
   receiptOf,
   extensionPayload,
   extensionPhrase,
+  erasureLinePhrase,
   keptPartPhrase,
   keptPhrase,
   producesArchive,
@@ -260,4 +264,33 @@ test('the day of receipt is sent only when named, and never after today', () => 
 test('the earliest deadline offered is the day of receipt, today without one', () => {
   assert.equal(earliestDeadline('2026-08-20', '2026-10-15'), '2026-08-20');
   assert.equal(earliestDeadline('', '2026-10-15'), '2026-10-15');
+});
+
+// user-experience.md §5.9: every line the eraser's preview answers reads as its own sentence in
+// both languages - none falls to the catch-all a kind without words would get.
+test('every line of what an erasure does has its own words', () => {
+  const lines: Record<string, readonly string[]> = {
+    DELETED: ['ACCOUNT', 'CREDENTIALS', 'PERSONAL_RULES', 'NOTIFICATIONS', 'AI_DRAFTS', 'KUDOS', 'ARRANGEMENTS', 'MEDIA', 'INTAKE',
+      'COMMENTS', 'PAGE_COMMENTS', 'WHITEBOARD_COMMENTS', 'GOAL_CHECK_INS', 'PORTFOLIO_UPDATES', 'PAGE_DRAFTS'],
+    ANONYMISED: ['ACCOUNT', 'TIME', 'INTAKE', 'COMMENTS', 'PAGE_COMMENTS', 'WHITEBOARD_COMMENTS', 'GOAL_CHECK_INS',
+      'PORTFOLIO_UPDATES', 'PAGE_DRAFTS', 'ENTRIES'],
+    KEPT: ['ACCOUNT', 'INTAKE', 'ASSIGNMENTS', 'COMMENTS', 'PAGE_COMMENTS', 'WHITEBOARD_COMMENTS', 'GOAL_CHECK_INS',
+      'PORTFOLIO_UPDATES', 'PAGE_DRAFTS', 'ENTRIES'],
+    RELEASED: ['ASSIGNMENTS'],
+  };
+  for (const language of ['en', 'de']) {
+    const catalogue = JSON.parse(readFileSync(new URL(`../../../../../locales/${language}.json`, import.meta.url), 'utf8')) as Record<string, string>;
+    for (const [fate, kinds] of Object.entries(lines)) {
+      const code = erasureLinePhrase({ kind: 'ACCOUNT', fate, count: null } as never).code;
+      const fallback = format(catalogue[code]!, { kind: 'NONE', count: 0 }, language);
+      for (const kind of kinds) {
+        const phrase = erasureLinePhrase({ kind, fate, count: 12 } as never);
+        const said = format(catalogue[phrase.code]!, phrase.params, language);
+        assert.notEqual(said, fallback, `${language} ${fate} ${kind}`);
+      }
+    }
+  }
+  const counted = erasureLinePhrase({ kind: 'COMMENTS', fate: 'DELETED', count: 12 });
+  assert.equal(counted.code, 'app.privacy.line_deleted');
+  assert.equal(counted.params.count, 12);
 });

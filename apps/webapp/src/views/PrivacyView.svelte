@@ -31,7 +31,7 @@
   import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import type { ErasureKept } from '@hubtask/sync-engine';
+  import type { ErasureKept, ErasureLine } from '@hubtask/sync-engine';
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
     byDeadline,
@@ -39,6 +39,7 @@
     canExtend,
     canStart,
     confirmsStart,
+    erasureLinePhrase,
     keptPartPhrase,
     keptPhrase,
     deadlineOfDay,
@@ -102,13 +103,18 @@
   let confirming = $state<Request | undefined>(undefined);
   /** What the holds in force would keep of it: read when the confirmation opens (check 11). */
   let previewed = $state<'checking' | 'unknown' | readonly ErasureKept[]>('checking');
+  /** What the erasure does, kind by kind, from the eraser's own list (user-experience.md §5.9). */
+  let lines = $state<readonly ErasureLine[]>([]);
 
   function beginConfirming(request: Request): void {
     failure = undefined;
     confirming = request;
     previewed = 'checking';
+    lines = [];
     void privacy.preview(request.id, request.erasure_mode ?? 'ANONYMIZE').then((answer) => {
-      if (confirming?.id === request.id) previewed = answer ? answer.kept : 'unknown';
+      if (confirming?.id !== request.id) return;
+      previewed = answer ? answer.kept : 'unknown';
+      lines = answer?.lines ?? [];
     });
   }
 
@@ -804,10 +810,21 @@
         <p class="small">{t(line.code, line.params)}</p>
       {/each}
     {/if}
+    {#if lines.length > 0}
+      <p class="small">{t('app.privacy.lines_intro')}</p>
+      <ul class="small erasure-lines" data-erasure-lines>
+        {#each lines as line, index (index)}
+          {@const phrase = erasureLinePhrase(line)}
+          <li>{t(phrase.code, phrase.params)}</li>
+        {/each}
+      </ul>
+    {/if}
   </Stack>
 </Dialog>
 
 <style>
+  .erasure-lines { margin: 0; padding-inline-start: var(--sp-300); display: grid; gap: var(--sp-050); }
+
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
