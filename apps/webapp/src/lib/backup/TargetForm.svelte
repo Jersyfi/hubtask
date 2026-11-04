@@ -134,7 +134,7 @@
         <Select
           label={t('app.backup.target_kind')}
           bind:value={draftKind}
-          options={KINDS.map((kind) => ({ value: kind, label: kind }))}
+          options={KINDS.map((kind) => ({ value: kind, label: t(`app.backup.kind_${kind}`) }))}
         />
         {#if draftKind === 'LOCAL'}
           <Input

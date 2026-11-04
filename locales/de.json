@@ -12361,5 +12361,11 @@
   "app.leave.body": "{count, plural, one {# Änderung auf dieser Seite ist noch nicht gespeichert. Beim Verlassen geht sie verloren.} other {# Änderungen auf dieser Seite sind noch nicht gespeichert. Beim Verlassen gehen sie verloren.}}",
   "app.leave.leave": "Ohne Speichern verlassen",
   "app.leave.stay": "Bleiben",
-  "app.settings_page.sections": "Abschnitte von {name}"
+  "app.settings_page.sections": "Abschnitte von {name}",
+  "app.backup.kind_LOCAL": "Ein Ordner auf diesem Server",
+  "app.backup.kind_S3": "Ein Bucket (S3)",
+  "app.backup.kind_SFTP": "Ein Server über SFTP",
+  "app.backup.kind_WEBDAV": "Eine WebDAV-Freigabe",
+  "app.backup.mode_FULL": "Vollständig",
+  "app.backup.mode_INCREMENTAL": "Änderungen seit dem letzten"
 }

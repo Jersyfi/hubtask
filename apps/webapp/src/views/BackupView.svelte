@@ -419,7 +419,7 @@
             <Stack gap="100">
               <div class="row">
                 <span class="name">{target.name}</span>
-                <Badge>{target.kind}</Badge>
+                <Badge>{t(`app.backup.kind_${target.kind}`)}</Badge>
                 {#if target.encryption_mode === 'NONE'}
                   <Badge tone="warning">{t('backup.target_unencrypted')}</Badge>
                 {/if}
@@ -514,7 +514,7 @@
                         <Stack gap="025">
                           <div class="row">
                             <span class="mono">{archive.path}</span>
-                            <Badge>{archive.mode}</Badge>
+                            <Badge>{t(`app.backup.mode_${archive.mode}`)}</Badge>
                             {#if !archive.complete}
                               <!-- Not damaged: a run still going, or one that died. -->
                               <Badge tone="warning">{t('app.backup.archive_incomplete')}</Badge>
