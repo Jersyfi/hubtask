@@ -48570,7 +48570,7 @@
               "string",
               "null"
             ],
-            "description": "The entry's key (`sup-128`) or the container's handle, where it has one."
+            "description": "The entry's key (`INC-128`, as every screen draws it) or the container's handle, where it has one."
           },
           "number": {
             "type": [
@@ -53918,6 +53918,14 @@
             "pattern": "^[a-z][a-z0-9]{1,19}$",
             "description": "The hub's or collection's short name and stable key: the word a mail subject (\"#einkauf\"), a plus address and a ticket key (\"EINKAUF-42\") use for a collection, and the word a configuration document names a hub or a collection by. Given when the container is made, derived from its name and unique in the workspace; a rename keeps it. Mail is delivered to a collection's only.\n"
           },
+          "key_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[A-Z][A-Z0-9]{1,4}$",
+            "description": "A collection's key prefix: the short word its entries' keys start with, \"INC\" in \"INC-42\". Given when the collection is made, derived from its name - the first three letters of one word, the initials of several - and unique in the workspace, never another collection's handle; a person may change or clear it. An entry's key is the prefix and its number where the collection has one, the handle in capitals and the number otherwise. A key in either form names the entry. Null on a hub.\n"
+          },
           "structure": {
             "$ref": "#/components/schemas/EffectiveStructure",
             "description": "How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.\n"
@@ -54155,6 +54163,13 @@
               "null"
             ],
             "description": "One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.\n"
+          },
+          "key_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A collection's key prefix, a letter and then one to four letters or digits; lower case is taken as upper case. One another collection of the workspace holds as its prefix or its handle is refused with `containers.key_prefix_taken`, any other form with `containers.key_prefix_invalid`. Null or the empty string clears it, and the entries' keys are read with the handle again. Refused on a hub.\n"
           }
         }
       },
@@ -59118,7 +59133,7 @@
             ],
             "format": "int64",
             "minimum": 1,
-            "description": "The entry's running number in its collection; with the collection's handle it is the entry's ticket key, \"EINKAUF-42\". Drawn when the entry is made, and anew when it moves to another collection.\n"
+            "description": "The entry's running number in its collection; with the collection's key prefix (or its handle) it is the entry's ticket key, \"INC-42\". Drawn when the entry is made, and anew when it moves to another collection.\n"
           },
           "calendar_uid": {
             "type": [
@@ -69493,6 +69508,13 @@
           },
           "handle": {
             "type": "string"
+          },
+          "key_prefix": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The collection's key prefix; the key is the handle in capitals where it has none."
           },
           "number": {
             "type": "integer",

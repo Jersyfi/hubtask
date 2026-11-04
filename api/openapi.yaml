@@ -30428,7 +30428,7 @@ components:
         anchor: { type: [string, "null"] }
         available: { type: boolean }
         title: { type: string, description: "The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name." }
-        key: { type: [string, "null"], description: "The entry's key (`sup-128`) or the container's handle, where it has one." }
+        key: { type: [string, "null"], description: "The entry's key (`INC-128`, as every screen draws it) or the container's handle, where it has one." }
         number: { type: [integer, "null"], format: int64 }
         level: { $ref: "#/components/schemas/ItemType" }
         entry_type: { type: string }
@@ -32899,6 +32899,16 @@ components:
             the word a configuration document names a hub or a collection by. Given when the
             container is made, derived from its name and unique in the workspace; a rename keeps
             it. Mail is delivered to a collection's only.
+        key_prefix:
+          type: [string, "null"]
+          pattern: "^[A-Z][A-Z0-9]{1,4}$"
+          description: >
+            A collection's key prefix: the short word its entries' keys start with, "INC" in
+            "INC-42". Given when the collection is made, derived from its name - the first three
+            letters of one word, the initials of several - and unique in the workspace, never
+            another collection's handle; a person may change or clear it. An entry's key is the
+            prefix and its number where the collection has one, the handle in capitals and the
+            number otherwise. A key in either form names the entry. Null on a hub.
         structure:
           $ref: "#/components/schemas/EffectiveStructure"
           description: >
@@ -33046,6 +33056,14 @@ components:
             magenta or violet. Any other name is refused with `containers.color_token_unknown`; a
             value stored before that check is kept until it is changed. Null or the empty string
             clears it.
+        key_prefix:
+          type: [string, "null"]
+          description: >
+            A collection's key prefix, a letter and then one to four letters or digits; lower case
+            is taken as upper case. One another collection of the workspace holds as its prefix or
+            its handle is refused with `containers.key_prefix_taken`, any other form with
+            `containers.key_prefix_invalid`. Null or the empty string clears it, and the entries'
+            keys are read with the handle again. Refused on a hub.
 
     HubPrivacy:
       type: object
@@ -36044,8 +36062,8 @@ components:
           format: int64
           minimum: 1
           description: >
-            The entry's running number in its collection; with the collection's handle it is the
-            entry's ticket key, "EINKAUF-42". Drawn when the entry is made, and anew when it moves
+            The entry's running number in its collection; with the collection's key prefix (or its
+            handle) it is the entry's ticket key, "INC-42". Drawn when the entry is made, and anew when it moves
             to another collection.
         calendar_uid:
           type: [string, "null"]
@@ -40928,6 +40946,7 @@ components:
         item_id: { type: string, format: uuid }
         title: { type: string }
         handle: { type: string }
+        key_prefix: { type: [string, "null"], description: "The collection's key prefix; the key is the handle in capitals where it has none." }
         number: { type: integer, format: int64 }
         entry_type: { type: string }
         ci_id: { type: string, format: uuid }

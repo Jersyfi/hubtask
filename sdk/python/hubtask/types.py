@@ -3460,6 +3460,7 @@ class Container(TypedDict, total=False):
     version: Required[int]
     private: bool
     handle: str | None
+    key_prefix: str | None
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
@@ -3504,6 +3505,7 @@ class ContainerUpdate(TypedDict, total=False):
     description: str | None
     icon: str | None
     color_token: str | None
+    key_prefix: str | None
 
 class HubPrivacy(TypedDict, total=False):
     private: Required[bool]
@@ -6465,6 +6467,7 @@ class EntryOnCi(TypedDict, total=False):
     item_id: Required[str]
     title: Required[str]
     handle: Required[str]
+    key_prefix: str | None
     number: Required[int]
     entry_type: Required[str]
     ci_id: Required[str]

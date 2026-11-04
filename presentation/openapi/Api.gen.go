@@ -15241,6 +15241,9 @@ type Container struct {
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
 	KeptByLock *[]string `json:"kept_by_lock,omitempty"`
 
+	// KeyPrefix A collection's key prefix: the short word its entries' keys start with, "INC" in "INC-42". Given when the collection is made, derived from its name - the first three letters of one word, the initials of several - and unique in the workspace, never another collection's handle; a person may change or clear it. An entry's key is the prefix and its number where the collection has one, the handle in capitals and the number otherwise. A key in either form names the entry. Null on a hub.
+	KeyPrefix *string `json:"key_prefix,omitempty"`
+
 	// Milestone The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.
 	Milestone *ContainerMilestone `json:"milestone,omitempty"`
 	Name      string              `json:"name"`
@@ -15313,7 +15316,10 @@ type ContainerUpdate struct {
 	ColorToken  *string `json:"color_token,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
-	Name        *string `json:"name,omitempty"`
+
+	// KeyPrefix A collection's key prefix, a letter and then one to four letters or digits; lower case is taken as upper case. One another collection of the workspace holds as its prefix or its handle is refused with `containers.key_prefix_taken`, any other form with `containers.key_prefix_invalid`. Null or the empty string clears it, and the entries' keys are read with the handle again. Refused on a hub.
+	KeyPrefix *string `json:"key_prefix,omitempty"`
+	Name      *string `json:"name,omitempty"`
 }
 
 // CostRate defines model for CostRate.
@@ -16139,9 +16145,12 @@ type EntryCis struct {
 		EntryType string             `json:"entry_type"`
 		Handle    string             `json:"handle"`
 		ItemId    openapi_types.UUID `json:"item_id"`
-		Number    int64              `json:"number"`
-		StartAt   *time.Time         `json:"start_at"`
-		Title     string             `json:"title"`
+
+		// KeyPrefix The collection's key prefix; the key is the handle in capitals where it has none.
+		KeyPrefix *string    `json:"key_prefix,omitempty"`
+		Number    int64      `json:"number"`
+		StartAt   *time.Time `json:"start_at"`
+		Title     string     `json:"title"`
 	} `json:"collisions"`
 	ItemId openapi_types.UUID `json:"item_id"`
 
@@ -16396,9 +16405,12 @@ type EntryOnCi struct {
 	EntryType string             `json:"entry_type"`
 	Handle    string             `json:"handle"`
 	ItemId    openapi_types.UUID `json:"item_id"`
-	Number    int64              `json:"number"`
-	StartAt   *time.Time         `json:"start_at"`
-	Title     string             `json:"title"`
+
+	// KeyPrefix The collection's key prefix; the key is the handle in capitals where it has none.
+	KeyPrefix *string    `json:"key_prefix,omitempty"`
+	Number    int64      `json:"number"`
+	StartAt   *time.Time `json:"start_at"`
+	Title     string     `json:"title"`
 }
 
 // EntryRequester defines model for EntryRequester.
@@ -21696,7 +21708,7 @@ type ReferenceTarget struct {
 	Icon *string            `json:"icon,omitempty"`
 	Id   openapi_types.UUID `json:"id"`
 
-	// Key The entry's key (`sup-128`) or the container's handle, where it has one.
+	// Key The entry's key (`INC-128`, as every screen draws it) or the container's handle, where it has one.
 	Key *string `json:"key,omitempty"`
 
 	// Kind What a reference points at. DASHBOARD, GOAL and SPRINT resolve once their modules exist.
@@ -25037,7 +25049,7 @@ type WorkItem struct {
 	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
 	Notes     *string               `json:"notes,omitempty"`
 
-	// Number The entry's running number in its collection; with the collection's handle it is the entry's ticket key, "EINKAUF-42". Drawn when the entry is made, and anew when it moves to another collection.
+	// Number The entry's running number in its collection; with the collection's key prefix (or its handle) it is the entry's ticket key, "INC-42". Drawn when the entry is made, and anew when it moves to another collection.
 	Number   *int64  `json:"number,omitempty"`
 	OrderKey *string `json:"order_key,omitempty"`
 
