@@ -163,7 +163,11 @@ func (h ListBusinessCalendars) Descriptor() usecase.Descriptor {
 						data = append(data, row)
 					}
 				}
-				slices.SortFunc(data, func(a, b usecase.Output) int { return strings.Compare(a["key"].(string), b["key"].(string)) })
+				slices.SortFunc(data, func(a, b usecase.Output) int {
+					first, _ := a["key"].(string)
+					second, _ := b["key"].(string)
+					return strings.Compare(first, second)
+				})
 			}
 			return usecase.Output{"data": data}, nil
 		}),

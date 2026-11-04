@@ -50,7 +50,12 @@ func localizedDocument(document domain.Document, words i18n.Renderer, locale str
 				copied[key] = nil
 				continue
 			}
-			copied[key] = domain.Block(localizedValue(map[string]any(block), words, locale).(map[string]any))
+			localized, ok := localizedValue(map[string]any(block), words, locale).(map[string]any)
+			if !ok {
+				copied[key] = block
+				continue
+			}
+			copied[key] = domain.Block(localized)
 		}
 		out[name] = copied
 	}
