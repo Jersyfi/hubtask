@@ -54,6 +54,7 @@ function timeBackend({ running } = {}) {
     if (path === '/time-policy' && method === 'GET') return { json: { locked_through: null, visibility: 'FULL', version: 1 } };
     if (path === '/timer' && method === 'GET') return { json: timer };
     if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
+    if (path === '/time-absences' && method === 'GET') return { json: { data: [] } };
     if (path === '/timer:start' && method === 'POST') {
       timer = { running: true, entry_id: body.entry_id ?? null, work_type: body.work_type ?? 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
       return { json: timer };
@@ -171,6 +172,13 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   await page.getByRole('button', { name: /^Record time on / }).first().click();
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('dialog').getByLabel('Day').inputValue(), MONDAY);
+  await page.keyboard.press('Escape');
+
+  // The absence calendar names its month and days in the reader's words, never `2026-11`.
+  await page.goto(`${served.origin}/time?tab=absences`);
+  const month = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date());
+  await page.getByText(month, { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText(/^\d{4}-\d{2}$/).count(), 0);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });

@@ -12,7 +12,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import { absenceGrid, absencesPath, addMonths, monthDays, time } from '../data/time.svelte.ts';
+  import { absenceGrid, absencesPath, addMonths, dayHeading, monthDays, time } from '../data/time.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -25,6 +25,8 @@
   let month = $state('');
   $effect(() => { if (!month) month = today.slice(0, 7); });
   const days = $derived(monthDays(month));
+  /** The month in the reader's words (§5.10), never `2026-11`. */
+  const monthText = $derived(month ? new Intl.DateTimeFormat(messages.locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.parse(`${month}-01T00:00:00Z`)) : '');
   const path = $derived(days.length > 0 ? absencesPath(days[0]!, days.at(-1)!) : '');
 
   let absences = $state<Absence[] | undefined>(undefined);
@@ -43,7 +45,7 @@
 
   const columns = $derived<Column[]>([
     { id: 'person', label: t('app.absences.col_person') },
-    ...days.map((day) => ({ id: day, label: day.slice(8), align: 'end' as const })),
+    ...days.map((day) => ({ id: day, label: dayHeading(day, messages.locale), align: 'end' as const })),
   ]);
 
   let isEditing = $state(false);
@@ -83,7 +85,7 @@
 <Stack gap="200">
   <div class="controls">
     <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => (month = addMonths(month, -1))}>{t('app.absences.month_before')}</Button>
-    <span class="heading" aria-live="polite">{month}</span>
+    <span class="heading" aria-live="polite">{monthText}</span>
     <Button size="sm" tone="subtle" icon="chevron-right" onclick={() => (month = addMonths(month, 1))}>{t('app.absences.month_after')}</Button>
     <Button size="sm" icon="plus" onclick={() => open(undefined)}>{t('app.absences.add')}</Button>
   </div>
