@@ -511,7 +511,11 @@ templates*, so *Templates* means one thing. A test pins the section order per le
   refused mutation, reopening the capture or entry form prefilled from the record with the
   server's field errors shown, and keeps the record until it is sent again or discarded. The
   rejected mutation stores its entity, so a timer's refusal links to `/time`, a vocabulary
-  refusal to its screen; a catalogue test asserts every queueable entity has its *what* and *href*.
+  refusal to its screen; a catalogue test asserts every queueable entity has its *what* and *href*
+  (`queueplaces.ts`). Built: the refusal keeps the mutation it was, the draft (`RefusedDraft`)
+  offers its text fields and the server's reason, and *Send again* queues a new write
+  (`SyncEngine.resendRejected`). The push's answer names no field, so the reason is shown above
+  the fields rather than beside one.
 
 ### 5.12 Narrow screens
 

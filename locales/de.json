@@ -12872,5 +12872,20 @@
   "templates.text.fbba1c1e": "Dieser Desk folgt den ITIL-4-Praktiken Incident Management, Service Request Management, Problem Management und Change Enablement. Diese Seite sagt, wie dieser Hub sie abbildet und was deine Organisation selbst entscheidet.\n\n## Die vier Arten von Einträgen\n\n- **Störung** – etwas, das funktioniert hat, funktioniert nicht mehr. Neu → In Arbeit → Wartend → Gelöst → Geschlossen.\n- **Serviceanfrage** – jemand bittet um etwas, das der Desk anbietet. Neu → In Arbeit → Wartend → Erfüllt.\n- **Problem** – die Ursache hinter einer oder mehreren Störungen. Neu → In Untersuchung → Bekannter Fehler → Gelöst.\n- **Change** – eine Änderung an einem Service, bewertet, bevor sie gemacht wird. Entwurf → Bewertung → Genehmigt → In Umsetzung → Erledigt, oder Abgelehnt.\n\n## Priorität und Zusagen\n\nDie Priorität einer Störung (P1 bis P4) ergibt sich aus ihrer Auswirkung und ihrer Dringlichkeit. Die SLA-Richtlinie *Störungen* sagt eine erste Antwort innerhalb von 15 Minuten für P1, 1 Stunde für P2, 4 Stunden für P3 und 8 Stunden für P4 zu, und eine Lösung innerhalb von 4 Stunden, 8 Stunden, 1 Tag und 2 Tagen, gezählt in Geschäftszeiten. Zeit, in der auf die anfragende Person gewartet wird, zählt nicht.\n\n## Warteschlangen\n\n- **Meine** – wofür du zuständig bist.\n- **Nicht zugewiesen** – was noch niemand übernommen hat; nimm das Älteste zuerst.\n- **Kurz vor Verletzung** – was kurz davor ist, seine Zusage zu verfehlen.\n\n## Was deine Organisation selbst entscheidet\n\n- Die Geschäftszeiten und die Zeitzone des Kalenders *Geschäftszeiten*.\n- Welche Gruppe zuerst antwortet und wer im Change Advisory Board sitzt (*CAB-Mitglied*).\n- Die Zusagen selbst: Ändere die Richtlinie *Störungen* so, wie du es mit deinen Kunden vereinbart hast.\n- Wann ein Change das Board braucht und wann er ein Standard-Change ist.\n\nÄndere diese Seite, wenn sich eure Arbeitsweise ändert: Sie gehört jetzt euch, und eine neuere Version der Vorlage schreibt sie nie um.",
   "templates.text.5dcfa962": "Antworten, die der Desk immer wieder gibt, stehen hier, je eine Seite, damit die Frage einer anfragenden Person aus dem beantwortet wird, was wir schon wissen. Halte eine Seite aktuell: Markiere sie als geprüft und gib ihr ein Prüfdatum.",
   "templates.text.b46e0cd4": "Ein Problem, das als bekannter Fehler erfasst ist, bekommt hier eine Seite: seine Symptome, seine Ursache, soweit bekannt, und die Umgehung, bis es gelöst ist.",
-  "templates.text.42ce2d73": "- Eine Frage pro Seite, ihr Titel die Frage so, wie eine anfragende Person sie stellt.\n- Zuerst die Antwort, danach die Schritte.\n- Ein Screenshot, wo Worte nicht reichen."
+  "templates.text.42ce2d73": "- Eine Frage pro Seite, ihr Titel die Frage so, wie eine anfragende Person sie stellt.\n- Zuerst die Antwort, danach die Schritte.\n- Ein Screenshot, wo Worte nicht reichen.",
+  "app.sync.what.entity.time_timer.write": "Der Timer wurde geändert",
+  "app.sync.what.entity.time_timer.delete": "Der Timer wurde gestoppt",
+  "app.sync.open_as_draft": "Als Entwurf öffnen",
+  "app.sync.draft.title": "Eine Änderung, die nicht angenommen wurde",
+  "app.sync.draft.intro": "{what} — {where}. Ändere, was du geschrieben hast, und sende es erneut, oder verwirf es. Es bleibt hier, bis du das tust.",
+  "app.sync.draft.send": "Erneut senden",
+  "app.sync.draft.sending": "Wird gesendet…",
+  "app.sync.draft.discard": "Verwerfen",
+  "app.sync.draft.no_fields": "Diese Änderung enthält keinen Text zum Bearbeiten. Sende sie so erneut, wie sie war, oder verwirf sie.",
+  "app.sync.draft.sent": "Erneut gesendet.",
+  "app.sync.draft.field.title": "Titel",
+  "app.sync.draft.field.notes": "Notizen",
+  "app.sync.draft.field.name": "Name",
+  "app.sync.draft.field.description": "Beschreibung",
+  "app.sync.draft.field.body": "Text"
 }

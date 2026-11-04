@@ -10,6 +10,7 @@
 import type { ConflictRecord, MutationKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ENTITY_PLACES } from './queueplaces.ts';
 import { messages, t } from '../i18n/i18n.svelte.ts';
 
 /** The message code for a mutation kind, and for a patch the field that moved. */
@@ -30,14 +31,6 @@ export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
   return t(`app.sync.what.${kind.toLowerCase()}`);
 }
 
-/** Where a vocabulary entry is shown, and the replica's collection of it (offline-sync.md §4.4). */
-const VOCABULARY: Readonly<Record<string, { collection: string; href: string }>> = {
-  entry_type: { collection: 'entry_types', href: '/administration/types' },
-  link_type: { collection: 'link_types', href: '/administration/link-types' },
-  workflow: { collection: 'workflows', href: '/administration/workflows' },
-  custom_role: { collection: 'custom_roles', href: '/administration/people?tab=permissions' },
-};
-
 /** The source entry a link mutation draws from, where it names one. */
 const linkSourceOf = (mutation?: SyncMutation): string | undefined =>
   mutation?.entity === 'entry_link' && typeof mutation.payload?.item_id === 'string' ? mutation.payload.item_id : undefined;
@@ -47,8 +40,8 @@ const linkSourceOf = (mutation?: SyncMutation): string | undefined =>
  * vocabulary, the name of what was written, or its key.
  */
 async function whereOf(itemId: string, mutation?: SyncMutation): Promise<string> {
-  const vocabulary = mutation?.entity ? VOCABULARY[mutation.entity] : undefined;
-  if (vocabulary) {
+  const vocabulary = mutation?.entity ? ENTITY_PLACES[mutation.entity] : undefined;
+  if (vocabulary?.collection) {
     const held = await engine.storage?.get<StoredRecord<{ name?: string }>>(vocabulary.collection, itemId);
     return held?.document.name ?? String(mutation?.entity_key ?? itemId);
   }
@@ -60,8 +53,8 @@ async function whereOf(itemId: string, mutation?: SyncMutation): Promise<string>
 
 /** Where a queued change is opened: its entry, or the screen of the vocabulary it writes. */
 function hrefOf(itemId: string, mutation?: SyncMutation): string {
-  const vocabulary = mutation?.entity ? VOCABULARY[mutation.entity] : undefined;
-  if (vocabulary) return vocabulary.href;
+  const vocabulary = mutation?.entity ? ENTITY_PLACES[mutation.entity] : undefined;
+  if (vocabulary?.href) return vocabulary.href;
   return `/items/${linkSourceOf(mutation) ?? itemId}`;
 }
 
@@ -137,11 +130,13 @@ class QueueView {
     }
     const refused: ListedRefusal[] = [];
     for (const record of state.rejected) {
+      // The mutation it was, where the record keeps it: a vocabulary or timer refusal reads as
+      // what it is and links to its screen (user-experience.md §5.11).
       refused.push({
         id: record.id,
-        what: whatOf(record.kind),
-        where: await whereOf(record.itemId),
-        href: `/items/${record.itemId}`,
+        what: whatOf(record.kind, record.mutation),
+        where: await whereOf(record.itemId, record.mutation),
+        href: hrefOf(record.itemId, record.mutation),
         reason: reasonOf(record),
         record,
       });
@@ -153,6 +148,11 @@ class QueueView {
 
   async dismiss(id: string): Promise<void> {
     await engine.dismissRejected(id);
+  }
+
+  /** Sends a refused change again with what its draft now says. */
+  async resend(id: string, values: Readonly<Record<string, unknown>>): Promise<boolean> {
+    return engine.resendRejected(id, values);
   }
 
   async dismissConflict(id: string): Promise<void> {

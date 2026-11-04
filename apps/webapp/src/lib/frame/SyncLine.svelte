@@ -20,7 +20,8 @@
 
   import { engine } from '../data/engine.ts';
   import { live } from '../data/live.svelte.ts';
-  import { queue } from '../data/queue.svelte.ts';
+  import { queue, type ListedRefusal } from '../data/queue.svelte.ts';
+  import RefusedDraft from './RefusedDraft.svelte';
   import { formatDateTime, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { session } from '../session.svelte.ts';
@@ -51,6 +52,12 @@
     });
   });
 
+  /** The refused change opened as a draft (user-experience.md §5.11), where one is open. */
+  let drafting = $state<ListedRefusal | undefined>(undefined);
+  let isDraftOpen = $state(false);
+
+  // Every refused change that kept its mutation can be opened as a draft; one kept before that
+  // (or a device's revoked queue) is only dismissed.
   const refused = $derived<readonly RefusedChange[]>(
     queue.refused.map((change) => ({
       id: change.id,
@@ -58,6 +65,15 @@
       where: change.where,
       reason: change.reason,
       href: change.href,
+      ...(change.record.mutation
+        ? {
+            resolveLabel: t('app.sync.open_as_draft'),
+            onResolve: () => {
+              drafting = change;
+              isDraftOpen = true;
+            },
+          }
+        : {}),
     })),
   );
 
@@ -138,6 +154,7 @@
     onDismiss={(id) => (id.startsWith('conflict-') ? queue.dismissConflict(id.slice('conflict-'.length)) : queue.dismiss(id))}
     isSheet={viewport.isCompact}
   />
+  {#if drafting}<RefusedDraft refusal={drafting} bind:isOpen={isDraftOpen} />{/if}
   {#if resolving}
     <ConflictResolver
       bind:isOpen={isResolverOpen}
