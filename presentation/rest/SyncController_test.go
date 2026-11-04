@@ -102,9 +102,13 @@ func TestAPullMapsTheRequestAndThePage(t *testing.T) {
 		HasMore             bool             `json:"has_more"`
 		ServerTime          string           `json:"server_time"`
 		TombstoneWindowDays int              `json:"tombstone_window_days"`
+		SkippedKinds        []string         `json:"skipped_kinds"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decoding: %v", err)
+	}
+	if strings.Contains(recorder.Body.String(), "skipped_kinds") {
+		t.Error("a page that skipped nothing carries skipped_kinds")
 	}
 	if body.Cursor != "cursor-8" || !body.HasMore || body.TombstoneWindowDays != 90 ||
 		body.ServerTime != "2026-08-24T09:00:00Z" {
@@ -339,5 +343,21 @@ func TestAnInstallationWithoutThePushAnswersPending(t *testing.T) {
 	controller.Routes().ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusNotFound {
 		t.Errorf("status %d, want the pending 404", recorder.Code)
+	}
+}
+
+// A kind the walk skipped is named to the device (offline-sync.md §3.1).
+func TestAPullNamesTheKindsItSkipped(t *testing.T) {
+	puller := &fakePuller{page: syncservice.Page{
+		Cursor: syncservice.Position{Seq: 8, IssuedAt: streamNow, Skipped: "label"}, ServerTime: streamNow,
+		Window: 90 * 24 * time.Hour, SkippedKinds: []string{"label"},
+	}}
+	recorder, _ := pull(t, puller, `{"device_id": "0192f000-0000-7000-8000-0000000000d1"}`, true)
+	var body struct {
+		SkippedKinds []string `json:"skipped_kinds"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil || len(body.SkippedKinds) != 1 ||
+		body.SkippedKinds[0] != "label" {
+		t.Errorf("the page answered %s", recorder.Body.String())
 	}
 }

@@ -5,6 +5,8 @@ package sync
 
 import (
 	"context"
+	"log/slog"
+	"slices"
 	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
@@ -182,8 +184,12 @@ func (p PullChanges) walk(
 	ctx context.Context, actor appshared.ActorContext, from Position, limit int,
 	keep func(work.Container) bool,
 ) (Batch, error) {
-	kind := indexOfKind(from.Kind)
-	if kind < 0 {
+	order := walkKinds
+	if from.Retry != "" {
+		order = kindsOf(from.Retry)
+	}
+	kind := slices.Index(order, from.Kind)
+	if kind < 0 || slices.ContainsFunc(order, func(k string) bool { return indexOfKind(k) < 0 }) {
 		// A kind this build does not walk: a cursor from a build that walked more, or a forged
 		// one that got past the signature. Either way the walk cannot be resumed.
 		return Batch{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
@@ -194,12 +200,21 @@ func (p PullChanges) walk(
 	var lens *workservice.FieldLens
 	records := make([]Record, 0, limit)
 	position := from
-	for kind < len(walkKinds) {
-		position.Kind = walkKinds[kind]
+	for kind < len(order) {
+		position.Kind = order[kind]
 		batch := limit - len(records)
 		rows, err := p.readKind(ctx, actor, position.Kind, position.After, batch)
 		if err != nil {
-			return Batch{}, err
+			if ctx.Err() != nil {
+				return Batch{}, err
+			}
+			// One kind that cannot be read does not end every device's first synchronisation: it
+			// is skipped, counted, named in the cursor and walked again by a later pull.
+			p.skipped(ctx, position.Kind, err)
+			position.Skipped = withKind(position.Skipped, position.Kind)
+			kind++
+			position.After = ""
+			continue
 		}
 		for _, row := range rows {
 			position.After = row.key
@@ -256,9 +271,59 @@ func (p PullChanges) walk(
 	// that happened since is in the log past it, and the first delta delivers it.
 	return Batch{
 		Records: records,
-		Cursor:  Position{Seq: from.Seq, IssuedAt: from.IssuedAt, Epoch: from.Epoch},
+		Cursor:  Position{Seq: from.Seq, IssuedAt: from.IssuedAt, Epoch: from.Epoch, Skipped: position.Skipped},
 		More:    false,
 	}, nil
+}
+
+// WalkSignals is the observability slice of the walk.
+type WalkSignals interface {
+	// KindSkipped counts a kind whose read failed and was skipped; the kind is the walk's closed
+	// set of names, never a subject.
+	KindSkipped(ctx context.Context, kind string)
+}
+
+func (p PullChanges) skipped(ctx context.Context, kind string, err error) {
+	slog.WarnContext(ctx, "an initial synchronisation skipped a kind whose read failed",
+		slog.String("kind", kind), slog.String("error", shared.AsError(err).DetailCode))
+	if p.Signals != nil {
+		p.Signals.KindSkipped(ctx, kind)
+	}
+}
+
+// catchUp walks the kinds an earlier walk skipped, once the delta is current: from the log's
+// position the delta reached, so that a change landing meanwhile is the next delta's, as in the
+// first walk. A kind that fails again stays named; the device tries again on its next pull.
+func (p PullChanges) catchUp(
+	ctx context.Context, actor appshared.ActorContext, delta Batch, limit int,
+	keep func(work.Container) bool,
+) (Batch, error) {
+	start := delta.Cursor
+	start.Retry, start.Kind, start.After, start.Skipped = start.Skipped, kindsOf(start.Skipped)[0], "", ""
+	walked, err := p.walk(ctx, actor, start, limit-len(delta.Records), keep)
+	if err != nil {
+		return Batch{}, err
+	}
+	walked.Records = append(delta.Records, walked.Records...)
+	return walked, nil
+}
+
+// kindsOf and withKind read and extend a position's comma-separated list of kinds.
+func kindsOf(list string) []string {
+	if list == "" {
+		return nil
+	}
+	return strings.Split(list, ",")
+}
+
+func withKind(list, kind string) string {
+	if slices.Contains(kindsOf(list), kind) {
+		return list
+	}
+	if list == "" {
+		return kind
+	}
+	return list + "," + kind
 }
 
 // readKind pages one kind after the key, inside one read-only transaction.

@@ -68,6 +68,7 @@ type Metrics struct {
 	backupCadence     metric.Int64Gauge
 	dsrDeadline       metric.Int64Counter
 	timerFailures     metric.Int64Counter
+	syncKindsSkipped  metric.Int64Counter
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
@@ -479,6 +480,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Durable timers whose firing failed and were put back with a growing delay, by purpose."),
 	); err != nil {
 		return fmt.Errorf("timer failure counter: %w", err)
+	}
+	if m.syncKindsSkipped, err = meter.Int64Counter(
+		namespace+"_sync_kinds_skipped_total",
+		metric.WithDescription(
+			"Kinds an initial synchronisation skipped because their read failed, by kind."),
+	); err != nil {
+		return fmt.Errorf("skipped sync kind counter: %w", err)
 	}
 	if m.dsrDeadline, err = meter.Int64Counter(
 		namespace+"_dsr_deadline_total",
@@ -1306,6 +1314,12 @@ func (m *Metrics) DataSubjectDeadline(ctx context.Context, stage string, count i
 // closed set of the timers' purposes, never a subject.
 func (m *Metrics) TimerFailed(ctx context.Context, purpose string) {
 	m.timerFailures.Add(ctx, 1, metric.WithAttributes(attribute.String("purpose", purpose)))
+}
+
+// KindSkipped counts a kind an initial synchronisation skipped because its read failed; the kind
+// is the walk's closed set of names, never a subject.
+func (m *Metrics) KindSkipped(ctx context.Context, kind string) {
+	m.syncKindsSkipped.Add(ctx, 1, metric.WithAttributes(attribute.String("kind", kind)))
 }
 
 // ConfigInvalid counts a rejected configuration variable - misconfiguration as a signal rather

@@ -23848,6 +23848,9 @@ type SyncPullResponse struct {
 	HasMore    bool         `json:"has_more"`
 	ServerTime *time.Time   `json:"server_time,omitempty"`
 
+	// SkippedKinds The kinds of object the first synchronisation could not read and went on without. The device does not hold them yet; a later pull from the cursor walks them again before this list is empty. Absent when nothing was skipped.
+	SkippedKinds *[]string `json:"skipped_kinds,omitempty"`
+
 	// TombstoneWindowDays The maximum offline window before a forced resynchronisation
 	TombstoneWindowDays *int `json:"tombstone_window_days,omitempty"`
 }

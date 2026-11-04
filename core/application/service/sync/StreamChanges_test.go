@@ -152,8 +152,11 @@ func (c cursors) Encode(position Position) string {
 	cursor := strconv.FormatInt(position.Seq, 10) + "@" +
 		strconv.FormatInt(position.IssuedAt.Unix(), 10) + "@" +
 		strconv.FormatInt(position.Epoch, 10)
-	if position.Walking() {
+	if position.Walking() || position.Skipped != "" {
 		cursor += "@" + position.Kind + "@" + position.After
+	}
+	if position.Skipped != "" || position.Retry != "" {
+		cursor += "@" + position.Skipped + "@" + position.Retry
 	}
 	return cursor
 }
@@ -163,7 +166,7 @@ func (c cursors) Decode(cursor string) (Position, error) {
 		return Position{}, c.err
 	}
 	fields := strings.Split(cursor, "@")
-	if len(fields) != 3 && len(fields) != 5 {
+	if len(fields) != 3 && len(fields) != 5 && len(fields) != 7 {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
 	seq, err := strconv.ParseInt(fields[0], 10, 64)
@@ -179,8 +182,11 @@ func (c cursors) Decode(cursor string) (Position, error) {
 		return Position{}, shared.ErrValidation.WithDetail("sync.cursor_invalid")
 	}
 	position := Position{Seq: seq, IssuedAt: time.Unix(issued, 0).UTC(), Epoch: epoch}
-	if len(fields) == 5 {
+	if len(fields) >= 5 {
 		position.Kind, position.After = fields[3], fields[4]
+	}
+	if len(fields) == 7 {
+		position.Skipped, position.Retry = fields[5], fields[6]
 	}
 	return position, nil
 }

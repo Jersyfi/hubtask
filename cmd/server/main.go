@@ -4014,6 +4014,8 @@ func run() error {
 				Structure: structures,
 				// The time policy rides as it is in force, under the installation and the plan.
 				Settings: postgres.SettingRepository{},
+				// A kind the walk skipped is counted (A-39).
+				Signals: metrics,
 			},
 			Signals: metrics,
 			// The push applies a device's queue through the catalogue as the pushing person:
@@ -5994,7 +5996,7 @@ type streamCursorAdapter struct{ codec security.StreamCursorCodec }
 func (a streamCursorAdapter) Encode(position syncservice.Position) string {
 	return a.codec.Encode(security.StreamPosition{
 		Seq: position.Seq, IssuedAt: position.IssuedAt, Epoch: position.Epoch,
-		Kind: position.Kind, After: position.After,
+		Kind: position.Kind, After: position.After, Skipped: position.Skipped, Retry: position.Retry,
 	})
 }
 
@@ -6005,7 +6007,7 @@ func (a streamCursorAdapter) Decode(cursor string) (syncservice.Position, error)
 	}
 	return syncservice.Position{
 		Seq: decoded.Seq, IssuedAt: decoded.IssuedAt, Epoch: decoded.Epoch,
-		Kind: decoded.Kind, After: decoded.After,
+		Kind: decoded.Kind, After: decoded.After, Skipped: decoded.Skipped, Retry: decoded.Retry,
 	}, nil
 }
 

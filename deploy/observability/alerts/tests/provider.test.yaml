@@ -520,6 +520,34 @@ tests:
         alertname: HubtaskMailboxWatchFull
         exp_alerts: []
 
+  # A-39: a first synchronisation skipped the labels.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_sync_kinds_skipped_total{kind="label"}'
+        values: '0 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: HubtaskSyncKindSkipped
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-39
+              kind: label
+            exp_annotations:
+              summary: "First synchronisations skip the kind label"
+              description: "Its read fails, so devices are told everything else and go without it until a later pull reads it. The server's log names the kind and the failure's code."
+              runbook: RB-A39-sync-kind-skipped.md
+
+  # A-39 stays quiet while no kind is skipped.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_sync_kinds_skipped_total{kind="label"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: HubtaskSyncKindSkipped
+        exp_alerts: []
+
   # A-29: every mailbox on the installation's google app fails - its secret ran out.
   - interval: 1m
     input_series:

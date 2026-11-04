@@ -61,6 +61,12 @@ type Position struct {
 	// stream resumes from.
 	Kind  string
 	After string
+	// Skipped names the kinds, comma-separated, whose read failed during a walk: the walk went
+	// on without them, and a pull from the delta position walks them again before the device is
+	// current. Retry is the order of such a walk again - the skipped kinds -, set while Kind is
+	// one of them (offline-sync.md §3.1). Strings rather than lists keep a position comparable.
+	Skipped string
+	Retry   string
 }
 
 // Walking reports whether the position is inside an initial synchronisation.
@@ -276,7 +282,7 @@ func (s StreamChanges) page(
 		return Batch{}, err
 	}
 	if len(entries) == 0 {
-		return Batch{Cursor: s.at(from.Seq, from.Epoch)}, nil
+		return Batch{Cursor: s.at(from.Seq, from)}, nil
 	}
 
 	// One decision per container rather than one per record. A batch is usually a handful of
@@ -295,7 +301,7 @@ func (s StreamChanges) page(
 			// narrow it - the device drops whatever it holds under the root, and a device holding
 			// nothing there drops nothing.
 			if entry.ActorID == actor.AccountID {
-				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from)})
 			}
 			continue
 		}
@@ -305,7 +311,7 @@ func (s StreamChanges) page(
 				return Batch{}, err
 			}
 			if held {
-				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
+				records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from)})
 			}
 			continue
 		}
@@ -336,7 +342,7 @@ func (s StreamChanges) page(
 		if entry.Payload, err = s.narrowed(ctx, actor, &lens, entry.Entity, seen, entry.Payload, resolved); err != nil {
 			return Batch{}, err
 		}
-		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from.Epoch)})
+		records = append(records, Record{Recorded: entry, Cursor: s.at(entry.Seq, from)})
 	}
 
 	last := entries[len(entries)-1].Seq
@@ -344,7 +350,7 @@ func (s StreamChanges) page(
 		Records: records,
 		// The cursor of the last entry *read*, not of the last one sent. A cursor that stalled on
 		// a container somebody lost access to would re-read it on every round forever.
-		Cursor: s.at(last, from.Epoch),
+		Cursor: s.at(last, from),
 		More:   len(entries) == batch,
 	}, nil
 }
@@ -717,9 +723,10 @@ func knownEntity(entity string) bool {
 }
 
 // at is a position minted now, under the epoch the round was resumed under: a restore succeeding
-// in the middle of a connection is judged the next time the cursor is presented.
-func (s StreamChanges) at(seq, epoch int64) Position {
-	return Position{Seq: seq, IssuedAt: s.Clock.Now(), Epoch: epoch}
+// in the middle of a connection is judged the next time the cursor is presented. The kinds a walk
+// skipped travel on until a pull walks them again.
+func (s StreamChanges) at(seq int64, from Position) Position {
+	return Position{Seq: seq, IssuedAt: s.Clock.Now(), Epoch: from.Epoch, Skipped: from.Skipped}
 }
 
 // Encode is how the presentation layer turns a position into the event's `id`, without knowing what

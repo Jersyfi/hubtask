@@ -444,6 +444,20 @@ groups:
             watching worker has the connections to spare.
           runbook: RB-A38-mailbox-watch-full.md
 
+      # A-39. An initial synchronisation skipped a kind whose read failed: the walk went on
+      # without it, so devices start with everything else, and a later pull walks the kind again.
+      # Those devices lack that kind until its read is mended; a ticket, for the defect or the row.
+      - alert: HubtaskSyncKindSkipped
+        expr: sum by (kind) (increase(hubtask_sync_kinds_skipped_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: ticket
+          alert_id: A-39
+        annotations:
+          summary: "First synchronisations skip the kind {{ $labels.kind }}"
+          description: "Its read fails, so devices are told everything else and go without it until a later pull reads it. The server's log names the kind and the failure's code."
+          runbook: RB-A39-sync-kind-skipped.md
+
       # A-31. More than one in twenty notification sends failed over a quarter of an hour, with at
       # least five failures so that one bounced address on a quiet installation stays silent. A
       # failure the breaker does not see - a refusal per recipient, a template the channel rejects -

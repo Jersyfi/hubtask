@@ -175,6 +175,15 @@ collection too and read from the copy while the server is away; a forge's hooks 
 mid-walk page cursor names the kind and key it resumes after; the pull continues it, the stream
 refuses it.
 
+**A kind whose read fails is skipped, not fatal.** One unreadable kind would otherwise stop every
+device's first synchronisation of the workspace. The walk goes on without it, counts it
+(`hubtask_sync_kinds_skipped_total`, A-39), and names it in the signed cursor and on the answer
+(`skipped_kinds`). A pull from a delta cursor that names skipped kinds serves the delta first; once
+the delta is current it walks those kinds again from the log position the delta reached - the
+first walk's rule, so a change landing meanwhile is the next delta's. A kind that fails again stays
+named and is tried on the next pull; the stream carries the names on and walks nothing. A cancelled
+request is not a skip: the walk ends with it.
+
 The device names itself on every pull and push (`device_id`, a client-minted UUIDv7) and registers by
 turning up (§6).
 

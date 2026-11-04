@@ -92,6 +92,9 @@ type Page struct {
 	More       bool
 	ServerTime time.Time
 	Window     time.Duration
+	// SkippedKinds are the kinds the device does not hold yet because their read failed; a later
+	// pull walks them again.
+	SkippedKinds []string
 }
 
 const (
@@ -124,6 +127,8 @@ type PullChanges struct {
 	// Settings answers the installation's and the plan's say over the time policy; nil sends the
 	// workspace's row alone.
 	Settings settingrepo.Settings
+	// Signals counts a kind the walk skipped; nil counts nothing.
+	Signals WalkSignals
 }
 
 // Pull answers one page.
@@ -157,16 +162,21 @@ func (p PullChanges) Pull(
 		batch, err = p.walk(ctx, actor, from, limit, keep)
 	} else {
 		batch, err = p.Stream.page(ctx, actor, from, limit, keep)
+		if err == nil && batch.Cursor.Skipped != "" && !batch.More && len(batch.Records) < limit &&
+			p.Snapshot != nil {
+			batch, err = p.catchUp(ctx, actor, batch, limit, keep)
+		}
 	}
 	if err != nil {
 		return Page{}, err
 	}
 	return Page{
-		Records:    batch.Records,
-		Cursor:     batch.Cursor,
-		More:       batch.More,
-		ServerTime: p.Stream.Clock.Now(),
-		Window:     p.Stream.Window,
+		Records:      batch.Records,
+		Cursor:       batch.Cursor,
+		More:         batch.More,
+		ServerTime:   p.Stream.Clock.Now(),
+		Window:       p.Stream.Window,
+		SkippedKinds: kindsOf(batch.Cursor.Skipped),
 	}, nil
 }
 

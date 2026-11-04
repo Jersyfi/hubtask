@@ -87,6 +87,8 @@ type snapshotStore struct {
 	groups map[shared.ID]bool
 	// reads counts the pages asked for, so a test can say how much of the store a walk touched.
 	reads int
+	// labelsFail is the error a read of the labels answers, for a kind whose read breaks.
+	labelsFail error
 }
 
 func pageAfter[T any](rows []T, idOf func(T) string, after string, batch int) []T {
@@ -114,6 +116,9 @@ func (s *snapshotStore) Buckets(_ context.Context, after shared.ID, batch int) (
 
 func (s *snapshotStore) Labels(_ context.Context, after shared.ID, batch int) ([]work.Label, error) {
 	s.reads++
+	if s.labelsFail != nil {
+		return nil, s.labelsFail
+	}
 	return pageAfter(s.labels, func(l work.Label) string { return l.ID.String() }, after.String(), batch), nil
 }
 
@@ -624,5 +629,68 @@ func TestASnapshotNeedsADeviceAndASnapshotReader(t *testing.T) {
 	pull.Snapshot = nil
 	if _, err := pull.WalkAll(t.Context(), actor(), SnapshotRequest{DeviceID: device}, func(Record) error { return nil }); !errors.Is(err, shared.ErrUnavailable) {
 		t.Errorf("no reader: %v", err)
+	}
+}
+
+type skippedSignals struct{ kinds []string }
+
+func (s *skippedSignals) KindSkipped(_ context.Context, kind string) { s.kinds = append(s.kinds, kind) }
+
+// One kind whose read fails does not end the first synchronisation: the walk skips it, counts it,
+// ends on the delta cursor with the kind named, and the next pull walks that kind again before it
+// says the device is current (offline-sync.md §3.1).
+func TestAKindWhoseReadFailsIsSkippedAndWalkedAgain(t *testing.T) {
+	pull, _, store := walking(t, entry(1, collectionA))
+	signals := &skippedSignals{}
+	pull.Signals = signals
+	store.labelsFail = errors.New("the label table is unreadable")
+
+	records, cursor := wholeWalk(t, pull, 4)
+
+	if slices.Contains(entities(records), "label") {
+		t.Fatal("a kind whose read failed delivered records")
+	}
+	if !slices.Contains(entities(records), "item") || !slices.Contains(entities(records), "template") {
+		t.Fatalf("the kinds after the failing one were not walked: %v", entities(records))
+	}
+	if cursor.Skipped != "label" || cursor.Seq != 1 {
+		t.Fatalf("the walk ended on %+v, want the delta position naming the skipped label", cursor)
+	}
+	if !slices.Equal(signals.kinds, []string{"label"}) {
+		t.Errorf("counted %v, want the one skipped kind", signals.kinds)
+	}
+	decoded, err := pull.Stream.Cursors.Decode(pull.Encode(cursor))
+	if err != nil || decoded.Skipped != "label" {
+		t.Fatalf("the skipped kind did not survive the cursor: %+v, %v", decoded, err)
+	}
+
+	// Still failing: the next pull tries once, says so again, and answers no more.
+	again, err := pull.Pull(t.Context(), actor(), PullRequest{DeviceID: device, Cursor: pull.Encode(cursor)})
+	if err != nil || again.More || again.Cursor.Skipped != "label" || len(again.SkippedKinds) != 1 {
+		t.Fatalf("a pull while the kind still fails answered %+v, %v", again, err)
+	}
+
+	// Mended: the next pull delivers the kind and the cursor names nothing skipped.
+	store.labelsFail = nil
+	mended, err := pull.Pull(t.Context(), actor(), PullRequest{DeviceID: device, Cursor: pull.Encode(again.Cursor)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := entities(mended.Records); !slices.Equal(got, []string{"label"}) {
+		t.Errorf("the pull after the mend delivered %v, want the label", got)
+	}
+	if mended.More || mended.Cursor.Walking() || mended.Cursor.Skipped != "" || mended.Cursor.Seq != 1 {
+		t.Errorf("the pull after the mend ended on %+v (more %v)", mended.Cursor, mended.More)
+	}
+}
+
+// A cancelled request is not a failing kind: the walk ends with the error, as before.
+func TestACancelledWalkIsNotASkip(t *testing.T) {
+	pull, _, store := walking(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	store.labelsFail = context.Canceled
+	if _, err := pull.Pull(ctx, actor(), PullRequest{DeviceID: device}); err == nil {
+		t.Error("a cancelled walk answered a page")
 	}
 }

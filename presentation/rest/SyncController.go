@@ -119,13 +119,17 @@ func pullResponse(page syncservice.Page, cursor string) openapi.SyncPullResponse
 	}
 	serverTime := page.ServerTime.UTC()
 	windowDays := int(page.Window / (24 * time.Hour))
-	return openapi.SyncPullResponse{
+	response := openapi.SyncPullResponse{
 		Changes:             changes,
 		Cursor:              cursor,
 		HasMore:             page.More,
 		ServerTime:          &serverTime,
 		TombstoneWindowDays: &windowDays,
 	}
+	if len(page.SkippedKinds) > 0 {
+		response.SkippedKinds = &page.SkippedKinds
+	}
+	return response
 }
 
 // syncChange is one record as a client receives it - the same facts the stream's event carries

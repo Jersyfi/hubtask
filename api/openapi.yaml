@@ -38935,6 +38935,13 @@ components:
         has_more: { type: boolean }
         server_time: { type: string, format: date-time }
         tombstone_window_days: { type: integer, description: The maximum offline window before a forced resynchronisation }
+        skipped_kinds:
+          type: array
+          items: { type: string }
+          description: >
+            The kinds of object the first synchronisation could not read and went on without. The
+            device does not hold them yet; a later pull from the cursor walks them again before
+            this list is empty. Absent when nothing was skipped.
 
     SyncMutation:
       type: object

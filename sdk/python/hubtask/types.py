@@ -5395,6 +5395,7 @@ class SyncPullResponse(TypedDict, total=False):
     has_more: Required[bool]
     server_time: str
     tombstone_window_days: int
+    skipped_kinds: list[str]
 
 class SyncMutation(TypedDict, total=False):
     op_id: Required[str]
