@@ -5,7 +5,7 @@ context: integration
 actors: [PE-admin, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/forge/Forge_test.go, core/application/service/forge/Forge_test.go, presentation/intake/CodeIntake_test.go, infrastructure/security/CodeHookSecrets_test.go, core/application/service/sync/InitialSyncCode_test.go, apps/webapp/src/lib/data/code.test.ts, apps/webapp/src/lib/data/replica.test.ts, test/integration/code_forge_test.go, apps/webapp/e2e/entryintegrations.test.mjs]
 ---

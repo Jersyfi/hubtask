@@ -302,6 +302,35 @@ func TestAGitLabTokenIsTheSecretAndAHookSwitchedOffTakesNothing(t *testing.T) {
 	}
 }
 
+// UC-INT-13 check 5: a hook switched off is kept, not removed; it links nothing more, and the links
+// it made stay on the entry.
+func TestAHookSwitchedOffIsKeptAndWhatItLinkedStays(t *testing.T) {
+	f, m, _ := newForge()
+	id, secret := create(t, f, domain.GitLab)
+	parse := parseAll(domain.Signal{Kind: domain.Branch, Repository: "team/web", Ref: "WEB-42-x", Texts: []string{"WEB-42-x"}})
+	if r, err := f.Deliver(context.Background(), Delivery{TenantID: tenant, HookID: id, Token: secret, DeliveryID: "1", Body: []byte("{}")}, parse); err != nil || r.Linked != 1 {
+		t.Fatalf("the first delivery: %+v, %v", r, err)
+	}
+	if _, err := (UpdateCodeHook{f}).Descriptor().Handler.Invoke(context.Background(), as(anna),
+		usecase.Input{"hook_id": id.String(), "enabled": false}); err != nil {
+		t.Fatal(err)
+	}
+	if hook, kept := m.hooks[id]; !kept || hook.Enabled {
+		t.Fatalf("switched off, the hook is kept %v and enabled %v", kept, hook.Enabled)
+	}
+	again := parseAll(domain.Signal{Kind: domain.Branch, Repository: "team/web", Ref: "WEB-42-y", Texts: []string{"WEB-42-y"}})
+	if _, err := f.Deliver(context.Background(), Delivery{TenantID: tenant, HookID: id, Token: secret, DeliveryID: "2", Body: []byte("{}")}, again); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("a hook switched off took a delivery: %v", err)
+	}
+	out, err := ListEntryCodeLinks{f}.Descriptor().Handler.Invoke(context.Background(), as(anna), usecase.Input{"item_id": entry.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows := out["data"].([]usecase.Output); len(rows) != 1 || len(m.links) != 1 {
+		t.Errorf("after switching off, the entry shows %d links and the store holds %d", len(rows), len(m.links))
+	}
+}
+
 type told struct{ hooks []shared.ID }
 
 func (t *told) HookSwitchedOff(_ context.Context, tenantID, hubID, hookID shared.ID) error {
