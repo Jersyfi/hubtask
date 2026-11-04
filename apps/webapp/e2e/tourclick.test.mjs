@@ -28,10 +28,12 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
     const context = await browser.newContext({ viewport: { width, height } });
     t.after(() => context.close());
     forgetUnstubbed();
+    const written = [];
     await context.route('**/api/v1/**', async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: FRESH });
       if (url.pathname.endsWith('/preferences') && route.request().method() === 'PATCH') {
+        written.push(route.request().postDataJSON());
         return route.fulfill({ json: { ...FRESH, ...route.request().postDataJSON() } });
       }
       return stub(route);
@@ -67,6 +69,9 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
     // Step 8 points at the whole of Your settings, taller than the screen: the one that was
     // clipped. The fixture draws no entry opener, so the tour passes over its last step.
     assert.ok(seen.includes('Step 8 of 9'), `step 8 was not shown: ${JSON.stringify(seen)}`);
+    // A tour walked to its end is the account's no more: the next sign-in does not start it again.
+    for (let wait = 0; wait < 20 && !written.some((body) => typeof body?.onboarding_completed_at === 'string'); wait += 1) await page.waitForTimeout(100);
+    assert.ok(written.some((body) => typeof body?.onboarding_completed_at === 'string'), `the walked tour was not written: ${JSON.stringify(written)}`);
     assert.deepEqual(failures, []);
   });
 }

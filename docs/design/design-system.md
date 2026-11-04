@@ -558,7 +558,7 @@ The WorkItem hierarchy, not a heuristic, says what is special.
 |---|---|---|
 | **1 — always, subtle** | Every completion | A micro-animation, part of the normal motion system. No trigger logic |
 | **2 — structural, medium** | A completion completes the next level up: every sibling under the parent is now complete | Deterministic, read directly off the domain model |
-| **3 — rare, the big moment** | A collection or a hub with nothing open left; the last entry due today completed; the **first-ever completion** — any completion while the account's `onboarding_completed_at` is null (§8) | At most **one tier-3 celebration per day**. A second qualifying event on the same day falls back to tier 2 |
+| **3 — rare, the big moment** | A collection or a hub with nothing open left; the last entry due today completed; the **first-ever completion** — any completion while the account's `onboarding_completed_at` is null, or the first after the tour led to creating one in this tab (§8) | At most **one tier-3 celebration per day**. A second qualifying event on the same day falls back to tier 2 |
 
 ### What stays visible
 
@@ -626,8 +626,10 @@ screenshots.
   screen, and the tour waits until the person first arrives on the overview.
 * **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
-  complete a first task, which fires the tier-3 onboarding moment (§7). Any completion while
-  `onboarding_completed_at` is null also ends the tour.
+  complete a first task, which fires the tier-3 onboarding moment (§7). Reaching the end writes
+  the field already - a dialog closed without an entry does not bring the tour back on the next
+  sign-in - and the tab remembers that the next completion is still the first. Any completion
+  while `onboarding_completed_at` is null also ends the tour.
 * The design system defines the **pattern** (`Tour`, `CoachMark`, §4): presentation (spotlight,
   glass overlay per rule 2), tone ([`voice-and-tone.md`](./voice-and-tone.md), no exclamation marks)
   and interaction (next, back, skip, keyboard, visible focus). The steps are the client's, in

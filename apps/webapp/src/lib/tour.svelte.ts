@@ -6,10 +6,10 @@
  *
  * **It starts on the first sign-in of an account whose `onboarding_completed_at` is null**, once
  * the account has arrived; the help menu restarts it by clearing the field. **Skipping writes the
- * field**: a tour that came back on every sign-in would teach people to skip. The seventh step
- * does not write it - it leads to the creation dialog, and the field is written when the entry is
- * completed, which is the first celebration (design-system.md §7); until then this tab remembers that the
- * tour was walked so it does not start again on the next screen.
+ * field**, and so does **walking it to its end**: a tour that came back on every sign-in would
+ * teach people to skip. The last step leads to the creation dialog; the first completion after it
+ * is still the first celebration (design-system.md §7), which this tab remembers as `led` rather
+ * than reading it from the field.
  *
  * Each step is a route and an element: the tour navigates, waits for the element to be drawn,
  * and points at it. An element that never arrives is not pointed at nothing - the step is passed
@@ -71,7 +71,13 @@ class TourStore {
   shouldStart(): boolean {
     const account = actor.account;
     if (!account || account.onboarding_completed_at) return false;
-    return session()?.getItem(TOUR_SESSION_KEY) !== 'walked';
+    const walked = session()?.getItem(TOUR_SESSION_KEY);
+    return walked !== 'walked' && walked !== 'led';
+  }
+
+  /** Whether the tour led to the creation dialog in this tab and no entry was completed since. */
+  get awaitsFirstCompletion(): boolean {
+    return session()?.getItem(TOUR_SESSION_KEY) === 'led';
   }
 
   /**
@@ -135,13 +141,14 @@ class TourStore {
   }
 
   /**
-   * The seventh step's verb: the mark goes, the control it pointed at is pressed - the creation
-   * dialog opens, or the hub's - and the field waits for the completion.
+   * The last step's verb: the mark goes, the control it pointed at is pressed - the creation
+   * dialog opens, or the hub's - and the field is written; the first moment waits for the completion.
    */
   async #lead(): Promise<void> {
     const control = this.#target;
     this.#close();
-    session()?.setItem(TOUR_SESSION_KEY, 'walked');
+    session()?.setItem(TOUR_SESSION_KEY, 'led');
+    void this.#write();
     control?.focus();
     // The seventh points at a control where a collection exists; where none does it points at
     // the tree, and the person makes the hub themselves.
@@ -185,9 +192,10 @@ class TourStore {
       }
       at += direction;
     }
-    // Nothing left to point at in that direction: the tour ends as walked, the field untouched.
+    // Nothing left to point at in that direction: the tour ends as walked.
     this.#close();
     session()?.setItem(TOUR_SESSION_KEY, 'walked');
+    await this.#write();
   }
 
   /**

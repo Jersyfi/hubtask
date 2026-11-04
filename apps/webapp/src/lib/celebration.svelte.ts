@@ -60,13 +60,14 @@ class Celebration {
    */
   async celebrate(item: WorkItem): Promise<Current | undefined> {
     if (!item.completion?.is_completed) return undefined;
-    // The tour's end and the first moment coincide (§8): the first completion of an
-    // account that has not taken the tour writes `onboarding_completed_at` - whether or not the
-    // moments are marked, because the tour ended either way.
-    if (!actor.account?.onboarding_completed_at) void tour.complete();
+    // The first completion of an account that has not taken the tour, or the first after a tour
+    // that led to the creation dialog, is the first moment (§8), and ends the tour - whether or not
+    // the moments are marked. Read before `complete` forgets that the tour led here.
+    const isBeforeOnboarding = !actor.account?.onboarding_completed_at || tour.awaitsFirstCompletion;
+    if (isBeforeOnboarding) void tour.complete();
     if (!this.isOn) return undefined;
     const token = ++this.#next;
-    const moment = await this.#momentOf(item);
+    const moment = await this.#momentOf(item, isBeforeOnboarding);
     if (token !== this.#next) return undefined;
     if (moment.tier === 3) await this.#spend();
     const current: Current = { ...moment, item, token };
@@ -80,11 +81,10 @@ class Celebration {
     this.#current = undefined;
   }
 
-  async #momentOf(item: WorkItem): Promise<Moment> {
+  async #momentOf(item: WorkItem, isBeforeOnboarding: boolean): Promise<Moment> {
     const storage = engine.storage;
     const zone = actor.zone;
     const today = todayIn(zone);
-    const isBeforeOnboarding = !actor.account?.onboarding_completed_at;
     if (!storage) {
       // Online only: no copy to read the hierarchy from. The first-ever moment is still knowable.
       return momentOf({ completedId: item.id, entries: [held(item)], containers: [], today, zone, isBeforeOnboarding });
