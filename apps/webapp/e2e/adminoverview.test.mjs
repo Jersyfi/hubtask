@@ -52,6 +52,7 @@ async function as(browser, permissions, { verifyOk = true } = {}) {
         { quota: 'accounts', limit: 30, used: 28, ratio: 28 / 30 },
         { quota: 'items', limit: 10000, used: 120, ratio: 0.012 },
         { quota: 'api_requests_per_minute', limit: 600, used: null, ratio: null },
+        { quota: 'automation_runs_per_hour', limit: 1000, used: 4, ratio: 0.004 },
         { quota: 'ai_arrival_proposals_per_day', limit: 200, used: 0, ratio: 0 },
       ] });
     }
@@ -100,6 +101,8 @@ test('chromium: the administration opens on an overview of what needs attention,
 
   assert.match(await cardText(page, 'limits'), /People\s*28 of 30/);
   assert.match(await cardText(page, 'limits'), /Entries\s*120 of 10000/);
+  // No AI answers in this workspace, so its AI limits measure nothing it uses.
+  assert.doesNotMatch(await cardText(page, 'limits'), /AI/);
   // Every line's badge sits beside its name at the line's end, a long name wrapping in its own
   // column rather than pushing its badge under it.
   const placed = await page.locator('[data-card="limits"] li').evaluateAll((lines) => lines.map((line) => {
