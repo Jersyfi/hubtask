@@ -767,12 +767,65 @@ The agents as cards with their role, their state, what they may do and their bud
 person who decides. Runs are a tab, newest first, each with its plan in words (§5.4). Adding an
 agent starts from its shipped roles.
 
+As built: `/agents` is the agents' one screen, and the administration's and the reader's own
+addresses draw the same one. The head names the figure (*2 live · 1 draft · 3 waiting for a
+person*) and *Add an agent* as its primary, the split offering the shipped roles (ticket triage,
+knowledge draft, duplicate review, CI suggestion), each prefilled with its name, what it does and
+the domain's default budget — a zero budget allows nothing, and a card whose budget holds a zero
+says so. The tabs are *Agents · Waiting for a person · Runs · Settings*, Settings for whoever
+administers agents (the kill switch, MCP's registered-only, the models, the metering). A card
+shows the role, the person it acts for, the model, what it may do in words, its budget and its
+lifecycle presses; its *N waiting* opens the held acts narrowed to it, which is also where Today's
+held acts lead. A run reads *Triage helper on an entry · 2 proposals · 1,840 tokens*. An empty
+workspace offers the roles; a reader who may not add one is told that an administrator does. Not
+built: a held act's use case and preview are still the catalogue's names and the input's keys, not
+a plan in words.
+
 ### 7.9 A hub's overview
 
 The hub's *Overview* tab: the collection cards **with their figures** (open, overdue, SLA
 breaches, the sprint's or the plan's state), the hub's recent activity, and, where they are on,
 one line per product (*3 pages changed this week*, *Sprint 42 · 6 days left*). The dashed card
 creating a collection stays.
+
+### 7.10 Integrations
+
+What Hubtask tells and lets in from outside — webhooks and chat rooms, mail, voice assistants, the
+AI provider, machines and apps, and a person's own calendar feed and tokens — follows one anatomy:
+
+* **The screen opens on what is connected**, each connection a card with its target in full, its
+  state as a badge in words (*Active*, *Paused*, *Switched off after failures*) and, where it
+  failed, the failure in words beside the act that fixes it. The head's figure counts them
+  (*3 delivering · 1 switched off after failures*).
+* **Adding is the head's primary** into a dialog that starts from the kind (a signed event for a
+  server, a chat room by its service) and keeps a refusal inside it (§5.10). A secret is shown
+  once, with the acknowledgement, and never kept by the screen.
+* **Pickers in words, never keys** (§5.4): an event type is offered by what happens (*An entry is
+  created*), grouped by what it is about (entries, comments, hubs and collections, columns and
+  labels, rules, the inbox); a group is chosen whole by one box, its types one by one behind a
+  fold (UX-4).
+* **Empty** says what the connection is for and offers the add (§5.5).
+
+As built: the webhooks (`WebhooksView`). Not built: mail, voice, AI, machines and apps and the
+calendar pushes still open as before; a failed connection is not yet counted in the column.
+
+### 7.11 Imports
+
+Every import — a spreadsheet, another task app, an issue tracker, a wiki space, a plan, an asset
+inventory — is one anatomy of four steps in one dialog, reached from the place's menu (*Import…*,
+§2.4), capture's *Import a file*, and the empty state of a product that imports (§5.5):
+
+1. **Where from**: the sources as cards, each with one sentence on what file it takes and where the
+   source exports it.
+2. **The file**: `UploadField`, its size limit said before choosing.
+3. **The check**: the mapping where the source has columns, prefilled from the header, and a dry
+   run in words through `PlanSummary` (*Creates 3 collections and 248 entries; 12 rows are left as
+   they are*), never a key or a path.
+4. **The run and its report**: the job's progress, then what arrived with *Open what arrived*; a
+   second import of the same file says *left as they are* in the report.
+
+Not built: the importers keep their dialogs as they are today (`ImportDialog`, `PlanImport`,
+`ImportFile`); the dry run is not said through `PlanSummary` yet.
 
 ---
 
@@ -1000,3 +1053,9 @@ section of the design system it changes, and is walked against the mockups befor
 30. Backup's guided start, the mail wording, delivery state and *Copy invitation link* (§8.3).
 31. The installation: health in words, the upgrade row, backlogs, usage, *Templates*, *Modules*,
     *Configuration file* (§8.4).
+
+**The connections**
+
+32. Integrations: cards with their state in words, the add as a dialog, event types in words
+    (§7.10).
+33. Imports: one four-step anatomy with the dry run in words (§7.11).
