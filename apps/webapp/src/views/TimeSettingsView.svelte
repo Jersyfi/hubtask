@@ -113,7 +113,6 @@
   const ordered = $derived([...(kinds ?? [])].sort((a, b) => a.position - b.position));
   const columns = $derived<Column[]>([
     { id: 'name', label: t('app.time_settings.col_name') },
-    { id: 'key', label: t('app.time_settings.col_key') },
     { id: 'billable', label: t('app.time_settings.col_billable') },
     { id: 'state', label: t('app.time_settings.col_state') },
     { id: 'actions', label: t('app.time_settings.col_actions'), isLabelHidden: true },
@@ -216,7 +215,6 @@
         {#each ordered as kind, i (kind.key)}
           <tr>
             <th scope="row">{kind.name}</th>
-            <td><code>{kind.key}</code></td>
             <td>{kind.billable ? t('app.time.billable_yes') : t('app.time.billable_no')}</td>
             <td>{kind.archived ? t('app.time_settings.archived') : t('app.time_settings.offered')}</td>
             <td>
@@ -243,8 +241,11 @@
   <Dialog bind:isOpen={isEditing} title={editing ? t('app.time_settings.edit') : t('app.time_settings.add_kind')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Input label={t('app.time_settings.col_name')} value={kindDraft.name} maxlength={80} oninput={(event: Event) => rename((event.currentTarget as HTMLInputElement).value)} />
-      <Input label={t('app.time_settings.col_key')} hint={t('app.time_settings.key_hint')} value={kindDraft.key} disabledReason={editing ? t('app.time_settings.key_fixed') : undefined}
-        oninput={(event: Event) => { kindDraft.key = (event.currentTarget as HTMLInputElement).value; kindDraft.isKeyTouched = true; }} />
+      <!-- The key is made from the name; asked only where a name yields none (a script without Latin letters). -->
+      {#if !editing && kindDraft.name.trim() !== '' && (kindDraft.isKeyTouched || keyFrom(kindDraft.name) === '')}
+        <Input label={t('app.time_settings.col_key')} hint={t('app.time_settings.key_hint')} value={kindDraft.key}
+          oninput={(event: Event) => { kindDraft.key = (event.currentTarget as HTMLInputElement).value; kindDraft.isKeyTouched = true; }} />
+      {/if}
       <Switch label={t('app.time_settings.billable_default')} bind:checked={kindDraft.billable} />
       <Inline justify="end"><Button onclick={() => void saveKind()}>{t('app.time_settings.save')}</Button></Inline>
     </Stack>

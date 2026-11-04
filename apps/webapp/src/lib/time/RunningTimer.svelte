@@ -19,6 +19,8 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { dateIn, instantOf, timeIn } from '../i18n/zone.ts';
   import { renderProblem } from '../problem.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
+  import { DEFAULT_KINDS, owesDefaultKinds } from './kinds.ts';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -26,7 +28,7 @@
   const { onnavigate }: Props = $props();
 
   let timer = $state<TimeTimer | undefined>(undefined);
-  let kinds = $state<WorkTypeList['data']>([]);
+  let kinds = $state<WorkTypeList['data'] | undefined>(undefined);
   let capacities = $state<CapacityList['data']>([]);
   $effect(() => untrack(() => {
     const stops = [
@@ -49,7 +51,23 @@
   const startDay = $derived(timer?.started_at ? dateIn(timer.started_at, zone) : undefined);
   const startClock = $derived(timer?.started_at ? timeIn(timer.started_at, zone) : undefined);
   const offline = $derived(live.state === 'offline' ? t('app.time.offline') : undefined);
-  const firstKind = $derived(kinds.find((each) => !each.archived)?.key);
+  const firstKind = $derived(kinds?.find((each) => !each.archived)?.key);
+  // A workspace without a kind of work gets the usual ones from the first reader who may write
+  // them, so the timer starts on first use (§4); a failure leaves the reason on the button.
+  let isSeeding = false;
+  $effect(() => {
+    if (isSeeding || !owesDefaultKinds(kinds, holdsHere('STRUCTURE') === true)) return;
+    isSeeding = true;
+    void untrack(async () => {
+      try {
+        for (const [at, kind] of DEFAULT_KINDS.entries()) {
+          await time.defineWorkType(kind.key, { name: t(kind.code), billable: kind.billable, position: at + 1 });
+        }
+      } catch {
+        // Kept quiet: the button says why it cannot start, and Time's settings add them by hand.
+      }
+    });
+  });
 
   let isBusy = $state(false);
   let failure = $state<string | undefined>(undefined);

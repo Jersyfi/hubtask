@@ -34,8 +34,9 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running } = {}) {
+function timeBackend({ running, kinds } = {}) {
   const id = ids('00000b');
+  const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
   const records = [];
   const sheet = (account, week, state) => ({
@@ -48,12 +49,17 @@ function timeBackend({ running } = {}) {
     return { ...of, records: held, days: days.map((day) => ({ day, minutes: held.filter((each) => each.day === day).reduce((sum, each) => sum + each.minutes, 0), locked: false })), minutes: held.reduce((sum, each) => sum + each.minutes, 0) };
   };
   return (method, path, query, body) => {
-    if (path === '/time-work-types' && method === 'GET') {
-      return { json: { data: [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }] } };
+    if (path === '/time-work-types' && method === 'GET') return { json: { data: defined } };
+    const kind = /^\/time-work-types\/([a-z_]+)$/.exec(path);
+    if (kind && method === 'PUT') {
+      const made = { key: kind[1], archived: false, version: 1, ...body };
+      defined.push(made);
+      return { json: made };
     }
     if (path === '/time-policy' && method === 'GET') return { json: { locked_through: null, visibility: 'FULL', version: 1 } };
     if (path === '/timer' && method === 'GET') return { json: timer };
     if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
+    if (path === '/cost-rates' && method === 'GET') return { json: { data: [] } };
     if (path === '/time-absences' && method === 'GET') return { json: { data: [] } };
     if (path === '/timer:start' && method === 'POST') {
       timer = { running: true, entry_id: body.entry_id ?? null, work_type: body.work_type ?? 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
@@ -179,6 +185,31 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   const month = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date());
   await page.getByText(month, { exact: true }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText(/^\d{4}-\d{2}$/).count(), 0);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+// §4: a workspace's kinds of work are there on first use - the first reader who may write them
+// gets the usual ones, in their words - so the timer starts and a day records.
+test('chromium: time - a workspace without a kind of work is given the usual ones, and the timer starts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  const start = page.getByRole('button', { name: 'Start timer' });
+  await start.waitFor({ timeout: 10_000 });
+  for (let waited = 0; await start.isDisabled() && waited < 5000; waited += 100) await page.waitForTimeout(100);
+  assert.equal(await start.isDisabled(), false, 'the timer still cannot start');
+  await page.getByRole('button', { name: 'Record time', exact: true }).first().click();
+  await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+
+  await page.goto(`${served.origin}/time?tab=settings`);
+  await page.getByRole('rowheader', { name: 'Development' }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('columnheader', { name: 'Key' }).count(), 0, 'a key column is drawn');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
