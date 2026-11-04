@@ -2,8 +2,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!--
   Mockup of docs/architecture/user-experience.md §5: the product empty state in its three kinds,
-  create with a template gallery, a plan in words, a refusal with a next step, and a settings
-  page with sources, pickers and the save bar. Draws the generated token sheet only (rule 15);
+  create with a template gallery, a plan in words, a refusal with a next step, a settings page
+  with sources, pickers and the save bar, and an import in its four steps (§7.11). Draws the generated token sheet only (rule 15);
   run `make tokens` before opening it. A picture to build from: none of the names are real.
 -->
 <html lang="en" data-theme="light">
@@ -81,6 +81,10 @@
   .savebar .btn { background: transparent; color: inherit; border-color: currentColor; }
   .savebar .btn.p { background: var(--accent-primary); border-color: var(--accent-primary); }
   .flush { margin: 0; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-300); align-items: start; }
+  .steps .dialog { max-width: none; }
+  .step { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .drop { display: grid; gap: var(--sp-050); justify-items: center; text-align: center; border: var(--bw-thick) dashed var(--border-default); border-radius: var(--r-md); padding: var(--sp-300); }
   .explain { padding: var(--sp-200); border-inline-start: var(--bw-thick) solid var(--accent-primary); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-100); }
 </style>
 </head>
@@ -91,6 +95,7 @@
   <button data-scene="plan" aria-pressed="false">A plan in words</button>
   <button data-scene="refusal" aria-pressed="false">Refusals and failures</button>
   <button data-scene="settings" aria-pressed="false">A settings page</button>
+  <button data-scene="import" aria-pressed="false">An import</button>
   <button id="theme" aria-pressed="false">Dark</button>
   <span class="note">user-experience.md §5</span>
 </div>
@@ -181,6 +186,46 @@
     </div>
   </div>
   <p class="explain">One settings shell (§5.4): sections at the start, a source chip on every value with its lock and why, pickers fed by the workspace's own types, statuses and durations — never keys or minutes typed by hand —, <i>Advanced</i> folded on the same page, a save bar with its reach.</p>
+</section>
+
+<section class="scene" id="import">
+  <div class="steps">
+    <div class="dialog" role="dialog" aria-label="Import, step 1">
+      <p class="step">Step 1 of 4: Where from</p>
+      <div class="label">Spreadsheets</div>
+      <button class="t"><b>A spreadsheet (CSV)</b><span class="quiet">A CSV file saved from any spreadsheet, one entry per row.</span></button>
+      <div class="label">Wikis and documents</div>
+      <button class="t"><b>Markdown</b><span class="quiet">A folder of Markdown files as a ZIP; each file becomes a page.</span></button>
+      <span class="quiet">Opened from a product, only its sources: <a class="link">Every source</a></span>
+    </div>
+    <div class="dialog" role="dialog" aria-label="Import, step 2">
+      <p class="step">Step 2 of 4: The file</p>
+      <div class="drop"><b>Drop the CSV here</b><button class="btn">Choose a file</button><span class="quiet">Files up to 25 MB.</span></div>
+      <span class="quiet">errands.csv is uploaded and ready.</span>
+      <div class="actions"><button class="btn">Back</button><button class="btn p">Next</button></div>
+    </div>
+    <div class="dialog" role="dialog" aria-label="Import, step 3">
+      <p class="step">Step 3 of 4: The check</p>
+      <span class="in">Title ▸ <b>Task name</b> ▾</span>
+      <div class="plan">
+        <div class="label">What the import would do</div>
+        <div class="ln"><span class="op add">Adds</span><span>Creates 1 collection, 6 columns and 248 entries.</span></div>
+        <div class="ln refused"><span class="op rem">Refused</span><span>1 row would not land; the rest of the file would. Row 17: it has no title.</span></div>
+        <span class="quiet">The entries land in Errands. Nothing is written until you import.</span>
+      </div>
+      <div class="actions"><button class="btn">Back</button><button class="btn p">Import</button></div>
+    </div>
+    <div class="dialog" role="dialog" aria-label="Import, step 4">
+      <p class="step">Step 4 of 4: The import</p>
+      <div class="plan">
+        <div class="label">What the import did</div>
+        <div class="ln"><span class="op add">Added</span><span>Created 1 collection, 6 columns and 248 entries.</span></div>
+      </div>
+      <a class="link">Open Errands</a>
+      <div class="actions"><button class="btn">Close</button></div>
+    </div>
+  </div>
+  <p class="explain">One import anatomy for every source (§7.11) — spreadsheets, task apps, trackers, wikis, a plan's project file, an asset inventory: the sources as cards, the file with its limit said before choosing, the check a dry run said through <code>PlanSummary</code> and stale once the mapping changes, the report in the same words with a way to what arrived. The same file again says <i>left as they are</i>.</p>
 </section>
 
 <script>

@@ -20,7 +20,7 @@ the binding look where this document does not draw a picture of its own.
 (the column, a product home, a hub with its tab strip, the phone's bars),
 [`first-start.html`](./user-experience/first-start.html) (the starter, Today for a newcomer, a
 module switched on) and [`patterns.html`](./user-experience/patterns.html) (empty states, create
-with a template, a plan in words, a refusal, a settings page). They draw the generated token sheet
+with a template, a plan in words, a refusal, a settings page, an import). They draw the generated token sheet
 `packages/design-system/dist/tokens.css` and carry no colour, length or duration of their own
 (rule 15), so they cannot drift from the tokens; open them from a checkout after `make tokens` or
 `pnpm -r build`. They are pictures to build from, not screens: no data in them is real.
@@ -827,10 +827,16 @@ inventory — is one anatomy of four steps in one dialog, reached from the place
 As built: `ImportDialog` - the sources as cards in four families (spreadsheets, task apps, issue
 trackers, wikis and documents), the limit in the file's hint, the check a dry run of the same
 upload (`POST /imports` with `dry_run`, backup-restore.md §9) said through `PlanSummary` and marked
-stale when the mapping changes, the report in the same words. `PlanImport` and the asset
-`ImportFile` keep their one screen and say their dry runs through `PlanSummary`. Not built: the
-capture's *Import a file* and a product's empty state do not yet open the dialog on a chosen
-source; the plan and asset importers are not on the four-step anatomy.
+stale when the mapping changes, the report in the same words. A door into capture's import may
+name one source (opened on its file, *Back* offering every source) or a family (only its cards
+until *Every source*): the pages space's empty state offers *Bring in a wiki* on the wikis and
+documents, and a hub without collections offers the import under *Create collection*.
+`PlanImport` (offered by an empty plan) and the asset `ImportFile` follow the same four steps:
+the project file's two formats or the defined file sources as cards, the file with its limit,
+the check - the plan's said with the format the file was read as, which wins over the card; the
+assets' with the column mapping, checked at once where nothing is left to set and stale when it
+changes -, and the report with *See the plan* or *Open the inventory*. Mockup: `patterns.html`,
+*An import*.
 
 ---
 
