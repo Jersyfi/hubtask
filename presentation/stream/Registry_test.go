@@ -370,3 +370,13 @@ func TestTheDrainWithoutAWindowIsOneWave(t *testing.T) {
 		t.Errorf("nothing open: %+v", got)
 	}
 }
+
+func TestAWavesJitterStaysWithinItsStep(t *testing.T) {
+	for _, step := range []time.Duration{0, 1, time.Millisecond, 3 * time.Second} {
+		for range 200 {
+			if j := waveJitter(step); j < 0 || (step > 0 && j >= step) || (step == 0 && j != 0) {
+				t.Fatalf("jitter %v for step %v", j, step)
+			}
+		}
+	}
+}

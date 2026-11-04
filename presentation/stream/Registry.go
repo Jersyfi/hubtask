@@ -13,7 +13,8 @@ package stream
 
 import (
 	"context"
-	"math/rand/v2"
+	"crypto/rand"
+	"math/big"
 	"slices"
 	"strconv"
 	"sync"
@@ -281,7 +282,20 @@ const drainWaves = 10
 // It does not wait for the handlers. They return on their own and the server's own drain is what
 // waits for them, which is the one place that already knows how long it may.
 func (r *Registry) CloseInWaves(window time.Duration) {
-	r.closeInWaves(window, func(n time.Duration) time.Duration { return rand.N(n) }, time.Sleep)
+	r.closeInWaves(window, waveJitter, time.Sleep)
+}
+
+// waveJitter draws a moment in [0, step) from crypto/rand: math/rand is barred everywhere
+// (security.md §8), and a failed read falls back to no jitter rather than holding the drain.
+func waveJitter(step time.Duration) time.Duration {
+	if step <= 0 {
+		return 0
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(step)))
+	if err != nil {
+		return 0
+	}
+	return time.Duration(n.Int64())
 }
 
 func (r *Registry) closeInWaves(window time.Duration, jitter func(time.Duration) time.Duration, sleep func(time.Duration)) {
