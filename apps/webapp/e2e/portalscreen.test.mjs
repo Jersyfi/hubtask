@@ -29,7 +29,7 @@ const KINDS = [
 ];
 const ARTICLE = { page_id: '01a0e2e0-0000-7000-8000-0000000041a1', title: 'When the VPN drops', icon: '', excerpt: 'Restart the «VPN» client', content_language: null, updated_at: '2026-11-01T09:00:00Z' };
 
-async function portal(browser, { width, scheme, kinds, team = false }) {
+async function portal(browser, { width, scheme, kinds, team = false, permissions = ['READ', 'MANAGE_MEMBERS'], logo = null }) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
   forgetUnstubbed();
   const raised = [];
@@ -37,8 +37,10 @@ async function portal(browser, { width, scheme, kinds, team = false }) {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_access: false, portals: [{ collection_id: DESK, name: 'IT help' }] } });
-    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: team ? ['READ', 'MANAGE_MEMBERS'] : [] } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: team ? permissions : [] } });
     if (path === '/memberships') return route.fulfill({ json: { ...PAGE, data: [], grantable_roles: [] } });
+    if (path === `/containers/${DESK}/desk-logo`) return route.fulfill({ json: { collection_id: DESK, logo_media_id: logo } });
+    if (path === `/containers/${DESK}`) return route.fulfill({ json: { id: DESK, type: 'COLLECTION', name: 'IT help', description: 'Ask the IT team.', parent_id: null, icon: null, color_token: null, order_key: 'a0', version: 1, private: false, handle: 'ithelp', key_prefix: 'IH', created_at: '2026-11-01T09:00:00Z', updated_at: '2026-11-01T09:00:00Z' } });
     if (path === '/request-catalogue' && team) return route.fulfill({ status: 403, json: { type: 'about:blank', title: 'Forbidden', status: 403, code: 'forbidden' } });
     if (path === '/request-catalogue') return route.fulfill({ json: { desk: { name: 'IT help', description: 'Ask the IT team.', icon: null, color_token: null, logo_media_id: null }, data: kinds } });
     if (path === '/requests' && route.request().method() === 'POST') {
@@ -116,5 +118,20 @@ test('chromium: the desk\'s team sees its portal as the team, with the way to in
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: 'Invite requesters' }).click();
   await page.waitForURL('**/administration/people', { timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+// UC-SVC-05 check 9: the team is refused the requester catalogue, so its head and the logo panel
+// are drawn from the collection and the logo read the team holds - not left empty.
+test('chromium: the team that shapes the desk sees its name and sets its logo at the portal', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true, permissions: ['READ', 'STRUCTURE'], logo: null });
+  t.after(close);
+  await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { name: 'IT help', level: 1 }).waitFor({ timeout: 10_000 });
+  await page.getByText('Logo of this service').first().waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByText('Choose a logo').count() > 0, true, 'the logo panel offers a choice');
+  assert.equal(await page.getByText(/is below/).count(), 0, 'nothing promises a panel below');
   assert.deepEqual(failures, []);
 });

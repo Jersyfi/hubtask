@@ -14,6 +14,8 @@ import { engine, INTENT } from './engine.ts';
 const query = (collectionId: string) => `collection_id=${encodeURIComponent(collectionId)}`;
 
 export const cataloguePath = (collectionId: string) => `/request-catalogue?${query(collectionId)}`;
+/** A desk's logo as its team reads it: the catalogue that carries it is a requester's read. */
+export const deskLogoPath = (collectionId: string) => `/containers/${collectionId}/desk-logo`;
 export const myRequestsPath = (collectionId: string) => `/requests?${query(collectionId)}`;
 /** The requests of the reader's whole organisation, where it shares them (UC-SVC-11 check 3). */
 export const organisationRequestsPath = (collectionId: string) => `/requests?${query(collectionId)}&scope=ORGANISATION`;
@@ -55,13 +57,13 @@ class Portal {
   /** The desk's own logo (UC-SVC-05 check 9), from a picture already uploaded as `DESK_LOGO`. */
   setLogo(collectionId: string, mediaId: string): Promise<DeskLogo> {
     return engine.mutate<DeskLogo>('PUT', `/containers/${collectionId}/desk-logo`, { media_id: mediaId }, {
-      invalidates: [cataloguePath(collectionId)],
+      invalidates: [cataloguePath(collectionId), deskLogoPath(collectionId)],
     });
   }
 
   removeLogo(collectionId: string): Promise<DeskLogo> {
     return engine.mutate<DeskLogo>('DELETE', `/containers/${collectionId}/desk-logo`, undefined, {
-      invalidates: [cataloguePath(collectionId)],
+      invalidates: [cataloguePath(collectionId), deskLogoPath(collectionId)],
     });
   }
 

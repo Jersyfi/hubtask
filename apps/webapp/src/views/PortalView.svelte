@@ -18,12 +18,13 @@
   } from '@hubtask/design-system/components';
   import { ICON_NAMES } from '@hubtask/design-system/icons';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
-  import type { ApprovalList, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
+  import type { ApprovalList, DeskLogo, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
 
   import { myApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
 
-  import { cataloguePath, myRequestsPath, organisationRequestsPath, portal } from '../lib/data/portal.svelte.ts';
+  import { cataloguePath, deskLogoPath, myRequestsPath, organisationRequestsPath, portal } from '../lib/data/portal.svelte.ts';
+  import { containers } from '../lib/data/containers.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -31,7 +32,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import ArticleSuggestions from '../lib/portal/ArticleSuggestions.svelte';
   import Question from '../lib/portal/Question.svelte';
-  import { answersOf, askable, deflectionText, deskHead, deskLogoOf, isTeamView } from '../lib/portal/portal.ts';
+  import { answersOf, askable, deflectionText, deskHead, deskLogoOf, isTeamView, teamDeskOf } from '../lib/portal/portal.ts';
   import { media } from '../lib/data/media.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
@@ -43,7 +44,22 @@
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
 
   const catalogue = untrack(() => resource<RequestCatalogue>(cataloguePath(collectionId)));
-  const desk = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.desk : undefined);
+  // The desk's team holds no REQUEST at its own portal: its desk is the collection's own read and
+  // the logo's, which the team holds (UC-SVC-05 check 9).
+  const isTeam = $derived(catalogue.state.status === 'failed' && isTeamView(catalogue.state.error));
+  let teamLogo = $state<ReturnType<typeof resource<DeskLogo>> | undefined>(undefined);
+  $effect(() => {
+    if (!isTeam) return;
+    return untrack(() => {
+      teamLogo ??= resource<DeskLogo>(deskLogoPath(collectionId));
+      return containers.openSingle(collectionId);
+    });
+  });
+  const desk = $derived(
+    catalogue.state.status === 'ready'
+      ? catalogue.state.data.desk
+      : isTeam ? teamDeskOf(containers.find(collectionId), teamLogo?.state.status === 'ready' ? teamLogo.state.data.logo_media_id : null) : undefined,
+  );
   // The desk's own logo, drawn from the download target the server answers (check 9); until it
   // arrives, or where the reader may not have it, the icon and the colour stand.
   const logoUrl = $derived(media.coverUrl(deskLogoOf(desk), Date.now()));
@@ -56,7 +72,6 @@
   const kinds = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.data : []);
   // The desk's team opening the portal from its collection holds no REQUEST there: told as such,
   // with what it sets up for the portal, rather than shown the refusal (UC-SVC-05).
-  const isTeam = $derived(catalogue.state.status === 'failed' && isTeamView(catalogue.state.error));
   const failure = $derived(catalogue.state.status === 'failed' && !isTeam ? renderProblem(catalogue.state.error, messages) : undefined);
   const organisation = $derived(mine.state.status === 'ready' ? mine.state.data.organisation : undefined);
   const offered = $derived(offersOrganisation(organisation));

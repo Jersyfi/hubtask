@@ -120,6 +120,19 @@ export interface Desk {
   readonly logo_media_id?: string | null;
 }
 
+/**
+ * The desk as its team sees it at its own portal, where the catalogue is refused to it: the
+ * collection's own name, description and look, and the logo read for the team; undefined until
+ * the collection is read.
+ */
+export function teamDeskOf(
+  collection: { readonly name: string; readonly description?: string | null; readonly icon?: string | null; readonly color_token?: string | null } | undefined,
+  logo: string | null | undefined,
+): Desk | undefined {
+  if (!collection) return undefined;
+  return { name: collection.name, description: collection.description ?? '', icon: collection.icon ?? '', color_token: collection.color_token ?? '', logo_media_id: logo ?? null };
+}
+
 /** The logo the desk is drawn by, or undefined for its icon and colour (UC-SVC-05 check 9). */
 export function deskLogoOf(desk: Desk | undefined): string | undefined {
   return desk?.logo_media_id || undefined;

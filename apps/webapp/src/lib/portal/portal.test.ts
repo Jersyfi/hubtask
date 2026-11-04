@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { actsAsDesk, answersOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart } from './portal.ts';
+import { actsAsDesk, answersOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart, teamDeskOf } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -99,4 +99,15 @@ test('an article never shows a requester an internal address (user-experience.md
   const id = '01a0e2e0-0000-7000-8000-000000000901';
   const body = `# Reset your password\n\nAsk [](hubtask:entry/${id}) first.\n\n![](hubtask:media/${id})\n\n::children\n\nThen [the guide](https://example.org).`;
   assert.equal(articleText(body), '# Reset your password\n\nAsk  first.\n\nThen [the guide](https://example.org).');
+});
+
+// The team opening its own portal is refused the requester catalogue: its head and its logo are
+// the collection's own, read where the team holds READ, so the logo panel has a desk to draw.
+test('the team sees its own desk at its portal, though the catalogue is refused to it', () => {
+  const desk = teamDeskOf({ name: 'IT help', description: null, icon: 'printer', color_token: 'blue' }, 'logo-1');
+  assert.deepEqual(desk, { name: 'IT help', description: '', icon: 'printer', color_token: 'blue', logo_media_id: 'logo-1' });
+  assert.equal(deskLogoOf(desk), 'logo-1');
+  assert.equal(deskLogoOf(teamDeskOf({ name: 'IT help' }, null)), undefined, 'no logo draws the icon');
+  assert.equal(teamDeskOf(undefined, 'logo-1'), undefined, 'nothing before the collection is read');
+  assert.deepEqual(deskHead(desk, { title: 'Ask for help', intro: 'Tell the team.' }), { title: 'IT help', subtitle: 'Tell the team.' });
 });
