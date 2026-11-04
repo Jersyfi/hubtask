@@ -299,6 +299,8 @@
             isPrivateHubsReadable: privateHubs.isReadable,
             hasAnyPrivateHub: privateHubs.hasAny,
             hasSeveralPeople: workspace.workspace?.several_people === true,
+            isOnePerson: workspace.workspace?.several_people === false,
+            inUse: webhooks.all.length > 0 ? ['webhooks'] : [],
             isInstanceReachable: manifest.isInstanceReachable,
             isAdministrationReachable,
             isSingleWorkspace: manifest.isSingleTenant,

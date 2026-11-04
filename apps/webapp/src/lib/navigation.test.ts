@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, bar, currentDestination, firstScreen, installationPlace, instanceSection, primary, products, workspaceBand } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, primary, products, workspaceBand, type SectionGroup } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -347,4 +347,27 @@ test('every navigation word is translated, but for a short list of words used as
   const german = GERMAN as Record<string, string>;
   const untranslated = [...new Set(codes)].filter((code) => SOURCE[code] === german[code] && !SAME.has(SOURCE[code] as string));
   assert.deepEqual(untranslated, [], `the same in both: ${untranslated.map((code) => `${code}=${SOURCE[code]}`).join(', ')}`);
+});
+
+// user-experience.md §8.2: the advanced rows fold under *More* while the workspace holds one person,
+// a row already used stays out, a group folds two rows or none, and Templates stays where a
+// newcomer starts.
+test('the advanced rows fold while the workspace holds one person, and never what is used', () => {
+  const folded = (groups: readonly SectionGroup[]) =>
+    groups.flatMap((group) => group.rows.filter((row) => row.isFolded).map((row) => row.id));
+  const base = {
+    isPrivateHubsReadable: true, hasAnyPrivateHub: false, hasSeveralPeople: false,
+    isInstanceReachable: false, isAdministrationReachable: true, isSingleWorkspace: false,
+  };
+  assert.deepEqual(folded(administrationFor({ ...base, isOnePerson: true })).sort(),
+    ['link-types', 'runs', 'voice', 'webhooks']);
+  // Webhooks in use: voice would be alone under *More*, and a group folds two rows or none.
+  assert.deepEqual(folded(administrationFor({ ...base, isOnePerson: true, inUse: ['webhooks'] })).sort(),
+    ['link-types', 'runs']);
+  // Unknown is not one person: nothing folds while the workspace is still being read.
+  assert.deepEqual(folded(administrationFor(base)), []);
+  assert.deepEqual(folded(administrationFor({ ...base, hasSeveralPeople: true, isOnePerson: false })), []);
+  // Folded rows are still rows, so the palette, which reads the same list, finds them.
+  const ids = administrationFor({ ...base, isOnePerson: true }).flatMap((group) => group.rows.map((row) => row.id));
+  assert.ok(ids.includes('voice') && ids.includes('presets'));
 });

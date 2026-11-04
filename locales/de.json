@@ -6402,6 +6402,7 @@
   "app.webhooks.unsubscribed_announced": "Abonnement beendet.",
   "app.webhooks.replayed_announced": "Zustellung wiederholt.",
   "app.admin.runs": "Regelläufe",
+  "app.admin.more": "Mehr",
   "app.rules.title": "Regeln",
   "app.rules.intro": "Regeln, die etwas tun, wenn etwas passiert. Jede läuft als ein Konto und kann nie mehr, als dieses Konto darf.",
   "app.rules.reading": "Die Regeln werden gelesen",

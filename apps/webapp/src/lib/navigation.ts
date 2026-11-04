@@ -232,6 +232,10 @@ export interface SectionRow {
   readonly module?: string;
   /** A code of synonyms the palette also finds the row by (user-experience.md §2.7). */
   readonly words?: string;
+  /** A screen few workspaces need at the start, folded under *More* while the workspace is small. */
+  readonly isAdvanced?: boolean;
+  /** Drawn under its group's *More* for this reader; still found by the palette (§8.2). */
+  readonly isFolded?: boolean;
 }
 
 export interface SectionGroup {
@@ -271,14 +275,14 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'entry-types', icon: 'tag', code: 'app.entry_types.title', path: '/administration/types', routes: ['entry-types'], module: 'WORKFLOWS' },
       { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
-      { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'] },
+      { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'], isAdvanced: true },
       { id: 'time-settings', icon: 'clock', code: 'app.time_settings.title', path: '/administration/time', routes: ['time-settings'], module: 'TIME' },
       { id: 'service-desk', icon: 'inbox', code: 'app.desk.title', path: '/administration/service-desk', routes: ['service-desk'], module: 'SERVICE_DESK', words: 'app.nav.words_service_desk' },
       { id: 'cmdb', icon: 'shield', code: 'app.cmdb_admin.title', path: '/administration/configuration-items', routes: ['cmdb'], module: 'ASSETS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'], words: 'app.nav.words_rules' },
-      { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'], words: 'app.nav.words_runs' },
+      { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'], words: 'app.nav.words_runs', isAdvanced: true },
     ],
   },
   {
@@ -291,7 +295,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // moved there and is claimed here, so the row is current the moment it lands.
       { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
       { id: 'legal', icon: 'book-open', code: 'app.signin_settings.legal', path: '/administration/legal', routes: ['legal'] },
-      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps'] },
+      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps'], isAdvanced: true },
     ],
   },
   {
@@ -300,9 +304,9 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     rows: [
       // The mail intake: a workspace's one inbox, sorted by handles and ticket keys (ADR-0094).
       { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'], words: 'app.nav.words_mail' },
-      { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
+      { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'], isAdvanced: true },
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
-      { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'] },
+      { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'], isAdvanced: true },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
       { id: 'agents', icon: 'zap', code: 'app.agents.title', path: '/administration/agents', routes: ['agents'], module: 'AGENTS' },
     ],
@@ -320,7 +324,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'], words: 'app.nav.words_audit' },
       { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'], words: 'app.nav.words_privacy' },
-      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
+      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'], isAdvanced: true },
     ],
   },
   {
@@ -358,14 +362,22 @@ export function administration(options: {
   readonly withInstallation?: boolean;
   /** The modules switched on (`modules_on`); a row of a module that is off is not drawn. */
   readonly modulesOn?: readonly string[];
+  /** Whether the advanced rows fold under *More*: while the workspace holds one person (§8.2). */
+  readonly isFoldingAdvanced?: boolean;
+  /** Advanced rows already used here, by id: they stay unfolded. */
+  readonly inUse?: readonly string[];
 }): readonly SectionGroup[] {
   const on = options.modulesOn ?? [];
-  const groups = ADMINISTRATION.map((group) => ({
-    ...group,
-    rows: group.rows.filter(
+  const used = options.inUse ?? [];
+  const groups = ADMINISTRATION.map((group) => {
+    const rows = group.rows.filter(
       (row) => (options.hasPrivateHubs || row.id !== 'private-hubs') && (!row.module || on.includes(row.module)),
-    ),
-  }));
+    );
+    const folds = (row: SectionRow) => options.isFoldingAdvanced === true && row.isAdvanced === true && !used.includes(row.id);
+    // A *More* that would hold one row hides as much as it shows, so a group folds two or none.
+    if (rows.filter(folds).length < 2) return { ...group, rows };
+    return { ...group, rows: rows.map((row) => (folds(row) ? { ...row, isFolded: true } : row)) };
+  });
   return options.withInstallation ? [...groups, INSTALLATION_GROUP] : groups;
 }
 
@@ -385,10 +397,20 @@ export function administrationFor(options: {
   readonly isAdministrationReachable: boolean;
   readonly isSingleWorkspace: boolean;
   readonly modulesOn?: readonly string[];
+  /**
+   * Whether the workspace is known to hold one person: only then do the advanced rows fold. The
+   * server answers whether there are several, not how many, so §8.2's "more than five" is read as
+   * "more than one"; unknown is not one, so nothing folds and unfolds while the workspace is read.
+   */
+  readonly isOnePerson?: boolean;
+  /** Advanced rows the workspace already uses, by id (`administration`'s `inUse`). */
+  readonly inUse?: readonly string[];
 }): readonly SectionGroup[] {
   return administration({
     hasPrivateHubs: options.isPrivateHubsReadable && (options.hasAnyPrivateHub || options.hasSeveralPeople),
     modulesOn: options.modulesOn,
+    isFoldingAdvanced: options.isOnePerson === true,
+    ...(options.inUse ? { inUse: options.inUse } : {}),
     withInstallation:
       installationPlace({
         isInstanceReachable: options.isInstanceReachable,

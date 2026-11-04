@@ -6402,6 +6402,7 @@
   "app.webhooks.unsubscribed_announced": "Unsubscribed.",
   "app.webhooks.replayed_announced": "Delivery replayed.",
   "app.admin.runs": "Rule runs",
+  "app.admin.more": "More",
   "app.rules.title": "Rules",
   "app.rules.intro": "Rules that do something when something happens. Each runs as an account and can never do more than that account may.",
   "app.rules.reading": "Reading the rules",
