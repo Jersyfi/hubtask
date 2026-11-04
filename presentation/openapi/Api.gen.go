@@ -17708,6 +17708,9 @@ type InvitationInspection struct {
 
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
+	// Locale The language the invitation card was read in, as a BCP 47 tag. The owner a new workspace was made for finds its default hub, example collection, columns and labels named in it, where nobody has renamed them yet; a language without a catalogue reads the source language. Absent, they keep the workspace's language. Ignored for anybody else.
+	Locale *string `json:"locale,omitempty"`
+
 	// Password The first password, under the workspace's password policy.
 	Password string `json:"password"`
 

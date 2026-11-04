@@ -227,6 +227,7 @@ class InvitationRedemption(TypedDict, total=False):
     password: Required[str]
     terms_url: str | None
     terms_version: str | None
+    locale: str | None
 
 class InvitationInspection(TypedDict, total=False):
     token: Required[str]
