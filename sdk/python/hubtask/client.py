@@ -3347,6 +3347,10 @@ class Client:
         """A page opened by its public link"""
         return self._call("GET", "/public/pages/{token}", {"token": token}, None, {}, None, "none", None, "raw")
 
+    def get_public_page_media(self, token: str, media_id: str) -> bytes:
+        """A picture of a page opened by its public link"""
+        return self._call("GET", "/public/pages/{token}/media/{mediaId}", {"token": token, "mediaId": media_id}, None, {}, None, "none", None, "raw")
+
     def list_shared_pages(self) -> "SharedPageList":
         """The pages shared with me"""
         return self._call("GET", "/pages:shared", {}, None, {}, None, "none", None, "json")

@@ -39050,10 +39050,17 @@ type ClientInterface interface {
 
 	// GetPublicPage A page opened by its public link
 	//
-	// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+	// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404. The page's pictures are drawn from the link's own media route; a mention of another page shows that page's title only where that page has a public link of its own, and every other mention and every file is left out.
 	//
 	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 	GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetPublicPageMedia A picture of a page opened by its public link
+	//
+	// The bytes of one picture the page holds, for the public page to draw: only a picture attached to that page and named in its body, only while the link itself answers. Anything else - another page's picture, a file that is no picture, a link that no longer answers - is the same 404.
+	//
+	// Corresponds with GET /public/pages/{token}/media/{mediaId} (the `GetPublicPageMedia` operationId).
+	GetPublicPageMedia(ctx context.Context, token string, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetPublicRoadmap A portfolio's roadmap opened by its public link
 	//
@@ -59708,11 +59715,28 @@ func (c *Client) SubmitPublicForm(ctx context.Context, token string, body Submit
 
 // GetPublicPage A page opened by its public link
 //
-// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404. The page's pictures are drawn from the link's own media route; a mention of another page shows that page's title only where that page has a public link of its own, and every other mention and every file is left out.
 //
 // Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 func (c *Client) GetPublicPage(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetPublicPageRequest(c.Server, token)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetPublicPageMedia A picture of a page opened by its public link
+//
+// The bytes of one picture the page holds, for the public page to draw: only a picture attached to that page and named in its body, only while the link itself answers. Anything else - another page's picture, a file that is no picture, a link that no longer answers - is the same 404.
+//
+// Corresponds with GET /public/pages/{token}/media/{mediaId} (the `GetPublicPageMedia` operationId).
+func (c *Client) GetPublicPageMedia(ctx context.Context, token string, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetPublicPageMediaRequest(c.Server, token, mediaId)
 	if err != nil {
 		return nil, err
 	}
@@ -95620,6 +95644,47 @@ func NewGetPublicPageRequest(server string, token string) (*http.Request, error)
 	return req, nil
 }
 
+// NewGetPublicPageMediaRequest constructs an http.Request for the GetPublicPageMedia method
+func NewGetPublicPageMediaRequest(server string, token string, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "token", token, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/public/pages/%s/media/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGetPublicRoadmapRequest constructs an http.Request for the GetPublicRoadmap method
 func NewGetPublicRoadmapRequest(server string, token string, params *GetPublicRoadmapParams) (*http.Request, error) {
 	var err error
@@ -112884,12 +112949,21 @@ type ClientWithResponsesInterface interface {
 
 	// GetPublicPageWithResponse A page opened by its public link
 	//
-	// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+	// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404. The page's pictures are drawn from the link's own media route; a mention of another page shows that page's title only where that page has a public link of its own, and every other mention and every file is left out.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /public/pages/{token} (the `GetPublicPage` operationId).
 	GetPublicPageWithResponse(ctx context.Context, token string, reqEditors ...RequestEditorFn) (*GetPublicPageResult, error)
+
+	// GetPublicPageMediaWithResponse A picture of a page opened by its public link
+	//
+	// The bytes of one picture the page holds, for the public page to draw: only a picture attached to that page and named in its body, only while the link itself answers. Anything else - another page's picture, a file that is no picture, a link that no longer answers - is the same 404.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /public/pages/{token}/media/{mediaId} (the `GetPublicPageMedia` operationId).
+	GetPublicPageMediaWithResponse(ctx context.Context, token string, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetPublicPageMediaResult, error)
 
 	// GetPublicRoadmapWithResponse A portfolio's roadmap opened by its public link
 	//
@@ -147589,6 +147663,47 @@ func (r GetPublicPageResult) ContentType() string {
 	return ""
 }
 
+type GetPublicPageMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetPublicPageMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetPublicPageMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetPublicPageMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetPublicPageMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetPublicPageMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetPublicRoadmapResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -170772,7 +170887,7 @@ func (c *ClientWithResponses) SubmitPublicFormWithResponse(ctx context.Context, 
 
 // GetPublicPageWithResponse A page opened by its public link
 //
-// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.
+// The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404. The page's pictures are drawn from the link's own media route; a mention of another page shows that page's title only where that page has a public link of its own, and every other mention and every file is left out.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -170783,6 +170898,21 @@ func (c *ClientWithResponses) GetPublicPageWithResponse(ctx context.Context, tok
 		return nil, err
 	}
 	return ParseGetPublicPageResult(rsp)
+}
+
+// GetPublicPageMediaWithResponse A picture of a page opened by its public link
+//
+// The bytes of one picture the page holds, for the public page to draw: only a picture attached to that page and named in its body, only while the link itself answers. Anything else - another page's picture, a file that is no picture, a link that no longer answers - is the same 404.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /public/pages/{token}/media/{mediaId} (the `GetPublicPageMedia` operationId).
+func (c *ClientWithResponses) GetPublicPageMediaWithResponse(ctx context.Context, token string, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetPublicPageMediaResult, error) {
+	rsp, err := c.GetPublicPageMedia(ctx, token, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetPublicPageMediaResult(rsp)
 }
 
 // GetPublicRoadmapWithResponse A portfolio's roadmap opened by its public link
@@ -197518,6 +197648,32 @@ func ParseGetPublicPageResult(rsp *http.Response) (*GetPublicPageResult, error) 
 	}
 
 	response := &GetPublicPageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetPublicPageMediaResult parses an HTTP response from a GetPublicPageMediaWithResponse call
+func ParseGetPublicPageMediaResult(rsp *http.Response) (*GetPublicPageMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetPublicPageMediaResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

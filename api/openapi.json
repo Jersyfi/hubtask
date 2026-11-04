@@ -33934,7 +33934,7 @@
         "x-hubtask-rest-to": "Feeds",
         "security": [],
         "summary": "A page opened by its public link",
-        "description": "The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404.\n",
+        "description": "The page as a standalone HTML document - no script, no style sheet from elsewhere, every word escaped - as it stands now. An unknown token, a replaced or removed link, a workspace that no longer allows public links, a page trashed or restricted since, and a link whose maker no longer reads the page all answer the same 404. The page's pictures are drawn from the link's own media route; a mention of another page shows that page's title only where that page has a public link of its own, and every other mention and every file is left out.\n",
         "responses": {
           "200": {
             "description": "The page",
@@ -33942,6 +33942,49 @@
               "text/html": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/public/pages/{token}/media/{mediaId}": {
+      "parameters": [
+        {
+          "name": "token",
+          "in": "path",
+          "required": true,
+          "description": "The page link's token, the whole credential, as for the page itself.",
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/components/parameters/MediaId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "getPublicPageMedia",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Feeds",
+        "security": [],
+        "summary": "A picture of a page opened by its public link",
+        "description": "The bytes of one picture the page holds, for the public page to draw: only a picture attached to that page and named in its body, only while the link itself answers. Anything else - another page's picture, a file that is no picture, a link that no longer answers - is the same 404.\n",
+        "responses": {
+          "200": {
+            "description": "The picture",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
                 }
               }
             }

@@ -4214,6 +4214,12 @@ export class HubtaskClient {
     return this.call("GET", "/public/pages/{token}", { "token": token }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
   }
 
+  /** A picture of a page opened by its public link
+   * Public: sent without a bearer where the client holds none. */
+  getPublicPageMedia(token: string, mediaId: string, options: CallOptions = {}): Promise<Response> {
+    return this.call("GET", "/public/pages/{token}/media/{mediaId}", { "token": token, "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
   /** The pages shared with me */
   listSharedPages(options: CallOptions = {}): Promise<operations["listSharedPages"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/pages:shared", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

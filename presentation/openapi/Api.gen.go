@@ -32239,6 +32239,9 @@ type ServerInterface interface {
 	// GetPublicPage A page opened by its public link
 	// (GET /public/pages/{token})
 	GetPublicPage(w http.ResponseWriter, r *http.Request, token string)
+	// GetPublicPageMedia A picture of a page opened by its public link
+	// (GET /public/pages/{token}/media/{mediaId})
+	GetPublicPageMedia(w http.ResponseWriter, r *http.Request, token string, mediaId MediaId)
 	// GetPublicRoadmap A portfolio's roadmap opened by its public link
 	// (GET /public/roadmaps/{token})
 	GetPublicRoadmap(w http.ResponseWriter, r *http.Request, token string, params GetPublicRoadmapParams)
@@ -55089,6 +55092,41 @@ func (siw *ServerInterfaceWrapper) GetPublicPage(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetPublicPageMedia operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicPageMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "token" -------------
+	var token string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "token", r.PathValue("token"), &token, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicPageMedia(w, r, token, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetPublicRoadmap operation middleware
 func (siw *ServerInterfaceWrapper) GetPublicRoadmap(w http.ResponseWriter, r *http.Request) {
 
@@ -61216,6 +61254,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/public/satisfaction/{token}", wrapper.AnswerSatisfactionLink)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/roadmaps/{token}", wrapper.GetPublicRoadmap)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}", wrapper.GetPublicPage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/public/pages/{token}/media/{mediaId}", wrapper.GetPublicPageMedia)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:shared", wrapper.ListSharedPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:personal", wrapper.ReadPersonalSpace)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages:today", wrapper.OpenDailyNote)

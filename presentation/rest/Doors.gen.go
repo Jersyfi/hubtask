@@ -2540,6 +2540,15 @@ func (c *RestController) GetPublicPage(w http.ResponseWriter, r *http.Request, t
 	c.Feeds.GetPublicPage(w, r, token)
 }
 
+// GetPublicPageMedia answers GET /public/pages/{token}/media/{mediaId} by the adapter in Feeds, which holds the connection.
+func (c *RestController) GetPublicPageMedia(w http.ResponseWriter, r *http.Request, token string, mediaId openapi.MediaId) {
+	if c.Feeds == nil {
+		c.pending.GetPublicPageMedia(w, r, token, mediaId)
+		return
+	}
+	c.Feeds.GetPublicPageMedia(w, r, token, mediaId)
+}
+
 // GetPublicRoadmap answers GET /public/roadmaps/{token} by the adapter in Feeds, which holds the connection.
 func (c *RestController) GetPublicRoadmap(w http.ResponseWriter, r *http.Request, token string, params openapi.GetPublicRoadmapParams) {
 	if c.Feeds == nil {
