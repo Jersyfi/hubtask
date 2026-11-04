@@ -235,7 +235,7 @@ func NewConnector(in ConnectorInput, existing *Connector) (Connector, error) {
 			return Connector{}, invalid("/hub_id", "cmdb.connector_hub_fixed")
 		}
 	}
-	if existing != nil && (existing.BaseURL != base || !maps.Equal(existing.Settings, settings)) {
+	if existing != nil && !existing.SameSource(Connector{BaseURL: base, Settings: settings}) {
 		// Another address, directory or region is another source: its changes are not read from
 		// this one's cursor.
 		c.Cursor = ""
@@ -271,6 +271,12 @@ func hostOf(raw string) (string, error) {
 		return "", invalid("/base_url", "cmdb.connector_base_url_invalid")
 	}
 	return strings.ToLower(u.Hostname()), nil
+}
+
+// SameSource reports whether two definitions read the same source: the same address and the same
+// settings (a directory, a region). Another source's changes are not read from this one's cursor.
+func (c Connector) SameSource(o Connector) bool {
+	return c.BaseURL == o.BaseURL && maps.Equal(c.Settings, o.Settings)
 }
 
 // Spec is the connector's kind's spec.

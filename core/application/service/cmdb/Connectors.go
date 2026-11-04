@@ -516,19 +516,31 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 	if n := len(did.runs); n > 0 {
 		last = did.runs[n-1]
 	}
-	next := c.Ran(s.Inventory.Clock.Now(), last, outcome, did.failure, cursor, retryAt)
-	// A failure after some pages keeps what they reached: those pages are written.
-	if did.failure != "" && len(did.runs) > 0 {
-		next.Cursor = cursor
-	}
+	var next domain.Connector
 	err = s.Inventory.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The run is recorded onto the connector as it is now: a switch-off or a new period set
+		// while the pages were fetched is not undone by the snapshot the run started from.
+		current, err := s.Store.FindConnector(ctx, c.ID, true)
+		if err != nil {
+			return err
+		}
+		reached := cursor
+		if !current.SameSource(c) {
+			// Pointed at another source meanwhile: this run's cursor is the old source's.
+			reached = current.Cursor
+		}
+		next = current.Ran(s.Inventory.Clock.Now(), last, outcome, did.failure, reached, retryAt)
+		// A failure after some pages keeps what they reached: those pages are written.
+		if did.failure != "" && len(did.runs) > 0 {
+			next.Cursor = reached
+		}
 		if err := s.Store.RecordRun(ctx, next); err != nil {
 			return err
 		}
 		if err := s.runAlert(ctx, actor.TenantID, next); err != nil {
 			return err
 		}
-		if err := s.tellSwitchedOff(ctx, actor.TenantID, c, next); err != nil {
+		if err := s.tellSwitchedOff(ctx, actor.TenantID, current, next); err != nil {
 			return err
 		}
 		if err := s.schedule(ctx, actor.TenantID, next); err != nil {

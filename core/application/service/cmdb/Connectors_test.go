@@ -536,3 +536,29 @@ func TestAScheduledConnectorDefinedBeforeItsCredentialWaitsForIt(t *testing.T) {
 		t.Fatalf("and then it pulls: %v %v", next, err)
 	}
 }
+
+// A pull takes minutes; what a person changed on the connector meanwhile is not undone by the
+// run's end.
+func TestAConnectorSwitchedOffDuringAPullStaysOff(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org", "every_minutes": 60}))
+	_, _ = call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"})
+	f.src.pages = []connectorport.Page{{Payload: domain.Payload{Items: []domain.Item{{Class: "server", Name: "s", NativeKey: "1"}}}, Cursor: "c1"}}
+	f.src.during = func() {
+		f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+			"base_url": "https://netbox.example.org", "every_minutes": 60, "enabled": false})
+	}
+	asked := len(f.jobs.asked)
+	next, err := f.c.RunScheduled(context.Background(), tenant, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := f.store.conns[id]
+	if c.Enabled || c.NextRunAt != nil || !next.IsZero() || len(f.jobs.asked) != asked {
+		t.Fatalf("switched off meanwhile stays off and unscheduled: %+v, next %v, jobs %d", c, next, len(f.jobs.asked)-asked)
+	}
+	if c.LastOutcome != domain.ConnectorOK || c.Cursor != "c1" || len(f.m.cis) != 1 {
+		t.Fatalf("the run itself is still recorded: %+v", c)
+	}
+}
