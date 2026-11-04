@@ -230,3 +230,34 @@ func TestASettingWithAZeroByteIsRefused(t *testing.T) {
 		t.Fatalf("a setting no column stores: %v", err)
 	}
 }
+
+func TestAConnectorPointedAtAnotherSourceStartsFromTheBeginning(t *testing.T) {
+	in := ConnectorInput{Key: "nb", Kind: ConnectorNetBox, Source: connectorSource(), BaseURL: "https://nb-a.example",
+		Every: 60, Enabled: true, Now: now}
+	c, err := NewConnector(in, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = c.Ran(now, id("05"), ConnectorOK, "", "2026-10-29T12:00:00Z", nil)
+	in.Every = 120
+	same, err := NewConnector(in, &c)
+	if err != nil || same.Cursor != c.Cursor {
+		t.Fatalf("a new period reads on from the cursor: %q %v", same.Cursor, err)
+	}
+	in.BaseURL = "https://nb-b.example"
+	moved, err := NewConnector(in, &c)
+	if err != nil || moved.Cursor != "" {
+		t.Fatalf("another source's changes are not read from this one's cursor: %q %v", moved.Cursor, err)
+	}
+	g, err := NewConnector(ConnectorInput{Key: "os", Kind: ConnectorOpenStack, Source: connectorSource(), BaseURL: "https://os.example",
+		Settings: map[string]string{"application_credential_id": "a", "region": "one"}, Now: now}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g = g.Ran(now, id("05"), ConnectorOK, "", "c1", nil)
+	other, err := NewConnector(ConnectorInput{Key: "os", Kind: ConnectorOpenStack, Source: connectorSource(), BaseURL: "https://os.example",
+		Settings: map[string]string{"application_credential_id": "a", "region": "two"}, Now: now}, &g)
+	if err != nil || other.Cursor != "" {
+		t.Fatalf("another region is another source: %q %v", other.Cursor, err)
+	}
+}

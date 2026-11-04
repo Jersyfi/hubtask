@@ -235,6 +235,11 @@ func NewConnector(in ConnectorInput, existing *Connector) (Connector, error) {
 			return Connector{}, invalid("/hub_id", "cmdb.connector_hub_fixed")
 		}
 	}
+	if existing != nil && (existing.BaseURL != base || !maps.Equal(existing.Settings, settings)) {
+		// Another address, directory or region is another source: its changes are not read from
+		// this one's cursor.
+		c.Cursor = ""
+	}
 	c.Key, c.Kind, c.Source, c.BaseURL, c.Settings, c.AllowedHosts = in.Key, in.Kind, in.Source.Key, base, settings, hosts
 	c.Every, c.Enabled, c.Collection, c.RunAs, c.UpdatedAt = in.Every, in.Enabled, in.Collection, in.By, in.Now
 	if in.Enabled && existing != nil && !existing.Enabled {
