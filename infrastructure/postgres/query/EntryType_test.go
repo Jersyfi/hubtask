@@ -10,8 +10,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
-// The entry's type is a query field (UC-FLW-01): an entry without a type of its own answers as its
-// level's system type, so a filter on `task` finds the entries nobody typed.
+// The entry's type is a query field (UC-FLW-01 check 6): an entry without a type of its own
+// answers as its level's system type, so a filter on `task` finds the entries nobody typed.
 func TestTheEntryTypeFiltersByTheEffectiveKey(t *testing.T) {
 	const effective = `coalesce(wi.entry_type, lower(wi.type::text))`
 
@@ -40,6 +40,7 @@ func TestTheEntryTypeFiltersByTheEffectiveKey(t *testing.T) {
 	}
 }
 
+// UC-FLW-01 check 6: the type is a grouping of every view, cut and counted by the effective key.
 func TestTheEntryTypeGroupsAndCounts(t *testing.T) {
 	grouping, err := view.ParseGroupBy(map[string]any{"field": "entry_type"}, "/group_by")
 	if err != nil {

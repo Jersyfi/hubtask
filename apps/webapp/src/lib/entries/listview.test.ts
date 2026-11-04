@@ -81,7 +81,7 @@ test('a date falls in its band on the reader\'s day', () => {
   assert.equal(dueBandOf(undefined, '2026-10-24', '2026-10-30'), null);
 });
 
-test('the entry type is a column and a grouping only where the workspace shows types', () => {
+test('the entry type is a column and a grouping only where the workspace shows types (UC-FLW-01 check 6)', () => {
   const typed: ListOffer = { ...project, showsTypes: true };
   assert.deepEqual(offeredFields(typed), ['key', 'type', 'column', 'due', 'people', 'labels', 'progress']);
   assert.deepEqual(offeredGroupings(typed), ['none', 'type', 'category', 'column', 'assignee', 'due']);

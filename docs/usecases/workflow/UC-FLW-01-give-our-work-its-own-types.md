@@ -5,7 +5,7 @@ context: workflow
 actors: [PE-admin, PE-member, PE-integrator, PE-agent]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
-state: built
+state: verified
 tasks: []
 checked_by: [infrastructure/postgres/StructureDocument_test.go, core/application/service/work/StructureInput_test.go, apps/webapp/src/lib/workspace/structureDraft.test.ts, core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go, core/domain/model/work/Form_test.go, core/application/service/work/FormGate_test.go, core/application/service/workflow/EntryTypeForm_test.go, test/integration/entry_type_form_test.go, infrastructure/expression/CEL_test.go, apps/webapp/src/lib/data/entryforms.test.ts, apps/webapp/src/lib/entries/listview.test.ts, core/application/service/work/MoveWorkItem_test.go, core/application/service/work/DuplicateWorkItem_test.go, test/integration/entry_type_placement_test.go, core/domain/model/work/EntryTypeHub_test.go, core/application/service/workflow/EntryTypeHub_test.go, core/application/service/work/EntryTypeHubGate_test.go, test/integration/entry_type_hub_test.go]
 ---
