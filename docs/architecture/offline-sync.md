@@ -504,7 +504,10 @@ it, order it and decide who may touch it.
 * **The store** (migration 0230): per document a head (`realtime_document`: the last place given,
   the place the newest snapshot covers), an append-only log of updates (`realtime_update`, each at
   most 1 MiB, with its author) and snapshots (`realtime_snapshot`, at most 16 MiB). The server never
-  reads an update. Two writers are ordered by the head's row lock; every insert rings the change
+  merges an update; it reads only what one covers - per editor the clock ranges of its content and
+  of its deletions, from the update's headers (`core/application/service/realtime` `Coverage`, a reader of
+  the editors' update encoding version one, no CRDT library). An update the editors could not read
+  is refused (`realtime.update_unreadable`), since stored it would break every opener. Two writers are ordered by the head's row lock; every insert rings the change
   stream's doorbell (migration 0022), so a connection on another process catches up.
 * **The connection** is `GET /api/v1/realtime/documents/{kind}/{documentId}`, a WebSocket in the
   editors' sync and awareness framing. The server sends the newest snapshot as sync step two, every
@@ -517,7 +520,13 @@ it, order it and decide who may touch it.
   The place asked for is what the connection holds: every update up to it handed out on that
   connection or written by its writer, so another writer's update still on its way stays after the
   snapshot instead of being hidden by one that never held it. A snapshot for a place the
-  connection was not asked for is not stored (`presentation/realtime` `askSnapshot`).
+  connection was not asked for is not stored (`presentation/realtime` `askSnapshot`), and neither is
+  one that does not cover the held snapshot and the updates up to its place, content and deletions
+  alike (`realtime.snapshot_incomplete`; more is a writer's words not yet sent): an opener reads
+  the snapshot and only what follows, so a buggy or hostile writer's snapshot would hide the rest.
+  The connection stays, its updates still land, the next request asks again, and the refusal is
+  counted (`hubtask_realtime_document_backlog_total{outcome="incomplete"}`, A-24). Checked against
+  real editors' updates (`Coverage_test.go`, fixtures from `packages/editor/scripts/coverage-fixtures.mjs`).
 * **Authorisation** is the realtime service's (`core/application/service/realtime`): a document's
   kind names the place it sits at (a `Locator`), and reading needs READ there, writing WRITE_ITEMS,
   with the token scopes `items:read` and `items:write`. Asked when the connection opens and again,

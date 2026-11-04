@@ -4,7 +4,9 @@
 package realtime
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"testing"
 	"time"
@@ -149,7 +151,7 @@ var page = domain.Ref{Kind: "page", ID: document}
 func TestAWriterAppendsInOrderAndAReaderOpensFromTheSnapshot(t *testing.T) {
 	docs, store, _ := documents(service.PermissionRead, service.PermissionWriteItems)
 	for i := range 4 {
-		appended, err := docs.Append(t.Context(), reader(), page, []byte{byte(i + 1)})
+		appended, err := docs.Append(t.Context(), reader(), page, edit(i))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -157,7 +159,7 @@ func TestAWriterAppendsInOrderAndAReaderOpensFromTheSnapshot(t *testing.T) {
 			t.Fatalf("update %d landed at %d", i+1, appended.Seq)
 		}
 	}
-	if err := docs.Compact(t.Context(), reader(), page, 3, []byte("merged")); err != nil {
+	if err := docs.Compact(t.Context(), reader(), page, 3, state(3)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -192,11 +194,11 @@ func TestAReaderMayOpenButNotWrite(t *testing.T) {
 	if opened.Writable {
 		t.Error("a reader was offered writing")
 	}
-	_, err = docs.Append(t.Context(), reader(), page, []byte{1})
+	_, err = docs.Append(t.Context(), reader(), page, edit(0))
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a reader's update answered %v, want forbidden", err)
 	}
-	if err := docs.Compact(t.Context(), reader(), page, 1, []byte{1}); !errors.Is(err, shared.ErrForbidden) {
+	if err := docs.Compact(t.Context(), reader(), page, 1, state(1)); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a reader's snapshot answered %v, want forbidden", err)
 	}
 	if len(store.updates) != 0 || g.refused != 2 {
@@ -217,7 +219,7 @@ func TestSomebodyWithoutReadIsRefusedAndRecorded(t *testing.T) {
 
 func TestAccessEndedWhileConnectedEndsTheCatchUp(t *testing.T) {
 	docs, _, g := documents(service.PermissionRead, service.PermissionWriteItems)
-	if _, err := docs.Append(t.Context(), reader(), page, []byte{1}); err != nil {
+	if _, err := docs.Append(t.Context(), reader(), page, edit(0)); err != nil {
 		t.Fatal(err)
 	}
 	updates, err := docs.Since(t.Context(), reader(), page, 0)
@@ -242,17 +244,17 @@ func TestAnUnknownKindIsNotFound(t *testing.T) {
 func TestASnapshotPastTheHeadOrBehindTheLastIsRefused(t *testing.T) {
 	docs, _, _ := documents(service.PermissionRead, service.PermissionWriteItems)
 	for range 3 {
-		if _, err := docs.Append(t.Context(), reader(), page, []byte{1}); err != nil {
+		if _, err := docs.Append(t.Context(), reader(), page, edit(0)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := docs.Compact(t.Context(), reader(), page, 4, []byte{1}); !errors.Is(err, shared.ErrValidation) {
+	if err := docs.Compact(t.Context(), reader(), page, 4, state(4)); !errors.Is(err, shared.ErrValidation) {
 		t.Errorf("a snapshot past the head answered %v", err)
 	}
-	if err := docs.Compact(t.Context(), reader(), page, 2, []byte{1}); err != nil {
+	if err := docs.Compact(t.Context(), reader(), page, 2, state(2)); err != nil {
 		t.Fatal(err)
 	}
-	if err := docs.Compact(t.Context(), reader(), page, 2, []byte{1}); !errors.Is(err, shared.ErrVersionConflict) {
+	if err := docs.Compact(t.Context(), reader(), page, 2, state(2)); !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("a second snapshot at the same place answered %v, want a conflict", err)
 	}
 }
@@ -270,7 +272,7 @@ func TestTheWriterIsToldWhenCompactionIsDue(t *testing.T) {
 	var last Appended
 	for range domain.CompactAfter {
 		var err error
-		if last, err = docs.Append(t.Context(), reader(), page, []byte{1}); err != nil {
+		if last, err = docs.Append(t.Context(), reader(), page, edit(0)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -323,10 +325,10 @@ func TestAPresenceOnlyDocumentIsOpenedButNeverWritten(t *testing.T) {
 	if len(g.requests) != 1 || g.requests[0].On != subject {
 		t.Errorf("the opening asked %+v, want one request naming the entry", g.requests)
 	}
-	if _, err := docs.Append(t.Context(), reader(), ref, []byte{1}); !errors.Is(err, shared.ErrForbidden) {
+	if _, err := docs.Append(t.Context(), reader(), ref, edit(0)); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("an update to a presence-only document answered %v, want forbidden", err)
 	}
-	if err := docs.Compact(t.Context(), reader(), ref, 1, []byte{1}); !errors.Is(err, shared.ErrForbidden) {
+	if err := docs.Compact(t.Context(), reader(), ref, 1, state(1)); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a snapshot of a presence-only document answered %v, want forbidden", err)
 	}
 	if len(store.updates) != 0 || len(store.snapshots) != 0 {
@@ -339,25 +341,80 @@ func TestAPresenceOnlyDocumentIsOpenedButNeverWritten(t *testing.T) {
 func TestALogNobodyCompactsRefusesUpdatesUntilASnapshot(t *testing.T) {
 	docs, store, _ := documents(service.PermissionRead, service.PermissionWriteItems)
 	for seq := 1; seq <= domain.MaxUncompacted; seq++ {
-		store.updates = append(store.updates, domain.Update{Seq: int64(seq), Data: []byte{1}})
+		store.updates = append(store.updates, domain.Update{Seq: int64(seq), Data: edit(seq - 1)})
 	}
-	_, err := docs.Append(t.Context(), reader(), page, []byte{2})
+	_, err := docs.Append(t.Context(), reader(), page, edit(0))
 	if !errors.Is(err, shared.ErrConflict) || len(store.updates) != domain.MaxUncompacted {
 		t.Fatalf("appended past the ceiling: %v, %d updates", err, len(store.updates))
 	}
-	if err := docs.Compact(t.Context(), reader(), page, domain.MaxUncompacted, []byte{9}); err != nil {
+	if err := docs.Compact(t.Context(), reader(), page, domain.MaxUncompacted, state(domain.MaxUncompacted)); err != nil {
 		t.Fatal(err)
 	}
-	appended, err := docs.Append(t.Context(), reader(), page, []byte{2})
+	appended, err := docs.Append(t.Context(), reader(), page, edit(0))
 	if err != nil || appended.Seq != domain.MaxUncompacted+1 || appended.CompactionDue || appended.Overdue {
 		t.Fatalf("after the snapshot: %+v %v", appended, err)
 	}
 
 	docs, store, _ = documents(service.PermissionRead, service.PermissionWriteItems)
 	for seq := 1; seq < domain.BacklogAlarm; seq++ {
-		store.updates = append(store.updates, domain.Update{Seq: int64(seq), Data: []byte{1}})
+		store.updates = append(store.updates, domain.Update{Seq: int64(seq), Data: edit(seq - 1)})
 	}
-	if appended, err := docs.Append(t.Context(), reader(), page, []byte{2}); err != nil || !appended.Overdue || !appended.CompactionDue {
+	if appended, err := docs.Append(t.Context(), reader(), page, edit(0)); err != nil || !appended.Overdue || !appended.CompactionDue {
 		t.Fatalf("past the alarm: %+v %v", appended, err)
+	}
+}
+
+// edit is one editor's update: a character of writer 5 at a clock, in the editors' encoding.
+func edit(clock int) []byte {
+	out := []byte{1, 1, 5}
+	out = binary.AppendUvarint(out, uint64(clock))
+	return append(out, 4, 1, 4, 't', 'e', 'x', 't', 1, 'a', 0)
+}
+
+// state is a writer's whole state holding the first n of those characters.
+func state(n int) []byte {
+	if n == 0 {
+		return []byte{0, 0}
+	}
+	out := binary.AppendUvarint([]byte{1, 1, 5, 0, 4, 1, 4, 't', 'e', 'x', 't'}, uint64(n))
+	return append(append(out, bytes.Repeat([]byte{'a'}, n)...), 0)
+}
+
+func TestASnapshotThatLacksPartOfTheLogIsNotStored(t *testing.T) {
+	docs, store, _ := documents(service.PermissionRead, service.PermissionWriteItems)
+	for i := range 4 {
+		if _, err := docs.Append(t.Context(), reader(), page, edit(i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err := docs.Compact(t.Context(), reader(), page, 3, state(2))
+	if !errors.Is(err, shared.ErrValidation) || len(store.snapshots) != 0 {
+		t.Fatalf("a snapshot without the third update: %v, stored %v", err, store.snapshots)
+	}
+	// More than the log up to its place is a writer's words not yet sent.
+	if err := docs.Compact(t.Context(), reader(), page, 3, state(4)); err != nil {
+		t.Fatal(err)
+	}
+	// The next one is held to the stored snapshot too, not only to the updates after it.
+	if _, err := docs.Append(t.Context(), reader(), page, edit(4)); err != nil {
+		t.Fatal(err)
+	}
+	if err := docs.Compact(t.Context(), reader(), page, 5, edit(4)); !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("a snapshot of only the last update: %v", err)
+	}
+}
+
+func TestAnUpdateTheEditorsCouldNotReadIsNotStored(t *testing.T) {
+	docs, store, _ := documents(service.PermissionRead, service.PermissionWriteItems)
+	if _, err := docs.Append(t.Context(), reader(), page, []byte("not an update")); !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("appended garbage: %v", err)
+	}
+	if len(store.updates) != 0 {
+		t.Fatalf("%d updates stored", len(store.updates))
+	}
+	// A row stored before updates were read holds nothing an editor applied.
+	store.updates = append(store.updates, domain.Update{Seq: 1, Data: []byte{1}})
+	if err := docs.Compact(t.Context(), reader(), page, 1, state(0)); err != nil {
+		t.Fatalf("an unreadable row asked something of the snapshot: %v", err)
 	}
 }

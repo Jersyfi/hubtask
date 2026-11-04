@@ -5,8 +5,10 @@
 // as an append-only log of CRDT updates, a snapshot that compacts it, and the awareness the
 // editors share while connected (offline-sync.md §13).
 //
-// The server never reads an update. The format is the editors' CRDT update, and
-// merging is the clients': two updates applied in any order give the same document. What the
+// The server never merges an update. The format is the editors' CRDT update, and merging is the
+// clients': two updates applied in any order give the same document. The realtime service reads
+// only what an update covers (its Coverage), to refuse one the editors could not read and a
+// snapshot that lacks part of the log. What the
 // server decides is who may read and write which document, the order it hands updates out in,
 // how large one may be, and when the history behind a snapshot may go.
 package realtime

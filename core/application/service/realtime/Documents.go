@@ -161,8 +161,9 @@ type Appended struct {
 	Overdue bool
 }
 
-// Append stores one update from a writer, unless the log has reached domain.MaxUncompacted
-// without a snapshot: then it is refused (realtime.compaction_overdue) and nothing is stored.
+// Append stores one update from a writer, unless the editors could not read it
+// (realtime.update_unreadable) or the log has reached domain.MaxUncompacted without a snapshot:
+// then it is refused (realtime.compaction_overdue) and nothing is stored.
 func (d Documents) Append(
 	ctx context.Context, actor appshared.ActorContext, ref domain.Ref, data []byte,
 ) (Appended, error) {
@@ -170,6 +171,9 @@ func (d Documents) Append(
 		return Appended{}, err
 	}
 	if err := d.authorizeWrite(ctx, actor, ref); err != nil {
+		return Appended{}, err
+	}
+	if _, err := ReadCoverage(data); err != nil {
 		return Appended{}, err
 	}
 	var out Appended
@@ -192,8 +196,9 @@ func (d Documents) Append(
 	return out, err
 }
 
-// Compact stores a writer's snapshot of the document up to an update. The updates it covers stay
-// until the history's retention period has passed (DOCUMENT_HISTORY).
+// Compact stores a writer's snapshot of the document up to an update, unless it lacks part of what
+// the log held up to there (realtime.snapshot_incomplete). The updates it covers stay until the
+// history's retention period has passed (DOCUMENT_HISTORY).
 func (d Documents) Compact(
 	ctx context.Context, actor appshared.ActorContext, ref domain.Ref, upTo int64, state []byte,
 ) error {
@@ -209,6 +214,13 @@ func (d Documents) Compact(
 		if err := domain.CheckSnapshot(snapshot, head.Seq, head.SnapshotSeq); err != nil {
 			return err
 		}
+		log, err := d.logUpTo(ctx, ref, head.SnapshotSeq, upTo)
+		if err != nil {
+			return err
+		}
+		if err := CheckCovers(state, log); err != nil {
+			return err
+		}
 		stored, err := d.Store.StoreSnapshot(ctx, ref, snapshot)
 		if err != nil {
 			return err
@@ -218,6 +230,41 @@ func (d Documents) Compact(
 		}
 		return nil
 	})
+}
+
+// logUpTo reads what the held snapshot and the updates after it up to a place cover, a page at a
+// time. A row the editors could not read - stored before updates were checked - holds nothing an
+// editor applied, so it asks nothing of a snapshot.
+func (d Documents) logUpTo(ctx context.Context, ref domain.Ref, snapshotSeq, upTo int64) (Coverage, error) {
+	var log Coverage
+	if snapshotSeq > 0 {
+		held, found, err := d.Store.Snapshot(ctx, ref)
+		if err != nil {
+			return log, err
+		}
+		if c, err := ReadCoverage(held.State); found && err == nil {
+			log.Add(c)
+		}
+	}
+	for after := snapshotSeq; after < upTo; {
+		updates, err := d.Store.Since(ctx, ref, after, domain.MaxOpenUpdates)
+		if err != nil {
+			return log, err
+		}
+		for _, update := range updates {
+			if update.Seq > upTo {
+				return log, nil
+			}
+			if c, err := ReadCoverage(update.Data); err == nil {
+				log.Add(c)
+			}
+			after = update.Seq
+		}
+		if len(updates) < domain.MaxOpenUpdates {
+			return log, nil
+		}
+	}
+	return log, nil
 }
 
 // Relayable answers whether an awareness message may be relayed: a reader's cursor and name go to
