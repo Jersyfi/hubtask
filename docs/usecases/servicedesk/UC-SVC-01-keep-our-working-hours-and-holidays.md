@@ -37,7 +37,7 @@ Lena runs the IT desk of a district office. She defines the calendar *office*: M
 ## Where it ends
 
 * One calendar per key at the workspace, and one version of it per hub; the installation's change
-  only through the instance file; a hub's own version is of a workspace calendar, never of the
-  installation's. An entry whose policy names a calendar the instance file no longer offers is kept,
+  only through the instance file; a hub's own version is of a workspace or an installation
+  calendar (check 5). An entry whose policy names a calendar the instance file no longer offers is kept,
   and its goals are not armed.
 * A holiday is a whole local day; half days are spans of their own weekday.

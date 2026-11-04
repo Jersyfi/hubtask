@@ -13140,10 +13140,13 @@ type BusinessCalendar struct {
 	Hours    []BusinessHours      `json:"hours"`
 
 	// HubId The hub whose own version this is; absent for the workspace's calendar.
-	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
-	Key     string              `json:"key"`
-	Name    string              `json:"name"`
-	Version int                 `json:"version"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
+
+	// Offered The installation's calendar, answered with include_offered; absent for the workspace's.
+	Offered *bool `json:"offered,omitempty"`
+	Version int   `json:"version"`
 
 	// Zone An IANA time zone.
 	Zone string `json:"zone"`
@@ -26439,6 +26442,11 @@ type DownloadWorkspaceArchiveParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListBusinessCalendarsParams defines parameters for ListBusinessCalendars.
+type ListBusinessCalendarsParams struct {
+	IncludeOffered *bool `form:"include_offered,omitempty" json:"include_offered,omitempty"`
+}
+
 // DefineBusinessCalendarParams defines parameters for DefineBusinessCalendar.
 type DefineBusinessCalendarParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -30949,7 +30957,7 @@ type ServerInterface interface {
 	CompareBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID)
 	// ListBusinessCalendars The workspace's business calendars
 	// (GET /business-calendars)
-	ListBusinessCalendars(w http.ResponseWriter, r *http.Request)
+	ListBusinessCalendars(w http.ResponseWriter, r *http.Request, params ListBusinessCalendarsParams)
 	// DeleteBusinessCalendar Delete an unused business calendar
 	// (DELETE /business-calendars/{calendarKey})
 	DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, calendarKey string)
@@ -39077,8 +39085,27 @@ func (siw *ServerInterfaceWrapper) CompareBaseline(w http.ResponseWriter, r *htt
 // ListBusinessCalendars operation middleware
 func (siw *ServerInterfaceWrapper) ListBusinessCalendars(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListBusinessCalendarsParams
+
+	// ------------- Optional query parameter "include_offered" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_offered", r.URL.Query(), &params.IncludeOffered, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_offered"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_offered", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListBusinessCalendars(w, r)
+		siw.Handler.ListBusinessCalendars(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

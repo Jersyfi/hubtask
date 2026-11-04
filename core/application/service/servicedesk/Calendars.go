@@ -139,14 +139,31 @@ func (h ListBusinessCalendars) Descriptor() usecase.Descriptor {
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
 		Audit: usecase.AuditDeclaration{Action: CalendarsReadAction},
-		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
+		Input: []usecase.Field{
+			{Name: "include_offered", Kind: usecase.KindBool, Description: "Also the installation's calendars of a key the workspace holds none under."},
+		},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			calendars, err := h.Execute(ctx, actor)
 			if err != nil {
 				return nil, err
 			}
 			data := make([]usecase.Output, 0, len(calendars))
+			held := map[string]bool{}
 			for _, c := range calendars {
 				data = append(data, CalendarOutput(c))
+				held[c.Key] = true
+			}
+			if in.Bool("include_offered") {
+				// The workspace's calendar of a key is the one counted (WithInstallation), so the
+				// installation's of that key is not offered beside it.
+				for key, c := range h.Desk.Offered {
+					if !held[key] {
+						row := CalendarOutput(c)
+						row["offered"] = true
+						data = append(data, row)
+					}
+				}
+				slices.SortFunc(data, func(a, b usecase.Output) int { return strings.Compare(a["key"].(string), b["key"].(string)) })
 			}
 			return usecase.Output{"data": data}, nil
 		}),

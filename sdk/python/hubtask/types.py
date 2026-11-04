@@ -2107,6 +2107,7 @@ class BusinessCalendar(TypedDict, total=False):
     hours: Required[list["BusinessHours"]]
     holidays: Required[list[str]]
     hub_id: str
+    offered: bool
     version: Required[int]
 
 class ReplyTemplate(TypedDict, total=False):

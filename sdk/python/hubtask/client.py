@@ -663,9 +663,9 @@ class Client:
         """Remove an hourly cost rate"""
         return self._call("DELETE", "/cost-rates/{rateId}", {"rateId": rate_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
-    def list_business_calendars(self) -> "BusinessCalendarList":
+    def list_business_calendars(self, *, query: dict[str, Any] | None = None) -> "BusinessCalendarList":
         """The workspace's business calendars"""
-        return self._call("GET", "/business-calendars", {}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/business-calendars", {}, query, {}, None, "none", None, "json")
 
     def define_business_calendar(self, calendar_key: str, body: "BusinessCalendarDefine", *, if_match: str | None = None) -> "BusinessCalendar":
         """Add or replace a business calendar"""

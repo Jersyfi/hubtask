@@ -6,9 +6,12 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"fmt"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
@@ -117,6 +120,41 @@ func TestAPolicyNamesACalendarTheInstallationOffers(t *testing.T) {
 	f.deliver(t, event.ItemCreated, monday, nil)
 	if len(f.timers.rows) != 0 {
 		t.Fatalf("goals armed on a calendar nobody holds: %+v", f.timers.rows)
+	}
+}
+
+// UC-SVC-01 check 5: the list answers the installation's calendars where it is asked to - those of a
+// key the workspace holds none under, each marked offered, by key - so a hub's administrator finds
+// them to keep a version of; asked plainly, it answers the workspace's alone.
+func TestTheListAnswersTheInstallationsCalendarsWhenAsked(t *testing.T) {
+	f := newFixture(t)
+	office := f.clocks.Calendars.(calendarStore).office
+	offered, err := InstallationCalendars([]map[string]any{installationEntry("bavaria"), installationEntry(office.Key)}, text.Composing{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	desk := Desk{
+		Calendars: calendarStore{office: office}, Offered: offered,
+		Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{},
+	}
+	list := ListBusinessCalendars{Desk: desk}.Descriptor().Handler
+	keys := func(in usecase.Input) []string {
+		out, err := list.Invoke(context.Background(), reader(), in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, row := range out["data"].([]usecase.Output) {
+			got = append(got, fmt.Sprintf("%s offered=%v", row["key"], row["offered"]))
+		}
+		return got
+	}
+	if got := keys(usecase.Input{}); !slices.Equal(got, []string{office.Key + " offered=<nil>"}) {
+		t.Errorf("asked plainly: %v", got)
+	}
+	want := []string{"bavaria offered=true", office.Key + " offered=<nil>"}
+	if got := keys(usecase.Input{"include_offered": true}); !slices.Equal(got, want) {
+		t.Errorf("with the installation's: %v, want %v", got, want)
 	}
 }
 

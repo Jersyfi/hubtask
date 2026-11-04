@@ -2,7 +2,8 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A hub's *Working hours* in its settings, where the service desk is on (UC-SVC-01 check 5): each
-  // of the workspace's calendars, with the hub's own version where it keeps one - its own hours,
+  // of the workspace's calendars and the installation's offered ones, with the hub's own version
+  // where it keeps one - its own hours,
   // holidays and zone under the same key, which every SLA policy naming the key counts on for the
   // hub's entries. Keeping or dropping one needs STRUCTURE on the hub; the others read.
 
@@ -12,7 +13,7 @@
   import { deviceZone } from '../i18n/zone.ts';
   import type { BusinessCalendarList } from '@hubtask/sync-engine';
 
-  import { calendarsPath, desk, hubCalendarsPath } from '../data/desk.svelte.ts';
+  import { desk, hubCalendarsPath, offeredCalendarsPath } from '../data/desk.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -27,7 +28,7 @@
 
   let { hubId, mayShape }: Props = $props();
 
-  const workspace = untrack(() => resource<BusinessCalendarList>(calendarsPath));
+  const workspace = untrack(() => resource<BusinessCalendarList>(offeredCalendarsPath));
   const own = untrack(() => resource<BusinessCalendarList>(hubCalendarsPath(hubId)));
   const rows = $derived(
     workspace.state.status === 'ready' && own.state.status === 'ready'
@@ -84,12 +85,14 @@
           <span>
             <strong>{(row.own ?? row.workspace).name}</strong> · {(row.own ?? row.workspace).zone}
             · {t('app.desk.spans', { count: String((row.own ?? row.workspace).hours.length) })}
-            {#if row.own}<Badge size="sm" tone="info">{t('app.desk.hub_own')}</Badge>{:else}<Badge size="sm">{t('app.desk.hub_workspace')}</Badge>{/if}
+            {#if row.own}<Badge size="sm" tone="info">{t('app.desk.hub_own')}</Badge>
+            {:else if row.workspace.offered}<Badge size="sm">{t('app.desk.hub_installation')}</Badge>
+            {:else}<Badge size="sm">{t('app.desk.hub_workspace')}</Badge>{/if}
           </span>
           {#if mayShape}
             <Inline gap="050">
               <Button size="sm" tone="secondary" icon="pencil" onclick={() => edit(row)}>
-                {row.own ? t('app.desk.edit') : t('app.desk.hub_keep_own')}</Button>
+                {row.own ? t('app.desk.edit') : row.workspace.offered ? t('app.desk.hub_make_version') : t('app.desk.hub_keep_own')}</Button>
               {#if row.own}
                 <Button size="sm" tone="subtle" icon="rotate-ccw" isBusy={isSaving} busyLabel={t('app.desk.saving')}
                   onclick={() => void attempt(() => desk.deleteHubCalendar(hubId, row.key), 'app.desk.hub_back_to_workspace')}>
@@ -118,7 +121,7 @@
               </div>
               <Textarea label={t('app.desk.holidays')} hint={t('app.desk.holidays_hint')} rows={3} bind:value={form.holidays} />
               <Inline gap="100">
-                <Button type="submit" tone="primary" icon="calendar" isBusy={isSaving} busyLabel={t('app.desk.saving')}>{t('app.desk.replace')}</Button>
+                <Button type="submit" tone="primary" icon="calendar" isBusy={isSaving} busyLabel={t('app.desk.saving')}>{row.own ? t('app.desk.replace') : t('app.desk.hub_keep_version')}</Button>
                 <Button tone="subtle" onclick={() => (editing = undefined)}>{t('app.desk.cancel')}</Button>
               </Inline>
             </Stack>

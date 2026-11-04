@@ -153,7 +153,12 @@ func (c calendarStore) Find(_ context.Context, key string) (domain.Calendar, err
 	}
 	return domain.Calendar{}, shared.ErrNotFound
 }
-func (c calendarStore) List(context.Context) ([]domain.Calendar, error) { return nil, nil }
+func (c calendarStore) List(context.Context) ([]domain.Calendar, error) {
+	if c.office.Key == "" {
+		return nil, nil
+	}
+	return []domain.Calendar{c.office}, nil
+}
 func (c calendarStore) Delete(context.Context, string) error            { return nil }
 
 type itemStore struct {

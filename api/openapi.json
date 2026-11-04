@@ -6270,7 +6270,16 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "business-calendar ls",
         "summary": "The workspace's business calendars",
-        "description": "Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.\n",
+        "description": "Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.\n",
+        "parameters": [
+          {
+            "name": "include_offered",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The calendars",
@@ -46737,6 +46746,10 @@
             "type": "string",
             "format": "uuid",
             "description": "The hub whose own version this is; absent for the workspace's calendar."
+          },
+          "offered": {
+            "type": "boolean",
+            "description": "The installation's calendar, answered with include_offered; absent for the workspace's."
           },
           "version": {
             "type": "integer"

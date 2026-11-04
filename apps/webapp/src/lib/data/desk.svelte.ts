@@ -15,6 +15,8 @@ import type {
 import { engine, INTENT } from './engine.ts';
 
 export const calendarsPath = '/business-calendars';
+/** The workspace's calendars and the installation's offered ones a hub may keep a version of. */
+export const offeredCalendarsPath = `${calendarsPath}?include_offered=true`;
 export const policiesPath = '/sla-policies';
 export const repliesPath = '/reply-templates';
 export const organisationsPath = '/requester-organisations';

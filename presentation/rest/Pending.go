@@ -2230,7 +2230,9 @@ func (pending) UpdateCi(w http.ResponseWriter, r *http.Request, _ openapi_types.
 
 // The service desk's calendars, SLA policies and an entry's SLA (M5), answered by the generated
 // mapping.
-func (pending) ListBusinessCalendars(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ListBusinessCalendars(w http.ResponseWriter, r *http.Request, _ openapi.ListBusinessCalendarsParams) {
+	notAvailable(w, r)
+}
 func (pending) DeleteBusinessCalendar(w http.ResponseWriter, r *http.Request, _ string) {
 	notAvailable(w, r)
 }

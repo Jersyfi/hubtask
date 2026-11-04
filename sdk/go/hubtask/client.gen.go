@@ -13146,10 +13146,13 @@ type BusinessCalendar struct {
 	Hours    []BusinessHours      `json:"hours"`
 
 	// HubId The hub whose own version this is; absent for the workspace's calendar.
-	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
-	Key     string              `json:"key"`
-	Name    string              `json:"name"`
-	Version int                 `json:"version"`
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+	Key   string              `json:"key"`
+	Name  string              `json:"name"`
+
+	// Offered The installation's calendar, answered with include_offered; absent for the workspace's.
+	Offered *bool `json:"offered,omitempty"`
+	Version int   `json:"version"`
 
 	// Zone An IANA time zone.
 	Zone string `json:"zone"`
@@ -26445,6 +26448,11 @@ type DownloadWorkspaceArchiveParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListBusinessCalendarsParams defines parameters for ListBusinessCalendars.
+type ListBusinessCalendarsParams struct {
+	IncludeOffered *bool `form:"include_offered,omitempty" json:"include_offered,omitempty"`
+}
+
 // DefineBusinessCalendarParams defines parameters for DefineBusinessCalendar.
 type DefineBusinessCalendarParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -33707,10 +33715,10 @@ type ClientInterface interface {
 
 	// ListBusinessCalendars The workspace's business calendars
 	//
-	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
 	//
 	// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
-	ListBusinessCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListBusinessCalendars(ctx context.Context, params *ListBusinessCalendarsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteBusinessCalendar Delete an unused business calendar
 	//
@@ -47928,11 +47936,11 @@ func (c *Client) CompareBaseline(ctx context.Context, baselineId openapi_types.U
 
 // ListBusinessCalendars The workspace's business calendars
 //
-// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
 //
 // Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
-func (c *Client) ListBusinessCalendars(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListBusinessCalendarsRequest(c.Server)
+func (c *Client) ListBusinessCalendars(ctx context.Context, params *ListBusinessCalendarsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListBusinessCalendarsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -74169,7 +74177,7 @@ func NewCompareBaselineRequest(server string, baselineId openapi_types.UUID) (*h
 }
 
 // NewListBusinessCalendarsRequest constructs an http.Request for the ListBusinessCalendars method
-func NewListBusinessCalendarsRequest(server string) (*http.Request, error) {
+func NewListBusinessCalendarsRequest(server string, params *ListBusinessCalendarsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -74185,6 +74193,33 @@ func NewListBusinessCalendarsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.IncludeOffered != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include_offered", *params.IncludeOffered, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -107291,12 +107326,12 @@ type ClientWithResponsesInterface interface {
 
 	// ListBusinessCalendarsWithResponse The workspace's business calendars
 	//
-	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
-	ListBusinessCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBusinessCalendarsResult, error)
+	ListBusinessCalendarsWithResponse(ctx context.Context, params *ListBusinessCalendarsParams, reqEditors ...RequestEditorFn) (*ListBusinessCalendarsResult, error)
 
 	// DeleteBusinessCalendarWithResponse Delete an unused business calendar
 	//
@@ -161513,13 +161548,13 @@ func (c *ClientWithResponses) CompareBaselineWithResponse(ctx context.Context, b
 
 // ListBusinessCalendarsWithResponse The workspace's business calendars
 //
-// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. Needs READ at the workspace and the service desk switched on.
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
-func (c *ClientWithResponses) ListBusinessCalendarsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListBusinessCalendarsResult, error) {
-	rsp, err := c.ListBusinessCalendars(ctx, reqEditors...)
+func (c *ClientWithResponses) ListBusinessCalendarsWithResponse(ctx context.Context, params *ListBusinessCalendarsParams, reqEditors ...RequestEditorFn) (*ListBusinessCalendarsResult, error) {
+	rsp, err := c.ListBusinessCalendars(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

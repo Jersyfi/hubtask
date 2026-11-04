@@ -667,6 +667,9 @@ var generatedCommands = []door{
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "business-calendar", Verb: "ls", OperationID: "listBusinessCalendars", Method: "GET", Path: "/business-calendars", Summary: "The workspace's business calendars",
+		Query: []doorParam{
+			{Name: "include_offered", Kind: "boolean", Help: "", Required: false},
+		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
 	{Group: "business-calendar", Verb: "rm", OperationID: "deleteBusinessCalendar", Method: "DELETE", Path: "/business-calendars/{calendarKey}", Summary: "Delete an unused business calendar",
 		PathParams: []doorParam{

@@ -315,7 +315,7 @@ var restDoors = map[string]restDoor{
 	"listBaselines":                     {UseCase: "ListBaselines", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBillingRates":                  {UseCase: "ListBillingRates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listBuckets":                       {UseCase: "ListBuckets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listBusinessCalendars":             {UseCase: "ListBusinessCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listBusinessCalendars":             {UseCase: "ListBusinessCalendars", Status: 200, Query: []string{"include_offered"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCalendarFeeds":                 {UseCase: "ListCalendarFeeds", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCalendarPushes":                {UseCase: "ListCalendarPushes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCapacities":                    {UseCase: "ListCapacities", Status: 200, Query: []string{"account_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2868,9 +2868,9 @@ func (c *RestController) ListBuckets(w http.ResponseWriter, r *http.Request, con
 }
 
 // ListBusinessCalendars answers GET /business-calendars by the generated mapping.
-func (c *RestController) ListBusinessCalendars(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) ListBusinessCalendars(w http.ResponseWriter, r *http.Request, params openapi.ListBusinessCalendarsParams) {
 	var answer openapi.BusinessCalendarList
-	c.door(w, r, restDoors["listBusinessCalendars"], usecase.Input{}, nil, nil, &answer)
+	c.door(w, r, restDoors["listBusinessCalendars"], usecase.Input{}, params, nil, &answer)
 }
 
 // ListCalendarFeeds answers GET /integrations/calendar-feeds by the generated mapping.

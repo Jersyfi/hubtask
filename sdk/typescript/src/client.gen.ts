@@ -812,8 +812,8 @@ export class HubtaskClient {
   }
 
   /** The workspace's business calendars */
-  listBusinessCalendars(options: CallOptions = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/business-calendars", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  listBusinessCalendars(options: CallOptions & { readonly query?: NonNullable<operations["listBusinessCalendars"]['parameters']['query']> } = {}): Promise<operations["listBusinessCalendars"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/business-calendars", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Add or replace a business calendar */
