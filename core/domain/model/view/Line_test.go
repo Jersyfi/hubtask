@@ -51,6 +51,10 @@ func TestALineIsReadIntoTheFilterDocument(t *testing.T) {
 		{line: "title STARTS WITH 'Q4'", filter: map[string]any{"field": "title", "op": "STARTS_WITH", "value": "Q4"}},
 		{line: "status NOT IN (done)", filter: map[string]any{"field": "status", "op": "NOT_IN", "value": []any{"done"}}},
 		{line: "due_at < @today+P3D", filter: map[string]any{"field": "due_at", "op": "LT", "value": "@today+P3D"}},
+		// A word strconv reads as a float but no JSON document can carry stays the text it is.
+		{line: "custom_fields.code = NaN", filter: map[string]any{"field": "custom_fields.code", "op": "EQ", "value": "NaN"}},
+		{line: "custom_fields.code = Inf", filter: map[string]any{"field": "custom_fields.code", "op": "EQ", "value": "Inf"}},
+		{line: "custom_fields.code = 0x10", filter: map[string]any{"field": "custom_fields.code", "op": "EQ", "value": "0x10"}},
 		{
 			line: "ORDER BY due_at DESC NULLS FIRST, title",
 			sort: []any{map[string]any{"field": "due_at", "dir": "DESC", "nulls": "FIRST"}, map[string]any{"field": "title"}},

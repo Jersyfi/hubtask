@@ -4,6 +4,7 @@
 package view
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -407,7 +408,9 @@ func bareValue(word string, kind Kind) any {
 		if word == "true" || word == "false" {
 			return word == "true"
 		}
-		if number, err := strconv.ParseFloat(word, 64); err == nil {
+		// Finite only: NaN and Inf are words strconv reads but no JSON document carries, and a
+		// field compared with them is somebody's text.
+		if number, err := strconv.ParseFloat(word, 64); err == nil && !math.IsNaN(number) && !math.IsInf(number, 0) {
 			return number
 		}
 	}
