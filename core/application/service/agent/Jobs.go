@@ -30,6 +30,8 @@ const (
 	OutcomeJobProposed  = "agents.job_proposed"
 	OutcomeJobNothing   = "agents.job_nothing_to_propose"
 	OutcomeJobEntryOpen = "agents.job_entry_open"
+	// OutcomeJobAbandoned is a job the queue gave up on after every attempt failed.
+	OutcomeJobAbandoned = "agents.job_abandoned"
 )
 
 // Jobs is the queue a job is handed to.

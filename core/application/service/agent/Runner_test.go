@@ -453,3 +453,24 @@ func TestTheTriageRoutesATicketByItsOffering(t *testing.T) {
 		}
 	}
 }
+
+// A job the queue has given up on ends FAILED under its own code rather than standing RUNNING in
+// the agent's list for ever; a job that ended already keeps its end.
+func TestAJobGivenUpOnEndsFailed(t *testing.T) {
+	f := newFixture()
+	a, q := f.shipped(t, "CI_SUGGESTION", nil)
+	job := f.start(t, a, ticket, q)
+	runner := Runner{Desk: f.desk}
+	if err := runner.Abandon(context.Background(), tenantID, job.ID); err != nil {
+		t.Fatalf("abandoning: %v", err)
+	}
+	if got := f.store.jobs[job.ID]; got.Status != domain.JobFailed || got.Code != OutcomeJobAbandoned {
+		t.Fatalf("job = %+v", got)
+	}
+	if err := runner.Abandon(context.Background(), tenantID, job.ID); err != nil || f.store.jobs[job.ID].Code != OutcomeJobAbandoned {
+		t.Errorf("a second release: %v %+v", err, f.store.jobs[job.ID])
+	}
+	if err := runner.Abandon(context.Background(), tenantID, shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")); err != nil {
+		t.Errorf("a job that is not there: %v", err)
+	}
+}

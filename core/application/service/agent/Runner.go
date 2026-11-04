@@ -145,6 +145,25 @@ func (r Runner) end(
 	return ended, err
 }
 
+// Abandon ends a job the queue has given up on, FAILED under its own code, so that it does not
+// stand RUNNING for ever; a job that ended already, or is not there, is left as it is.
+func (r Runner) Abandon(ctx context.Context, tenant, jobID shared.ID) error {
+	d := r.Desk
+	system := appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: tenant}
+	err := d.UnitOfWork.Within(ctx, system.PersistenceScope(), func(ctx context.Context) error {
+		job, err := d.Store.FindJob(ctx, jobID)
+		if err != nil {
+			return err
+		}
+		_, err = d.Store.EndJob(ctx, job.Ended(domain.JobFailed, OutcomeJobAbandoned, 0, 0, d.Clock.Now()))
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) {
+		return nil
+	}
+	return err
+}
+
 func codeOf(err error) string {
 	if code := shared.AsError(err).DetailCode; code != "" {
 		return code

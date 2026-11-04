@@ -11861,6 +11861,7 @@
   "agents.input_unreadable": "The act's input could not be kept.",
   "agents.irreversible_needs_a_person": "An act that cannot be taken back always waits for a person, or is never done.",
   "agents.job_entry_open": "The entry is not resolved yet; a knowledge draft is made from a resolved one.",
+  "agents.job_abandoned": "The agent's job was given up on after every attempt failed.",
   "agents.job_failed": "The agent's job could not be finished.",
   "agents.job_nothing_to_propose": "The agent found nothing to propose.",
   "agents.job_proposed": "The agent left its proposals for a person to approve.",

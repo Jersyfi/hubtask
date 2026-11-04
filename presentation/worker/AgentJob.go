@@ -5,6 +5,7 @@ package worker
 
 import (
 	"context"
+	"log/slog"
 
 	agentservice "github.com/Jersyfi/hubtask/core/application/service/agent"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -24,7 +25,21 @@ type AgentJob struct {
 var (
 	_ queue.Handler  = AgentJob{}
 	_ queue.Detached = AgentJob{}
+	_ queue.Releaser = AgentJob{}
 )
+
+// Release ends the job of one the queue has given up on (queue.Releaser): nothing else would, and
+// the agent's list would show it running for ever.
+func (h AgentJob) Release(ctx context.Context, job queue.Job) {
+	id, err := payloadID(job, "job_id")
+	if err != nil || job.TenantID.IsZero() {
+		return
+	}
+	if err := h.Runner.Abandon(ctx, job.TenantID, id); err != nil {
+		slog.WarnContext(ctx, "an abandoned agent job could not be ended; it stays running",
+			slog.String("job_id", id.String()), slog.String("error", shared.AsError(err).Code))
+	}
+}
 
 // OwnsItsTransactions is the assertion queue.Detached asks for.
 func (h AgentJob) OwnsItsTransactions() {}

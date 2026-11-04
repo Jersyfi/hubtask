@@ -11861,6 +11861,7 @@
   "agents.input_unreadable": "Die Eingabe der Handlung konnte nicht aufbewahrt werden.",
   "agents.irreversible_needs_a_person": "Eine Handlung, die sich nicht rückgängig machen lässt, wartet immer auf einen Menschen oder geschieht nie.",
   "agents.job_entry_open": "Der Eintrag ist noch nicht gelöst; ein Wissensentwurf entsteht aus einem gelösten.",
+  "agents.job_abandoned": "Der Auftrag des Agenten wurde aufgegeben, nachdem jeder Versuch fehlschlug.",
   "agents.job_failed": "Der Auftrag des Agenten konnte nicht beendet werden.",
   "agents.job_nothing_to_propose": "Der Agent fand nichts vorzuschlagen.",
   "agents.job_proposed": "Der Agent hat seine Vorschläge einer Person zur Freigabe hinterlassen.",
