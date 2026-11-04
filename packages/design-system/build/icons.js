@@ -183,6 +183,23 @@ export const DECLARED = {
     'utensils',
     'gift',
   ],
+  'The whiteboard': [
+    // The canvas's own tools and side sheets (user-experience.md §7.2): a tool bar of icon buttons
+    // reads only where each tool has a glyph of its own, so no two tools share one.
+    'mouse-pointer-2',
+    'sticky-note',
+    'shapes',
+    'type',
+    'move-up-right', // a connector: an arrow from one object to another
+    'frame',
+    'eraser',
+    'undo-2',
+    'redo-2',
+    'map',
+    'timer',
+    'vote',
+    'rotate-ccw-clock', // the board's history: back to an earlier time
+  ],
   'The AI treatment': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -
