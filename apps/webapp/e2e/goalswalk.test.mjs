@@ -116,6 +116,10 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await checkDialog.getByLabel('Note').fill('First release out.');
   await checkDialog.getByRole('button', { name: 'Check in' }).click();
   await checkDialog.waitFor({ state: 'detached', timeout: 5_000 });
+  // UC-GOL-02 check 6: the check-in made from the goal's page is in its history there.
+  const history = page.getByRole('table', { name: 'Check-ins' });
+  await history.getByRole('cell', { name: 'First release out.' }).waitFor({ timeout: 5_000 });
+  assert.equal(await history.getByRole('cell', { name: '8 of 10' }).count(), 1, 'the history shows the confidence given');
 
   await page.getByRole('button', { name: 'Change' }).first().click();
   const changeDialog = page.getByRole('dialog', { name: 'Change' });
