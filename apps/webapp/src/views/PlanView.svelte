@@ -479,6 +479,7 @@
       title={t('app.planning.none')}
       description={t('app.planning.none_hint')}
       create={place ? { label: t('app.planning.none_open', { place: place.name }), onclick: () => onnavigate(placePath) } : undefined}
+      templates={mayWrite && place?.type === 'COLLECTION' ? [{ label: t('app.planning.import'), onclick: () => (isImporting = true) }] : []}
     />
   {:else}
     {#if fromCopy}<Banner tone="info">{t('app.planning.from_copy')}</Banner>{/if}

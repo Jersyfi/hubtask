@@ -13,8 +13,9 @@
  * and two schedulers disagree.
  */
 
-import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
+import type { BaselineComparison, PlanImport, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
+import type { PlanWords } from './imports.ts';
 import type { Path } from './people.ts';
 import type { Scale } from './schedule.ts';
 import { xlsxOf } from './xlsx.ts';
@@ -193,6 +194,28 @@ export const PLAN_CSV_HEADS = ['ID', 'Name', 'Start', 'Finish', 'Outline Level',
 /** The plan as a workbook with the CSV export's columns and rows (UC-PLN-09 check 6). */
 export function planXlsxOf(rows: readonly GanttRow[], schedule: PlanSchedule): Uint8Array {
   return xlsxOf('Plan', PLAN_CSV_HEADS, planCsvRows(rows, schedule));
+}
+
+/**
+ * A project file's dry run, or its import, in words (user-experience.md §7.11): what it creates by
+ * the things a planner counts, and the rows hung beside their parent. `isDry` chooses the tense.
+ */
+export function projectPlanOf(
+  answer: Pick<PlanImport, 'tasks' | 'work_packages' | 'activities' | 'milestones' | 'dependencies' | 'flattened'>,
+  isDry: boolean,
+  words: PlanWords,
+): { readonly tone: 'add' | 'change'; readonly text: string }[] {
+  const tense = isDry ? 'dry' : 'done';
+  const counted = (
+    [['tasks', answer.tasks], ['packages', answer.work_packages], ['activities', answer.activities], ['milestones', answer.milestones], ['dependencies', answer.dependencies]] as const
+  ).filter(([, count]) => count > 0);
+  const lines: { tone: 'add' | 'change'; text: string }[] = [];
+  if (counted.length > 0) {
+    const things = words.list(counted.map(([word, count]) => words.t(`app.import.count_${word}`, { count: String(count) })));
+    lines.push({ tone: 'add', text: words.t(`app.import.plan_creates_${tense}`, { things }) });
+  }
+  if (answer.flattened > 0) lines.push({ tone: 'change', text: words.t(`app.planning.import_flattened_${tense}`, { count: String(answer.flattened) }) });
+  return lines;
 }
 
 /** A project file's format from its name, else from its first character. */

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
-import { PLAN_CSV_HEADS, dependencyDrawn, fitWindow, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFormatOf, proposedMoves } from './planning.ts';
+import { PLAN_CSV_HEADS, dependencyDrawn, fitWindow, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFormatOf, projectPlanOf, proposedMoves } from './planning.ts';
 
 const entry = (id: string, more: Partial<PlanScheduleEntry> = {}): PlanScheduleEntry => ({
   item_id: id, title: id, parent_id: null, collection_id: 'c', start: '2026-11-02', finish: '2026-11-04',
@@ -117,6 +117,20 @@ test('the plan as a CSV keeps the outline, the milestones and the predecessors',
   assert.ok(sheet.includes('xl/worksheets/sheet1.xml'), 'the workbook is a spreadsheet');
   for (const head of PLAN_CSV_HEADS) assert.ok(sheet.includes(`<t xml:space="preserve">${head}</t>`), `the workbook carries ${head}`);
   assert.ok(sheet.includes('<t xml:space="preserve">3;2FF-1d</t>'), 'the workbook carries the predecessors the CSV carries');
+});
+
+test("a project file's plan is said by what a planner counts, in the tense of the step", () => {
+  const words = {
+    t: (code: string, params: Record<string, string> = {}) => [code.replace(/^app\.(import|planning)\./u, ''), ...Object.values(params)].join(' '),
+    list: (parts: readonly string[]) => parts.join(' + '),
+  };
+  const answer = { tasks: 3, work_packages: 0, activities: 2, milestones: 1, dependencies: 4, flattened: 1 };
+  assert.deepEqual(projectPlanOf(answer, true, words), [
+    { tone: 'add', text: 'plan_creates_dry count_tasks 3 + count_activities 2 + count_milestones 1 + count_dependencies 4' },
+    { tone: 'change', text: 'import_flattened_dry 1' },
+  ]);
+  assert.deepEqual(projectPlanOf(answer, false, words).map((line) => line.text.split(' ')[0]), ['plan_creates_done', 'import_flattened_done']);
+  assert.deepEqual(projectPlanOf({ tasks: 0, work_packages: 0, activities: 0, milestones: 0, dependencies: 0, flattened: 0 }, true, words), []);
 });
 
 test("a project file's format is its name's, else its first character's", () => {
