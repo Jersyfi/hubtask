@@ -79,6 +79,15 @@ fresh snapshot over the copy, once per device and reason: the next catch-up walk
 the held cursor and then reads the snapshot whole, an open stream reconnects to do it now, and
 offline the request waits in the store. When one is due is the application's to say (§4.2).
 
+**A bound** (`bound: ReplicaBound`, the browser's alone, offline-sync.md §1) stops an initial
+synchronisation once more records than `records` that `counts` accepts have arrived, empties the
+copy (the queue kept) and walks again with the containers `containers()` names as scopes, held in
+the store; past the bound again it keeps the first half, and a copy of one container is held whole.
+The stream's records outside the held containers are not written to the copy and still invalidate.
+`heldContainers` says what is held, `renarrow()` asks `containers()` again and takes the copy afresh
+where the answer changed. The engine still learns no product: which records count and which
+containers are wanted are the application's.
+
 ## Writing
 
 `mutate` writes directly while the queue is empty and the server answers. Otherwise — and when a

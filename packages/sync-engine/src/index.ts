@@ -28,6 +28,7 @@ export type {
   ResourceRequest,
   ResourceState,
   SyncEngineOptions,
+  ReplicaBound,
   Unsubscribe,
 } from './SyncEngine.ts';
 

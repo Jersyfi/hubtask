@@ -17,7 +17,7 @@ import { TransportError } from './errors.ts';
 import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
-import { Replica, collectionOf } from './replica.ts';
+import { META, Replica, collectionOf } from './replica.ts';
 import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
 import { HybridClock, formatHlc } from './hlc.ts';
 import { Queue, entityOf, mutationOf } from './queue.ts';
@@ -48,6 +48,28 @@ export type ConnectionPause = 'refused';
 export const PULL_PAGE_SIZE = 500;
 /** How many mutations one push carries at most: the contract's `maxItems`. */
 export const PUSH_BATCH = 500;
+
+/**
+ * How far a copy may grow before it holds less than everything (offline-sync.md §1): past
+ * `records` counted records, the copy holds the containers `containers` names instead, most wanted
+ * first, and reads the rest from the server. The application's, like `pathsFor`: which records
+ * count and which containers a person wants are what the engine does not know. A copy of one
+ * container is never narrowed further.
+ */
+export interface ReplicaBound {
+  readonly records: number;
+  readonly counts: (record: ChangeRecord) => boolean;
+  readonly containers: () => Promise<readonly string[]>;
+}
+
+/** What a narrowed copy holds: the containers, and how many of them the bound let fit. */
+interface HeldScope {
+  readonly containers: readonly string[];
+  readonly fit?: number;
+}
+
+const SCOPE = 'scope';
+const OUTGROWN = Symbol('outgrown');
 /** The snapshot's silence between lines: the server writes rows as it reads them. */
 export const DEFAULT_SNAPSHOT_IDLE_MS = 60_000;
 /**
@@ -326,6 +348,8 @@ export interface SyncEngineOptions {
    * added here, as the subprotocol a browser can carry it in, and nowhere else.
    */
   readonly socket?: (path: string, protocols: string[]) => unknown;
+  /** Where a copy stops holding everything. None: the copy holds everything the caller may read. */
+  readonly bound?: ReplicaBound;
 }
 
 /** The subprotocol the server answers a live document with, and the prefix that carries a bearer. */
@@ -357,6 +381,9 @@ export class SyncEngine {
   readonly #storeFor: ((request: ResourceRequest, storage: Storage) => Promise<unknown>) | undefined;
   readonly #mutationFor: SyncEngineOptions['mutationFor'];
   readonly #socket: SyncEngineOptions['socket'];
+  readonly #bound: ReplicaBound | undefined;
+  /** The containers a narrowed copy holds; none held means everything. */
+  #scope: HeldScope | undefined;
   /** The queue, once a store is attached. */
   #queue: Queue | undefined;
   /** Whether the last call reached the server: the other half of offline-sync.md §1's write rule. */
@@ -387,6 +414,7 @@ export class SyncEngine {
     this.#storeFor = options.storeFor;
     this.#mutationFor = options.mutationFor;
     this.#socket = options.socket;
+    this.#bound = options.bound;
   }
 
   /**
@@ -478,6 +506,7 @@ export class SyncEngine {
     }
     this.#replica = replica;
     this.#device = device;
+    this.#scope = await storage.get<HeldScope & { id: string }>(META, SCOPE);
     this.#hlc = new HybridClock(this.#clock, device.id, await replica.hlc());
     this.#queue = new Queue(replica);
     await this.#publishQueue();
@@ -958,7 +987,8 @@ export class SyncEngine {
             // Applied to the replica before anything is re-read: the store is what a
             // screen reads while offline, and a record it has not been given is a change it
             // shows nobody. The cursor advances in the store on the frame, not on the record.
-            await this.#replica?.apply(record);
+            const replica = this.#replica;
+            if (replica && (await this.#admits(replica, record))) await replica.apply(record);
             options.onRecord?.(record);
             // The empty list is not the absent one: `#invalidate(undefined)` means everything,
             // and an application that maps a record to no path means the opposite. The list
@@ -1034,6 +1064,7 @@ export class SyncEngine {
     const replica = this.#replica;
     this.#replica = undefined;
     this.#device = undefined;
+    this.#scope = undefined;
     this.#hlc = undefined;
     this.#queue = undefined;
     this.#queueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
@@ -1060,11 +1091,85 @@ export class SyncEngine {
     this.#resources.clear();
     this.#replica = undefined;
     this.#device = undefined;
+    this.#scope = undefined;
     this.#hlc = undefined;
     this.#queue = undefined;
     this.#queueState = { count: 0, pushing: false, rejected: [], conflicts: [] };
     await replica.empty();
     return owed;
+  }
+
+  /**
+   * The containers the copy holds where the bound narrowed it, or nothing where it holds
+   * everything the caller may read.
+   */
+  get heldContainers(): readonly string[] | undefined {
+    return this.#scope?.containers;
+  }
+
+  /**
+   * Asks the application again which containers a narrowed copy should hold - opened lately, say -
+   * and where the answer differs, empties the copy (the queue kept) and takes it afresh: a running
+   * listen loop reconnects to do it now. Answers whether it did. A copy holding everything stays.
+   */
+  async renarrow(): Promise<boolean> {
+    const replica = this.#replica;
+    const held = this.#scope;
+    if (!replica || !this.#bound || !held) return false;
+    const wanted = await this.#bound.containers();
+    const next = wanted.slice(0, held.fit ?? wanted.length);
+    if (next.length === held.containers.length && next.every((id, i) => id === held.containers[i])) return false;
+    await this.#holdScope(replica, { containers: next, fit: held.fit });
+    for (const end of this.#turns) end();
+    return true;
+  }
+
+  async #holdScope(replica: Replica, scope: HeldScope): Promise<void> {
+    await replica.store.put(META, SCOPE, { id: SCOPE, ...scope });
+    this.#scope = scope;
+    await replica.empty();
+  }
+
+  /**
+   * The copy outgrew the bound: it holds the application's containers instead, or, where it held
+   * some already, the first half of them. Answers whether anything is left to walk.
+   */
+  async #narrow(replica: Replica): Promise<boolean> {
+    const held = this.#scope;
+    const bound = this.#bound;
+    if (!bound) return false;
+    if (held) {
+      const fit = Math.max(1, Math.ceil(held.containers.length / 2));
+      await this.#holdScope(replica, { containers: held.containers.slice(0, fit), fit });
+    } else {
+      await this.#holdScope(replica, { containers: [...(await bound.containers())] });
+    }
+    return (this.#scope?.containers.length ?? 0) > 0;
+  }
+
+  /** Whether the walk is to stop past the bound: never for a copy of one container. */
+  #bounded(): ReplicaBound | undefined {
+    if (!this.#bound) return undefined;
+    if (this.#scope && this.#scope.containers.length <= 1) return undefined;
+    return this.#bound;
+  }
+
+  /**
+   * Whether a stream record belongs in a narrowed copy: one filed under no container, under a held
+   * container or under one the copy holds below it. A removal is always applied, since it can only
+   * take away. What is left out is still made stale on the screens that read it from the server.
+   */
+  async #admits(replica: Replica, record: ChangeRecord): Promise<boolean> {
+    const held = this.#scope;
+    if (!held || record.op !== 'UPSERT' || !record.container_id) return true;
+    if (held.containers.includes(record.container_id) || held.containers.includes(record.entity_id)) return true;
+    return (await replica.store.get(collectionOf('container'), record.container_id)) !== undefined;
+  }
+
+  /** The scopes a pull and a snapshot ask with: none for a copy of everything. */
+  #scopes(): { scopes?: { container_id: string; depth: 'SUBTREE' }[] } {
+    if (!this.#scope) return {};
+    return { scopes: this.#scope.containers.map((id) => ({ container_id: id, depth: 'SUBTREE' })) };
   }
 
   /**
@@ -1084,6 +1189,8 @@ export class SyncEngine {
   ): Promise<string | undefined> {
     const replica = this.#replica;
     if (!replica) return undefined;
+    // A bound that left no container to hold: every read is the server's.
+    if (this.#scope?.containers.length === 0) return undefined;
     let cursor = (await replica.position())?.cursor;
     if (cursor !== undefined && Object.values(await replica.resynchronisations()).includes('pending')) {
       // The delta first: a deletion since the held cursor travels only there, and a snapshot
@@ -1136,7 +1243,23 @@ export class SyncEngine {
   ): Promise<string | undefined> {
     const replica = this.#replica;
     if (!replica) return undefined;
-    const body = this.#deviceBody();
+    for (;;) {
+      const walked = await this.#walk(replica, options, signal);
+      if (walked !== OUTGROWN) return walked;
+      if (!(await this.#narrow(replica))) return undefined;
+    }
+  }
+
+  /** One initial synchronisation, ended early as `OUTGROWN` once the copy passes the bound. */
+  async #walk(
+    replica: Replica,
+    options: Pick<ListenOptions, 'pathsFor' | 'onRecord' | 'connectTimeoutMs' | 'idleTimeoutMs'>,
+    signal: AbortSignal,
+  ): Promise<string | undefined | typeof OUTGROWN> {
+    const body = { ...this.#deviceBody(), ...this.#scopes() };
+    const bound = this.#bounded();
+    let counted = 0;
+    const outgrown = (record: ChangeRecord) => bound !== undefined && bound.counts(record) && ++counted > bound.records;
 
     for (let attempt = 0; attempt < SNAPSHOT_ATTEMPTS && !signal.aborted; attempt += 1) {
       const lines = await this.#attempt(() => this.#transport.snapshot('/sync:snapshot', body, {
@@ -1154,9 +1277,11 @@ export class SyncEngine {
         }
         const record = recordOf(JSON.stringify(line.record));
         if (!record) continue;
+        if (outgrown(record)) return OUTGROWN;
         await replica.apply(record);
         options.onRecord?.(record);
       }
+      counted = 0;
     }
     if (signal.aborted) return undefined;
 
@@ -1164,8 +1289,14 @@ export class SyncEngine {
     // a page in the middle carries names the kind and the key it resumes after, and the last
     // page's is the delta cursor - the same one the snapshot would have ended on.
     let cursor: string | undefined;
+    let over = false;
+    const counting = { ...options, onRecord: (record: ChangeRecord) => {
+      if (outgrown(record)) over = true;
+      options.onRecord?.(record);
+    } };
     for (;;) {
-      const page = await this.#pull(cursor ?? null, options);
+      const page = await this.#pull(cursor ?? null, counting);
+      if (over) return OUTGROWN;
       cursor = page.cursor;
       if (!page.has_more) break;
     }
@@ -1204,6 +1335,7 @@ export class SyncEngine {
     if (!replica) throw new TypeError('no store is attached');
     const answer = await this.#attempt(() => this.#transport.send<PullPage>('POST', '/sync:pull', {
       ...this.#deviceBody(),
+      ...this.#scopes(),
       cursor,
       limit: PULL_PAGE_SIZE,
     }, this.#options({})));
