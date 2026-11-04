@@ -87,3 +87,17 @@ func TestARangeOfChecksCitesEachOfThem(t *testing.T) {
 		t.Fatalf("uncited %v, want [3] - checks 1 to 2 and 4 are cited, 3 only for another use case", got)
 	}
 }
+
+// The built bound is a ratchet: more uncited checks than it allows fail, and fewer fail too until
+// the bound is lowered, so a check cited once can never quietly fall back.
+func TestTheBuiltCitationBoundIsARatchet(t *testing.T) {
+	if got := builtCitationProblems(5, 5); len(got) != 0 {
+		t.Errorf("at the bound: %v", got)
+	}
+	if got := builtCitationProblems(6, 5); len(got) != 1 || !strings.Contains(got[0], "at most 5") {
+		t.Errorf("above the bound: %v", got)
+	}
+	if got := builtCitationProblems(4, 5); len(got) != 1 || !strings.Contains(got[0], "lower uncitedBuiltAtMost to 4") {
+		t.Errorf("below the bound: %v", got)
+	}
+}

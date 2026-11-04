@@ -108,7 +108,10 @@ names (those are in `checked_by:`). At `built` and `verified` the section is gon
 
 A `verified` use case's checks are each cited - `UC-XX-nn check n`, `UC-XX-nn/n` or, for several,
 `UC-XX-nn checks n, m and k` or `UC-XX-nn checks n-k` - by a file its `checked_by` names; the gate
-refuses a check of a verified use case that no such file cites. The gate also refuses a `partial` or `specified` use case
+refuses a check of a verified use case that no such file cites. The uncited checks of `built` use
+cases are counted too and held to a bound that only falls (`uncitedBuiltAtMost` in
+`tools/checkdocs/usecases.go`): more fail, and fewer fail until the bound is lowered with the
+change that cited them. The gate also refuses a `partial` or `specified` use case
 without a *Today* section, a use case
 without *Goal*, *How to check* or *Where it ends*, and a `UC-…` cited anywhere in the repository
 that does not exist.

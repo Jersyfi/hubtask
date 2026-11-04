@@ -115,6 +115,7 @@ func checkUseCases(root string) []string {
 	}
 
 	problems = append(problems, checkVerifiedCitations(root, cases)...)
+	problems = append(problems, checkBuiltCitations(root, cases)...)
 	problems = append(problems, checkUseCaseIndex(root, cases)...)
 	problems = append(problems, checkUseCaseReferences(root, seen, useCaseChecks(cases))...)
 	problems = append(problems, checkMilestones(root, cases)...)
@@ -489,6 +490,36 @@ func checkVerifiedCitations(root string, cases []useCase) []string {
 		return nil
 	}
 	return append([]string{fmt.Sprintf("%d checks of verified use cases are cited by no test, at most %d may be", len(uncited), uncitedVerifiedAtMost)}, uncited...)
+}
+
+// uncitedBuiltAtMost bounds the checks of built use cases that no file in their checked_by cites.
+// `built` allows them (docs/usecases/README.md), but the number only falls: a use case whose last
+// check gets cited moves to verified, and the bound is lowered with it.
+const uncitedBuiltAtMost = 665
+
+// checkBuiltCitations holds the uncited checks of built use cases to uncitedBuiltAtMost exactly.
+func checkBuiltCitations(root string, cases []useCase) []string {
+	uncited := 0
+	for _, uc := range cases {
+		if uc.fields["state"] != "built" {
+			continue
+		}
+		checks := numberedChecks(sectionsOf(uc.body)["How to check"])
+		uncited += len(uncitedChecks(root, uc.id, checks, uc.lists["checked_by"]))
+	}
+	return builtCitationProblems(uncited, uncitedBuiltAtMost)
+}
+
+// builtCitationProblems is the ratchet: above the bound fails, and so does below it, until the
+// bound is lowered to what was reached.
+func builtCitationProblems(uncited, bound int) []string {
+	switch {
+	case uncited > bound:
+		return []string{fmt.Sprintf("%d checks of built use cases are cited by no test, at most %d may be - cite the test that proves a check, or name it in checked_by", uncited, bound)}
+	case uncited < bound:
+		return []string{fmt.Sprintf("%d checks of built use cases are cited by no test, fewer than the bound: lower uncitedBuiltAtMost to %d in tools/checkdocs/usecases.go", uncited, uncited)}
+	}
+	return nil
 }
 
 // uncitedChecks answers the checks of a use case that no file in checked_by cites, in order:
