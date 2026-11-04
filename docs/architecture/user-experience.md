@@ -568,6 +568,25 @@ side sheet; voting, timer, comments, history, backlinks, frames and export as co
 sheets, closed by default. On a phone a bottom tool sheet. A new board is created from the
 template gallery in the create dialog (§5.2); the template select leaves the tool bar.
 
+As built: the board takes the content region whole (`page.fill`). Its head is one row: the hub
+and the title once, the timer while it runs, the connection's state, who else is here as an
+avatar stack, *Comments* with the open threads' count, *Voting, timer and who is here*, *History*
+and the board's menu (put a template, frames, *Pointing here*, export, rename, the trash last).
+One sheet is open at a time; it lies over the canvas, so opening it never moves the board, and the
+tools and the corner keep to the canvas beside it. The chosen object's properties come first in
+it on a wide screen; on a phone they wait for *Properties* in the tool sheet. The tools are icon
+buttons with their names as tooltips and accessible names; an entry, a template and, on a phone,
+the tools used less (connector, text, frame, eraser, link) and *Redo* are under *Put on the
+board*. A board opens showing everything it holds, never above its own size. An empty board says
+so in its middle and offers a template. The hub's *Whiteboards* lists the boards as preview cards,
+recent first, each drawing its objects once on the screen (up to 1,500 objects; a larger or
+empty board shows its mark); an empty hub offers the gallery, one press each. The gallery is
+Blank, Retrospective (its questions chosen beside it: start-stop-continue, the four Ls,
+mad-sad-glad), Brainstorm, User story map, Kanban sketch and Flowchart, each with a drawing of
+what it puts; the name defaults to the template's until the person types their own; an exported
+board is a folded alternative to a template. On an open board a template is chosen in the same
+gallery and put by the dialog's own button.
+
 ### 7.3 Assets and the CMDB
 
 *Inventory* first, with a health summary above it (*218 assets · 6 need attention · 3 licences
