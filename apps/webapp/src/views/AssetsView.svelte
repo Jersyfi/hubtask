@@ -185,7 +185,7 @@
         {:else if shown === 'duplicates'}
           <Duplicates {hubId} {classes} {words} {mayWrite} />
         {:else if shown === 'import' && mayWrite}
-          <ImportFile {hubId} {classes} {words} />
+          <ImportFile {hubId} {classes} {words} onopen={() => onnavigate(`/hubs/${hubId}/assets`)} />
         {:else if shown === 'connectors'}
           <Connectors {hubId} {classes} {words} {mayWrite} isAsked={asked === 'connector'} onasked={answered} />
         {:else if shown === 'alerts'}

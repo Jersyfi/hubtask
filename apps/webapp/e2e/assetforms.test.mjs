@@ -76,16 +76,22 @@ for (const file of FILES) {
     t.after(() => browser.close());
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     t.after(() => context.close());
-    await context.route('**/api/v1/**', stub);
+    // One file source an administrator defined, without a saved mapping: the import starts there.
+    await context.route('**/api/v1/**', (route) => (new URL(route.request().url()).pathname.endsWith('/cmdb/sources')
+      ? route.fulfill({ json: { data: [{ key: 'inventory-sheet', kind: 'FILE', rank: 1, classes: [], may_create: true, mapping: null, system: false, last_run_at: null, version: 1 }] } })
+      : stub(route)));
     await context.addInitScript(() => { sessionStorage.setItem('hubtask.bearer', 'e2e-bearer'); sessionStorage.setItem('hubtask.refresh', 'e2e-refresh'); });
     const page = await context.newPage();
     const failures = [];
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/hubs/${HUB.id}/assets/import`);
+    // The import's four steps: the source as a card, the file, then the check with the mapping.
+    await page.getByRole('button', { name: 'Choose inventory-sheet' }).click({ timeout: 15_000 });
     const input = page.locator('input[type=file]');
-    await input.waitFor({ state: 'attached', timeout: 15_000 });
+    await input.waitFor({ state: 'attached', timeout: 5_000 });
     await input.setInputFiles(file);
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
 
     const nameColumn = page.getByLabel('Name column', { exact: false });
     await nameColumn.waitFor({ timeout: 5_000 });
