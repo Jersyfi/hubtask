@@ -279,6 +279,45 @@ func TestASharedPageIsReadOutsideItsHubAndNothingMore(t *testing.T) {
 	}
 }
 
+// UC-DOC-08 check 3: who manages the hub's members takes a share away, somebody else outside the
+// hub cannot, and the person it was shared with may leave it; the trail records each share and
+// each removal.
+func TestAShareIsTakenAwayByTheHubsManagerAndRecorded(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	page := f.create(t, anna, private, "", "Onboarding", "Welcome")
+	if _, err := (SharePage{Space: f.space}).Execute(ctx, as(anna), page.ID, bert); err != nil {
+		t.Fatalf("SharePage: %v", err)
+	}
+	if err := (UnsharePage{Space: f.space}).Execute(ctx, as(carla), page.ID, bert); err == nil {
+		t.Error("somebody outside the hub took the share away")
+	}
+	if err := (UnsharePage{Space: f.space}).Execute(ctx, as(anna), page.ID, bert); err != nil {
+		t.Fatalf("the hub's manager could not take the share away: %v", err)
+	}
+	if _, err := (ReadPage{Space: f.space}).Execute(ctx, as(bert), page.ID); err == nil {
+		t.Error("a share taken away still opens the page")
+	}
+	if _, err := (SharePage{Space: f.space}).Execute(ctx, as(anna), page.ID, carla); err != nil {
+		t.Fatalf("SharePage: %v", err)
+	}
+	if err := (UnsharePage{Space: f.space}).Execute(ctx, as(carla), page.ID, carla); err != nil {
+		t.Fatalf("the person could not leave the share: %v", err)
+	}
+	var shares, removals int
+	for _, entry := range f.trail.entries {
+		switch entry.Action {
+		case PageSharedAction:
+			shares++
+		case PageUnsharedAction:
+			removals++
+		}
+	}
+	if shares != 2 || removals != 2 {
+		t.Errorf("the trail holds %d shares and %d removals, want two each", shares, removals)
+	}
+}
+
 type privateHubs struct {
 	made  int
 	named string
