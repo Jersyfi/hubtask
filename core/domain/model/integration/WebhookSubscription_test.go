@@ -60,10 +60,12 @@ func TestATargetIsCheckedForShapeAndNotForReachability(t *testing.T) {
 		target     string
 		wantDetail string
 	}{
-		"empty":                {"   ", "webhooks.target_required"},
-		"not a URL":            {"this is not a url", "webhooks.target_malformed"},
-		"a scheme we not dial": {"ftp://example.org/hook", "webhooks.target_scheme_unsupported"},
-		"credentials in it":    {"https://user:pw@example.org/hook", "webhooks.target_carries_credentials"},
+		"empty":     {"   ", "webhooks.target_required"},
+		"not a URL": {"this is not a url", "webhooks.target_malformed"},
+		// A port and no host: every delivery would fail to dial, eight times, then dead-letter.
+		"a port without a host": {"https://:8443/hook", "webhooks.target_malformed"},
+		"a scheme we not dial":  {"ftp://example.org/hook", "webhooks.target_scheme_unsupported"},
+		"credentials in it":     {"https://user:pw@example.org/hook", "webhooks.target_carries_credentials"},
 		"longer than the column": {
 			"https://example.org/" + strings.Repeat("p", maxTargetURL), "webhooks.target_too_long",
 		},

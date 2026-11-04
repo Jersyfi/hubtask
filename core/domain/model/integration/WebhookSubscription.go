@@ -165,7 +165,7 @@ func TargetURL(raw string) (string, error) {
 	}
 
 	parsed, err := url.Parse(target)
-	if err != nil || parsed.Host == "" {
+	if err != nil || parsed.Hostname() == "" {
 		return "", fieldError("/target_url", "webhooks.target_malformed")
 	}
 	if parsed.Scheme != "https" && parsed.Scheme != "http" {

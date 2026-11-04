@@ -203,7 +203,7 @@ func aiBaseURL(raw string) (string, error) {
 	}
 
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Host == "" {
+	if err != nil || parsed.Hostname() == "" {
 		return "", fieldError("/base_url", "ai.base_url_malformed")
 	}
 	if parsed.Scheme != "https" && parsed.Scheme != "http" {

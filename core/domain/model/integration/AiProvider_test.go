@@ -59,6 +59,9 @@ func TestAProviderThatCouldNotWorkIsRefused(t *testing.T) {
 		{"an endpoint that is not an address", func(in *domain.NewAiProviderInput) {
 			in.BaseURL = "not an address"
 		}, "ai.base_url_malformed"},
+		{"an endpoint with a port and no host", func(in *domain.NewAiProviderInput) {
+			in.BaseURL = "https://:11434/v1"
+		}, "ai.base_url_malformed"},
 		{"an endpoint on a scheme nothing dials", func(in *domain.NewAiProviderInput) {
 			in.BaseURL = "ftp://models.example.org"
 		}, "ai.base_url_scheme_unsupported"},
