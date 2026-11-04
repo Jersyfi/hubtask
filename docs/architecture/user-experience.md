@@ -117,7 +117,9 @@ where the collection runs sprints (its template brought them, or a sprint exists
 on a desk: a collection whose own or hub's `entry_types` name a type open to the portal. A request
 type of the workspace alone makes no collection a desk, so a service template taken by the
 workspace leaves its Scrum and Kanban collections as they were; a service template's hub part
-names its types.
+names its types. Whether a collection runs sprints is its sprints' read (`runs_sprints`); the
+template that works in sprints is the Scrum team. The palette offers neither *Sprints* nor *Portal*,
+which need reads it does not make.
 
 * The strip is a new design-system component, **`PlaceTabs`**: a `nav` landmark of links with
   `aria-current`, because it switches routes (the same reason `BottomBar` is not `Tabs`). One tab

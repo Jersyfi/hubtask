@@ -15,6 +15,7 @@
   import { entryTypesOffered } from '../data/entrytypes.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
   import { actsAsDesk } from '../portal/portal.ts';
+  import { runsSprints } from '../data/sprints.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { placeTabs } from './placeTabs.ts';
 
@@ -48,9 +49,18 @@
     place?.type === 'COLLECTION'
       && actsAsDesk(entryTypes.all, entryTypesOffered(place.structure?.settings, 'TASK'), place.parent_id),
   );
+  // The sprints are read only where they could be a tab; the sprints screen keeps its own tab.
+  const sprintsAt = $derived(place?.type === 'COLLECTION' && modulesOn.includes('PLANNING') ? place.id : undefined);
+  let sprintsRun = $state(false);
+  $effect(() => {
+    const at = sprintsAt;
+    sprintsRun = false;
+    if (!at) return;
+    return untrack(() => runsSprints(at, (runs) => { sprintsRun = runs; }));
+  });
   const entries = $derived(
     place && placeModules !== undefined
-      ? placeTabs({ type: place.type === 'HUB' ? 'HUB' : 'COLLECTION', id: place.id, modulesOn, isDesk })
+      ? placeTabs({ type: place.type === 'HUB' ? 'HUB' : 'COLLECTION', id: place.id, modulesOn, isDesk, runsSprints: sprintsRun || current === 'sprints' })
       : [],
   );
   const tabs = $derived(entries.map((entry) => ({ id: entry.id, label: t(entry.code), href: entry.href, icon: entry.icon })));

@@ -74,6 +74,7 @@
   import { entryTypesOffered, typesShown } from '../lib/data/entrytypes.ts';
   import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
   import { actsAsDesk } from '../lib/portal/portal.ts';
+  import { runsSprints } from '../lib/data/sprints.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -875,6 +876,14 @@
     container?.type === 'COLLECTION'
       && actsAsDesk(entryTypes.all, entryTypesOffered(container.structure?.settings, 'TASK'), container.parent_id),
   );
+  const sprintsAt = $derived(container?.type === 'COLLECTION' && modulesOn.includes('PLANNING') ? container.id : undefined);
+  let sprintsRun = $state(false);
+  $effect(() => {
+    const at = sprintsAt;
+    sprintsRun = false;
+    if (!at) return;
+    return untrack(() => runsSprints(at, (runs) => { sprintsRun = runs; }));
+  });
   /**
    * The place's views (user-experience.md §2.4): the strip under the head, offered to the palette
    * as *Go to <place> › <tab>*. No product is a head button or a menu item: the menu holds only
@@ -883,7 +892,7 @@
   const tabActs = $derived<readonly Act[]>(
     container === undefined
       ? []
-      : placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn, isDesk })
+      : placeTabs({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', id: container.id, modulesOn, isDesk, runsSprints: sprintsRun })
           .slice(1)
           .map((tab) => ({
             id: `page:tab-${tab.id}`,

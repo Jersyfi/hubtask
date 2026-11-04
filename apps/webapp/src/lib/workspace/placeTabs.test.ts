@@ -27,8 +27,13 @@ test('each module switched off takes exactly its own tab away and reorders nothi
 });
 
 test('a collection offers its portal only where it acts as a desk', () => {
-  assert.deepEqual(ids(placeTabs({ type: 'COLLECTION', id: 'c', modulesOn: ALL })), ['entries', 'plan', 'sprints', 'time']);
-  assert.deepEqual(ids(placeTabs({ type: 'COLLECTION', id: 'c', modulesOn: ALL, isDesk: true })), ['entries', 'plan', 'sprints', 'portal', 'time']);
+  assert.deepEqual(ids(placeTabs({ type: 'COLLECTION', id: 'c', modulesOn: ALL, runsSprints: true })), ['entries', 'plan', 'sprints', 'time']);
+  assert.deepEqual(ids(placeTabs({ type: 'COLLECTION', id: 'c', modulesOn: ALL, isDesk: true, runsSprints: true })), ['entries', 'plan', 'sprints', 'portal', 'time']);
+});
+
+test('a collection offers its sprints only where it runs sprints, and only with the plan on', () => {
+  assert.deepEqual(ids(placeTabs({ type: 'COLLECTION', id: 'c', modulesOn: ALL })), ['entries', 'plan', 'time']);
+  assert.deepEqual(ids(placeTabs({ type: 'COLLECTION', id: 'c', modulesOn: ALL.filter((each) => each !== 'PLANNING'), runsSprints: true })), ['entries', 'time']);
 });
 
 test('every view a tab holds is reached by a route that names that tab current', () => {

@@ -78,7 +78,7 @@ async function open(browser, at) {
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
 
-    if (path === `/collections/${COLLECTION.id}/sprints` && method === 'GET') return route.fulfill({ json: { data: SPRINTS } });
+    if (path === `/collections/${COLLECTION.id}/sprints` && method === 'GET') return route.fulfill({ json: { data: SPRINTS, runs_sprints: true } });
     if (path === `/collections/${COLLECTION.id}/sprints` && method === 'POST') return route.fulfill({ status: 201, json: sprint(4, body.name, 'PLANNED', body.start_on, body.end_on, { goal: body.goal ?? '' }) });
     if (path === `/collections/${COLLECTION.id}/sprint-backlog`) return route.fulfill({ json: BACKLOG });
     if (path === `/collections/${COLLECTION.id}/velocity`) return route.fulfill({ json: { unit: 'POINTS', average: 5, sprints: [CLOSED] } });

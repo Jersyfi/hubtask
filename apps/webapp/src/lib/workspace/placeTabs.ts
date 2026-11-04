@@ -16,6 +16,8 @@ export interface PlaceTabInput {
   readonly modulesOn: readonly string[];
   /** Whether the collection acts as a desk (UC-SVC-05): only then is its portal a tab. */
   readonly isDesk?: boolean;
+  /** Whether the collection runs sprints (its sprints' read says so): only then are they a tab. */
+  readonly runsSprints?: boolean;
 }
 
 export interface PlaceTabEntry {
@@ -56,11 +58,9 @@ export function placeTabs(input: PlaceTabInput): PlaceTabEntry[] {
   const base = `/collections/${input.id}`;
   return [
     { id: 'entries', code: 'app.place_tabs.entries', icon: 'task', href: base },
-    ...(on('PLANNING')
-      ? [
-          { id: 'plan', code: 'app.planning.title', icon: 'calendar' as const, href: `${base}/plan` },
-          { id: 'sprints', code: 'app.sprints.title', icon: 'repeat' as const, href: `${base}/sprints` },
-        ]
+    ...(on('PLANNING') ? [{ id: 'plan', code: 'app.planning.title', icon: 'calendar' as const, href: `${base}/plan` }] : []),
+    ...(on('PLANNING') && input.runsSprints
+      ? [{ id: 'sprints', code: 'app.sprints.title', icon: 'repeat' as const, href: `${base}/sprints` }]
       : []),
     ...(on('SERVICE_DESK') && input.isDesk ? [{ id: 'portal', code: 'app.place_tabs.portal', icon: 'inbox' as const, href: `/portal/${input.id}` }] : []),
     ...(on('TIME') ? [timeTab(base)] : []),

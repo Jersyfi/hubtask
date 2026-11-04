@@ -7,7 +7,7 @@
  * the call site, as the plan's are.
  */
 
-import type { EntryEstimate, Sprint, SprintClosure } from '@hubtask/sync-engine';
+import type { EntryEstimate, Sprint, SprintClosure, SprintList } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -20,6 +20,16 @@ export const backlogPath = (collectionId: string) => `/collections/${collectionI
 export const velocityPath = (collectionId: string) => `/collections/${collectionId}/velocity`;
 /** A sprint read in the reader's zone: a day of the burndown is a day on their clock. */
 export const sprintPath = (sprintId: string, zone: string) => `/sprints/${sprintId}?zone=${encodeURIComponent(zone)}`;
+
+/**
+ * Whether a collection runs sprints - one was planned there, or its template works in sprints
+ * (user-experience.md §2.4) - told once its sprints' read answers.
+ */
+export function runsSprints(collectionId: string, onNext: (runs: boolean) => void): () => void {
+  return engine.subscribe<SprintList>({ path: sprintsPath(collectionId) }, (next) => {
+    if (next.status === 'ready') onNext(next.data.runs_sprints);
+  });
+}
 
 class Sprints {
   private touched(collectionId: string, sprintId: string | undefined, zone: string): string[] {

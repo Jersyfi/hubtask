@@ -23,7 +23,7 @@ const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
-function stubFor({ modulesOn, hubModules, collections = [] }) {
+function stubFor({ modulesOn, hubModules, collections = [], runsSprints = false }) {
   return async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -38,6 +38,8 @@ function stubFor({ modulesOn, hubModules, collections = [] }) {
       return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn } });
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
+    if (collections.some((each) => path.endsWith(`/api/v1/containers/${each.id}/modules`))) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
+    if (/\/api\/v1\/collections\/[^/]+\/sprints$/.test(path)) return route.fulfill({ json: { data: [], runs_sprints: runsSprints } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: collections.filter((each) => each.parent_id === url.searchParams.get('parent_id')) } });
     // The two time screens a hub's *Time* tab holds, empty.
@@ -175,9 +177,32 @@ test('chromium 1280 px: the palette goes to a collection\'s views from anywhere'
   const goTo = page.getByRole('option', { name: /^Go to Release train/ });
   await goTo.first().waitFor({ timeout: 10_000 });
   const names = (await goTo.allTextContents()).map((each) => each.trim());
-  assert.ok(names.some((name) => name.includes('› Sprints')), JSON.stringify(names));
+  assert.ok(names.some((name) => name.includes('› Plan')), JSON.stringify(names));
   assert.ok(!names.some((name) => name.includes('› Time')), `a view off at the hub is offered: ${JSON.stringify(names)}`);
-  await page.getByRole('option', { name: /Release train › Sprints/ }).click();
-  await page.waitForFunction((id) => location.pathname === `/collections/${id}/sprints`, COLLECTION.id, { timeout: 5_000 });
+  await page.getByRole('option', { name: /Release train › Plan/ }).click();
+  await page.waitForFunction((id) => location.pathname === `/collections/${id}/plan`, COLLECTION.id, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
+
+// §2.4: a collection's strip shows *Sprints* only where the collection runs sprints - its
+// sprints' read says so - and keeps *Plan* either way.
+for (const runsSprints of [false, true]) {
+  test(`chromium 1280 px: a collection ${runsSprints ? 'that runs' : 'that runs no'} sprints ${runsSprints ? 'shows' : 'hides'} its Sprints tab`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Team board', order_key: 'a0', version: 1 };
+    const { page, failures, close } = await open(browser, {
+      width: 1280, path: `/collections/${COLLECTION.id}`,
+      modulesOn: ['PLANNING', 'TIME'],
+      collections: [COLLECTION],
+      runsSprints,
+    });
+    t.after(close);
+    const strip = page.getByRole('main').getByRole('navigation', { name: COLLECTION.name, exact: true });
+    await strip.getByRole('link', { name: 'Plan' }).waitFor({ timeout: 10_000 });
+    if (runsSprints) await strip.getByRole('link', { name: 'Sprints' }).waitFor({ timeout: 5_000 });
+    const tabs = (await strip.getByRole('link').allTextContents()).map((each) => each.trim());
+    assert.deepEqual(tabs, runsSprints ? ['Entries', 'Plan', 'Sprints', 'Time'] : ['Entries', 'Plan', 'Time'], JSON.stringify(tabs));
+    assert.deepEqual(failures, []);
+  });
+}
