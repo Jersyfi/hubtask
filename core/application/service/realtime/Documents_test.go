@@ -184,6 +184,7 @@ func TestAWriterAppendsInOrderAndAReaderOpensFromTheSnapshot(t *testing.T) {
 	}
 }
 
+// UC-DOC-02 check 1: a reader of the document's place opens it and writes nothing.
 func TestAReaderMayOpenButNotWrite(t *testing.T) {
 	docs, store, g := documents(service.PermissionRead)
 
@@ -206,6 +207,7 @@ func TestAReaderMayOpenButNotWrite(t *testing.T) {
 	}
 }
 
+// UC-DOC-02 check 1: somebody who may not read the place is refused, and the refusal recorded.
 func TestSomebodyWithoutReadIsRefusedAndRecorded(t *testing.T) {
 	docs, _, g := documents()
 

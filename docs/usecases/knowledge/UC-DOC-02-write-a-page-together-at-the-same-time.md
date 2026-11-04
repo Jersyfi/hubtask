@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-person]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-19]
-state: built
+state: verified
 tasks: []
-checked_by: [core/application/service/knowledge/Pages_test.go, packages/editor/test/live.test.ts, packages/editor/test/markdown.test.ts]
+checked_by: [core/application/service/knowledge/Pages_test.go, packages/editor/test/live.test.ts, packages/editor/test/markdown.test.ts, core/application/service/realtime/Documents_test.go]
 ---
 
 # Write a page together at the same time

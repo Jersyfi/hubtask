@@ -456,12 +456,14 @@ func TestACommentIsItsAuthorsAndItsThreadEverybodys(t *testing.T) {
 	}
 }
 
-// The live document of a page is judged at its hub, as the page.
+// UC-DOC-02 check 1: the live document of a page is judged at its hub, as the page - opened by
+// whoever reads there, written by whoever writes there (the realtime service holds each to it).
 func TestAPagesLiveDocumentSitsAtItsHub(t *testing.T) {
 	f := newFixture()
 	page := f.create(t, anna, private, "", "Notes", "")
 	place, err := (Locator{Space: f.space}).Locate(context.Background(), as(anna), page.ID)
-	if err != nil || len(place.Path) != 2 || place.Path[1].ID != private || place.Write != service.PermissionWriteItems {
+	if err != nil || len(place.Path) != 2 || place.Path[1].ID != private ||
+		place.Read != service.PermissionRead || place.Write != service.PermissionWriteItems {
 		t.Fatalf("place %+v, %v", place, err)
 	}
 }
