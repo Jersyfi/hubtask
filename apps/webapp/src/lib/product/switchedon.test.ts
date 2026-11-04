@@ -14,7 +14,7 @@ test('every module switched on for the workspace says where to find it or what t
     assert.ok(next.find !== undefined || next.setup !== undefined, module);
   }
   assert.deepEqual(switchedOn('WHITEBOARD').find, { code: 'app.nav.whiteboards', href: '/whiteboards' });
-  assert.equal(switchedOn('SERVICE_DESK').setup?.href, '/administration/service-desk');
+  assert.equal(switchedOn('SERVICE_DESK').setup?.href, '/desk/settings');
 });
 
 test('switched on at a hub, it is found on the hub\'s own tab', () => {

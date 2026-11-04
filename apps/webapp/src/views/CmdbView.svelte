@@ -32,7 +32,11 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
-  $effect(() => page.entitle(t('app.cmdb_admin.title')));
+  /** Drawn as the assets home's *Settings* tab (user-experience.md §8.2), under the home's own head. */
+  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
+  $effect(() => {
+    if (!isEmbedded) page.entitle(t('app.cmdb_admin.title'));
+  });
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const words: Words = (code) => (messages.has(code) ? t(code) : undefined);
@@ -240,7 +244,7 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader
+  {#if !isEmbedded}<PageHeader
     title={t('app.cmdb_admin.title')}
     isTitleInBar={viewport.isCompact}
     breadcrumb={{
@@ -251,7 +255,7 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  />{/if}
 
   {#if refusal}
     <Banner tone="danger">{refusal}</Banner>

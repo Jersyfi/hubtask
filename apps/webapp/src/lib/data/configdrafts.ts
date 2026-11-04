@@ -24,7 +24,7 @@ export function publishStep(plan: Pick<ConfigPlan, 'plan_hash' | 'refusals' | 'f
 /** The page a draft of each section is edited and published on (ui.md A4, Changes → Drafts). */
 const DRAFT_PAGES: Readonly<Record<ConfigDraft['section'] | 'workflows', string>> = {
   types: '/administration/types',
-  sla_policies: '/administration/service-desk',
+  sla_policies: '/desk/settings',
   roles: '/administration/people?tab=permissions',
   workflows: '/administration/workflows',
 };

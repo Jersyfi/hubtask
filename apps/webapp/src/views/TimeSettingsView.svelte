@@ -32,7 +32,11 @@
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
 
-  $effect(() => page.entitle(t('app.time_settings.title')));
+  /** Drawn as the time home's *Settings* tab (user-experience.md §8.2), under the home's own head. */
+  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
+  $effect(() => {
+    if (!isEmbedded) page.entitle(t('app.time_settings.title'));
+  });
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   const mayLock = $derived(holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_MEMBERS') === true);
@@ -141,7 +145,9 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader
+  {#if isEmbedded}
+    {#if mayShape}<div><Button tone="primary" icon="plus" onclick={() => openKind(undefined)}>{t('app.time_settings.add_kind')}</Button></div>{/if}
+  {:else}<PageHeader
     title={t('app.time_settings.title')}
     isTitleInBar={viewport.isCompact}
     breadcrumb={{
@@ -153,8 +159,8 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
     primary={mayShape ? { label: t('app.time_settings.add_kind'), icon: 'plus', onclick: () => openKind(undefined) } : undefined}
-  />
-  <div class="file"><ViewSectionsAsFile {...pagePart('/administration/time')} /></div>
+  />{/if}
+  <div class="file"><ViewSectionsAsFile {...pagePart('/time?tab=settings')} /></div>
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 

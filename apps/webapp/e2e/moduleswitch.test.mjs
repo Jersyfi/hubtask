@@ -58,7 +58,7 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
   }
   const time = page.locator('[data-switched-on="TIME"]');
   assert.equal(await time.getByRole('link', { name: 'Find it in Time' }).getAttribute('href'), '/time');
-  assert.equal(await time.getByRole('link', { name: /^Set up time/u }).getAttribute('href'), '/administration/time');
+  assert.equal(await time.getByRole('link', { name: /^Set up time/u }).getAttribute('href'), '/time?tab=settings');
   await time.getByRole('button', { name: 'Close' }).click();
   await time.waitFor({ state: 'detached', timeout: 5_000 });
   assert.deepEqual(walk.errors(), []);

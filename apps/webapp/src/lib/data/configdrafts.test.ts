@@ -34,7 +34,7 @@ test('Changes lists every drafted block, each opening the page that publishes it
     ['workflows.support', '/administration/workflows'],
     ['types.incident', '/administration/types'],
     ['roles.lead', '/administration/people?tab=permissions'],
-    ['sla_policies.gold', '/administration/service-desk'],
+    ['sla_policies.gold', '/desk/settings'],
   ]);
   assert.deepEqual(draftRows(undefined, []), []);
 });

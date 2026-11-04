@@ -21,7 +21,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { homeTabs, hubScreenOf, inventorySummary, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { homeTabs, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
@@ -32,6 +32,7 @@
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
+  import CmdbView from './CmdbView.svelte';
   import DeskHome from '../lib/servicedesk/DeskHome.svelte';
 
   interface Props {
@@ -46,7 +47,13 @@
   const name = $derived(row ? t(row.code) : '');
   $effect(() => page.entitle(name));
 
-  const tabs = $derived<PlaceTab[]>(homeTabs(module).map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
+  // The assets' settings are the administration's screen at their home: offered to whoever
+  // reaches the administration, as the door before them was (P-05).
+  const tabs = $derived<PlaceTab[]>(
+    homeTabs(module)
+      .filter((each) => !(module === 'ASSETS' && each.id === 'settings') || reachesAdministrationArea() === true)
+      .map((each) => ({ id: each.id, label: t(each.code), href: each.path })),
+  );
   const currentTab = $derived(tab ?? tabs[0]?.id);
 
   /** The hubs the tree draws, and for each the modules on there, once it has answered. */
@@ -120,7 +127,6 @@
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
   const hubName = (id: string) => containers.find(id)?.name ?? '';
 
-  const doors = $derived(productDoors(module, { isAdministrationReachable: reachesAdministrationArea() === true }));
   const creation = $derived(hubCreationHere());
   const mayCreateHub = $derived(creation === 'shared' || creation === 'private');
   let isCreatingHub = $state(false);
@@ -151,20 +157,9 @@
 
   {#if currentTab === 'notes'}
     <NotesView {onnavigate} isEmbedded />
+  {:else if currentTab === 'settings' && module === 'ASSETS'}
+    {#if reachesAdministrationArea() === true}<CmdbView isEmbedded />{/if}
   {:else}
-    {#if doors.length > 0}
-      <ul class="doors">
-        {#each doors as door (door.id)}
-          <li>
-            <ListRow href={door.path} onactivate={() => onnavigate(door.path)}>
-              {#snippet leading()}<Icon name={door.icon} size="sm" />{/snippet}
-              {t(door.code)}
-            </ListRow>
-          </li>
-        {/each}
-      </ul>
-    {/if}
-
     {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0}
       <section aria-labelledby="product-inventory" aria-busy={!inventory.isWhole}>
         <Stack gap="100">
@@ -297,7 +292,7 @@
   .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
   .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .doors, .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
   .name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

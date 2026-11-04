@@ -47,7 +47,7 @@
   <Stack gap="150">
     <p class="meta">
       {t('app.software.hint')}
-      {#if mayShape}<a href="/administration/configuration-items">{t('app.software.aliases_link')}</a>{/if}
+      {#if mayShape}<a href="/assets/settings">{t('app.software.aliases_link')}</a>{/if}
     </p>
     {#if products.length === 0}
       <p class="meta">{t('app.software.none')}</p>

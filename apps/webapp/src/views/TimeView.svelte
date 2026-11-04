@@ -49,6 +49,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import AbsenceCalendar from '../lib/time/AbsenceCalendar.svelte';
   import CapacityEditor from '../lib/time/CapacityEditor.svelte';
+  import TimeSettingsView from './TimeSettingsView.svelte';
   import RunningTimer from '../lib/time/RunningTimer.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
 
@@ -68,9 +69,16 @@
     { id: 'report', code: 'app.time.tab_report' },
     { id: 'absences', code: 'app.time.tab_absences' },
     { id: 'capacity', code: 'app.time.tab_capacity' },
+    // Last (user-experience.md §5.1, §8.2): the kinds of work, the lock and the rates, for whoever
+    // may change one of them.
+    { id: 'settings', code: 'app.time.tab_settings' },
   ] as const;
-  const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'week');
-  const tabs = $derived<PlaceTab[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
+  const maySetUp = $derived(
+    holdsHere('STRUCTURE') === true || holdsHere('APPROVE_TIME') === true || holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true,
+  );
+  const offered = $derived(TABS.filter((each) => each.id !== 'settings' || maySetUp));
+  const current = $derived(offered.some((each) => each.id === tab) ? (tab as string) : 'week');
+  const tabs = $derived<PlaceTab[]>(offered.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
   function select(next: string) {
     onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
   }
@@ -580,6 +588,8 @@
     <AbsenceCalendar />
   {:else if current === 'capacity'}
     <CapacityEditor />
+  {:else if current === 'settings'}
+    <TimeSettingsView isEmbedded />
   {/if}
 </Stack>
 

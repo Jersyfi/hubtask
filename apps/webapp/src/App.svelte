@@ -96,13 +96,11 @@
     ModulesView: () => import('./views/ModulesView.svelte'),
     EntryTypesView: () => import('./views/EntryTypesView.svelte'),
     LinkTypesView: () => import('./views/LinkTypesView.svelte'),
-    CmdbView: () => import('./views/CmdbView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
     HubDeskView: () => import('./views/HubDeskView.svelte'),
     ApprovalsView: () => import('./views/ApprovalsView.svelte'),
-    ServiceDeskView: () => import('./views/ServiceDeskView.svelte'),
     PortalView: () => import('./views/PortalView.svelte'),
     PortalRequestView: () => import('./views/PortalRequestView.svelte'),
     PortalArticleView: () => import('./views/PortalArticleView.svelte'),
@@ -118,7 +116,6 @@
     DashboardView: () => import('./views/DashboardView.svelte'),
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
-    TimeSettingsView: () => import('./views/TimeSettingsView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
     ChangesView: () => import('./views/ChangesView.svelte'),
     WorkflowsView: () => import('./views/WorkflowsView.svelte'),
@@ -479,14 +476,8 @@
     <LazyView load={views.EntryTypesView} />
   {:else if route.name === 'link-types'}
     <LazyView load={views.LinkTypesView} />
-  {:else if route.name === 'time-settings'}
-    <LazyView load={views.TimeSettingsView} />
-  {:else if route.name === 'agents'}
-    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'own-agents'}
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'cmdb'}
-    <LazyView load={views.CmdbView} />
   {:else if route.name === 'changes'}
     <LazyView load={views.ChangesView} />
   {:else if route.name === 'workflows'}
@@ -527,13 +518,13 @@
     {#key route.params.id}
       <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'service-desk'}
-    <LazyView load={views.ServiceDeskView} />
   {:else if route.name === 'approvals'}
     <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'notes'}
     <!-- *My notes* is the pages' home's second tab (user-experience.md §2.2), at its own address. -->
     <LazyView load={views.ProductHomeView} props={{ module: 'KNOWLEDGE', tab: 'notes', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'assets-settings'}
+    <LazyView load={views.ProductHomeView} props={{ module: 'ASSETS', tab: 'settings', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'desk-desks' || route.name === 'desk-settings'}
     <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name === 'desk-desks' ? 'desks' : 'settings', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'agents-home'}

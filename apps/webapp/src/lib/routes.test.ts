@@ -205,6 +205,11 @@ test('an address whose screen became a tab replaces itself with that tab, and no
   assert.equal(movedTo(resolve(ROUTES, '/administration/permissions').name), '/administration/people?tab=permissions');
   assert.equal(movedTo(resolve(ROUTES, '/administration/service-accounts').name), '/administration/machines');
   assert.equal(movedTo(resolve(ROUTES, '/administration/apps').name), '/administration/machines?tab=apps');
+  // A product's settings live at its home's last tab (user-experience.md §8.2).
+  assert.equal(movedTo(resolve(ROUTES, '/administration/service-desk').name), '/desk/settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/configuration-items').name), '/assets/settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/time').name), '/time?tab=settings');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/agents').name), '/agents?tab=settings');
   for (const route of ROUTES) {
     const target = movedTo(route.name);
     if (target === undefined) continue;

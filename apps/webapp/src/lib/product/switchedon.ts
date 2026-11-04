@@ -19,8 +19,8 @@ export interface SwitchedOn {
 
 /** The settings each module needs before it is of use, where it has a page of them. */
 const SETUP: Readonly<Record<string, { code: string; href: string }>> = {
-  SERVICE_DESK: { code: 'app.modules.on_setup_desk', href: '/administration/service-desk' },
-  TIME: { code: 'app.modules.on_setup_time', href: '/administration/time' },
+  SERVICE_DESK: { code: 'app.modules.on_setup_desk', href: '/desk/settings' },
+  TIME: { code: 'app.modules.on_setup_time', href: '/time?tab=settings' },
   WORKFLOWS: { code: 'app.modules.on_setup_workflows', href: '/administration/workflows' },
 };
 

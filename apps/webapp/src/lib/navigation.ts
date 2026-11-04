@@ -172,7 +172,7 @@ export const PRODUCTS: readonly ProductRow[] = [
   { id: 'pages', module: 'KNOWLEDGE', icon: 'book-open', code: 'app.nav.pages', words: 'app.nav.words_pages', path: '/pages', routes: ['pages-home', 'notes'] },
   { id: 'whiteboards', module: 'WHITEBOARD', icon: 'layout-template', code: 'app.nav.whiteboards', words: 'app.nav.words_whiteboards', path: '/whiteboards', routes: ['whiteboards-home'] },
   { id: 'desk', module: 'SERVICE_DESK', icon: 'inbox', code: 'app.nav.desk', words: 'app.nav.words_desk', path: '/desk', routes: ['desk-home', 'desk-desks', 'desk-settings'] },
-  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home'] },
+  { id: 'assets', module: 'ASSETS', icon: 'shield', code: 'app.nav.assets', words: 'app.nav.words_assets', path: '/assets', routes: ['assets-home', 'assets-settings'] },
   { id: 'time', module: 'TIME', icon: 'clock', code: 'app.nav.time', words: 'app.nav.words_time', path: '/time', routes: ['time'] },
   { id: 'goals', module: 'GOALS', icon: 'flag', code: 'app.nav.goals', words: 'app.nav.words_goals', path: '/goals', routes: ['goals', 'goal', 'portfolio', 'dashboard'] },
   { id: 'agents', module: 'AGENTS', icon: 'zap', code: 'app.nav.agents', words: 'app.nav.words_agents', path: '/agents', routes: ['agents-home'] },
@@ -276,9 +276,6 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'workflows', icon: 'git-branch', code: 'app.workflow_designer.title', path: '/administration/workflows', routes: ['workflows'], module: 'WORKFLOWS' },
       // Links are the core's, not a module's (UC-PLN-01 check 5): the row is there in every workspace.
       { id: 'link-types', icon: 'link', code: 'app.link_types.title', path: '/administration/link-types', routes: ['link-types'], isAdvanced: true },
-      { id: 'time-settings', icon: 'clock', code: 'app.time_settings.title', path: '/administration/time', routes: ['time-settings'], module: 'TIME' },
-      { id: 'service-desk', icon: 'inbox', code: 'app.desk.title', path: '/administration/service-desk', routes: ['service-desk'], module: 'SERVICE_DESK', words: 'app.nav.words_service_desk' },
-      { id: 'cmdb', icon: 'shield', code: 'app.cmdb_admin.title', path: '/administration/configuration-items', routes: ['cmdb'], module: 'ASSETS' },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'], words: 'app.nav.words_rules' },
@@ -308,7 +305,6 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
       { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'], isAdvanced: true },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
-      { id: 'agents', icon: 'zap', code: 'app.agents.title', path: '/administration/agents', routes: ['agents'], module: 'AGENTS' },
     ],
   },
   {

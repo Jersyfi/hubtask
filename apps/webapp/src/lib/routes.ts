@@ -159,6 +159,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'desk-desks', pattern: '/desk/desks' },
   { name: 'desk-settings', pattern: '/desk/settings' },
   { name: 'assets-home', pattern: '/assets' },
+  { name: 'assets-settings', pattern: '/assets/settings' },
   { name: 'agents-home', pattern: '/agents' },
   { name: 'goals', pattern: '/goals' },
   { name: 'goal', pattern: '/goals/:id' },
@@ -252,6 +253,11 @@ const MOVED: Readonly<Record<string, string>> = {
   permissions: '/administration/people?tab=permissions',
   'service-accounts': '/administration/machines',
   apps: '/administration/machines?tab=apps',
+  // A product's settings are its home's last tab (user-experience.md §8.2).
+  'service-desk': '/desk/settings',
+  cmdb: '/assets/settings',
+  'time-settings': '/time?tab=settings',
+  agents: '/agents?tab=settings',
 };
 
 /** Where an address that moved now is, or nothing for one that did not. */

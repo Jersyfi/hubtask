@@ -3,24 +3,15 @@
 
 /**
  * What a product's workspace-wide home holds (user-experience.md §2.2, §5.1): its views, the hub
- * screen each hub row opens, and the doors to the workspace-wide screens it already has. Kept out
+ * screen each hub row opens. Kept out
  * of the view so the one anatomy is the same for every product and a test reads it whole.
  */
-
-import type { IconName } from '@hubtask/design-system/components';
 
 import { PRODUCTS, type ProductRow } from '../navigation.ts';
 
 export interface HomeTab {
   readonly id: string;
   readonly code: string;
-  readonly path: string;
-}
-
-export interface Door {
-  readonly id: string;
-  readonly code: string;
-  readonly icon: IconName;
   readonly path: string;
 }
 
@@ -41,6 +32,13 @@ export function homeTabs(module: string): readonly HomeTab[] {
       { id: 'requests', code: 'app.agents.tab_requests', path: '/agents?tab=requests' },
       { id: 'runs', code: 'app.agents.tab_runs', path: '/agents?tab=runs' },
       { id: 'settings', code: 'app.product_home.tab_settings', path: '/agents?tab=settings' },
+    ];
+  }
+  if (module === 'ASSETS') {
+    // Settings last (§5.1, §8.2): the classes, relations and sources are set up at the home.
+    return [
+      { id: 'inventory', code: 'app.product_home.tab_inventory', path: '/assets' },
+      { id: 'settings', code: 'app.product_home.tab_settings', path: '/assets/settings' },
     ];
   }
   if (module === 'KNOWLEDGE') {
@@ -71,20 +69,6 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
       return `${at}/desk`;
     default:
       return undefined;
-  }
-}
-
-/** The workspace-wide screens a product already has, drawn above its hubs. */
-export function productDoors(module: string, options: { readonly isAdministrationReachable: boolean }): readonly Door[] {
-  switch (module) {
-    // The desk's approvals are *Waiting for your yes* in the places band, its settings its home's
-    // last tab (§7.4): no door repeats either.
-    case 'ASSETS':
-      return options.isAdministrationReachable
-        ? [{ id: 'settings', code: 'app.product_home.cmdb_settings', icon: 'settings', path: '/administration/configuration-items' }]
-        : [];
-    default:
-      return [];
   }
 }
 

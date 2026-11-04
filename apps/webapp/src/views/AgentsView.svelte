@@ -488,7 +488,7 @@
     {/if}
   {:else if current === 'settings'}
     <Stack gap="300">
-      <div class="file"><ViewSectionsAsFile {...pagePart('/administration/agents')} /></div>
+      <div class="file"><ViewSectionsAsFile {...pagePart('/agents?tab=settings')} /></div>
       <section class="section" aria-labelledby="agents-every">
         <Stack gap="150">
           <h2 class="heading" id="agents-every">{t('app.agents.settings_every')}</h2>

@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { SOURCE } from './i18n/catalogue.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
 import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, primary, products, workspaceBand, type SectionGroup } from './navigation.ts';
-import { ROUTES } from './routes.ts';
+import { ROUTES, movedTo } from './routes.ts';
 import { resolve } from './router.ts';
 
 test('every destination with a route lands on a route it claims as current', () => {
@@ -150,8 +150,8 @@ test('the account menu holds only what is about the person', () => {
   assert.deepEqual(ids(false), ['profile', 'appearance', 'help', 'about', 'sign-out']);
   const rows = (modulesOn?: readonly string[]) =>
     administration({ hasPrivateHubs: true, modulesOn }).flatMap((group) => group.rows.map((row) => row.id));
-  assert.equal(rows().includes('time-settings'), false);
-  assert.equal(rows(['TIME']).includes('time-settings'), true);
+  assert.equal(rows().includes('entry-types'), false);
+  assert.equal(rows(['WORKFLOWS']).includes('entry-types'), true);
   // UC-GOL-01 check 9: the goals row stays current on each of their pages.
   for (const name of ['goals', 'goal', 'portfolio', 'dashboard']) {
     assert.equal(currentDestination({ name, area: 'end-user' }), 'goals');
@@ -220,9 +220,10 @@ test('the administration is grouped in the suite\u2019s six groups (configuratio
   assert.deepEqual(ADMINISTRATION.map((group) => group.id), ['back', 'how', 'people', 'connections', 'data', 'changes']);
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
-  assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'entry-types', 'workflows', 'link-types', 'time-settings', 'service-desk', 'cmdb', 'rules', 'runs']);
+  // The desk's, the assets', time's and the agents' settings are their homes' last tabs (user-experience.md §8.2).
+  assert.deepEqual(of('how'), ['workspace', 'presets', 'modules', 'entry-types', 'workflows', 'link-types', 'rules', 'runs']);
   assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
-  assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai', 'agents']);
+  assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);
   assert.deepEqual(of('changes'), ['changes']);
   for (const group of ADMINISTRATION) {
@@ -252,9 +253,10 @@ test('every row of the section resolves to a route it claims, and every screen i
   // Every screen of the area has a row, so the column is the whole of the section (ADR-0065
   // decision 1): with the index gone, a screen nothing lists is a screen nobody can reach.
   const claimed = new Set(ADMINISTRATION.flatMap((group) => group.rows).flatMap((row) => row.routes));
+  // An address whose screen moved elsewhere (`movedTo`) replaces itself and needs no row.
   const unlisted = ROUTES.filter((route) => route.area === 'administration')
     .map((route) => route.name)
-    .filter((name) => !claimed.has(name));
+    .filter((name) => !claimed.has(name) && movedTo(name) === undefined);
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);
 });
 

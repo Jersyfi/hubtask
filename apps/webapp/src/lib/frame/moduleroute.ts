@@ -14,6 +14,7 @@ const ROUTE_MODULES: Readonly<Record<string, string>> = {
   'entry-types': 'WORKFLOWS',
   workflows: 'WORKFLOWS',
   'time-settings': 'TIME',
+  'assets-settings': 'ASSETS',
 };
 
 /** The module the route's page belongs to, or none. */

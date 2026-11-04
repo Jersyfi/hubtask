@@ -12367,5 +12367,7 @@
   "app.backup.kind_SFTP": "Ein Server über SFTP",
   "app.backup.kind_WEBDAV": "Eine WebDAV-Freigabe",
   "app.backup.mode_FULL": "Vollständig",
-  "app.backup.mode_INCREMENTAL": "Änderungen seit dem letzten"
+  "app.backup.mode_INCREMENTAL": "Änderungen seit dem letzten",
+  "app.product_home.tab_inventory": "Bestand",
+  "app.time.tab_settings": "Einstellungen"
 }
