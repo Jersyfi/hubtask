@@ -124,26 +124,46 @@ test('chromium: 1280 px — the running sprint, its burndown and velocity, a mov
   // The burndown is a picture with a table of the same days (UC-PLN-07 check 5), and the velocity
   // is the server's average over the closed sprints.
   assert.equal(await page.getByRole('img', { name: /^Burndown: 3 points left/ }).count(), 1);
+  // The picture stands in the head; its table is folded under the board, opened by its name.
+  await page.getByRole('button', { name: /^Burndown/ }).click();
   const days = page.getByRole('table', { name: 'Burndown' }).locator('tbody tr');
   assert.equal(await days.count(), DETAIL.burndown.length);
   await page.getByRole('heading', { name: 'Velocity: 5 points a sprint' }).waitFor({ timeout: 5_000 });
 
-  // An entry of the backlog picked and moved into the sprint.
-  await page.getByLabel(`Pick ${ITEMS[3].title}`).check();
-  await page.getByRole('button', { name: 'Into the sprint (1)' }).click();
+  // The sprint is a board (user-experience.md §7.5): the backlog, what is to do, what is done.
+  const board = page.locator('[data-sprint-board]');
+  await board.locator('[data-card]').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), ['Backlog', 'To do', 'Done']);
+
+  // An entry of the backlog moved into the sprint by its card's arrow, the keyboard's way.
+  await page.getByRole('button', { name: `Move ${ITEMS[3].title} into the sprint` }).click();
   await settle(page);
   assert.deepEqual(wrote(written, 'POST', `/sprints/${RUNNING.id}/entries`)?.body, { item_ids: [ITEMS[3].id] });
 
-  // An estimate typed in hours, and one past the bound refused before anything is sent.
+  // An estimate typed in hours into the card's chip and kept by Enter, no Save beside it; one past
+  // the bound is refused at the chip before anything is sent.
   const field = page.getByLabel(`Estimate of ${ITEMS[3].title}`);
   await field.fill('1.5h');
-  await field.locator('xpath=ancestor::td').getByRole('button', { name: 'Save' }).click();
+  await field.press('Enter');
   await settle(page);
   assert.deepEqual(wrote(written, 'PUT', `/items/${ITEMS[3].id}/estimate`)?.body, { unit: 'HOURS', value: 1.5 });
   await field.fill('20000');
-  await field.locator('xpath=ancestor::td').getByRole('button', { name: 'Save' }).click();
+  await field.press('Enter');
   await settle(page);
   assert.equal(written.filter((each) => each.path.endsWith('/estimate')).length, 1);
+  assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the refusal is not at the chip');
+
+  // A backlog card carried by a mouse onto the sprint's lane makes the same move.
+  const before = written.filter((each) => each.method === 'POST' && each.path === `/sprints/${RUNNING.id}/entries`).length;
+  const card = board.locator(`[data-drop="backlog"] [data-card]`).first();
+  const from = await card.boundingBox();
+  const lane = await board.locator('[data-drop="sprint"]').boundingBox();
+  await page.mouse.move(from.x + from.width - 4, from.y + 4);
+  await page.mouse.down();
+  for (let step = 1; step <= 10; step += 1) await page.mouse.move(from.x + ((lane.x + lane.width / 2 - from.x) * step) / 10, from.y + ((lane.y + 40 - from.y) * step) / 10);
+  await page.mouse.up();
+  await settle(page);
+  assert.equal(written.filter((each) => each.method === 'POST' && each.path === `/sprints/${RUNNING.id}/entries`).length, before + 1, 'the carried card was not moved');
 
   // Closed, its unfinished entries carried into the next planned sprint the dialog offers first.
   await page.getByRole('button', { name: 'Close sprint' }).click();
