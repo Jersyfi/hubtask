@@ -3510,7 +3510,7 @@
   "app.agents.tokens_per_day": "Token pro Tag",
   "app.agents.actions_per_hour": "Handlungen pro Stunde",
   "app.agents.concurrent_runs": "Aufträge gleichzeitig",
-  "app.agents.budget_hint": "0 heißt ohne Grenze.",
+  "app.agents.budget_hint": "0 erlaubt nichts.",
   "app.agents.min_accuracy": "Schwelle zum Live-Schalten (%)",
   "app.agents.min_accuracy_hint": "Über 0 geht der Agent erst live, wenn ein Lauf seines Prüfsatzes auf seinem Modell sie erreicht hat.",
   "app.agents.status.DRAFT": "Entwurf",

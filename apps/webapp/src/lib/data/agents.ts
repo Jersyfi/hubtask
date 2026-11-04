@@ -9,7 +9,7 @@
  * control is drawn only where the server would take it (P-05); the server still decides (rule 2).
  */
 
-import type { Agent, AgentMeteringList, AgentRequest } from '@hubtask/sync-engine';
+import type { Agent, AgentMeteringList, AgentRequest, AgentWrite } from '@hubtask/sync-engine';
 
 export const agentsPath = '/agents';
 export const agentModelsPath = '/agent-models';
@@ -188,4 +188,62 @@ export function retentionOf(days: number | null): { code: string; params: Record
   if (days === null) return { code: 'app.agents.retention_unknown', params: {} };
   if (days === 0) return { code: 'app.agents.retention_none', params: {} };
   return { code: 'app.agents.retention_days', params: { days: String(days) } };
+}
+
+/**
+ * The domain's `DefaultBudget`: what an agent may spend unless it states otherwise. A zero allows
+ * nothing (`Admission`), so a new agent never starts from zeros.
+ */
+export const DEFAULT_BUDGET = { tokens_per_day: 200000, actions_per_hour: 120, concurrent_runs: 2 } as const;
+
+/** The roles the product ships, in the order *Add an agent* offers them (user-experience.md §7.8). */
+export const SHIPPED_ROLES = ['TICKET_TRIAGE', 'KNOWLEDGE_DRAFT', 'DUPLICATE_REVIEW', 'CI_SUGGESTION'] as const;
+
+/** What the register or change dialog holds, as typed. */
+export interface AgentDraft {
+  name: string;
+  purpose: string;
+  kind: AgentWrite['kind'];
+  owner: string;
+  risk: 'MINIMAL' | 'LIMITED';
+  scopes: string;
+  model: string;
+  reversible: 'ALLOW' | 'NOTIFY' | 'APPROVAL' | 'NEVER';
+  irreversible: 'APPROVAL' | 'NEVER';
+  tokens: string;
+  actions: string;
+  runs: string;
+  accuracy: string;
+}
+
+type Stated = Pick<Agent, 'name' | 'purpose' | 'kind' | 'owner_id' | 'risk_class' | 'scopes' | 'model_id' | 'policy' | 'budget' | 'min_accuracy'>;
+
+/**
+ * The dialog's start: the agent as it is, or a new one of a role - its kind, the reader as the
+ * person it acts for, every act waiting for a person and the default budget. The name and purpose
+ * of a role are words, filled by the caller.
+ */
+export function draftOf(of: Stated | undefined, viewerId: string, role: AgentWrite['kind'] = 'TICKET_TRIAGE'): AgentDraft {
+  return {
+    name: of?.name ?? '',
+    purpose: of?.purpose ?? '',
+    kind: of?.kind ?? role,
+    owner: of?.owner_id ?? viewerId,
+    risk: of?.risk_class ?? 'MINIMAL',
+    scopes: (of?.scopes ?? []).join(' '),
+    model: of?.model_id ?? '',
+    reversible: of?.policy.reversible ?? 'APPROVAL',
+    irreversible: of?.policy.irreversible ?? 'APPROVAL',
+    tokens: String(of?.budget.tokens_per_day ?? DEFAULT_BUDGET.tokens_per_day),
+    actions: String(of?.budget.actions_per_hour ?? DEFAULT_BUDGET.actions_per_hour),
+    runs: String(of?.budget.concurrent_runs ?? DEFAULT_BUDGET.concurrent_runs),
+    accuracy: String(of?.min_accuracy ?? 0),
+  };
+}
+
+/** How many acts wait on each agent, by its id. */
+export function heldCounts(requests: readonly Pick<AgentRequest, 'agent_id'>[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const each of requests) out.set(each.agent_id, (out.get(each.agent_id) ?? 0) + 1);
+  return out;
 }

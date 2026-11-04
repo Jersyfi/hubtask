@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  aiFields, expectedFrom, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
+  DEFAULT_BUDGET, aiFields, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
 } from './agents.ts';
 
 const admin = { administers: true, accountId: 'root' };
@@ -110,4 +110,30 @@ test('UC-AGT-04 check 7: a shipped agent answers its own set, a CI suggestion an
   assert.equal(selfEvaluation('TICKET_TRIAGE'), 'hub');
   assert.equal(selfEvaluation('DUPLICATE_REVIEW'), undefined);
   assert.equal(selfEvaluation('EXTERNAL'), undefined);
+});
+
+// A budget of zero allows nothing (`core/domain/model/agent` Budget, Admission): an agent added
+// from the screen starts from the domain's small default, never from zeros it could not act with.
+test('UC-AGT-01 check 9: a new agent starts from a budget it can act within, and a shipped role from its own words', () => {
+  assert.deepEqual(DEFAULT_BUDGET, { tokens_per_day: 200000, actions_per_hour: 120, concurrent_runs: 2 });
+  const blank = draftOf(undefined, 'root');
+  assert.deepEqual([blank.tokens, blank.actions, blank.runs], ['200000', '120', '2']);
+  assert.equal(blank.kind, 'TICKET_TRIAGE');
+  assert.equal(blank.owner, 'root');
+  const role = draftOf(undefined, 'root', 'KNOWLEDGE_DRAFT');
+  assert.equal(role.kind, 'KNOWLEDGE_DRAFT');
+  assert.deepEqual([role.reversible, role.irreversible], ['APPROVAL', 'APPROVAL']);
+  // Changing an agent keeps what it states, a zero included.
+  const kept = draftOf({
+    name: 'Old', purpose: 'p', kind: 'EXTERNAL', owner_id: 'ana', risk_class: 'LIMITED', scopes: ['items:read'], model_id: 'm',
+    policy: { reversible: 'ALLOW', irreversible: 'NEVER' }, budget: { tokens_per_day: 0, actions_per_hour: 5, concurrent_runs: 1 }, min_accuracy: 80,
+  }, 'root');
+  assert.deepEqual([kept.tokens, kept.actions, kept.runs, kept.scopes, kept.accuracy], ['0', '5', '1', 'items:read', '80']);
+});
+
+test('UC-AGT-02 check 9: each agent card counts the acts waiting on it', () => {
+  const held = heldCounts([{ agent_id: 'a' }, { agent_id: 'b' }, { agent_id: 'a' }]);
+  assert.equal(held.get('a'), 2);
+  assert.equal(held.get('b'), 1);
+  assert.equal(held.get('c'), undefined);
 });

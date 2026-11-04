@@ -4139,7 +4139,7 @@
   "app.agents.tokens_per_day": "Tokens a day",
   "app.agents.actions_per_hour": "Acts an hour",
   "app.agents.concurrent_runs": "Jobs at once",
-  "app.agents.budget_hint": "0 is no limit.",
+  "app.agents.budget_hint": "0 allows nothing.",
   "app.agents.min_accuracy": "Bar for going live (%)",
   "app.agents.min_accuracy_hint": "Above 0, the agent goes live only once a run of its evaluation set on its model reached this.",
   "app.agents.status.DRAFT": "Draft",

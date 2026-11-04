@@ -22,7 +22,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import {
-    agentHaltPath, agentPolicyPath, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, requestsPath,
+    agentHaltPath, agentPolicyPath, draftOf, type AgentDraft, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, requestsPath,
     retentionOf, scopesFrom, type LifecyclePress, type Viewer,
   } from '../lib/data/agents.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -133,43 +133,13 @@
     people.known().map((id) => ({ value: id, label: accounts.nameOf(id) ?? t('app.people.unnamed') })),
   );
 
-  interface Draft {
-    name: string;
-    purpose: string;
-    kind: AgentWrite['kind'];
-    owner: string;
-    risk: 'MINIMAL' | 'LIMITED';
-    scopes: string;
-    model: string;
-    reversible: 'ALLOW' | 'NOTIFY' | 'APPROVAL' | 'NEVER';
-    irreversible: 'APPROVAL' | 'NEVER';
-    tokens: string;
-    actions: string;
-    runs: string;
-    accuracy: string;
-  }
-
   let editing = $state<Agent | undefined>(undefined);
-  let draft = $state<Draft | undefined>(undefined);
+  let draft = $state<AgentDraft | undefined>(undefined);
   let isDraftOpen = $state(false);
 
   function openDraft(of?: Agent) {
     editing = of;
-    draft = {
-      name: of?.name ?? '',
-      purpose: of?.purpose ?? '',
-      kind: of?.kind ?? 'TICKET_TRIAGE',
-      owner: of?.owner_id ?? actor.account?.id ?? '',
-      risk: of?.risk_class ?? 'MINIMAL',
-      scopes: (of?.scopes ?? []).join(' '),
-      model: of?.model_id ?? '',
-      reversible: of?.policy.reversible ?? 'APPROVAL',
-      irreversible: of?.policy.irreversible ?? 'APPROVAL',
-      tokens: String(of?.budget.tokens_per_day ?? 0),
-      actions: String(of?.budget.actions_per_hour ?? 0),
-      runs: String(of?.budget.concurrent_runs ?? 0),
-      accuracy: String(of?.min_accuracy ?? 0),
-    };
+    draft = draftOf(of, actor.account?.id ?? '');
     dialogFailure = undefined;
     isDraftOpen = true;
   }
