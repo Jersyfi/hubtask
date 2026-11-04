@@ -51,6 +51,7 @@
   import { tick, type Snippet } from 'svelte';
 
   import { HOLD_MS, columnAt, hasLeftTheHandle } from './reorder.ts';
+  import VisuallyHidden from './VisuallyHidden.svelte';
   import { rovingIndex } from './focus.ts';
 
   /** One entry on the axis. Both dates absent means it cannot be placed and is trayed instead. */
@@ -158,6 +159,10 @@
     onLink?: (link: TimelineLink) => void;
     /** What the knob after a bar is called. */
     linkHandleLabel?: string;
+    /** What a critical row adds to its title's name, so the chain is heard as well as seen. */
+    criticalLabel?: string;
+    /** What the grip between the titles and the axis is called. Without it no grip is drawn. */
+    resizeLabel?: string;
   }
 
   const {
@@ -182,7 +187,17 @@
     dependenciesLabel,
     onLink,
     linkHandleLabel,
+    criticalLabel,
+    resizeLabel,
   }: Props = $props();
+
+  const uid = $props.id();
+  /** The steps the title column takes, as `data-title` values the stylesheet maps to tokens. */
+  const TITLE_STEPS = 4;
+  let titleStep = $state(1);
+  let section = $state<HTMLElement | null>(null);
+  /** The row under the pointer or the focus: its dependencies are drawn and said more strongly. */
+  let lit = $state<string | undefined>(undefined);
 
   const DAY = 86_400_000;
 
@@ -265,7 +280,7 @@
   });
 
   /** The arrows as drawn, in the scroller's own pixels; re-measured whenever what they join moves. */
-  let arrows = $state<{ id: string; d: string; isEarly: boolean }[]>([]);
+  let arrows = $state<{ id: string; from: string; to: string; d: string; isEarly: boolean }[]>([]);
   let canvas = $state<SVGSVGElement | null>(null);
 
   const drawn = $derived(
@@ -289,7 +304,7 @@
       if (!head || !tail) return undefined;
       return { first: head.getBoundingClientRect(), last: tail.getBoundingClientRect() };
     };
-    const next: { id: string; d: string; isEarly: boolean }[] = [];
+    const next: { id: string; from: string; to: string; d: string; isEarly: boolean }[] = [];
     for (const dependency of drawn) {
       const from = bar(dependency.from);
       const to = bar(dependency.to);
@@ -302,7 +317,7 @@
       // The bend is as deep as a bar is tall, so the curve scales with the row and no length is
       // invented here.
       const bend = (isRtl ? -1 : 1) * Math.max(from.last.height, to.first.height) * 2;
-      next.push({ id: dependency.id, d: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`, isEarly: dependency.isEarly === true });
+      next.push({ id: dependency.id, from: dependency.from, to: dependency.to, d: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`, isEarly: dependency.isEarly === true });
     }
     arrows = next;
   }
@@ -426,6 +441,63 @@
     window.addEventListener('pointercancel', finish);
   }
 
+  /** The ids of the words that say a row's dependencies, for its title's description. */
+  const saidOf = (id: string) =>
+    drawn.filter((dependency) => dependency.from === id || dependency.to === id).map((dependency) => `${uid}-dep-${dependency.id}`).join(' ') ||
+    undefined;
+
+  function stepBy(delta: number) {
+    titleStep = Math.min(TITLE_STEPS - 1, Math.max(0, titleStep + delta));
+  }
+
+  function onResizeKey(event: KeyboardEvent) {
+    const isRtl = section !== null && getComputedStyle(section).direction === 'rtl';
+    const wider = isRtl ? 'ArrowLeft' : 'ArrowRight';
+    const narrower = isRtl ? 'ArrowRight' : 'ArrowLeft';
+    if (event.key === wider || event.key === 'ArrowUp') stepBy(1);
+    else if (event.key === narrower || event.key === 'ArrowDown') stepBy(-1);
+    else if (event.key === 'Home') titleStep = 0;
+    else if (event.key === 'End') titleStep = TITLE_STEPS - 1;
+    else return;
+    event.preventDefault();
+  }
+
+  /**
+   * The grip carried: the column snaps to the step nearest the pointer. Each step's width is read
+   * once, on the press, by drawing it - the steps are tokens, and only the layout knows their pixels.
+   */
+  function beginResize(event: PointerEvent) {
+    if (event.button !== 0 || !section) return;
+    const root = section;
+    const lead = root.querySelector<HTMLElement>('.lead');
+    if (!lead) return;
+    const isRtl = getComputedStyle(root).direction === 'rtl';
+    const was = titleStep;
+    const edges: number[] = [];
+    for (let step = 0; step < TITLE_STEPS; step += 1) {
+      root.dataset.title = String(step);
+      const box = lead.getBoundingClientRect();
+      edges.push(isRtl ? box.left : box.right); // design-system-lint-ignore: screen coordinates.
+    }
+    root.dataset.title = String(was);
+    event.preventDefault();
+    const onMove = (move: PointerEvent) => {
+      let nearest = 0;
+      for (let step = 1; step < TITLE_STEPS; step += 1) {
+        if (Math.abs((edges[step] ?? 0) - move.clientX) < Math.abs((edges[nearest] ?? 0) - move.clientX)) nearest = step;
+      }
+      titleStep = nearest;
+    };
+    const finish = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
   function begin(event: PointerEvent, id: string, grab: TimelineCarry['grab'], isHoldOnly = false) {
     if (event.button !== 0) return;
     const isCoarse = event.pointerType !== 'mouse';
@@ -494,7 +566,7 @@
   }
 </script>
 
-<section class="timeline" aria-label={label} data-scale={scale} {@attach attach}>
+<section class="timeline" aria-label={label} data-scale={scale} data-title={String(titleStep)} bind:this={section} {@attach attach}>
   {#if placed.length === 0 && undated.length === 0}
     <p class="empty">{emptyLabel}</p>
   {:else}
@@ -518,11 +590,30 @@
               class="arrow"
               data-dependency={arrow.id}
               data-early={arrow.isEarly ? '' : undefined}
+              data-lit={lit !== undefined && (arrow.from === lit || arrow.to === lit) ? '' : undefined}
               d={arrow.d}
               marker-end={arrow.isEarly ? 'url(#timeline-arrow-early)' : 'url(#timeline-arrow)'}
             />
           {/each}
         </svg>
+      {/if}
+      {#if resizeLabel}
+        <!-- The keyboard's way is the arrows on the focused grip; a press carried snaps to a step.
+             A focusable separator is a widget in WAI-ARIA, which the compiler's list does not know. -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+        <div
+          class="grip"
+          role="separator"
+          tabindex="0"
+          aria-label={resizeLabel}
+          aria-orientation="vertical"
+          aria-valuemin={0}
+          aria-valuemax={TITLE_STEPS - 1}
+          aria-valuenow={titleStep}
+          data-grip
+          onkeydown={onResizeKey}
+          onpointerdown={beginResize}
+        ></div>
       {/if}
       <div class="axis" bind:this={axis}>
         {#each columns as column (column)}
@@ -544,6 +635,10 @@
             data-carrying={carry?.id === entry.row.id ? '' : undefined}
             data-locked={entry.row.isLocked ? '' : undefined}
             data-link-target={linking?.over === entry.row.id ? '' : undefined}
+            onpointerenter={() => (lit = entry.row.id)}
+            onpointerleave={() => { if (lit === entry.row.id) lit = undefined; }}
+            onfocusin={() => (lit = entry.row.id)}
+            onfocusout={() => { if (lit === entry.row.id) lit = undefined; }}
           >
             <span class="lead" data-depth={depthOf(entry.row)}>
               <button
@@ -553,6 +648,7 @@
                 data-hold
                 data-current={entry.row.id === currentId ? '' : undefined}
                 aria-current={entry.row.id === currentId ? 'true' : undefined}
+                aria-describedby={saidOf(entry.row.id)}
                 tabindex={index === active ? 0 : -1}
                 onkeydown={onKeydown}
                 onclick={() => {
@@ -560,7 +656,7 @@
                   onSelect?.(entry.row.id);
                 }}
               >
-                {entry.row.title}
+                {entry.row.title}{#if entry.row.isCritical && criticalLabel}<VisuallyHidden>, {criticalLabel}</VisuallyHidden>{/if}
               </button>
               {#if rowAction}<span class="action" data-action>{@render rowAction(entry.row.id)}</span>{/if}
             </span>
@@ -659,7 +755,12 @@
     <!-- The arrows in words: the picture is for the eye, this is what it says. -->
     <ul class="dependencies" aria-label={dependenciesLabel}>
       {#each drawn as dependency (dependency.id)}
-        <li data-dependency-said={dependency.id} data-early={dependency.isEarly ? '' : undefined}>{dependency.label}</li>
+        <li
+          id={`${uid}-dep-${dependency.id}`}
+          data-dependency-said={dependency.id}
+          data-early={dependency.isEarly ? '' : undefined}
+          data-lit={lit !== undefined && (dependency.from === lit || dependency.to === lit) ? '' : undefined}
+        >{dependency.label}</li>
       {/each}
     </ul>
   {/if}
@@ -680,6 +781,12 @@
     --column: var(--sp-100);
     --title: var(--sp-1600);
   }
+
+  /* The title column's steps, carried by the grip. */
+  .timeline[data-title='0'] { --title: var(--sp-1000); }
+  .timeline[data-title='1'] { --title: var(--sp-1600); }
+  .timeline[data-title='2'] { --title: calc(var(--sp-1600) + var(--sp-800)); }
+  .timeline[data-title='3'] { --title: calc(var(--sp-1600) + var(--sp-1600)); }
 
   .timeline[data-scale='day'] { --column: var(--sp-300); }
   .timeline[data-scale='week'] { --column: var(--sp-100); }
@@ -781,8 +888,16 @@
   /* A summary spans its children: thinner and darker, so it does not read as one more task. */
   .cell[data-filled][data-summary] { block-size: var(--sp-050); background: var(--text-secondary); }
 
-  /* The chain that decides the end. The tint is not alone: the caller's table says "critical". */
-  .cell[data-filled][data-critical] { background: var(--status-danger-accent); }
+  /* The chain that decides the end, by more than its tint (SC 1.4.1, 1.4.11): a hatch of the
+     surface's colour across the bar, and "critical" in the row's name. */
+  .cell[data-filled][data-critical] {
+    background-color: var(--status-danger-accent);
+    background-image: repeating-linear-gradient(
+      135deg,
+      transparent 0 var(--sp-050),
+      var(--bg-surface) var(--sp-050) var(--sp-100)
+    );
+  }
 
   /* A milestone is a diamond on its day, not a one-day bar: a date without a duration. */
   .cell[data-filled][data-milestone] {
@@ -992,6 +1107,37 @@
     stroke: var(--text-primary);
     stroke-dasharray: var(--sp-050) var(--sp-025);
   }
+
+  /* The dependencies of the row under the pointer or the focus, drawn and said more strongly. */
+  .arrow[data-lit] { stroke: var(--accent-primary); stroke-width: var(--bw-ring); }
+  .dependencies [data-lit] { color: var(--text-primary); }
+
+  /* The grip: a target as wide as the floor (SC 2.5.8) over the gap between titles and axis. */
+  .grip {
+    position: absolute;
+    z-index: 1;
+    inset-block-start: 0;
+    inset-inline-start: calc(var(--title) + var(--sp-050) - var(--sp-150));
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .grip::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: calc(50% - var(--bw-hairline));
+    inline-size: var(--bw-thick);
+    border-radius: var(--r-sm);
+    background: var(--border-strong);
+  }
+
+  .grip:hover::after,
+  .grip:focus-visible::after { background: var(--accent-primary); }
+
+  .grip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-hairline); }
 
   .head path { fill: var(--text-secondary); }
   .head[data-early] path { fill: var(--text-primary); }
