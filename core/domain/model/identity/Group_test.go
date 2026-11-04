@@ -47,6 +47,7 @@ func TestTheNameIsCheckedAndNormalised(t *testing.T) {
 		{"whitespace alone is empty", "   ", "", "groups.name_empty"},
 		{"empty is empty", "", "", "groups.name_empty"},
 		{"a name that spans lines breaks every list", "Design\nTeam", "", "groups.name_malformed"},
+		{"a zero byte the database cannot store", "Design\x00", "", "groups.name_malformed"},
 		{"longer than the column allows", strings.Repeat("a", maxGroupName+1), "", "groups.name_too_long"},
 		{"exactly the maximum still fits", strings.Repeat("a", maxGroupName), strings.Repeat("a", maxGroupName), ""},
 	}

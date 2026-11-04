@@ -66,6 +66,8 @@ func TestAClientNameIsStoredInNormalFormC(t *testing.T) {
 func TestNewOauthClientRefusesTheBroken(t *testing.T) {
 	cases := map[string]func(*NewOauthClientInput){
 		"no name":       func(in *NewOauthClientInput) { in.Name = "  " },
+		"a zero byte":   func(in *NewOauthClientInput) { in.Name = "Sync\x00app" },
+		"two lines":     func(in *NewOauthClientInput) { in.Name = "Sync\napp" },
 		"no uris":       func(in *NewOauthClientInput) { in.RedirectURIs = nil },
 		"a relative":    func(in *NewOauthClientInput) { in.RedirectURIs = []string{"/callback"} },
 		"a fragment":    func(in *NewOauthClientInput) { in.RedirectURIs = []string{"https://a.example/cb#frag"} },

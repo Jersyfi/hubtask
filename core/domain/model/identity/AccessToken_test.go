@@ -216,6 +216,14 @@ func TestNewAccessTokenRefusesWhatSecurityForbids(t *testing.T) {
 			func(in *NewAccessTokenInput) { in.Name = strings.Repeat("n", MaxTokenNameLength+1) },
 			"access.token_name_too_long", "/name",
 		},
+		"a name holding a control character": {
+			func(in *NewAccessTokenInput) { in.Name = "deploy\x00bot" },
+			"access.token_name_malformed", "/name",
+		},
+		"a name on two lines": {
+			func(in *NewAccessTokenInput) { in.Name = "deploy\nbot" },
+			"access.token_name_malformed", "/name",
+		},
 		"no scopes at all": {
 			func(in *NewAccessTokenInput) { in.Scopes = nil },
 			"access.token_scopes_required", "/scopes",

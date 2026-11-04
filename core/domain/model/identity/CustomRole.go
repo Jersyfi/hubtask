@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -48,7 +49,7 @@ func NewCustomRole(id, tenantID shared.ID, key, name string, permissions []strin
 	case !ValidCustomRoleKey(key):
 		return CustomRole{}, shared.ErrValidation.WithDetail("roles.key_invalid").
 			WithParams(map[string]string{"key": key})
-	case name == "" || utf8.RuneCountInString(name) > MaxCustomRoleNameLength || strings.ContainsAny(name, "\r\n"):
+	case name == "" || utf8.RuneCountInString(name) > MaxCustomRoleNameLength || strings.ContainsFunc(name, unicode.IsControl):
 		return CustomRole{}, shared.ErrValidation.WithDetail("roles.name_invalid")
 	}
 	held := slices.Clone(permissions)
