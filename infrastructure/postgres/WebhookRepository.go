@@ -515,6 +515,45 @@ func (WebhookDeliveryRepository) Repoint(ctx context.Context, deliveryID, eventI
 	return affected > 0, nil
 }
 
+func (WebhookDeliveryRepository) Superseded(ctx context.Context, delivery domain.WebhookDelivery) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(delivery.ID)
+	if err != nil {
+		return false, err
+	}
+	subscription, err := uuidOf(delivery.SubscriptionID)
+	if err != nil {
+		return false, err
+	}
+	event, err := uuidOf(delivery.EventID)
+	if err != nil {
+		return false, err
+	}
+	if _, err := queries.LockWebhookDelivery(ctx, id); err != nil {
+		if IsNoRows(err) {
+			return false, shared.ErrNotFound.
+				WithDetail("webhooks.delivery_not_found").
+				WithParams(map[string]string{"delivery_id": delivery.ID.String()})
+		}
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("holding the webhook delivery: %w", err))
+	}
+	later, err := queries.LaterWebhookDeliveryExists(ctx, sqlc.LaterWebhookDeliveryExistsParams{
+		SubscriptionID: subscription, EventID: event,
+		Attempt: int32(delivery.Attempt), //nolint:gosec // G115: an attempt counts a handful of tries.
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking for a later webhook delivery: %w", err))
+	}
+	return later, nil
+}
+
 func (WebhookDeliveryRepository) RecordOutcome(
 	ctx context.Context, outcome repository.DeliveryOutcome,
 ) error {

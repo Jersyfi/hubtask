@@ -128,6 +128,11 @@ type WebhookDeliveries interface {
 	// Repoint makes a pending delivery stand for a newer event, and reports whether it did: a
 	// delivery attempted in the meantime is left as it was, and the caller records a new one.
 	Repoint(ctx context.Context, deliveryID, eventID shared.ID) (bool, error)
+
+	// Superseded holds the delivery's row for the transaction, then reports whether a later
+	// attempt of its event under its subscription exists - so that two replays of one dead letter
+	// at once see each other, the second after the first committed.
+	Superseded(ctx context.Context, delivery domain.WebhookDelivery) (bool, error)
 }
 
 // DeliveryQuery is what a listing asks for.

@@ -145,6 +145,17 @@ func (h ReplayWebhookDelivery) Execute(
 		if err != nil {
 			return err
 		}
+		// The dead letter stays one after its replay; a second replay of it would put a second
+		// attempt of the event in flight beside the first.
+		superseded, err := w.Deliveries.Superseded(ctx, previous)
+		if err != nil {
+			return err
+		}
+		if superseded {
+			return shared.ErrConflict.
+				WithDetail("webhooks.delivery_replayed_already").
+				WithParams(map[string]string{"delivery_id": deliveryID.String()})
+		}
 		attempt.TenantID = actor.TenantID
 		if err := w.Deliveries.Insert(ctx, attempt); err != nil {
 			return err

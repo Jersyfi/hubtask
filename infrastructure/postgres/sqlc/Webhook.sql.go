@@ -350,6 +350,29 @@ func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebho
 	return err
 }
 
+const laterWebhookDeliveryExists = `-- name: LaterWebhookDeliveryExists :one
+SELECT EXISTS (
+  SELECT 1 FROM webhook_delivery
+  WHERE subscription_id = $1 AND event_id = $2
+    AND attempt > $3
+)
+`
+
+type LaterWebhookDeliveryExistsParams struct {
+	SubscriptionID pgtype.UUID
+	EventID        pgtype.UUID
+	Attempt        int32
+}
+
+// Whether the event was attempted again after this attempt under the subscription - asked in a
+// statement of its own after the lock, so that it sees a replay committed while it waited.
+func (q *Queries) LaterWebhookDeliveryExists(ctx context.Context, arg LaterWebhookDeliveryExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, laterWebhookDeliveryExists, arg.SubscriptionID, arg.EventID, arg.Attempt)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const listWebhookSubscriptions = `-- name: ListWebhookSubscriptions :many
 SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
        format, chat_room, chat_locale,
@@ -429,6 +452,18 @@ func (q *Queries) ListWebhookSubscriptions(ctx context.Context) ([]ListWebhookSu
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockWebhookDelivery = `-- name: LockWebhookDelivery :one
+SELECT id FROM webhook_delivery WHERE id = $1 FOR UPDATE
+`
+
+// Holds one attempt for the transaction: a replay of it waits for another replay of it to commit.
+func (q *Queries) LockWebhookDelivery(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockWebhookDelivery, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const recordWebhookDeliveryOutcome = `-- name: RecordWebhookDeliveryOutcome :execrows

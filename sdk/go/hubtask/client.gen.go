@@ -36308,7 +36308,7 @@ type ClientInterface interface {
 
 	// ReplayWebhookDelivery Send a dead-lettered delivery again
 	//
-	// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent.
+	// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent. A dead letter is sent again once: a second replay of it is refused with `webhooks.delivery_replayed_already`, and the latest attempt of the event is the one to replay.
 	//
 	// Corresponds with POST /integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay (the `ReplayWebhookDelivery` operationId).
 	ReplayWebhookDelivery(ctx context.Context, webhookId WebhookId, deliveryId DeliveryId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -53712,7 +53712,7 @@ func (c *Client) ListWebhookDeliveries(ctx context.Context, webhookId WebhookId,
 
 // ReplayWebhookDelivery Send a dead-lettered delivery again
 //
-// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent.
+// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent. A dead letter is sent again once: a second replay of it is refused with `webhooks.delivery_replayed_already`, and the latest attempt of the event is the one to replay.
 //
 // Corresponds with POST /integrations/webhooks/{webhookId}/deliveries/{deliveryId}:replay (the `ReplayWebhookDelivery` operationId).
 func (c *Client) ReplayWebhookDelivery(ctx context.Context, webhookId WebhookId, deliveryId DeliveryId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -109967,7 +109967,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReplayWebhookDeliveryWithResponse Send a dead-lettered delivery again
 	//
-	// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent.
+	// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent. A dead letter is sent again once: a second replay of it is refused with `webhooks.delivery_replayed_already`, and the latest attempt of the event is the one to replay.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -166002,7 +166002,7 @@ func (c *ClientWithResponses) ListWebhookDeliveriesWithResponse(ctx context.Cont
 
 // ReplayWebhookDeliveryWithResponse Send a dead-lettered delivery again
 //
-// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent.
+// The same event, sent again by hand after whatever made it fail has been fixed. The event identifier is the one it always had, so a subscriber that deduplicates on `X-Hubtask-Event-Id` sees the repeat for what it is; the attempt counter carries on rather than resetting, so the delivery log stays a true account of how many times this event was sent. A dead letter is sent again once: a second replay of it is refused with `webhooks.delivery_replayed_already`, and the latest attempt of the event is the one to replay.
 //
 // Returns a wrapper object for the known response body format(s).
 //

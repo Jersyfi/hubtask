@@ -122,7 +122,23 @@ func (s *subscriptionStore) Delete(_ context.Context, id shared.ID) (bool, error
 	return true, nil
 }
 
-type deliveryStore struct{ rows []domain.WebhookDelivery }
+type deliveryStore struct {
+	rows   []domain.WebhookDelivery
+	locked map[shared.ID]bool
+}
+
+func (d *deliveryStore) Superseded(_ context.Context, delivery domain.WebhookDelivery) (bool, error) {
+	if d.locked == nil {
+		d.locked = map[shared.ID]bool{}
+	}
+	d.locked[delivery.ID] = true
+	for _, row := range d.rows {
+		if row.SubscriptionID == delivery.SubscriptionID && row.EventID == delivery.EventID && row.Attempt > delivery.Attempt {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 func (d *deliveryStore) Insert(_ context.Context, delivery domain.WebhookDelivery) error {
 	d.rows = append(d.rows, delivery)

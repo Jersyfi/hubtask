@@ -1135,6 +1135,7 @@
   "webhooks.delivery_not_found": "Diese Zustellung gibt es nicht.",
   "webhooks.delivery_not_retryable": "Diese Zustellung ist {status}, und kein weiterer Versuch steht an.",
   "webhooks.delivery_not_replayable": "Nur eine Zustellung unter den Unzustellbaren lässt sich erneut senden. Diese ist {status}.",
+  "webhooks.delivery_replayed_already": "Diese Zustellung wurde schon erneut gesendet. Ihr letzter Versuch ist der, der sich erneut senden lässt.",
   "webhooks.subscription_not_active": "Dieses Abonnement ist {state}. Nur an ein aktives Abonnement lässt sich senden.",
   "webhooks.replay_not_deliverable": "Dieses Ereignis stammt aus einer Wiederherstellung, und ein wiederholtes Ereignis wird nie an ein externes System zugestellt.",
   "webhooks.delivery_status_unknown": "Es gibt keinen Zustellstatus namens {status}.",

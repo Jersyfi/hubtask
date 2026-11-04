@@ -171,6 +171,19 @@ SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_statu
 FROM webhook_delivery
 WHERE id = sqlc.arg('id');
 
+-- name: LockWebhookDelivery :one
+-- Holds one attempt for the transaction: a replay of it waits for another replay of it to commit.
+SELECT id FROM webhook_delivery WHERE id = sqlc.arg('id') FOR UPDATE;
+
+-- name: LaterWebhookDeliveryExists :one
+-- Whether the event was attempted again after this attempt under the subscription - asked in a
+-- statement of its own after the lock, so that it sees a replay committed while it waited.
+SELECT EXISTS (
+  SELECT 1 FROM webhook_delivery
+  WHERE subscription_id = sqlc.arg('subscription_id') AND event_id = sqlc.arg('event_id')
+    AND attempt > sqlc.arg('attempt')
+);
+
 -- name: WebhookDeliveries :many
 -- One subscription's attempts, newest first, optionally narrowed to one outcome - DEAD_LETTER is
 -- the one an operator usually wants. The cursor is the identifier, which is time-ordered.
