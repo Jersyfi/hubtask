@@ -70,6 +70,10 @@
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { webhookColumnFigure } from '../data/webhooks.ts';
+  import { calendarPushesPath, pushColumnFigure } from '../data/calendarpush.ts';
+  import { MAILBOXES, mailboxColumnFigure, type MailboxesRead } from '../data/mailintake.svelte.ts';
+  import { engine } from '../data/engine.ts';
+  import type { CalendarPushList } from '@hubtask/sync-engine';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
@@ -154,9 +158,36 @@
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => webhooks.open());
   });
+  // The mailboxes, for whoever may shape the intake (the mail screen's own gate), and the
+  // reader's calendar pushes while Your settings is open: each failing connection is counted on
+  // its row. A read that fails only leaves the figure off.
+  let mailboxes = $state<MailboxesRead['mailboxes']>([]);
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration || holdsHere('AUTOMATION') !== true) return;
+    return untrack(() =>
+      engine.subscribe<MailboxesRead>({ path: MAILBOXES }, (next) => (mailboxes = next.status === 'ready' ? (next.data.mailboxes ?? []) : [])),
+    );
+  });
+  let pushes = $state<CalendarPushList['data']>([]);
+  $effect(() => {
+    if (!session.isSignedIn || route.area !== 'profile') return;
+    return untrack(() =>
+      engine.subscribe<CalendarPushList>({ path: calendarPushesPath }, (next) => (pushes = next.status === 'ready' ? (next.data.data ?? []) : [])),
+    );
+  });
   const sectionFigures = $derived.by((): Readonly<Record<string, string>> => {
-    const switchedOff = isInAdministration ? webhookColumnFigure(webhooks.all, t) : undefined;
-    return switchedOff ? { webhooks: switchedOff } : {};
+    const figures: Record<string, string> = {};
+    if (isInAdministration) {
+      const switchedOff = webhookColumnFigure(webhooks.all, t);
+      if (switchedOff) figures['webhooks'] = switchedOff;
+      const failing = holdsHere('AUTOMATION') === true ? mailboxColumnFigure(mailboxes, t) : undefined;
+      if (failing) figures['mail'] = failing;
+    }
+    if (route.area === 'profile') {
+      const stopped = pushColumnFigure(pushes, t);
+      if (stopped) figures['calendars'] = stopped;
+    }
+    return figures;
   });
   // And the workspace, for whether it holds more than one person: there the row stays drawn with
   // no private hub in it, because it is where *Private hubs allowed* is set (ADR-0073 §6).

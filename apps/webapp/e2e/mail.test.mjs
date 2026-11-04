@@ -92,9 +92,12 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     assert.deepEqual(saved.body.senders, { level: 'MEMBERS_AND_ALLOWED', allowed: ['@lieferant.test'], blocked: [] });
     assert.equal(saved.body.sender_routes[0].match, '@lieferant.test');
 
-    // A mailbox: a refused password is said in the form, the right one connects it, and the handles
+    // A mailbox: none yet, so the section says what one is for; the head's act opens the dialog,
+    // a refused password is said in it, the right one connects it and closes it, and the handles
     // show their plus address through it.
-    const connect = page.locator('[data-mailbox-connect]');
+    await page.locator('[data-mail-mailboxes]').getByText('No mailbox is connected').waitFor({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Connect a mailbox' }).first().click();
+    const connect = page.getByRole('dialog').locator('[data-mailbox-connect]');
     await connect.locator('[data-mailbox-hint]').getByText('app password', { exact: false }).waitFor({ timeout: 10_000 });
     await connect.getByLabel('Mailbox address').fill('familie@gmail.com');
     await connect.getByLabel('Password or app password').fill('wrong');
@@ -103,6 +106,8 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     await connect.getByLabel('Password or app password').fill('app-pw');
     await connect.getByRole('button', { name: 'Connect' }).click();
     await page.locator('[data-mailbox="familie@gmail.com"]').waitFor({ timeout: 5_000 });
+    await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 5_000 });
+    await page.locator('[data-mailbox="familie@gmail.com"]').getByText('Reading', { exact: true }).waitFor();
     const connected = writes.filter((write) => write.call === 'POST /mail/mailboxes').at(-1);
     assert.equal(connected.body.preset, 'gmail');
     assert.equal(connected.body.secret, 'app-pw');
@@ -181,6 +186,7 @@ test('chromium: a mailbox connects through its provider and comes back connected
   });
   try {
     await page.goto(`${served.origin}/administration/mail`);
+    await page.getByRole('button', { name: 'Connect a mailbox' }).first().click();
     const oauth = page.locator('[data-mailbox-oauth]');
     await oauth.waitFor({ timeout: 15_000 });
 
@@ -202,6 +208,55 @@ test('chromium: a mailbox connects through its provider and comes back connected
   } finally {
     await browser.close();
   }
+});
+
+// A mailbox whose reads fail for an hour: its card says so with the failure beside *Check now*,
+// the head counts it, and the column counts it on every screen of the administration
+// (user-experience.md §7.10); a single failed read is said but not counted as an outage.
+test('chromium: a failing mailbox is said beside Check now and counted in the column', { timeout: 120_000 }, async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 1280, 900);
+  const box = (id, address, failing, failure) => ({
+    id, protocol: 'IMAP', address, host: 'imap.gmail.com', port: 993, username: address, folder: 'INBOX', done_folder: 'Hubtask',
+    preset: 'gmail', enabled: true, failing, ...(failure ? { failure } : {}), checked_at: '2026-11-03T10:00:00Z', created_at: '2026-10-25T10:00:00Z', auth: 'PASSWORD',
+  });
+  const checks = [];
+  await context.route('**/api/v1/**', (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/mail/settings') return route.fulfill({ json: { enabled: true, senders: { level: 'MEMBERS', allowed: [], blocked: [] }, sender_routes: [] } });
+    if (path === '/mail/receipts') return route.fulfill({ json: { receipts: [] } });
+    if (path === '/mail/mailboxes' && request.method() === 'GET') {
+      return route.fulfill({ json: {
+        mailboxes: [box('b1', 'familie@gmail.com', true, 'mail.mailbox_refused'), box('b2', 'büro@gmail.com', false, 'mail.mailbox_unreachable'), box('b3', 'info@gmail.com', false)],
+        presets: [{ key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' }],
+      } });
+    }
+    if (path.endsWith(':check')) {
+      checks.push(path);
+      return route.fulfill({ json: box('b1', 'familie@gmail.com', false) });
+    }
+    return stub(route);
+  });
+
+  await page.goto(`${served.origin}/administration/people`);
+  const column = page.getByRole('navigation', { name: 'Administration' });
+  await column.getByText('1 failing').waitFor({ timeout: 10_000 });
+  assert.equal(await column.getByRole('treeitem', { name: /1 failing/ }).count(), 1, 'the figure is not heard with the row');
+
+  await page.goto(`${served.origin}/administration/mail`);
+  await page.locator('[data-mail-figure]').getByText('2 reading · 1 failing').waitFor({ timeout: 10_000 });
+  const failing = page.locator('[data-mailbox="familie@gmail.com"]');
+  await failing.getByText('Failing for an hour or longer').waitFor();
+  await failing.locator('[data-mailbox-failure]').getByText('refused the sign-in', { exact: false }).waitFor();
+  await page.locator('[data-mailbox="büro@gmail.com"]').getByText('Last read failed').waitFor();
+  await page.locator('[data-mailbox="info@gmail.com"]').getByText('Reading', { exact: true }).waitFor();
+
+  await failing.getByRole('button', { name: 'Check now' }).click();
+  await failing.getByText('Reading', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(checks, ['/mail/mailboxes/b1:check']);
+  assert.deepEqual(failures, []);
 });
 
 async function expectWrite(writes, call, body) {

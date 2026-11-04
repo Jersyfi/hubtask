@@ -37,3 +37,20 @@ export function pushesOf(pushes: readonly CalendarPush[], feedId: string): Parti
   for (const push of pushes) if (push.feed_id === feedId) out[push.provider] = push;
   return out;
 }
+
+/** The head's figure (user-experience.md §7.10): how many write, how many stopped on a refusal. */
+export function pushFigure(list: readonly { readonly state: string }[]): { active: number; failed: number } {
+  return {
+    active: list.filter((each) => each.state === 'ACTIVE').length,
+    failed: list.filter((each) => each.state === 'FAILED').length,
+  };
+}
+
+/** The column's figure on *Calendars*: the pushes that stopped, nothing while every one writes. */
+export function pushColumnFigure(
+  list: readonly { readonly state: string }[],
+  t: (code: string, params?: Record<string, string>) => string,
+): string | undefined {
+  const { failed } = pushFigure(list);
+  return failed > 0 ? t('app.pushes.column_failed', { count: String(failed) }) : undefined;
+}

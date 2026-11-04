@@ -12,6 +12,8 @@
 import { engine, INTENT } from './engine.ts';
 
 const SETTINGS = '/mail/settings';
+/** The connected mailboxes; the column reads them too, so every change to one invalidates the read. */
+export const MAILBOXES = '/mail/mailboxes';
 
 export type SenderLevel = 'MEMBERS' | 'MEMBERS_AND_ALLOWED' | 'ANYONE';
 
@@ -143,6 +145,38 @@ export interface Mailbox {
   readonly oauth_provider?: string | null;
 }
 
+/**
+ * A mailbox's state in words (user-experience.md §7.10). One failed read is said on its card but
+ * is not yet an outage: the server calls a mailbox failing after an hour of failed reads, and only
+ * that is counted in the column. A mailbox switched off is not read, so it is not failing.
+ */
+export type MailboxState = 'reading' | 'failed_once' | 'failing' | 'off';
+
+export function mailboxStateOf(box: { readonly enabled: boolean; readonly failing: boolean; readonly failure?: string | null }): MailboxState {
+  if (!box.enabled) return 'off';
+  if (box.failing) return 'failing';
+  return box.failure ? 'failed_once' : 'reading';
+}
+
+/** The head's figure: the mailboxes read (a single failed read included), failing, and off. */
+export function mailboxFigure(list: readonly Parameters<typeof mailboxStateOf>[0][]): { reading: number; failing: number; off: number } {
+  const states = list.map(mailboxStateOf);
+  return {
+    reading: states.filter((state) => state === 'reading' || state === 'failed_once').length,
+    failing: states.filter((state) => state === 'failing').length,
+    off: states.filter((state) => state === 'off').length,
+  };
+}
+
+/** The column's figure on *E-mail*: the mailboxes failing for an hour, nothing otherwise. */
+export function mailboxColumnFigure(
+  list: readonly Parameters<typeof mailboxStateOf>[0][],
+  t: (code: string, params?: Record<string, string>) => string,
+): string | undefined {
+  const { failing } = mailboxFigure(list);
+  return failing > 0 ? t('app.mail.column_failing', { count: String(failing) }) : undefined;
+}
+
 /** A provider a mailbox connects to through its own sign-in, and whether the installation brings an app. */
 export interface MailboxOAuthProvider {
   readonly key: string;
@@ -189,7 +223,7 @@ export interface MailboxesRead {
 }
 
 export async function readMailboxes(): Promise<MailboxesRead> {
-  const read = await engine.refresh<MailboxesRead>({ path: '/mail/mailboxes' });
+  const read = await engine.refresh<MailboxesRead>({ path: MAILBOXES });
   if (read.status === 'failed') throw read.error;
   return read.status === 'ready' ? read.data : { mailboxes: [], presets: [] };
 }
@@ -204,19 +238,19 @@ export async function authorizeMailbox(request: MailboxAuthorizationRequest): Pr
 
 /** Finishes it with what the provider sent back. */
 export async function completeMailboxAuthorization(answer: { state: string; code?: string; error?: string }): Promise<Mailbox> {
-  return engine.mutate<Mailbox>('POST', '/mail/mailboxes:complete', answer, { idempotencyKey: INTENT });
+  return engine.mutate<Mailbox>('POST', '/mail/mailboxes:complete', answer, { idempotencyKey: INTENT, invalidates: [MAILBOXES] });
 }
 
 export async function connectMailbox(connection: MailboxConnection): Promise<Mailbox> {
-  return engine.mutate<Mailbox>('POST', '/mail/mailboxes', connection, { idempotencyKey: INTENT });
+  return engine.mutate<Mailbox>('POST', '/mail/mailboxes', connection, { idempotencyKey: INTENT, invalidates: [MAILBOXES] });
 }
 
 export async function checkMailbox(id: string): Promise<Mailbox> {
-  return engine.mutate<Mailbox>('POST', `/mail/mailboxes/${encodeURIComponent(id)}:check`, {}, { idempotencyKey: INTENT });
+  return engine.mutate<Mailbox>('POST', `/mail/mailboxes/${encodeURIComponent(id)}:check`, {}, { idempotencyKey: INTENT, invalidates: [MAILBOXES] });
 }
 
 export async function removeMailbox(id: string): Promise<void> {
-  await engine.mutate<void>('DELETE', `/mail/mailboxes/${encodeURIComponent(id)}`, undefined);
+  await engine.mutate<void>('DELETE', `/mail/mailboxes/${encodeURIComponent(id)}`, undefined, { invalidates: [MAILBOXES] });
 }
 
 /**

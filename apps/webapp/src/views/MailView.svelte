@@ -8,6 +8,9 @@
   // the default; anything else waits in the jumble with its reason. The page shows that order in
   // words, the handles of every collection, and what the last messages became.
   //
+  // **The connected mailboxes come first** (user-experience.md §7.10): the head counts them in
+  // words and connects one, so a failing mailbox is seen before the settings below it.
+  //
   // **Who may write is one choice with two lists.** Members by default; members and allowed
   // addresses and domains; or anyone. The block list applies before every level.
 
@@ -32,6 +35,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import {
     linesOf,
+    mailboxFigure,
     mailboxRouteTo,
     readMailReceipts,
     readMailSettings,
@@ -79,6 +83,7 @@
   let receipts = $state<readonly MailReceipt[]>([]);
   /** The connected mailboxes, for the addresses a collection is reached at through one. */
   let mailboxes = $state<readonly Mailbox[]>([]);
+  let isAddingMailbox = $state(false);
 
   const mayShape = $derived(holdsHere('AUTOMATION') === true);
 
@@ -133,6 +138,16 @@
     { value: 'MEMBERS_AND_ALLOWED', label: t('app.mail.level_allowed'), hint: t('app.mail.level_allowed_hint') },
     { value: 'ANYONE', label: t('app.mail.level_anyone'), hint: t('app.mail.level_anyone_hint') },
   ]);
+
+  const figureText = $derived.by(() => {
+    if (mailboxes.length === 0) return '';
+    const counts = mailboxFigure(mailboxes);
+    return [
+      ...(counts.reading > 0 ? [t('app.mail.figure_reading', { count: String(counts.reading) })] : []),
+      ...(counts.failing > 0 ? [t('app.mail.figure_failing', { count: String(counts.failing) })] : []),
+      ...(counts.off > 0 ? [t('app.mail.figure_off', { count: String(counts.off) })] : []),
+    ].join(' · ');
+  });
 
   const address = $derived(loaded?.domain && name ? `${name}@${loaded.domain}` : undefined);
 
@@ -200,7 +215,10 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+    primary={mayShape && loaded ? { label: t('app.mail.mailbox_add'), icon: 'plus', onclick: () => (isAddingMailbox = true) } : undefined}
+  >
+    {#snippet figure()}{#if figureText}<span class="figure" data-mail-figure>{figureText}</span>{/if}{/snippet}
+  </PageHeader>
   <p class="quiet">{t('app.mail.intro')}</p>
 
   <WorkspaceGate permission="AUTOMATION">
@@ -211,6 +229,13 @@
         <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
       {:else}
         <Stack gap="400">
+          <section aria-labelledby="mail-mailboxes" data-mail-mailboxes>
+            <Stack gap="150">
+              <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>
+              <MailboxSection {providerAnswer} {onanswered} bind:isAdding={isAddingMailbox} onchange={(next) => (mailboxes = next)} />
+            </Stack>
+          </section>
+
           <section class="panel" aria-labelledby="mail-on" data-mail-on>
             <Stack gap="150">
               <h2 class="section" id="mail-on">{t('app.mail.section_on')}</h2>
@@ -232,13 +257,6 @@
               <div class="fields">
                 <Select label={t('app.mail.default_place')} hint={t('app.mail.default_place_hint')} placeholder={t('app.mail.to_jumble')} options={collections} bind:value={defaultPlace} />
               </div>
-            </Stack>
-          </section>
-
-          <section class="panel" aria-labelledby="mail-mailboxes" data-mail-mailboxes>
-            <Stack gap="150">
-              <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>
-              <MailboxSection {providerAnswer} {onanswered} onchange={(next) => (mailboxes = next)} />
             </Stack>
           </section>
 
@@ -333,6 +351,8 @@
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
   .small { font-size: var(--fs-075); }
 

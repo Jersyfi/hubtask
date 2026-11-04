@@ -12,10 +12,14 @@
   // and Microsoft are one button where the operator configured an app; otherwise, and for any other
   // provider, the administrator enters an app of their own. The provider sends the browser back to
   // `/administration/mail/oauth`, and this section hands the answer to the API.
+  //
+  // **What is connected comes first** (user-experience.md §7.10): each mailbox a card with its
+  // state in words and, where a read failed, the failure beside *Check now*; connecting is a
+  // dialog the page's head opens, and a refusal stays inside it.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, Radio, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, EmptyState, Input, Radio, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { announcer } from '../announce.svelte.ts';
   import {
@@ -24,8 +28,10 @@
     completeMailboxAuthorization,
     connectMailbox,
     readMailboxes,
+    mailboxStateOf,
     removeMailbox,
     type Mailbox,
+    type MailboxState,
     type MailboxOAuthProvider,
     type MailboxPreset,
   } from '../data/mailintake.svelte.ts';
@@ -40,9 +46,18 @@
     providerAnswer?: Readonly<Record<string, string>>;
     /** Told once that answer is handed on. */
     onanswered?: () => void;
+    /** Whether the connecting dialog is open; the page's head opens it. */
+    isAdding?: boolean;
   }
 
-  let { onchange, providerAnswer, onanswered }: Props = $props();
+  let { onchange, providerAnswer, onanswered, isAdding = $bindable(false) }: Props = $props();
+
+  const STATE_TONE: Record<MailboxState, 'success' | 'warning' | 'danger' | 'neutral'> = {
+    reading: 'success',
+    failed_once: 'warning',
+    failing: 'danger',
+    off: 'neutral',
+  };
 
   let oauthProviders = $state<readonly MailboxOAuthProvider[]>([]);
   let redirectUrl = $state('');
@@ -194,6 +209,7 @@
       take([...mailboxes, connected]);
       address = '';
       password = '';
+      isAdding = false;
       announcer.say(t('app.mail.mailbox_connected', { address: connected.address }));
     } catch (error) {
       connectFailure = renderProblem(error as never, messages).message;
@@ -233,44 +249,69 @@
 </script>
 
 <Stack gap="150">
-  <p class="quiet small">{t('app.mail.mailboxes_hint')}</p>
   {#if isReading}
     <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
   {:else if readFailure}
     <Banner tone="danger">{readFailure}</Banner>
   {:else}
+    {#if isCompleting}
+      <p class="quiet" data-mailbox-completing><Spinner label={t('app.mail.oauth_completing')} /> {t('app.mail.oauth_completing')}</p>
+    {/if}
+    {#if oauthFailure && !isAdding}<div data-mailbox-oauth-failure><Banner tone="danger">{oauthFailure}</Banner></div>{/if}
+
     {#if mailboxes.length > 0}
       <ul class="boxes">
         {#each mailboxes as box (box.id)}
-          <li data-mailbox={box.address}>
+          {@const state = mailboxStateOf(box)}
+          <li data-mailbox={box.address} data-mailbox-is={state}>
             <div class="box-head">
-              <strong>{box.address}</strong>
-              <span class="quiet small">
-                {box.protocol}{#if box.host ?? box.session_url} · {box.host ?? box.session_url}{/if}{#if box.auth === 'OAUTH'} · {t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })}{/if}
-              </span>
+              <strong class="address">{box.address}</strong>
+              <Badge tone={STATE_TONE[state]}>{t(`app.mail.mailbox_state.${state}`)}</Badge>
             </div>
-            <p class="small" class:danger={box.failure} data-mailbox-state>
-              {#if box.failure}
-                {t(box.failure)}
-              {:else if box.checked_at}
+            <span class="quiet small">
+              {box.protocol}{#if box.host ?? box.session_url} · {box.host ?? box.session_url}{/if}{#if box.auth === 'OAUTH'} · {t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })}{/if}
+            </span>
+            <p class="quiet small" data-mailbox-state>
+              {#if box.checked_at}
                 {t('app.mail.mailbox_read_at', { when: formatDateTime(box.checked_at, messages.locale) })}
-              {:else}
+              {:else if !box.failure}
                 {t('app.mail.mailbox_waiting')}
               {/if}
             </p>
+            {#if box.failure && state !== 'off'}
+              <!-- The failure beside the act that tries again: whoever presses it knows why. -->
+              <Banner tone={state === 'failing' ? 'danger' : 'warning'}>
+                <Stack gap="100">
+                  <span data-mailbox-failure>{t(box.failure)}</span>
+                  <div>
+                    <Button size="sm" tone="primary" isBusy={working === box.id} busyLabel={t('app.mail.checking')} onclick={() => void check(box)}>{t('app.mail.mailbox_check')}</Button>
+                  </div>
+                </Stack>
+              </Banner>
+            {/if}
             <div class="actions">
-              <Button size="sm" tone="secondary" isBusy={working === box.id} busyLabel={t('app.mail.checking')} onclick={() => void check(box)}>{t('app.mail.mailbox_check')}</Button>
-              <Button size="sm" tone="secondary" onclick={() => void remove(box)}>{t('app.mail.mailbox_remove')}</Button>
+              {#if !box.failure || state === 'off'}
+                <Button size="sm" tone="secondary" isBusy={working === box.id} busyLabel={t('app.mail.checking')} onclick={() => void check(box)}>{t('app.mail.mailbox_check')}</Button>
+              {/if}
+              <Button size="sm" tone="danger" onclick={() => void remove(box)}>{t('app.mail.mailbox_remove')}</Button>
             </div>
           </li>
         {/each}
       </ul>
       {#if rowFailure}<Banner tone="danger">{rowFailure}</Banner>{/if}
+    {:else if !isCompleting}
+      <EmptyState kind="unused" icon="mail" title={t('app.mail.mailboxes_empty_title')} description={t('app.mail.mailboxes_hint')} action={connectAct} />
     {/if}
+  {/if}
+</Stack>
 
-    {#if isCompleting}
-      <p class="quiet" data-mailbox-completing><Spinner label={t('app.mail.oauth_completing')} /> {t('app.mail.oauth_completing')}</p>
-    {/if}
+{#snippet connectAct()}
+  <Button tone="primary" icon="plus" onclick={() => (isAdding = true)}>{t('app.mail.mailbox_add')}</Button>
+{/snippet}
+
+<Dialog bind:isOpen={isAdding} title={t('app.mail.mailbox_add')} dismissLabel={t('app.mail.oauth_cancel')} isWide>
+  <Stack gap="200">
+    <p class="quiet small">{t('app.mail.mailboxes_hint')}</p>
     {#if oauthFailure}<div data-mailbox-oauth-failure><Banner tone="danger">{oauthFailure}</Banner></div>{/if}
 
     {#if oauthProviders.length > 0}
@@ -365,29 +406,30 @@
         >{t('app.mail.mailbox_connect')}</Button>
       </div>
     </div>
-  {/if}
-</Stack>
+  </Stack>
+</Dialog>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }
 
-  .danger { color: var(--text-danger); }
-
   .boxes { display: grid; gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
 
   .boxes li {
     display: grid;
-    gap: var(--sp-050);
-    padding: var(--sp-150);
+    gap: var(--sp-100);
+    padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
   }
 
   .boxes li p { margin: 0; }
 
-  .box-head { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: baseline; }
+  .box-head { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
+
+  .address { overflow-wrap: anywhere; }
 
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 
