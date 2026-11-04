@@ -171,9 +171,10 @@
     );
   });
   // And which AI answers, for an offered model the installation withdrew: nothing answers then.
+  // The figure is the source's alone, so the provider is not read here.
   $effect(() => {
     if (!session.isSignedIn || !isInAdministration) return;
-    return untrack(() => aiProvider.open());
+    return untrack(() => aiProvider.openSource());
   });
   let pushes = $state<CalendarPushList['data']>([]);
   $effect(() => {
@@ -189,7 +190,7 @@
       if (switchedOff) figures['webhooks'] = switchedOff;
       const failing = holdsHere('AUTOMATION') === true ? mailboxColumnFigure(mailboxes, t) : undefined;
       if (failing) figures['mail'] = failing;
-      const silent = aiProvider.source ? aiColumnFigure(aiAnsweringOf(aiProvider.source, aiProvider.provider), t) : undefined;
+      const silent = aiProvider.source ? aiColumnFigure(aiAnsweringOf(aiProvider.source, undefined), t) : undefined;
       if (silent) figures['ai'] = silent;
     }
     if (route.area === 'profile') {

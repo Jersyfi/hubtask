@@ -84,6 +84,16 @@ class AiProviderStore {
   }
 
   /**
+   * Starts only the read of which AI answers - the frame's column figure needs no more, and the
+   * provider's read answers a workspace without one with a 404 every administration page would log.
+   */
+  openSource(): () => void {
+    return engine.subscribe<AiSource>({ path: SOURCE }, (next) => {
+      this.#source = next;
+    });
+  }
+
+  /**
    * Chooses which AI answers. Choosing an offered model is the consent to send this workspace's
    * content to it; its own model or none withdraws that consent. `sources` narrows what the
    * workspace allows itself.

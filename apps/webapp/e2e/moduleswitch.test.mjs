@@ -31,11 +31,6 @@ function modulesBackend(off) {
   const states = ['PLANNING', 'TIME', 'SERVICE_DESK'].map((module) => ({ module, on: !off.includes(module), source: 'DEFAULT' }));
   return (method, path) => {
     if (path === '/tenant/modules' && method === 'GET') return { json: { modules: states } };
-    // The administration's frame reads which AI answers; a workspace that configured none is the
-    // contract's 404, which the walk counts as a failed request, so this one has a provider.
-    if (path === '/ai-provider' && method === 'GET') {
-      return { json: { kind: 'NOOP', jurisdiction: 'EEA', processing_allowed: false, has_api_key: false, created_at: '2026-09-01T00:00:00Z', version: 1 } };
-    }
     if (path === '/config/templates' && method === 'GET') return { json: { data: [template('itil_service_desk', ['workflows', 'service_desk']), template('kanban_team', ['workflows'])] } };
     const one = /^\/tenant\/modules\/([A-Z_]+)$/.exec(path);
     if (one && method === 'PUT') {

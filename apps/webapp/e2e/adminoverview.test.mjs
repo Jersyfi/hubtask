@@ -141,6 +141,9 @@ test('chromium: the administration opens on an overview of what needs attention,
 
   // The column marks the overview current.
   assert.equal(await page.locator('nav [aria-current="page"]').first().textContent().then((text) => text?.trim()), 'Overview');
+  // The column's AI figure needs which AI answers only: the provider's read is the AI screen's,
+  // whose "none configured" 404 would be a console error on every page of the administration.
+  assert.ok(!owner.asked.includes('/ai-provider'), 'the administration read the AI provider');
   assert.deepEqual(owner.failures, []);
 });
 

@@ -24,3 +24,14 @@ test('the column counts only a source that stopped answering', () => {
   assert.equal(aiColumnFigure('withdrawn', t), 'app.ai.column_withdrawn');
   for (const quiet of ['offered', 'own', 'own_not_allowed', 'own_missing', 'none'] as const) assert.equal(aiColumnFigure(quiet, t), undefined, quiet);
 });
+
+// The frame reads which AI answers and not the provider: the column's figure must not need it.
+test('the column figure is the same with or without the provider', () => {
+  const t = (code: string) => code;
+  const sources = [{ source: 'OWN' }, { source: 'NONE' }, { source: 'OFFERED' }, { source: 'OFFERED', offered_model_id: 'm' }];
+  for (const source of sources) {
+    for (const provider of [undefined, own(true), own(false)]) {
+      assert.equal(aiColumnFigure(aiAnsweringOf(source, provider), t), aiColumnFigure(aiAnsweringOf(source, undefined), t), JSON.stringify(source));
+    }
+  }
+});
