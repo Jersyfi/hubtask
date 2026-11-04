@@ -22208,8 +22208,8 @@ paths:
       summary: Bring a page back from the trash
       description: >
         Brings the trashed page back with the pages that went into the trash with it. A page whose
-        parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the
-        hub.
+        parent is still in the trash, or whose pages would reach deeper than twelve levels under
+        it, comes back at the top of the space. Needs WRITE_ITEMS on the hub.
       responses:
         "200":
           description: Restored

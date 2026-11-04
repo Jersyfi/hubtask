@@ -38283,7 +38283,7 @@ type ClientInterface interface {
 
 	// RestorePage Bring a page back from the trash
 	//
-	// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+	// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash, or whose pages would reach deeper than twelve levels under it, comes back at the top of the space. Needs WRITE_ITEMS on the hub.
 	//
 	// Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
 	RestorePage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -58107,7 +58107,7 @@ func (c *Client) PublishPage(ctx context.Context, pageId PageId, params *Publish
 
 // RestorePage Bring a page back from the trash
 //
-// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash, or whose pages would reach deeper than twelve levels under it, comes back at the top of the space. Needs WRITE_ITEMS on the hub.
 //
 // Corresponds with POST /pages/{pageId}:restore (the `RestorePage` operationId).
 func (c *Client) RestorePage(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -112178,7 +112178,7 @@ type ClientWithResponsesInterface interface {
 
 	// RestorePageWithResponse Bring a page back from the trash
 	//
-	// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+	// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash, or whose pages would reach deeper than twelve levels under it, comes back at the top of the space. Needs WRITE_ITEMS on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -169665,7 +169665,7 @@ func (c *ClientWithResponses) PublishPageWithResponse(ctx context.Context, pageI
 
 // RestorePageWithResponse Bring a page back from the trash
 //
-// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash comes back at the top of the space. Needs WRITE_ITEMS on the hub.
+// Brings the trashed page back with the pages that went into the trash with it. A page whose parent is still in the trash, or whose pages would reach deeper than twelve levels under it, comes back at the top of the space. Needs WRITE_ITEMS on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
