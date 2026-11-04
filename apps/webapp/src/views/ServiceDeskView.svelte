@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
   import {
-    EmptyState, Badge, Button, Checkbox, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
+    EmptyState, Badge, Button, Checkbox, CheckboxGroup, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
   } from '@hubtask/design-system/components';
   import DurationInput from '../lib/forms/DurationInput.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
@@ -25,6 +25,9 @@
   import { calendarsPath, desk, organisationsPath, policiesPath, repliesPath, slaReportPath } from '../lib/data/desk.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
+  import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
+  import { statusLabel, workflows } from '../lib/data/workflows.svelte.ts';
   import { keyFrom } from '../lib/data/entrytypes.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -34,7 +37,7 @@
   import { addDays, deviceZone, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
-  import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, policyDefinitionOf, reportRows } from '../lib/servicedesk/desk.ts';
+  import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, minutesFor, policyDefinitionOf, reportRows, textOf, withMinutes, wordsOf } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
 
   // On the desk's home its *Settings* tab (user-experience.md §7.4), under the home's own head.
@@ -59,6 +62,15 @@
 
   let refusal = $state<string | undefined>(undefined);
   let isSaving = $state(false);
+  /**
+   * The form open in its dialog, from *Add …* or a row's pencil (user-experience.md §7.4): a list
+   * stays a list, and a form is never open before somebody asked for it.
+   */
+  let editing = $state<'calendar' | 'policy' | 'reply' | 'organisation' | undefined>(undefined);
+  const close = () => {
+    editing = undefined;
+    refusal = undefined;
+  };
 
   async function attempt(work: () => Promise<unknown>, said: string): Promise<boolean> {
     refusal = undefined;
@@ -83,6 +95,11 @@
     if (!row) return;
     const form = formOf(row);
     calendar = { key: row.key, name: row.name, zone: row.zone, days: form.days, from: form.from, to: form.to, holidays: row.holidays.join('\n') };
+    editing = 'calendar';
+  }
+  function addCalendar() {
+    calendar = { key: '', name: '', zone: deviceZone(), days: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'], from: '08:00', to: '17:00', holidays: '' };
+    editing = 'calendar';
   }
 
   async function saveCalendar(event: SubmitEvent) {
@@ -91,7 +108,10 @@
     const saved = await attempt(() => desk.defineCalendar(key, {
       name: calendar.name.trim(), zone: calendar.zone.trim(), hours: hoursOf(calendar.days, calendar.from, calendar.to), holidays: holidaysOf(calendar.holidays),
     }), 'app.desk.calendar_saved');
-    if (saved) calendar = { ...calendar, key: '', name: '', holidays: '' };
+    if (saved) {
+      calendar = { ...calendar, key: '', name: '', holidays: '' };
+      close();
+    }
   }
 
   // A policy: its types, calendar, priority field and the two goals.
@@ -109,6 +129,11 @@
       resolutionBy: byPriorityText(resolution), pauses: (resolution?.pause_statuses ?? first?.pause_statuses ?? []).join(', '),
       warn: String(resolution?.warn_percent ?? first?.warn_percent ?? 80), enabled: row.enabled, position: String(row.position),
     };
+    editing = 'policy';
+  }
+  function addPolicy() {
+    policy = emptyPolicy();
+    editing = 'policy';
   }
 
   /** The goals as the form holds them; undefined where a priority's targets do not read. */
@@ -141,7 +166,10 @@
     }
     const key = policy.key || keyFrom(policy.name);
     const saved = await attempt(() => desk.definePolicy(key, policyDefinitionOf(policy, goals)), 'app.desk.policy_saved');
-    if (saved) policy = emptyPolicy();
+    if (saved) {
+      policy = emptyPolicy();
+      close();
+    }
   }
 
   /** A draft's block read back into the form, as a policy row is. */
@@ -157,7 +185,10 @@
     event.preventDefault();
     const key = reply.key || keyFrom(reply.name);
     const saved = await attempt(() => desk.defineReply(key, { name: reply.name.trim(), body: reply.body }), 'app.desk.reply_saved');
-    if (saved) reply = { key: '', name: '', body: '' };
+    if (saved) {
+      reply = { key: '', name: '', body: '' };
+      close();
+    }
   }
 
   // A portal organisation: its people by the mail domain of their address; sharing off unless set.
@@ -169,7 +200,10 @@
     const saved = await attempt(() => desk.defineOrganisation(key, {
       name: organisation.name.trim(), domains: domainsOf(organisation.domains), shares_requests: organisation.shares,
     }), 'app.desk.organisation_saved');
-    if (saved) organisation = emptyOrganisation();
+    if (saved) {
+      organisation = emptyOrganisation();
+      close();
+    }
   }
 
   // The report over the last thirty days by default.
@@ -198,6 +232,32 @@
     const chosen = calendarRows?.find((row) => row.key === policy.calendar);
     return chosen ? dayLengthOf(chosen) : undefined;
   });
+  // Pickers fed by the workspace's own values (§5.4): a key already named but gone stays offered
+  // by itself, so a save drops nothing unseen.
+  $effect(() => untrack(() => entryTypes.open()));
+  $effect(() => untrack(() => workflows.open()));
+  $effect(() => untrack(() => customFields.open()));
+  const kept = (offered: { value: string; label: string }[], chosen: readonly string[]) =>
+    [...offered, ...chosen.filter((key) => !offered.some((each) => each.value === key)).map((key) => ({ value: key, label: key }))];
+  const typeOptions = $derived(kept(
+    entryTypes.all.filter((type) => type.level === 'TASK' && !type.archived).map((type) => ({ value: type.key, label: type.name || type.key })),
+    wordsOf(policy.types),
+  ));
+  const organisationOptions = $derived(kept((organisationRows ?? []).map((row) => ({ value: row.key, label: row.name })), wordsOf(policy.organisations)));
+  const statusOptions = $derived.by(() => {
+    const seen = new Map<string, string>();
+    for (const workflow of workflows.list?.data ?? []) {
+      for (const status of workflow.published?.statuses ?? []) if (!seen.has(status.key)) seen.set(status.key, statusLabel(status, t));
+    }
+    return kept([...seen].map(([value, label]) => ({ value, label })), wordsOf(policy.pauses));
+  });
+  const choiceFields = $derived(customFields.of().filter((field) => field.kind === 'SELECT'));
+  const priorityOptions = $derived([
+    { value: '', label: t('app.desk.priority_none') },
+    ...choiceFields.map((field) => ({ value: field.key, label: field.name || field.key })),
+    ...(policy.priority && !choiceFields.some((field) => field.key === policy.priority) ? [{ value: policy.priority, label: policy.priority }] : []),
+  ]);
+  const priorityValues = $derived(choiceFields.find((field) => field.key === policy.priority)?.options ?? []);
   const calendarOptions = $derived([{ value: '', label: t('app.desk.around_the_clock') }, ...(calendarRows ?? []).map((row) => ({ value: row.key, label: row.name }))]);
 </script>
 
@@ -213,7 +273,7 @@
     }} />{/if}
   <Tabs label={t('app.desk.title')} selected={current} onselect={(id) => (current = id as typeof current)}
     tabs={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: tab, label: t(`app.desk.tab.${tab}`) }))}>
-    {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+    {#if refusal && editing === undefined}<p class="refusal" role="alert">{refusal}</p>{/if}
 
     {#if current === 'calendars'}
       <Stack gap="150">
@@ -235,7 +295,9 @@
           {/each}
         </ul>
         {#if mayShape}
-          <form class="panel" onsubmit={(event) => void saveCalendar(event)}>
+          <div><Button tone="secondary" icon="plus" onclick={addCalendar}>{t('app.desk.add_calendar')}</Button></div>
+          <Dialog title={calendar.key ? calendar.name : t('app.desk.add_calendar')} isOpen={editing === 'calendar'} onClose={close} dismissLabel={t('app.desk.cancel')}>
+            <form onsubmit={(event) => void saveCalendar(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={calendar.name} required />
               <ZonePicker label={t('app.desk.zone')} bind:value={calendar.zone} isRequired />
@@ -253,10 +315,14 @@
                 <Input label={t('app.desk.to')} type="time" bind:value={calendar.to} />
               </div>
               <Textarea label={t('app.desk.holidays')} hint={t('app.desk.holidays_hint')} rows={3} bind:value={calendar.holidays} />
-              <div><Button type="submit" tone="secondary" icon="calendar" isBusy={isSaving} busyLabel={t('app.desk.saving')}>
-                {calendar.key ? t('app.desk.replace') : t('app.desk.add_calendar')}</Button></div>
+              {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+              <Inline gap="100" justify="end">
+                <Button tone="secondary" onclick={close}>{t('app.desk.cancel')}</Button>
+                <Button type="submit" tone="primary" isBusy={isSaving} busyLabel={t('app.desk.saving')}>{calendar.key ? t('app.desk.replace') : t('app.desk.add_calendar')}</Button>
+              </Inline>
             </Stack>
           </form>
+          </Dialog>
         {/if}
       </Stack>
     {:else if current === 'policies'}
@@ -284,51 +350,77 @@
           {/each}
         </ul>
         {#if mayShape}
-          <form class="panel" onsubmit={(event) => void savePolicy(event)}>
+          <div><Button tone="secondary" icon="plus" onclick={addPolicy}>{t('app.desk.add_policy')}</Button></div>
+          <Dialog title={policy.key ? policy.name : t('app.desk.add_policy')} isOpen={editing === 'policy'} onClose={close} dismissLabel={t('app.desk.cancel')} isWide>
+            <form onsubmit={(event) => void savePolicy(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={policy.name} required />
-              <Input label={t('app.desk.types')} hint={t('app.desk.types_hint')} bind:value={policy.types} required />
+              <CheckboxGroup label={t('app.desk.types')} hint={t('app.desk.types_pick_hint')} options={typeOptions}
+                selected={wordsOf(policy.types)} onChange={(chosen) => (policy.types = textOf(chosen))} />
               <Select label={t('app.desk.policy_group')} hint={t('app.desk.policy_group_hint')} options={groupOptions} bind:value={policy.group} />
               {#if !policy.group}
-                <Input label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_hint')} bind:value={policy.organisations} />
+                {#if organisationOptions.length > 0}
+                  <CheckboxGroup label={t('app.desk.policy_organisations')} hint={t('app.desk.policy_organisations_pick_hint')} options={organisationOptions}
+                    selected={wordsOf(policy.organisations)} onChange={(chosen) => (policy.organisations = textOf(chosen))} />
+                {/if}
               {/if}
               <div class="fields">
                 <Select label={t('app.desk.calendar')} options={calendarOptions} bind:value={policy.calendar} />
-                <Input label={t('app.desk.priority_field')} hint={t('app.desk.priority_field_hint')} bind:value={policy.priority} />
+                <Select label={t('app.desk.priority_field')} hint={t('app.desk.priority_field_pick_hint')} options={priorityOptions} bind:value={policy.priority} />
               </div>
-              <div class="fields">
+              <div class="goal">
                 <DurationInput label={t('app.desk.first_response')} hint={t('app.desk.minutes_hint')} day={policyDay} bind:minutes={policy.first} />
-                <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.firstBy} />
+                {#if priorityValues.length > 0}<div class="by-priority">{#each priorityValues as option (option)}
+                  <DurationInput label={t('app.desk.goal_for', { goal: t('app.desk.first_response'), option })} day={policyDay}
+                    bind:minutes={() => minutesFor(policy.firstBy, option), (minutes: string) => (policy.firstBy = withMinutes(policy.firstBy, option, minutes))} />
+                {/each}</div>{/if}
+
               </div>
               {#if !policy.group}
-                <div class="fields">
+                <div class="goal">
                   <DurationInput label={t('app.desk.next_response')} hint={t('app.desk.minutes_hint')} day={policyDay} bind:minutes={policy.next} />
-                  <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.nextBy} />
+                {#if priorityValues.length > 0}<div class="by-priority">{#each priorityValues as option (option)}
+                  <DurationInput label={t('app.desk.goal_for', { goal: t('app.desk.next_response'), option })} day={policyDay}
+                    bind:minutes={() => minutesFor(policy.nextBy, option), (minutes: string) => (policy.nextBy = withMinutes(policy.nextBy, option, minutes))} />
+                {/each}</div>{/if}
+  
                 </div>
               {/if}
-              <div class="fields">
+              <div class="goal">
                 <DurationInput label={t('app.desk.resolution')} hint={t('app.desk.minutes_hint')} day={policyDay} bind:minutes={policy.resolution} />
-                <Input label={t('app.desk.by_priority')} hint={t('app.desk.by_priority_hint')} bind:value={policy.resolutionBy} />
+                {#if priorityValues.length > 0}<div class="by-priority">{#each priorityValues as option (option)}
+                  <DurationInput label={t('app.desk.goal_for', { goal: t('app.desk.resolution'), option })} day={policyDay}
+                    bind:minutes={() => minutesFor(policy.resolutionBy, option), (minutes: string) => (policy.resolutionBy = withMinutes(policy.resolutionBy, option, minutes))} />
+                {/each}</div>{/if}
+
               </div>
+              <CheckboxGroup label={t('app.desk.pauses')} hint={t('app.desk.pauses_pick_hint')} options={statusOptions}
+                selected={wordsOf(policy.pauses)} onChange={(chosen) => (policy.pauses = textOf(chosen))} />
+              <Disclosure label={t('app.desk.advanced')}>
               <div class="fields">
-                <Input label={t('app.desk.pauses')} hint={t('app.desk.pauses_hint')} bind:value={policy.pauses} />
                 <Input label={t('app.desk.warn')} type="number" min="1" max="99" bind:value={policy.warn} />
                 <Input label={t('app.desk.position')} type="number" min="0" bind:value={policy.position} />
               </div>
+              </Disclosure>
               <Switch label={t('app.desk.enabled')} checked={policy.enabled}
                 onchange={(event: Event) => (policy.enabled = (event.currentTarget as HTMLInputElement).checked)} />
               {#if policy.key}
                 {#key policy.key}
                   <DraftPublish section="sla_policies" key={policy.key} blockedReason={policyBlocked}
                     block={() => policyDefinitionOf(policy, policyGoals() ?? []) as unknown as Record<string, unknown>}
-                    onLoad={(saved) => editDraftedPolicy(policy.key, saved)} onPublished={() => (policy = emptyPolicy())} />
+                    onLoad={(saved) => editDraftedPolicy(policy.key, saved)} onPublished={() => { policy = emptyPolicy(); close(); }} />
                 {/key}
               {:else}
-                <div><Button type="submit" tone="secondary" icon="clock" isBusy={isSaving} busyLabel={t('app.desk.saving')}>
-                  {t('app.desk.add_policy')}</Button></div>
+                {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+                <Inline gap="100" justify="end">
+                  <Button tone="secondary" onclick={close}>{t('app.desk.cancel')}</Button>
+                  <Button type="submit" tone="primary" isBusy={isSaving} busyLabel={t('app.desk.saving')}
+                    disabledReason={wordsOf(policy.types).length === 0 ? t('app.desk.types_first') : policyBlocked}>{t('app.desk.add_policy')}</Button>
+                </Inline>
               {/if}
             </Stack>
           </form>
+          </Dialog>
         {/if}
       </Stack>
     {:else if current === 'replies'}
@@ -341,7 +433,7 @@
                 <strong>{row.name}</strong>
                 {#if mayShape}
                   <Inline gap="050">
-                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')} onclick={() => (reply = { key: row.key, name: row.name, body: row.body })} />
+                    <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')} onclick={() => { reply = { key: row.key, name: row.name, body: row.body }; editing = 'reply'; }} />
                     <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
                       onclick={() => void attempt(() => desk.deleteReply(row.key), 'app.desk.deleted')} />
                   </Inline>
@@ -352,14 +444,20 @@
           {/each}
         </ul>
         {#if mayShape}
-          <form class="panel" onsubmit={(event) => void saveReply(event)}>
+          <div><Button tone="secondary" icon="plus" onclick={() => { reply = { key: '', name: '', body: '' }; editing = 'reply'; }}>{t('app.desk.add_reply')}</Button></div>
+          <Dialog title={reply.key ? reply.name : t('app.desk.add_reply')} isOpen={editing === 'reply'} onClose={close} dismissLabel={t('app.desk.cancel')}>
+            <form onsubmit={(event) => void saveReply(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={reply.name} required />
               <Textarea label={t('app.desk.reply_body')} hint={t('app.desk.reply_body_hint')} rows={5} bind:value={reply.body} />
-              <div><Button type="submit" tone="secondary" icon="message-square" isBusy={isSaving} busyLabel={t('app.desk.saving')}>
-                {reply.key ? t('app.desk.replace') : t('app.desk.add_reply')}</Button></div>
+              {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+              <Inline gap="100" justify="end">
+                <Button tone="secondary" onclick={close}>{t('app.desk.cancel')}</Button>
+                <Button type="submit" tone="primary" isBusy={isSaving} busyLabel={t('app.desk.saving')}>{reply.key ? t('app.desk.replace') : t('app.desk.add_reply')}</Button>
+              </Inline>
             </Stack>
           </form>
+          </Dialog>
         {/if}
       </Stack>
     {:else if current === 'organisations'}
@@ -375,7 +473,7 @@
                   {#if row.shares_requests}<Badge tone="info" size="sm">{t('app.desk.organisation_shares')}</Badge>{/if}
                   {#if mayShape}
                     <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.desk.edit')}
-                      onclick={() => (organisation = { key: row.key, name: row.name, domains: row.domains.join(', '), shares: row.shares_requests })} />
+                      onclick={() => { organisation = { key: row.key, name: row.name, domains: row.domains.join(', '), shares: row.shares_requests }; editing = 'organisation'; }} />
                     <IconButton icon="trash" size="sm" tone="subtle" label={t('app.desk.delete')}
                       onclick={() => void attempt(() => desk.deleteOrganisation(row.key), 'app.desk.deleted')} />
                   {/if}
@@ -385,18 +483,25 @@
           {/each}
         </ul>
         {#if mayShape}
-          <form class="panel" onsubmit={(event) => void saveOrganisation(event)}>
+          <div><Button tone="secondary" icon="plus" onclick={() => { organisation = emptyOrganisation(); editing = 'organisation'; }}>{t('app.desk.add_organisation')}</Button></div>
+          <Dialog title={organisation.key ? organisation.name : t('app.desk.add_organisation')} isOpen={editing === 'organisation'} onClose={close} dismissLabel={t('app.desk.cancel')}>
+            <form onsubmit={(event) => void saveOrganisation(event)}>
             <Stack gap="100">
               <Input label={t('app.desk.name')} bind:value={organisation.name} required />
               <Textarea label={t('app.desk.organisation_domains')} hint={t('app.desk.organisation_domains_hint')} rows={2}
                 bind:value={organisation.domains} />
               <Switch label={t('app.desk.organisation_share')} checked={organisation.shares}
                 onchange={(event: Event) => (organisation.shares = (event.currentTarget as HTMLInputElement).checked)} />
-              <div><Button type="submit" tone="secondary" icon="users" isBusy={isSaving} busyLabel={t('app.desk.saving')}
-                disabledReason={domainsOf(organisation.domains).length === 0 ? t('app.desk.organisation_domains_first') : undefined}>
-                {organisation.key ? t('app.desk.replace') : t('app.desk.add_organisation')}</Button></div>
+              {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
+              <Inline gap="100" justify="end">
+                <Button tone="secondary" onclick={close}>{t('app.desk.cancel')}</Button>
+                <Button type="submit" tone="primary" isBusy={isSaving} busyLabel={t('app.desk.saving')}
+                  disabledReason={domainsOf(organisation.domains).length === 0 ? t('app.desk.organisation_domains_first') : undefined}>
+                  {organisation.key ? t('app.desk.replace') : t('app.desk.add_organisation')}</Button>
+              </Inline>
             </Stack>
           </form>
+          </Dialog>
         {/if}
       </Stack>
     {:else}
@@ -429,7 +534,9 @@
   .rows li { padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
   .body { margin: var(--sp-050) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-secondary); }
   form { margin: 0; max-inline-size: 64ch; }
-  .panel { padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20ch), 1fr)); gap: var(--sp-100); align-items: end; }
+  /* A goal's own target, then one per priority beside each other (user-experience.md §7.4). */
+  .goal { display: grid; gap: var(--sp-100); padding-block-start: var(--sp-100); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .by-priority { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24ch), 1fr)); gap: var(--sp-100); align-items: start; }
   .choices { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); }
 </style>

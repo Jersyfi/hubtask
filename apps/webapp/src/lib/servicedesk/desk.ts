@@ -177,3 +177,22 @@ export function policyDefinitionOf(form: PolicyForm, goals: SlaPolicyDefine['goa
     ...(group ? { assignee_group: group } : {}),
   };
 }
+
+/** The words of a comma list as a set a picker holds, and back; the form keeps the text. */
+export const wordsOf = commaWords;
+export const textOf = (words: readonly string[]) => words.join(', ');
+
+/** One priority's target from `P1=15, P2=60`, as the minutes a `DurationInput` holds; empty for none. */
+export function minutesFor(text: string, option: string): string {
+  const pair = text.split(',').map((each) => each.split('=').map((part) => part.trim())).find(([key]) => key === option);
+  return pair?.[1] ?? '';
+}
+
+/** The text with one priority's target set, or dropped where the minutes are empty; the others keep their order. */
+export function withMinutes(text: string, option: string, minutes: string): string {
+  const pairs = text.split(',').map((each) => each.trim()).filter((each) => each !== '').map((each) => each.split('=').map((part) => part.trim()) as [string, string]);
+  const kept = pairs.filter(([key]) => key !== option);
+  const at = pairs.findIndex(([key]) => key === option);
+  if (minutes.trim() !== '') kept.splice(at < 0 ? kept.length : at, 0, [option, minutes.trim()]);
+  return kept.map(([key, value]) => `${key}=${value}`).join(', ');
+}

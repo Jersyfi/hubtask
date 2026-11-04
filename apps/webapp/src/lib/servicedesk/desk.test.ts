@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { byPriorityOf, byPriorityText, dayLengthOf, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policiesAtHub, policyCopyKey, policyDefinitionOf, reportRows } from './desk.ts';
+import { byPriorityOf, byPriorityText, dayLengthOf, formOf, goalKey, holidaysOf, hoursOf, hubCalendarRows, policiesAtHub, policyCopyKey, policyDefinitionOf, reportRows, minutesFor, withMinutes, wordsOf, textOf } from './desk.ts';
 
 test('a calendar is written from its days and one span, and read back the same (UC-SVC-01 check 1)', () => {
   const hours = hoursOf(['FRIDAY', 'MONDAY'], '08:00', '18:00');
@@ -93,4 +93,17 @@ test('a calendar\'s business day is its working minutes on each day it works, wh
   // Days of different lengths have no one business day; nor has a calendar of no hours.
   assert.equal(dayLengthOf({ hours: [{ day: 'MONDAY', from: '08:00', to: '17:00' }, { day: 'FRIDAY', from: '08:00', to: '12:00' }] }), undefined);
   assert.equal(dayLengthOf({ hours: [] }), undefined);
+});
+
+// user-experience.md §7.4, §5.4: a policy's targets per priority are a table of durations, one per
+// option of the priority field, kept as the text the API's map is read from.
+test('a priority\'s target is read from and written into the per-priority text', () => {
+  assert.equal(minutesFor('P1=15, P2=60', 'P2'), '60');
+  assert.equal(minutesFor('P1=15', 'P3'), '');
+  assert.equal(withMinutes('P1=15, P2=60', 'P2', '90'), 'P1=15, P2=90');
+  assert.equal(withMinutes('P1=15', 'P3', '240'), 'P1=15, P3=240');
+  assert.equal(withMinutes('P1=15, P2=60', 'P1', ''), 'P2=60');
+  assert.equal(withMinutes('', 'P1', '15'), 'P1=15');
+  assert.deepEqual(byPriorityOf(withMinutes(withMinutes('', 'P1', '15'), 'P2', '60')), { P1: 15, P2: 60 });
+  assert.deepEqual(wordsOf(textOf(['incident', 'problem'])), ['incident', 'problem']);
 });

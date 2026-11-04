@@ -61,6 +61,11 @@ function deskBackend() {
       return { json: made };
     }
     if (path === '/reply-templates' && method === 'GET') return { json: { data: [] } };
+    // The pickers' values (user-experience.md §5.4): the workspace's types, choice fields and statuses.
+    if (path === '/entry-types' && method === 'GET') return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false }] } };
+    if (path === '/custom-fields' && method === 'GET') {
+      return { json: [{ id: id(), collection_id: null, hub_id: null, key: 'priority', name: 'Priority', kind: 'SELECT', options: ['P1', 'P2'], is_required: false, restricted: false, read_restricted: false, applies_to: ['TASK'] }] };
+    }
     if (path === '/requester-organisations' && method === 'GET') return { json: { data: [] } };
     if (path === `/items/${REQUEST.id}/sla` && method === 'GET') {
       return { json: { data: [goal('FIRST_RESPONSE', 'MET', null), goal('RESOLUTION', 'RUNNING', at(2 * HOUR))] } };
@@ -99,8 +104,10 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   t.after(walk.close);
   const { page } = walk;
 
-  await page.goto(`${served.origin}/administration/service-desk`);
-  const calendarForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add the calendar' }) });
+  // The desk is set up at its home's last tab, each form in a dialog opened by its *Add* (§7.4).
+  await page.goto(`${served.origin}/desk/settings`);
+  await page.getByRole('button', { name: 'Add the calendar' }).click();
+  const calendarForm = page.getByRole('dialog').locator('form');
   await calendarForm.getByLabel('Name').fill('Office hours');
   // A zone is picked from the platform's list, never typed (user-experience.md §5.4).
   await calendarForm.getByLabel('Time zone').selectOption('Europe/Berlin');
@@ -108,13 +115,17 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   await page.getByText('Office hours').first().waitFor({ timeout: 5_000 });
 
   await page.getByRole('tab', { name: 'SLA policies' }).click();
-  const policyForm = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add the policy' }) });
+  await page.getByRole('button', { name: 'Add the policy' }).click();
+  const policyForm = page.getByRole('dialog').locator('form');
   await policyForm.getByLabel('Name').fill('Standard');
-  await policyForm.getByLabel('Entry types').fill('request');
+  // Types, the priority field and its targets are picked, never typed as keys (§5.4).
+  await policyForm.getByRole('checkbox', { name: 'Request' }).check();
+  await policyForm.getByLabel('Priority field').selectOption('priority');
+  await policyForm.getByLabel('First response at P1').fill('15');
   await policyForm.getByLabel('Calendar').selectOption({ label: 'Office hours' });
   // A goal is written in hours and held in minutes (user-experience.md §5.4, DurationInput).
-  const firstResponse = policyForm.locator('.duration', { has: page.getByLabel('First response') });
-  await firstResponse.getByLabel('First response').fill('4');
+  const firstResponse = policyForm.locator('.duration', { has: page.getByLabel('First response', { exact: true }) });
+  await firstResponse.getByLabel('First response', { exact: true }).fill('4');
   await firstResponse.getByLabel('Unit').selectOption('HOURS');
   await policyForm.getByRole('button', { name: 'Add the policy' }).click();
   await page.getByText('Standard').first().waitFor({ timeout: 5_000 });
@@ -154,6 +165,8 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const policy = walk.written.find((each) => each.path === '/sla-policies/standard').body;
   assert.equal(policy.calendar, 'office_hours');
   assert.deepEqual(policy.entry_types, ['request']);
+  assert.equal(policy.priority_field, 'priority');
+  assert.deepEqual(policy.goals.find((goal) => goal.kind === 'FIRST_RESPONSE')?.by_priority, { P1: 15 });
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
