@@ -55,6 +55,8 @@ func TestOnlyTheSupportContactTakesAMailAddress(t *testing.T) {
 		{LinkSupport, "mailto:help@acme.example", true},
 		{LinkSupport, "https://acme.example/help", true},
 		{LinkSupport, "mailto:", false},
+		{LinkSupport, "mailto:@", false},
+		{LinkSupport, "mailto:help@", false},
 		{LinkSupport, "javascript:alert(1)", false},
 		{LinkDocs, "mailto:help@acme.example", false},
 		{LinkImprint, "mailto:help@acme.example", false},

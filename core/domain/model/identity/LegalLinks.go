@@ -247,12 +247,13 @@ func ValidLegalURL(name LegalLink, raw string) (string, error) {
 	parsed, err := url.Parse(trimmed)
 	if err == nil && name == LinkSupport && parsed.Scheme == "mailto" {
 		// An address to write to is a support contact too; it still has to name somebody.
-		if !strings.Contains(parsed.Opaque, "@") {
+		if local, domain, held := strings.Cut(parsed.Opaque, "@"); !held || local == "" || domain == "" {
 			return "", refused("auth.legal_url_invalid")
 		}
 		return trimmed, nil
 	}
-	if err != nil || parsed.Host == "" {
+	// Hostname, not Host: `https://:8443/x` holds a port and nobody to reach.
+	if err != nil || parsed.Hostname() == "" {
 		return "", refused("auth.legal_url_invalid")
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
