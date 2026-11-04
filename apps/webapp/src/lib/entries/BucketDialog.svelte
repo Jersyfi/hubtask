@@ -132,7 +132,7 @@
 
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
-    <Button
+    <Button tone="primary"
       isBusy={isSaving}
       busyLabel={t('app.workspace.saving')}
       onclick={save}

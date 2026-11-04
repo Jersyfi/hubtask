@@ -113,3 +113,31 @@ test('no screen without a head primary keeps a create button of its own outside 
   }
   assert.deepEqual(found, [], 'make the create the head\'s primary, or mark a list\'s own add with data-list-add');
 });
+
+/** Every `.svelte` file under `dir`, recursively. */
+function sveltesUnder(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((each) => {
+    const at = path.join(dir, each.name);
+    if (each.isDirectory()) return sveltesUnder(at);
+    return each.name.endsWith('.svelte') ? [at] : [];
+  });
+}
+
+// §5.2: a dialog's act is its primary. `Button`'s default tone is secondary, so a confirm written
+// without a tone stands beside *Cancel* as its equal and the dialog has no main door.
+test('every dialog whose acts are more than one names one of them its primary', () => {
+  const SRC = path.resolve(VIEWS, '..');
+  const found = [];
+  for (const file of sveltesUnder(SRC)) {
+    const source = fs.readFileSync(file, 'utf8');
+    const dialogs = [...source.matchAll(/<(Dialog|PanelOrDialog)\b/g)]
+      .map(({ index, 1: name }) => [index, source.indexOf(`</${name}>`, index)]);
+    for (const match of source.matchAll(/\{#snippet actions\(\)\}([\s\S]*?)\{\/snippet\}/g)) {
+      if (!dialogs.some(([start, end]) => match.index > start && match.index < end)) continue;
+      const tags = buttonsOf(match[1]).map(({ tag }) => tag);
+      if (tags.length < 2 || tags.some((tag) => /\btone=("(primary|danger)"|\{)/.test(tag))) continue;
+      found.push(`${path.relative(SRC, file)}:${source.slice(0, match.index).split('\n').length}`);
+    }
+  }
+  assert.deepEqual(found, [], 'give the dialog\'s act tone="primary" (or "danger")');
+});

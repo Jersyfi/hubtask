@@ -1682,7 +1682,7 @@
       <Button tone="secondary" onclick={() => (isChangingPrivacy = false)}>
         {t('app.workspace.cancel')}
       </Button>
-      <Button
+      <Button tone="primary"
         isBusy={isChangingPrivacyNow}
         busyLabel={container.private ? t('app.workspace.sharing') : t('app.workspace.making_private')}
         onclick={changePrivacy}

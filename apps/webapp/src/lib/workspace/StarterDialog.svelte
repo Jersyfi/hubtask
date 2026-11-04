@@ -110,7 +110,7 @@
 
   {#snippet actions()}
     <Button tone="secondary" onclick={() => void skip()}>{t('app.starter.skip')}</Button>
-    <Button isBusy={isBusy} busyLabel={t('app.starter.starting')} onclick={() => void start()}>{t('app.starter.start')}</Button>
+    <Button tone="primary" isBusy={isBusy} busyLabel={t('app.starter.starting')} onclick={() => void start()}>{t('app.starter.start')}</Button>
   {/snippet}
 </Dialog>
 

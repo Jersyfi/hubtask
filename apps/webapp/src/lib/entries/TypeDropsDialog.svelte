@@ -45,7 +45,7 @@
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.item.type_drops_cancel')}</Button>
     {#if isConfirmable}
-      <Button onclick={onconfirm}>{t('app.item.type_drops_confirm')}</Button>
+      <Button tone="primary" onclick={onconfirm}>{t('app.item.type_drops_confirm')}</Button>
     {/if}
   {/snippet}
 </Dialog>
