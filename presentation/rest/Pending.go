@@ -3231,3 +3231,7 @@ func (pending) ListDeadLetters(w http.ResponseWriter, r *http.Request, _ openapi
 func (pending) RequeueDeadLetter(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+func (pending) ClearOwnMailUndeliverable(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

@@ -1995,6 +1995,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/accounts/me", {  }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** Try mail to the caller's address again */
+  clearOwnMailUndeliverable(options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/accounts/me:clear-undeliverable", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The caller's own settings and where each comes from */
   readOwnSettings(options: CallOptions = {}): Promise<operations["readOwnSettings"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

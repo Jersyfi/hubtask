@@ -169,6 +169,7 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.Celebrations = &celebrations
 	}
 	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
+	account.MailUndeliverableSince = timePointer(out["mail_undeliverable_since"])
 	account.AvatarMediaId = optionalUUID(out.String("avatar_media_id"))
 	if armed, held := out["has_second_factor"].(bool); held {
 		// Answered on the caller's own account and on nothing else, which is why it is conditional

@@ -47,6 +47,7 @@
   import DelegationSection from '../lib/profile/DelegationSection.svelte';
   import PictureField from '../lib/profile/PictureField.svelte';
   import CelebrationsSwitch from '../lib/profile/CelebrationsSwitch.svelte';
+  import UndeliverableNotice from '../lib/profile/UndeliverableNotice.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -199,6 +200,7 @@
 {:else}
   <Stack gap="300">
     <SettingsHead row="profile" />
+    <UndeliverableNotice />
 
     <!-- Where the tour's `profile` step points. It goes to `/profile`, which is the
          section's first screen, and what is on the next row of the column its sentence names. -->

@@ -16349,6 +16349,25 @@
         }
       }
     },
+    "/accounts/me:clear-undeliverable": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "clearOwnMailUndeliverable",
+        "x-hubtask-rest": "generated",
+        "summary": "Try mail to the caller's address again",
+        "description": "Clears the mark an address carries once the mail server refused it for good, so that messages to it are sent again. Only one's own; clearing an address that carries no mark is accepted and changes nothing.\n",
+        "responses": {
+          "204": {
+            "description": "Cleared"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/accounts/me/settings": {
       "get": {
         "tags": [
@@ -35700,6 +35719,14 @@
           "second_factor_required": {
             "type": "boolean",
             "description": "Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say \"your workspace requires it\" instead of offering a control the server would refuse.\n"
+          },
+          "mail_undeliverable_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.\n"
           },
           "has_password": {
             "type": "boolean",

@@ -12542,5 +12542,11 @@
   "app.entry_forms.condition_advanced": "Erweitert: als Ausdruck schreiben",
   "app.entry_forms.condition_expression": "{label} (Ausdruck)",
   "app.tour.hubs_drawer.caption": "Wo die Arbeit wohnt",
-  "app.tour.hubs_drawer.body": "Diese Schaltfläche öffnet den Baum: Ein Hub hält Sammlungen, und eine Sammlung hält die Einträge. Alles, was du anlegst, sitzt irgendwo darin, und der Baum ist auf jeder Seite derselbe."
+  "app.tour.hubs_drawer.body": "Diese Schaltfläche öffnet den Baum: Ein Hub hält Sammlungen, und eine Sammlung hält die Einträge. Alles, was du anlegst, sitzt irgendwo darin, und der Baum ist auf jeder Seite derselbe.",
+  "notifications.undeliverable": "Der Mailserver hat diese Adresse zuvor endgültig abgelehnt; es geht nichts an sie, bis sie im Profil erneut versucht wird.",
+  "app.profile.undeliverable_title": "Deine E-Mails kommen nicht an",
+  "app.profile.undeliverable_text": "Der Mailserver hat {address} am {since} endgültig abgelehnt, deshalb gehen keine Nachrichten an sie. Sobald das Postfach wieder funktioniert, lass E-Mails erneut versuchen.",
+  "app.profile.undeliverable_retry": "E-Mails erneut versuchen",
+  "app.profile.undeliverable_retrying": "Wird erneut versucht…",
+  "app.profile.undeliverable_cleared": "Nachrichten an deine Adresse werden wieder gesendet."
 }

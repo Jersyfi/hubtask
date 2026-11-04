@@ -406,8 +406,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // dead letters, listed and requeued, are its operator's (UC-INS-12), as the list of workspaces near a
 // quota is. Locating a connector's
 // provider return is anonymous, as locating a sign-in's is. Resolving many names at once is
-// GetAccount's batch and, like it, open to every member.
-const undeclaredPermissionsAtMost = 203
+// GetAccount's batch and, like it, open to every member. Clearing one's own undeliverable mark is
+// one's own, as renaming oneself is.
+const undeclaredPermissionsAtMost = 204
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

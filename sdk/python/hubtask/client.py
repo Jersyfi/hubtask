@@ -1599,6 +1599,10 @@ class Client:
         """Change what the caller is called"""
         return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
 
+    def clear_own_mail_undeliverable(self) -> None:
+        """Try mail to the caller's address again"""
+        return self._call("POST", "/accounts/me:clear-undeliverable", {}, None, {}, None, "none", None, "void")
+
     def read_own_settings(self) -> "OwnSettings":
         """The caller's own settings and where each comes from"""
         return self._call("GET", "/accounts/me/settings", {}, None, {}, None, "none", None, "json")

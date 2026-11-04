@@ -2702,8 +2702,13 @@ func run() error {
 			Factor:   sessionWriter,
 			Password: sessionWriter,
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
-			Access:  postgres.NewMembershipRepository(),
-			Portals: postgres.NewMembershipRepository(),
+			Access:        postgres.NewMembershipRepository(),
+			Portals:       postgres.NewMembershipRepository(),
+			Undeliverable: postgres.NewMailUndeliverableRepository(),
+		}.Descriptor(),
+		identity.ClearOwnMailUndeliverable{
+			Marks: postgres.NewMailUndeliverableRepository(), Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.ReadOwnSettings{Accounts: accounts, UnitOfWork: unitOfWork, Resolver: signInPolicyResolver}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
@@ -4637,6 +4642,8 @@ func run() error {
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{},
+			// An address refused for good is not tried again until its person clears it.
+			Undeliverable: postgres.NewMailUndeliverableRepository(),
 			// Every link leads to the workspace's main address (ADR-0095 §2).
 			Addresses: workspaceAddress(cfg),
 			Signals:   metrics,

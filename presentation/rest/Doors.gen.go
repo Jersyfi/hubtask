@@ -83,6 +83,7 @@ var restDoors = map[string]restDoor{
 	"clearCover":                        {UseCase: "ClearCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"clearDueDate":                      {UseCase: "ClearDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"clearEntryEstimate":                {UseCase: "ClearEntryEstimate", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"clearOwnMailUndeliverable":         {UseCase: "ClearOwnMailUndeliverable", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"closeCiCampaign":                   {UseCase: "CloseCiCampaign", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"closeGoalPeriod":                   {UseCase: "CloseGoalPeriod", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"closeSprint":                       {UseCase: "CloseSprint", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1255,6 +1256,11 @@ func (c *RestController) ClearDueDate(w http.ResponseWriter, r *http.Request, it
 // ClearEntryEstimate answers DELETE /items/{itemId}/estimate by the generated mapping.
 func (c *RestController) ClearEntryEstimate(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	c.door(w, r, restDoors["clearEntryEstimate"], usecase.Input{"item_id": itemId.String()}, nil, nil, nil)
+}
+
+// ClearOwnMailUndeliverable answers POST /accounts/me:clear-undeliverable by the generated mapping.
+func (c *RestController) ClearOwnMailUndeliverable(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["clearOwnMailUndeliverable"], usecase.Input{}, nil, nil, nil)
 }
 
 // CloseCiCampaign answers POST /ci-campaigns/{campaignId}:close by the generated mapping.

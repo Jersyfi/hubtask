@@ -129,6 +129,19 @@ class Actor {
   }
 
   /**
+   * Since when the mail server refuses this account's address for good, or `undefined` where it
+   * takes mail. No message goes to it until the person clears the mark.
+   */
+  get mailUndeliverableSince(): string | undefined {
+    return this.account?.mail_undeliverable_since ?? undefined;
+  }
+
+  /** Has mail to the address tried again (`POST /accounts/me:clear-undeliverable`). */
+  async clearUndeliverable(): Promise<void> {
+    await engine.mutate<void>('POST', `${PATH}:clear-undeliverable`, undefined, { invalidates: [PATH] });
+  }
+
+  /**
    * Reads the account again.
    *
    * For the two moments this document changes without a write to it: arming a second factor and

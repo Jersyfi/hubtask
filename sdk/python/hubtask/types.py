@@ -74,6 +74,7 @@ class Account(TypedDict, total=False):
     has_authenticator_app: bool
     authenticator_app_removable: bool
     second_factor_required: bool
+    mail_undeliverable_since: str | None
     has_password: bool
     has_access: bool
     portals: list[dict[str, Any]]
@@ -136,6 +137,7 @@ class InvitedAccount(TypedDict, total=False):
     has_authenticator_app: bool
     authenticator_app_removable: bool
     second_factor_required: bool
+    mail_undeliverable_since: str | None
     has_password: bool
     has_access: bool
     portals: list[dict[str, Any]]

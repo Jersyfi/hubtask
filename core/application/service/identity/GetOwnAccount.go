@@ -5,6 +5,9 @@ package identity
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -67,6 +70,14 @@ type GetOwnAccount struct {
 	// Portals answers the collections where the account is a requester, so a person who holds
 	// nothing else is sent to their portal rather than told they have no access (UC-SVC-05).
 	Portals repository.RequesterPortals
+	// Undeliverable answers whether the mail server refuses the account's address for good, so the
+	// profile can say why no mail arrives and offer to try again. Nil answers that it takes mail.
+	Undeliverable UndeliverableReader
+}
+
+// UndeliverableReader reads the address an account's mail was refused at for good, or ErrNotFound.
+type UndeliverableReader interface {
+	Find(ctx context.Context, accountID shared.ID) (address string, since time.Time, err error)
 }
 
 // AccessHolder answers whether an account holds a role anywhere in the workspace, directly or
@@ -131,6 +142,9 @@ type OwnAccount struct {
 	// would refuse to make. Where a factor is armed, zero is answered as zero, because there zero
 	// is the number to act on.
 	RecoveryCodesRemaining int
+	// MailUndeliverableSince is when the mail server refused the account's present address for
+	// good; zero where it takes mail.
+	MailUndeliverableSince time.Time
 }
 
 func (h GetOwnAccount) Execute(
@@ -213,6 +227,25 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 			return OwnAccount{}, err
 		}
 	}
+	if h.Undeliverable != nil && account.Email != "" {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			address, since, err := h.Undeliverable.Find(ctx, actor.AccountID)
+			switch {
+			case errors.Is(err, shared.ErrNotFound):
+				return nil
+			case err != nil:
+				return err
+			}
+			// A mark at an address the person has since changed holds nothing, as delivery reads it.
+			if strings.EqualFold(address, account.Email) {
+				answer.MailUndeliverableSince = since
+			}
+			return nil
+		})
+		if err != nil {
+			return OwnAccount{}, err
+		}
+	}
 	if h.Factor != nil {
 		required, err := h.Factor.DemandsFactorOf(ctx, actor)
 		if err != nil {
@@ -276,6 +309,9 @@ func (h GetOwnAccount) invoke(
 		portals = append(portals, usecase.Output{"collection_id": portal.CollectionID.String(), "name": portal.Name})
 	}
 	out["portals"] = portals
+	if !own.MailUndeliverableSince.IsZero() {
+		out["mail_undeliverable_since"] = own.MailUndeliverableSince
+	}
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

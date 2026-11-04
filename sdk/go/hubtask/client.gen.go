@@ -11548,6 +11548,9 @@ type Account struct {
 	Kind            AccountKind        `json:"kind"`
 	Locale          *string            `json:"locale,omitempty"`
 
+	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
+	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -17773,6 +17776,9 @@ type InvitedAccount struct {
 	InvitationLink *string            `json:"invitation_link,omitempty"`
 	Kind           InvitedAccountKind `json:"kind"`
 	Locale         *string            `json:"locale,omitempty"`
+
+	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
+	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
@@ -30671,6 +30677,13 @@ type ClientInterface interface {
 	// Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
 	ReadOwnSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ClearOwnMailUndeliverable Try mail to the caller's address again
+	//
+	// Clears the mark an address carries once the mail server refused it for good, so that messages to it are sent again. Only one's own; clearing an address that carries no mark is accepted and changes nothing.
+	//
+	// Corresponds with POST /accounts/me:clear-undeliverable (the `ClearOwnMailUndeliverable` operationId).
+	ClearOwnMailUndeliverable(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetAccount The name behind an account identifier
 	//
 	// Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -41895,6 +41908,23 @@ func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPass
 // Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
 func (c *Client) ReadOwnSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadOwnSettingsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ClearOwnMailUndeliverable Try mail to the caller's address again
+//
+// Clears the mark an address carries once the mail server refused it for good, so that messages to it are sent again. Only one's own; clearing an address that carries no mark is accepted and changes nothing.
+//
+// Corresponds with POST /accounts/me:clear-undeliverable (the `ClearOwnMailUndeliverable` operationId).
+func (c *Client) ClearOwnMailUndeliverable(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewClearOwnMailUndeliverableRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -65192,6 +65222,33 @@ func NewReadOwnSettingsRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewClearOwnMailUndeliverableRequest constructs an http.Request for the ClearOwnMailUndeliverable method
+func NewClearOwnMailUndeliverableRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me:clear-undeliverable")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -103953,6 +104010,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /accounts/me/settings (the `ReadOwnSettings` operationId).
 	ReadOwnSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnSettingsResult, error)
 
+	// ClearOwnMailUndeliverableWithResponse Try mail to the caller's address again
+	//
+	// Clears the mark an address carries once the mail server refused it for good, so that messages to it are sent again. Only one's own; clearing an address that carries no mark is accepted and changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me:clear-undeliverable (the `ClearOwnMailUndeliverable` operationId).
+	ClearOwnMailUndeliverableWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ClearOwnMailUndeliverableResult, error)
+
 	// GetAccountWithResponse The name behind an account identifier
 	//
 	// Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -116332,6 +116398,47 @@ func (r ReadOwnSettingsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadOwnSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ClearOwnMailUndeliverableResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ClearOwnMailUndeliverableResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ClearOwnMailUndeliverableResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ClearOwnMailUndeliverableResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ClearOwnMailUndeliverableResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ClearOwnMailUndeliverableResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156337,6 +156444,21 @@ func (c *ClientWithResponses) ReadOwnSettingsWithResponse(ctx context.Context, r
 	return ParseReadOwnSettingsResult(rsp)
 }
 
+// ClearOwnMailUndeliverableWithResponse Try mail to the caller's address again
+//
+// Clears the mark an address carries once the mail server refused it for good, so that messages to it are sent again. Only one's own; clearing an address that carries no mark is accepted and changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me:clear-undeliverable (the `ClearOwnMailUndeliverable` operationId).
+func (c *ClientWithResponses) ClearOwnMailUndeliverableWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ClearOwnMailUndeliverableResult, error) {
+	rsp, err := c.ClearOwnMailUndeliverable(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseClearOwnMailUndeliverableResult(rsp)
+}
+
 // GetAccountWithResponse The name behind an account identifier
 //
 // Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -175674,6 +175796,35 @@ func ParseReadOwnSettingsResult(rsp *http.Response) (*ReadOwnSettingsResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseClearOwnMailUndeliverableResult parses an HTTP response from a ClearOwnMailUndeliverableWithResponse call
+func ParseClearOwnMailUndeliverableResult(rsp *http.Response) (*ClearOwnMailUndeliverableResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ClearOwnMailUndeliverableResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

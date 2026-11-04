@@ -11542,6 +11542,9 @@ type Account struct {
 	Kind            AccountKind        `json:"kind"`
 	Locale          *string            `json:"locale,omitempty"`
 
+	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
+	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -17767,6 +17770,9 @@ type InvitedAccount struct {
 	InvitationLink *string            `json:"invitation_link,omitempty"`
 	Kind           InvitedAccountKind `json:"kind"`
 	Locale         *string            `json:"locale,omitempty"`
+
+	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
+	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
@@ -30316,6 +30322,9 @@ type ServerInterface interface {
 	// ReadOwnSettings The caller's own settings and where each comes from
 	// (GET /accounts/me/settings)
 	ReadOwnSettings(w http.ResponseWriter, r *http.Request)
+	// ClearOwnMailUndeliverable Try mail to the caller's address again
+	// (POST /accounts/me:clear-undeliverable)
+	ClearOwnMailUndeliverable(w http.ResponseWriter, r *http.Request)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -33155,6 +33164,20 @@ func (siw *ServerInterfaceWrapper) ReadOwnSettings(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadOwnSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearOwnMailUndeliverable operation middleware
+func (siw *ServerInterfaceWrapper) ClearOwnMailUndeliverable(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearOwnMailUndeliverable(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60932,6 +60955,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me", wrapper.UpdateOwnAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me:clear-undeliverable", wrapper.ClearOwnMailUndeliverable)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/settings", wrapper.ReadOwnSettings)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/avatar", wrapper.RemoveOwnAvatar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/me/avatar", wrapper.SetOwnAvatar)

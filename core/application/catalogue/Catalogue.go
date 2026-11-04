@@ -614,6 +614,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.ResetSecondFactor{}.Descriptor(),
 		identity.RequestAddress{}.Descriptor(),
 		identity.GetOwnAccount{}.Descriptor(),
+		identity.ClearOwnMailUndeliverable{}.Descriptor(),
 		identity.ReadOwnSettings{}.Descriptor(),
 		identity.GetAccount{}.Descriptor(),
 		identity.ResolveAccounts{}.Descriptor(),
