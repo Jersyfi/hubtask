@@ -28,6 +28,7 @@
  */
 
 import { orderKeyBetween, type QueuedWrite, type ResourceRequest, type Storage, type StoredRecord, type VocabularyEntity } from '@hubtask/sync-engine';
+import { ticketKeyOf } from './ticket.ts';
 
 type Document = Record<string, unknown>;
 
@@ -258,12 +259,11 @@ export async function resolveHeld(storage: Storage, body: unknown): Promise<Docu
         }
         const collection = await one(storage, 'containers', String(held.collection_id));
         const number = typeof held.number === 'number' && held.number > 0 ? held.number : null;
-        const handle = text(collection?.handle);
         Object.assign(target, {
           title: held.title, level: held.type, entry_type: text(held.entry_type) ?? String(held.type ?? '').toLowerCase(),
           completed: (held.completion as { is_completed?: boolean } | undefined)?.is_completed === true,
           archived: Boolean(held.archived_at), collection_id: held.collection_id, number,
-          key: number !== null && handle ? `${handle}-${number}` : null,
+          key: ticketKeyOf({ handle: text(collection?.handle), key_prefix: text(collection?.key_prefix) }, number) ?? null,
           start_at: held.start_at ?? null, due_at: held.due_at ?? null,
         });
         break;

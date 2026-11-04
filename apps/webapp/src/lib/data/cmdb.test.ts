@@ -287,6 +287,7 @@ test('the entry screen lists the services reached by name and the direct collisi
   assert.deepEqual(reachedServices(answer).map((each) => each.name), ['Booking', 'Mail']);
   assert.deepEqual(collisionsInOrder(answer).map((each) => each.item_id), ['x2', 'x3', 'x1']);
   assert.equal(entryKey({ handle: 'ops', number: 7 }), 'OPS-7');
+  assert.equal(entryKey({ handle: 'operations', key_prefix: 'OPS', number: 8 }), 'OPS-8');
 });
 
 test('the Assets screen has a section each for campaigns, groups, the register and software', () => {

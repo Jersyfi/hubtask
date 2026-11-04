@@ -15,6 +15,8 @@ import type {
   EntryCis, EntryOnCi, ServiceMap, SoftwareAliasDefine, SoftwareProductList,
 } from '@hubtask/sync-engine';
 
+import { ticketKeyOf } from './ticket.ts';
+
 export const ROOT_CLASS = 'ci';
 
 export const classesPath = '/cmdb/classes';
@@ -542,8 +544,9 @@ export const softwareAliasesPath = '/software-aliases';
 export const softwareAliasPath = (aliasId: string) => `${softwareAliasesPath}/${aliasId}`;
 export const softwarePath = (hubId: string) => `/hubs/${hubId}/software`;
 
-/** An entry's link to another, by its collection's handle and number - `OPS-12`. */
-export const entryKey = (entry: Pick<EntryOnCi, 'handle' | 'number'>) => `${entry.handle.toUpperCase()}-${entry.number}`;
+/** An entry's link to another, by its key as every screen draws it - `OPS-12` (ticket.ts). */
+export const entryKey = (entry: Pick<EntryOnCi, 'handle' | 'number'> & { readonly key_prefix?: string | null }) =>
+  ticketKeyOf(entry, entry.number) ?? '';
 
 /** The services the affected CIs reach, by name, an offering before a service of the same name. */
 export const reachedServices = (answer: EntryCis): EntryCis['services'] =>

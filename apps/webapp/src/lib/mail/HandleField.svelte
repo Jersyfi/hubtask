@@ -13,6 +13,7 @@
   import type { Container } from '@hubtask/sync-engine';
   import { copyHandle, readMailSettings, routesTo, type MailSettings } from '../data/mailintake.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { ticketKeyOf } from '../data/ticket.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -79,7 +80,7 @@
         <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: ways.address })} onclick={() => void copy(ways.address ?? '')} />
       </div>
     {/if}
-    <p class="hint">{t('app.mail.key_hint', { key: `${handle.toUpperCase()}-42` })}</p>
+    <p class="hint">{t('app.mail.key_hint', { key: ticketKeyOf(container, 42) ?? `${handle.toUpperCase()}-42` })}</p>
   {/if}
   {#if mayShape}
     <div class="edit">

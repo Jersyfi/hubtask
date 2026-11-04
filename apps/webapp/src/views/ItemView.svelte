@@ -281,7 +281,7 @@
   const isCollectionArchived = $derived(collection !== undefined && archivalOf(collection) !== 'active');
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
   /** The entry's ticket key, `EINKAUF-42` (ADR-0094): what a mail subject quotes to reach it. */
-  const ticketKey = $derived(ticketKeyOf(collection?.handle, item?.number));
+  const ticketKey = $derived(ticketKeyOf(collection, item?.number));
 
   async function copyTicketKey(key: string) {
     await navigator.clipboard.writeText(key);
@@ -1621,9 +1621,10 @@
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
     background: none;
-    color: var(--text-subtle);
+    color: var(--text-secondary);
     font-family: var(--font-mono);
     font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
     cursor: pointer;
   }
   .ticket-key:hover { background: var(--bg-surface-hover); color: var(--text-secondary); }

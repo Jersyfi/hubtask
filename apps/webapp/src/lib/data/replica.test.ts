@@ -807,7 +807,7 @@ test('references resolve from the copy, what it does not hold as unavailable', a
     ['GOAL', 'g-1', true], ['DASHBOARD', 'd-1', true], ['COLLECTION', COLLECTION, true], ['HUB', COLLECTION, false],
     ['ENTRY', 'nowhere', false], ['VIEW', 'v-1', false],
   ]);
-  assert.equal(rows[0]?.key, 'inb-7');
+  assert.equal(rows[0]?.key, 'INB-7', 'the key as the server and every screen write it');
   assert.equal(rows[0]?.completed, true);
   assert.equal(rows[0]?.anchor, 'top');
   assert.equal(rows[0]?.entry_type, 'task');
