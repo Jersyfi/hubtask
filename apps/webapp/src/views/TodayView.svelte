@@ -647,7 +647,7 @@
                   </li>
                 {/each}
               </ul>
-              {#if waitingApprovals && waitingApprovals.length > 0}<p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>{/if}
+              {#if waitingCount > 0}<p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>{/if}
             </Stack>
           </section>
         {/if}
