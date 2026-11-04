@@ -108,3 +108,21 @@ func TestADesksLogoIsOnlyAnImageOfOnesOwnUpload(t *testing.T) {
 		t.Errorf("an SVG answered %v", err)
 	}
 }
+
+// The desk's team holds no REQUEST at its own portal, so the catalogue never tells it the logo:
+// the collection's readers read it here, and nobody else.
+func TestADesksTeamReadsItsLogo(t *testing.T) {
+	logos, _, permission, desk := logoHarness(true)
+	out, err := GetDeskLogo{Desk: desk, Logos: logos}.Descriptor().Handler.Invoke(
+		context.Background(), reader(), usecase.Input{"container_id": collection.String()})
+	if err != nil || out["logo_media_id"] != otherID.String() {
+		t.Fatalf("the team read %v, %v", out, err)
+	}
+	if len(permission.asked) != 1 || permission.asked[0].Permission != service.PermissionRead {
+		t.Errorf("asked %+v, want READ at the collection", permission.asked)
+	}
+	refused, _, _, desk := logoHarness(false)
+	if _, err := (GetDeskLogo{Desk: desk, Logos: refused}).Execute(context.Background(), reader(), collection); err == nil {
+		t.Error("a reader refused at the collection read its logo")
+	}
+}

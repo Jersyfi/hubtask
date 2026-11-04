@@ -262,6 +262,7 @@ var restDoors = map[string]restDoor{
 	"getAccount":                        {UseCase: "GetAccount", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getBackupRun":                      {UseCase: "GetBackupRun", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getContainer":                      {UseCase: "GetContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"getDeskLogo":                       {UseCase: "GetDeskLogo", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getGroup":                          {UseCase: "GetGroup", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getImport":                         {UseCase: "GetImport", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getJob":                            {UseCase: "GetJob", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2481,6 +2482,12 @@ func (c *RestController) GetDataFeedService(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	c.Feeds.GetDataFeedService(w, r, token)
+}
+
+// GetDeskLogo answers GET /containers/{containerId}/desk-logo by the generated mapping.
+func (c *RestController) GetDeskLogo(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var answer openapi.DeskLogo
+	c.door(w, r, restDoors["getDeskLogo"], usecase.Input{"container_id": containerId.String()}, nil, nil, &answer)
 }
 
 // GetGroup answers GET /groups/{groupId} by the generated mapping.

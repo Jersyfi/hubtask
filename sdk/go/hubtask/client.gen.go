@@ -34562,6 +34562,15 @@ type ClientInterface interface {
 	// Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
 	RemoveDeskLogo(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetDeskLogo The logo a service's portal shows
+	//
+	// Answers the logo the portal shows for a collection serving as a service, or null where it
+	// draws the collection's icon and colour - for the collection's readers, the service's team
+	// among them, who are not requesters there. Needs READ at the collection.
+	//
+	// Corresponds with GET /containers/{containerId}/desk-logo (the `GetDeskLogo` operationId).
+	GetDeskLogo(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetDeskLogoWithBody Show a logo of the service's own on its portal
 	//
 	// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
@@ -49887,6 +49896,25 @@ func (c *Client) ReorderBucket(ctx context.Context, containerId ContainerId, buc
 // Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
 func (c *Client) RemoveDeskLogo(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRemoveDeskLogoRequest(c.Server, containerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetDeskLogo The logo a service's portal shows
+//
+// Answers the logo the portal shows for a collection serving as a service, or null where it
+// draws the collection's icon and colour - for the collection's readers, the service's team
+// among them, who are not requesters there. Needs READ at the collection.
+//
+// Corresponds with GET /containers/{containerId}/desk-logo (the `GetDeskLogo` operationId).
+func (c *Client) GetDeskLogo(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetDeskLogoRequest(c.Server, containerId)
 	if err != nil {
 		return nil, err
 	}
@@ -77817,6 +77845,40 @@ func NewRemoveDeskLogoRequest(server string, containerId ContainerId) (*http.Req
 	}
 
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetDeskLogoRequest constructs an http.Request for the GetDeskLogo method
+func NewGetDeskLogoRequest(server string, containerId ContainerId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/desk-logo", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -107985,6 +108047,17 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /containers/{containerId}/desk-logo (the `RemoveDeskLogo` operationId).
 	RemoveDeskLogoWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*RemoveDeskLogoResult, error)
 
+	// GetDeskLogoWithResponse The logo a service's portal shows
+	//
+	// Answers the logo the portal shows for a collection serving as a service, or null where it
+	// draws the collection's icon and colour - for the collection's readers, the service's team
+	// among them, who are not requesters there. Needs READ at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /containers/{containerId}/desk-logo (the `GetDeskLogo` operationId).
+	GetDeskLogoWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*GetDeskLogoResult, error)
+
 	// SetDeskLogoWithBodyWithResponse Show a logo of the service's own on its portal
 	//
 	// Makes an uploaded picture the logo the portal shows for a collection serving as a service,
@@ -129588,6 +129661,54 @@ func (r RemoveDeskLogoResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RemoveDeskLogoResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetDeskLogoResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeskLogo
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetDeskLogoResult) GetJSON200() *DeskLogo {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetDeskLogoResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetDeskLogoResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetDeskLogoResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetDeskLogoResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetDeskLogoResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -162725,6 +162846,23 @@ func (c *ClientWithResponses) RemoveDeskLogoWithResponse(ctx context.Context, co
 	return ParseRemoveDeskLogoResult(rsp)
 }
 
+// GetDeskLogoWithResponse The logo a service's portal shows
+//
+// Answers the logo the portal shows for a collection serving as a service, or null where it
+// draws the collection's icon and colour - for the collection's readers, the service's team
+// among them, who are not requesters there. Needs READ at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /containers/{containerId}/desk-logo (the `GetDeskLogo` operationId).
+func (c *ClientWithResponses) GetDeskLogoWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*GetDeskLogoResult, error) {
+	rsp, err := c.GetDeskLogo(ctx, containerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetDeskLogoResult(rsp)
+}
+
 // SetDeskLogoWithBodyWithResponse Show a logo of the service's own on its portal
 //
 // Makes an uploaded picture the logo the portal shows for a collection serving as a service,
@@ -184751,6 +184889,39 @@ func ParseRemoveDeskLogoResult(rsp *http.Response) (*RemoveDeskLogoResult, error
 	}
 
 	response := &RemoveDeskLogoResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeskLogo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetDeskLogoResult parses an HTTP response from a GetDeskLogoWithResponse call
+func ParseGetDeskLogoResult(rsp *http.Response) (*GetDeskLogoResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetDeskLogoResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

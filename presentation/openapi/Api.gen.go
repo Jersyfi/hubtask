@@ -31138,6 +31138,9 @@ type ServerInterface interface {
 	// RemoveDeskLogo Go back to the icon and the colour
 	// (DELETE /containers/{containerId}/desk-logo)
 	RemoveDeskLogo(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	// GetDeskLogo The logo a service's portal shows
+	// (GET /containers/{containerId}/desk-logo)
+	GetDeskLogo(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 	// SetDeskLogo Show a logo of the service's own on its portal
 	// (PUT /containers/{containerId}/desk-logo)
 	SetDeskLogo(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -41869,6 +41872,32 @@ func (siw *ServerInterfaceWrapper) RemoveDeskLogo(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RemoveDeskLogo(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDeskLogo operation middleware
+func (siw *ServerInterfaceWrapper) GetDeskLogo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDeskLogo(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -61124,6 +61153,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/modules", wrapper.ListContainerModules)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.RemoveDeskLogo)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.GetDeskLogo)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/desk-logo", wrapper.SetDeskLogo)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/structure", wrapper.SetContainerStructure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/structure:preview", wrapper.PreviewContainerStructure)

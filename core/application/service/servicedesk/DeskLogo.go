@@ -21,10 +21,12 @@ import (
 const (
 	SetDeskLogoName    = "SetDeskLogo"
 	RemoveDeskLogoName = "RemoveDeskLogo"
+	GetDeskLogoName   = "GetDeskLogo"
 
 	// The trail names the media object, never anything in it.
 	DeskLogoSetAction     audit.Action = "desk.logo_set"
 	DeskLogoRemovedAction audit.Action = "desk.logo_removed"
+	DeskLogoReadAction    audit.Action = "desk.logo_read"
 
 	deskTarget = "desk"
 )
@@ -171,8 +173,58 @@ func (h RemoveDeskLogo) Descriptor() usecase.Descriptor {
 	}, deskTarget)
 }
 
+// GetDeskLogo answers a desk's logo to the collection's readers - its team, who hold no REQUEST
+// there and so are refused the requester catalogue that carries it to requesters.
+type GetDeskLogo struct {
+	Desk  Desk
+	Logos repository.DeskLogos
+}
+
+// Execute answers the logo, zero where the desk draws its icon and colour.
+func (h GetDeskLogo) Execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID) (shared.ID, error) {
+	if err := h.Desk.authorizeDeskAs(ctx, actor, collectionID, service.PermissionRead, DeskLogoReadAction, deskRead); err != nil {
+		return "", err
+	}
+	var logo shared.ID
+	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := h.Logos.Find(ctx, collectionID)
+		logo = found
+		return err
+	})
+	return logo, err
+}
+
+// Descriptor registers the use case in all three channels.
+func (h GetDeskLogo) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: GetDeskLogoName, Permission: service.PermissionRead,
+		Summary:     "Answers the logo a collection's portal shows, or none where it draws the collection's icon and colour.",
+		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
+		Input:       []usecase.Field{{Name: "container_id", Kind: usecase.KindID, Required: true, Description: "The collection serving as the service."}},
+		Audit:       usecase.AuditDeclaration{Action: DeskLogoReadAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			collectionID, err := in.ID("container_id")
+			if err != nil {
+				return nil, err
+			}
+			logo, err := h.Execute(ctx, actor, collectionID)
+			if err != nil {
+				return nil, err
+			}
+			return deskLogoOutput(collectionID, logo), nil
+		}),
+	}, deskTarget)
+}
+
 // authorizeDesk reads the collection and asks STRUCTURE there; a hub carries no desk.
 func (d Desk) authorizeDesk(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, action audit.Action) error {
+	return d.authorizeDeskAs(ctx, actor, collectionID, service.PermissionStructure, action, deskWrite)
+}
+
+// authorizeDeskAs reads the collection and asks the permission there; a hub carries no desk.
+func (d Desk) authorizeDeskAs(
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, permission service.Permission, action audit.Action, scope string,
+) error {
 	if collectionID.IsZero() {
 		return malformed("/container_id", "requests.collection_required")
 	}
@@ -186,8 +238,8 @@ func (d Desk) authorizeDesk(ctx context.Context, actor appshared.ActorContext, c
 		return err
 	}
 	if err := d.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure, Path: service.ContainerScopes(collection),
-		Action: action, TokenScope: deskWrite, TargetType: deskTarget, TargetID: collectionID,
+		Permission: permission, Path: service.ContainerScopes(collection),
+		Action: action, TokenScope: scope, TargetType: deskTarget, TargetID: collectionID,
 	}); err != nil {
 		return err
 	}

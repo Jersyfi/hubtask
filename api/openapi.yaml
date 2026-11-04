@@ -18853,6 +18853,24 @@ paths:
   /containers/{containerId}/desk-logo:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
+    get:
+      tags: [servicedesk]
+      operationId: getDeskLogo
+      x-hubtask-rest: generated
+      summary: The logo a service's portal shows
+      description: |
+        Answers the logo the portal shows for a collection serving as a service, or null where it
+        draws the collection's icon and colour - for the collection's readers, the service's team
+        among them, who are not requesters there. Needs READ at the collection.
+      responses:
+        "200":
+          description: The logo the desk shows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeskLogo"
+        "4XX":
+          $ref: "#/components/responses/Problem"
     put:
       tags: [servicedesk]
       operationId: setDeskLogo

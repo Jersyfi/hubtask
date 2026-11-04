@@ -189,6 +189,7 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.ReportSla{}.Descriptor(),
 		servicedeskservice.ListRequestCatalogue{}.Descriptor(),
 		servicedeskservice.SetDeskLogo{}.Descriptor(),
+		servicedeskservice.GetDeskLogo{}.Descriptor(),
 		servicedeskservice.RemoveDeskLogo{}.Descriptor(),
 		servicedeskservice.RaiseRequest{}.Descriptor(),
 		servicedeskservice.ReadPublicFormsPolicy{}.Descriptor(),

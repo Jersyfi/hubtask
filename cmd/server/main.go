@@ -2392,6 +2392,7 @@ func run() error {
 		}.Descriptor(),
 		servicedeskservice.ListRequestCatalogue{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.SetDeskLogo{Desk: serviceDesk, Logos: postgres.DeskLogoRepository{}, Objects: mediaObjects}.Descriptor(),
+		servicedeskservice.GetDeskLogo{Desk: serviceDesk, Logos: postgres.DeskLogoRepository{}}.Descriptor(),
 		servicedeskservice.RemoveDeskLogo{Desk: serviceDesk, Logos: postgres.DeskLogoRepository{}, Objects: mediaObjects}.Descriptor(),
 		servicedeskservice.RaiseRequest{Portal: requestPortal}.Descriptor(),
 		servicedeskservice.ReadPublicFormsPolicy{Forms: publicForms}.Descriptor(),

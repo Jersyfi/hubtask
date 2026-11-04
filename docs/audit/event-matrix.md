@@ -464,6 +464,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `desk.logo_read` | GetDeskLogo | `desk` | INFO | When refused |
 | `desk.logo_removed` | RemoveDeskLogo | `desk` | INFO | Every time |
 | `desk.logo_set` | SetDeskLogo | `desk` | INFO | Every time |
 
