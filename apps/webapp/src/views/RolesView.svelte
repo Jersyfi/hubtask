@@ -22,6 +22,7 @@
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { holdersByRole } from '../lib/people/roleholders.ts';
   import { chosen, grantsOf, keyFrom, offers, ROLE_KEY, roles, type Offer } from '../lib/data/roles.svelte.ts';
   import { workflows } from '../lib/data/workflows.svelte.ts';
   import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
@@ -34,6 +35,15 @@
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
 
   const TENANT = { scopeType: 'TENANT' } as const;
+  // Who holds each shipped role at the workspace, once every page of its memberships is read.
+  const heldBy = $derived(holdersByRole(people.along({}), people.isCompleteAt(TENANT)));
+  const heldLine = (role: string): string | undefined => {
+    if (!heldBy) return undefined;
+    const held = heldBy.get(role) ?? { people: 0, groups: 0 };
+    return held.groups === 0
+      ? t('app.roles.held_people', { people: held.people })
+      : t('app.roles.held_people_groups', { people: held.people, groups: held.groups });
+  };
   const WORKSPACE_PLACE = '';
 
   $effect(() =>
@@ -215,8 +225,11 @@
         <p class="quiet small">{t('app.roles.shipped_hint')}</p>
         <ul class="roles">
           {#each catalogue.shipped as role (role.role)}
-            <li class="role">
-              <h3 class="name">{roleLabel(role.role)}</h3>
+            <li class="role" data-shipped-role={role.role}>
+              <div class="head">
+                <h3 class="name">{roleLabel(role.role)}</h3>
+                {#if heldLine(role.role)}<span class="quiet small" data-held>{heldLine(role.role)}</span>{/if}
+              </div>
               <p class="quiet small">
                 {catalogue.catalogue.filter((entry) => entry.shipped.includes(role.role)).map((entry) => permissionLabel(entry.permission)).join(' · ') || t('app.roles.carries_nothing')}
               </p>

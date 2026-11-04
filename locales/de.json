@@ -9034,6 +9034,8 @@
   "app.roles.intro": "Die sieben Rollen, die Hubtask mitbringt, und die Rollen, die dieser Arbeitsbereich aus den Berechtigungen von Hubtask selbst festlegt. Eine Rolle wird am Arbeitsbereich, an einem Hub oder einer Sammlung vergeben und gilt darunter.",
   "app.roles.reading": "Rollen werden gelesen …",
   "app.roles.shipped_title": "Mitgelieferte Rollen",
+  "app.roles.held_people": "{people, plural, =0 {Niemand im Arbeitsbereich} one {# Person im Arbeitsbereich} other {# Personen im Arbeitsbereich}}",
+  "app.roles.held_people_groups": "{people, plural, =0 {Keine Person} one {# Person} other {# Personen}} und {groups, plural, one {# Gruppe} other {# Gruppen}} im Arbeitsbereich",
   "app.roles.shipped_hint": "Diese ändern sich nicht. Sie werden im Reiter Personen vergeben.",
   "app.roles.carries_nothing": "Nichts",
   "app.roles.custom_title": "Eigene Rollen dieses Arbeitsbereichs",

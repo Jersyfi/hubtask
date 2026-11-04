@@ -9034,6 +9034,8 @@
   "app.roles.intro": "The seven roles Hubtask ships, and the roles this workspace defines from the permissions Hubtask knows. A role is given at the workspace, a hub or a collection and applies below it.",
   "app.roles.reading": "Reading the roles…",
   "app.roles.shipped_title": "Shipped roles",
+  "app.roles.held_people": "{people, plural, =0 {Nobody at the workspace} one {# person at the workspace} other {# people at the workspace}}",
+  "app.roles.held_people_groups": "{people, plural, =0 {No person} one {# person} other {# people}} and {groups, plural, one {# group} other {# groups}} at the workspace",
   "app.roles.shipped_hint": "These do not change. They are given on the people tab.",
   "app.roles.carries_nothing": "Nothing",
   "app.roles.custom_title": "This workspace's own roles",
