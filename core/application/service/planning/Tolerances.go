@@ -139,7 +139,7 @@ func (h ReadPlanTolerance) read(ctx context.Context, actor appshared.ActorContex
 	if err != nil || len(scheduled.Result.Placements) == 0 {
 		return view, err
 	}
-	agreed, ok := agreedFinish(*view.Baseline, scheduled.Loaded.Zone)
+	agreed, ok := agreedFinish(*view.Baseline, scheduled.Loaded)
 	if !ok {
 		return view, nil
 	}
@@ -184,12 +184,18 @@ func (p Planner) tell(ctx context.Context, actor appshared.ActorContext, walk []
 	})
 }
 
-// agreedFinish is a baseline's last due day in the plan's zone.
-func agreedFinish(b domain.Baseline, zone *time.Location) (domain.Day, bool) {
+// agreedFinish is a baseline's last due day, each read as the forecast reads the entry's due
+// today: an all-day date in its own zone, else in the plan's. A baseline keeps the instant only, so
+// an entry that is all-day now is taken to have been all-day when it was agreed.
+func agreedFinish(b domain.Baseline, plan Loaded) (domain.Day, bool) {
 	var last domain.Day
 	for _, e := range b.Entries {
 		if e.DueAt == nil {
 			continue
+		}
+		zone := plan.Zone
+		if current, ok := plan.Entries[e.EntryID]; ok {
+			zone = dueZone(current, plan.Zone)
 		}
 		if day := domain.DayOf(*e.DueAt, zone); day > last {
 			last = day

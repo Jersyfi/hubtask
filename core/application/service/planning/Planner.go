@@ -382,16 +382,20 @@ func schedulerEntry(e planrepo.PlanEntry, zone *time.Location) domain.Entry {
 		entry.Start = &day
 	}
 	if e.DueAt != nil {
-		dueZone := zone
-		if e.DueDateOnly && e.DueTimeZone != "" {
-			if loaded, err := time.LoadLocation(e.DueTimeZone); err == nil {
-				dueZone = loaded
-			}
-		}
-		day := domain.DayOf(*e.DueAt, dueZone)
+		day := domain.DayOf(*e.DueAt, dueZone(e, zone))
 		entry.Finish = &day
 	}
 	return entry
+}
+
+// dueZone is the zone an entry's due date is a day in: an all-day date's own, else the plan's.
+func dueZone(e planrepo.PlanEntry, zone *time.Location) *time.Location {
+	if e.DueDateOnly && e.DueTimeZone != "" {
+		if loaded, err := time.LoadLocation(e.DueTimeZone); err == nil {
+			return loaded
+		}
+	}
+	return zone
 }
 
 func invalid(path, code string) error {

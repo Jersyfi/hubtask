@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	settingrepo "github.com/Jersyfi/hubtask/core/application/repository/setting"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/planning"
@@ -150,5 +151,36 @@ func TestTheWorkspacesToleranceReachesEveryPlanAndHearsItsException(t *testing.T
 	}
 	if len(notified.recipients) != 1 || notified.recipients[0] != decider {
 		t.Errorf("told %v, want the person who decided the tolerance", notified.recipients)
+	}
+}
+
+// UC-PLN-04 check 6: a plan whose all-day due date stands where it was agreed is in no exception
+// for a reader in another zone - the agreed end is read as the forecast is, the due date in its
+// own zone, so nothing slipped and nobody is told it did.
+func TestAnAllDayDueAgreedIsNoSlipInAnotherZone(t *testing.T) {
+	f := newFixture()
+	f.planner.Settings = &settingStore{}
+	ctx := context.Background()
+	zero := 0
+	if _, err := (SetPlanTolerance{Planner: f.planner}).Execute(ctx, actor(), SetPlanToleranceCommand{PlanID: collection, Days: &zero}); err != nil {
+		t.Fatal(err)
+	}
+	auckland, err := time.LoadLocation("Pacific/Auckland")
+	if err != nil {
+		t.Fatal(err)
+	}
+	due := time.Date(2026, 12, 1, 0, 0, 0, 0, auckland)
+	f.plans.entries = []planrepo.PlanEntry{{
+		ID: launch, CollectionID: collection, HubID: hubID, DueAt: &due, DueDateOnly: true, DueTimeZone: "Pacific/Auckland",
+		Mode: domain.Manual, Milestone: true, Version: 1,
+	}}
+	f.baselines.taken = []domain.Baseline{{ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000000301")}}
+	f.baselines.found = domain.Baseline{ID: f.baselines.taken[0].ID, Entries: []domain.BaselineEntry{{EntryID: launch, DueAt: &due}}}
+	view, err := ReadPlanTolerance{Planner: f.planner}.Execute(ctx, actor(), ScheduleQuery{PlanID: collection})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := view.Exception; e == nil || e.SlipDays != 0 || e.Exceeded {
+		t.Errorf("exception = %+v, want no slip", view.Exception)
 	}
 }
