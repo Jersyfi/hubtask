@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { PortfolioRoadmap } from '@hubtask/sync-engine';
 
-import { roadmapRows } from './roadmap.ts';
+import { roadmapHealth, roadmapRows } from './roadmap.ts';
 
 const roadmap: PortfolioRoadmap = {
   portfolio_id: 'p', name: 'Programme', status: 'NONE', start: '2026-10-01', finish: '2026-12-31',
@@ -44,4 +44,14 @@ test("a project without planned dates spans its bars; a lane spans its projects"
   assert.equal(rows[3]?.start, undefined);
   assert.equal(rows[2]?.isCritical, true);
   assert.equal(rows[5]?.href, '/hubs/h2/plan');
+});
+
+// UC-GOL-03 checks 10 and 14: the head counts the projects shown and those whose health says they
+// need a look, so a slipping project is seen before its date has passed.
+test('the roadmap counts its projects and those at risk or off track', () => {
+  const rows = roadmapRows(roadmap, 'unseen');
+  assert.deepEqual(roadmapHealth(rows), { projects: 2, atRisk: 0, offTrack: 0 });
+  const slipping = roadmapRows({ ...roadmap, lanes: roadmap.lanes.map((lane, n) => ({ ...lane, projects: lane.projects.map((project) => ({ ...project, status: n === 0 ? 'AT_RISK' : 'OFF_TRACK' })) })) }, 'unseen');
+  assert.deepEqual(roadmapHealth(slipping), { projects: 2, atRisk: 1, offTrack: 1 });
+  assert.deepEqual(roadmapHealth([]), { projects: 0, atRisk: 0, offTrack: 0 });
 });

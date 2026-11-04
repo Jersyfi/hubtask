@@ -91,3 +91,13 @@ export function roadmapRows(roadmap: PortfolioRoadmap, unnamed: string): Roadmap
   }
   return rows;
 }
+
+/** How many projects the roadmap shows, and how many of them say they are at risk or off track. */
+export function roadmapHealth(rows: readonly RoadmapRow[]): { projects: number; atRisk: number; offTrack: number } {
+  const projects = rows.filter((row) => row.level === 'project');
+  return {
+    projects: projects.length,
+    atRisk: projects.filter((row) => row.status === 'AT_RISK').length,
+    offTrack: projects.filter((row) => row.status === 'OFF_TRACK').length,
+  };
+}
