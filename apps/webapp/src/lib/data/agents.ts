@@ -196,6 +196,25 @@ export function scopesFrom(text: string): string[] {
 }
 
 /**
+ * The scopes *Add an agent* offers to tick: the installation's, less the operator's (an agent of a
+ * workspace never holds them), and any the agent already holds beyond them, so none is dropped.
+ */
+export function scopeChoices(declared: readonly string[], held: readonly string[]): string[] {
+  return [...new Set([...declared.filter((scope) => !scope.startsWith('admin:')), ...held])];
+}
+
+/** The consent screen's words for a scope (`app.consent.scope.*`), one catalogue for both. */
+export function scopeWordCode(scope: string): string {
+  return `app.consent.scope.${scope.replace(/[:.]/g, '_')}`;
+}
+
+/** The typed list after ticking: what was typed beyond the offered scopes stays, then the ticked. */
+export function scopesTicked(text: string, offered: readonly string[], ticked: readonly string[]): string {
+  const kept = scopesFrom(text).filter((scope) => !offered.includes(scope));
+  return [...new Set([...kept, ...offered.filter((scope) => ticked.includes(scope))])].join(' ');
+}
+
+/**
  * An expected answer typed as JSON, or why it is not one. Only an object is an answer the server
  * compares key by key (UC-AGT-04 check 2).
  */

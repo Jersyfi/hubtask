@@ -4169,7 +4169,7 @@
   "app.agents.save": "Save",
   "app.agents.cancel": "Cancel",
   "app.agents.close": "Close",
-  "app.agents.add": "Add",
+  "app.agents.add": "Add agent",
   "app.agents.open": "Open",
   "app.agents.edit": "Change",
   "app.agents.edit_named": "Change {name}",
@@ -4190,7 +4190,7 @@
   "app.agents.risk_hint": "An agent that would decide about people is not registered at all.",
   "app.agents.risk.MINIMAL": "Minimal risk",
   "app.agents.risk.LIMITED": "Limited risk",
-  "app.agents.scopes": "Scopes",
+  "app.agents.scopes": "What it may do",
   "app.agents.scopes_hint": "Separated by spaces or commas, for example items:read items:write.",
   "app.agents.model": "Model",
   "app.agents.no_model": "No model",
@@ -12478,5 +12478,8 @@
   "app.backup.mode_FULL": "Full",
   "app.backup.mode_INCREMENTAL": "Changes since the last",
   "app.product_home.tab_inventory": "Inventory",
-  "app.time.tab_settings": "Settings"
+  "app.time.tab_settings": "Settings",
+  "app.agents.scopes_pick_hint": "Tick only what its work needs; a token of its account holding more is narrowed to these.",
+  "app.agents.scopes_advanced": "Advanced: scopes as text",
+  "app.agents.scopes_typed": "Scopes"
 }

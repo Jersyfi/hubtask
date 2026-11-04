@@ -94,7 +94,7 @@ function agentsBackend({ empty = false } = {}) {
 test('chromium: agents - a model registered, an agent added from a role, a draft put live, its held act approved from its card, its run read - without an error', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['AGENTS'], answer: agentsBackend() });
+  const walk = await productWalk(browser, { modules: ['AGENTS'], answer: agentsBackend(), manifest: { token_scopes: ['items:read', 'items:write', 'admin:tenants'] } });
   t.after(walk.close);
   const { page } = walk;
 
@@ -117,7 +117,13 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   assert.equal(await agentDialog.getByLabel('Name').inputValue(), 'Knowledge draft');
   assert.equal(await agentDialog.getByLabel('Tokens a day').inputValue(), '200000', 'a new agent starts from the default budget');
   await agentDialog.getByLabel('Model', { exact: true }).selectOption({ label: 'Local small' });
-  await agentDialog.getByRole('button', { name: 'Register an agent' }).click();
+  // What it may do is ticked in words (user-experience.md §5.4); the operator's scope is not offered.
+  await page.getByRole('dialog', { name: 'Add an agent' }).waitFor({ timeout: 5_000 });
+  await agentDialog.getByRole('checkbox', { name: /^Read your entries/ }).check();
+  await agentDialog.getByRole('checkbox', { name: /^Create and change entries/ }).check();
+  assert.equal(await agentDialog.getByRole('checkbox', { name: /Administer every workspace/ }).count(), 0);
+  assert.equal(await agentDialog.getByLabel('Scopes', { exact: true }).count(), 0, 'the typed list is folded under Advanced');
+  await agentDialog.getByRole('button', { name: 'Add agent' }).click();
   await agentDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByRole('heading', { name: 'Knowledge draft' }).waitFor({ timeout: 5_000 });
 
@@ -145,6 +151,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await page.getByText(/2 proposals · 1,840 tokens/).waitFor({ timeout: 5_000 });
 
   const wrote = walk.written.map((each) => `${each.method} ${each.path}`);
+  assert.deepEqual(walk.written.find((each) => each.method === 'POST' && each.path === '/agents')?.body.scopes, ['items:read', 'items:write']);
   for (const want of ['POST /agent-models', 'POST /agents']) {
     assert.ok(wrote.includes(want), `${want} was not written: ${JSON.stringify(wrote)}`);
   }

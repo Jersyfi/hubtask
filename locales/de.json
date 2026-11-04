@@ -3499,7 +3499,7 @@
   "app.agents.save": "Speichern",
   "app.agents.cancel": "Abbrechen",
   "app.agents.close": "Schließen",
-  "app.agents.add": "Hinzufügen",
+  "app.agents.add": "Agent hinzufügen",
   "app.agents.open": "Öffnen",
   "app.agents.edit": "Ändern",
   "app.agents.edit_named": "{name} ändern",
@@ -3520,7 +3520,7 @@
   "app.agents.risk_hint": "Ein Agent, der über Menschen entscheiden würde, wird gar nicht registriert.",
   "app.agents.risk.MINIMAL": "Minimales Risiko",
   "app.agents.risk.LIMITED": "Begrenztes Risiko",
-  "app.agents.scopes": "Bereiche",
+  "app.agents.scopes": "Was er tun darf",
   "app.agents.scopes_hint": "Durch Leerzeichen oder Kommas getrennt, zum Beispiel items:read items:write.",
   "app.agents.model": "Modell",
   "app.agents.no_model": "Kein Modell",
@@ -12478,5 +12478,8 @@
   "app.backup.mode_FULL": "Vollständig",
   "app.backup.mode_INCREMENTAL": "Änderungen seit dem letzten",
   "app.product_home.tab_inventory": "Bestand",
-  "app.time.tab_settings": "Einstellungen"
+  "app.time.tab_settings": "Einstellungen",
+  "app.agents.scopes_pick_hint": "Nur ankreuzen, was seine Arbeit braucht; ein Token seines Kontos mit mehr wird darauf beschränkt.",
+  "app.agents.scopes_advanced": "Erweitert: Bereiche als Text",
+  "app.agents.scopes_typed": "Bereiche"
 }

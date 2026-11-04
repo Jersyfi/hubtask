@@ -13,9 +13,9 @@ import { fold, record } from './scalewalk-errors.mjs';
 /**
  * A signed-in page whose `/api/v1` reads go to `answer(method, path, query, body)` first: an
  * object `{ status, json }` (or `{ status }` for no body) is the answer, undefined leaves the
- * request to the fixture. `modules` are switched on in the manifest.
+ * request to the fixture. `modules` are switched on in the manifest; `manifest` adds to it.
  */
-export async function productWalk(browser, { modules, answer, width = 1280, height = 900 }) {
+export async function productWalk(browser, { modules, answer, width = 1280, height = 900, manifest = {} }) {
   const { page, context, unstubbed } = await signedIn(browser, width, height, { timezoneId: 'UTC' });
   // A live document's socket (an entry's notes) is accepted and kept silent: the fixture serves no
   // live documents, and a refused handshake would be the harness's error, not the product's.
@@ -29,7 +29,7 @@ export async function productWalk(browser, { modules, answer, width = 1280, heig
     const url = new URL(request.url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     const method = request.method();
-    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: modules } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, ...manifest, modules_on: modules } });
     // The batch read of names a current server answers; the shared fixture refuses it on purpose,
     // to walk the older server's fallback, which would count as a refusal here.
     if (path === '/accounts:resolve' && method === 'POST') {

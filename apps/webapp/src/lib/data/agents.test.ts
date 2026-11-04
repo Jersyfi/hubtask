@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DEFAULT_BUDGET, aiFields, byState, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, heldActWordsOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
+  DEFAULT_BUDGET, aiFields, byState, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, heldActWordsOf, requestsPath, retentionOf, scopeChoices, scopeWordCode, scopesFrom, scopesTicked, selfEvaluation,
 } from './agents.ts';
 
 const admin = { administers: true, accountId: 'root' };
@@ -84,6 +84,17 @@ test('UC-AGT-04 check 6: a case is added with an expected answer that is an obje
   assert.deepEqual(expectedFrom('null'), { problem: 'not_object' });
   assert.deepEqual(expectedFrom('{labels'), { problem: 'not_json' });
   assert.deepEqual(scopesFrom('items:read, items:write  items:read'), ['items:read', 'items:write']);
+});
+
+test('user-experience.md §5.4: an agent\'s scopes are ticked in words, the raw list kept behind Advanced', () => {
+  // The installation's scopes less the operator's, and a scope the agent already holds that the
+  // installation does not declare stays offered rather than silently dropped.
+  assert.deepEqual(scopeChoices(['items:read', 'admin:tenants', 'items:write'], ['legacy:x']), ['items:read', 'items:write', 'legacy:x']);
+  assert.equal(scopeWordCode('items:read'), 'app.consent.scope.items_read');
+  assert.equal(scopeWordCode('admin:tenants.read'), 'app.consent.scope.admin_tenants_read');
+  // Ticking keeps what was typed beyond the offered list, in the order it was typed.
+  assert.equal(scopesTicked('items:read custom:one', ['items:read', 'items:write'], ['items:write']), 'custom:one items:write');
+  assert.equal(scopesTicked('', ['items:read', 'items:write'], ['items:read', 'items:write']), 'items:read items:write');
 });
 
 test('UC-AGT-05 check 5: the entry names each value that came from AI once, never the value', () => {

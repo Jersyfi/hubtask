@@ -14,7 +14,7 @@
 
   import { untrack } from 'svelte';
   import {
-    Badge, Banner, Button, Dialog, Icon, IconButton, Input, ListRow, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
+    Badge, Banner, Button, CheckboxGroup, Dialog, Disclosure, Icon, IconButton, Input, ListRow, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
     type PlaceTab, type SelectOption,
   } from '@hubtask/design-system/components';
   import type {
@@ -26,8 +26,9 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import {
     SHIPPED_ROLES, agentHaltPath, byState, agentJobsPath, agentPolicyPath, draftOf, heldCounts, type AgentDraft, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, heldActWordsOf, requestsPath,
-    retentionOf, scopesFrom, type LifecyclePress, type Viewer,
+    retentionOf, scopeChoices, scopeWordCode, scopesFrom, scopesTicked, type LifecyclePress, type Viewer,
   } from '../lib/data/agents.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
@@ -151,6 +152,14 @@
     dialogFailure = undefined;
     isDraftOpen = true;
   }
+
+  // Scopes are ticked in words (user-experience.md §5.4); the typed list stays behind *Advanced*
+  // for a scope the installation does not declare.
+  const scopeOffered = $derived(scopeChoices(manifest.value?.token_scopes ?? [], editing?.scopes ?? []));
+  const scopeOptions = $derived(scopeOffered.map((scope) => {
+    const code = scopeWordCode(scope);
+    return messages.has(code) ? { value: scope, label: t(code), hint: scope } : { value: scope, label: scope };
+  }));
 
   /** A new agent of a shipped role: its kind, its name and what it does, filled in words. */
   function openRole(kind: (typeof SHIPPED_ROLES)[number]) {
@@ -643,7 +652,7 @@
 {/if}
 
 {#if isDraftOpen && draft}
-  <Dialog bind:isOpen={isDraftOpen} title={editing ? t('app.agents.edit_named', { name: editing.name }) : t('app.agents.register')} dismissLabel={t('app.agents.cancel')} isWide>
+  <Dialog bind:isOpen={isDraftOpen} title={editing ? t('app.agents.edit_named', { name: editing.name }) : t('app.agents.add_agent')} dismissLabel={t('app.agents.cancel')} isWide>
     <Stack gap="150">
       {#if editing && editing.status !== 'DRAFT'}<Banner tone="info">{t('app.agents.change_hint')}</Banner>{/if}
       <Input label={t('app.agents.name')} bind:value={draft.name} maxlength={120} />
@@ -651,7 +660,18 @@
       <Select label={t('app.agents.kind_label')} options={kindOptions} bind:value={draft.kind} />
       <Select label={t('app.agents.owner')} hint={t('app.agents.owner_hint')} options={ownerOptions} bind:value={draft.owner} />
       <Select label={t('app.agents.risk_label')} hint={t('app.agents.risk_hint')} options={riskOptions} bind:value={draft.risk} />
-      <Input label={t('app.agents.scopes')} hint={t('app.agents.scopes_hint')} bind:value={draft.scopes} />
+      {#if scopeOptions.length > 0}
+        <CheckboxGroup
+          label={t('app.agents.scopes')}
+          hint={t('app.agents.scopes_pick_hint')}
+          options={scopeOptions}
+          selected={scopesFrom(draft.scopes)}
+          onChange={(next) => { if (draft) draft.scopes = scopesTicked(draft.scopes, scopeOffered, next); }}
+        />
+      {/if}
+      <Disclosure tone="quiet" label={t('app.agents.scopes_advanced')} isOpen={scopeOptions.length === 0}>
+        <Input label={t('app.agents.scopes_typed')} hint={t('app.agents.scopes_hint')} bind:value={draft.scopes} />
+      </Disclosure>
       <Select label={t('app.agents.model')} options={modelOptions} bind:value={draft.model} />
       <Select label={t('app.agents.reversible')} options={reversibleOptions} bind:value={draft.reversible} />
       <Select label={t('app.agents.irreversible')} options={irreversibleOptions} bind:value={draft.irreversible} />
@@ -666,7 +686,7 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDraftOpen = false)}>{t('app.agents.cancel')}</Button>
-      <Button tone="primary" disabledReason={draftReason} onclick={() => void saveDraft()}>{editing ? t('app.agents.save') : t('app.agents.register')}</Button>
+      <Button tone="primary" disabledReason={draftReason} onclick={() => void saveDraft()}>{editing ? t('app.agents.save') : t('app.agents.add')}</Button>
     {/snippet}
   </Dialog>
 {/if}
