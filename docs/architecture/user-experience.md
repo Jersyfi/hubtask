@@ -634,6 +634,29 @@ before saving (§5.4).
 form below the chosen tile, the person's requests with translated statuses, and answers from the
 knowledge base beside the form as they type.
 
+As built: the desk's home (`/desk`) has a `PageHeader` with the trail, a figure from the queues'
+counts (*3 open · 2 about to breach · 2 unassigned*, a count of nought left out) and *New request*
+as the primary, which opens the first desk's list, where an entry is captured; each other desk is
+in its split. Its tabs are *Queues · Desks · Settings* (`/desk`, `/desk/desks`, `/desk/settings`);
+the approvals are *Waiting for your yes* in the places band and no longer a door here. The
+queues are a stacked `Table` of key, request (with its desk), requester, status, priority, SLA and
+assignee; the priority is the value of the field the policies name, else of `priority`; the SLA
+is the requester's goal that breaks first (a team's OLA only where none measures the entry) as a
+bar of the time used between arming and the due moment - an approximation, since the calendar's
+pauses lie in that span - the words (*1 h 0 min left*, *Breached 18 min ago*, *Paused*, *Kept*)
+and a mark, a breach and an at-risk goal on their status surface. Each row reads its goals once
+(`/items/{id}/sla`, at most 25 a hub); the query answers none. A hub's *Desk* tab has the same
+primary. The settings tab is the workspace's calendars, policies, canned replies, organisations
+and report; every form opens in a dialog from *Add …* or a row's pencil, and a policy picks its
+types, organisations, priority field and pausing statuses from the workspace's own values, its
+targets per priority one `DurationInput` per option of that field, the warning and position
+behind *Advanced*. *Start from the ITIL defaults* is not built: no read answers the shipped
+template's calendars and policies alone. A desk entry's SLA chips lead its main column, above the
+notes; the triage fields stay in the fields beside it. The portal draws its kinds as
+`TemplateCard`s with their mark and sentence and *Ask for this*; the form follows only once one is
+chosen, focus moving to it, with the articles beside it from the expanded width. A request's
+status is still its key where the workflow named it: the portal answers no status name.
+
 ### 7.5 Plans, sprints and boards
 
 * **The plan** (Gantt): the chart first and full width; the label column resizable, the window
