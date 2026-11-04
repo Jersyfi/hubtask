@@ -689,9 +689,17 @@ func TestApplyIsAllOrNothing(t *testing.T) {
 	}
 }
 
+// A role added is held by nobody and applies without the flag; changing what it may do is flagged.
 func TestAPlanChangingPermissionsNeedsItsFlagAcknowledged(t *testing.T) {
 	f := newFixture()
-	document := map[string]any{"roles": map[string]any{"desk_agent": map[string]any{"name": "Desk agent", "permissions": []any{"READ"}}}}
+	added := map[string]any{"roles": map[string]any{"desk_agent": map[string]any{"name": "Desk agent", "permissions": []any{"READ"}}}}
+	first := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": added})
+	if first["flags"].(usecase.Output)["changes_permissions"] != false {
+		t.Fatalf("adding a role is flagged: %v", first["flags"])
+	}
+	invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{"document": added, "plan_hash": first["plan_hash"]})
+
+	document := map[string]any{"roles": map[string]any{"desk_agent": map[string]any{"name": "Desk agent", "permissions": []any{"READ", "WRITE"}}}}
 	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document})
 	if plan["flags"].(usecase.Output)["changes_permissions"] != true {
 		t.Fatalf("flags %v", plan["flags"])

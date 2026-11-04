@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 )
 
 const otherGroup = "0190a8f0-0000-7000-8000-0000000000de"
@@ -54,5 +55,30 @@ func TestARolesGroupsAreGrantedAndRevokedByTheDocument(t *testing.T) {
 	apply(otherGroup)
 	if got := held(); len(got) != 1 || got[0] != otherGroup {
 		t.Errorf("after the change the role is held by %v", got)
+	}
+}
+
+// A role a template adds is held by nobody yet, so the plan needs no acknowledgement for it
+// (user-experience.md §3.2, "an add-only plan needs no acknowledgement"); changing a role's
+// permissions, or giving a role to a group, still changes what people may do.
+func TestANewRoleChangesNobodysPermissions(t *testing.T) {
+	desk := Desk{Catalogue: &scoped{}}
+	empty := current{Document: domain.Document{}, Rows: map[string]map[string]map[string]any{}}
+	added := desk.planOf(empty, domain.Document{sectionRoles: {
+		"cab_member": {"name": "CAB member", "permissions": []any{"READ"}},
+	}}, domain.ModeMerge)
+	if len(added.Refusals) > 0 || len(added.Ops) != 1 || added.Flags.ChangesPermissions {
+		t.Fatalf("adding a role is planned as %+v", added)
+	}
+
+	held := current{
+		Document: domain.Document{sectionRoles: {"cab_member": {"name": "CAB member", "permissions": []any{"READ"}}}},
+		Rows:     map[string]map[string]map[string]any{sectionRoles: {"cab_member": {"key": "cab_member"}}},
+	}
+	changed := desk.planOf(held, domain.Document{sectionRoles: {
+		"cab_member": {"name": "CAB member", "permissions": []any{"READ", "WRITE"}},
+	}}, domain.ModeMerge)
+	if !changed.Flags.ChangesPermissions {
+		t.Fatalf("changing a role's permissions is planned as %+v", changed)
 	}
 }

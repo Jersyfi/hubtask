@@ -494,7 +494,8 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 					})
 				}
 			}
-			if s.permissions {
+			// A role added is held by nobody yet; giving it to a group is role_groups' change.
+			if s.permissions && (s.name != sectionRoles || change.Op != domain.OpAdd) {
 				p.Flags.ChangesPermissions = true
 			}
 		}

@@ -85,7 +85,7 @@ scope, like the sandbox, because nothing runs. A workflow keeps its own draft (U
 |---|---|
 | Separate scopes `config:read`, `config:plan`, `config:apply` | an agent token gets read and plan |
 | **Approval of an agent's plan by a person** (`config.agent_apply`: `APPROVAL`, `ALLOWED`, `NEVER`) | `APPROVAL`: the plan appears in the administration as *Proposed by an agent*, with the same preview; a person with the right applies or declines it |
-| A plan that hides data or changes permissions | always flagged, never applied without the flag acknowledged |
+| A plan that hides data or changes permissions | always flagged, never applied without the flag acknowledged; a role added is held by nobody yet and changes none - giving it to a group (`role_groups`) does |
 | Sandbox | a copy of the configuration without content, where an agent may apply freely; promoted with a plan |
 | Rate and size | bounded per token like every door |
 
