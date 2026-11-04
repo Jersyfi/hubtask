@@ -166,6 +166,18 @@ func TestTheAgentCapabilityCanBeMinted(t *testing.T) {
 	}
 }
 
+// UC-AGT-06 check 3: the per-section apply scopes are minted like any scope - CreateAccessToken
+// and the consent screen take what Scopes declares - and each is named on the consent screen
+// (test/architecture/consentscopes_test.go holds the wording).
+func TestTheSectionApplyScopesCanBeMinted(t *testing.T) {
+	scopes := catalogue.Scopes()
+	for _, want := range []string{"config:apply:types", "config:apply:workflows", "config:apply:settings"} {
+		if !slices.Contains(scopes, want) {
+			t.Errorf("%q is not a scope a token can be minted with", want)
+		}
+	}
+}
+
 // A hint can never say safe where the server would say no. `readOnlyHint` and
 // `destructiveHint` are what an agent's client decides whether to ask for confirmation on, so a
 // descriptor claiming both would be one whose client asks nothing and whose server refuses.

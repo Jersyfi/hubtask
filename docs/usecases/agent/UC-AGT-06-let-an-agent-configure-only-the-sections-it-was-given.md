@@ -5,9 +5,9 @@ context: agent
 actors: [PE-admin, PE-agent, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
-state: built
+state: verified
 tasks: []
-checked_by: [core/application/service/config/Scopes_test.go, core/application/service/config/Config_test.go]
+checked_by: [core/application/service/config/Scopes_test.go, core/application/service/config/Config_test.go, core/application/catalogue/Catalogue_test.go, test/architecture/consentscopes_test.go]
 ---
 
 # Let an agent configure only the sections it was given
