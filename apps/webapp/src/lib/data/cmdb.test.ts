@@ -10,7 +10,7 @@ import type {
 
 import {
   alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
-  changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, guessMapping, impactByDepth, instantiable, inventoryByClass,
+  changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, fileText, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows, assetStrips, assetsFigure, relationSides, GRAPH_SIDE,
 } from './cmdb.ts';
@@ -483,4 +483,10 @@ test('a CI\'s relation graph draws what points at it and what it points at, the 
   assert.deepEqual(sides.incoming.map((each) => each.id), ['in0']);
   assert.equal(sides.moreIncoming, 0);
   assert.deepEqual(relationSides([]), { incoming: [], outgoing: [], moreIncoming: 0, moreOutgoing: 0 });
+});
+
+test('a CSV saved by a spreadsheet in a Western European code page keeps its umlauts', () => {
+  const windows1252 = new Uint8Array([0x4e, 0x61, 0x6d, 0x65, 0x0a, 0x42, 0xfc, 0x72, 0x6f, 0x20, 0x80]);
+  assert.equal(fileText(windows1252), 'Name\nBüro €');
+  assert.equal(fileText(new TextEncoder().encode('Name\nBüro €')), 'Name\nBüro €');
 });

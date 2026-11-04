@@ -19,7 +19,7 @@
   } from '@hubtask/design-system/components';
   import type { CiClass, CiFileImport, CiFileMapping, CiRun, CiSource, CiSourceList } from '@hubtask/sync-engine';
 
-  import { classWord, cmdb, fileColumns, fileFormat, guessMapping, instantiable, sourcesPath, type Words } from '../data/cmdb.svelte.ts';
+  import { classWord, cmdb, fileColumns, fileFormat, fileText, guessMapping, instantiable, sourcesPath, type Words } from '../data/cmdb.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { formatBytes } from '../i18n/bytes.ts';
@@ -113,7 +113,7 @@
       format = 'XLSX';
     } else {
       sheetColumns = [];
-      content = new TextDecoder().decode(bytes);
+      content = fileText(bytes);
       format = fileFormat(file.name, content);
     }
     adopt();

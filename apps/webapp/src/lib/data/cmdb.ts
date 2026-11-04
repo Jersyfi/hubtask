@@ -310,6 +310,18 @@ export function outcomeTone(outcome: CiDecision['outcome']): 'success' | 'info' 
 /** A share from 0 to 1 as whole percent. */
 export const percent = (share: number) => Math.round(Math.min(1, Math.max(0, share)) * 100);
 
+/**
+ * A text file's words: UTF-8 when it is, else the Western European code page a spreadsheet's
+ * "CSV" export on Windows writes, so that its umlauts are not lost as replacement characters.
+ */
+export function fileText(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
+
 /** The format a file is read in, by its name and what it holds. */
 export function fileFormat(name: string, content: string): CiFileImport['format'] {
   if (/\.csv$/iu.test(name)) return 'CSV';
