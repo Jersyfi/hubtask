@@ -28,9 +28,18 @@ export const PRODUCT_HOMES: Readonly<Record<string, string>> = {
   'agents-home': 'AGENTS',
 };
 
+/** The products whose home is a page of its own rather than the one home view. */
+const OWN_HOMES: Readonly<Record<string, string>> = {
+  time: 'TIME',
+  goals: 'GOALS',
+};
+
 // A product's home reached by a link while its module is off draws the neutral screen with its way
 // forward (user-experience.md §2.8), not an empty list.
-export const moduleOfRoute = (route: string): string | undefined => ROUTE_MODULES[route] ?? PRODUCT_HOMES[route];
+export const moduleOfRoute = (route: string): string | undefined => ROUTE_MODULES[route] ?? PRODUCT_HOMES[route] ?? OWN_HOMES[route];
+
+/** Whether the route is a product's home, whose trail is *Products* rather than the administration's. */
+export const isProductHome = (route: string): boolean => route in PRODUCT_HOMES || route in OWN_HOMES;
 
 /**
  * The module the page belongs to where it is off in the workspace; none while the manifest is

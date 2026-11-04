@@ -27,7 +27,7 @@
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
   import ModuleOff from './lib/frame/ModuleOff.svelte';
-  import { PRODUCT_HOMES, offModuleOf } from './lib/frame/moduleroute.ts';
+  import { PRODUCT_HOMES, isProductHome, offModuleOf } from './lib/frame/moduleroute.ts';
   import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { viewAs } from './lib/data/viewas.svelte.ts';
@@ -378,7 +378,7 @@
   {:else if reach === false}
     {@render nothingHere()}
   {:else if offModule}
-    <ModuleOff module={offModule} isProduct={route.name !== null && route.name in PRODUCT_HOMES} />
+    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} />
   {:else if route.name === 'consent'}
     <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
