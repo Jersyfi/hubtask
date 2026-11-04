@@ -461,6 +461,9 @@ export async function storeFor(request: ResourceRequest, storage: Storage): Prom
   if (pathname === '/items:query') {
     const scope = levelScope(request.body);
     if (!scope) return undefined;
+    // A container the copy does not hold - one of a hub a narrowed copy leaves to the server - is
+    // not a container with nothing in it.
+    if (scope.container_id && !(await storage.get('containers', scope.container_id))) return undefined;
     if (scope.group) return scope.container_id ? board(storage, scope.container_id) : undefined;
     const rows = await level(storage, scope);
     return { data: rows, groups: [], page: { next_cursor: null, has_more: false }, total: rows.length };

@@ -88,6 +88,18 @@ test('a level: the plain question the list asks, in the manual order, labels and
   }, storage), undefined);
 });
 
+// A copy narrowed to the hubs opened lately (offline-sync.md §1) holds no collection of another
+// hub: its list is not answered as empty, which would read as a collection with nothing in it.
+test('a collection the copy does not hold is not answered as an empty one', async () => {
+  const storage = await workspace();
+  for (const group of [undefined, { field: 'bucket_id', limit_per_group: 50 }]) {
+    assert.equal(await storeFor({
+      path: '/items:query',
+      body: { scope: { container_id: 'c-not-held', include_descendants: false }, include_archived: true, ...(group ? { group_by: group } : {}), sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'] },
+    }, storage), undefined);
+  }
+});
+
 test('the board: the same entries by column, the loose ones last', async () => {
   const storage = await workspace();
   const board = (await storeFor({
