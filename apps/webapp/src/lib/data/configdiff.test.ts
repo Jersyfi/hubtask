@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { compareDocuments } from './configdiff.ts';
+import { compareDocuments, differenceWords } from './configdiff.ts';
 
 test('two versions differ by the blocks added, changed and removed between them', () => {
   const before = {
@@ -30,4 +30,20 @@ test('two versions differ by the blocks added, changed and removed between them'
 test('a version compared with itself differs in nothing', () => {
   const document = { modules: { workflows: { switch: 'ON' } } };
   assert.deepEqual(compareDocuments(document, document), []);
+});
+
+test('a difference reads as what happened to which part, by its name where it has one', () => {
+  assert.deepEqual(
+    differenceWords({ path: 'types.incident', kind: 'CHANGED', before: { name: 'Incident' }, after: { name: 'Incident', level: 'TASK' } }),
+    { code: 'app.templates.change_change', section: 'app.templates.section_types', key: 'Incident' },
+  );
+  assert.deepEqual(
+    differenceWords({ path: 'fields.cost', kind: 'ADDED', after: { kind: 'MONEY' } }),
+    { code: 'app.templates.change_add', section: 'app.templates.section_fields', key: 'cost' },
+  );
+  assert.equal(differenceWords({ path: 'roles.lead', kind: 'REMOVED', before: { name: 'Lead' } }).code, 'app.templates.change_remove');
+  assert.equal(
+    differenceWords({ path: 'modules.knowledge', kind: 'CHANGED', before: { switch: 'OFF' }, after: { switch: 'ON' } }).code,
+    'app.templates.change_module_on',
+  );
 });

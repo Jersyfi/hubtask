@@ -2574,9 +2574,6 @@
   "app.changes.compare_run": "Compare",
   "app.changes.compare_same": "The two versions configure the same.",
   "app.changes.compare_version": "Version {version}",
-  "app.changes.difference_added": "added",
-  "app.changes.difference_changed": "changed",
-  "app.changes.difference_removed": "removed",
   "app.changes.drafts": "Drafts",
   "app.changes.no_drafts": "Nothing is edited and waiting to be published.",
   "app.changes.draft_unpublished": "edited, not published",
@@ -12548,5 +12545,7 @@
   "app.profile.undeliverable_text": "The mail server refused {address} for good on {since}, so no messages are sent to it. Once the mailbox works again, have mail tried again.",
   "app.profile.undeliverable_retry": "Try mail again",
   "app.profile.undeliverable_retrying": "Trying again…",
-  "app.profile.undeliverable_cleared": "Messages to your address are sent again."
+  "app.profile.undeliverable_cleared": "Messages to your address are sent again.",
+  "app.changes.draft_of": "Draft of the {section} “{key}”",
+  "app.changes.difference_text": "The file's text"
 }

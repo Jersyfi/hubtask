@@ -16,8 +16,8 @@
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
-  import { compareDocuments, type BlockDifference } from '../lib/data/configdiff.ts';
-  import { draftRows } from '../lib/data/configdrafts.ts';
+  import { compareDocuments, differenceWords, type BlockDifference } from '../lib/data/configdiff.ts';
+  import { draftRows, draftWords } from '../lib/data/configdrafts.ts';
   import { versionByCode } from '../lib/data/configversion.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workflows } from '../lib/data/workflows.svelte.ts';
@@ -299,10 +299,10 @@
     {:else}
       <ul class="rows">
         {#each drafts as draft (draft.path)}
+          {@const said = draftWords(draft)}
           <li class="row" data-draft={draft.path}>
             <div class="identity">
-              <code class="name">{draft.path}</code>
-              {#if draft.name}<span class="note">{draft.name}</span>{/if}
+              <span class="name">{t(said.code, { section: t(said.section), key: said.key })}</span>
               <span class="note">{draft.savedAt ? t('app.changes.draft_saved', { at: at(draft.savedAt) }) : t('app.changes.draft_unpublished')}</span>
             </div>
             <a class="open" href={draft.href}>{t('app.changes.open_draft')}</a>
@@ -377,15 +377,18 @@
       {:else if compared}
         <ul class="rows">
           {#each compared as difference (difference.path)}
+            {@const said = differenceWords(difference)}
             <li class="difference" data-difference={difference.path}>
               <div class="identity">
-                <code class="name">{difference.path}</code>
-                <span class="note">{t(`app.changes.difference_${difference.kind.toLowerCase()}`)}</span>
+                <span class="name">{t(said.code, { section: t(said.section), key: said.module ? t(said.module) : said.key })}</span>
               </div>
-              <div class="sides">
-                <pre class="side" aria-label={t('app.changes.compare_version', { version: left })}>{blockText(difference.before)}</pre>
-                <pre class="side" aria-label={t('app.changes.compare_version', { version: right })}>{blockText(difference.after)}</pre>
-              </div>
+              <!-- The file's text for the expert, folded (§8.6): the path and both sides of the block. -->
+              <Disclosure tone="quiet" label={t('app.changes.difference_text')} description={difference.path}>
+                <div class="sides">
+                  <pre class="side" aria-label={t('app.changes.compare_version', { version: left })}>{blockText(difference.before)}</pre>
+                  <pre class="side" aria-label={t('app.changes.compare_version', { version: right })}>{blockText(difference.after)}</pre>
+                </div>
+              </Disclosure>
             </li>
           {/each}
         </ul>

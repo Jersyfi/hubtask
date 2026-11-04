@@ -9,6 +9,8 @@
 
 import type { ConfigDraft, ConfigDraftList, ConfigPlan } from '@hubtask/sync-engine';
 
+import { sectionWord } from './configtemplates.ts';
+
 /** The draft of one block, if one waits. */
 export function draftOf(list: ConfigDraftList | undefined, section: ConfigDraft['section'], key: string): ConfigDraft | undefined {
   return list?.drafts.find((draft) => draft.section === section && draft.key === key);
@@ -52,4 +54,12 @@ export function draftRows(
     .filter((each) => each.draft !== null && each.draft !== undefined)
     .map((each) => ({ path: `workflows.${each.key}`, name: each.name ?? undefined, href: draftPage('workflows') }));
   return [...flows, ...blocks];
+}
+
+/** A draft in words: *Draft of the workflow “Support”* - its section's word and its name or key. */
+export function draftWords(row: DraftRow): { code: string; section: string; key: string } {
+  const dot = row.path.indexOf('.');
+  const section = dot < 0 ? row.path : row.path.slice(0, dot);
+  const key = dot < 0 ? '' : row.path.slice(dot + 1);
+  return { code: 'app.changes.draft_of', section: sectionWord(section), key: row.name ?? key };
 }

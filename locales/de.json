@@ -2573,9 +2573,6 @@
   "app.changes.compare_run": "Vergleichen",
   "app.changes.compare_same": "Die beiden Versionen konfigurieren dasselbe.",
   "app.changes.compare_version": "Version {version}",
-  "app.changes.difference_added": "hinzugefügt",
-  "app.changes.difference_changed": "geändert",
-  "app.changes.difference_removed": "entfernt",
   "app.changes.drafts": "Entwürfe",
   "app.changes.no_drafts": "Nichts ist bearbeitet und wartet auf die Veröffentlichung.",
   "app.changes.draft_unpublished": "bearbeitet, nicht veröffentlicht",
@@ -12548,5 +12545,7 @@
   "app.profile.undeliverable_text": "Der Mailserver hat {address} am {since} endgültig abgelehnt, deshalb gehen keine Nachrichten an sie. Sobald das Postfach wieder funktioniert, lass E-Mails erneut versuchen.",
   "app.profile.undeliverable_retry": "E-Mails erneut versuchen",
   "app.profile.undeliverable_retrying": "Wird erneut versucht…",
-  "app.profile.undeliverable_cleared": "Nachrichten an deine Adresse werden wieder gesendet."
+  "app.profile.undeliverable_cleared": "Nachrichten an deine Adresse werden wieder gesendet.",
+  "app.changes.draft_of": "Entwurf: {section} „{key}“",
+  "app.changes.difference_text": "Der Text der Datei"
 }

@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { draftOf, draftRows, publishStep } from './configdrafts.ts';
+import { draftOf, draftRows, draftWords, publishStep } from './configdrafts.ts';
 
 const draft = (section: 'types' | 'roles', key: string) => ({ section, key, block: {}, saved_by: 'a', saved_at: '2026-10-31T09:00:00Z', version: 1 });
 
@@ -37,4 +37,12 @@ test('Changes lists every drafted block, each opening the page that publishes it
     ['sla_policies.gold', '/desk/settings'],
   ]);
   assert.deepEqual(draftRows(undefined, []), []);
+});
+
+test('a draft reads as the draft of its section, by its name or else its key', () => {
+  assert.deepEqual(draftWords({ path: 'workflows.support', name: 'Support', href: '/x' }),
+    { code: 'app.changes.draft_of', section: 'app.templates.section_workflows', key: 'Support' });
+  assert.deepEqual(draftWords({ path: 'sla_policies.gold', href: '/x' }),
+    { code: 'app.changes.draft_of', section: 'app.templates.section_sla_policies', key: 'gold' });
+  assert.equal(draftWords({ path: 'something_new.x', href: '/x' }).section, 'app.templates.section_other');
 });
