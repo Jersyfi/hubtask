@@ -4784,6 +4784,8 @@
   "app.templates.update": "Update",
   "app.templates.update_available": "Update available: version {from} → {to}",
   "app.templates.in_use": "In use, version {version}",
+  "app.templates.ask_admin": "The workspace takes this template first. Ask an administrator to add it.",
+  "app.templates.ask_admin_named": "The workspace takes this template first. Ask an administrator to add it: {names}.",
   "app.templates.upgrade_about": "What the template changed since version {from}, against what this workspace changed itself. Tick what to take into version {to}.",
   "app.templates.upgrade_none": "The template changed nothing this workspace does not already have.",
   "app.templates.samples": "Add sample entries to try it",

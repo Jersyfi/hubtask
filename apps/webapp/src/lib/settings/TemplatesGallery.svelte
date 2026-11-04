@@ -16,7 +16,9 @@
 
   import TemplatePreview from './TemplatePreview.svelte';
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { holdsHere } from '../data/capability.svelte.ts';
+  import { holds, holdsHere } from '../data/capability.svelte.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
   import { answersOf, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from '../data/configtemplates.ts';
   import { modules } from '../data/modules.svelte.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
@@ -48,6 +50,24 @@
     const collection = collectionId;
     return untrack(() => config.templates((next) => (list = next), hub, collection));
   });
+
+  // A place's template the workspace has to take first, for a reader who may not change the
+  // workspace: the card names who may, before the choice (user-experience.md §5.2) - never a
+  // refusal after it. The names are the workspace's memberships, where the reader may read them.
+  // Unknown while the manifest is read: nobody is sent to an administrator on a guess.
+  const mayNotChangeWorkspace = $derived(holdsHere('STRUCTURE') === false);
+  $effect(() => {
+    if (scope === 'workspace' || !mayNotChangeWorkspace) return;
+    return untrack(() => people.open({}));
+  });
+  const administratorNames = $derived.by(() => {
+    if (scope === 'workspace' || !mayNotChangeWorkspace) return '';
+    const names = people.administrators((role) => holds(role, 'STRUCTURE').status === 'permitted')
+      .map((id) => accounts.nameOf(id)).filter((name): name is string => !!name);
+    return names.length === 0 ? '' : new Intl.ListFormat(messages.locale, { type: 'conjunction' }).format(names);
+  });
+  const isAskedOf = (template: ConfigTemplate): boolean =>
+    scope !== 'workspace' && mayNotChangeWorkspace && template.workspace_first === true && offerOf(template) === 'TAKE';
 
   // The family filter (user-experience.md §5.2): All, then each family the catalogue holds.
   let family = $state('all');
@@ -276,20 +296,24 @@
         <TemplateGallery label={t(`app.templates.origin.${group.origin}`)}>
           {#each group.templates as template (template.key)}
             {@const offer = offerOf(template)}
+            {@const isAsked = isAskedOf(template)}
             <TemplateCard
               name={nameOf(template)}
               mark={markOf(template)}
               summary={summaryOf(template)}
               products={productsOf(template)}
               data-template={template.key}
-              note={offer === 'UPDATE'
+              note={isAsked
+                ? administratorNames ? t('app.templates.ask_admin_named', { names: administratorNames }) : t('app.templates.ask_admin')
+                : offer === 'UPDATE'
                 ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
                 : offer === 'IN_USE'
                   ? t('app.templates.in_use', { version: template.version })
                   : undefined}
               isNoteNews={offer === 'UPDATE'}
               {details}
-              action={offer === 'IN_USE' ? undefined : takeAct}
+              data-ask-admin={isAsked ? '' : undefined}
+              action={offer === 'IN_USE' || isAsked ? undefined : takeAct}
             />
             {#snippet details()}<TemplatePreview {template} />{/snippet}
             {#snippet takeAct()}

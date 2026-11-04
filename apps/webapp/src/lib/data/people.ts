@@ -144,6 +144,18 @@ export function candidatesOf(
   return [...accounts];
 }
 
+/**
+ * Who may change the workspace itself, by the memberships of the workspace: the accounts holding
+ * a role there that may, a group's members once read. A hub's grant changes nothing above it.
+ */
+export function administratorsOf(
+  memberships: readonly Membership[],
+  groupMembers: Readonly<Record<string, readonly string[]>>,
+  may: (role: MembershipRole) => boolean,
+): readonly string[] {
+  return candidatesOf(memberships.filter((membership) => membership.scope_type === 'TENANT' && may(membership.role)), groupMembers);
+}
+
 /** One row of the members screen: who, what they hold here, and where it was granted. */
 export interface Holder {
   readonly membershipId: string;

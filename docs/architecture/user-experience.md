@@ -1113,7 +1113,12 @@ workspace's — English*), so leaving it says what it means.
   template chosen opens the new hub on its plan as above. Where the workspace has not taken the
   template yet, the hub's (or collection's) plan dialog shows the workspace's part first and,
   once applied, the place's own - two applies in one dialog, not yet the single server-side apply
-  of §3.2. Not built: a sentence per template and *Ask an administrator* with names.
+  of §3.2. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
+  folds its *Preview*. At a hub's or a collection's *Templates*, a template whose workspace part
+  the workspace has not taken (the list's `workspace_first`) offers a reader who may not change
+  the workspace no *Take*: its card says *Ask an administrator to add it* with the names of the
+  workspace's holders of a role with `STRUCTURE`, read from the workspace's memberships (no names
+  where the reader may not read them).
 * **The installation's anatomy** (§8.4): *Templates* (`/instance/templates`, the installation's
   presets, on an installation of many workspaces), *Modules* (the settings' *Modules* area,
   `/instance/settings?tab=module`) and *Configuration file* (`/instance/configuration-file`, every

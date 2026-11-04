@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership, MembershipRole } from '@hubtask/sync-engine';
 
-import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayResetFactor, mayRevoke, membershipsPath, ownershipOf, readWhole, scopeAnswer, scopesAlong, scopesInForce } from './people.ts';
+import { administratorsOf, candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayResetFactor, mayRevoke, membershipsPath, ownershipOf, readWhole, scopeAnswer, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -297,4 +297,17 @@ test('a second factor is reset only for another active person within the ceiling
   assert.equal(mayResetFactor(member, 'a-1', 'INVITED', belowOwner), false);
   assert.equal(mayResetFactor({ groupId: 'g-1', role: 'MEMBER' }, 'a-1', 'ACTIVE', belowOwner), false);
   assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', undefined), false);
+});
+
+test('who adds a template to the workspace: the workspace\'s holders of a role that may, groups expanded (user-experience.md §5.2)', () => {
+  const memberships = [
+    grant({ id: 'm1', scope_type: 'TENANT', role: 'ADMIN', account_id: AMELIE }),
+    grant({ id: 'm2', scope_type: 'TENANT', role: 'MEMBER', account_id: JONAS }),
+    grant({ id: 'm3', scope_type: 'HUB', scope_id: HUB, role: 'ADMIN', account_id: JONAS }),
+    grant({ id: 'm4', scope_type: 'TENANT', role: 'OWNER', group_id: FITTERS }),
+  ];
+  const may = (role: MembershipRole) => role === 'ADMIN' || role === 'OWNER';
+  assert.deepEqual(administratorsOf(memberships, {}, may), [AMELIE]);
+  assert.deepEqual(administratorsOf(memberships, { [FITTERS]: [JONAS] }, may), [AMELIE, JONAS]);
+  assert.deepEqual(administratorsOf([], {}, may), []);
 });

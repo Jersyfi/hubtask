@@ -4114,6 +4114,8 @@
   "app.templates.update": "Aktualisieren",
   "app.templates.update_available": "Aktualisierung verfügbar: Version {from} → {to}",
   "app.templates.in_use": "In Verwendung, Version {version}",
+  "app.templates.ask_admin": "Zuerst übernimmt der Arbeitsbereich diese Vorlage. Bitten Sie die Administration, sie hinzuzufügen.",
+  "app.templates.ask_admin_named": "Zuerst übernimmt der Arbeitsbereich diese Vorlage. Bitten Sie die Administration, sie hinzuzufügen: {names}.",
   "app.templates.upgrade_about": "Was die Vorlage seit Version {from} geändert hat, gegenüber dem, was dieser Arbeitsbereich selbst geändert hat. Haken Sie an, was in Version {to} übernommen wird.",
   "app.templates.upgrade_none": "Die Vorlage hat nichts geändert, was dieser Arbeitsbereich nicht schon hat.",
   "app.templates.samples": "Beispieleinträge zum Ausprobieren hinzufügen",

@@ -24,7 +24,7 @@ import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 import { customRoleOf, handedOverLink } from '../people/invitation.ts';
 import { roles } from './roles.svelte.ts';
-import { candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, readWhole, scopeAnswer, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
+import { administratorsOf, candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, readWhole, scopeAnswer, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
 const TOUCHES = ['/memberships'];
@@ -117,6 +117,18 @@ class People {
     this.#resolveGroups(memberships);
     const ids = candidatesOf(memberships, this.#groups);
     // The names come from the accounts cache, which is where every other screen gets them.
+    accounts.resolve(ids);
+    return ids;
+  }
+
+  /**
+   * Who may change the workspace, of the workspace's memberships read so far (`open({})` first):
+   * whom *Ask an administrator* names. Empty where the reader may not read them.
+   */
+  administrators(may: (role: MembershipRole) => boolean): readonly string[] {
+    const memberships = this.#scopes[membershipsPath({ scopeType: 'TENANT' })] ?? [];
+    this.#resolveGroups(memberships);
+    const ids = administratorsOf(memberships, this.#groups, may);
     accounts.resolve(ids);
     return ids;
   }

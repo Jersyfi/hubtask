@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, forgetUnstubbed, stub } from './fixture.mjs';
+import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, OTHER, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -270,6 +270,65 @@ test('chromium: a template the workspace has not taken is planned for the worksp
   await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
   assert.deepEqual(applied, [''], 'the workspace part was not applied first, alone');
   assert.deepEqual(plans, [NEW_HUB, '', NEW_HUB], 'the plans were not hub, workspace, hub');
+  assert.deepEqual(failures, []);
+});
+
+// §5.2: a hub's owner who may not change the workspace is told before choosing that the workspace
+// takes the template first, and by whom - no take is offered, so no refusal follows a choice.
+test('chromium: a template the workspace has not taken names its administrators to a hub owner who may not take it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const hub = { id: NEW_HUB, type: 'HUB', parent_id: null, name: 'Delivery', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const plans = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    const method = request.method();
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.MEMBER, modules_on: ['WORKFLOWS', 'KNOWLEDGE', 'PLANNING'] } });
+    if (path === '/sync:snapshot') {
+      const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: hub.id, container_id: null, payload: hub });
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
+    }
+    if (path === '/containers' && method === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [] } });
+    if (path === `/containers/${NEW_HUB}` && method === 'GET') return route.fulfill({ json: hub });
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
+      return route.fulfill({ json: { ...PAGE, data: [{ id: 'm-hub', scope_type: 'HUB', scope_id: hub.id, account_id: ACCOUNT.id, role: 'OWNER' }], grantable_roles: [] } });
+    }
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
+      return route.fulfill({ json: { ...PAGE, data: [
+        { id: 'm-admin', scope_type: 'TENANT', scope_id: null, account_id: OTHER.id, role: 'ADMIN' },
+        { id: 'm-me', scope_type: 'TENANT', scope_id: null, account_id: ACCOUNT.id, role: 'MEMBER' },
+      ], grantable_roles: [] } });
+    }
+    if (path === '/config/templates' && method === 'GET') {
+      return route.fulfill({ json: { data: [{ ...SCRUM, workspace_first: true }, { ...KANBAN, workspace_first: false }] } });
+    }
+    if (path.endsWith(':plan')) {
+      plans.push(path);
+      return route.fulfill({ json: { ...planned, hub_id: NEW_HUB } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/hubs/${NEW_HUB}/settings/modules`);
+  const asked = page.locator(`[data-template="${SCRUM.key}"][data-ask-admin]`);
+  await asked.waitFor({ timeout: 15_000 });
+  await asked.getByText(`Ask an administrator to add it: ${OTHER.display_name}.`).waitFor({ timeout: 10_000 });
+  assert.equal(await asked.locator(`[data-take]`).count(), 0, 'a take is offered that the server would refuse');
+  const kanban = page.locator(`[data-template="${KANBAN.key}"]`);
+  assert.equal(await kanban.getAttribute('data-ask-admin'), null, 'a template the workspace took sends to an administrator');
+  assert.equal(await kanban.locator(`[data-take="${KANBAN.key}"]`).count(), 1, 'a template the workspace took is not offered');
+  assert.deepEqual(plans, []);
   assert.deepEqual(failures, []);
 });
 
