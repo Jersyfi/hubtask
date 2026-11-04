@@ -21,6 +21,11 @@
 
   import { backupState, limitLines, mailboxLines, newestArchive, owedSoon, pageOfFeature, pageOfFinding, ruleLines, waitingLines, type ArchiveReading } from '../lib/administration/overview.ts';
   import { gapsOf } from '../lib/administration/gaps.ts';
+  import FirstStepsCard from '../lib/administration/FirstSteps.svelte';
+  import { firstSteps, isOwed } from '../lib/administration/firststeps.ts';
+  import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
+  import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { readMailboxes, type Mailbox } from '../lib/data/mailintake.svelte.ts';
@@ -130,6 +135,59 @@
   });
   const lastBackup = $derived(newest ? { ...newest, state: backupState(newest.archive, backup.runOf(newest.archive.archive_id)) } : undefined);
 
+  // The first steps (user-experience.md §8.5). Sign-in is read only for whoever may set it up, the
+  // step's own permission; the other facts are reads this page or the frame already makes.
+  const maySetUpSignIn = $derived(holdsHere('STRUCTURE') === true);
+  $effect(() => {
+    if (!maySetUpSignIn) return;
+    return untrack(() => {
+      const stopPolicy = signInPolicy.open();
+      const stopProviders = identityProvider.open();
+      return () => {
+        stopPolicy();
+        stopProviders();
+      };
+    });
+  });
+  const factOf = (status: string | undefined, value: () => boolean): boolean | null | undefined =>
+    status === 'ready' ? value() : status === 'failed' ? null : undefined;
+  const steps = $derived(firstSteps({
+    holds: (permission) => holdsHere(permission) === true,
+    isDeskOn: (manifest.value?.modules_on ?? []).includes('SERVICE_DESK'),
+    hasSeveralPeople: workspace.workspace === undefined ? undefined : workspace.workspace.several_people === true,
+    hasModuleOn: manifest.value === undefined ? undefined : (manifest.value.modules_on ?? []).length > 0,
+    hasMailbox: factOf(mail.status, () => mail.boxes.length > 0),
+    hasSignIn: factOf(
+      signInPolicy.state.status === 'failed' || identityProvider.state.status === 'failed'
+        ? 'failed'
+        : signInPolicy.policy !== undefined && identityProvider.state.status === 'ready' ? 'ready' : undefined,
+      () => identityProvider.own.length > 0 || signInPolicy.policy?.mfa_required_for.value !== 'NONE',
+    ),
+    hasNightlyBackup: factOf(backup.schedules.status, () =>
+      backup.schedules.status === 'ready' && backup.schedules.data.some((schedule) => schedule.enabled !== false)),
+    hasSupportContact: manifest.value === undefined ? undefined : Boolean(manifest.value.legal?.support_url),
+  }));
+  // Put away by one reader in one browser - a convenience, so kept there and not on the server.
+  const HIDDEN_KEY = 'hubtask.first-steps.hidden';
+  const readHidden = (): boolean => {
+    try {
+      return globalThis.localStorage?.getItem(HIDDEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  };
+  let isHidden = $state(readHidden());
+  const hide = (hidden: boolean) => {
+    isHidden = hidden;
+    try {
+      if (hidden) globalThis.localStorage?.setItem(HIDDEN_KEY, '1');
+      else globalThis.localStorage?.removeItem(HIDDEN_KEY);
+    } catch {
+      // A browser that keeps nothing hides the card for this visit only.
+    }
+  };
+  const isStepsOwed = $derived(isOwed(steps));
+
   const limits = $derived(limitLines(quotas.standings));
   const failing = $derived(ruleLines(rules.all));
   const now = Date.now();
@@ -178,12 +236,19 @@
   <PageHeader
     title={t('app.admin_overview.title')}
     isTitleInBar={viewport.isCompact}
+    menu={isStepsOwed && isHidden
+      ? { label: t('app.admin_overview.menu'), items: [{ id: 'show-first-steps', label: t('app.first_steps.show') }], onselect: () => hide(false) }
+      : undefined}
     breadcrumb={{
       trail: [{ id: 'administration', label: t('app.admin.title') }],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+
+  {#if isStepsOwed && !isHidden}
+    <FirstStepsCard {steps} onhide={() => hide(true)} />
+  {/if}
 
   <div class="cards" data-testid="admin-overview">
     {#each cards as card (card.id)}

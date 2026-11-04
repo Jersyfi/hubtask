@@ -937,7 +937,7 @@ writes with:
 | *Choose your products* | `STRUCTURE` | a module is switched on |
 | *Connect a mailbox* | `AUTOMATION`, where the service desk is on | a mailbox is connected |
 | *Set up sign-in* | `STRUCTURE` | a sign-in provider of the workspace's own is connected, or a second factor is required |
-| *Back up every night* | `DELETE_CONTAINER` | an enabled backup schedule exists |
+| *Back up on a schedule* | `DELETE_CONTAINER` | an enabled backup schedule exists |
 | *Add a support contact* | `STRUCTURE` | the workspace names a support contact |
 
 Each step is a sentence of what it gives, a tick or its one press, and a figure *n of m done*.

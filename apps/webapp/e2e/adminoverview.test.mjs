@@ -8,7 +8,10 @@
 //   opened, the request owed soon and the degraded feature - each with a link to its page - and
 //   puts what needs somebody before what does not;
 // * an auditor reads it too, with no write anywhere on it, and without the privacy register's card,
-//   whose read their role is refused - nor is the read sent.
+//   whose read their role is refused - nor is the read sent;
+// * the first steps (user-experience.md §8.5) tick what is done, link what is not, and stay away
+//   once a reader hides them, until the overview's menu shows them again; an auditor, who may act
+//   on none of them, is shown none.
 //
 // Against a stubbed API. Chromium only.
 
@@ -167,5 +170,39 @@ test('chromium: an auditor reads the overview with nothing to change and no regi
   assert.ok(!auditor.asked.some((path) => path.startsWith('/privacy/requests')), 'the register was read for an auditor');
   // Read-only: the overview offers nothing to press but links.
   assert.equal(await page.locator('[data-testid="admin-overview"] :is(button, input, select, textarea)').count(), 0);
+  assert.equal(await page.locator('[data-testid="first-steps"]').count(), 0, 'an auditor was shown steps they may not take');
   assert.deepEqual(auditor.failures, []);
+});
+
+test('chromium: the first steps tick what is done, link what is not, and stay hidden once hidden', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const owner = await as(browser, PERMISSIONS.OWNER);
+  t.after(() => owner.context.close());
+  const { page } = owner;
+
+  await page.goto(`${served.origin}/administration`);
+  const card = page.getByTestId('first-steps');
+  await card.waitFor();
+  // The fixture's workspace holds several people and no backup schedule.
+  assert.equal(await card.locator('[data-step="invite"][data-done]').count(), 1, 'inviting was not ticked');
+  assert.equal(await card.locator('[data-step="backup"]:not([data-done]) a').getAttribute('href'), '/administration/backup');
+  const steps = await card.locator('[data-step]').count();
+  const done = await card.locator('[data-step][data-done]').count();
+  assert.match(((await card.textContent()) ?? '').replace(/\s+/g, ' '), new RegExp(`${done} of ${steps} done`));
+  // It stands above the cards of what needs attention.
+  const [first, cards] = await Promise.all([card.boundingBox(), page.getByTestId('admin-overview').boundingBox()]);
+  assert.ok(first && cards && first.y < cards.y);
+
+  await card.getByRole('button', { name: 'Hide the first steps' }).click();
+  await card.waitFor({ state: 'detached' });
+  await page.reload();
+  await page.getByRole('heading', { name: 'Overview', level: 1 }).waitFor();
+  await page.locator('[data-card="backup"]').getByText('Opened').waitFor();
+  assert.equal(await page.getByTestId('first-steps').count(), 0, 'the hidden steps came back on a reload');
+
+  await page.getByRole('button', { name: 'More on the overview' }).click();
+  await page.getByRole('menuitem', { name: 'Show the first steps' }).click();
+  await page.getByTestId('first-steps').waitFor();
+  assert.deepEqual(owner.failures, []);
 });
