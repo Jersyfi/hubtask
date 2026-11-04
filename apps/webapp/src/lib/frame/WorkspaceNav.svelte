@@ -48,6 +48,7 @@
   import { engine } from '../data/engine.ts';
   import { myApprovalsPath } from '../data/approvals.svelte.ts';
   import { productBandsOf, todayRowCountOf } from '../today.ts';
+  import { watchPageReviews } from '../data/reviews.svelte.ts';
   import { requestsPath } from '../data/agents.ts';
   import type { AgentRequestList, ApprovalList } from '@hubtask/sync-engine';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
@@ -78,7 +79,7 @@
    */
   const places = $derived(primary({ hasJumble, modulesOn }).filter((destination) => hasDestinations || destination.isOffBar));
   /**
-   * What waits for the reader's yes - approvals, agents' held acts - counted on the *Today* row
+   * What waits for the reader's yes - approvals, agents' held acts, page reviews - counted on the *Today* row
    * (user-experience.md §3.3); each read only where Today draws it, from the same list it reads.
    */
   let waiting = $state<ApprovalList['data'] | undefined>(undefined);
@@ -108,7 +109,19 @@
       if (next.status === 'ready') heldActs = next.data.data;
     }));
   });
-  const todayCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore));
+  let reviews = $state(0);
+  const countsReviews = $derived(todayBands.includes('reviews'));
+  const reviewHubs = $derived(containers.hubs.map((hub) => hub.id).join(' '));
+  $effect(() => {
+    const ids = countsReviews && reviewHubs ? reviewHubs.split(' ') : [];
+    const viewer = actor.account?.id;
+    if (ids.length === 0) {
+      reviews = 0;
+      return;
+    }
+    return untrack(() => watchPageReviews(ids, viewer, (rows) => (reviews = rows.length)));
+  });
+  const todayCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore, reviews));
   const destinationNodes = $derived(
     places.map((destination) => ({
       id: destination.id,

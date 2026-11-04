@@ -140,6 +140,8 @@ test('the Today row counts the approvals and held acts waiting for the reader\'s
   assert.equal(todayRowCountOf([{ state: 'DECLINED' }]), undefined);
   assert.equal(todayRowCountOf(undefined, [{ status: 'PENDING' }]), 1, 'an agent\'s held act waits too');
   assert.equal(todayRowCountOf([{ state: 'PENDING' }], [{ status: 'PENDING' }, { status: 'FAILED' }]), 2);
+  assert.equal(todayRowCountOf([], [], false, 1), 1, 'a page waiting for review waits too');
+  assert.equal(todayRowCountOf([{ state: 'PENDING' }], undefined, false, 2), 3);
   // The reader's approvals come a page at a time: a first page with more behind it is a floor.
   const page = Array.from({ length: 50 }, () => ({ state: 'PENDING' }));
   assert.equal(todayRowCountOf(page, undefined, true), '50+', 'a first page was counted as all');

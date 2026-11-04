@@ -231,6 +231,8 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
     const yes = page.getByRole('region', { name: 'Waiting for your yes' });
     await yes.waitFor({ timeout: 10_000 });
     assert.equal(await yes.getByRole('link', { name: `Review ${REVIEW.title}` }).getAttribute('href'), `/pages/${REVIEW.id}`);
+    // The Today row counts the review with the approval, as the band does: two.
+    if (width >= 1280) await page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).filter({ hasText: /2 waiting/u }).first().waitFor({ timeout: 10_000 });
 
     const sprint = page.getByRole('region', { name: 'Sprint' });
     await sprint.waitFor({ timeout: 10_000 });

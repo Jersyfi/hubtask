@@ -157,16 +157,19 @@ export function sprintDaysLeft(endOn: string, today: string): number {
 }
 
 /**
- * The count the *Today* row carries (user-experience.md §3.3): the approvals and the agents' held
- * acts waiting for the reader's yes. Nothing while unknown or none, so the row never says "0".
+ * The count the *Today* row carries (user-experience.md §3.3): the approvals, the agents' held
+ * acts and the pages waiting for the reader's yes. Nothing while unknown or none, so the row
+ * never says "0".
  */
 export function todayRowCountOf(
   approvals: readonly { readonly state: string }[] | undefined,
   acts?: readonly { readonly status: string }[],
   approvalsHaveMore = false,
+  reviews = 0,
 ): number | string | undefined {
   const count = (approvals?.filter((approval) => approval.state === 'PENDING').length ?? 0)
-    + (acts?.filter((act) => act.status === 'PENDING').length ?? 0);
+    + (acts?.filter((act) => act.status === 'PENDING').length ?? 0)
+    + reviews;
   if (count === 0) return undefined;
   return approvalsHaveMore ? `${count}+` : count;
 }

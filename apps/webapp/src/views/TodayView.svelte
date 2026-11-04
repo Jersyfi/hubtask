@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, MySprintList, PageList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
@@ -59,11 +59,9 @@
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { bandsOf, deskAnswerQuery, greetingOf, heldActRows, isListFigure, isProjectFigure, productBandsOf, sprintDaysLeft, timeTodayOf } from '../lib/today.ts';
-  import { modules } from '../lib/data/modules.svelte.ts';
-  import { pagesPath } from '../lib/data/pages.svelte.ts';
+  import { watchPageReviews, type ReviewRow } from '../lib/data/reviews.svelte.ts';
   import { burndownLine, burndownTop, sprintDays } from '../lib/data/sprints.ts';
   import { sprintPath } from '../lib/data/sprints.svelte.ts';
-  import { pagesToReview } from '../lib/product/home.ts';
   import SlaRemaining from '../lib/servicedesk/SlaRemaining.svelte';
   import { agents, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
   import { approvals, myApprovalsPath } from '../lib/data/approvals.svelte.ts';
@@ -423,32 +421,17 @@
       writeFailure = renderProblem(error as never, messages);
     }
   }
-  /**
-   * The pages waiting for the reader's review (§3.3), at each hub where pages are on there: the
-   * pages' own read, a hub at a time, as the pages' home reads them.
-   */
-  let pagesOnAt = $state<Record<string, boolean>>({});
-  let pagesAt = $state<Record<string, PageList['data']>>({});
+  /** The pages waiting for the reader's review (§3.3), where pages are on at their hub. */
+  let reviews = $state<ReviewRow[]>([]);
   $effect(() => {
     const ids = productBands.includes('reviews') && hubIds ? hubIds.split(' ') : [];
-    return untrack(() => {
-      const stops = ids.map((hubId) => modules.here(hubId, (next) => {
-        if (next.status === 'ready') pagesOnAt = { ...pagesOnAt, [hubId]: Array.isArray(next.data.modules_on) && next.data.modules_on.includes('KNOWLEDGE') };
-      }));
-      return () => stops.forEach((stop) => stop());
-    });
+    const viewer = actor.account?.id;
+    if (ids.length === 0) {
+      reviews = [];
+      return;
+    }
+    return untrack(() => watchPageReviews(ids, viewer, (rows) => (reviews = rows)));
   });
-  const pageHubs = $derived(productBands.includes('reviews') && hubIds ? hubIds.split(' ').filter((id) => pagesOnAt[id] === true).join(' ') : '');
-  $effect(() => {
-    const ids = pageHubs ? pageHubs.split(' ') : [];
-    return untrack(() => {
-      const stops = ids.map((hubId) => engine.subscribe<PageList>({ path: pagesPath(hubId) }, (next) => {
-        if (next.status === 'ready') pagesAt = { ...pagesAt, [hubId]: next.data.data };
-      }));
-      return () => stops.forEach((stop) => stop());
-    });
-  });
-  const reviews = $derived(pageHubs ? pagesToReview(pagesAt, pageHubs.split(' '), actor.account?.id) : []);
   const waitingCount = $derived((waitingApprovals?.length ?? 0) + heldRows.length + reviews.length);
 
   /**
