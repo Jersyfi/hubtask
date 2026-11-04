@@ -76,7 +76,7 @@ function timeBackend({ running, kinds } = {}) {
       timer = { running: false };
       return { status: 201, json: made };
     }
-    const one = /^\/timesheets\/(\d{4}-\d{2}-\d{2})(:submit|:approve)?$/.exec(path);
+    const one = /^\/timesheets\/(\d{4}-\d{2}-\d{2})(:submit|:approve|:reject)?$/.exec(path);
     if (one && !one[2] && method === 'GET') {
       if (query.get('account_id') === OTHER.id) return { json: week(theirs, []) };
       return { json: week(one[1] === MONDAY ? mine : sheet(ACCOUNT.id, one[1], 'OPEN'), one[1] === MONDAY ? records : []) };
@@ -87,6 +87,10 @@ function timeBackend({ running, kinds } = {}) {
     }
     if (one && one[2] === ':approve' && method === 'POST' && body?.account_id === OTHER.id && one[1] === LAST_MONDAY) {
       Object.assign(theirs, { state: 'APPROVED', decided_at: new Date().toISOString(), decided_by: ACCOUNT.id, version: theirs.version + 1 });
+      return { json: theirs };
+    }
+    if (one && one[2] === ':reject' && method === 'POST' && body?.account_id === OTHER.id && one[1] === LAST_MONDAY && body?.reason) {
+      Object.assign(theirs, { state: 'REJECTED', reason: body.reason, decided_at: new Date().toISOString(), decided_by: ACCOUNT.id, version: theirs.version + 1 });
       return { json: theirs };
     }
     if (path === '/timesheets' && method === 'GET' && query.get('state') === 'SUBMITTED') {
@@ -124,6 +128,35 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   }
   const start = walk.written.find((each) => each.path === '/timer:start');
   assert.equal(start.body.entry_id, ENTRY.id);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+// UC-TIM-03 check 7: the approver is shown the queue of weeks to decide - whose, which week and
+// how long - opens one whole and sends it back with a reason, after which the queue holds nothing.
+test('chromium: time - a colleague\'s week is opened from the queue and sent back with a reason', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend() });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  await page.getByRole('link', { name: 'Weeks to decide' }).click();
+  const queue = page.getByRole('table', { name: 'Weeks waiting for your decision' });
+  const row = queue.getByRole('row').filter({ hasText: OTHER.display_name });
+  await row.waitFor({ timeout: 5_000 });
+  await row.getByText('7:30').waitFor();
+  await row.getByRole('button', { name: 'Open' }).click();
+  await page.getByRole('button', { name: 'Send back' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Why').fill('Tuesday is missing.');
+  await dialog.getByRole('button', { name: 'Send back' }).click();
+  await page.getByText(`${OTHER.display_name}'s week sent back.`).first().waitFor({ timeout: 5_000 });
+
+  const sent = walk.written.find((each) => each.path === `/timesheets/${LAST_MONDAY}:reject`);
+  assert.deepEqual(sent?.body, { account_id: OTHER.id, reason: 'Tuesday is missing.' });
+  await page.getByText('No week waits for your decision.').waitFor({ timeout: 5_000 });
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
