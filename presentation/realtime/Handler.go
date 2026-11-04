@@ -162,6 +162,9 @@ type connection struct {
 	// its own updates, which the catch-up does not echo.
 	last int64
 	own  map[int64]bool
+	// asked is the furthest place this connection asked its writer to snapshot; a snapshot
+	// claiming more is not stored.
+	asked int64
 	// checked is when access was last asked (every catch-up asks it); recheck fires a deferred one.
 	checked time.Time
 	recheck <-chan time.Time
@@ -335,9 +338,21 @@ func (c *connection) start(ctx context.Context, opened realtimeservice.Opened) e
 		return err
 	}
 	if opened.Head.CompactionDue() {
-		return c.write(ctx, CompactionDue(opened.Head.Seq))
+		return c.askSnapshot(ctx)
 	}
 	return nil
+}
+
+// askSnapshot asks the writer for a snapshot up to what it holds: every place up to it handed out
+// on this connection or written by it. Another writer's update not yet handed out stays after the
+// snapshot, or every later opener would lose it behind a snapshot that never held it.
+func (c *connection) askSnapshot(ctx context.Context) error {
+	covered := c.last
+	for c.own[covered+1] {
+		covered++
+	}
+	c.asked = max(c.asked, covered)
+	return c.write(ctx, CompactionDue(covered))
 }
 
 func (c *connection) read(ctx context.Context, incoming chan<- []byte, failed chan<- error) {
@@ -385,7 +400,7 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 			// Not the connection's end: the writer's snapshot is its whole state, these words
 			// included, and it lifts the refusal.
 			c.signal(ctx, "refused")
-			return c.write(ctx, CompactionDue(c.last))
+			return c.askSnapshot(ctx)
 		}
 		if err != nil {
 			return err
@@ -395,7 +410,7 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 		}
 		c.own[appended.Seq] = true
 		if appended.CompactionDue {
-			return c.write(ctx, CompactionDue(appended.Seq))
+			return c.askSnapshot(ctx)
 		}
 		return nil
 	case message.Type == messageAwareness:
@@ -411,6 +426,10 @@ func (c *connection) receive(ctx context.Context, raw []byte, relayID int64) err
 	case message.Type == messageCompact:
 		if err := c.spend(len(message.Payload)); err != nil {
 			return err
+		}
+		if message.Seq == 0 || message.Seq > uint64(c.asked) { //nolint:gosec // asked is never negative
+			// Not asked for on this connection: it may name updates the writer never held.
+			return nil
 		}
 		err := c.h.Documents.Compact(ctx, c.actor, c.ref, int64(message.Seq), message.Payload) //nolint:gosec // bounded by the head
 		if errors.Is(err, shared.ErrVersionConflict) {

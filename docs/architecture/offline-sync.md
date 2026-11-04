@@ -504,6 +504,10 @@ it, order it and decide who may touch it.
   by another writer meanwhile only lowers that vector, so a writer may send more, never less;
   duplicates are harmless to the editors and compaction bounds the log. Two messages are the server's own: `100` a writer's snapshot (the place
   it covers, then the state) and `101` the server asking for one, after 500 updates past the last.
+  The place asked for is what the connection holds: every update up to it handed out on that
+  connection or written by its writer, so another writer's update still on its way stays after the
+  snapshot instead of being hidden by one that never held it. A snapshot for a place the
+  connection was not asked for is not stored (`presentation/realtime` `askSnapshot`).
 * **Authorisation** is the realtime service's (`core/application/service/realtime`): a document's
   kind names the place it sits at (a `Locator`), and reading needs READ there, writing WRITE_ITEMS,
   with the token scopes `items:read` and `items:write`. Asked when the connection opens and again,

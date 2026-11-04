@@ -37,6 +37,10 @@ type documents struct {
 	asked    int
 	// refusing answers every update as a log at its ceiling would (domain.MaxUncompacted).
 	refusing bool
+	// due answers every append as one that makes compaction due; compacted is each stored
+	// snapshot's place.
+	due       bool
+	compacted []int64
 }
 
 func (d *documents) Open(context.Context, appshared.ActorContext, domain.Ref) (realtimeservice.Opened, error) {
@@ -74,10 +78,13 @@ func (d *documents) Append(_ context.Context, _ appshared.ActorContext, _ domain
 	}
 	seq := int64(len(d.updates)) + 2
 	d.updates = append(d.updates, domain.Update{Seq: seq, Data: data})
-	return realtimeservice.Appended{Seq: seq}, nil
+	return realtimeservice.Appended{Seq: seq, CompactionDue: d.due}, nil
 }
 
-func (d *documents) Compact(context.Context, appshared.ActorContext, domain.Ref, int64, []byte) error {
+func (d *documents) Compact(_ context.Context, _ appshared.ActorContext, _ domain.Ref, upTo int64, _ []byte) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.compacted = append(d.compacted, upTo)
 	return nil
 }
 
@@ -448,5 +455,62 @@ func TestARevocationClosesTheConnectionAtOnce(t *testing.T) {
 			t.Errorf("closed with %v, want %d", err, closeUnauthenticated)
 		}
 		return
+	}
+}
+
+func compactMessage(upTo int64, state []byte) []byte {
+	return appendBytes(appendUvarint(appendUvarint(nil, messageCompact), uint64(upTo)), state) //nolint:gosec // a test's place
+}
+
+// A writer's snapshot is its state when it read the server's request: it can cover only what this
+// connection handed it and what it wrote itself. Another writer's update the connection has not
+// handed out yet is never named in the request, or the snapshot would hide it from every opener.
+func TestASnapshotIsAskedOnlyForWhatTheWriterWasHanded(t *testing.T) {
+	docs := &documents{writable: true, due: true}
+	server, _ := serving(t, docs)
+	writer := dial(t, server)
+	next(t, writer) // the snapshot at 1
+	next(t, writer) // step one
+
+	// Another process's writer lands at 2; this connection has not caught up with it yet.
+	docs.mu.Lock()
+	docs.updates = append(docs.updates, domain.Update{Seq: 2, Data: []byte("theirs")})
+	docs.mu.Unlock()
+	send(t, writer, SyncUpdate([]byte("mine"))) // stored at 3
+
+	handedTheirs := false
+	for {
+		got := next(t, writer)
+		if bytes.Equal(got, SyncUpdate([]byte("theirs"))) {
+			handedTheirs = true
+			continue
+		}
+		message, err := Decode(got)
+		if err != nil || message.Type != messageCompactionDue {
+			t.Fatalf("unexpected message %v", got)
+		}
+		head, _, _ := readUvarint(got[1:])
+		if head >= 2 && !handedTheirs {
+			t.Fatalf("asked for a snapshot up to %d before handing out the update at 2", head)
+		}
+		return
+	}
+}
+
+// A snapshot for a place the server never asked this connection for is not stored: it would claim
+// updates the writer may never have seen.
+func TestASnapshotBeyondWhatWasAskedIsNotStored(t *testing.T) {
+	docs := &documents{writable: true}
+	server, _ := serving(t, docs)
+	writer := dial(t, server)
+	next(t, writer) // the snapshot at 1
+	next(t, writer) // step one
+
+	send(t, writer, compactMessage(7, []byte("state")))
+	time.Sleep(300 * time.Millisecond)
+	docs.mu.Lock()
+	defer docs.mu.Unlock()
+	if len(docs.compacted) != 0 {
+		t.Errorf("stored a snapshot up to %v nobody asked for", docs.compacted)
 	}
 }
