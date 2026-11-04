@@ -415,6 +415,23 @@ type StatusMover struct {
 	HLC       clock.HLCSource
 }
 
+// StatusSettler is Settle and Move together, for a writer outside this package that lands entries
+// without a status - an import (importer.StatusSettler).
+type StatusSettler struct {
+	Workflow WorkflowGate
+	Statuses StatusMover
+}
+
+// Settle puts the collection's entries where its workflows stand; those already there stay.
+func (s StatusSettler) Settle(ctx context.Context, actor appshared.ActorContext, collection domain.Container, now time.Time) error {
+	moves, err := s.Workflow.Settle(ctx, collection)
+	if err != nil || len(moves) == 0 {
+		return err
+	}
+	_, err = s.Statuses.Move(ctx, actor, moves, now)
+	return err
+}
+
 // Move applies the moves and answers how many entries moved.
 func (m StatusMover) Move(
 	ctx context.Context, actor appshared.ActorContext, moves []domain.StatusMove, now time.Time,

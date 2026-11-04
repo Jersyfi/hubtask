@@ -4990,6 +4990,10 @@ func run() error {
 			Containers: containers, Buckets: buckets, Labels: labels, Items: items,
 			Applier: backupApplier, Forms: entryGate.Forms, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
+			Statuses: work.StatusSettler{
+				Workflow: workflowGate,
+				Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+			},
 		},
 		Progress: jobs,
 	}

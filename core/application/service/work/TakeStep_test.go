@@ -451,3 +451,38 @@ func TestAStepIsOpenedByAGroupAndToTheShapersByTheFamily(t *testing.T) {
 		t.Fatal("an administrator does not hold the step's permission")
 	}
 }
+
+// An import's entries arrive with no status; settling their collection enters them into its
+// workflow, the done ones into its first done status.
+func TestSettlingACollectionEntersWhatCarriesNoStatus(t *testing.T) {
+	store := &workflowStore{
+		rows:    []domain.Workflow{reviewWorkflow()},
+		schemes: []domain.WorkflowScheme{{ContainerID: hubID, WorkflowKey: "review"}},
+		groups: []domain.StatusGroup{
+			{CollectionID: collectionID, EntryType: "task", Status: "", Count: 2},
+			{CollectionID: collectionID, EntryType: "task", Status: "", Completed: true, Count: 1},
+			{CollectionID: collectionID, EntryType: "task", Status: "review", Count: 1},
+		},
+	}
+	h := newItemHarness()
+	settler := StatusSettler{
+		Workflow: WorkflowGate{Workflows: store},
+		Statuses: StatusMover{Workflows: store, Activity: ActivityJournal{Entries: h.history, IDs: &ids{}}, Changes: h.changes, HLC: &hlcSource{}},
+	}
+	collection := domain.Container{ID: collectionID, Type: domain.ContainerCollection, ParentID: hubID}
+	if err := settler.Settle(context.Background(), actor(), collection, now); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.moves) != 2 {
+		t.Fatalf("moves = %+v, want the two groups without a status", store.moves)
+	}
+	for _, move := range store.moves {
+		want := "todo"
+		if move.Completed {
+			want = "done"
+		}
+		if move.From != "" || move.To != want {
+			t.Errorf("move %+v, want from none to %q", move, want)
+		}
+	}
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	"github.com/Jersyfi/hubtask/core/application/service/backup"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -46,7 +47,10 @@ type Runner struct {
 	Applier    backup.Applier
 	// Forms holds what an import into an existing collection would create to its types' forms;
 	// nil holds nothing, as a build without forms does.
-	Forms      FormHolder
+	Forms FormHolder
+	// Statuses settles each collection a landed import wrote entries into where its workflows
+	// stand: the rows carry no status of their own. Nil settles nothing.
+	Statuses   StatusSettler
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	// MaxBytes bounds the file read back: the upload limit, which the object cannot exceed, held
@@ -55,6 +59,12 @@ type Runner struct {
 	// SchemaVersion and ProductVersion stamp the archive's manifest, as a backup's are.
 	SchemaVersion  string
 	ProductVersion string
+}
+
+// StatusSettler puts a collection's entries where the workflows in force for their types stand -
+// entered where they carry no status those workflows know (work.StatusSettler).
+type StatusSettler interface {
+	Settle(ctx context.Context, actor appshared.ActorContext, collection work.Container, now time.Time) error
 }
 
 // RunInput names the import and the tenant the job runs for.
@@ -119,7 +129,10 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 		return r.finish(ctx, scope, run, backupdomain.Report{}, nil, gone)
 	}
 
-	report, refused, applied := r.perform(ctx, in, run, object, target, collection)
+	report, refused, landedIn, applied := r.perform(ctx, in, run, object, target, collection)
+	if applied == nil && !run.DryRun {
+		applied = r.settle(ctx, scope, run, landedIn)
+	}
 	if applied != nil && isTransient(applied) {
 		// The store or the database being away is not the file's fault: the run stays RUNNING
 		// with the progress it recorded, the job retries, and the next attempt claims the same
@@ -190,17 +203,17 @@ func stem(fileName string) string {
 // answers is the outcome the run records.
 func (r Runner) perform(
 	ctx context.Context, in RunInput, run domain.Run, object mediaObject, target *repository.Target, collection work.Container,
-) (backupdomain.Report, []domain.Refusal, error) {
+) (backupdomain.Report, []domain.Refusal, []shared.ID, error) {
 	converter, ok := r.Converters[run.Kind]
 	if !ok {
-		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported)
+		return backupdomain.Report{}, nil, nil, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported)
 	}
 	if r.MaxBytes > 0 && object.size > r.MaxBytes {
-		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
+		return backupdomain.Report{}, nil, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
 	stored, err := r.Store.Get(ctx, object.key)
 	if err != nil {
-		return backupdomain.Report{}, nil, err
+		return backupdomain.Report{}, nil, nil, err
 	}
 	defer func() { _ = stored.Content.Close() }()
 	content := io.Reader(stored.Content)
@@ -212,10 +225,10 @@ func (r Runner) perform(
 	// the converters parse a document rather than a stream. Bounded by the upload limit above.
 	raw, err := io.ReadAll(content)
 	if err != nil {
-		return backupdomain.Report{}, nil, err
+		return backupdomain.Report{}, nil, nil, err
 	}
 	if r.MaxBytes > 0 && int64(len(raw)) > r.MaxBytes {
-		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
+		return backupdomain.Report{}, nil, nil, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
 	}
 	digest := sha256.Sum256(raw)
 
@@ -225,11 +238,11 @@ func (r Runner) perform(
 		Mapping: run.Mapping, Now: now, Actor: run.RequestedBy, Zone: run.Zone, Language: run.Language,
 	})
 	if err != nil {
-		return backupdomain.Report{}, nil, err
+		return backupdomain.Report{}, nil, nil, err
 	}
 	if target != nil {
 		if err := r.hold(ctx, persistence.Scope{TenantID: in.TenantID}, run, collection, &result); err != nil {
-			return backupdomain.Report{}, result.Refused, err
+			return backupdomain.Report{}, result.Refused, nil, err
 		}
 	}
 
@@ -250,7 +263,7 @@ func (r Runner) perform(
 		IncludeMedia:   media != nil,
 	}, recordSource{records: result.Records})
 	if err != nil {
-		return backupdomain.Report{}, result.Refused, err
+		return backupdomain.Report{}, result.Refused, nil, err
 	}
 
 	report, err := r.Applier.Ingest(ctx, backup.IngestInput{
@@ -278,7 +291,49 @@ func (r Runner) perform(
 		}
 		report.Withheld["unmapped_"+what] += n
 	}
-	return report, result.Refused, err
+	return report, result.Refused, landedIn(result.Records["work_items"]), err
+}
+
+// settle puts the entries the import wrote where the workflows in force stand, collection by
+// collection, as the requester. Settling twice moves nothing the first time settled, so a retry
+// after a failure here is safe.
+func (r Runner) settle(ctx context.Context, scope persistence.Scope, run domain.Run, collections []shared.ID) error {
+	if r.Statuses == nil || len(collections) == 0 {
+		return nil
+	}
+	actor := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: run.TenantID, AccountID: run.RequestedBy}
+	return r.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		for _, id := range collections {
+			collection, err := r.Containers.Find(ctx, id)
+			if errors.Is(err, shared.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if err := r.Statuses.Settle(ctx, actor, collection, r.Clock.Now()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// landedIn answers the collections the converted entries name, in the order first named.
+func landedIn(records []archive.Record) []shared.ID {
+	var out []shared.ID
+	seen := map[string]bool{}
+	for _, record := range records {
+		id, _ := record.Data["collection_id"].(string)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		if parsed, err := shared.ParseID(id); err == nil {
+			out = append(out, parsed)
+		}
+	}
+	return out
 }
 
 // finish records the outcome, advances the epoch on success, and marks the file for deletion
