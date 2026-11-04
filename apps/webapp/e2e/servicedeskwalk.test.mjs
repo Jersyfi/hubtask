@@ -76,6 +76,12 @@ function deskBackend() {
     if (path === `/items/${REQUEST.id}/sla` && method === 'GET') {
       return { json: { data: [goal('FIRST_RESPONSE', 'MET', null), goal('RESOLUTION', 'RUNNING', at(2 * HOUR))] } };
     }
+    // The request was raised by the requester, so the panel asks for their other open ones.
+    if (path === `/items/${REQUEST.id}` && method === 'GET') return { json: { ...REQUEST, created_by: OTHER.id } };
+    // The requester's other open requests: a search by creator (UC-SVC-03 check 7).
+    if (path === '/search' && method === 'POST' && JSON.stringify(body?.filter ?? {}).includes('created_by')) {
+      return { json: { ...PAGE, data: [REQUEST, OTHER_REQUEST] } };
+    }
     if (path === `/items/${REQUEST.id}/requester` && method === 'GET') {
       return { json: { account_id: OTHER.id, organisation: { key: 'acme', name: 'Acme Plumbing' }, assets: [] } };
     }
@@ -106,7 +112,7 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const backend = deskBackend();
-  const walk = await productWalk(browser, { modules: ['SERVICE_DESK'], answer: backend });
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer: backend });
   t.after(walk.close);
   const { page } = walk;
 
@@ -149,6 +155,15 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const requester = page.getByRole('region', { name: 'Requester' });
   await requester.getByText('Acme Plumbing').waitFor({ timeout: 5_000 });
   assert.match(await requester.innerText(), new RegExp(OTHER.display_name));
+  // §5.10: the other requests are the design system's rows, not the browser's blue underline.
+  const other = requester.getByRole('link', { name: OTHER_REQUEST.title });
+  await other.waitFor({ timeout: 5_000 });
+  assert.equal(await other.getAttribute('href'), `/items/${OTHER_REQUEST.id}`);
+  assert.equal(await requester.getByRole('link', { name: REQUEST.title }).count(), 0, 'the entry itself is listed among the others');
+  const drawn = await other.evaluate((node) => ({ line: getComputedStyle(node).textDecorationLine, color: getComputedStyle(node).color, row: node.closest('.row') !== null }));
+  assert.equal(drawn.row, true, 'the other request is not a ListRow');
+  assert.equal(drawn.line, 'none', 'the other request is underlined as a browser link');
+  assert.notEqual(drawn.color, 'rgb(0, 0, 238)', 'the other request is the browser\'s blue');
   const beside = page.locator('[data-approval]');
   await beside.waitFor({ timeout: 5_000 });
   assert.match(await beside.innerText(), /Waiting[\s\S]*Mara Lind asked on [\s\S]*Level 1/);

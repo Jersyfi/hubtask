@@ -7,6 +7,7 @@
   // this reader may see; the address is never shown.
 
   import { untrack } from 'svelte';
+  import { ListRow } from '@hubtask/design-system/components';
   import type { WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -42,7 +43,7 @@
       <p class="label">{t('app.desk.requester.open')}</p>
       <ul class="others">
         {#each open as other (other.id)}
-          <li><a href={`/items/${other.id}`} onclick={(event) => { event.preventDefault(); onnavigate(`/items/${other.id}`); }}>{other.title}</a></li>
+          <li><ListRow href={`/items/${other.id}`} onactivate={() => onnavigate(`/items/${other.id}`)} label={other.title}><span class="name">{other.title}</span></ListRow></li>
         {/each}
       </ul>
     {:else}
@@ -52,7 +53,7 @@
       <p class="label">{t('app.desk.requester.assets')}</p>
       <ul class="others" data-requester-assets>
         {#each requester.assets ?? [] as asset (asset.id)}
-          <li><a href={`/cis/${asset.id}`} onclick={(event) => { event.preventDefault(); onnavigate(`/cis/${asset.id}`); }}>{asset.name}</a></li>
+          <li><ListRow href={`/cis/${asset.id}`} onactivate={() => onnavigate(`/cis/${asset.id}`)} label={asset.name}><span class="name">{asset.name}</span></ListRow></li>
         {/each}
       </ul>
     {/if}
@@ -64,5 +65,6 @@
   .title { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
   .who, .label { margin: 0; }
   .label, .organisation { color: var(--text-secondary); }
-  .others { margin: 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-025); }
+  .others { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-025); }
+  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
