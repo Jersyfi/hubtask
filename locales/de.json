@@ -2933,6 +2933,7 @@
   "app.modules.on_setup_time": "Zeit einrichten: Zeitrichtlinie und Tätigkeiten",
   "app.modules.on_setup_workflows": "Den ersten Workflow gestalten",
   "app.modules.reset": "Zurücksetzen",
+  "app.modules.settings_of": "Einstellungen für {module}",
   "app.modules.switched_on": "{module} ist eingeschaltet.",
   "app.module_off.title": "{module} ist in diesem Arbeitsbereich ausgeschaltet",
   "app.module_off.body": "Seine Einstellungen erscheinen hier, sobald es eingeschaltet ist. Was dafür gespeichert ist, bleibt erhalten, solange es aus ist.",

@@ -25,6 +25,11 @@ function modulesBackend(off) {
   const states = ['PLANNING', 'TIME', 'SERVICE_DESK'].map((module) => ({ module, on: !off.includes(module), source: 'DEFAULT' }));
   return (method, path) => {
     if (path === '/tenant/modules' && method === 'GET') return { json: { modules: states } };
+    // The administration's frame reads which AI answers; a workspace that configured none is the
+    // contract's 404, which the walk counts as a failed request, so this one has a provider.
+    if (path === '/ai-provider' && method === 'GET') {
+      return { json: { kind: 'NOOP', jurisdiction: 'EEA', processing_allowed: false, has_api_key: false, created_at: '2026-09-01T00:00:00Z', version: 1 } };
+    }
     const one = /^\/tenant\/modules\/([A-Z_]+)$/.exec(path);
     if (one && method === 'PUT') {
       const state = states.find((each) => each.module === one[1]);
@@ -61,6 +66,9 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
   assert.equal(await time.getByRole('link', { name: /^Set up time/u }).getAttribute('href'), '/time?tab=settings');
   await time.getByRole('button', { name: 'Close' }).click();
   await time.waitFor({ state: 'detached', timeout: 5_000 });
+  // Beside each switch that is on, its product's settings (user-experience.md §8.2); none while off.
+  assert.equal(await page.locator('[data-module="TIME"]').getByRole('link', { name: 'Time settings' }).getAttribute('href'), '/time?tab=settings');
+  assert.equal(await page.locator('[data-module-settings="SERVICE_DESK"]').count(), 0, 'a module that is off links its settings');
   assert.deepEqual(walk.errors(), []);
 });
 

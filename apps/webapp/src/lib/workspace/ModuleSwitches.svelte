@@ -28,7 +28,8 @@
   import { renderProblem } from '../problem.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
-  import { switchedOn } from '../product/switchedon.ts';
+  import { settingsOf, switchedOn } from '../product/switchedon.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
 
   interface Props {
     /** The hub to switch for; absent is the workspace. */
@@ -164,6 +165,9 @@
                   {t('app.modules.reset')}
                 </Button>
               {/if}
+              <!-- The product's settings beside its switch, at the workspace and while it is on (§8.2). -->
+              {@const settings = place === 'WORKSPACE' && state.on ? settingsOf(state.module, (permission) => holdsHere(permission) === true) : undefined}
+              {#if settings}<a class="act" href={settings} data-module-settings={state.module}>{t('app.modules.settings_of', { module: t(codes.name) })}</a>{/if}
             </Inline>
             {#if refusal?.module === state.module}<p class="refusal" role="alert">{refusal.message}</p>{/if}
             {#if justOn === state.module && state.on}

@@ -2934,6 +2934,7 @@
   "app.modules.on_setup_time": "Set up time: the time policy and kinds of work",
   "app.modules.on_setup_workflows": "Shape your first workflow",
   "app.modules.reset": "Reset",
+  "app.modules.settings_of": "{module} settings",
   "app.modules.switched_on": "{module} is on.",
   "app.module_off.title": "{module} is switched off in this workspace",
   "app.module_off.body": "Its settings appear here once it is on. Nothing kept for it is lost while it is off.",

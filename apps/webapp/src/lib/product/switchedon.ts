@@ -30,3 +30,19 @@ export function switchedOn(module: string, hubId?: string): SwitchedOn {
   const find = tab ? { code: tab.code, href: tab.href } : row ? { code: row.code, href: row.path } : undefined;
   return { ...(find ? { find } : {}), ...(SETUP[module] ? { setup: SETUP[module] } : {}) };
 }
+
+/**
+ * Where a module's settings live at its home (user-experience.md §8.2), for a reader that home
+ * offers its *Settings* tab to - the same rule each home applies to its own strip (P-05). The
+ * assets' tab is offered to whoever reaches the administration, as the Modules screen's reader
+ * does.
+ */
+export function settingsOf(module: string, holds: (permission: string) => boolean): string | undefined {
+  if (module === 'SERVICE_DESK') return '/desk/settings';
+  if (module === 'ASSETS') return '/assets/settings';
+  if (module === 'TIME') {
+    return ['STRUCTURE', 'APPROVE_TIME', 'MANAGE_COSTS', 'MANAGE_MEMBERS'].some(holds) ? '/time?tab=settings' : undefined;
+  }
+  if (module === 'AGENTS') return holds('MANAGE_MEMBERS') ? '/agents?tab=settings' : undefined;
+  return undefined;
+}
