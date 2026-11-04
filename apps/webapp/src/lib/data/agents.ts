@@ -247,3 +247,13 @@ export function heldCounts(requests: readonly Pick<AgentRequest, 'agent_id'>[]):
   for (const each of requests) out.set(each.agent_id, (out.get(each.agent_id) ?? 0) + 1);
   return out;
 }
+
+const STATE_ORDER: Readonly<Record<string, number>> = { ACTIVE: 0, APPROVED: 1, SUSPENDED: 2, DRAFT: 3, RETIRED: 4 };
+
+/** The agents as their cards stand: live ones first, a retired one last, else as the server answered. */
+export function byState<A extends Pick<Agent, 'status'>>(list: readonly A[]): A[] {
+  return list
+    .map((agent, index) => ({ agent, index }))
+    .sort((a, b) => (STATE_ORDER[a.agent.status] ?? 9) - (STATE_ORDER[b.agent.status] ?? 9) || a.index - b.index)
+    .map(({ agent }) => agent);
+}

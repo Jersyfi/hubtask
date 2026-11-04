@@ -25,7 +25,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import {
-    SHIPPED_ROLES, agentHaltPath, agentJobsPath, agentPolicyPath, draftOf, heldCounts, type AgentDraft, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, requestsPath,
+    SHIPPED_ROLES, agentHaltPath, byState, agentJobsPath, agentPolicyPath, draftOf, heldCounts, type AgentDraft, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, requestsPath,
     retentionOf, scopesFrom, type LifecyclePress, type Viewer,
   } from '../lib/data/agents.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -583,7 +583,7 @@
     />
   {:else}
     <ul class="cards">
-      {#each all as agent (agent.id)}
+      {#each byState(all) as agent (agent.id)}
         {@const waiting = held.get(agent.id) ?? 0}
         <li class="card" data-agent-card>
           <Stack gap="100">

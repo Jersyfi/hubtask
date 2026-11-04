@@ -164,7 +164,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     const reversible = yes.locator(`[data-held-act="${ACTS[0].id}"]`);
     const irreversible = yes.locator(`[data-held-act="${ACTS[1].id}"]`);
     await irreversible.waitFor({ timeout: 10_000 });
-    assert.equal(await reversible.getByRole('link', { name: 'Request sorter asks before acting' }).getAttribute('href'), '/profile/agents?tab=requests');
+    assert.equal(await reversible.getByRole('link', { name: 'Request sorter asks before acting' }).getAttribute('href'), `/agents?tab=requests&agent=${ACTS[0].agent_id}`);
     assert.equal(await reversible.getByRole('button', { name: 'Approve and do it' }).count(), 1);
     assert.equal(await irreversible.getByRole('button', { name: 'Approve and do it' }).count(), 0, 'an act that cannot be undone is approved from the row');
     if (width >= 1280) await page.locator('nav [role="treeitem"], nav a').filter({ hasText: /^\s*Today/u }).filter({ hasText: /2 waiting/u }).first().waitFor({ timeout: 10_000 });

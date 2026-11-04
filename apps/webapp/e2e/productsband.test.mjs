@@ -22,7 +22,9 @@ const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER', disp
 const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'Product development and delivery for the whole company', order_key: 'a0', version: 1 };
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 const board = (n, title, at) => ({ id: `01a0e2e0-0000-7000-8000-0000000001${n}`, hub_id: HUB.id, title, element_count: 3, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1 });
-const agent = (n, name, status, owner) => ({ id: `01a0e2e0-0000-7000-8000-0000000002${n}`, account_id: null, name, purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE', owner_id: owner, status });
+const agent = (n, name, status, owner) => ({ id: `01a0e2e0-0000-7000-8000-0000000002${n}`, account_id: null, name, purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE', owner_id: owner, status,
+  risk_class: 'MINIMAL', scopes: [], model_id: null, policy: { reversible: 'APPROVAL', irreversible: 'APPROVAL' }, budget: { tokens_per_day: 200000, actions_per_hour: 120, concurrent_runs: 2 },
+  min_accuracy: 0, needs_approval: false, approved_by: null, approved_at: null, suspended_by: null, suspended_at: null, created_at: '2026-11-01T08:00:00Z', version: 1 });
 const AGENTS = [agent('01', 'Old sorter', 'RETIRED', ACCOUNT.id), agent('02', 'Request sorter', 'ACTIVE', ACCOUNT.id), agent('03', 'Duplicate finder', 'SUSPENDED', '01a0e2e0-0000-7000-8000-0000000009ff')];
 const HELD = { id: '01a0e2e0-0000-7000-8000-000000000211', agent_id: AGENTS[1].id, use_case: 'UpdateItem', class: 'REVERSIBLE', input: {}, status: 'PENDING', decided_by: null, decided_at: null, code: '', created_at: '2026-11-03T08:00:00Z' };
 const job = (n, status, at) => ({ id: `01a0e2e0-0000-7000-8000-00000000022${n}`, agent_id: AGENTS[1].id, target_type: 'ENTRY', target_id: '01a0e2e0-0000-7000-8000-000000000299', status, code: '', proposals: 1, tokens: 120, started_by: null, started_at: at, ended_at: null });
@@ -261,23 +263,22 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   });
 }
 
-// §2.2: the agents' home lists the agents working here, live first, a retired one not at all.
-test('chromium 1280 px: the agents\' home lists the agents working here', async (t) => {
+// §7.8: the agents' home is their cards, live first and a retired one last, each counting the acts
+// waiting on it; the runs are a tab, the newest first.
+test('chromium 1280 px: the agents\' home shows the agents as cards, their held acts and runs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: '/agents', modulesOn: ['AGENTS'] });
   t.after(close);
-  const working = page.getByRole('region', { name: 'Working here' });
-  await working.waitFor({ timeout: 10_000 });
-  const names = await working.locator('[title]').evaluateAll((each) => each.map((node) => node.getAttribute('title')));
-  assert.deepEqual(names, ['Request sorter', 'Duplicate finder']);
-  assert.equal(await working.getByRole('link', { name: 'Request sorter' }).getAttribute('href'), '/profile/agents');
-  assert.match((await working.textContent()) ?? '', /Live[\s\S]*Stopped/u);
-  // Their held acts and recent runs (§2.2), each leading to where the agent is acted on.
-  const held = page.getByRole('region', { name: 'Waiting for your yes' });
-  await held.waitFor({ timeout: 10_000 });
-  assert.equal(await held.getByRole('link', { name: 'Request sorter asks before acting' }).getAttribute('href'), '/profile/agents?tab=requests');
-  const runs = page.getByRole('region', { name: 'Recent runs' });
+  const cards = page.locator('[data-agent-card]');
+  await cards.first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(await cards.locator('h2').allTextContents(), ['Request sorter', 'Duplicate finder', 'Old sorter']);
+  assert.match((await cards.first().textContent()) ?? '', /Live/u);
+  await cards.first().getByRole('button', { name: '1 waiting' }).click();
+  await page.waitForURL(new RegExp(`/agents\\?tab=requests&agent=${AGENTS[1].id}$`));
+  await page.getByText('Waiting on Request sorter').waitFor({ timeout: 10_000 });
+  await page.getByRole('link', { name: 'Runs' }).click();
+  const runs = page.getByRole('list', { name: 'Runs' });
   await runs.waitFor({ timeout: 10_000 });
   assert.match((await runs.textContent()) ?? '', /Done[\s\S]*Failed/u, 'the newest run first');
   assert.deepEqual(failures, []);

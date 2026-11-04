@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DEFAULT_BUDGET, aiFields, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
+  DEFAULT_BUDGET, aiFields, byState, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
 } from './agents.ts';
 
 const admin = { administers: true, accountId: 'root' };
@@ -136,4 +136,10 @@ test('UC-AGT-02 check 9: each agent card counts the acts waiting on it', () => {
   assert.equal(held.get('a'), 2);
   assert.equal(held.get('b'), 1);
   assert.equal(held.get('c'), undefined);
+});
+
+// user-experience.md §7.8: the cards stand live first, a retired agent last.
+test('the agent cards stand live first and a retired one last, else in the server order', () => {
+  const list = [{ id: 'old', status: 'RETIRED' }, { id: 'draft', status: 'DRAFT' }, { id: 'live', status: 'ACTIVE' }, { id: 'stopped', status: 'SUSPENDED' }, { id: 'live2', status: 'ACTIVE' }] as const;
+  assert.deepEqual(byState(list).map((each) => each.id), ['live', 'live2', 'stopped', 'draft', 'old']);
 });

@@ -127,8 +127,7 @@ test('chromium: a refused new model says why inside its dialog', async (t) => {
   });
   t.after(walk.close);
   const { page } = walk;
-  await page.goto(`${served.origin}/administration/agents`);
-  await page.getByRole('tab', { name: 'Models' }).click();
+  await page.goto(`${served.origin}/administration/agents?tab=settings`);
   await page.getByRole('button', { name: 'Register a model' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Key').fill('local-small');
