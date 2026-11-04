@@ -22,7 +22,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
-  import { boardPath, boardsPath, readNative, trashedBoardsPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
+  import { boardPath, boardsPath, placeCarried, readNative, trashedBoardsPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -84,7 +84,7 @@
   let titleDraft = $state('');
   let start = $state<BoardStart>('BLANK');
   let format = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
-  let imported = $state<{ title: string; elements: unknown[] } | undefined>(undefined);
+  let imported = $state<ReturnType<typeof readNative>>(undefined);
   let isImportOpen = $state(false);
   let renaming = $state(false);
   let showsTrash = $state(false);
@@ -133,6 +133,9 @@
     isMaking = true;
     try {
       const made = await whiteboards.create(hubId, { title, ...(elements && elements.length > 0 ? { elements: elements as never } : {}) });
+      // An export's pictures and files are placed on the new board, or its readers read none.
+      const failed = imported ? await placeCarried(imported.elements, (id) => whiteboards.placeMedia(made.id, id)) : [];
+      if (failed.length > 0) toast.show({ text: t('app.whiteboards.carried_unplaced', { count: String(failed.length) }), tone: 'warning' });
       isCreating = false;
       imported = undefined;
       titleDraft = '';

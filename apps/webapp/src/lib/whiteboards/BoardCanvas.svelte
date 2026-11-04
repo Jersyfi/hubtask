@@ -51,7 +51,7 @@
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
     BOARD_COLOURS, backlinkHref, boardCommentsPath, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, pinOf,
-    threadsOf, voterKey, whiteboards,
+    placeCarried, threadsOf, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
@@ -651,6 +651,13 @@
     event.preventDefault();
     const next = paste(what, centre(), () => elementId());
     putAll(next, t('app.whiteboards.pasted', { count: String(next.length) }));
+    void carry(next);
+  }
+
+  /** Pictures and files pasted from another board are placed on this one, or its readers read none. */
+  async function carry(next: readonly Element[]) {
+    const failed = await placeCarried(next, (id) => whiteboards.placeMedia(board.id, id));
+    if (failed.length > 0) toast.show({ text: t('app.whiteboards.carried_unplaced', { count: String(failed.length) }), tone: 'warning' });
   }
 
   // --- Groups --------------------------------------------------------------------------------------

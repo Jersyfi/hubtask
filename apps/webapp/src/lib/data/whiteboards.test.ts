@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  backlinkHref, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
+  backlinkHref, placeCarried, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
   threadsOf, voterKey,
 } from './whiteboards.ts';
 
@@ -113,4 +113,22 @@ test('a board is said in reading order, frame by frame, and then what lies in no
     { frame: 'Stop', key: 'f2', words: ['Late merges'] },
     { key: '', words: ['Parking lot'] },
   ]);
+});
+
+test('pictures and files carried onto a board - pasted from another or imported - are placed on it, once each (UC-CNV-08)', async () => {
+  const placed: string[] = [];
+  const failed = await placeCarried(
+    [
+      { id: 'i1', kind: 'IMAGE', x: 0, y: 0, width: 10, height: 10, media_id: 'm1' },
+      { id: 'f1', kind: 'FILE', x: 0, y: 0, width: 10, height: 10, media_id: 'm2' },
+      { id: 'i2', kind: 'IMAGE', x: 0, y: 0, width: 10, height: 10, media_id: 'm1' },
+      { id: 's1', kind: 'STICKY', x: 0, y: 0, width: 10, height: 10, text: 'm3' },
+    ],
+    async (id) => {
+      placed.push(id);
+      if (id === 'm2') throw new Error('not found');
+    },
+  );
+  assert.deepEqual(placed, ['m1', 'm2']);
+  assert.deepEqual(failed, ['m2']);
 });

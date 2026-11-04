@@ -9958,6 +9958,7 @@
   "app.whiteboards.put_file": "Bild oder Datei",
   "app.whiteboards.uploading": "Wird hochgeladen …",
   "app.whiteboards.file_open": "{name} öffnen",
+  "app.whiteboards.carried_unplaced": "{count} Bilder oder Dateien ließen sich nicht mitnehmen und erscheinen als Platzhalter.",
   "app.whiteboards.file_unavailable": "Die Datei lässt sich nicht öffnen.",
   "app.whiteboards.kind_image": "Bild",
   "app.whiteboards.kind_file": "Datei",

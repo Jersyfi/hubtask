@@ -9958,6 +9958,7 @@
   "app.whiteboards.put_file": "Picture or file",
   "app.whiteboards.uploading": "Uploading …",
   "app.whiteboards.file_open": "Open {name}",
+  "app.whiteboards.carried_unplaced": "{count} pictures or files could not be brought along and show as placeholders.",
   "app.whiteboards.file_unavailable": "The file cannot be opened.",
   "app.whiteboards.kind_image": "Picture",
   "app.whiteboards.kind_file": "File",

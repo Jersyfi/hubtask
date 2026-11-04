@@ -47,6 +47,18 @@ export function readNative(text: string): { title: string; elements: Element[] }
   }
 }
 
+/**
+ * Places the uploads that pictures and files carried onto a board draw - pasted from another board
+ * or read from an export - so the board's readers read them: a reader is judged by the boards
+ * holding an upload, not by the scene (UC-CNV-08). Answers the uploads that could not be placed;
+ * those draw as a placeholder.
+ */
+export async function placeCarried(elements: readonly Element[], place: (mediaId: string) => Promise<unknown>): Promise<string[]> {
+  const ids = [...new Set(elements.flatMap((e) => ((e.kind === 'IMAGE' || e.kind === 'FILE') && e.media_id ? [e.media_id] : [])))];
+  const outcomes = await Promise.allSettled(ids.map((id) => place(id)));
+  return ids.filter((_, i) => outcomes[i]?.status === 'rejected');
+}
+
 /** The entries a board's cards draw, once each. */
 export function cardEntries(elements: readonly Element[]): string[] {
   return [...new Set(elements.flatMap((e) => (e.kind === 'CARD' && e.target ? [e.target.id] : [])))];
