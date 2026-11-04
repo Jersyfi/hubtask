@@ -82,10 +82,11 @@ async function originOf(page, label) {
 }
 
 /** A control by its label; a pattern for a required field, whose name carries its marker. */
-/** Opens a tab of the sign-in screen as a reader does: by its name. */
+/** Opens a section of the sign-in screen as a reader does: by its name in the shell's list. */
 async function toTab(page, name) {
-  await page.getByRole('tab', { name, exact: true }).click();
-  await page.getByRole('tab', { name, exact: true, selected: true }).waitFor();
+  const sections = page.locator('[data-settings-sections]');
+  await sections.getByRole('link', { name, exact: true }).click();
+  await sections.locator('a[aria-current="page"]', { hasText: name }).waitFor();
 }
 
 const control = (page, label) => (label instanceof RegExp ? page.getByLabel(label) : page.getByLabel(label, { exact: true }));
@@ -320,7 +321,7 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
   assert.deepEqual(
-    await page.getByRole('tab').allTextContents(),
+    (await page.locator('[data-settings-sections] a').allTextContents()).map((each) => each.trim()),
     ['Passwords', 'Sessions', 'Ways and providers', 'Directory'],
   );
   // No legal link on the sign-in screen: they are their own page, with their own breadcrumb.
@@ -347,7 +348,7 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
 
   await page.goto(`${served.origin}/administration/legal`);
   await page.getByLabel('Imprint', { exact: true }).waitFor();
-  assert.equal(await page.getByRole('tab').count(), 0);
+  assert.equal(await page.locator('[data-settings-sections]').count(), 0);
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).count(), 0);
   const trail = await page.getByRole('navigation', { name: 'Where you are in the administration' }).innerText();
   assert.match(trail, /Legal links/, trail);
@@ -730,8 +731,9 @@ test('chromium: the providers\' configuration has no switch of its own, and its 
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.waitForURL(/\/administration\/sign-in\?tab=ways$/);
   // The tabs are drawn once the rules are read, a moment after the address lands.
-  await page.getByRole('tab', { name: 'Ways and providers', selected: true }).waitFor();
-  assert.equal(await page.getByRole('tab', { name: 'Ways and providers', selected: true }).count(), 1);
+  const openSection = page.locator('[data-settings-sections] a[aria-current="page"]');
+  await openSection.filter({ hasText: 'Ways and providers' }).waitFor();
+  assert.equal(await openSection.count(), 1);
   const providers = page.locator('section[aria-labelledby="providers"]');
   await providers.getByText('Contoso Entra ID').first().waitFor();
   await providers.getByRole('button', { name: 'Change' }).first().click();

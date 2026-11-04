@@ -31,7 +31,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import { AI_ANSWERING_TONE, aiAnsweringOf } from '../lib/data/aianswering.ts';
   import { TransportError } from '@hubtask/sync-engine';
   import type { AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
@@ -56,6 +56,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
   interface Props {
@@ -99,7 +100,7 @@
   let ownBudgetDraft = $state('');
   let ownBudgetWorking = $state(false);
   /** The draft follows the stored budget until somebody types. */
-  let ownBudgetTouched = false;
+  let ownBudgetTouched = $state(false);
   $effect(() => {
     const current = ownBudget;
     if (!current || ownBudgetTouched) return;
@@ -291,10 +292,21 @@
   const arrivalOffered = $derived(source !== undefined && hasAi && !allowsNone);
   /** The consent and people tab is drawn where it would hold something, and absent otherwise. */
   const tabs = $derived([
-    { id: 'source', label: t('app.ai.tab_source') },
-    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', label: t('app.ai.tab_consent') }] : []),
-    { id: 'budget', label: t('app.ai.tab_budget') },
+    { id: 'source', label: t('app.ai.tab_source'), href: '/administration/ai' },
+    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', label: t('app.ai.tab_consent'), href: '/administration/ai?tab=consent' }] : []),
+    { id: 'budget', label: t('app.ai.tab_budget'), href: '/administration/ai?tab=budget' },
   ]);
+
+  /**
+   * What is typed and not yet saved, for the leave guard (user-experience.md §5.4): the own model's
+   * form against what is stored - a typed key is always one - and the own budget once typed in.
+   */
+  const changes = $derived.by(() => {
+    const stored = provider ? modelOf(provider) : emptyModel('', '');
+    const fields = (Object.keys(stored) as (keyof typeof stored)[]).filter((key) => draft[key] !== stored[key]).length;
+    const consent = provider ? Number(processingAllowed !== provider.processing_allowed) : Number(processingAllowed);
+    return fields + consent + Number(ownBudgetTouched);
+  });
   const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'source');
 
   function select(next: string): void {
@@ -339,7 +351,7 @@
       {/if}
 
       <!-- The tabs outside the gate: a reader who may not change anything still reads every tab. -->
-      <Tabs label={t('app.ai.title')} selected={current} onselect={select} {tabs}>
+      <SettingsPage label={t('app.settings_page.sections', { name: t('app.ai.title') })} sections={tabs} selected={current} onselect={select} {changes}>
         <WorkspaceGate permission="STRUCTURE">
         {#if current === 'consent'}
           <Stack gap="300">
@@ -544,7 +556,7 @@
           </Stack>
         {/if}
         </WorkspaceGate>
-      </Tabs>
+      </SettingsPage>
     {/if}
     </Stack>
 </Stack>

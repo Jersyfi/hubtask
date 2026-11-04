@@ -177,27 +177,28 @@ test('chromium: 375 px — the three ways are in the head\'s menu under the same
 });
 
 for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
-  test(`chromium: ${who} finds AI in three tabs, each with an address of its own`, async (t) => {
+  test(`chromium: ${who} finds AI in three sections, each with an address of its own`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await as(browser, permissions, []);
     t.after(() => context.close());
 
     await page.goto(`${served.origin}/administration/ai`);
-    const tabs = page.getByRole('tablist', { name: 'AI' }).getByRole('tab');
+    const sections = page.getByRole('navigation', { name: 'Sections of AI' });
+    const tabs = sections.getByRole('link');
     await tabs.first().waitFor({ timeout: 15_000 });
     assert.deepEqual((await tabs.allTextContents()).map((name) => name.trim()), ['Source', 'Consent and people', 'Budget']);
 
     // Each tab holds its own part and nothing of the others'.
-    await page.getByRole('tab', { name: 'Consent and people', exact: true }).click();
+    await sections.getByRole('link', { name: 'Consent and people', exact: true }).click();
     await landsOn(page, '/administration/ai?tab=consent');
     await page.locator('[data-person-opt-out]').waitFor();
     assert.equal(await page.getByRole('heading', { name: 'The budget' }).count(), 0, 'the budget is on the consent tab');
-    await page.getByRole('tab', { name: 'Budget', exact: true }).click();
+    await sections.getByRole('link', { name: 'Budget', exact: true }).click();
     await landsOn(page, '/administration/ai?tab=budget');
     await page.getByRole('heading', { name: 'The budget' }).waitFor();
     assert.equal(await page.locator('[data-person-opt-out]').count(), 0, 'the people are on the budget tab');
-    await page.getByRole('tab', { name: 'Source', exact: true }).click();
+    await sections.getByRole('link', { name: 'Source', exact: true }).click();
     await landsOn(page, '/administration/ai');
     await page.getByRole('heading', { name: 'The budget' }).waitFor({ state: 'detached', timeout: 5_000 })
       .catch(() => assert.fail('the budget is on the source tab'));

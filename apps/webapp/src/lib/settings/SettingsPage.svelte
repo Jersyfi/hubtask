@@ -8,13 +8,15 @@
   //
   // **The sections are links into one page, not tabs.** Every section stays in the document, so
   // the browser's find, a reader's scroll and a test's locator reach all of them; the list marks
-  // the one in view. One section needs no list, so none is drawn.
+  // the one in view. One section needs no list, so none is drawn. A screen whose sections are
+  // addresses of their own (`?tab=`, a screen too long for one page) passes `selected` and
+  // `onselect` instead and draws only the open one - "the open one beside it" of §5.4.
   //
   // **Saving belongs to the screen.** Only a screen whose writes wait for *Save* passes `save`; a
   // screen of instant acts (a switch, a card's own button) has no bar, and its `changes` count
   // what is typed in a form not yet sent, so the guard still asks before that is dropped.
 
-  import type { Snippet } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
 
   import { SaveBar } from '@hubtask/design-system/components';
 
@@ -26,6 +28,8 @@
     id: string;
     /** What the section is called in the list: its heading's word. Resolved text. */
     label: string;
+    /** The section's own address, where the screen opens one section at a time. */
+    href?: string;
   }
 
   interface Save {
@@ -48,22 +52,26 @@
     changes?: number;
     /** The save bar, for a screen whose writes wait for *Save*. */
     save?: Save;
+    /** The open section, where only one is drawn at a time; the caller draws just that one. */
+    selected?: string;
+    onselect?: (id: string) => void;
     children: Snippet;
   }
 
-  const { label, sections, changes = 0, save, children }: Props = $props();
+  const { label, sections, changes = 0, save, selected, onselect, children }: Props = $props();
+  const isOneAtATime = $derived(onselect !== undefined);
 
   $effect(() => leaveGuard.hold(() => changes));
 
   let content = $state<HTMLElement | undefined>(undefined);
   let current = $state<string | undefined>(undefined);
-  const shown = $derived(current ?? sections[0]?.id);
+  const shown = $derived(isOneAtATime ? (selected ?? sections[0]?.id) : (current ?? sections[0]?.id));
 
   // The section in view: the first whose top has passed under the start of the page, else the
   // first. An observer, so a long screen is not measured on every scroll event.
   $effect(() => {
     const root = content;
-    if (!root || sections.length < 2 || typeof IntersectionObserver === 'undefined') return;
+    if (!root || isOneAtATime || sections.length < 2 || typeof IntersectionObserver === 'undefined') return;
     const seen = new Map<string, boolean>();
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) seen.set(entry.target.id, entry.isIntersecting);
@@ -78,6 +86,20 @@
   });
 
   function go(event: MouseEvent, id: string): void {
+    if (onselect) {
+      // The router would take the link as a move of its own; the screen replaces the address.
+      event.preventDefault();
+      onselect(id);
+      // Focus follows into the section once it is drawn: its first heading.
+      void tick().then(() => {
+        const heading = content?.querySelector<HTMLElement>('h2, h3');
+        if (!heading) return;
+        heading.setAttribute('tabindex', '-1');
+        heading.setAttribute('data-settings-focus', '');
+        heading.focus({ preventScroll: true });
+      });
+      return;
+    }
     const target = content?.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
     if (!target) return;
     // The router takes every same-origin link; a jump within the page is the page's own.
@@ -97,7 +119,7 @@
       <ul>
         {#each sections as section (section.id)}
           <li>
-            <a href="#{section.id}" aria-current={shown === section.id ? 'location' : undefined} onclick={(event) => go(event, section.id)}>{section.label}</a>
+            <a href={isOneAtATime ? (section.href ?? `#${section.id}`) : `#${section.id}`} aria-current={shown === section.id ? (isOneAtATime ? 'page' : 'location') : undefined} onclick={(event) => go(event, section.id)}>{section.label}</a>
           </li>
         {/each}
       </ul>
@@ -165,5 +187,5 @@
 
   .content :global(section[id]) { scroll-margin-block-start: var(--sp-200); }
 
-  .content :global(section[id]:focus) { outline: none; }
+  .content :global(section[id]:focus), .content :global([data-settings-focus]:focus) { outline: none; }
 </style>

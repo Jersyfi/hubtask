@@ -139,7 +139,7 @@ test('chromium: a consumer switches on the offered model with one control', asyn
 
   // The budget is its own tab (ux-inventory §E8): only the offered model's, and no word of an own
   // one (P-05).
-  await page.getByRole('tab', { name: 'Budget', exact: true }).click();
+  await page.locator('[data-settings-sections]').getByRole('link', { name: 'Budget', exact: true }).click();
   await page.waitForFunction(() => location.search === '?tab=budget');
   await page.getByRole('heading', { name: 'The budget' }).waitFor();
   assert.match(await page.locator('main').textContent() ?? '', /The offered model: today 1,234 tokens of 200,000 tokens used/);
@@ -240,4 +240,45 @@ test('chromium: each source shows its own budget, and the workspace sets its own
   await page.getByRole('button', { name: 'Save the budget' }).click();
   for (let i = 0; i < 50 && budgets.length < 2; i++) await page.waitForTimeout(100);
   assert.deepEqual(budgets[1], { own_tokens_per_day: null });
+});
+
+// The AI screen stands on the settings shell one section at a time (user-experience.md §5.4): a
+// press opens the section at its own address with the keyboard on its heading, and a consent
+// flipped but not saved is held by the leave guard.
+test('chromium: the AI sections open at their address and an unsaved consent is asked about before leaving', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/ai`);
+  const sections = page.getByRole('navigation', { name: 'Sections of AI' });
+  await sections.getByRole('link', { name: 'Budget', exact: true }).click();
+  await page.waitForFunction(() => location.search === '?tab=budget');
+  await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'The budget', null, { timeout: 5_000 });
+  assert.equal(await sections.locator('a[aria-current="page"]').textContent(), 'Budget');
+
+  await sections.getByRole('link', { name: 'Source', exact: true }).click();
+  const consent = page.getByRole('switch', { name: /Send this workspace/ });
+  await consent.click();
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/administration/voice';
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });
+  const question = page.getByRole('dialog', { name: 'Leave without saving?' });
+  await question.waitFor({ timeout: 5_000 });
+  await question.getByRole('button', { name: 'Stay' }).last().click();
+  assert.equal(new URL(page.url()).pathname, '/administration/ai');
+  await consent.click();
+  await page.evaluate(() => {
+    const link = document.createElement('a');
+    link.href = '/administration/voice';
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });
+  await page.waitForURL('**/administration/voice', { timeout: 5_000 });
 });

@@ -60,7 +60,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { TransportError } from '@hubtask/sync-engine';
 
   import IdentityProviderView from './IdentityProviderView.svelte';
@@ -325,6 +326,8 @@
 
   /** How many rules moved: the save bar's count, and whether it is there at all. */
   const changedCount = $derived(Object.keys(moved()).length);
+  /** Every tab's unsaved rules: what the leave guard holds, as a tab change keeps them. */
+  const unsaved = $derived(Object.keys(SCOPES).reduce((count, scope) => count + Object.keys(moved(scope)).length, 0));
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -580,17 +583,22 @@
         </Banner>
       {/if}
 
+      <!-- One tab at a time on the shell (user-experience.md §5.4); the save bar stays in the
+           form, where Enter submits, and the shell's guard counts every tab's unsaved rules. -->
       {#if part === 'sign-in'}
-        <Tabs
-          label={t('app.signin_settings.title')}
+        <SettingsPage
+          label={t('app.settings_page.sections', { name: t('app.signin_settings.title') })}
+          sections={TABS.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'passwords' ? '/administration/sign-in' : `/administration/sign-in?tab=${each.id}` }))}
           selected={current}
           onselect={select}
-          tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
+          changes={unsaved}
         >
           {@render panel()}
-        </Tabs>
+        </SettingsPage>
       {:else}
-        {@render panel()}
+        <SettingsPage label={t('app.settings_page.sections', { name: t('app.signin_settings.legal') })} sections={[{ id: 'legal', label: t('app.signin_settings.legal') }]} changes={unsaved}>
+          {@render panel()}
+        </SettingsPage>
       {/if}
     </Stack>
   {/if}
