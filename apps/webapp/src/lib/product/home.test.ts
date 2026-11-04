@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
+import { createOf, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -123,4 +123,15 @@ test('the recent runs across agents, the newest first, at most the limit', () =>
   assert.deepEqual(recentRuns(at, ['a1', 'a2'], 2).map((each) => each.id), ['j1', 'j3']);
   assert.deepEqual(recentRuns(at, ['a2'], 5).map((each) => each.id), ['j3'], 'an agent no longer listed is left out');
   assert.deepEqual(recentRuns({}, ['a1'], 5), []);
+});
+
+// UX-2, user-experience.md §5.1: every product home with hubs of its own opens on its create act,
+// worded for the product and leading to the hub's screen of it where the hub's own act stands.
+test('the pages, whiteboards and assets homes each carry their create act', () => {
+  for (const module of ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']) {
+    const create = createOf(module);
+    assert.ok(create, `${module}'s home has no create act`);
+    assert.ok(create.code in SOURCE && create.inCode in SOURCE, `${module}: ${create.code}, ${create.inCode}`);
+  }
+  assert.equal(createOf('TIME'), undefined, 'time records on its own page');
 });

@@ -21,7 +21,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { homeTabs, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { createOf, homeTabs, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
@@ -152,6 +152,23 @@
     onclick: () => { startingFrom = template.key; isCreatingHub = true; },
   })) : []);
   const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
+  // The home's create act (UX-2): the product's own words, leading to the hub's screen of it -
+  // the first hub's, the others in its menu; without a hub, making one.
+  const createAct = $derived(createOf(module));
+  const primary = $derived.by(() => {
+    if (!createAct || isReading || currentTab !== tabs[0]?.id) return undefined;
+    const first = hubsWith[0];
+    if (!first) return createHub ? { label: createHub.label, icon: 'plus' as const, onclick: createHub.onclick } : undefined;
+    const go = (id: string) => onnavigate(hubScreenOf(module, id) ?? `/hubs/${id}`);
+    return {
+      label: t(createAct.code),
+      icon: 'plus' as const,
+      onclick: () => go(first.id),
+      menu: hubsWith.length > 1
+        ? { label: t(createAct.inCode), items: hubsWith.map((hub) => ({ id: hub.id, label: hub.name })), onselect: go }
+        : undefined,
+    };
+  });
   /** A hub made from a template opens on its *Products* section with that template's plan. */
   function created(id: string): void {
     const from = startingFrom;
@@ -168,6 +185,7 @@
     title={name}
     subtitle={t(`app.modules.hint_${module.toLowerCase()}`)}
     isTitleInBar={viewport.isCompact}
+    {primary}
     breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },

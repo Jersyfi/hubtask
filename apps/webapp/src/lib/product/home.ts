@@ -73,6 +73,25 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
 }
 
 /**
+ * A product home's create act (UX-2, user-experience.md §5.1): its words, and the words of the
+ * menu choosing another hub. It leads to the hub's screen of the product, where the act itself
+ * stands, in the hub's own words; the desk words its own (`DeskHome`), time and goals create on
+ * their own pages. The plans have no act of making at a hub to lead to, so none here.
+ */
+export function createOf(module: string): { readonly code: string; readonly inCode: string } | undefined {
+  switch (module) {
+    case 'KNOWLEDGE':
+      return { code: 'app.pages.new', inCode: 'app.product_home.new_in' };
+    case 'WHITEBOARD':
+      return { code: 'app.whiteboards.new', inCode: 'app.product_home.new_in' };
+    case 'ASSETS':
+      return { code: 'app.assets.new', inCode: 'app.product_home.new_in' };
+    default:
+      return undefined;
+  }
+}
+
+/**
  * *More in Hubtask* (user-experience.md §3.3): the products switched off, each with what it does,
  * in the products band's order. Offered only to a holder of `STRUCTURE` on the workspace, who can
  * switch one on; nobody else is shown a product they cannot have.
