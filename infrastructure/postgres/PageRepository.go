@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -565,6 +566,10 @@ func (PageRepository) FoldVersion(ctx context.Context, version knowledge.Version
 
 // NameVersion names a version, or takes its name away.
 func (PageRepository) NameVersion(ctx context.Context, pageID shared.ID, seq int, name string) error {
+	place, err := versionSeq(seq)
+	if err != nil {
+		return err
+	}
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -574,7 +579,7 @@ func (PageRepository) NameVersion(ctx context.Context, pageID shared.ID, seq int
 		return err
 	}
 	rows, err := queries.NamePageVersion(ctx, sqlc.NamePageVersionParams{
-		PageID: page, Seq: int32(seq), Name: name, //nolint:gosec // a version's place
+		PageID: page, Seq: place, Name: name,
 	})
 	if err != nil {
 		return pageFailed("naming the version", err)
@@ -595,8 +600,13 @@ func (PageRepository) Versions(ctx context.Context, pageID shared.ID, before, li
 	if err != nil {
 		return nil, err
 	}
+	// A place past the column is past every version: the newest on.
+	cursor, err := versionSeq(before)
+	if err != nil {
+		cursor = 0
+	}
 	rows, err := queries.ListPageVersions(ctx, sqlc.ListPageVersionsParams{
-		PageID: page, Before: int32(before), Batch: int32(limit), //nolint:gosec // bounded by the use case
+		PageID: page, Before: cursor, Batch: int32(limit), //nolint:gosec // bounded by the use case
 	})
 	if err != nil {
 		return nil, pageFailed("listing the versions", err)
@@ -610,8 +620,21 @@ func (PageRepository) Versions(ctx context.Context, pageID shared.ID, before, li
 	})
 }
 
+// versionSeq is a version's place as its column holds it. A place outside it is no version:
+// converted, 2^32 + 1 would wrap onto version 1.
+func versionSeq(seq int) (int32, error) {
+	if seq < 1 || seq > math.MaxInt32 {
+		return 0, shared.ErrNotFound.WithDetail("pages.version_not_found")
+	}
+	return int32(seq), nil
+}
+
 // Version answers one version with its body.
 func (PageRepository) Version(ctx context.Context, pageID shared.ID, seq int) (knowledge.Version, error) {
+	place, err := versionSeq(seq)
+	if err != nil {
+		return knowledge.Version{}, err
+	}
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return knowledge.Version{}, err
@@ -620,7 +643,7 @@ func (PageRepository) Version(ctx context.Context, pageID shared.ID, seq int) (k
 	if err != nil {
 		return knowledge.Version{}, err
 	}
-	row, err := queries.FindPageVersion(ctx, sqlc.FindPageVersionParams{PageID: page, Seq: int32(seq)}) //nolint:gosec // a version's place
+	row, err := queries.FindPageVersion(ctx, sqlc.FindPageVersionParams{PageID: page, Seq: place})
 	if IsNoRows(err) {
 		return knowledge.Version{}, shared.ErrNotFound.WithDetail("pages.version_not_found")
 	}
