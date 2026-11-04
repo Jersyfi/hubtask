@@ -1,6 +1,6 @@
 {
   "key": "hr_requests",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -154,6 +154,15 @@
     "scheme": {
       "hr_request": {
         "workflow": "hr_request"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "hr_request"
+          ]
+        }
       }
     }
   }

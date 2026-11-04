@@ -222,3 +222,41 @@ func TestEveryShippedTemplatePassesTheConfigurationCheck(t *testing.T) {
 		}
 	}
 }
+
+// A service template's hub offers its request types by name, so the hub's collections are desks
+// and nothing beside them is: a request type of the workspace is usable everywhere, and a client
+// counting that alone made every Scrum collection a desk (UC-SVC-05).
+func TestEveryServiceTemplateMakesItsHubsCollectionsDesks(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, template := range templates {
+		var portal []string
+		for key, block := range template.Document[sectionTypes] {
+			form, _ := block["form"].(map[string]any)
+			channels, _ := form["channels"].([]any)
+			for _, raw := range channels {
+				rule, _ := raw.(map[string]any)
+				if rule["channel"] == "PORTAL" && rule["closed"] != true {
+					portal = append(portal, key)
+				}
+			}
+		}
+		if len(portal) == 0 || template.Hub == nil {
+			continue
+		}
+		setting := template.Hub[sectionStructure][string(work.SettingEntryTypes)]
+		value, _ := setting[settingValueField].(map[string]any)
+		offered, _ := value[string(work.ItemTask)].([]any)
+		names := map[string]bool{}
+		for _, each := range offered {
+			names[each.(string)] = true
+		}
+		for _, key := range portal {
+			if !names[key] {
+				t.Errorf("%s: the hub does not offer the request type %s by name (offers %v)", template.Key, key, offered)
+			}
+		}
+	}
+}

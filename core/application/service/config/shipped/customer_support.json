@@ -1,6 +1,6 @@
 {
   "key": "customer_support",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -184,6 +184,15 @@
     "scheme": {
       "support_case": {
         "workflow": "support_case"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "support_case"
+          ]
+        }
       }
     }
   }

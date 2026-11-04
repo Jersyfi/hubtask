@@ -1,6 +1,6 @@
 {
   "key": "procurement",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -221,6 +221,15 @@
     "scheme": {
       "procurement_request": {
         "workflow": "procurement_request"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "procurement_request"
+          ]
+        }
       }
     }
   },

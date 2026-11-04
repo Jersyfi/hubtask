@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 12,
+  "version": 13,
   "questions": [
     {
       "key": "first_group",
@@ -726,6 +726,18 @@
       },
       "change": {
         "workflow": "change"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "incident",
+            "service_request",
+            "problem",
+            "change"
+          ]
+        }
       }
     },
     "views": {

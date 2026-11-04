@@ -1,6 +1,6 @@
 {
   "key": "internal_it",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -165,6 +165,15 @@
     "scheme": {
       "it_request": {
         "workflow": "it_request"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "it_request"
+          ]
+        }
       }
     }
   }

@@ -1,6 +1,6 @@
 {
   "key": "facility_requests",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -166,6 +166,15 @@
     "scheme": {
       "facility_request": {
         "workflow": "facility_request"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "facility_request"
+          ]
+        }
       }
     }
   }

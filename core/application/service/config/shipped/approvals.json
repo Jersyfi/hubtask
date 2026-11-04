@@ -1,6 +1,6 @@
 {
   "key": "approvals",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -465,6 +465,17 @@
       },
       "travel_request": {
         "workflow": "travel_request"
+      }
+    },
+    "structure": {
+      "entry_types": {
+        "value": {
+          "TASK": [
+            "purchase_request",
+            "leave_request",
+            "travel_request"
+          ]
+        }
       }
     }
   },
