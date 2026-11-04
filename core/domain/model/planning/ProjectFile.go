@@ -212,7 +212,7 @@ func nameFits(name string) bool {
 	if name == "" || utf8.RuneCountInString(name) > maxImportedTitle {
 		return false
 	}
-	return !strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) })
+	return oneLine(name)
 }
 
 // appendPredecessor adds a predecessor unless the task already waits on that one: a dependency is

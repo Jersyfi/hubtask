@@ -134,8 +134,10 @@ func (s *Sprint) set(f SprintFields, normalizer text.Normalizer) error {
 	switch {
 	case name == "":
 		return invalid("/name", "sprints.name_required")
-	case utf8.RuneCountInString(name) > MaxNameLength || strings.ContainsAny(name, "\r\n"):
+	case utf8.RuneCountInString(name) > MaxNameLength || !oneLine(name):
 		return invalid("/name", "sprints.name_invalid")
+	case strings.ContainsRune(goal, 0):
+		return invalid("/goal", "sprints.goal_malformed")
 	case utf8.RuneCountInString(goal) > MaxGoalLength:
 		return shared.ErrValidation.WithDetail("sprints.goal_too_long").
 			WithParams(map[string]string{"maximum": strconv.Itoa(MaxGoalLength)}).

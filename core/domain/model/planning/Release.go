@@ -106,8 +106,10 @@ func (r *Release) set(f ReleaseFields, normalizer text.Normalizer) error {
 	switch {
 	case name == "":
 		return invalid("/name", "releases.name_required")
-	case utf8.RuneCountInString(name) > MaxNameLength || strings.ContainsAny(name, "\r\n"):
+	case utf8.RuneCountInString(name) > MaxNameLength || !oneLine(name):
 		return invalid("/name", "releases.name_invalid")
+	case strings.ContainsRune(description, 0):
+		return invalid("/description", "releases.description_malformed")
 	case utf8.RuneCountInString(description) > MaxReleaseDescriptionLength:
 		return shared.ErrValidation.WithDetail("releases.description_too_long").
 			WithParams(map[string]string{"maximum": strconv.Itoa(MaxReleaseDescriptionLength)}).

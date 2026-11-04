@@ -63,12 +63,18 @@ func NewBaseline(in NewBaselineInput) (Baseline, error) {
 	switch {
 	case name == "":
 		return Baseline{}, invalid("/name", "baselines.name_required")
-	case utf8.RuneCountInString(name) > MaxNameLength || strings.ContainsAny(name, "\r\n"):
+	case utf8.RuneCountInString(name) > MaxNameLength || !oneLine(name):
 		return Baseline{}, invalid("/name", "baselines.name_invalid")
 	}
 	return Baseline{
 		ID: in.ID, TenantID: in.TenantID, PlanID: in.PlanID, Name: name, TakenAt: in.Now, TakenBy: in.TakenBy,
 	}, nil
+}
+
+// oneLine reports whether a name holds no control character - no line break, tab or zero byte,
+// which the database refuses to store.
+func oneLine(name string) bool {
+	return !strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) })
 }
 
 // Variance is one entry's slip against a baseline, in calendar days; positive is later.
