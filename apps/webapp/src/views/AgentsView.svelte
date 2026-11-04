@@ -22,10 +22,11 @@
   } from '@hubtask/sync-engine';
 
   import AgentDetail from '../lib/agents/AgentDetail.svelte';
+  import HeldActCard from '../lib/agents/HeldActCard.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import {
-    SHIPPED_ROLES, agentHaltPath, byState, agentJobsPath, agentPolicyPath, draftOf, heldCounts, type AgentDraft, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, previewOf, heldActWordsOf, requestsPath,
+    SHIPPED_ROLES, agentHaltPath, byState, agentJobsPath, agentPolicyPath, draftOf, heldCounts, type AgentDraft, agentModelsPath, agents, agentsPath, lifecyclePresses, mayDecide, meteringPath, meteringTotals, requestsPath,
     retentionOf, scopeChoices, scopeWordCode, scopesFrom, scopesTicked, type LifecyclePress, type Viewer,
   } from '../lib/data/agents.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -424,46 +425,8 @@
       {:else}
         <ul class="rows">
           {#each shown as request (request.id)}
-            {@const words = heldActWordsOf(request.use_case, request.input)}
-            <li class="card" data-held-act={request.use_case}>
-              <Stack gap="100">
-                <div class="head">
-                  <strong class="name">{nameOfAgent(request.agent_id)}</strong>
-                  {#if words}
-                    <span class="act">{t(words.code, words.params)}</span>
-                  {:else}
-                    <code>{request.use_case}</code>
-                  {/if}
-                  <Badge size="sm" tone={request.class === 'IRREVERSIBLE' ? 'danger' : 'warning'}>{t(`app.agents.class.${request.class}`)}</Badge>
-                  <span class="meta">{at(request.created_at)}</span>
-                </div>
-                {#if words}
-                  <!-- What the agent wrote, as the decider would read it where it lands. -->
-                  {#if words.text}<blockquote class="said">{words.text}</blockquote>{/if}
-                  {#if words.href}<a class="meta" href={words.href}>{t('app.agents.held.open_entry')}</a>{/if}
-                {:else}
-                  <dl class="preview">
-                    {#each previewOf(request.input) as line (line.key)}
-                      <dt>{line.key}</dt>
-                      <dd>{line.value}</dd>
-                    {/each}
-                  </dl>
-                {/if}
-                {#if request.status === 'PENDING'}
-                  {#if mayDecide(byId.get(request.agent_id), viewer)}
-                    <div class="presses">
-                      <Button tone="primary" size="sm" icon="check" onclick={() => decide(request, true)}>{t('app.agents.approve_act')}</Button>
-                      <Button tone="secondary" size="sm" icon="x" onclick={() => decide(request, false)}>{t('app.agents.decline_act')}</Button>
-                    </div>
-                  {/if}
-                {:else}
-                  <p class="meta">
-                    {t(`app.agents.request_status.${request.status}`)} · {nameOf(request.decided_by)} · {at(request.decided_at)}
-                    {#if request.code} · {messages.has(request.code) ? t(request.code) : request.code}{/if}
-                  </p>
-                {/if}
-              </Stack>
-            </li>
+            <HeldActCard {request} agentName={nameOfAgent(request.agent_id)} mayDecide={mayDecide(byId.get(request.agent_id), viewer)}
+              ondecide={(approve) => decide(request, approve)} />
           {/each}
         </ul>
       {/if}
@@ -743,18 +706,6 @@
   .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .number { text-align: end; font-variant-numeric: tabular-nums; }
   td .meta { display: block; }
-  .preview { margin: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: var(--sp-025) var(--sp-150); }
-  .preview dt { color: var(--text-subtle); font-size: var(--fs-075); font-family: var(--font-mono); }
-  .preview dd { margin: 0; overflow-wrap: anywhere; }
-  .act { font-weight: var(--fw-medium); }
-  .said {
-    margin: 0;
-    padding-inline-start: var(--sp-150);
-    border-inline-start: var(--bw-thick) solid var(--border-default);
-    color: var(--text-secondary);
-    white-space: pre-line;
-    overflow-wrap: anywhere;
-  }
   .file { display: flex; justify-content: flex-end; }
   .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .sectionhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
