@@ -2726,6 +2726,14 @@ func run() error {
 			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.ResetSecondFactor{
+			Accounts: accounts, Enrollments: mfaStore, Recovery: mfaStore, Keys: sessionWriter.Keys,
+			Sessions: sessions, Pending: postgres.NewAccountRepository(),
+			Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			StepUp:  identity.StepUpVerifier{Writer: sessionWriter},
+			Notices: wayInNotices, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.RequestAddress{
 			Requests: addressRequests, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
 			Notifier: jobs, Audit: auditSink,

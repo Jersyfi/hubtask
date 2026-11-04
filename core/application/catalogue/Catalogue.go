@@ -611,6 +611,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.RenewInvitation{}.Descriptor(),
 		identity.CreateManagedAccount{}.Descriptor(),
 		identity.IssueStartPassword{}.Descriptor(),
+		identity.ResetSecondFactor{}.Descriptor(),
 		identity.RequestAddress{}.Descriptor(),
 		identity.GetOwnAccount{}.Descriptor(),
 		identity.ReadOwnSettings{}.Descriptor(),

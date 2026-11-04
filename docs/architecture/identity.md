@@ -281,6 +281,15 @@ factor and back whatever second factor the account holds.
   wherever a second factor is held.
 * Somebody with neither the app, a code, a password nor a provider is not let through
   (`NG-weaker-recovery`, §17.4).
+* **A lost app with lost codes is reset by an administrator** (`POST
+  /accounts/{accountId}:reset-second-factor`, *Reset second factor* in People; the owner's fifth
+  answers 6): `MANAGE_MEMBERS`, the administrator's own step-up, the role ceiling of §13 - so an
+  owner's factor is reset only by another owner - never one's own (`accounts.factor_reset_own`)
+  and never by a rule's run. The app's enrolment and every code go (also codes a passkey would
+  back: they are what was lost), every session and unfinished sign-in of the account ends, the
+  person is mailed (`SECOND_FACTOR_RESET`, ADR-0078 §6) and the trail holds
+  `account.second_factor_reset`. Passkeys stay. No sign-in skips the factor (P-02): where the
+  workspace demands one, the next sign-in leads into enrolling a new app.
 
 ---
 
@@ -677,7 +686,7 @@ architecture test fails one that does not. The descriptors are the list: a works
 request (a person's; a service account whose own register row is a service account's sends the
 typed name alone, having no proof to give — [multi-tenancy.md](./multi-tenancy.md) §5), granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
 a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
-/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
+/tenant` that asks), §13's new start password, §9's reset of somebody's second factor, connecting a provider from a session (§11), adding or
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
 destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
@@ -739,7 +748,7 @@ for **one named workspace** (`POST /admin/tenants/{id}:open-password`):
 
 ### 17.4 Where the ways back end
 
-* A lost second factor with lost recovery codes: an administrator removes and re-invites.
+* A lost second factor with lost recovery codes: an administrator resets it (§9), and the next sign-in enrols a new one where the workspace demands it.
 * A password switched off on purpose is honoured; a broken provider there: §17.2.
 * No address: §13. No mail server: §17.2 or the instance file (§19).
 * An installation nobody can run: a server command

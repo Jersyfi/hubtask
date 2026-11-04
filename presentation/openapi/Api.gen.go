@@ -25890,6 +25890,12 @@ type RenewInvitationParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ResetSecondFactorParams defines parameters for ResetSecondFactor.
+type ResetSecondFactorParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // CreateManagedAccountParams defines parameters for CreateManagedAccount.
 type CreateManagedAccountParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -30328,6 +30334,9 @@ type ServerInterface interface {
 	// RenewInvitation Give an invitation not yet accepted a new link
 	// (POST /accounts/{accountId}:renew-invitation)
 	RenewInvitation(w http.ResponseWriter, r *http.Request, accountId AccountId, params RenewInvitationParams)
+	// ResetSecondFactor Reset a person's second factor
+	// (POST /accounts/{accountId}:reset-second-factor)
+	ResetSecondFactor(w http.ResponseWriter, r *http.Request, accountId AccountId, params ResetSecondFactorParams)
 	// RestrictProcessing Restrict the processing of an account's data (Art. 18)
 	// (POST /accounts/{accountId}:restrict)
 	RestrictProcessing(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -33391,6 +33400,56 @@ func (siw *ServerInterfaceWrapper) RenewInvitation(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RenewInvitation(w, r, accountId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetSecondFactor operation middleware
+func (siw *ServerInterfaceWrapper) ResetSecondFactor(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ResetSecondFactorParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetSecondFactor(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -60876,6 +60935,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:resolve", wrapper.ResolveAccounts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:reset-second-factor", wrapper.ResetSecondFactor)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)

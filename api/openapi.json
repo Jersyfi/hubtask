@@ -16571,6 +16571,35 @@
         }
       }
     },
+    "/accounts/{accountId}:reset-second-factor": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "resetSecondFactor",
+        "x-hubtask-rest": "generated",
+        "summary": "Reset a person's second factor",
+        "description": "For a person who lost both their authenticator app and their recovery codes. Removes the\napp's enrolment and every recovery code of the account; every session and unfinished\nsign-in of the account ends, and the person is told by mail where mail goes out. Passkeys\nand security keys stay. The next sign-in leads into setting up a new authenticator app\nwherever the workspace requires a second factor of the person - no sign-in skips it.\n\nAsks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`\notherwise). Held to the role ceiling: an owner resets anybody's, an administrator only an\naccount whose roles are all at or below their own (`403 access.role_above_own` with the\n`role`, before the proof is spent), so an owner's factor is reset only by another owner.\nOne's own is refused with `403 accounts.factor_reset_own` - it is turned off under one's\nown security settings - and an act an automation rule runs with\n`403 accounts.factor_reset_needs_a_person`. An account without an armed authenticator app\nanswers `409 auth.mfa_not_enrolled`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Reset"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/accounts/{accountId}:add-address": {
       "parameters": [
         {

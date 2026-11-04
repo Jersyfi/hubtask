@@ -1623,6 +1623,10 @@ class Client:
         """Give a managed account a new start password"""
         return self._call("POST", "/accounts/{accountId}:issue-start-password", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
+    def reset_second_factor(self, account_id: str, *, step_up: str | None = None) -> None:
+        """Reset a person's second factor"""
+        return self._call("POST", "/accounts/{accountId}:reset-second-factor", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
     def request_address(self, account_id: str, body: "AddressRequest") -> "AddressRequested":
         """Give a managed account a mail address"""
         return self._call("POST", "/accounts/{accountId}:add-address", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")

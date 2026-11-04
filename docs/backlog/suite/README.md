@@ -221,7 +221,7 @@ this list with its row.
 | Fifth answers | The browser replica bounded above 100 000 entries, with the offline hubs shown | open: build it (accepted.md, "The owner's fifth answers", item 2) |
 | Fifth answers | A figure under steady writes shows the last kept count, marked with its time | open: build it (accepted.md, "The owner's fifth answers", item 3) |
 | Fifth answers | hubtask account reset-link for a self-hoster without mail | closed by the commit `feat(cmd): hubtask account reset-link prints a reset link where no mail goes out` (cmd/server/Account.go, admin.IssueResetLink; deployment.md, identity.md) |
-| Fifth answers | An administrator resets a person's second factor, audited and with step-up | open: build it (accepted.md, "The owner's fifth answers", item 6) |
+| Fifth answers | An administrator resets a person's second factor, audited and with step-up | closed by the commit `feat(identity): an administrator resets a person's lost second factor` (`POST /accounts/{accountId}:reset-second-factor`, ResetSecondFactor, *Reset second factor* in People; identity.md §9, §16.3, §17.4) |
 
 ## State
 

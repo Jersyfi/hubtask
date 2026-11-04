@@ -30,6 +30,7 @@ var privilegedUseCases = map[string]string{
 	"OpenPrivateHub":                           "it opens a hub nobody else reaches, a fresh proof and a reason (ADR-0073 §4)",
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
+	"ResetSecondFactor":                        "an administrator removes somebody else's second factor (identity.md §9)",
 	"StartProviderConnect":                     "a provider connected from a session is a new way into the account (identity.md §11)",
 	"StartPasskeyRegistration":                 "a passkey added from a session is a new way into the account (identity.md §23.2)",
 	"RemoveOwnPasskey":                         "a stolen session removing a factor is the attack the factor exists against (identity.md §23.2)",

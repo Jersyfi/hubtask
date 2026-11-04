@@ -25896,6 +25896,12 @@ type RenewInvitationParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ResetSecondFactorParams defines parameters for ResetSecondFactor.
+type ResetSecondFactorParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // CreateManagedAccountParams defines parameters for CreateManagedAccount.
 type CreateManagedAccountParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -30850,6 +30856,26 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
 	RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ResetSecondFactor Reset a person's second factor
+	//
+	// For a person who lost both their authenticator app and their recovery codes. Removes the
+	// app's enrolment and every recovery code of the account; every session and unfinished
+	// sign-in of the account ends, and the person is told by mail where mail goes out. Passkeys
+	// and security keys stay. The next sign-in leads into setting up a new authenticator app
+	// wherever the workspace requires a second factor of the person - no sign-in skips it.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+	// otherwise). Held to the role ceiling: an owner resets anybody's, an administrator only an
+	// account whose roles are all at or below their own (`403 access.role_above_own` with the
+	// `role`, before the proof is spent), so an owner's factor is reset only by another owner.
+	// One's own is refused with `403 accounts.factor_reset_own` - it is turned off under one's
+	// own security settings - and an act an automation rule runs with
+	// `403 accounts.factor_reset_needs_a_person`. An account without an armed authenticator app
+	// answers `409 auth.mfa_not_enrolled`.
+	//
+	// Corresponds with POST /accounts/{accountId}:reset-second-factor (the `ResetSecondFactor` operationId).
+	ResetSecondFactor(ctx context.Context, accountId AccountId, params *ResetSecondFactorParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RestrictProcessingWithBody Restrict the processing of an account's data (Art. 18)
 	//
@@ -42155,6 +42181,36 @@ func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, pa
 // Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
 func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRenewInvitationRequest(c.Server, accountId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ResetSecondFactor Reset a person's second factor
+//
+// For a person who lost both their authenticator app and their recovery codes. Removes the
+// app's enrolment and every recovery code of the account; every session and unfinished
+// sign-in of the account ends, and the person is told by mail where mail goes out. Passkeys
+// and security keys stay. The next sign-in leads into setting up a new authenticator app
+// wherever the workspace requires a second factor of the person - no sign-in skips it.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+// otherwise). Held to the role ceiling: an owner resets anybody's, an administrator only an
+// account whose roles are all at or below their own (`403 access.role_above_own` with the
+// `role`, before the proof is spent), so an owner's factor is reset only by another owner.
+// One's own is refused with `403 accounts.factor_reset_own` - it is turned off under one's
+// own security settings - and an act an automation rule runs with
+// `403 accounts.factor_reset_needs_a_person`. An account without an armed authenticator app
+// answers `409 auth.mfa_not_enrolled`.
+//
+// Corresponds with POST /accounts/{accountId}:reset-second-factor (the `ResetSecondFactor` operationId).
+func (c *Client) ResetSecondFactor(ctx context.Context, accountId AccountId, params *ResetSecondFactorParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResetSecondFactorRequest(c.Server, accountId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -65454,6 +65510,55 @@ func NewRenewInvitationRequest(server string, accountId AccountId, params *Renew
 			}
 
 			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewResetSecondFactorRequest constructs an http.Request for the ResetSecondFactor method
+func NewResetSecondFactorRequest(server string, accountId AccountId, params *ResetSecondFactorParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:reset-second-factor", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
 		}
 
 	}
@@ -104042,6 +104147,28 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
 	RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error)
 
+	// ResetSecondFactorWithResponse Reset a person's second factor
+	//
+	// For a person who lost both their authenticator app and their recovery codes. Removes the
+	// app's enrolment and every recovery code of the account; every session and unfinished
+	// sign-in of the account ends, and the person is told by mail where mail goes out. Passkeys
+	// and security keys stay. The next sign-in leads into setting up a new authenticator app
+	// wherever the workspace requires a second factor of the person - no sign-in skips it.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+	// otherwise). Held to the role ceiling: an owner resets anybody's, an administrator only an
+	// account whose roles are all at or below their own (`403 access.role_above_own` with the
+	// `role`, before the proof is spent), so an owner's factor is reset only by another owner.
+	// One's own is refused with `403 accounts.factor_reset_own` - it is turned off under one's
+	// own security settings - and an act an automation rule runs with
+	// `403 accounts.factor_reset_needs_a_person`. An account without an armed authenticator app
+	// answers `409 auth.mfa_not_enrolled`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:reset-second-factor (the `ResetSecondFactor` operationId).
+	ResetSecondFactorWithResponse(ctx context.Context, accountId AccountId, params *ResetSecondFactorParams, reqEditors ...RequestEditorFn) (*ResetSecondFactorResult, error)
+
 	// RestrictProcessingWithBodyWithResponse Restrict the processing of an account's data (Art. 18)
 	//
 	// A technical state rather than a lock: the account stays readable and its content stays
@@ -116538,6 +116665,47 @@ func (r RenewInvitationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RenewInvitationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ResetSecondFactorResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ResetSecondFactorResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ResetSecondFactorResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ResetSecondFactorResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ResetSecondFactorResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ResetSecondFactorResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -156423,6 +156591,34 @@ func (c *ClientWithResponses) RenewInvitationWithResponse(ctx context.Context, a
 	return ParseRenewInvitationResult(rsp)
 }
 
+// ResetSecondFactorWithResponse Reset a person's second factor
+//
+// For a person who lost both their authenticator app and their recovery codes. Removes the
+// app's enrolment and every recovery code of the account; every session and unfinished
+// sign-in of the account ends, and the person is told by mail where mail goes out. Passkeys
+// and security keys stay. The next sign-in leads into setting up a new authenticator app
+// wherever the workspace requires a second factor of the person - no sign-in skips it.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+// otherwise). Held to the role ceiling: an owner resets anybody's, an administrator only an
+// account whose roles are all at or below their own (`403 access.role_above_own` with the
+// `role`, before the proof is spent), so an owner's factor is reset only by another owner.
+// One's own is refused with `403 accounts.factor_reset_own` - it is turned off under one's
+// own security settings - and an act an automation rule runs with
+// `403 accounts.factor_reset_needs_a_person`. An account without an armed authenticator app
+// answers `409 auth.mfa_not_enrolled`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:reset-second-factor (the `ResetSecondFactor` operationId).
+func (c *ClientWithResponses) ResetSecondFactorWithResponse(ctx context.Context, accountId AccountId, params *ResetSecondFactorParams, reqEditors ...RequestEditorFn) (*ResetSecondFactorResult, error) {
+	rsp, err := c.ResetSecondFactor(ctx, accountId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseResetSecondFactorResult(rsp)
+}
+
 // RestrictProcessingWithBodyWithResponse Restrict the processing of an account's data (Art. 18)
 //
 // A technical state rather than a lock: the account stays readable and its content stays
@@ -175706,6 +175902,35 @@ func ParseRenewInvitationResult(rsp *http.Response) (*RenewInvitationResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseResetSecondFactorResult parses an HTTP response from a ResetSecondFactorWithResponse call
+func ParseResetSecondFactorResult(rsp *http.Response) (*ResetSecondFactorResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ResetSecondFactorResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

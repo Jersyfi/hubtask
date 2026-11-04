@@ -1514,6 +1514,13 @@ func (pending) IssueStartPassword(
 	notAvailable(w, r)
 }
 
+// ResetSecondFactor is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ResetSecondFactor(
+	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.ResetSecondFactorParams,
+) {
+	notAvailable(w, r)
+}
+
 // RequestAddress is overridden by RestController, for the reason given at CreateContainer.
 func (pending) RequestAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)

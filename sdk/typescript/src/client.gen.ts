@@ -2025,6 +2025,11 @@ export class HubtaskClient {
     return this.call("POST", "/accounts/{accountId}:issue-start-password", { "accountId": accountId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Reset a person's second factor */
+  resetSecondFactor(accountId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("POST", "/accounts/{accountId}:reset-second-factor", { "accountId": accountId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Give a managed account a mail address */
   requestAddress(accountId: string, body: NonNullable<operations["requestAddress"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["requestAddress"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/accounts/{accountId}:add-address", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

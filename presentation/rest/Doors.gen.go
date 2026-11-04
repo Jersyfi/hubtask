@@ -615,6 +615,7 @@ var restDoors = map[string]restDoor{
 	"requeueDeadLetter":                 {UseCase: "RequeueDeadLetter", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resealSecrets":                     {UseCase: "ResealSecrets", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resetPassword":                     {UseCase: "ResetPassword", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"user_agent", "remote_addr", "tenant_header", "host"}, AlternateWhen: "mfa_required", AlternateStatus: 202, AlternateBy: answerBy(mfaChallengeResponse)},
+	"resetSecondFactor":                 {UseCase: "ResetSecondFactor", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveAccounts":                   {UseCase: "ResolveAccounts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveCiDuplicate":                {UseCase: "ResolveCiDuplicate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"resolveReferences":                 {UseCase: "ResolveReferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4705,6 +4706,11 @@ func (c *RestController) ResealSecrets(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ResetPasswordJSONRequestBody
 	c.door(w, r, restDoors["resetPassword"], usecase.Input{}, nil, &body, answerBy(sessionTokensResponse))
+}
+
+// ResetSecondFactor answers POST /accounts/{accountId}:reset-second-factor by the generated mapping.
+func (c *RestController) ResetSecondFactor(w http.ResponseWriter, r *http.Request, accountId openapi.AccountId, params openapi.ResetSecondFactorParams) {
+	c.door(w, r, restDoors["resetSecondFactor"], usecase.Input{"account_id": accountId.String()}, params, nil, nil)
 }
 
 // ResolveAccounts answers POST /accounts:resolve by the generated mapping.
