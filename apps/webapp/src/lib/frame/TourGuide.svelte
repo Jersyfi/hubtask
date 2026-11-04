@@ -44,8 +44,8 @@
 {#if step}
   <Tour
     target={tour.target}
-    caption={t(`app.tour.${step.id}.caption`)}
-    body={t(`app.tour.${step.id}.body`)}
+    caption={t(`app.tour.${step.words ?? step.id}.caption`)}
+    body={t(`app.tour.${step.words ?? step.id}.body`)}
     countLabel={t('app.tour.count', { number: String(tour.index + 1), of: String(tour.count) })}
     nextLabel={tour.isLast ? t('app.tour.make_one') : t('app.tour.next')}
     backLabel={t('app.tour.back')}

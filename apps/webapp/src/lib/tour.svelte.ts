@@ -22,6 +22,7 @@ import { holdsHere } from './data/capability.svelte.ts';
 import { manifest } from './data/capabilities.svelte.ts';
 import { products } from './navigation.ts';
 import { preferences } from './data/preferences.svelte.ts';
+import { viewport } from './frame/viewport.svelte.ts';
 import { TOUR_SESSION_KEY, stepsFor, type Step } from './tour.ts';
 
 /** How long a route may take to draw the element a step points at. */
@@ -95,7 +96,8 @@ class TourStore {
     const workspace = await this.#workspace();
     // The jumble's step only for somebody the jumble is drawn for: a step pointing at a screen
     // that answers "nothing here" would be a tour of a refusal.
-    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.id });
+    const frame = viewport.isCompact ? 'phone' : viewport.isBelowExpanded ? 'drawer' : 'pinned';
+    this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.id, frame });
     await this.#go(Math.min(at, this.#steps.length - 1), 1);
   }
 

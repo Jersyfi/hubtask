@@ -12496,5 +12496,7 @@
   "app.entry_forms.condition_choose": "Choose a value",
   "app.entry_forms.condition_written": "Written as an expression under Advanced.",
   "app.entry_forms.condition_advanced": "Advanced: write it as an expression",
-  "app.entry_forms.condition_expression": "{label} (expression)"
+  "app.entry_forms.condition_expression": "{label} (expression)",
+  "app.tour.hubs_drawer.caption": "Where work lives",
+  "app.tour.hubs_drawer.body": "This button opens the tree: a hub holds collections, and a collection holds the entries. Everything you make sits somewhere in it, and it is the same tree on every screen."
 }

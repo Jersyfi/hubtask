@@ -12496,5 +12496,7 @@
   "app.entry_forms.condition_choose": "Wert wählen",
   "app.entry_forms.condition_written": "Als Ausdruck unter Erweitert geschrieben.",
   "app.entry_forms.condition_advanced": "Erweitert: als Ausdruck schreiben",
-  "app.entry_forms.condition_expression": "{label} (Ausdruck)"
+  "app.entry_forms.condition_expression": "{label} (Ausdruck)",
+  "app.tour.hubs_drawer.caption": "Wo die Arbeit wohnt",
+  "app.tour.hubs_drawer.body": "Diese Schaltfläche öffnet den Baum: Ein Hub hält Sammlungen, und eine Sammlung hält die Einträge. Alles, was du anlegst, sitzt irgendwo darin, und der Baum ist auf jeder Seite derselbe."
 }

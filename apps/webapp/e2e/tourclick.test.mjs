@@ -50,6 +50,7 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
     await spotlight.waitFor({ state: 'attached', timeout: 15_000 });
 
     const seen = [];
+    let firstWords = '';
     // A step may move to another screen first: the next mark is waited for, the end is its absence.
     const another = () => spotlight.waitFor({ state: 'attached', timeout: 8_000 }).then(() => true, () => false);
     for (let step = 0; step < 20 && (await another()); step += 1) {
@@ -57,6 +58,7 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
       await mark.waitFor({ state: 'visible', timeout: 5_000 });
       await page.waitForTimeout(150);
       const count = (await mark.locator('.count').textContent())?.trim() ?? '';
+      if (step === 0) firstWords = (await mark.innerText()) ?? '';
       const box = await mark.boundingBox();
       assert.ok(box && box.y >= 0 && box.x >= 0 && box.y + box.height <= height + 1 && box.x + box.width <= width + 1,
         `${count}: the mark ${JSON.stringify(box)} leaves the ${width}x${height} viewport`);
@@ -68,7 +70,15 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
     assert.equal(await spotlight.count(), 0, `the tour did not end after ${JSON.stringify(seen)}`);
     // Step 8 points at the whole of Your settings, taller than the screen: the one that was
     // clipped. The fixture draws no entry opener, so the tour passes over its last step.
-    assert.ok(seen.includes('Step 8 of 9'), `step 8 was not shown: ${JSON.stringify(seen)}`);
+    // A phone draws neither the products' column nor the palette in its bar: those are no steps
+    // there, so the count runs without a gap (the fixture's workspace has no product on).
+    const isPhone = width < 600;
+    const settings = isPhone ? 'Step 7 of 8' : 'Step 8 of 9';
+    assert.ok(seen.includes(settings), `${settings} was not shown: ${JSON.stringify(seen)}`);
+    seen.forEach((count, index) => assert.match(count, new RegExp(`^Step ${index + 1} of `), `the count skips at ${JSON.stringify(seen)}`));
+    // Below `expanded` the first step points at the bar's menu button, and says so.
+    if (width < 1280) assert.match(firstWords, /This button opens the tree/);
+    else assert.doesNotMatch(firstWords, /This button/);
     // A tour walked to its end is the account's no more: the next sign-in does not start it again.
     for (let wait = 0; wait < 20 && !written.some((body) => typeof body?.onboarding_completed_at === 'string'); wait += 1) await page.waitForTimeout(100);
     assert.ok(written.some((body) => typeof body?.onboarding_completed_at === 'string'), `the walked tour was not written: ${JSON.stringify(written)}`);

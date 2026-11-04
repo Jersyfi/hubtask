@@ -56,3 +56,12 @@ test('where a product is on, the second step points at the products band\'s firs
   assert.equal(steps[1]?.selector, '[data-tour="hubs"] [data-node="pages"]');
   assert.ok(!stepsFor({ hasJumble: false }).some((s) => s.id === 'products'), 'a workspace with nothing on is shown no band');
 });
+
+test('a width that draws no column or no palette field counts no step for them, and the tree is the menu button\'s', () => {
+  const phone = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'phone' });
+  assert.deepEqual(phone.map((s) => s.id), ['hubs', 'capture', 'layouts', 'levels', 'search', 'profile', 'make']);
+  assert.equal(phone[0]?.words, 'hubs_drawer', 'the first step on a phone says the tree is behind the menu button');
+  const drawer = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'drawer' });
+  assert.deepEqual(drawer.slice(0, 3).map((s) => s.id), ['hubs', 'capture', 'palette'], 'the drawer draws the palette\'s way in, but no column for the products');
+  assert.equal(stepsFor({ collectionId: 'c', hasJumble: false }).at(0)?.words, undefined);
+});
