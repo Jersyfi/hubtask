@@ -36,4 +36,8 @@ test('a size typed in the side panel is whole and never below the handle', () =>
   assert.equal(sizeOf('3'), 24);
   assert.equal(sizeOf(''), undefined);
   assert.equal(sizeOf('wide'), undefined);
+  // Past the board's largest size the scene would be refused (`whiteboards.element_size_invalid`)
+  // and no later save of the board would land.
+  assert.equal(sizeOf('250000'), 100_000);
+  assert.equal(sizeOf('1e400'), undefined);
 });

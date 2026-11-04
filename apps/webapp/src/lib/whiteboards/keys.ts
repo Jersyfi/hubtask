@@ -6,6 +6,8 @@
  * 2.1.2, 2.5.7): what Tab chooses, and what a tool chosen without a pointer does.
  */
 
+import { MAX_SIZE } from '@hubtask/whiteboard';
+
 /**
  * The object Tab (or Shift+Tab) chooses next, or `undefined` when focus is to leave the board:
  * past the last object forwards, before the first backwards. With nothing chosen, Tab takes the
@@ -44,8 +46,8 @@ export function keyboardTool(tool: string): 'place' | 'link' | 'connect' | 'poin
   }
 }
 
-/** A size typed into the side panel, as the board keeps it: whole, and at least the handle's 24. */
+/** A size typed into the side panel, as the board keeps it: whole, at least the handle's 24 and at most the board's largest. */
 export function sizeOf(typed: string): number | undefined {
   const value = Math.round(Number(typed));
-  return Number.isFinite(value) && typed.trim() !== '' ? Math.max(24, value) : undefined;
+  return Number.isFinite(value) && typed.trim() !== '' ? Math.min(MAX_SIZE, Math.max(24, value)) : undefined;
 }

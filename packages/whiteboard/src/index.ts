@@ -8,7 +8,7 @@
  */
 
 export { Doc } from 'yjs';
-export { Board, BoardHistory, DEFAULT_SIZE, MAX_ELEMENTS, ROUTES, SHAPES, elementId } from './scene.ts';
+export { Board, BoardHistory, DEFAULT_SIZE, MAX_ELEMENTS, MAX_SIZE, ROUTES, SHAPES, elementId } from './scene.ts';
 export type { Element, ElementKind, Head, Pen, Route, Shape } from './scene.ts';
 export { MAX_STROKE_POINTS, PEN_WIDTH, simplify, strokePath, strokePoints, strokesOf, touches } from './draw.ts';
 export { align, fromMinimap, minimap } from './guides.ts';

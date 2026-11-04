@@ -51,6 +51,9 @@ export interface Element {
 /** The first release's hard limit of one board (`whiteboards.too_many_elements`). */
 export const MAX_ELEMENTS = 5000;
 
+/** The largest width or height an object may have (`whiteboards.element_size_invalid`). */
+export const MAX_SIZE = 100_000;
+
 export const SHAPES: readonly Shape[] = ['RECTANGLE', 'ROUNDED', 'ELLIPSE', 'DIAMOND', 'PARALLELOGRAM', 'TRIANGLE'];
 export const ROUTES: readonly Route[] = ['STRAIGHT', 'ELBOW', 'CURVED'];
 
