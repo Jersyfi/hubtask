@@ -113,7 +113,7 @@ SELECT EXISTS (SELECT 1 FROM reach WHERE id = sqlc.arg('goal')::uuid) AS reaches
 -- What a link's or a reference's end shows - its title, number and state - with the collection and
 -- the hub its reader's permission is judged on. Trashed entries are left out: they are not there.
 SELECT wi.id, wi.collection_id, c.parent_id AS hub_id, c.handle, c.key_prefix, wi.type::text AS level,
-  wi.entry_type, wi.title, wi.number, wi.is_completed, wi.start_at, wi.due_at, wi.archived_at
+  wi.entry_type, wi.title, wi.number, wi.is_completed, wi.start_at, wi.due_at, wi.archived_at, wi.status
 FROM work_item wi
 JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
 WHERE wi.tenant_id = current_tenant_id() AND wi.id = ANY(sqlc.arg('ids')::uuid[])

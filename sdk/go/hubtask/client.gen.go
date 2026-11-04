@@ -23287,7 +23287,10 @@ type SprintEntry struct {
 
 	// RemovedAt When it left the sprint before its close.
 	RemovedAt *time.Time `json:"removed_at"`
-	Title     string     `json:"title"`
+
+	// Started Not done, and in a status a workflow of the workspace counts as begun (its category IN_PROGRESS) - the board's *In progress* lane. An entry without a status is not started.
+	Started bool   `json:"started"`
+	Title   string `json:"title"`
 }
 
 // SprintEntryOutcome defines model for SprintEntry.Outcome.

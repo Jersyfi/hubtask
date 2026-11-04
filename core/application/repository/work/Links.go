@@ -71,6 +71,8 @@ type EntrySummary struct {
 	StartAt   *time.Time
 	DueAt     *time.Time
 	Archived  bool
+	// Status is the key of the entry's workflow status, empty where none runs.
+	Status string
 }
 
 // Key is the entry's key as every screen draws it, "INC-128" (user-experience.md §5.6); empty

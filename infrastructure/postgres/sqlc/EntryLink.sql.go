@@ -502,7 +502,7 @@ func (q *Queries) ListEntryReferencesFrom(ctx context.Context, arg ListEntryRefe
 
 const listEntrySummaries = `-- name: ListEntrySummaries :many
 SELECT wi.id, wi.collection_id, c.parent_id AS hub_id, c.handle, c.key_prefix, wi.type::text AS level,
-  wi.entry_type, wi.title, wi.number, wi.is_completed, wi.start_at, wi.due_at, wi.archived_at
+  wi.entry_type, wi.title, wi.number, wi.is_completed, wi.start_at, wi.due_at, wi.archived_at, wi.status
 FROM work_item wi
 JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
 WHERE wi.tenant_id = current_tenant_id() AND wi.id = ANY($1::uuid[])
@@ -523,6 +523,7 @@ type ListEntrySummariesRow struct {
 	StartAt      pgtype.Timestamptz
 	DueAt        pgtype.Timestamptz
 	ArchivedAt   pgtype.Timestamptz
+	Status       *string
 }
 
 // What a link's or a reference's end shows - its title, number and state - with the collection and
@@ -550,6 +551,7 @@ func (q *Queries) ListEntrySummaries(ctx context.Context, ids []pgtype.UUID) ([]
 			&i.StartAt,
 			&i.DueAt,
 			&i.ArchivedAt,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}

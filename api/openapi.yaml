@@ -29825,7 +29825,7 @@ components:
 
     SprintEntry:
       type: object
-      required: [item_id, title, added_at, removed_at, committed, outcome, done, completed_at, estimate]
+      required: [item_id, title, added_at, removed_at, committed, outcome, done, started, completed_at, estimate]
       properties:
         item_id: { type: string, format: uuid }
         title: { type: string }
@@ -29834,6 +29834,11 @@ components:
         committed: { type: boolean, description: "In the sprint when it started." }
         outcome: { type: [string, "null"], enum: [DONE, CARRIED, RETURNED, null] }
         done: { type: boolean }
+        started:
+          type: boolean
+          description: >-
+            Not done, and in a status a workflow of the workspace counts as begun (its category
+            IN_PROGRESS) - the board's *In progress* lane. An entry without a status is not started.
         completed_at: { type: [string, "null"], format: date-time }
         estimate:
           oneOf:

@@ -110,6 +110,9 @@ type Planner struct {
 	LinkTypes  workrepo.LinkTypes
 	Links      workrepo.EntryLinks
 	References workrepo.References
+	// Workflows names the statuses a sprint's board counts as begun (its *In progress* lane); nil
+	// counts the system workflow's alone.
+	Workflows workrepo.Workflows
 	// Calendars names the business calendars a plan may be counted on (UC-SVC-01); nil counts
 	// Monday to Friday.
 	Calendars deskrepo.Calendars

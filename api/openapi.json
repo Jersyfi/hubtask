@@ -46491,6 +46491,7 @@
           "committed",
           "outcome",
           "done",
+          "started",
           "completed_at",
           "estimate"
         ],
@@ -46532,6 +46533,10 @@
           },
           "done": {
             "type": "boolean"
+          },
+          "started": {
+            "type": "boolean",
+            "description": "Not done, and in a status a workflow of the workspace counts as begun (its category IN_PROGRESS) - the board's *In progress* lane. An entry without a status is not started."
           },
           "completed_at": {
             "type": [

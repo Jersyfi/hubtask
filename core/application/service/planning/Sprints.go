@@ -452,10 +452,12 @@ type SprintView struct {
 	Estimates map[shared.ID]domain.Estimate
 }
 
-// SprintViewEntry is one visible membership with its entry's title.
+// SprintViewEntry is one visible membership with its entry's title, and whether it is open in a
+// status a workflow of the workspace counts as begun.
 type SprintViewEntry struct {
 	domain.SprintEntry
-	Title string
+	Title   string
+	Started bool
 }
 
 // visibleMembers answers the members a reader may see, with their titles.
@@ -465,11 +467,20 @@ func (p Planner) visibleMembers(ctx context.Context, actor appshared.ActorContex
 		ids = append(ids, m.EntryID)
 	}
 	titles := map[shared.ID]string{}
+	statuses := map[shared.ID]string{}
+	var rows []work.Workflow
 	if len(ids) > 0 {
 		if err := p.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 			summaries, err := p.References.Entries(ctx, ids)
+			if err != nil {
+				return err
+			}
 			for _, s := range summaries {
 				titles[s.ID] = s.Title
+				statuses[s.ID] = s.Status
+			}
+			if p.Workflows != nil {
+				rows, err = p.Workflows.List(ctx)
 			}
 			return err
 		}); err != nil {
@@ -484,10 +495,13 @@ func (p Planner) visibleMembers(ctx context.Context, actor appshared.ActorContex
 	if err != nil {
 		return nil, err
 	}
+	begun := work.NewWorkflows(rows).Started()
 	out := make([]SprintViewEntry, 0, len(members))
 	for i, m := range members {
 		if visible[i] {
-			out = append(out, SprintViewEntry{SprintEntry: m.SprintEntry, Title: titles[m.EntryID]})
+			status := statuses[m.EntryID]
+			started := !m.Done && status != "" && slices.Contains(begun, status)
+			out = append(out, SprintViewEntry{SprintEntry: m.SprintEntry, Title: titles[m.EntryID], Started: started})
 		}
 	}
 	return out, nil
@@ -552,7 +566,7 @@ func (v SprintView) Output() usecase.Output {
 		estimate, ok := v.Estimates[e.EntryID]
 		entries = append(entries, usecase.Output{
 			"item_id": e.EntryID.String(), "title": e.Title, "added_at": e.AddedAt.UTC(), "removed_at": timeOrNil(e.RemovedAt),
-			"committed": e.Committed, "outcome": outcome, "done": e.Done, "completed_at": timeOrNil(e.CompletedAt),
+			"committed": e.Committed, "outcome": outcome, "done": e.Done, "started": e.Started, "completed_at": timeOrNil(e.CompletedAt),
 			"estimate": EstimateOutput(estimate, ok),
 		})
 	}

@@ -2072,6 +2072,7 @@ class SprintEntry(TypedDict, total=False):
     committed: Required[bool]
     outcome: Required[Literal["DONE", "CARRIED", "RETURNED"] | None]
     done: Required[bool]
+    started: Required[bool]
     completed_at: Required[str | None]
     estimate: Required["Estimate" | Any]
 

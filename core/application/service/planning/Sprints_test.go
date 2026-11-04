@@ -15,6 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/planning"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
@@ -544,5 +545,63 @@ func TestUnfinishedEntriesAreNotCarriedIntoAFullSprint(t *testing.T) {
 	}
 	if _, err := (CloseSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, next.ID); detail(err) != "sprints.full" {
 		t.Errorf("carried into a full sprint: %v", err)
+	}
+}
+
+type sprintWorkflows struct {
+	workrepo.Workflows
+	rows []work.Workflow
+}
+
+func (w sprintWorkflows) List(context.Context) ([]work.Workflow, error) { return w.rows, nil }
+
+// user-experience.md §7.5: the sprint's board has an *In progress* lane - an open entry whose
+// status a workflow of the workspace counts as begun is said to be started; a done one and one
+// without a status are not.
+func TestASprintSaysWhichOfItsEntriesAreStarted(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	f.planner.References = references{summaries: []workrepo.EntrySummary{
+		{ID: design, CollectionID: collection, HubID: hubID, Title: "Approve the design", Status: "in_progress"},
+		{ID: build, CollectionID: collection, HubID: hubID, Title: "Build", Status: "review"},
+		{ID: launch, CollectionID: collection, HubID: hubID, Title: "Launch"},
+	}}
+	f.planner.Workflows = sprintWorkflows{rows: []work.Workflow{{Key: "desk", Published: work.WorkflowShape{Statuses: []work.WorkflowStatus{
+		{Key: "review", Category: work.CategoryInProgress},
+	}}}}}
+	sprint := planSprint(t, f, "Sprint 1", "2026-11-02")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{design, build, launch}); err != nil {
+		t.Fatal(err)
+	}
+	doneAt := time.Date(2026, 11, 4, 15, 0, 0, 0, time.UTC)
+	store.done[design] = &doneAt
+	view, err := ReadSprint{Planner: f.planner}.Execute(ctx, actor(), sprint.ID, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := map[shared.ID]bool{}
+	for _, e := range view.Entries {
+		started[e.EntryID] = e.Started
+	}
+	want := map[shared.ID]bool{design: false, build: true, launch: false}
+	for id, w := range want {
+		if started[id] != w {
+			t.Errorf("entry %s started = %v, want %v", id, started[id], w)
+		}
+	}
+	entries, _ := view.Output()["entries"].([]usecase.Output)
+	if len(entries) == 0 || entries[0]["started"] == nil {
+		t.Errorf("the output carries no started: %+v", entries)
+	}
+
+	f.planner.Workflows = nil
+	view, err = ReadSprint{Planner: f.planner}.Execute(ctx, actor(), sprint.ID, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range view.Entries {
+		if e.EntryID == build && e.Started {
+			t.Error("without the workspace's workflows a status only another workflow names counted as begun")
+		}
 	}
 }
