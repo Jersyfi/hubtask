@@ -9361,6 +9361,7 @@
   "public_forms.requester_address_missing": "Gib mit deinem Namen eine Mail-Adresse an, damit das Team dir antworten kann.",
   "public_forms.entry_incomplete": "Die Anfrage konnte nicht abgelegt werden. Versuche es noch einmal.",
   "pages.agent_decides_policy_not": "Ob Seiten über einen öffentlichen Link geöffnet werden dürfen, entscheidet ein Mensch, kein Agent.",
+  "pages.daily_note_taken": "Die Notiz dieses Tages wurde eben anderswo geöffnet; öffne sie noch einmal.",
   "pages.day_malformed": "Ein Tag wird als JJJJ-MM-TT geschrieben.",
   "pages.day_out_of_range": "Eine Tagesnotiz gilt für einen Tag der letzten zehn Jahre oder des kommenden Jahres.",
   "pages.personal_space_unavailable": "Persönliche Notizen gibt es auf dieser Installation nicht.",

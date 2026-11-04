@@ -9361,6 +9361,7 @@
   "public_forms.requester_address_missing": "Give a mail address with your name, so the team can answer you.",
   "public_forms.entry_incomplete": "The request could not be filed. Try again.",
   "pages.agent_decides_policy_not": "Whether pages may be opened by a public link is decided by a person, not an agent.",
+  "pages.daily_note_taken": "This day's note was just opened elsewhere; open it again.",
   "pages.day_malformed": "A day is written as YYYY-MM-DD.",
   "pages.day_out_of_range": "A daily note is for a day of the past ten years or the coming year.",
   "pages.personal_space_unavailable": "Personal notes are not available on this installation.",

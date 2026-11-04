@@ -633,8 +633,21 @@ func (h OpenDailyNote) Execute(ctx context.Context, actor appshared.ActorContext
 	if err := h.Space.authorizeWrite(ctx, actor, hub, hub, PageCreatedAction, pageTarget); err != nil {
 		return domain.Page{}, err
 	}
+	page, err := h.open(ctx, actor, hub, day, now)
+	// Another open of the same day wrote its note first (the day's index refused this one): the
+	// note is there now, and reading it again answers it.
+	if err != nil && shared.AsError(err).DetailCode == dailyNoteTaken {
+		page, err = h.open(ctx, actor, hub, day, now)
+	}
+	return page, err
+}
+
+// dailyNoteTaken is what the store answers when a day's note was written meanwhile.
+const dailyNoteTaken = "pages.daily_note_taken"
+
+func (h OpenDailyNote) open(ctx context.Context, actor appshared.ActorContext, hub shared.ID, day, now time.Time) (domain.Page, error) {
 	var page domain.Page
-	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err := h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		id, found, err := h.Space.Pages.DailyNote(ctx, hub, day)
 		if err != nil {
 			return err

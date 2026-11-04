@@ -362,3 +362,45 @@ func TestARestrictionHoldsForThePagesCommentsAndItsTrash(t *testing.T) {
 		t.Errorf("Carla, named, could not restore: %v", err)
 	}
 }
+
+// racingNotes is the store while another tab opens the same day's note: the note is not there
+// when this open looks, and the day's index refuses this open's note when it writes.
+type racingNotes struct {
+	*store
+	looked bool
+}
+
+func (r *racingNotes) DailyNote(ctx context.Context, hub shared.ID, day time.Time) (shared.ID, bool, error) {
+	if !r.looked {
+		r.looked = true
+		return "", false, nil
+	}
+	return r.store.DailyNote(ctx, hub, day)
+}
+
+func (r *racingNotes) Insert(ctx context.Context, page domain.Page) error {
+	if page.DailyFor != nil {
+		if _, found, _ := r.store.DailyNote(ctx, page.HubID, *page.DailyFor); found {
+			return shared.ErrConflict.WithDetail("pages.daily_note_taken")
+		}
+	}
+	return r.store.Insert(ctx, page)
+}
+
+// Two tabs opening today's note at once answer the one note: the open that lost the race reads
+// the note the other one wrote.
+func TestTwoOpensOfTodaysNoteAnswerTheOneNote(t *testing.T) {
+	f := newFixture()
+	f.space.PersonalHubs, f.space.Words = &privateHubs{}, words{}
+	f.clock.at = time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+	first, err := (OpenDailyNote{Space: f.space}).Execute(ctx, as(anna), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.space.Pages = &racingNotes{store: f.store}
+	second, err := (OpenDailyNote{Space: f.space}).Execute(ctx, as(anna), "")
+	if err != nil || second.ID != first.ID {
+		t.Fatalf("the second open answered %v, %v; want %v", second.ID, err, first.ID)
+	}
+}

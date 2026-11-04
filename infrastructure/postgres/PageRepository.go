@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
@@ -51,9 +52,19 @@ func (PageRepository) Insert(ctx context.Context, page knowledge.Page) error {
 		OrderKey: page.OrderKey, Template: page.Template, ContentLanguage: optionalText(page.ContentLanguage),
 		CreatedBy: ids[2], At: timestampOf(page.CreatedAt), DailyFor: pageDay(page.DailyFor),
 	}); err != nil {
+		// Another open of the same day wrote its note first; the use case reads that one.
+		if dailyNoteTaken(err) {
+			return shared.ErrConflict.WithDetail("pages.daily_note_taken")
+		}
 		return pageFailed("writing the page", err)
 	}
 	return nil
+}
+
+// dailyNoteTaken reports the day's index refusing a second daily note (migration 0261).
+func dailyNoteTaken(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == "page_daily_note_idx"
 }
 
 // Find answers a page, trashed ones included.
