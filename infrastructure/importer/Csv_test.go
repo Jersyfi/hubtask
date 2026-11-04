@@ -179,3 +179,23 @@ func TestEveryEntryKnowsItsRow(t *testing.T) {
 		t.Errorf("rows = %v", rows)
 	}
 }
+
+// UC-IMP-01 checks 5 and 10: a workbook's cell styled as a date with a time arrives with its
+// seconds and without a zone, as most programs also write a moment into a CSV; it is read in the
+// importing person's zone rather than refused as an invalid date.
+func TestADateWithSecondsAndNoZoneIsReadInThePersonsZone(t *testing.T) {
+	result, err := CSV{}.Convert(context.Background(), source(t, "title,due\nDock,2026-10-30T12:00:00\nCall,2026-10-30 09:15:30.250\n", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Refused) != 0 {
+		t.Fatalf("refused = %+v", result.Refused)
+	}
+	items := result.Records["work_items"]
+	if items[0].Data["due_at"] != "2026-10-30T11:00:00Z" || items[0].Data["due_date_only"] != false {
+		t.Errorf("first due = %v %v", items[0].Data["due_at"], items[0].Data["due_date_only"])
+	}
+	if items[1].Data["due_at"] != "2026-10-30T08:15:30.25Z" {
+		t.Errorf("second due = %v", items[1].Data["due_at"])
+	}
+}

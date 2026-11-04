@@ -283,7 +283,7 @@ func parseDue(cell string, zone *time.Location) (time.Time, bool, error) {
 	if at, err := time.Parse(time.RFC3339, cell); err == nil {
 		return at.UTC(), false, nil
 	}
-	for _, layout := range []string{"2006-01-02T15:04", "2006-01-02 15:04", "2006-01-02 15:04:05", "02.01.2006 15:04", "01/02/2006 15:04"} {
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02 15:04", "2006-01-02 15:04:05", "02.01.2006 15:04", "01/02/2006 15:04"} {
 		if at, err := time.ParseInLocation(layout, cell, zone); err == nil {
 			return at.UTC(), false, nil
 		}
