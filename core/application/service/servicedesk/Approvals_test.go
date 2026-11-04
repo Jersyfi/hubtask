@@ -6,6 +6,7 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	workdomain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 type approvalStore struct {
@@ -229,5 +231,60 @@ func TestAnEntrysReadersReadItsApprovalsAndTrail(t *testing.T) {
 	gate.allow = false
 	if _, err := read.Execute(context.Background(), person(requesterID), items.item.ID); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("somebody who may not read the entry read its approvals: %v", err)
+	}
+}
+
+// undoing is a unit of work that rolls the approvals back when its work fails, as a transaction
+// does.
+type undoing struct {
+	inline
+	store *approvalStore
+}
+
+func (u undoing) Within(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	rows, decisions := maps.Clone(u.store.rows), slices.Clone(u.store.decisions)
+	if err := fn(ctx); err != nil {
+		u.store.rows, u.store.decisions = rows, decisions
+		return err
+	}
+	return nil
+}
+
+type refusedStep struct{ err error }
+
+func (r refusedStep) Invoke(context.Context, string, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+	return nil, r.err
+}
+
+// UC-SVC-09 check 2: a yes whose step cannot be taken - the entry's form now misses an answer -
+// is refused whole: the approval still waits, so the approver can answer again once it can move,
+// and it is never approved with its entry left where it stood.
+func TestAYesWhoseStepIsRefusedLeavesTheApprovalWaiting(t *testing.T) {
+	approvals, store, _, items := approvalFixture(t)
+	approvals.Desk.UnitOfWork = undoing{store: store}
+	refusal := shared.ErrValidation.WithDetail("forms.required_missing")
+	approvals.Steps = refusedStep{err: refusal}
+	items.item.CustomFields["manager"] = handlerID.String()
+	step := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{
+		Levels: []workdomain.ApprovalLevel{{PersonFields: []string{"custom_fields.manager"}, Rule: workdomain.ApprovalAll}},
+	}}
+	if err := approvals.Open(context.Background(), person(requesterID), items.item, workdomain.Container{}, "purchase", step); err != nil {
+		t.Fatal(err)
+	}
+	var opened domain.Approval
+	for _, a := range store.rows {
+		opened = a
+	}
+	decide := DecideApproval{Approvals: approvals}
+	if _, err := decide.Execute(context.Background(), person(handlerID), DecideApprovalCommand{ApprovalID: opened.ID, Verdict: domain.VerdictApprove}); !errors.Is(err, refusal) {
+		t.Fatalf("the yes answered %v", err)
+	}
+	if got := store.rows[opened.ID]; got.State != domain.ApprovalPending || len(store.decisions) != 0 {
+		t.Errorf("after a refused step the approval stands %s with %d decisions", got.State, len(store.decisions))
+	}
+	approvals.Steps = &stepCalls{}
+	decide = DecideApproval{Approvals: approvals}
+	if out, err := decide.Execute(context.Background(), person(handlerID), DecideApprovalCommand{ApprovalID: opened.ID, Verdict: domain.VerdictApprove}); err != nil || out["state"] != string(domain.ApprovalApproved) {
+		t.Errorf("the yes again: %v %v", out, err)
 	}
 }

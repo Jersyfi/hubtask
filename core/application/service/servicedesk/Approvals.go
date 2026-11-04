@@ -383,7 +383,12 @@ func (h DecideApproval) Execute(ctx context.Context, actor appshared.ActorContex
 		decided   domain.Approval
 		decisions []domain.Decision
 	)
-	err := a.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	// The step is taken inside the decision's transaction, so a step refused - a form now missing
+	// an answer, a workflow changed - refuses the answer too, rather than leaving an approved
+	// approval whose entry never moved. The step's refusal is held until the transaction ends.
+	writing, refusals := access.HoldRefusals(ctx)
+	defer refusals.Record(ctx)
+	err := a.Desk.UnitOfWork.Within(writing, actor.PersistenceScope(), func(ctx context.Context) error {
 		approval, err := a.Store.Find(ctx, cmd.ApprovalID)
 		if err != nil {
 			return err
@@ -419,14 +424,14 @@ func (h DecideApproval) Execute(ctx context.Context, actor appshared.ActorContex
 			return err
 		}
 		decided, decisions = next, append(earlier, decision)
-		return a.audit(ctx, actor, ApprovalDecidedAction, next,
+		if err := a.audit(ctx, actor, ApprovalDecidedAction, next,
 			audit.Change{Field: "verdict", Classification: audit.Open, To: string(decision.Verdict)},
-			audit.Change{Field: "level", Classification: audit.Open, To: decision.Level})
+			audit.Change{Field: "level", Classification: audit.Open, To: decision.Level}); err != nil {
+			return err
+		}
+		return h.move(ctx, actor, decided)
 	})
 	if err != nil {
-		return nil, err
-	}
-	if err := h.move(ctx, actor, decided); err != nil {
 		return nil, err
 	}
 	return ApprovalOutput(decided, decisions, false), nil
