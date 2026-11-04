@@ -151,6 +151,15 @@ a step that moves its writers lands one release before the drop:
   the suite's while a query on that list other than `CountFigureFlow` remains, and the release
   after that while no later migration drops `work_item_side_rows`.
 
+* *The installation events' numbering key.* Released sharing the migrator's advisory lock
+  8_010_002, so every installation event written while a migration ran waited for the whole run.
+  The suite's release numbers under its own 8_010_004 and then, never in the other order, under
+  8_010_002, so that it still waits for a pod of the release before, which takes 8_010_002 alone
+  (`TestTheNumberingWaitsForItsOwnKeyAndTheReleaseBeforesKey`). The release after drops
+  `LockPlatformEventNumberingOfTheReleaseBefore` and the exception in
+  `TestEveryFixedAdvisoryLockKeyHasOneHolder`; from then on an event write does not wait for a
+  migration. No schema object changes, so the floor stays.
+
 **A contract step raises the compatibility floor.** The migration that drops what an older binary
 names also replaces `schema_compatibility_floor()` (migration 0337) with the number of the first
 migration of the release that stopped naming it — never with a lower one. A binary whose newest

@@ -176,6 +176,51 @@ func TestTheFeedReturnsConcurrentEventsInCommitOrderAndNoneTwice(t *testing.T) {
 	}
 }
 
+// The numbering has its own key: a writer waits for another writer of this release, which holds
+// 8_010_004, and - while a pod of the release before may still run - for one of that release,
+// which numbers under 8_010_002 alone. The migrator's session lock is that same 8_010_002 until the
+// release after drops the old key (versioning-release.md §4).
+func TestTheNumberingWaitsForItsOwnKeyAndTheReleaseBeforesKey(t *testing.T) {
+	for _, held := range []struct {
+		name string
+		key  int64
+	}{{"a writer of this release", 8_010_004}, {"a writer of the release before", 8_010_002}} {
+		t.Run(held.name, func(t *testing.T) {
+			ctx := context.Background()
+			uow := postgres.NewUnitOfWork(appPool(ctx, t))
+			recorder := platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{}))
+			workspace := seedWorkspace(ctx, t, "numbering")
+
+			holder, err := adminPool(ctx, t).Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var once sync.Once
+			end := func() { once.Do(func() { _ = holder.Rollback(ctx) }) }
+			t.Cleanup(end)
+			if _, err := holder.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, held.key); err != nil {
+				t.Fatal(err)
+			}
+
+			done := make(chan error, 1)
+			go func() {
+				done <- uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+					return recorder.Record(ctx, event.WorkspaceSuspended, event.Actor{Kind: shared.ActorSystem}, time.Now(), nil)
+				})
+			}()
+			select {
+			case err := <-done:
+				t.Fatalf("the event was numbered while %d was held: %v", held.key, err)
+			case <-time.After(300 * time.Millisecond):
+			}
+			end()
+			if err := <-done; err != nil {
+				t.Fatalf("recording after the release: %v", err)
+			}
+		})
+	}
+}
+
 // The purge removes the platform's reference from its own workspace's events and from no other's.
 func TestTheReferenceIsForgottenOnlyInItsOwnWorkspace(t *testing.T) {
 	ctx := context.Background()

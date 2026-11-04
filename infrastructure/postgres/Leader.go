@@ -27,8 +27,8 @@ type LockKey int64
 const SchedulerLock LockKey = 8_010_001
 
 // MailboxWatchLock is the lock one worker holds while it keeps the IMAP mailboxes open (IDLE), so
-// no mailbox is signed in twice for it. Its own number: 8_010_002 is the migrator's and the
-// installation events', and a lock held for as long as a worker leads would stop both.
+// no mailbox is signed in twice for it. Its own number: 8_010_002 is the migrator's and 8_010_004
+// the installation events', and a lock held for as long as a worker leads would stop either.
 const MailboxWatchLock LockKey = 8_010_003
 
 // Leader is leadership as a PostgreSQL advisory lock held on one connection.

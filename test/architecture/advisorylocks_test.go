@@ -17,9 +17,9 @@ import (
 // as long as it leads stops every writer of the other purpose, and a migrator waits for it until
 // its run bound ends the upgrade.
 func TestEveryFixedAdvisoryLockKeyHasOneHolder(t *testing.T) {
-	// Released before this test and shared since: a migration run and an installation event's
-	// numbering wait for each other while a migrator runs. Both sides must keep their number for
-	// as long as a pod of an older release may run, so the pair is the one exception.
+	// Released shared: the installation events' numbering moved to 8_010_004 and still takes the
+	// migrator's 8_010_002 for the release before's pods, which number under it alone. The
+	// release after drops it (versioning-release.md §4), and this exception with it.
 	shared := map[string]int{"8010002": 2}
 
 	goKey := regexp.MustCompile(`(?m)^const \w+ (?:\w+ )?= (8_0\d\d_\d{3})$`)

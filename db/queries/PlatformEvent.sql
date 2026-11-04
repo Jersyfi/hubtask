@@ -10,6 +10,15 @@
 -- start, so that only the tail of a change - from its event to its commit - waits for another. A
 -- fixed key beside the scheduler's 8_010_001 rather than a hashed name, which would share its space
 -- with the per-workspace hashed keys.
+--
+-- Its own key is 8_010_004; 8_010_002 is the migrator's, and a write that shared it waited for a
+-- whole migration run.
+SELECT pg_advisory_xact_lock(8010004);
+
+-- name: LockPlatformEventNumberingOfTheReleaseBefore :exec
+-- The key a pod of the release before numbers under, taken after the own one and never before it:
+-- two writers of this release taking them in opposite orders would wait for each other. Dropped by
+-- the release after (versioning-release.md §4, "Scheduled contract steps").
 SELECT pg_advisory_xact_lock(8010002);
 
 -- name: InsertPlatformEvent :execrows

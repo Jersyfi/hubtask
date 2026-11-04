@@ -63,6 +63,11 @@ func (PlatformEventRepository) Append(ctx context.Context, envelope event.Envelo
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("taking the installation events' numbering lock: %w", err))
 	}
+	if err := queries.LockPlatformEventNumberingOfTheReleaseBefore(ctx); err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("taking the older release's numbering lock: %w", err))
+	}
 	written, err := queries.InsertPlatformEvent(ctx, params)
 	if err != nil {
 		return false, shared.ErrUnavailable.
