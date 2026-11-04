@@ -9,10 +9,14 @@
   // **A credential is never read back** (security.md §8.1): the field is empty on every opening and
   // the connector only says whether one is set. A drawn secret lives in this component until the
   // reader confirms they kept it, and nowhere else.
+  //
+  // Each connector is one card: its name and program, how its last run ended in words, the one act
+  // done most (*Run now*, or the intake's address to copy) and the rest in its menu
+  // (user-experience.md §7.3). The head's create opens the dialog here (`isAsked`).
 
   import { untrack } from 'svelte';
   import {
-    Badge, Banner, Button, Dialog, EmptyState, Input, OneTimeSecret, Select, Spinner, Stack, Switch, Textarea, type SelectOption,
+    Badge, Banner, Button, Dialog, IconButton, Input, Menu, OneTimeSecret, Select, Skeleton, Stack, Switch, Textarea, type MenuItem, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { CiClass, CiConnector, CiConnectorList, CiConnectorRun, CiSource, CiSourceList } from '@hubtask/sync-engine';
 
@@ -29,6 +33,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import IntakeAddress from '../mail/IntakeAddress.svelte';
   import { renderProblem } from '../problem.ts';
+  import ProductEmpty from '../product/ProductEmpty.svelte';
   import Decisions from './Decisions.svelte';
 
   interface Props {
@@ -36,9 +41,12 @@
     classes: readonly CiClass[];
     words: Words;
     mayWrite: boolean;
+    /** The head asked for a new connector; the dialog opens once and `onasked` gives the ask back. */
+    isAsked?: boolean;
+    onasked?: () => void;
   }
 
-  const { hubId, classes, words, mayWrite }: Props = $props();
+  const { hubId, classes, words, mayWrite, isAsked = false, onasked }: Props = $props();
 
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
 
@@ -95,6 +103,14 @@
     defineFailure = undefined;
     isDefineOpen = true;
   }
+
+  $effect(() => {
+    if (!isAsked || !mayShape) return;
+    untrack(() => {
+      openDefine();
+      onasked?.();
+    });
+  });
 
   async function save() {
     if (!draft) return;
@@ -160,6 +176,43 @@
   const lastWord = (connector: CiConnector) =>
     connector.last_outcome ? t(`app.assets.connector_outcome.${connector.last_outcome}`) : t('app.assets.connector_never');
   const errorWord = (code: string) => (messages.has(code) ? t(code) : code);
+  /** The card's menu: everything but the act done most, the full run apart because it rereads everything. */
+  function menuOf(connector: CiConnector): MenuItem[] {
+    const reason = connector.has_credential ? undefined : t('connector.credential_missing');
+    return [
+      ...(mayWrite && !connector.push
+        ? [
+            { id: 'dry', label: t('app.assets.connector_dry_run'), icon: 'eye' as const, disabledReason: reason },
+            { id: 'full', label: t('app.assets.connector_run_full'), icon: 'rotate-ccw' as const, disabledReason: reason },
+          ]
+        : []),
+      ...(mayShape
+        ? [
+            { id: 'edit', label: t('app.assets.connector_edit'), icon: 'pencil' as const, hasSeparatorBefore: mayWrite && !connector.push },
+            connector.push
+              ? { id: 'secret', label: connector.has_credential ? t('app.assets.intake_redraw') : t('app.assets.intake_draw'), icon: 'key' as const }
+              : { id: 'credential', label: t('app.assets.connector_credential'), icon: 'key' as const },
+          ]
+        : []),
+    ];
+  }
+  function chose(connector: CiConnector, id: string) {
+    if (id === 'dry') void run(connector, { dryRun: true });
+    else if (id === 'full') void run(connector, { full: true });
+    else if (id === 'edit') openDefine(connector);
+    else if (id === 'secret') void setCredential(connector);
+    else if (id === 'credential') openCredential(connector);
+  }
+  /** One sentence on how the pull stands: when it last ran, what failed, when it runs next. */
+  function standing(connector: CiConnector): string {
+    const parts = [
+      connector.last_run_at ? t('app.assets.connector_last', { when: when(connector.last_run_at) }) : t('app.assets.connector_never'),
+      ...(connector.failures > 0 ? [t('app.assets.connector_failures', { count: connector.failures })] : []),
+      ...(connector.next_run_at && connector.enabled ? [t('app.assets.connector_next', { when: when(connector.next_run_at) })] : []),
+    ];
+    return parts.join(' · ');
+  }
+
   const address = (connector: CiConnector) =>
     workspace.workspace?.id ? intakeAddress(window.location.origin, workspace.workspace.id, connector) : undefined;
 </script>
@@ -185,65 +238,64 @@
 
   <div class="head">
     <p class="meta">{t('app.assets.connectors_intro')}</p>
-    {#if mayShape}<Button size="sm" tone="primary" icon="plus" onclick={() => openDefine()}>{t('app.assets.connector_new')}</Button>{/if}
+    {#if mayShape && connectors?.length !== 0}<Button size="sm" tone="secondary" icon="plus" onclick={() => openDefine()}>{t('app.assets.connector_new')}</Button>{/if}
   </div>
 
   {#if refusal}
     <Banner tone="danger">{refusal}</Banner>
   {:else if !connectors}
-    <Spinner label={t('app.assets.loading')} />
+    <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if connectors.length === 0}
-    <EmptyState kind="unused" title={t('app.assets.connectors_empty')} icon="link" />
+    <ProductEmpty
+      kind="unused"
+      icon="link"
+      title={t('app.assets.connectors_empty')}
+      description={mayShape ? t('app.assets.connectors_empty_body') : t('app.assets.connectors_empty_reader')}
+      create={mayShape ? { label: t('app.assets.connector_new'), onclick: () => openDefine() } : undefined}
+    />
   {:else}
     <ul class="rows">
       {#each connectors as connector (connector.id)}
         {@const answer = results[connector.id]}
-        <li class="connector" data-connector={connector.key}>
+        {@const items = menuOf(connector)}
+        {@const reason = connector.has_credential ? undefined : t('connector.credential_missing')}
+        <li class="connector" data-connector={connector.key} data-off={connector.enabled ? undefined : ''}>
           <div class="row-line">
             <span class="what">
-              <strong>{connector.key}</strong>
+              <strong class="name">{connector.key}</strong>
               <span class="meta">
                 {kindWord(connector.kind)} · {t('app.assets.connector_writes_as', { source: connector.source })}
                 {#if !connector.push} · {periodWord(connector.every_minutes)}{/if}
-                {#if !connector.enabled} · {t('app.assets.connector_off')}{/if}
               </span>
-              {#if !connector.push && connector.base_url}<span class="meta mono">{connector.base_url}</span>{/if}
-              <span class="meta">{connector.has_credential ? t('app.assets.connector_has_credential') : t('app.assets.connector_no_credential')}</span>
             </span>
-            {#if !connector.push}
-              <span class="outcome">
-                <Badge size="sm" tone={connectorTone(connector.last_outcome)}>{lastWord(connector)}</Badge>
-                {#if connector.last_run_at}<span class="meta">{when(connector.last_run_at)}</span>{/if}
-                {#if connector.last_error}<span class="meta">{errorWord(connector.last_error)}</span>{/if}
-                {#if connector.failures > 0}<span class="meta">{t('app.assets.connector_failures', { count: connector.failures })}</span>{/if}
-                {#if connector.next_run_at && connector.enabled}<span class="meta">{t('app.assets.connector_next', { when: when(connector.next_run_at) })}</span>{/if}
-              </span>
-            {/if}
+            <span class="state">
+              {#if !connector.enabled}<Badge size="sm" icon="pause">{t('app.assets.connector_off')}</Badge>{/if}
+              {#if !connector.has_credential}<Badge size="sm" tone="warning">{t('app.assets.connector_no_credential')}</Badge>{/if}
+              {#if !connector.push}<Badge size="sm" tone={connectorTone(connector.last_outcome)}>{lastWord(connector)}</Badge>{/if}
+              {#if items.length > 0}
+                <Menu label={t('app.assets.connector_menu', { key: connector.key })} {items} onselect={(id) => chose(connector, id)}>
+                  {#snippet trigger(props)}
+                    <IconButton {...props} icon="ellipsis" size="sm" label={t('app.assets.connector_menu', { key: connector.key })} />
+                  {/snippet}
+                </Menu>
+              {/if}
+            </span>
           </div>
 
-          {#if connector.push}
+          {#if !connector.push}
+            <p class="meta">{standing(connector)}</p>
+            {#if connector.last_error}<p class="meta">{errorWord(connector.last_error)}</p>{/if}
+            {#if connector.base_url}<p class="meta mono">{connector.base_url}</p>{/if}
+          {:else}
             {@const at = address(connector)}
-            {#if at}<IntakeAddress address={at} lead={connector.inventory ? t('app.assets.intake_agent_address') : t('app.assets.intake_address')} />{/if}
+            {#if at}<IntakeAddress address={at} lead={connector.inventory ? t('app.assets.intake_agent_address') : t('app.assets.intake_address')} hint={t('app.assets.intake_address_hint')} />{/if}
           {/if}
 
-          <div class="actions">
-            {#if mayShape}
-              <Button size="sm" tone="subtle" icon="pencil" onclick={() => openDefine(connector)}>{t('app.assets.connector_edit')}</Button>
-              {#if connector.push}
-                <Button size="sm" tone="subtle" icon="key" onclick={() => void setCredential(connector)}>
-                  {connector.has_credential ? t('app.assets.intake_redraw') : t('app.assets.intake_draw')}
-                </Button>
-              {:else}
-                <Button size="sm" tone="subtle" icon="key" onclick={() => openCredential(connector)}>{t('app.assets.connector_credential')}</Button>
-              {/if}
-            {/if}
-            {#if mayWrite && !connector.push}
-              {@const reason = connector.has_credential ? undefined : t('connector.credential_missing')}
-              <Button size="sm" tone="secondary" disabledReason={reason} isBusy={busy === connector.id} onclick={() => void run(connector, { dryRun: true })}>{t('app.assets.connector_dry_run')}</Button>
-              <Button size="sm" tone="secondary" disabledReason={reason} isBusy={busy === connector.id} onclick={() => void run(connector, {})}>{t('app.assets.connector_run')}</Button>
-              <Button size="sm" tone="subtle" disabledReason={reason} isBusy={busy === connector.id} onclick={() => void run(connector, { full: true })}>{t('app.assets.connector_run_full')}</Button>
-            {/if}
-          </div>
+          {#if mayWrite && !connector.push}
+            <div class="actions">
+              <Button size="sm" tone="secondary" icon="play" disabledReason={reason} isBusy={busy === connector.id} onclick={() => void run(connector, {})}>{t('app.assets.connector_run')}</Button>
+            </div>
+          {/if}
 
           {#if answer}
             <div class="answer" data-connector-answer>
@@ -327,15 +379,17 @@
 
 <style>
   .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-  .row-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); }
+  .row-line { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: var(--sp-100); }
   .connector {
     display: grid; gap: var(--sp-100);
-    padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
+    padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
     background: var(--bg-surface);
   }
-  .what, .outcome, .answer { display: grid; gap: var(--sp-025); }
-  .outcome { justify-items: end; }
+  .connector[data-off] { background: var(--bg-surface-sunken); }
+  .what, .answer { display: grid; gap: var(--sp-025); min-inline-size: 0; }
+  .name { overflow-wrap: break-word; }
+  .state { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
