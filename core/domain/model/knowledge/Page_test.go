@@ -242,3 +242,29 @@ func TestAMovedSubtreeFitsTheTree(t *testing.T) {
 		})
 	}
 }
+
+// Every file of an export has a path of its own that every file system takes: a title that
+// already reads like a numbered twin is numbered on, and a name a file system reserves is not used.
+func TestEveryExportedFileHasAPathOfItsOwn(t *testing.T) {
+	pageD := shared.ID("00000000-0000-0000-0000-0000000000d4")
+	pageE := shared.ID("00000000-0000-0000-0000-0000000000d5")
+	root := Page{ID: pageA, Title: "Handbook"}
+	pages := []Page{
+		root,
+		{ID: pageB, ParentID: pageA, Title: "Notes"},
+		{ID: pageC, ParentID: pageA, Title: "Notes"},
+		{ID: pageD, ParentID: pageA, Title: "Notes-2"},
+		{ID: pageE, ParentID: pageA, Title: "Con"},
+	}
+	seen := map[string]bool{}
+	for _, file := range Tree(pages, pageA.String()) {
+		path := strings.ToLower(file.Path)
+		if seen[path] {
+			t.Errorf("two files at %s", file.Path)
+		}
+		seen[path] = true
+		if path == "handbook/con.md" {
+			t.Errorf("a reserved name: %s", file.Path)
+		}
+	}
+}

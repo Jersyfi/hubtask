@@ -88,27 +88,27 @@ func tree(pages []Page, rootID, extension string) []File {
 		return nil
 	}
 	var files []File
-	var walk func(page Page, folder string, taken map[string]int)
-	walk = func(page Page, folder string, taken map[string]int) {
-		name := FileName(page.Title)
-		if n := taken[strings.ToLower(name)]; n > 0 {
-			taken[strings.ToLower(name)] = n + 1
-			name += "-" + strconv.Itoa(n+1)
-		} else {
-			taken[strings.ToLower(name)] = 1
+	var walk func(page Page, folder string, taken map[string]bool)
+	walk = func(page Page, folder string, taken map[string]bool) {
+		base := FileName(page.Title)
+		name := base
+		// Numbered on until free: a sibling may itself be titled like a numbered twin.
+		for n := 2; taken[strings.ToLower(name)]; n++ {
+			name = base + "-" + strconv.Itoa(n)
 		}
+		taken[strings.ToLower(name)] = true
 		files = append(files, File{PageID: page.ID.String(), Path: folder + name + extension, Content: MarkdownFile(page)})
-		children := map[string]int{}
+		children := map[string]bool{}
 		for _, child := range byParent[page.ID.String()] {
 			walk(child, folder+name+"/", children)
 		}
 	}
-	walk(*root, "", map[string]int{})
+	walk(*root, "", map[string]bool{})
 	return files
 }
 
 // FileName is a title as a file name every file system takes: letters, digits, spaces, dashes and
-// underscores, bounded, never empty.
+// underscores, bounded, never empty and never a name a file system reserves.
 func FileName(title string) string {
 	var out strings.Builder
 	for _, r := range title {
@@ -126,5 +126,19 @@ func FileName(title string) string {
 	if name == "" {
 		return "page"
 	}
+	if reservedName(name) {
+		return name + "_"
+	}
 	return name
+}
+
+// reservedName reports a name Windows refuses for a file whatever its extension.
+func reservedName(name string) bool {
+	switch upper := strings.ToUpper(name); upper {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	default:
+		return len(upper) == 4 && (strings.HasPrefix(upper, "COM") || strings.HasPrefix(upper, "LPT")) &&
+			upper[3] >= '1' && upper[3] <= '9'
+	}
 }
