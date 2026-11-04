@@ -78,6 +78,8 @@ func tableRows(format domain.FileFormat, data []byte) ([]map[string]string, erro
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
 	reader := csv.NewReader(bytes.NewReader(data))
 	reader.FieldsPerRecord = -1
+	// A quote inside an unquoted cell (a 27" monitor) is the cell's, not a refusal of the file.
+	reader.LazyQuotes = true
 	reader.Comma = separator(data)
 	header, err := reader.Read()
 	if err != nil {

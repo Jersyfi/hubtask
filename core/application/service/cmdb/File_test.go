@@ -29,3 +29,12 @@ func TestACsvSeparatedBySemicolonsIsReadAsTheDialogReadsIt(t *testing.T) {
 	}
 }
 
+// An inventory names a monitor 27" - a quote inside an unquoted cell, which a strict reader
+// refuses together with the whole file.
+func TestAStrayQuoteInACellDoesNotRefuseTheFile(t *testing.T) {
+	mapping := &domain.FileMapping{Class: "server", NameColumn: "Name", Columns: map[string]string{"Model": "model"}}
+	p, _, err := ParseFile(domain.FormatCSV, []byte("Name,Model\nmon-01,Dell 27\" P2723\n"), mapping)
+	if err != nil || len(p.Items) != 1 || p.Items[0].Attributes["model"] != "Dell 27\" P2723" {
+		t.Fatalf("read %+v %v", p.Items, err)
+	}
+}
