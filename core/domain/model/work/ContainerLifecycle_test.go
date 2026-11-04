@@ -516,3 +516,58 @@ func TestMovedInto(t *testing.T) {
 		assertDetail(t, err, shared.ErrConflict, "containers.archived")
 	})
 }
+
+// A collection's key prefix (user-experience.md §5.6): taken in capitals, a letter and then one to
+// four letters or digits, cleared by the empty string, never on a hub.
+func TestRenamedSetsAndClearsACollectionsKeyPrefix(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		before    string
+		sent      string
+		want      string
+		refusal   string
+		unchanged bool
+	}{
+		{name: "set in lower case", sent: " inc ", want: "INC"},
+		{name: "five", sent: "ATL24", want: "ATL24"},
+		{name: "cleared", before: "INC", sent: "", want: ""},
+		{name: "the same", before: "INC", sent: "inc", want: "INC", unchanged: true},
+		{name: "one letter", sent: "I", refusal: "containers.key_prefix_invalid"},
+		{name: "six", sent: "INCIDE", refusal: "containers.key_prefix_invalid"},
+		{name: "a digit first", sent: "1NC", refusal: "containers.key_prefix_invalid"},
+		{name: "a dash", sent: "IN-C", refusal: "containers.key_prefix_invalid"},
+		{name: "an umlaut", sent: "ÄRG", refusal: "containers.key_prefix_invalid"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			container := collection()
+			container.KeyPrefix = tc.before
+			updated, changes, err := container.Renamed(work.ContainerAttributes{KeyPrefix: pointerTo(tc.sent)}, text.Composing{}, changed)
+			if tc.refusal != "" {
+				assertDetail(t, err, shared.ErrValidation, tc.refusal)
+				if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != "/key_prefix" {
+					t.Errorf("the finding does not point at /key_prefix: %+v", fields)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("refused: %v", err)
+			}
+			if updated.KeyPrefix != tc.want {
+				t.Errorf("prefix %q, want %q", updated.KeyPrefix, tc.want)
+			}
+			if tc.unchanged != (len(changes) == 0) {
+				t.Errorf("changes %+v", changes)
+			}
+			if !tc.unchanged && (len(changes) != 1 || changes[0].Field != work.FieldKeyPrefix) {
+				t.Errorf("changes %+v, want one of key_prefix", changes)
+			}
+		})
+	}
+}
+
+func TestRenamedRefusesAKeyPrefixOnAHub(t *testing.T) {
+	hub := collection()
+	hub.Type, hub.ParentID = work.ContainerHub, ""
+	_, _, err := hub.Renamed(work.ContainerAttributes{KeyPrefix: pointerTo("HUB")}, text.Composing{}, changed)
+	assertDetail(t, err, shared.ErrValidation, "containers.key_prefix_collection_only")
+}

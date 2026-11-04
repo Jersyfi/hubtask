@@ -13,15 +13,26 @@ import (
 	"unicode/utf8"
 )
 
-// Key is a ticket key: a collection's handle and an entry's number in it, "EINKAUF-42".
+// Key is a ticket key: the word that names an entry's collection and the entry's number in it,
+// "INC-42" or "EINKAUF-42".
 type Key struct {
+	// Prefix is the collection's key prefix ("INC"), empty where it has none; a key read off a
+	// message carries none, its word is in Handle.
+	Prefix string
+	// Handle is the collection's handle - or, in a key read off a message, the word the key
+	// starts with in lower case, which names a collection by its handle or its prefix.
 	Handle string
 	Number int64
 }
 
-// String is the key as people write it.
+// String is the key as people write it and every screen draws it (user-experience.md §5.6): the
+// prefix where the collection has one, the handle in capitals otherwise.
 func (k Key) String() string {
-	return strings.ToUpper(k.Handle) + "-" + strconv.FormatInt(k.Number, 10)
+	word := k.Prefix
+	if word == "" {
+		word = strings.ToUpper(k.Handle)
+	}
+	return word + "-" + strconv.FormatInt(k.Number, 10)
 }
 
 // Door is how a message reached the intake, which decides which address forms carry a route.
