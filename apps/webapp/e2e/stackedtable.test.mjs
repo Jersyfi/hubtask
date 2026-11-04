@@ -69,3 +69,36 @@ for (const [width, isPhone] of [[375, true], [1280, false]]) {
     }
   });
 }
+
+// The role × permission matrix is the widest table in the administration: on a phone one card per
+// role, never a matrix cut at its edge.
+test('chromium: 375 px — who may do what stacks one card per role', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 375, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', (route) => stub(route));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/people?tab=permissions`);
+  const table = page.locator('main table').first();
+  await table.locator('tbody tr').nth(1).waitFor({ timeout: 15_000 });
+
+  const shape = await table.evaluate((node) => {
+    const scroll = node.closest('[role="region"]');
+    const row = node.querySelector('tbody tr');
+    return {
+      sideways: scroll.scrollWidth - scroll.clientWidth,
+      pageSideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      headDrawn: node.querySelector('thead').getBoundingClientRect().height > 2,
+      rowDisplay: getComputedStyle(row).display,
+    };
+  });
+  assert.ok(shape.pageSideways <= 0, `the page scrolls sideways by ${shape.pageSideways}px`);
+  assert.ok(shape.sideways <= 0, `the matrix scrolls sideways by ${shape.sideways}px`);
+  assert.equal(shape.headDrawn, false, 'the column head is drawn above the cards');
+  assert.equal(shape.rowDisplay, 'flex');
+});

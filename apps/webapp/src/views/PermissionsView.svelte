@@ -210,6 +210,7 @@
       roles={rows}
       carriedLabel={t('app.permissions.yes')}
       notCarriedLabel={t('app.permissions.no')}
+      isStacked
     />
     <p class="quiet small">{t('app.access.families_note')}</p>
   {/if}
