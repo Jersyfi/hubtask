@@ -60,6 +60,11 @@ test('chromium: a stopped calendar push says why beside Connect again, and the c
 
   const writing = page.locator('[data-push="GOOGLE"]');
   await writing.getByText('Writing', { exact: true }).waitFor();
+  // UC-INT-16 check 3: each push names its provider, the account, whether it writes and when it
+  // last did.
+  await writing.getByText('Google Calendar', { exact: true }).waitFor();
+  await writing.getByText('ada@example.org', { exact: true }).waitFor();
+  await writing.getByText('Last written', { exact: false }).waitFor();
   assert.equal(await writing.getByRole('button', { name: 'Connect again' }).count(), 0, 'a push that writes offers no reconnection');
 
   const stopped = page.locator('[data-push="MICROSOFT"]');

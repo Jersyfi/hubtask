@@ -5,7 +5,7 @@ context: integration
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/integration/CalendarPush_test.go, core/application/service/calendarpush/CalendarPush_test.go, infrastructure/calendarpush/Calendar_test.go, test/integration/calendar_push_test.go, apps/webapp/src/lib/data/calendarpush.test.ts, apps/webapp/e2e/calendarpushes.test.mjs]
 ---

@@ -304,8 +304,9 @@ func TestTheOwnerConnectsTheirFeedThroughTheProvidersConsent(t *testing.T) {
 	}
 }
 
-// UC-INT-16 check 2 and 3: a run writes the feed's dated entries - the title, the moment and the
-// link - updates what changed, removes what the feed no longer serves and leaves the rest.
+// UC-INT-16 checks 2 and 3: a run writes the feed's dated entries - the title, the moment and the
+// link - updates what changed, removes what the feed no longer serves and leaves the rest, and
+// asks to run again a quarter hour later.
 func TestARunWritesTheFeedsChanges(t *testing.T) {
 	f := newFixture(false)
 	f.pushes.Addresses = base("https://hubtask.example")
@@ -317,7 +318,7 @@ func TestARunWritesTheFeedsChanges(t *testing.T) {
 		{ID: "e3", Title: "No date"},
 	}}
 	next, err := f.pushes.Run(context.Background(), tenant, id)
-	if err != nil || !next.Equal(now.Add(integration.PushInterval)) {
+	if err != nil || !next.Equal(now.Add(15*time.Minute)) {
 		t.Fatalf("next = %v, %v", next, err)
 	}
 	if len(f.calendar.puts) != 2 || len(f.store.events) != 2 {
