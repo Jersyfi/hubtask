@@ -622,6 +622,10 @@ LIMIT sqlc.arg('row_limit');
 -- trash batch. The archive stamp is here, because an entry that was put away below the copied one
 -- stays put away in the copy rather than being silently brought back.
 --
+-- The workspace's entry type and the status travel: the use case has already settled the status in
+-- the destination's workflow (DuplicateWorkItem.openStatus), and a copy without them would come
+-- back its level's system type, standing nowhere on a board by status.
+--
 -- The custom field document and its definition references arrive together and already resolved
 -- against the destination: which definition a value belongs to is decided where the losses are
 -- reported (I-W6), not here.
@@ -645,7 +649,7 @@ INSERT INTO work_item (
   bucket_id, order_key, assignee_id,
   start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
-  content_language, archived_at, created_by, created_at, updated_at, version
+  content_language, archived_at, entry_type, status, created_by, created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
@@ -656,7 +660,8 @@ INSERT INTO work_item (
   sqlc.narg('due_time_zone'),
   sqlc.narg('cover_kind'), sqlc.narg('cover_color_token'), sqlc.narg('cover_media_id'),
   sqlc.arg('custom_fields')::jsonb, sqlc.arg('custom_field_refs')::jsonb,
-  sqlc.narg('content_language'), sqlc.narg('archived_at'), sqlc.arg('created_by'),
+  sqlc.narg('content_language'), sqlc.narg('archived_at'), sqlc.narg('entry_type'),
+  sqlc.narg('status'), sqlc.arg('created_by'),
   sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 

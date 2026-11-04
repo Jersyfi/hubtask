@@ -1308,7 +1308,7 @@ INSERT INTO work_item (
   bucket_id, order_key, assignee_id,
   start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
-  content_language, archived_at, created_by, created_at, updated_at, version
+  content_language, archived_at, entry_type, status, created_by, created_at, updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
@@ -1320,7 +1320,8 @@ INSERT INTO work_item (
   $17, $18, $19,
   $20::jsonb, $21::jsonb,
   $22, $23, $24,
-  $25, $25, 1
+  $25, $26,
+  $27, $27, 1
 )
 `
 
@@ -1348,6 +1349,8 @@ type InsertWorkItemCopyParams struct {
 	CustomFieldRefs []byte
 	ContentLanguage *string
 	ArchivedAt      pgtype.Timestamptz
+	EntryType       *string
+	Status          *string
 	CreatedBy       pgtype.UUID
 	CreatedAt       pgtype.Timestamptz
 }
@@ -1365,6 +1368,10 @@ type InsertWorkItemCopyParams struct {
 // and would be a false record on an entry that person never touched, the deletion stamps, and the
 // trash batch. The archive stamp is here, because an entry that was put away below the copied one
 // stays put away in the copy rather than being silently brought back.
+//
+// The workspace's entry type and the status travel: the use case has already settled the status in
+// the destination's workflow (DuplicateWorkItem.openStatus), and a copy without them would come
+// back its level's system type, standing nowhere on a board by status.
 //
 // The custom field document and its definition references arrive together and already resolved
 // against the destination: which definition a value belongs to is decided where the losses are
@@ -1409,6 +1416,8 @@ func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopy
 		arg.CustomFieldRefs,
 		arg.ContentLanguage,
 		arg.ArchivedAt,
+		arg.EntryType,
+		arg.Status,
 		arg.CreatedBy,
 		arg.CreatedAt,
 	)

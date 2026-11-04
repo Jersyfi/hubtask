@@ -125,6 +125,15 @@ func TestACopyCarriesTheDescriptionAndNotTheCompletion(t *testing.T) {
 	// The state a copy does not take over: somebody completed the original, at a moment, and the
 	// copy was never completed by anybody.
 	original.Completion = work.Completion{IsCompleted: true, CompletedAt: &archivedAt, CompletedBy: authorA}
+	// The workspace's type and the status the use case settled travel too: a copy of a bug that
+	// came back a task, standing in no status, would leave every board by type or status.
+	if _, err := adminPool(ctx, t).Exec(ctx, `INSERT INTO entry_type (id, tenant_id, key, level, name, icon, color_token, created_at, updated_at) `+
+		`VALUES ('01936f2a-7c1e-7000-8000-00000000fe41', '`+tenantA.String()+`', 'cbug', 'TASK', `+
+		`'Bug', 'bug', 'red', now(), now()) ON CONFLICT (tenant_id, key) DO NOTHING`); err != nil {
+		t.Fatalf("seeding the entry type: %v", err)
+	}
+	original.EntryType = "cbug"
+	original.Status = "review"
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return itemRepo().InsertCopy(ctx, repository.Copy{
@@ -161,6 +170,9 @@ func TestACopyCarriesTheDescriptionAndNotTheCompletion(t *testing.T) {
 	}
 	if stored.Completion.IsCompleted || !stored.Completion.CompletedBy.IsZero() {
 		t.Errorf("the copy claims a completion nobody performed: %+v", stored.Completion)
+	}
+	if stored.EntryType != "cbug" || stored.Status != "review" {
+		t.Errorf("the copy stands as type %q in status %q, want cbug in review", stored.EntryType, stored.Status)
 	}
 	if stored.Version != 1 {
 		t.Errorf("the copy was born at version %d", stored.Version)

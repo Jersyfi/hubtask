@@ -1247,6 +1247,8 @@ func (r ItemRepository) InsertCopy(ctx context.Context, duplicate repository.Cop
 		CustomFields:    fields,
 		CustomFieldRefs: refs,
 		ContentLanguage: optionalText(item.ContentLanguage),
+		EntryType:       optionalText(item.EntryType),
+		Status:          optionalText(item.Status),
 		CreatedBy:       createdBy,
 		CreatedAt:       timestampOf(item.CreatedAt),
 	}
