@@ -480,7 +480,7 @@ func TestExplainAccessNamesWhomToAskAtAPlace(t *testing.T) {
 		t.Fatalf("about somebody else: %v %v", other.Administrators, err)
 	}
 	workspace, err := explain.Execute(t.Context(), admin(), shared.ID(""), domain.TenantScope(), "", "")
-	if err != nil || len(workspace.Administrators) != 0 {
+	if err != nil || len(workspace.Administrators) != 3 {
 		t.Fatalf("at the workspace: %v %v", workspace.Administrators, err)
 	}
 }

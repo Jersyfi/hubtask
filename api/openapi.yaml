@@ -28466,7 +28466,7 @@ components:
           description: >
             Up to three of the people who administer the place - its owners and administrators along
             its path, accounts that may act only - so a person who may not do something there is told whom
-            to ask. Only on a question about oneself at a hub or a collection.
+            to ask. Only on a question about oneself at the workspace, a hub or a collection.
           items:
             type: object
             required: [account_id, name]

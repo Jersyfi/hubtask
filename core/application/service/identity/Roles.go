@@ -830,7 +830,7 @@ type ExplainAccess struct {
 	// Agents names the person an agent's account acts for, so its entry decision is also asked of
 	// them (G2); nil explains every account by its own decision alone.
 	Agents AgentFinder
-	// Administration and Accounts name who administers a hub or a collection, on a question about
+	// Administration and Accounts name who administers the workspace, a hub or a collection, on a question about
 	// oneself (user-experience.md §5.5); nil names nobody.
 	Administration AdministratorReader
 	Accounts       AccountReader
@@ -932,13 +932,12 @@ func (h ExplainAccess) Execute(
 	return out, nil
 }
 
-// administrators names who administers a hub or a collection, owners and administrators along its
+// administrators names who administers the workspace, a hub or a collection, owners and administrators along its
 // path, active ones only, at most administratorsNamed - only to a person asking about themselves.
 func (h ExplainAccess) administrators(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope,
 ) ([]NamedAccount, error) {
-	if h.Administration == nil || h.Accounts == nil || accountID != actor.AccountID ||
-		(scope.Type != domain.ScopeHub && scope.Type != domain.ScopeCollection) {
+	if h.Administration == nil || h.Accounts == nil || accountID != actor.AccountID || scope.Type == domain.ScopeItem {
 		return nil, nil
 	}
 	path := pathTo(scope)
