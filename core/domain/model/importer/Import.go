@@ -8,7 +8,9 @@
 package importer
 
 import (
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	backup "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -55,6 +57,32 @@ func ParseKind(value string) (Kind, error) {
 		WithDetail(CodeKindUnknown).
 		WithParams(map[string]string{"value": value}).
 		WithFields(shared.FieldError{Path: "/kind", Code: CodeKindUnknown})
+}
+
+// MaxMappingEntries bounds a request's mapping: a table names a handful of fields, and the run
+// keeps the mapping whole.
+const MaxMappingEntries = 32
+
+// CheckMapping refuses a mapping the run cannot keep or no file can meet: more entries than any
+// table has fields, a name past 200 characters, or a zero byte, which the stored JSON cannot hold.
+func CheckMapping(mapping map[string]string) error {
+	refuse := func(field string) error {
+		return shared.ErrValidation.WithDetail(CodeMappingUnknown).
+			WithParams(map[string]string{"field": field}).
+			WithFields(shared.FieldError{Path: "/mapping", Code: CodeMappingUnknown})
+	}
+	if len(mapping) > MaxMappingEntries {
+		return refuse("")
+	}
+	for field, column := range mapping {
+		if strings.ContainsRune(field, 0) || strings.ContainsRune(column, 0) {
+			return refuse(strings.ReplaceAll(field, "\x00", ""))
+		}
+		if utf8.RuneCountInString(field) > 200 || utf8.RuneCountInString(column) > 200 {
+			return refuse("")
+		}
+	}
+	return nil
 }
 
 // Status is where the run stands.

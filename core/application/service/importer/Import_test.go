@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -315,6 +316,10 @@ func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 		"somebody else's":          {func() media.Object { o := readyObject(); o.CreatedBy = hubID; return o }(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, nil, domain.CodeMediaNotOwned},
 		"a wiki into a collection": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindWiki, HubID: hubID, CollectionID: runID}, nil, domain.CodeKindTakesNoCollection},
 		"forbidden":                {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID}, shared.ErrForbidden.WithDetail("access.forbidden"), "access.forbidden"},
+		// The run keeps its mapping as JSON, which holds no zero byte: refused here by name rather
+		// than answered as the database being away.
+		"a mapping with a zero byte": {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID, Mapping: map[string]string{"title": "Auf\x00gabe"}}, nil, domain.CodeMappingUnknown},
+		"a mapping of many columns":  {readyObject(), hub, importer.ImportCommand{MediaID: mediaID, Kind: domain.KindCSV, HubID: hubID, Mapping: manyColumns()}, nil, domain.CodeMappingUnknown},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -339,6 +344,14 @@ func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 	if _, err := h.Execute(context.Background(), actor(), importer.ImportCommand{MediaID: hubID, Kind: domain.KindCSV, HubID: hubID}); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("unknown file: %v", err)
 	}
+}
+
+func manyColumns() map[string]string {
+	mapping := map[string]string{}
+	for i := 0; i < 65; i++ {
+		mapping["field"+strconv.Itoa(i)] = "column"
+	}
+	return mapping
 }
 
 func TestTheDescriptorInvokesWithTheContractsFields(t *testing.T) {

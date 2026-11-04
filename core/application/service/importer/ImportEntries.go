@@ -134,6 +134,9 @@ func (h ImportEntries) Execute(
 		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeHubRequired).
 			WithFields(shared.FieldError{Path: "/hub_id", Code: domain.CodeHubRequired})
 	}
+	if err := domain.CheckMapping(cmd.Mapping); err != nil {
+		return Accepted{}, err
+	}
 	if cmd.Kind.LandsPages() && !cmd.CollectionID.IsZero() {
 		return Accepted{}, shared.ErrValidation.WithDetail(domain.CodeKindTakesNoCollection).
 			WithFields(shared.FieldError{Path: "/collection_id", Code: domain.CodeKindTakesNoCollection})
