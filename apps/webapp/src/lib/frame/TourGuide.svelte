@@ -31,9 +31,11 @@
   $effect(() => {
     const account = actor.account;
     if (!account || startedFor === account.id || tour.isOpen) return;
-    if (!startsAt(path) || !tour.shouldStart()) return;
+    // A tab loaded anew in the middle of the tour goes on where it was, whatever the screen.
+    const resumesAt = tour.resumesAt();
+    if ((resumesAt === undefined && !startsAt(path)) || !tour.shouldStart()) return;
     startedFor = account.id;
-    void tour.start();
+    void tour.start(resumesAt);
   });
 
   const step = $derived(tour.step);

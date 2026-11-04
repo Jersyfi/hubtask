@@ -74,13 +74,23 @@ class TourStore {
     return session()?.getItem(TOUR_SESSION_KEY) !== 'walked';
   }
 
-  /** Starts at the first step, reading what the workspace holds from the copy. */
-  async start(): Promise<void> {
+  /**
+   * The step this tab was at when the page was loaded anew - a newer release is loaded at the
+   * next navigation (api-guidelines.md §8), and the tour's own moves are navigations - or
+   * nothing where it was at none.
+   */
+  resumesAt(): number | undefined {
+    const at = /^at:(\d+)$/.exec(session()?.getItem(TOUR_SESSION_KEY) ?? '')?.[1];
+    return at === undefined ? undefined : Number(at);
+  }
+
+  /** Starts at the first step, or at `at`, reading what the workspace holds from the copy. */
+  async start(at = 0): Promise<void> {
     const workspace = await this.#workspace();
     // The jumble's step only for somebody the jumble is drawn for: a step pointing at a screen
     // that answers "nothing here" would be a tour of a refusal.
     this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.id });
-    await this.#go(0, 1);
+    await this.#go(Math.min(at, this.#steps.length - 1), 1);
   }
 
   /** The help menu: the field cleared, so the tour is the account's again, and started. */
@@ -170,6 +180,7 @@ class TourStore {
       if (walk !== this.#walk) return;
       if (element) {
         this.#target = element;
+        session()?.setItem(TOUR_SESSION_KEY, `at:${at}`);
         return;
       }
       at += direction;

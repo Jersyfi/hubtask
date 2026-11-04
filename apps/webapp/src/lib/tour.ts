@@ -90,5 +90,5 @@ export function startsAt(path: string): boolean {
   return path === '/';
 }
 
-/** The key under which this tab remembers that the tour was walked to its end or skipped. */
+/** The key under which this tab remembers the tour: `walked` to its end or skipped, or `at:<n>`, the step it stands at. */
 export const TOUR_SESSION_KEY = 'hubtask.tour';
