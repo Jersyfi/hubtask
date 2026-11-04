@@ -165,6 +165,46 @@ test('chromium: the desk without a desk offers its templates though hubs exist',
   assert.deepEqual(failures, []);
 });
 
+// §4: a product switched on at the workspace is on in its hubs at once, so the first visit is
+// decided by whether anything of it exists - an existing hub without a page still starts Pages.
+test('chromium: a product on in a hub that holds nothing of it offers its create act and its templates', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const HUB = '01a0e2e0-0000-7000-8000-0000000004f1';
+  const hub = { id: HUB, type: 'HUB', parent_id: null, name: 'Allgemein', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const on = ['WORKFLOWS', 'KNOWLEDGE'];
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: on } });
+    if (path === `/containers/${HUB}/modules`) return route.fulfill({ json: { modules_on: on } });
+    if (path === '/sync:snapshot') {
+      const records = [JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB, container_id: null, payload: hub })];
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
+    }
+    if (path === '/containers' && route.request().method() === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [] } });
+    if (path === `/hubs/${HUB}/pages`) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [KANBAN, SCRUM] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/pages`);
+  await page.getByText('Nothing in Pages yet').waitFor({ timeout: 15_000 });
+  const main = page.locator('#main');
+  await main.getByRole('button', { name: 'Scrum team', exact: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await main.getByRole('button', { name: 'New page', exact: true }).count(), 1, 'the create act is not offered once');
+  assert.deepEqual(failures, []);
+});
+
 // §5.2: a hub takes its part once the workspace took the template's own. Whoever may change the
 // workspace is shown the workspace's part first in the same dialog, then the hub's - no refusal.
 test('chromium: a template the workspace has not taken is planned for the workspace first, then for the hub', async (t) => {

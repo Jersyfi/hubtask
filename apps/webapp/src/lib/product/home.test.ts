@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { createOf, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
+import { createOf, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -134,4 +134,13 @@ test('the pages, whiteboards and assets homes each carry their create act', () =
     assert.ok(create.code in SOURCE && create.inCode in SOURCE, `${module}: ${create.code}, ${create.inCode}`);
   }
   assert.equal(createOf('TIME'), undefined, 'time records on its own page');
+});
+
+// §4: the first visit is decided by whether anything of the product exists yet, not by whether a
+// hub has it on - switching a product on at the workspace reaches every hub at once.
+test('a product is unused until one of its hubs holds something of it', () => {
+  assert.equal(isUnused({}, []), true, 'no hub with the product holds nothing of it');
+  assert.equal(isUnused({ a: 0 }, ['a', 'b']), undefined, 'a hub still being read decides nothing yet');
+  assert.equal(isUnused({ a: 0, b: 0 }, ['a', 'b']), true);
+  assert.equal(isUnused({ a: 0, b: 2 }, ['a', 'b']), false);
 });

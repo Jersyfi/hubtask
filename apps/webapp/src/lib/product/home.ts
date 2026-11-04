@@ -92,6 +92,16 @@ export function createOf(module: string): { readonly code: string; readonly inCo
 }
 
 /**
+ * Whether nothing of a product exists yet in the hubs where it is on (user-experience.md §4): the
+ * first visit, which offers the product's create act and templates. `counts` holds how many of
+ * the product's objects each hub answered; `undefined` while a hub's read is out.
+ */
+export function isUnused(counts: Readonly<Record<string, number>>, hubIds: readonly string[]): boolean | undefined {
+  if (!hubIds.every((hubId) => counts[hubId] !== undefined)) return undefined;
+  return hubIds.every((hubId) => counts[hubId] === 0);
+}
+
+/**
  * *More in Hubtask* (user-experience.md §3.3): the products switched off, each with what it does,
  * in the products band's order. Offered only to a holder of `STRUCTURE` on the workspace, who can
  * switch one on; nobody else is shown a product they cannot have.

@@ -22,7 +22,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createOf, homeTabs, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { createOf, homeTabs, isUnused, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
@@ -139,7 +139,20 @@
   let catalogue = $state<readonly ConfigTemplate[]>([]);
   // The desk offers them while it has no desk, though hubs exist: a request type of the workspace
   // makes none (UC-SVC-05), and a service template's hub does.
-  const isFirstVisit = $derived(mayCreateHub && !isReading && (hubsWith.length === 0 || module === 'SERVICE_DESK'));
+  // A product switched on at the workspace is on in every hub at once, so the first visit is
+  // decided by whether anything of it exists yet - where the home's reads answer that whole.
+  const objectCounts = $derived.by((): Record<string, number> | undefined => {
+    const count = <T,>(at: Record<string, T>, of: (data: T) => number) =>
+      Object.fromEntries(Object.entries(at).map(([hubId, data]) => [hubId, of(data)]));
+    if (module === 'KNOWLEDGE') return count(pagesAt, (data) => data.length);
+    if (module === 'WHITEBOARD') return count(boardsAt, (data) => data.length);
+    if (module === 'ASSETS') return count(healthAt, (data) => data.total);
+    return undefined;
+  });
+  const isUnusedHere = $derived(
+    !isReading && hubsWith.length > 0 && objectCounts !== undefined && isUnused(objectCounts, hubsWith.map((hub) => hub.id)) === true,
+  );
+  const isFirstVisit = $derived(mayCreateHub && !isReading && (hubsWith.length === 0 || module === 'SERVICE_DESK' || isUnusedHere));
   $effect(() => {
     if (!isFirstVisit) return;
     return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
@@ -172,6 +185,8 @@
         : undefined,
     };
   });
+  /** The first use's create act on the empty answer, where the head would otherwise carry it. */
+  const firstCreate = $derived(primary ? { label: primary.label, onclick: primary.onclick } : undefined);
   /** A hub made from a template opens on its *Products* section with that template's plan. */
   function created(id: string, template?: string): void {
     startingFrom = undefined;
@@ -187,7 +202,7 @@
     title={name}
     subtitle={t(`app.modules.hint_${module.toLowerCase()}`)}
     isTitleInBar={viewport.isCompact}
-    {primary}
+    primary={isUnusedHere ? undefined : primary}
     breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },
@@ -207,7 +222,17 @@
   {:else if currentTab === 'settings' && module === 'ASSETS'}
     {#if reachesAdministrationArea() === true}<CmdbView isEmbedded />{/if}
   {:else}
-    {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0}
+    {#if isUnusedHere}
+      <ProductEmpty
+        kind="unused"
+        icon={row?.icon ?? 'hub'}
+        title={t('app.product_home.unused', { product: name })}
+        description={t(starts.length > 0 ? 'app.product_home.unused_body_templates' : 'app.product_home.unused_body')}
+        create={firstCreate}
+        templates={starts}
+      />
+    {/if}
+    {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0 && !isUnusedHere}
       <section aria-labelledby="product-inventory" aria-busy={!inventory.isWhole}>
         <Stack gap="100">
           <h2 class="heading" id="product-inventory">{t('app.product_home.inventory')}</h2>
