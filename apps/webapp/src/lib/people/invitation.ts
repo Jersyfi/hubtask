@@ -23,3 +23,41 @@ export function handedOverLink(answer: { readonly invitation_link?: string | nul
   const link = answer?.invitation_link;
   return typeof link === 'string' && link !== '' ? link : undefined;
 }
+
+/** A choice of the invitation's role that names one of the workspace's own roles, not a shipped one. */
+const CUSTOM = 'custom:';
+/** A choice of the invitation's place that names a collection; a hub's is its bare id. */
+const COLLECTION = 'collection:';
+
+export interface InvitePlace {
+  readonly scopeType: 'TENANT' | 'HUB' | 'COLLECTION';
+  readonly scopeId?: string;
+}
+
+/**
+ * The roles an invitation offers at its place: the shipped ones the reader may give there, then -
+ * where the reader may give any - the workspace's own (a requester role holding `REQUEST` alone,
+ * say), by their names, as the role-grant screens offer them. The server still decides the grant.
+ */
+export function inviteRoleChoices(
+  shipped: readonly { readonly value: string; readonly label: string }[],
+  custom: readonly { readonly key: string; readonly name: string }[] | undefined,
+): readonly { readonly value: string; readonly label: string }[] {
+  if (shipped.length === 0) return [];
+  return [...shipped, ...(custom ?? []).map((role) => ({ value: `${CUSTOM}${role.key}`, label: role.name }))];
+}
+
+/** The workspace role's key a choice names, or `undefined` for a shipped role. */
+export function customRoleOf(choice: string): string | undefined {
+  return choice.startsWith(CUSTOM) ? choice.slice(CUSTOM.length) : undefined;
+}
+
+/** A collection's choice of place, under its hub's name. */
+export const collectionChoice = (id: string): string => `${COLLECTION}${id}`;
+
+/** The place a choice names: the workspace for none, a collection by its prefix, else a hub. */
+export function invitePlaceOf(choice: string): InvitePlace {
+  if (choice === '') return { scopeType: 'TENANT' };
+  if (choice.startsWith(COLLECTION)) return { scopeType: 'COLLECTION', scopeId: choice.slice(COLLECTION.length) };
+  return { scopeType: 'HUB', scopeId: choice };
+}

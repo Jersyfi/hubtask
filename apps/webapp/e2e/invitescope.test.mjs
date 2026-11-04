@@ -52,6 +52,14 @@ async function open(browser, sent) {
       sent.grants.push(request.postDataJSON());
       return route.fulfill({ status: 201, json: { id: 'm-new', ...request.postDataJSON() } });
     }
+    if (path === '/roles' && request.method() === 'GET') {
+      return route.fulfill({ json: { catalogue: [], shipped: [], custom: [{ id: 'r1', key: 'requester', name: 'Requester', permissions: ['REQUEST'], version: 1, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' }], grants: [] } });
+    }
+    if (path === '/role-grants' && request.method() === 'POST') {
+      sent.roleGrants.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: { id: 'g-new', ...request.postDataJSON() } });
+    }
+    if (path === `/containers` && url.searchParams.get('parent_id') === HUB.id) return route.fulfill({ json: { ...PAGE, data: [DESK] } });
     if (path === '/accounts:invite') {
       sent.invites.push(request.postDataJSON());
       return route.fulfill({ status: 201, json: { id: NEWCOMER, kind: 'USER', display_name: 'anna', email: 'anna@example.invalid', status: 'INVITED' } });
@@ -68,6 +76,8 @@ async function open(browser, sent) {
   return { page, failures, close: () => context.close() };
 }
 
+const DESK = { id: '01a0e2e0-0000-7000-8000-0000000000e4', type: 'COLLECTION', parent_id: HUB.id, name: 'Requests', order_key: 'a0', version: 1 };
+
 async function settle(sent, count) {
   for (let waited = 0; sent.grants.length < count && waited < 50; waited++) await new Promise((done) => setTimeout(done, 100));
 }
@@ -75,7 +85,7 @@ async function settle(sent, count) {
 test('chromium: People invites somebody with a role on one hub, not on the workspace', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const sent = { invites: [], grants: [] };
+  const sent = { invites: [], grants: [], roleGrants: [] };
   const { page, failures, close } = await open(browser, sent);
   t.after(close);
 
@@ -99,7 +109,7 @@ test('chromium: People invites somebody with a role on one hub, not on the works
 test('chromium: an entry’s Share invites somebody to that entry alone, and offers a person from another hub', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const sent = { invites: [], grants: [] };
+  const sent = { invites: [], grants: [], roleGrants: [] };
   const { page, failures, close } = await open(browser, sent);
   t.after(close);
 
@@ -124,5 +134,29 @@ test('chromium: an entry’s Share invites somebody to that entry alone, and off
     { scope_type: sent.grants[0]?.scope_type, scope_id: sent.grants[0]?.scope_id, role: sent.grants[0]?.role },
     { scope_type: 'ITEM', scope_id: ITEMS[2].id, role: 'GUEST' },
   );
+  assert.deepEqual(failures, []);
+});
+
+// UC-SVC-05: an outside requester is invited with the workspace's requester role at the desk's
+// collection alone - not with a shipped role on the whole hub first.
+test('chromium: People invites a requester with the workspace\'s own role at one collection', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const sent = { invites: [], grants: [], roleGrants: [] };
+  const { page, failures, close } = await open(browser, sent);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/people`);
+  await addPeople(page);
+  const form = page.locator('form').filter({ has: page.getByLabel('Email address') });
+  await form.getByLabel('Email address').fill('anna@example.invalid');
+  await form.getByLabel('Where').selectOption({ label: `${HUB.name} › ${DESK.name}` });
+  await form.getByLabel('Role').selectOption({ label: 'Requester' });
+  await form.getByRole('button', { name: 'Send the invitation' }).click();
+  for (let waited = 0; sent.roleGrants.length < 1 && waited < 50; waited++) await new Promise((done) => setTimeout(done, 100));
+
+  assert.equal(sent.invites.length, 1);
+  assert.deepEqual(sent.grants, [], 'a shipped role was given as well');
+  assert.deepEqual(sent.roleGrants[0], { role: 'requester', scope_type: 'COLLECTION', scope_id: DESK.id, account_id: NEWCOMER });
   assert.deepEqual(failures, []);
 });

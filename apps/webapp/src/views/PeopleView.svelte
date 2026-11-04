@@ -50,7 +50,8 @@
   import StartPasswordResult from '../lib/people/StartPasswordResult.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
-  import { inviteWay } from '../lib/people/invitation.ts';
+  import { collectionChoice, invitePlaceOf, inviteRoleChoices, inviteWay } from '../lib/people/invitation.ts';
+  import { roles as workspaceRoles } from '../lib/data/roles.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -145,9 +146,9 @@
   let inviteName = $state('');
   let inviteRole = $state('');
   /**
-   * Where the invited person is given their role: the whole workspace, or one hub (UC-WRK-21 check
-   * 5, UC-ID-15) - a child or a guest limited to one hub from the start rather than given the
-   * workspace first. A collection or a single entry is chosen from that place's own *People*.
+   * Where the invited person is given their role: the whole workspace, one hub or one collection
+   * (UC-WRK-21 check 5, UC-ID-15) - a child, a guest or a requester limited to it from the start
+   * rather than given more first. A single entry is chosen from that entry's own *People*.
    */
   let inviteWhere = $state(WORKSPACE_PLACE);
   let invited = $state<string | undefined>(undefined);
@@ -265,25 +266,45 @@
    * that place's path (domain-model.md §3.2), so a hub's answer is read when the hub is chosen and
    * nothing is offered until it arrives.
    */
-  const invitePlace = $derived(inviteWhere === WORKSPACE_PLACE ? TENANT : { scopeType: 'HUB' as const, scopeId: inviteWhere });
+  const invitePlace = $derived(inviteWhere === WORKSPACE_PLACE ? TENANT : invitePlaceOf(inviteWhere));
   $effect(() => {
     const place = invitePlace;
-    if (place.scopeType === 'HUB') untrack(() => people.openScope(place));
+    if (place.scopeType !== 'TENANT') untrack(() => people.openScope(place));
   });
+  // The workspace's own roles beside the shipped ones, as the role-grant screens offer them: a
+  // requester is invited with a role holding Raise requests at the desk alone (UC-SVC-05).
+  $effect(() => untrack(() => workspaceRoles.open()));
   const inviteRoleOptions = $derived(
-    grantableOf(roles, people.grantableAt(invitePlace)).map((role) => ({
-      value: role,
-      label: t(`app.people.role.${role.toLowerCase()}`),
-    })),
+    inviteRoleChoices(
+      grantableOf(roles, people.grantableAt(invitePlace)).map((role) => ({
+        value: role,
+        label: t(`app.people.role.${role.toLowerCase()}`),
+      })),
+      workspaceRoles.catalogue?.custom,
+    ),
   );
   // A role chosen for one place is not carried to a place that does not offer it.
   $effect(() => {
     if (inviteRole && !inviteRoleOptions.some((option) => option.value === inviteRole)) inviteRole = '';
   });
   $effect(() => untrack(() => containers.start()));
+  // Each hub's collections too, under the hub's name: a desk's requester is placed at the desk.
+  $effect(() => {
+    const ids = containers.hubs.map((hub) => hub.id);
+    return untrack(() => {
+      const stops = ids.map((id) => containers.openLevel(id));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
   const inviteWhereOptions = $derived([
     { value: WORKSPACE_PLACE, label: t('app.people.managed_where_workspace') },
-    ...containers.hubs.map((hub) => ({ value: hub.id, label: hub.name })),
+    ...containers.hubs.flatMap((hub) => [
+      { value: hub.id, label: hub.name },
+      ...containers.collectionsOf(hub.id).map((collection) => ({
+        value: collectionChoice(collection.id),
+        label: t('app.people.invite_where_collection', { hub: hub.name, collection: collection.name }),
+      })),
+    ]),
   ]);
 
   /** Who could be granted something: the people this workspace already knows about. */
@@ -376,7 +397,7 @@
     isWriting = true;
     let answer: Awaited<ReturnType<typeof people.invite>>;
     try {
-      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, invitePlace);
+      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole, invitePlace);
     } catch (error) {
       // Nothing went out: the address stays to be corrected, the sentence is at its field, the
       // reader is taken there, and it is said once.

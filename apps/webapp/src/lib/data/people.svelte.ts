@@ -22,7 +22,8 @@ import { accounts } from './accounts.svelte.ts';
 import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
-import { handedOverLink } from '../people/invitation.ts';
+import { customRoleOf, handedOverLink } from '../people/invitation.ts';
+import { roles } from './roles.svelte.ts';
 import { candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, readWhole, scopeAnswer, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
@@ -199,7 +200,7 @@ class People {
   async invite(
     email: string,
     displayName: string | undefined,
-    role: MembershipRole,
+    role: string,
     scope: Scope,
   ): Promise<{ readonly link?: string; readonly grantFailure?: unknown }> {
     const intent = crypto.randomUUID();
@@ -212,7 +213,14 @@ class People {
     const link = handedOverLink(answer);
     try {
       if (!answer?.id) throw new Error('the invitation answered no account');
-      await this.grant({ accountId: answer.id }, role, scope);
+      // A role of the workspace's own is a role grant, not a membership (domain-model.md §3.2).
+      const custom = customRoleOf(role);
+      if (custom === undefined) await this.grant({ accountId: answer.id }, role as MembershipRole, scope);
+      else if (scope.scopeType === 'ITEM') throw new Error('a role of the workspace is not granted on an entry here');
+      else {
+        await roles.grant({ role: custom, scope_type: scope.scopeType, ...(scope.scopeId ? { scope_id: scope.scopeId } : {}), account_id: answer.id });
+        await this.#reread(scope);
+      }
     } catch (grantFailure) {
       return link === undefined ? { grantFailure } : { link, grantFailure };
     }
