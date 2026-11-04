@@ -119,6 +119,31 @@ func TestTimeStaysInItsWorkspace(t *testing.T) {
 	}); !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("the other workspace removed the record: %v", err)
 	}
+	correction := timekeeping.Record{
+		ID: freshID(t), AccountID: authorA, EntryID: tasks[0], WorkType: "development", Day: day + 7,
+		Minutes: -30, Source: timekeeping.SourceCorrection, Corrects: record.ID, CreatedAt: now, UpdatedAt: now, Version: 1,
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.InsertRecord(ctx, correction); err != nil {
+			return err
+		}
+		corrected, err := store.CorrectedMinutes(ctx, authorA, record.ID)
+		if err == nil && corrected != -30 {
+			t.Errorf("corrected = %d", corrected)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		corrected, err := store.CorrectedMinutes(ctx, authorA, record.ID)
+		if err == nil && corrected != 0 {
+			t.Errorf("the other workspace sums the corrections: %d", corrected)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // The walk's time stays in its workspace and with its person (offline-sync.md §3.1): another

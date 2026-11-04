@@ -102,6 +102,17 @@ func (r Record) Check() error {
 	return CheckNote(r.Note)
 }
 
+// CheckCorrection holds a correction to what its record still holds: the record's minutes and
+// those of its corrections so far never fall below zero.
+func CheckCorrection(target Record, corrected, minutes int) error {
+	if target.Minutes+corrected+minutes < 0 {
+		return shared.ErrValidation.WithDetail("time.correction_below_zero").
+			WithParams(map[string]string{"remaining": strconv.Itoa(target.Minutes + corrected)}).
+			WithFields(shared.FieldError{Path: "/minutes", Code: "time.correction_below_zero"})
+	}
+	return nil
+}
+
 // CheckNote holds a note to its length, free of control characters other than a line break.
 func CheckNote(note string) error {
 	if utf8.RuneCountInString(note) > MaxNoteLength {

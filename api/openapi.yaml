@@ -2453,7 +2453,8 @@ paths:
       description: >
         A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of
         the caller's approved records, or one in the locked period; the approved record never changes.
-        A record that can still be changed answers `time.correction_not_needed`.
+        A record that can still be changed answers `time.correction_not_needed`; a correction taking
+        away more than the record and its corrections still hold answers `time.correction_below_zero`.
       requestBody:
         required: true
         content:

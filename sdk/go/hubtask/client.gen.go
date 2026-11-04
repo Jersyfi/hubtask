@@ -40667,7 +40667,7 @@ type ClientInterface interface {
 
 	// CorrectTimeRecordWithBody Correct an approved record
 	//
-	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40676,7 +40676,7 @@ type ClientInterface interface {
 
 	// CorrectTimeRecord Correct an approved record
 	//
-	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -63011,7 +63011,7 @@ func (c *Client) UpdateTimeRecord(ctx context.Context, recordId TimeRecordId, pa
 
 // CorrectTimeRecordWithBody Correct an approved record
 //
-// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63030,7 +63030,7 @@ func (c *Client) CorrectTimeRecordWithBody(ctx context.Context, recordId TimeRec
 
 // CorrectTimeRecord Correct an approved record
 //
-// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -114758,7 +114758,7 @@ type ClientWithResponsesInterface interface {
 
 	// CorrectTimeRecordWithBodyWithResponse Correct an approved record
 	//
-	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -114767,7 +114767,7 @@ type ClientWithResponsesInterface interface {
 
 	// CorrectTimeRecordWithResponse Correct an approved record
 	//
-	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+	// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -173757,7 +173757,7 @@ func (c *ClientWithResponses) UpdateTimeRecordWithResponse(ctx context.Context, 
 
 // CorrectTimeRecordWithBodyWithResponse Correct an approved record
 //
-// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -173772,7 +173772,7 @@ func (c *ClientWithResponses) CorrectTimeRecordWithBodyWithResponse(ctx context.
 
 // CorrectTimeRecordWithResponse Correct an approved record
 //
-// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`.
+// A new record of signed minutes (-1440 to 1440, not 0) on a day of an open week corrects one of the caller's approved records, or one in the locked period; the approved record never changes. A record that can still be changed answers `time.correction_not_needed`; a correction taking away more than the record and its corrections still hold answers `time.correction_below_zero`.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

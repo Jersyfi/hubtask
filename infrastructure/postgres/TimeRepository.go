@@ -352,6 +352,27 @@ func (TimeRepository) MinutesOn(ctx context.Context, entries []shared.ID) (map[s
 	return out, nil
 }
 
+// CorrectedMinutes answers what a person's corrections of a record add up to.
+func (TimeRepository) CorrectedMinutes(ctx context.Context, account, record shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	who, err := uuidOf(account)
+	if err != nil {
+		return 0, err
+	}
+	target, err := uuidOf(record)
+	if err != nil {
+		return 0, err
+	}
+	minutes, err := queries.SumTimeCorrections(ctx, sqlc.SumTimeCorrectionsParams{AccountID: who, Corrects: target})
+	if err != nil {
+		return 0, timeError(err, "summing a record's corrections")
+	}
+	return int(minutes), nil
+}
+
 // WeekMinutes answers a person's minutes in a range of days.
 func (TimeRepository) WeekMinutes(ctx context.Context, account shared.ID, from, to domain.Day) (int, error) {
 	queries, err := queriesFrom(ctx)

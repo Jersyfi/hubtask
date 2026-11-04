@@ -54,6 +54,8 @@ type Store interface {
 	Lines(ctx context.Context, f Filter, limit int) ([]domain.Line, error)
 	// MinutesOn answers everybody's recorded minutes on each entry.
 	MinutesOn(ctx context.Context, entries []shared.ID) (map[shared.ID]int, error)
+	// CorrectedMinutes answers what a person's corrections of a record add up to, signed.
+	CorrectedMinutes(ctx context.Context, account, record shared.ID) (int, error)
 	// WeekMinutes answers a person's minutes in a range of days.
 	WeekMinutes(ctx context.Context, account shared.ID, from, to domain.Day) (int, error)
 

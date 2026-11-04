@@ -11662,6 +11662,7 @@
   "time.rate_role_invalid": "A role is a built-in role such as MEMBER or a custom role's key.",
   "time.aggregated_only": "This workspace shows other people's time only as sums for a team.",
   "time.correction_not_needed": "This record can still be changed directly; a correction is for approved or locked time.",
+  "time.correction_below_zero": "A correction takes away at most the {remaining} minutes the record still holds.",
   "time.correction_of_correction": "A correction is not corrected again. Correct the original record.",
   "time.correction_target_required": "A correction names the record it corrects.",
   "time.day_invalid": "A day is a date such as 2026-11-02.",

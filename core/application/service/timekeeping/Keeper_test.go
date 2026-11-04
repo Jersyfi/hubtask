@@ -264,6 +264,15 @@ func (s *store) MinutesOn(_ context.Context, list []shared.ID) (map[shared.ID]in
 	}
 	return out, nil
 }
+func (s *store) CorrectedMinutes(_ context.Context, a, target shared.ID) (int, error) {
+	total := 0
+	for _, r := range s.records {
+		if r.AccountID == a && r.Corrects == target {
+			total += r.Minutes
+		}
+	}
+	return total, nil
+}
 func (s *store) WeekMinutes(_ context.Context, a shared.ID, from, to domain.Day) (int, error) {
 	total := 0
 	for _, p := range s.placed(timerepo.Filter{From: from, To: to, AccountID: a}) {
@@ -586,6 +595,10 @@ func TestAnApproverDecidesTheWeek(t *testing.T) {
 	}
 	if f.store.records[r.ID].Minutes != 240 {
 		t.Fatal("the approved record changed")
+	}
+	// A correction takes away at most what the record and its corrections still hold: 240 - 30.
+	if _, err := (CorrectTimeRecord{Keeper: f.keeper}).Execute(ctx, as(ana), r.ID, -211, day(t, "2026-11-09"), ""); detail(err) != "time.correction_below_zero" {
+		t.Fatalf("a correction took away more than was recorded: %v", err)
 	}
 	open := f.log(t, ana, checkout, "2026-11-10", 15)
 	if _, err := (CorrectTimeRecord{Keeper: f.keeper}).Execute(ctx, as(ana), open.ID, 5, day(t, "2026-11-10"), ""); detail(err) != "time.correction_not_needed" {

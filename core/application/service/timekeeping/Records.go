@@ -413,6 +413,14 @@ func (h CorrectTimeRecord) Execute(
 		if state != domain.SheetApproved && !policy.Locked(target.Day) {
 			return shared.ErrConflict.WithDetail("time.correction_not_needed")
 		}
+		// Read under the target week's hold, so two corrections at once do not both take the rest.
+		corrected, err := h.Keeper.Store.CorrectedMinutes(ctx, actor.AccountID, target.ID)
+		if err != nil {
+			return err
+		}
+		if err := domain.CheckCorrection(target, corrected, minutes); err != nil {
+			return err
+		}
 		if err := h.Keeper.mayWrite(ctx, policy, actor.AccountID, day); err != nil {
 			return err
 		}
@@ -434,7 +442,8 @@ func (h CorrectTimeRecord) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: CorrectTimeRecordName,
 		Summary: "Corrects one of the caller's approved records, or one in the locked period, by a new record of " +
-			"signed minutes (-1440 to 1440, not 0) on a day of an open week; the approved record never changes.",
+			"signed minutes (-1440 to 1440, not 0) on a day of an open week; the approved record never changes. " +
+			"It takes away at most what the record and its corrections still hold (time.correction_below_zero).",
 		SideEffects: "Writes the correction and an audit entry without its note.",
 		TokenScope:  itemsWrite,
 		Input: []usecase.Field{

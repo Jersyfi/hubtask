@@ -11662,6 +11662,7 @@
   "time.rate_role_invalid": "Eine Rolle ist eine eingebaute Rolle wie MEMBER oder der Schlüssel einer eigenen Rolle.",
   "time.aggregated_only": "Dieser Arbeitsbereich zeigt die Zeiten anderer nur als Summen eines Teams.",
   "time.correction_not_needed": "Dieser Eintrag lässt sich noch direkt ändern; eine Korrektur ist für freigegebene oder gesperrte Zeiten.",
+  "time.correction_below_zero": "Eine Korrektur nimmt höchstens die {remaining} Minuten weg, die der Eintrag noch hat.",
   "time.correction_of_correction": "Eine Korrektur wird nicht erneut korrigiert. Korrigiere den ursprünglichen Eintrag.",
   "time.correction_target_required": "Eine Korrektur nennt den Eintrag, den sie korrigiert.",
   "time.day_invalid": "Ein Tag ist ein Datum wie 2026-11-02.",

@@ -561,6 +561,26 @@ func (q *Queries) LockTimesheetWeek(ctx context.Context, arg LockTimesheetWeekPa
 	return err
 }
 
+const sumTimeCorrections = `-- name: SumTimeCorrections :one
+SELECT coalesce(sum(minutes), 0)::bigint AS minutes
+FROM time_record
+WHERE tenant_id = current_tenant_id() AND account_id = $1::uuid
+  AND corrects = $2::uuid
+`
+
+type SumTimeCorrectionsParams struct {
+	AccountID pgtype.UUID
+	Corrects  pgtype.UUID
+}
+
+// The minutes a person's corrections of one record add up to, signed.
+func (q *Queries) SumTimeCorrections(ctx context.Context, arg SumTimeCorrectionsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumTimeCorrections, arg.AccountID, arg.Corrects)
+	var minutes int64
+	err := row.Scan(&minutes)
+	return minutes, err
+}
+
 const sumTimeLines = `-- name: SumTimeLines :many
 SELECT r.account_id, r.entry_id, wi.collection_id, c.parent_id AS hub_id, r.work_type, r.day,
   r.billable, sum(r.minutes)::bigint AS minutes, count(*)::bigint AS records

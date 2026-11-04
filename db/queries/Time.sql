@@ -87,6 +87,13 @@ FROM time_record
 WHERE tenant_id = current_tenant_id() AND entry_id = ANY(sqlc.arg('entry_ids')::uuid[])
 GROUP BY entry_id;
 
+-- name: SumTimeCorrections :one
+-- The minutes a person's corrections of one record add up to, signed.
+SELECT coalesce(sum(minutes), 0)::bigint AS minutes
+FROM time_record
+WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::uuid
+  AND corrects = sqlc.arg('corrects')::uuid;
+
 -- name: SumTimeOfWeek :one
 SELECT coalesce(sum(minutes), 0)::bigint AS minutes
 FROM time_record
