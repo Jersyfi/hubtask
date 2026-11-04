@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { productTemplates } from './templates.ts';
+import { afterTaking, productTemplates } from './templates.ts';
 
 const of = (key: string, modules: Record<string, string>, origin = 'HUBTASK', hub = true) => ({
   key,
@@ -32,4 +32,16 @@ test('a product offers the templates that switch its module on, Hubtask\'s first
 
 test('the workflows every template switches on is no product of its own here', () => {
   assert.deepEqual(productTemplates([of('kanban_team', { workflows: 'ON' })], 'WORKFLOWS'), []);
+});
+
+// user-experience.md §3.2: after a template is taken, the app opens the home of its main product
+// - the desk for a service template, the hub's screen of it where a hub took it.
+test('a taken template opens its main product\'s home', () => {
+  const template = (modules: Record<string, string>) =>
+    ({ key: 'k', origin: 'HUBTASK', document: { modules: Object.fromEntries(Object.entries(modules).map(([key, value]) => [key, { switch: value }])) } });
+  assert.equal(afterTaking(template({ workflows: 'ON', service_desk: 'ON', knowledge: 'ON' })), '/desk');
+  assert.equal(afterTaking(template({ workflows: 'ON', service_desk: 'ON', knowledge: 'ON' }), 'h-1'), '/hubs/h-1/desk');
+  assert.equal(afterTaking(template({ workflows: 'ON', planning: 'ON' })), '/plans');
+  assert.equal(afterTaking(template({ workflows: 'ON' })), undefined, 'no product of its own: the page stays');
+  assert.equal(afterTaking(template({ service_desk: 'OFF' })), undefined);
 });

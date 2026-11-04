@@ -1245,7 +1245,7 @@
         {#snippet modulesTab()}
           <LazyView load={settingsParts.ModuleSwitches} props={{ hubId: container.id }} />
           <LazyView load={settingsParts.SampleEntries} props={{ hubId: container.id }} />
-          <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id, preselect: template }} />
+          <LazyView load={settingsParts.TemplatesGallery} props={{ hubId: container.id, preselect: template, onnavigate }} />
         {/snippet}
         {#snippet calendarsTab()}
           <LazyView load={settingsParts.HubCalendars} props={{ hubId: container.id, mayShape }} />

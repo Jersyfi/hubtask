@@ -23,6 +23,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import PlanReach from './PlanReach.svelte';
+  import { afterTaking } from '../product/templates.ts';
 
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
@@ -31,9 +32,11 @@
     collectionId?: string;
     /** A template to open the plan of at once, as a product's first visit chose it (§4). */
     preselect?: string;
+    /** Where a taken template's main product home is opened (§3.2); without it the page stays. */
+    onnavigate?: (path: string) => void;
   }
 
-  const { hubId, collectionId, preselect }: Props = $props();
+  const { hubId, collectionId, preselect, onnavigate }: Props = $props();
   /** Which gallery this is: its heading, its words and what it says when it offers nothing. */
   const scope = $derived(galleryScope(hubId, collectionId));
 
@@ -141,8 +144,12 @@
     dialogFailure = undefined;
     try {
       await config.applyTemplate(plan, acknowledged);
-      toast.show({ text: t('app.templates.taken', { name: nameOf(chosen), version: chosen.version }), tone: 'success' });
+      toast.show({ text: t('app.templates.taken', { name: nameOf(chosen) }), tone: 'success' });
       isOpen = false;
+      // A collection's own part leaves the reader where they are; a hub's or the workspace's
+      // opens the product the template is for.
+      const next = collectionId ? undefined : afterTaking(chosen, hubId);
+      if (next) onnavigate?.(next);
     } catch (error) {
       dialogFailure = renderProblem(error as never, messages).message;
     } finally {
@@ -181,7 +188,7 @@
 
   function changeText(change: ConfigTemplatePlan['changes'][number]): string {
     const words = changeWords(change);
-    return t(words.code, { section: t(words.section), key: change.key });
+    return t(words.code, { section: t(words.section), key: words.module ? t(words.module) : words.key });
   }
 
   const counts = (each: { added: number; changed: number; removed: number }) =>
@@ -230,7 +237,7 @@
 </section>
 
 {#if plan && chosen}
-  <Dialog bind:isOpen title={t('app.templates.plan_title', { name: nameOf(chosen), version: chosen.version })} dismissLabel={t('app.changes.cancel')}>
+  <Dialog bind:isOpen title={nameOf(chosen)} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
       {#if chosen.questions && chosen.questions.length > 0}
         <div class="questions" data-template-questions>
