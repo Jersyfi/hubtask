@@ -790,6 +790,28 @@ type AccessExplained struct {
 	HeldThrough []access.Source
 	// Entry is the per-entry decision, where the scope is an entry.
 	Entry *access.EntryExplained
+	// Administrators names up to three people who administer the place, for whom to ask.
+	Administrators []NamedAccount
+}
+
+// NamedAccount is a person by identifier and display name.
+type NamedAccount struct {
+	ID   shared.ID
+	Name string
+}
+
+// administratorsNamed is how many administrators an explanation names: "Anna Keller or another
+// administrator" needs one, a short list three.
+const administratorsNamed = 3
+
+// AdministratorReader answers who administers anywhere on a path (repository.Memberships).
+type AdministratorReader interface {
+	Administrators(ctx context.Context, path []domain.Scope) ([]shared.ID, error)
+}
+
+// AccountReader reads one account, for its display name.
+type AccountReader interface {
+	Find(ctx context.Context, accountID shared.ID) (domain.Account, error)
 }
 
 // ExplainAccess answers what a person holds at a place and why (A6, A11). A person may always ask
@@ -808,6 +830,10 @@ type ExplainAccess struct {
 	// Agents names the person an agent's account acts for, so its entry decision is also asked of
 	// them (G2); nil explains every account by its own decision alone.
 	Agents AgentFinder
+	// Administration and Accounts name who administers a hub or a collection, on a question about
+	// oneself (user-experience.md §5.5); nil names nobody.
+	Administration AdministratorReader
+	Accounts       AccountReader
 }
 
 // AgentFinder answers the agent acting as an account, ErrNotFound for any other account.
@@ -877,14 +903,24 @@ func (h ExplainAccess) Execute(
 			return AccessExplained{}, err
 		}
 		held, entry = explained.Held, &explained
-	} else if err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	}
+	var administrators []NamedAccount
+	if err := h.Roles.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if scope.Type != domain.ScopeItem {
+			var err error
+			if held, err = h.Roles.Held.HeldBy(ctx, actor, accountID, pathTo(scope)); err != nil {
+				return err
+			}
+		}
 		var err error
-		held, err = h.Roles.Held.HeldBy(ctx, actor, accountID, pathTo(scope))
+		administrators, err = h.administrators(ctx, actor, accountID, scope)
 		return err
 	}); err != nil {
 		return AccessExplained{}, err
 	}
-	out := AccessExplained{AccountID: accountID, Scope: scope, Held: held, Asked: permission, Entry: entry}
+	out := AccessExplained{
+		AccountID: accountID, Scope: scope, Held: held, Asked: permission, Entry: entry, Administrators: administrators,
+	}
 	if permission != "" {
 		for _, source := range held.Sources {
 			if source.Carries(permission) {
@@ -894,6 +930,48 @@ func (h ExplainAccess) Execute(
 		out.Holds = len(out.HeldThrough) > 0
 	}
 	return out, nil
+}
+
+// administrators names who administers a hub or a collection, owners and administrators along its
+// path, active ones only, at most administratorsNamed - only to a person asking about themselves.
+func (h ExplainAccess) administrators(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope,
+) ([]NamedAccount, error) {
+	if h.Administration == nil || h.Accounts == nil || accountID != actor.AccountID ||
+		(scope.Type != domain.ScopeHub && scope.Type != domain.ScopeCollection) {
+		return nil, nil
+	}
+	path := pathTo(scope)
+	if scope.Type == domain.ScopeCollection && h.Containers != nil {
+		collection, err := h.Containers.Find(ctx, scope.ID)
+		if err != nil {
+			return nil, notReachableOr(err, scope)
+		}
+		path = service.ContainerScopes(collection)
+	}
+	ids, err := h.Administration.Administrators(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	named := []NamedAccount{}
+	for _, id := range ids {
+		if len(named) == administratorsNamed {
+			break
+		}
+		account, err := h.Accounts.Find(ctx, id)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !account.Status.MayAct() || account.DisplayName == "" {
+			continue
+		}
+		named = append(named, NamedAccount{ID: id, Name: account.DisplayName})
+	}
+	slices.SortFunc(named, func(a, b NamedAccount) int { return cmp.Compare(a.Name, b.Name) })
+	return named, nil
 }
 
 // explainEntry reads the entry's path and assignee and asks the authoriser's decision there. The
@@ -1044,6 +1122,13 @@ func AccessExplainedOutput(e AccessExplained) usecase.Output {
 		out["asked"] = string(e.Asked)
 		out["holds"] = e.Holds
 		out["held_through"] = sources(e.HeldThrough)
+	}
+	if len(e.Administrators) > 0 {
+		named := make([]map[string]any, 0, len(e.Administrators))
+		for _, one := range e.Administrators {
+			named = append(named, map[string]any{"account_id": one.ID.String(), "name": one.Name})
+		}
+		out["administrators"] = named
 	}
 	if e.Entry != nil {
 		out["entry"] = map[string]any{

@@ -1298,6 +1298,7 @@ class AccessExplanation(TypedDict, total=False):
     asked: str
     holds: bool
     held_through: list["AccessSource"]
+    administrators: list[dict[str, Any]]
     entry: dict[str, Any]
 
 BusinessHours = TypedDict("BusinessHours", {

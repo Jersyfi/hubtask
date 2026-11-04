@@ -429,3 +429,58 @@ func TestAGrantHoldsTheRoleItHandsOut(t *testing.T) {
 		t.Fatalf("the grant was judged on the permissions read before: %+v", auth.requests)
 	}
 }
+
+type administration []shared.ID
+
+func (a administration) Administrators(context.Context, []domain.Scope) ([]shared.ID, error) {
+	return a, nil
+}
+
+type namedAccounts map[shared.ID]domain.Account
+
+func (n namedAccounts) Find(_ context.Context, id shared.ID) (domain.Account, error) {
+	if account, ok := n[id]; ok {
+		return account, nil
+	}
+	return domain.Account{}, shared.ErrNotFound
+}
+
+// user-experience.md §5.5: a person who may not create at a place is told whom to ask - up to three
+// of its administrators by name, active ones only, and only about oneself.
+func TestExplainAccessNamesWhomToAskAtAPlace(t *testing.T) {
+	ben, cleo, dan, eve := shared.ID("01936f2a-7c1e-7000-8000-0000000000c2"), shared.ID("01936f2a-7c1e-7000-8000-0000000000c3"),
+		shared.ID("01936f2a-7c1e-7000-8000-0000000000c4"), shared.ID("01936f2a-7c1e-7000-8000-0000000000c5")
+	explain := ExplainAccess{
+		Roles:          rolesWith(newRoleStore(), &authorizer{}, &auditSink{}, &heldBy{}),
+		Administration: administration{ben, cleo, dan, eve, invitedID},
+		Accounts: namedAccounts{
+			ben:  {DisplayName: "Ben Ott", Status: domain.AccountActive},
+			cleo: {DisplayName: "Anna Keller", Status: domain.AccountActive},
+			dan:  {DisplayName: "Dan Roe", Status: domain.AccountDisabled},
+			eve:  {DisplayName: "Eve Lund", Status: domain.AccountActive},
+		},
+	}
+	self, err := explain.Execute(t.Context(), admin(), shared.ID(""), domain.HubScope(hubID), "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := []string{}
+	for _, one := range self.Administrators {
+		names = append(names, one.Name)
+	}
+	if !slices.Equal(names, []string{"Anna Keller", "Ben Ott", "Eve Lund"}) {
+		t.Fatalf("named %v", names)
+	}
+	out := AccessExplainedOutput(self)["administrators"].([]map[string]any)
+	if len(out) != 3 || out[0]["name"] != "Anna Keller" || out[0]["account_id"] != cleo.String() {
+		t.Fatalf("output %v", out)
+	}
+	other, err := explain.Execute(t.Context(), admin(), invitedID, domain.HubScope(hubID), "", "")
+	if err != nil || len(other.Administrators) != 0 {
+		t.Fatalf("about somebody else: %v %v", other.Administrators, err)
+	}
+	workspace, err := explain.Execute(t.Context(), admin(), shared.ID(""), domain.TenantScope(), "", "")
+	if err != nil || len(workspace.Administrators) != 0 {
+		t.Fatalf("at the workspace: %v %v", workspace.Administrators, err)
+	}
+}

@@ -11412,6 +11412,12 @@ type AcceptedSuggestionSource string
 type AccessExplanation struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
+	// Administrators Up to three of the people who administer the place - its owners and administrators along its path, accounts that may act only - so a person who may not do something there is told whom to ask. Only on a question about oneself at a hub or a collection.
+	Administrators *[]struct {
+		AccountId openapi_types.UUID `json:"account_id"`
+		Name      string             `json:"name"`
+	} `json:"administrators,omitempty"`
+
 	// Asked The permission asked about, when one was.
 	Asked *string `json:"asked,omitempty"`
 

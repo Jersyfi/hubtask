@@ -28460,6 +28460,19 @@ components:
           type: array
           description: The roles that carry the permission asked about.
           items: { $ref: "#/components/schemas/AccessSource" }
+        administrators:
+          type: array
+          maxItems: 3
+          description: >
+            Up to three of the people who administer the place - its owners and administrators along
+            its path, accounts that may act only - so a person who may not do something there is told whom
+            to ask. Only on a question about oneself at a hub or a collection.
+          items:
+            type: object
+            required: [account_id, name]
+            properties:
+              account_id: { type: string, format: uuid }
+              name: { type: string }
         entry:
           type: object
           description: At an entry, the decision a request to do `action` to it meets.
