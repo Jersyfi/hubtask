@@ -325,3 +325,52 @@ func TestAFeedTokenOpensItsOwnRouteAlone(t *testing.T) {
 		t.Errorf("the data route served a calendar feed: %v", err)
 	}
 }
+
+// UC-INT-15 check 5: a data feed reads as its owner at every fetch - it answers while the owner
+// may read, and a lost membership, a disabled owner or a revocation stops it at the next fetch.
+func TestADataFeedReadsAsItsOwnerAtEveryFetch(t *testing.T) {
+	cases := map[string]func(*feedReadHarness){
+		"revoked": func(h *feedReadHarness) {
+			for id := range h.feeds.stored {
+				if _, err := h.feeds.Revoke(t.Context(), id, now); err != nil {
+					t.Fatal(err)
+				}
+			}
+		},
+		"its owner disabled": func(h *feedReadHarness) {
+			account := h.accountShelf.stored[otherOwner]
+			account.Status = identity.AccountDisabled
+			h.accountShelf.stored[otherOwner] = account
+		},
+		"its owner no longer a member where the view looks": func(h *feedReadHarness) {
+			h.permits.allow = false
+		},
+	}
+	for name, change := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := newFeedReadHarness(t)
+			// The feed's owner reads a view somebody else shared into a scope.
+			token := h.subscribe(t, otherOwner, feed.DataKind)
+			h.accountShelf.stored[otherOwner] = identity.Account{
+				ID: otherOwner, TenantID: tenantID, Kind: identity.AccountUser,
+				DisplayName: "Bert", Status: identity.AccountActive,
+			}
+			saved := h.views.stored[savedViewID]
+			saved.OwnerID = accountID
+			saved.Sharing = view.SharingScope
+			h.views.stored[savedViewID] = saved
+			h.permits.allow = true
+			h.items.result = repository.ItemQueryResult{Items: exportedItems(2)}
+			data := h.read
+			data.Kind = feed.DataKind
+
+			if exported, err := data.Execute(t.Context(), token); err != nil || len(exported.Items) != 2 {
+				t.Fatalf("before: %d rows, %v", len(exported.Items), err)
+			}
+			change(h)
+			if _, err := data.Execute(t.Context(), token); !errors.Is(err, shared.ErrNotFound) {
+				t.Errorf("after: the feed still answered (%v)", err)
+			}
+		})
+	}
+}

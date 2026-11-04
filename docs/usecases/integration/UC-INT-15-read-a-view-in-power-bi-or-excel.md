@@ -5,7 +5,7 @@ context: integration
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/integration/CalendarFeed_test.go, core/application/service/work/CalendarFeed_test.go, core/application/service/work/ReadCalendarFeed_test.go, presentation/odata/OData_test.go, presentation/rest/DataFeedController_test.go, test/integration/calendar_feed_test.go]
 ---
