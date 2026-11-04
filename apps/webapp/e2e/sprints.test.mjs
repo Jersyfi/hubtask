@@ -210,6 +210,17 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   await chooser.waitFor({ timeout: 15_000 });
   assert.equal(await chooser.inputValue(), COMING.id);
   await page.getByText('1 done, 0 open').waitFor({ timeout: 5_000 });
+  // The head says what is coming and what went out (user-experience.md §5.1).
+  await page.getByText(/^2 planned · next: 1\.1 on .+ · 1 released$/).waitFor({ timeout: 5_000 });
+
+  // A release has no trash: deleting it asks, naming it, and keeping it sends nothing (§5.9).
+  await page.getByRole('button', { name: 'More for this release' }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  const asked = page.getByRole('dialog', { name: 'Delete the release "1.1"?' });
+  await asked.getByText('Its 1 entry is in no release afterwards.', { exact: false }).waitFor({ timeout: 5_000 });
+  await asked.getByRole('button', { name: 'Keep it' }).click();
+  await asked.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(wrote(written, 'DELETE', `/releases/${COMING.id}`), undefined, 'a release was deleted without being asked');
 
   // The collection's entries not in the release yet are offered; one is taken in.
   const offered = page.getByRole('table', { name: 'Entries to add' });

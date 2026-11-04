@@ -28,3 +28,14 @@ export function releaseCandidates<T extends { id: string }>(entries: readonly T[
   const held = new Set(inRelease);
   return entries.filter((entry) => !held.has(entry.id));
 }
+
+/**
+ * The releases as the screen lists them: the planned ones soonest first, those gone out latest
+ * first, and the planned ones whose day has passed (`today` in the reader's zone) - said before
+ * the day is long gone, not found later.
+ */
+export function releaseGroups(releases: readonly Release[], today: string): { planned: Release[]; released: Release[]; late: Set<string> } {
+  const planned = releaseTargets(releases, '');
+  const released = releases.filter((r) => r.state === 'RELEASED').sort((a, b) => b.release_on.localeCompare(a.release_on));
+  return { planned, released, late: new Set(planned.filter((r) => r.release_on < today).map((r) => r.id)) };
+}
