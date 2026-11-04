@@ -27,6 +27,7 @@
   // is the installation: no *New workspace*, *Suspend* or *Delete*, which the server refuses there.
   // *Cancel deletion* stands on a row pending deletion until the removal has begun.
 
+  import { isBelowUse, limitStanding, useOf } from '../lib/instance/quotause.ts';
   import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Dialog, IconButton, Input, Menu, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
@@ -94,7 +95,7 @@
     if (!instance.isElevated) return;
     // The instance level too, so the limits dialog can say what an empty field actually means:
     // "the installation's default" is not a helpful sentence without the number.
-    const stops = untrack(() => [instance.openSettings(), instance.openTargets()]);
+    const stops = untrack(() => [instance.openSettings(), instance.openTargets(), instance.openNearQuota()]);
     return () => stops.forEach((stop) => stop());
   });
 
@@ -183,6 +184,9 @@
   const unreadable = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
+
+  /** Each workspace near or at a limit, by its id: `/admin/quotas` names every one of them. */
+  const nearById = $derived(new Map(instance.nearQuota.map((entry) => [entry.tenant_id, entry])));
 
   /** The columns, in the order the rows render their cells. */
   const columns = $derived([
@@ -405,6 +409,7 @@
         {:else}
           <Table isStacked label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
             {#each workspaces as workspace (workspace.id)}
+              {@const standing = limitStanding(nearById.get(workspace.id))}
               <tr>
                 <td>
                   <span class="name">{workspace.display_name}</span>
@@ -423,6 +428,11 @@
                   >
                     {t(`app.instance.state_${workspace.status.toLowerCase()}`)}
                   </Badge>
+                  {#if standing}
+                    <!-- Counts only, from the installation's own answer: which limit and how far
+                         stand in the limits dialog and on the overview. -->
+                    <Badge tone={standing === 'at' ? 'danger' : 'warning'}>{t(`app.instance.limit_${standing}`)}</Badge>
+                  {/if}
                   {#if workspace.password_opening}
                     <!-- An operator's opening of the password, while it stands: until when, and for
                          whom - the facts somebody asking "why can people sign in by password there"
@@ -765,11 +775,22 @@
         inputmode="numeric"
         autocomplete="off"
       />
+      {@const used = useOf(nearById.get(acting?.tenant?.id ?? ''), name)}
+      {#if used !== undefined}
+        <p class="use" data-quota-use={name}>
+          {t('app.instance.quota_in_use', { used })}
+          {#if isBelowUse(quotas[name] ?? undefined, used)}
+            <span class="below">{t('app.instance.quota_below_use')}</span>
+          {/if}
+        </p>
+      {/if}
     {/each}
   </Stack>
 </Dialog>
 
 <style>
+  .use { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .below { display: block; color: var(--text-warning); }
   .prose { margin: 0; max-inline-size: 60ch; }
   .filters { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: end; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }

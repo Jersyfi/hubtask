@@ -179,7 +179,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
  * The installation's console against a stubbed control plane: the manifest in the mode given, the
  * rows given, and every lifecycle write recorded and answered as the server does.
  */
-async function operatorConsole(browser, { mode, rows, width = 1280 }) {
+async function operatorConsole(browser, { mode, rows, width = 1280, near = [] }) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   const sent = [];
   await context.route('**/api/v1/**', async (route) => {
@@ -189,6 +189,7 @@ async function operatorConsole(browser, { mode, rows, width = 1280 }) {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: mode } });
+    if (path === '/admin/quotas') return route.fulfill({ json: { data: near } });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: rows });
     if (path === '/admin/tenants:query') return route.fulfill({ json: { data: (rows).filter((each) => !route.request().postDataJSON()?.slug || each.slug === route.request().postDataJSON().slug), page: { next_cursor: null, has_more: false } } });
     const shift = /^\/admin\/tenants\/([^/:]+):(suspend|resume|cancel-deletion)$/.exec(path);
@@ -362,4 +363,40 @@ test('chromium: a reserved short name is refused at the field of New workspace',
   assert.ok(await dialog.isVisible(), 'a refused short name closed the dialog');
   assert.equal(sent.length, 1);
   assert.equal(sent[0].slug, 'www');
+});
+
+// user-experience.md §8.4: a workspace near or at a limit is marked on its row, from the
+// installation's own answer of which workspaces stand at 90% or more; the limits dialog says what
+// is in use beside the field and warns, before saving, where a ceiling is typed below it.
+test('chromium: a workspace near or at a limit is marked, and its limits say what is in use', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const rows = [
+    { ...workspace(), display_name: 'Acme' },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a2', slug: 'beta', display_name: 'Beta' },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a3', slug: 'calm', display_name: 'Calm' },
+  ];
+  const near = [
+    { tenant_id: TENANT, slug: rows[0].slug, quotas: [{ quota: 'items', used: 950, limit: 1000, ratio: 0.95 }] },
+    { tenant_id: rows[1].id, slug: 'beta', quotas: [{ quota: 'accounts', used: 10, limit: 10, ratio: 1 }] },
+  ];
+  const { page, close } = await operatorConsole(browser, { mode: 'multi', rows, width: 375, near });
+  t.after(close);
+
+  const acme = page.getByRole('row').filter({ hasText: 'Acme' });
+  await acme.getByText('Near a limit').waitFor({ timeout: 15_000 });
+  await page.getByRole('row').filter({ hasText: 'Beta' }).getByText('At a limit').waitFor();
+  const calm = page.getByRole('row').filter({ hasText: 'Calm' });
+  assert.equal(await calm.getByText(/a limit/).count(), 0);
+
+  await chooseInRow(acme, 'Limits');
+  const dialog = page.getByRole('dialog', { name: 'Limits for Acme' });
+  await dialog.waitFor();
+  const use = dialog.locator('[data-quota-use="items"]');
+  assert.match(await use.textContent() ?? '', /In use now: 950/);
+  assert.doesNotMatch(await use.textContent() ?? '', /Below what is in use/);
+  await dialog.getByLabel('Entries', { exact: true }).fill('900');
+  await use.getByText(/Below what is in use/).waitFor();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
 });
