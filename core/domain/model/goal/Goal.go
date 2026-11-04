@@ -282,14 +282,15 @@ func CheckGoal(f GoalFields, normalizer text.Normalizer) (GoalFields, error) {
 }
 
 // Parenting checks that a goal may sit under a parent: not under itself or one of its own goals
-// (a cycle), and no deeper than MaxDepth. chain is the parent and its parents, nearest first.
-func Parenting(goal shared.ID, chain []shared.ID) error {
+// (a cycle), and no deeper than MaxDepth with the levels of goals below it. chain is the parent and
+// its parents, nearest first.
+func Parenting(goal shared.ID, chain []shared.ID, below int) error {
 	for _, id := range chain {
 		if id == goal {
 			return invalid("/parent_id", "goals.parent_cycle")
 		}
 	}
-	if len(chain) >= MaxDepth {
+	if len(chain)+below >= MaxDepth {
 		return invalid("/parent_id", "goals.too_deep")
 	}
 	return nil
@@ -410,6 +411,34 @@ func CheckGrade(grade float64) error {
 		return invalid("/grades", "goal_periods.grade_out_of_range")
 	}
 	return nil
+}
+
+// Below answers how many levels lie under a node of a tree given each node's parent: 0 for a leaf.
+// A cycle among the parents ends the walk rather than loop.
+func Below(node shared.ID, parents map[shared.ID]shared.ID) int {
+	children := map[shared.ID][]shared.ID{}
+	for id, parent := range parents {
+		if !parent.IsZero() {
+			children[parent] = append(children[parent], id)
+		}
+	}
+	seen := map[shared.ID]bool{node: true}
+	levels, layer := 0, []shared.ID{node}
+	for {
+		var next []shared.ID
+		for _, id := range layer {
+			for _, child := range children[id] {
+				if !seen[child] {
+					seen[child] = true
+					next = append(next, child)
+				}
+			}
+		}
+		if len(next) == 0 {
+			return levels
+		}
+		levels, layer = levels+1, next
+	}
 }
 
 func clamp(v float64) float64 {

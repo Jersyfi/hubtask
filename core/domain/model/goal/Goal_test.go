@@ -99,17 +99,17 @@ func TestAGoalsProgressIsTheMeanOfItsParts(t *testing.T) {
 }
 
 func TestAGoalNeverSitsUnderItself(t *testing.T) {
-	if err := Parenting(goalA, []shared.ID{goalB}); err != nil {
+	if err := Parenting(goalA, []shared.ID{goalB}, 0); err != nil {
 		t.Fatalf("a parent refused: %v", err)
 	}
-	if code(Parenting(goalA, []shared.ID{goalB, goalA})) != "goals.parent_cycle" {
+	if code(Parenting(goalA, []shared.ID{goalB, goalA}, 0)) != "goals.parent_cycle" {
 		t.Fatal("a cycle was accepted")
 	}
 	deep := make([]shared.ID, MaxDepth)
 	for i := range deep {
 		deep[i] = goalB
 	}
-	if code(Parenting(goalA, deep)) != "goals.too_deep" {
+	if code(Parenting(goalA, deep, 0)) != "goals.too_deep" {
 		t.Fatal("a tree past its depth was accepted")
 	}
 }
@@ -201,7 +201,7 @@ func TestAPortfolioHoldsEachProjectOnce(t *testing.T) {
 			t.Errorf("%s: got %q, want %q", c.name, got, c.want)
 		}
 	}
-	if code(PortfolioNesting(goalA, []shared.ID{goalA})) != "portfolios.parent_cycle" {
+	if code(PortfolioNesting(goalA, []shared.ID{goalA}, 0)) != "portfolios.parent_cycle" {
 		t.Fatal("a portfolio under itself was accepted")
 	}
 	if _, err := CheckStatusUpdate(StatusUpdate{Status: StatusAtRisk}, nil); code(err) != "portfolio_updates.summary_required" {
@@ -257,5 +257,26 @@ func TestADashboardsGroupsAreItsSharingsAlone(t *testing.T) {
 	}
 	if _, err := CheckDashboard(Dashboard{Name: "x", Sharing: SharingGroups, GroupIDs: many}, nil); code(err) != "dashboards.too_many_groups" {
 		t.Fatalf("21 groups: %v", err)
+	}
+}
+
+func TestTheLevelsBelowANodeAreCounted(t *testing.T) {
+	c, d := shared.MustParseID("0192f000-0000-7000-8000-000000000b03"), shared.MustParseID("0192f000-0000-7000-8000-000000000b04")
+	for _, tc := range []struct {
+		name    string
+		parents map[shared.ID]shared.ID
+		want    int
+	}{
+		{"a leaf", map[shared.ID]shared.ID{goalA: ""}, 0},
+		{"two levels", map[shared.ID]shared.ID{goalA: "", goalB: goalA, c: goalB, d: goalA}, 2},
+		{"three levels", map[shared.ID]shared.ID{goalA: "", goalB: goalA, c: goalB, d: c}, 3},
+		{"a cycle through the node ends", map[shared.ID]shared.ID{goalA: c, goalB: goalA, c: goalB}, 2},
+	} {
+		if got := Below(goalA, tc.parents); got != tc.want {
+			t.Errorf("%s: %d levels, want %d", tc.name, got, tc.want)
+		}
+	}
+	if code(Parenting(goalA, []shared.ID{goalB}, MaxDepth-1)) != "goals.too_deep" {
+		t.Fatal("a goal whose own levels pass the depth was accepted")
 	}
 }

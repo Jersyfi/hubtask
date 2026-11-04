@@ -84,14 +84,15 @@ func CheckPortfolio(p Portfolio, normalizer text.Normalizer) (Portfolio, error) 
 }
 
 // PortfolioNesting checks that a portfolio may sit under a parent: no cycle and no deeper than
-// MaxPortfolioNested. chain is the parent and its parents, nearest first.
-func PortfolioNesting(portfolio shared.ID, chain []shared.ID) error {
+// MaxPortfolioNested with the levels of portfolios below it. chain is the parent and its parents,
+// nearest first.
+func PortfolioNesting(portfolio shared.ID, chain []shared.ID, below int) error {
 	for _, id := range chain {
 		if id == portfolio {
 			return invalid("/parent_id", "portfolios.parent_cycle")
 		}
 	}
-	if len(chain) >= MaxPortfolioNested {
+	if len(chain)+below >= MaxPortfolioNested {
 		return invalid("/parent_id", "portfolios.too_deep")
 	}
 	return nil

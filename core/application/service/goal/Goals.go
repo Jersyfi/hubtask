@@ -476,7 +476,10 @@ func (s Steward) parent(ctx context.Context, actor appshared.ActorContext, goal,
 		}
 		return err
 	}
-	var chain []shared.ID
+	var (
+		chain []shared.ID
+		below int
+	)
 	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		for next := parent; !next.IsZero() && len(chain) <= domain.MaxDepth; {
 			chain = append(chain, next)
@@ -486,12 +489,21 @@ func (s Steward) parent(ctx context.Context, actor appshared.ActorContext, goal,
 			}
 			next = g.ParentID
 		}
+		all, err := s.Store.Goals(ctx, goalrepo.GoalFilter{Max: maxGoals})
+		if err != nil {
+			return err
+		}
+		parents := make(map[shared.ID]shared.ID, len(all))
+		for _, g := range all {
+			parents[g.ID] = g.ParentID
+		}
+		below = domain.Below(goal, parents)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	return domain.Parenting(goal, chain)
+	return domain.Parenting(goal, chain, below)
 }
 
 // period checks a goal's period exists and is open.

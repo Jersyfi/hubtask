@@ -392,8 +392,20 @@ func (s Steward) placeable(ctx context.Context, actor appshared.ActorContext, p 
 	if p.ParentID.IsZero() {
 		return nil
 	}
-	var chain []shared.ID
+	var (
+		chain []shared.ID
+		below int
+	)
 	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		all, err := s.Store.Portfolios(ctx, maxPortfolios)
+		if err != nil {
+			return err
+		}
+		parents := make(map[shared.ID]shared.ID, len(all))
+		for _, other := range all {
+			parents[other.ID] = other.ParentID
+		}
+		below = domain.Below(p.ID, parents)
 		for next := p.ParentID; !next.IsZero() && len(chain) <= domain.MaxPortfolioNested; {
 			chain = append(chain, next)
 			parent, err := s.Store.Portfolio(ctx, next)
@@ -408,7 +420,7 @@ func (s Steward) placeable(ctx context.Context, actor appshared.ActorContext, p 
 	if err != nil {
 		return err
 	}
-	return domain.PortfolioNesting(p.ID, chain)
+	return domain.PortfolioNesting(p.ID, chain, below)
 }
 
 var portfolioInput = []usecase.Field{
