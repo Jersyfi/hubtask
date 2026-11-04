@@ -25,7 +25,7 @@
   import { renderProblem } from '../problem.ts';
   import PlanReach from './PlanReach.svelte';
   import { afterTaking } from '../product/templates.ts';
-  import { familiesOf, familyOf, switchedOn } from '../workspace/hubGallery.ts';
+  import { familiesOf, familyOf, markOf, switchedOn } from '../workspace/hubGallery.ts';
 
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
@@ -277,6 +277,7 @@
             {@const offer = offerOf(template)}
             <TemplateCard
               name={nameOf(template)}
+              mark={markOf(template)}
               summary={summaryOf(template)}
               products={productsOf(template)}
               data-template={template.key}

@@ -4,7 +4,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afterCreating, createsOf, familiesOf, familyOf, hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
+import { readdirSync } from 'node:fs';
+
+import { ICON_NAMES } from '@hubtask/design-system/icons';
+
+import { afterCreating, createsOf, familiesOf, familyOf, hubFamilies, markOf, prefilledName, switchedOn } from './hubGallery.ts';
 
 const of = (key: string, origin: 'HUBTASK' | 'INSTALLATION' | 'WORKSPACE' | 'OWN' = 'HUBTASK', hub = true) => ({
   key, origin, hub_document: hub ? {} : null,
@@ -83,4 +87,24 @@ test('a template says what it creates, per part, each block once, from every par
     { part: 'template_pages', names: ['How we work'] },
   ]);
   assert.deepEqual(createsOf({}), []);
+});
+
+// §5.2: a card's mark tells the templates apart - every shipped template has a drawing of its own
+// from the icon set, none shared within its family; another origin's takes its family's.
+test('every shipped template is drawn by a mark of its own', () => {
+  const shipped = readdirSync(new URL('../../../../../core/application/service/config/shipped/', import.meta.url))
+    .filter((name) => name.endsWith('.json')).map((name) => name.replace(/\.json$/u, ''));
+  assert.ok(shipped.length >= 30, `read ${shipped.length} shipped templates`);
+  const byFamily = new Map<string, Set<string>>();
+  for (const key of shipped) {
+    const template = { key, origin: 'HUBTASK' as const, hub_document: {} };
+    const mark = markOf(template);
+    assert.ok((ICON_NAMES as readonly string[]).includes(mark), `${key}: ${mark} is no icon`);
+    assert.notEqual(mark, 'layout-template', `${key} has no mark of its own`);
+    const family = familyOf(template);
+    const seen = byFamily.get(family) ?? new Set<string>();
+    assert.ok(!seen.has(mark), `${key} shares ${mark} within ${family}`);
+    byFamily.set(family, seen.add(mark));
+  }
+  assert.equal(markOf({ key: 'itil_service_desk', origin: 'WORKSPACE' }), 'layout-template', 'a workspace\'s own template has no family of Hubtask');
 });

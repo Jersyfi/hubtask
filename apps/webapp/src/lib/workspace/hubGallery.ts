@@ -8,6 +8,8 @@
  * published in the installation or the workspace stands under its origin.
  */
 
+import type { IconName } from '@hubtask/design-system/components';
+
 export const FAMILIES = ['personal', 'teams', 'projects', 'programmes', 'service', 'processes', 'registers'] as const;
 export type Family = (typeof FAMILIES)[number] | 'installation' | 'workspace' | 'own' | 'other';
 
@@ -33,6 +35,29 @@ interface Offered {
 export function familyOf(template: Offered): Family {
   if (template.origin !== 'HUBTASK') return template.origin.toLowerCase() as Family;
   return FAMILY_OF[template.key] ?? 'other';
+}
+
+/**
+ * A template's mark on its card (user-experience.md §5.2): its own drawing, so thirty cards are
+ * told apart at a glance; else its family's; one published here the catalogue's own mark.
+ */
+const MARK_OF: Readonly<Record<string, IconName>> = {
+  household: 'house', shopping: 'shopping-cart', habits: 'repeat', travel: 'plane',
+  kanban_team: 'columns-3', scrum_team: 'rocket', bug_tracking: 'circle-alert', content_calendar: 'calendar', event_planning: 'flag',
+  classic_project: 'briefcase', hybrid_project: 'shapes', client_project: 'users',
+  portfolio: 'folder', okr: 'gauge', scaled_agile: 'dependency',
+  itil_service_desk: 'inbox', internal_it: 'wrench', facility_requests: 'hammer', hr_requests: 'user-check', customer_support: 'message-square',
+  approvals: 'vote', onboarding: 'user-plus', procurement: 'wallet', capa: 'square-check', risk_controls: 'shield',
+  records_of_processing: 'file-text',
+  it_asset_register: 'container', risk_register: 'triangle-alert', contact_register: 'file-user', vendor_contracts: 'paperclip',
+};
+
+const FAMILY_MARK: Readonly<Partial<Record<Family, IconName>>> = {
+  personal: 'user', teams: 'users', projects: 'briefcase', programmes: 'folder', service: 'inbox', processes: 'automation', registers: 'archive',
+};
+
+export function markOf(template: Offered): IconName {
+  return (template.origin === 'HUBTASK' ? MARK_OF[template.key] : undefined) ?? FAMILY_MARK[familyOf(template)] ?? 'layout-template';
 }
 
 /** The templates with a hub part by family, each family in the gallery's order, an empty one left out. */

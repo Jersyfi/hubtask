@@ -41,7 +41,7 @@
   import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { config } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
-  import { hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
+  import { hubFamilies, markOf, prefilledName, switchedOn } from './hubGallery.ts';
 
   import { containers } from '../data/containers.svelte.ts';
   import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
@@ -270,7 +270,7 @@
               {#each group.templates as each (each.key)}
                 {@const isChosen = fromTemplate === each.key}
                 {@const name = templateName(each)}
-                <TemplateCard {name} summary={summaryOf(each)} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
+                <TemplateCard {name} mark={markOf(each)} summary={summaryOf(each)} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
                   note={each.taken_version == null ? undefined : t('app.workspace.hub_template_in_workspace')}>
                   {#snippet details()}<TemplatePreview template={each} />{/snippet}
                   {#snippet action()}
