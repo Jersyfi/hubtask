@@ -21,10 +21,10 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 /** The goals module's routes, kept in memory as the server would keep them. */
-function goalsBackend() {
+function goalsBackend({ seed } = {}) {
   const id = ids('00000a');
-  const periods = [];
-  const goals = [];
+  const periods = [...(seed?.periods ?? [])];
+  const goals = [...(seed?.goals ?? [])];
   const checkIns = [];
   const dashboards = [];
   const page = (data) => ({ data, page: { next_cursor: null, has_more: false } });
@@ -86,14 +86,15 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   t.after(walk.close);
   const { page } = walk;
 
+  // The current quarter is offered in one press where no period is set yet (user-experience.md §4).
   await page.goto(`${served.origin}/goals`);
-  await page.getByRole('button', { name: 'New period' }).first().click();
-  const periodDialog = page.getByRole('dialog', { name: 'New period' });
-  await periodDialog.getByLabel('Name').fill('Q4 2026');
-  await periodDialog.getByLabel('First day').fill('2026-10-01');
-  await periodDialog.getByLabel('Last day').fill('2026-12-31');
-  await periodDialog.getByRole('button', { name: 'Create' }).click();
-  await periodDialog.waitFor({ state: 'detached', timeout: 5_000 });
+  const now = new Date();
+  const q = Math.floor(now.getUTCMonth() / 3) + 1;
+  await page.getByRole('button', { name: `Start ${now.getUTCFullYear()} Q${q}` }).click();
+  await page.getByRole('button', { name: 'New goal' }).first().waitFor({ timeout: 5_000 });
+  const period = walk.written.find((each) => each.path === '/goal-periods');
+  assert.equal(period.body.name, `${now.getUTCFullYear()} Q${q}`);
+  assert.equal(period.body.start_on, `${now.getUTCFullYear()}-${String((q - 1) * 3 + 1).padStart(2, '0')}-01`);
 
   await page.getByRole('button', { name: 'New goal' }).first().click();
   const goalDialog = page.getByRole('dialog', { name: 'New goal' });
@@ -141,6 +142,8 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await page.emulateMedia({ colorScheme: 'light' });
 
   await page.goto(`${served.origin}/goals?tab=dashboards`);
+  await page.getByRole('heading', { level: 1, name: 'Dashboards' }).waitFor({ timeout: 5_000 });
+  await page.getByText('No dashboard yet.').waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: 'New dashboard' }).first().click();
   const boardDialog = page.getByRole('dialog', { name: 'New dashboard' });
   await boardDialog.getByLabel('Name').fill('Leadership');
@@ -156,3 +159,42 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+const PERIOD = { id: '01a0e2e0-0000-7000-8000-00000000a001', name: '2026 Q4', start_on: '2026-10-01', end_on: '2026-12-31', state: 'OPEN', version: 1 };
+const result = (n, title, kind, current, target, unit, progress) => ({
+  id: `01a0e2e0-0000-7000-8000-00000000a1${n}0`, title, kind, start: 0, target, current, unit, source: 'MANUAL', view_id: null, entry_id: null, progress, live: false,
+});
+const seeded = (n, title, extra) => ({
+  id: `01a0e2e0-0000-7000-8000-00000000a20${n}`, period_id: PERIOD.id, hub_id: null, parent_id: null, title, description: '', owner_id: ACCOUNT.id,
+  status: 'NONE', confidence: null, grade: null, key_results: [], entries: { total: 0, done: 0 }, child_count: 0, progress: null, version: 1, ...extra,
+});
+const GOALS = [
+  seeded(1, 'Customers renew because the product helps them every day', {
+    status: 'AT_RISK', confidence: 6, child_count: 1, progress: 0.45,
+    key_results: [result(1, 'Renewal rate', 'PERCENT', 82, 90, '', 0.4), result(2, 'Support tickets per customer', 'NUMBER', 3, 1, 'tickets', 0.5)],
+  }),
+  seeded(2, 'Onboarding takes a day', { parent_id: '01a0e2e0-0000-7000-8000-00000000a201', status: 'ON_TRACK', progress: 1, key_results: [result(3, 'Guide published', 'BINARY', 1, 1, '', 1)] }),
+];
+
+for (const width of [1280, 375]) {
+  test(`chromium: ${width} px - each goal is a card with its key results as bars and numbers, the head says what needs a look`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { periods: [PERIOD], goals: GOALS } }), width, height: 900 });
+    t.after(walk.close);
+    const { page } = walk;
+
+    await page.goto(`${served.origin}/goals`);
+    await page.getByText(/^2 goals · 1 needs a look · until Dec 31, 2026$/).waitFor({ timeout: 10_000 });
+    const results = page.getByRole('list', { name: 'Key results of Customers renew because the product helps them every day' });
+    await results.getByText('82 % of 90 %').waitFor({ timeout: 5_000 });
+    await results.getByText('3 tickets of 1').waitFor({ timeout: 5_000 });
+    await page.getByText('Reached', { exact: true }).waitFor({ timeout: 5_000 });
+    assert.equal(await page.getByRole('progressbar').count(), 5, 'two goals and three key results');
+    assert.equal(await page.getByRole('table').count(), 0);
+    const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
+    assert.deepEqual(walk.errors(), []);
+    assert.deepEqual(walk.unstubbed(), []);
+  });
+}

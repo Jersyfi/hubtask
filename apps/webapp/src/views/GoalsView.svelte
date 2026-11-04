@@ -1,7 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Goals* (M8): a period's goals, the portfolios and the dashboards, as tabs.
+  // *Goals* (M8, user-experience.md §7.7): a period's goals, the portfolios and the dashboards, as
+  // tabs under one head that names the tab it is on. The current quarter is offered in one press
+  // where no period is set yet (§4); each goal is a card with its key results as bars and numbers.
   //
   // **Goals** (UC-GOL-01 check 9): a period's goals as an alignment tree - each goal under the goal
   // it serves, with its place, status, confidence and progress; a period defined and closed by
@@ -15,11 +17,13 @@
 
   import { untrack } from 'svelte';
   import {
-    Badge, Banner, Button, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Tabs, Textarea,
-    type Column,
+    Badge, Banner, Button, Dialog, Icon, Inline, Input, PageHeader, PlaceTabs, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    type Column, type PlaceTab,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
-  import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, PortfolioList } from '@hubtask/sync-engine';
+  import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, KeyResult, PortfolioList } from '@hubtask/sync-engine';
+
+  import { actor } from '../lib/data/account.svelte.ts';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -28,6 +32,8 @@
   import {
     PERIODS, PORTFOLIOS, alignmentTree, dashboardsPath, goals, goalsPath, hubOf, percentOf, percentText,
   } from '../lib/data/goals.svelte.ts';
+  import { currentQuarter, needingALook } from '../lib/data/goals.ts';
+  import { todayIn } from '../lib/i18n/zone.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -68,7 +74,14 @@
     return text === '' ? '/goals' : `/goals?${text}`;
   }
 
-  $effect(() => frame.entitle(hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title')));
+  const tabs = $derived<PlaceTab[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: address({ tab: each.id }) })));
+  /** Each tab names itself (§7.7): *Dashboards*, never *Goals of …*. */
+  const heading = $derived(
+    current === 'portfolios' ? t('app.goals.tab_portfolios')
+      : current === 'dashboards' ? (hubName ? t('app.dashboards.title_of', { place: hubName }) : t('app.goals.tab_dashboards'))
+        : hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title'),
+  );
+  $effect(() => frame.entitle(heading));
 
   let failure = $state<string | undefined>(undefined);
   async function act(run: () => Promise<unknown>, done?: string): Promise<boolean> {
@@ -128,14 +141,28 @@
   const tree = $derived(goalList ? alignmentTree(goalList) : []);
   $effect(() => accounts.resolve((goalList ?? []).map((goal) => goal.owner_id)));
 
-  const goalColumns = $derived<Column[]>([
-    { id: 'goal', label: t('app.goals.col_goal') },
-    { id: 'place', label: t('app.goals.col_place') },
-    { id: 'owner', label: t('app.goals.col_owner') },
-    { id: 'status', label: t('app.goals.col_status') },
-    { id: 'confidence', label: t('app.goals.col_confidence'), align: 'end' },
-    { id: 'progress', label: t('app.goals.col_progress') },
-  ]);
+
+  const quarter = $derived(currentQuarter(todayIn(actor.zone)));
+  const quarterName = $derived(t('app.goals.quarter_name', { year: String(quarter.year), quarter: String(quarter.quarter) }));
+  async function startQuarter() {
+    await act(async () => {
+      const made = await goals.definePeriod({ name: quarterName, start_on: quarter.start_on, end_on: quarter.end_on });
+      onnavigate(address({ period: made.id }));
+    }, t('app.goals.period_defined'));
+  }
+  const figureText = $derived(
+    current !== 'goals' || !chosen || !goalList
+      ? ''
+      : [
+          t('app.goals.figure_goals', { count: goalList.length }),
+          ...(needingALook(goalList) > 0 ? [t('app.goals.figure_look', { count: needingALook(goalList) })] : []),
+          chosen.state === 'OPEN' ? t('app.goals.figure_until', { day: formatPlainDay(chosen.end_on, messages.locale) }) : t('app.goals.figure_closed'),
+        ].join(' · '),
+  );
+  const resultValue = (result: KeyResult) =>
+    result.kind === 'BINARY' || result.kind === 'MILESTONE' ? (result.progress >= 1 ? t('app.goals.kr_reached') : t('app.goals.kr_not_reached'))
+      : result.kind === 'PERCENT' ? t('app.goals.kr_of_target', { value: t('app.goals.percent', { percent: String(result.current) }), target: t('app.goals.percent', { percent: String(result.target) }) })
+        : t('app.goals.kr_of_target', { value: result.unit ? t('app.goals.kr_value_unit', { value: String(result.current), unit: result.unit }) : String(result.current), target: String(result.target) });
 
   // The new period
   let isDefining = $state(false);
@@ -217,12 +244,6 @@
   let dashboardList = $state<DashboardList['data'] | undefined>(undefined);
   let dashboardsRefusal = $state<string | undefined>(undefined);
   follow<DashboardList>(() => (current === 'dashboards' ? dashboardsPath(hub) : undefined), (data) => (dashboardList = data?.data), (m) => (dashboardsRefusal = m));
-  const dashboardColumns = $derived<Column[]>([
-    { id: 'name', label: t('app.dashboards.col_name') },
-    { id: 'place', label: t('app.goals.col_place') },
-    { id: 'sharing', label: t('app.dashboards.col_sharing') },
-    { id: 'widgets', label: t('app.dashboards.col_widgets'), align: 'end' },
-  ]);
 
   let isBuilding = $state(false);
   const dashboardDraft = $state({ name: '', place: '', sharing: 'PRIVATE' as Sharing, groupIds: [] as string[] });
@@ -248,113 +269,143 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={hubName ? t('app.goals.title_of', { place: hubName }) : t('app.goals.title')} isTitleInBar={viewport.isCompact} {primary} />
+  <PageHeader
+    title={heading}
+    subtitle={hub ? undefined : t('app.modules.hint_goals')}
+    isTitleInBar={viewport.isCompact}
+    {primary}
+    breadcrumb={hub ? undefined : {
+      trail: [
+        { id: 'products', label: t('app.nav.products') },
+        { id: 'product', label: t('app.nav.goals') },
+      ],
+      label: t('app.product_home.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  >
+    {#snippet figure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
+  </PageHeader>
   {#if hub}<PlaceStrip placeId={hub} current="goals" {onnavigate} />{/if}
 
-  <Tabs label={t('app.goals.title')} selected={current} onselect={(next) => onnavigate(address({ tab: next }))} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>
-    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+  <PlaceTabs label={t('app.goals.title')} {tabs} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />
 
-    {#if current === 'goals'}
-      {#if periodsRefusal}
-        <Banner tone="danger">{periodsRefusal}</Banner>
-      {:else if !periods}
-        <div aria-busy="true"><Skeleton lines={5} /></div>
-      {:else if periods.length === 0}
-        <p class="quiet">{t('app.goals.no_periods')}</p>
-        {#if mayStructure}<Inline><Button icon="plus" onclick={() => (isDefining = true)}>{t('app.goals.new_period')}</Button></Inline>{/if}
-      {:else}
-        <div class="controls">
-          <Select label={t('app.goals.period')} value={chosen?.id ?? ''}
-            options={[...periods].sort((a, b) => b.start_on.localeCompare(a.start_on)).map((each) => ({ value: each.id, label: each.state === 'CLOSED' ? t('app.goals.period_closed_label', { name: each.name }) : each.name }))}
-            onchange={(event: Event) => onnavigate(address({ period: (event.currentTarget as HTMLSelectElement).value }))} />
-          {#if chosen}<span class="quiet">{t('app.goals.period_span', { from: formatPlainDay(chosen.start_on, messages.locale), to: formatPlainDay(chosen.end_on, messages.locale) })}</span>{/if}
-          {#if mayStructure}
-            <Button size="sm" tone="secondary" icon="plus" onclick={() => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; }}>{t('app.goals.new_period')}</Button>
-            {#if chosen?.state === 'OPEN'}<Button size="sm" tone="subtle" icon="lock" onclick={() => (isClosing = true)}>{t('app.goals.close_period')}</Button>{/if}
-          {/if}
-        </div>
+  {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
-        {#if goalsRefusal}
-          <Banner tone="danger">{goalsRefusal}</Banner>
-        {:else if !goalList}
-          <div aria-busy="true"><Skeleton lines={6} /></div>
-        {:else}
-          <div class="scroll">
-            <Table isStacked label={t('app.goals.tree', { period: chosen?.name ?? '' })} columns={goalColumns}>
-              {#snippet empty()}<ProductEmpty kind="unused" title={t('app.goals.empty')} create={primary} />{/snippet}
-              {#each tree as { goal, depth } (goal.id)}
-                <tr>
-                  <th scope="row">
-                    <span class="indent" style:--depth={depth}>
-                      {#if depth > 0}<span class="branch" aria-hidden="true"></span>{/if}
-                      <a href={`/goals/${goal.id}`}>{goal.title}</a>
-                    </span>
-                    {#if goal.key_results.length > 0}<span class="note">{t('app.goals.key_results_count', { count: String(goal.key_results.length) })}</span>{/if}
-                  </th>
-                  <td>{placeName(goal)}</td>
-                  <td>{personName(goal.owner_id)}</td>
-                  <td>{#if goal.status !== 'NONE'}<Badge size="sm" tone={goalTone(goal.status)}>{t(`app.goals.status_${goal.status}`)}</Badge>{/if}</td>
-                  <td class="number">{goal.confidence === null ? '' : t('app.goals.confidence_of', { value: String(goal.confidence) })}</td>
-                  <td class="progress">
-                    {#if goal.grade !== null}
-                      <span>{t('app.goals.graded', { percent: percentText(goal.grade) })}</span>
-                    {:else if goal.progress === null}
-                      <span class="quiet">{t('app.goals.no_progress')}</span>
-                    {:else}
-                      <ProgressBar size="sm" label={t('app.goals.progress_of', { title: goal.title })} value={percentOf(goal.progress)} valueLabel={t('app.goals.percent', { percent: percentText(goal.progress) })} />
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </Table>
-          </div>
-        {/if}
-      {/if}
-
-    {:else if current === 'portfolios'}
-      {#if portfoliosRefusal}
-        <Banner tone="danger">{portfoliosRefusal}</Banner>
-      {:else if !portfolioList}
-        <div aria-busy="true"><Skeleton lines={4} /></div>
-      {:else}
-        <div class="scroll">
-          <Table isStacked label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
-            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.portfolios.empty')} create={primary} />{/snippet}
-            {#each portfolioList as each (each.id)}
-              <tr>
-                <th scope="row"><a href={`/portfolios/${each.id}`}>{each.name}</a></th>
-                <td>{portfolioName(each.parent_id)}</td>
-                <td>{personName(each.owner_id)}</td>
-                <td>{#if each.status !== 'NONE'}<Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge>{/if}</td>
-                <td class="number">{each.items.length}</td>
-              </tr>
-            {/each}
-          </Table>
-        </div>
-      {/if}
-
+  {#if current === 'goals'}
+    {#if periodsRefusal}
+      <Banner tone="danger">{periodsRefusal}</Banner>
+    {:else if !periods}
+      <div aria-busy="true"><Skeleton lines={5} /></div>
+    {:else if periods.length === 0}
+      <ProductEmpty kind="unused" icon="flag" title={t('app.goals.no_periods_title')} description={t('app.goals.no_periods')}
+        create={mayStructure ? { label: t('app.goals.start_quarter', { name: quarterName }), onclick: () => void startQuarter() } : undefined}
+        templates={mayStructure ? [{ label: t('app.goals.another_period'), onclick: () => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; } }] : []}
+        whoCan={t('app.goals.who_starts_periods')} />
     {:else}
-      {#if dashboardsRefusal}
-        <Banner tone="danger">{dashboardsRefusal}</Banner>
-      {:else if !dashboardList}
-        <div aria-busy="true"><Skeleton lines={4} /></div>
+      <div class="controls">
+        <Select label={t('app.goals.period')} value={chosen?.id ?? ''}
+          options={[...periods].sort((a, b) => b.start_on.localeCompare(a.start_on)).map((each) => ({ value: each.id, label: each.state === 'CLOSED' ? t('app.goals.period_closed_label', { name: each.name }) : each.name }))}
+          onchange={(event: Event) => onnavigate(address({ period: (event.currentTarget as HTMLSelectElement).value }))} />
+        {#if chosen}<span class="quiet">{t('app.goals.period_span', { from: formatPlainDay(chosen.start_on, messages.locale), to: formatPlainDay(chosen.end_on, messages.locale) })}</span>{/if}
+        {#if mayStructure}
+          <Button size="sm" tone="secondary" icon="plus" onclick={() => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; }}>{t('app.goals.new_period')}</Button>
+          {#if chosen?.state === 'OPEN'}<Button size="sm" tone="subtle" icon="lock" onclick={() => (isClosing = true)}>{t('app.goals.close_period')}</Button>{/if}
+        {/if}
+      </div>
+
+      {#if goalsRefusal}
+        <Banner tone="danger">{goalsRefusal}</Banner>
+      {:else if !goalList}
+        <div aria-busy="true"><Skeleton lines={6} /></div>
+      {:else if tree.length === 0}
+        <ProductEmpty kind={chosen?.state === 'OPEN' ? 'unused' : 'settled'} icon="flag" title={t('app.goals.empty')}
+          description={chosen?.state === 'OPEN' ? t('app.goals.empty_body') : undefined} create={primary} />
       {:else}
-        <div class="scroll">
-          <Table isStacked label={t('app.goals.tab_dashboards')} isLabelHidden columns={dashboardColumns}>
-            {#snippet empty()}<ProductEmpty kind="unused" title={t('app.dashboards.empty')} create={primary} />{/snippet}
-            {#each dashboardList as each (each.id)}
-              <tr>
-                <th scope="row"><a href={`/dashboards/${each.id}`}>{each.name}</a></th>
-                <td>{placeName(each)}</td>
-                <td>{t(`app.dashboards.sharing_${each.sharing}`)}</td>
-                <td class="number">{each.widgets.length}</td>
-              </tr>
-            {/each}
-          </Table>
-        </div>
+        <ul class="goals" aria-label={t('app.goals.tree', { period: chosen?.name ?? '' })}>
+          {#each tree as { goal, depth } (goal.id)}
+            <li class="goal" style:--depth={Math.min(depth, 4)} data-depth={depth > 0 ? '' : undefined}>
+              <div class="goal-head">
+                <a class="goal-title" href={`/goals/${goal.id}`}>{goal.title}</a>
+                {#if goal.status !== 'NONE'}<Badge size="sm" tone={goalTone(goal.status)}>{t(`app.goals.status_${goal.status}`)}</Badge>{/if}
+              </div>
+              <p class="meta">
+                <span>{placeName(goal)}</span>
+                {#if goal.owner_id}<span>{t('app.goals.owned_by', { name: personName(goal.owner_id) })}</span>{/if}
+                {#if goal.confidence !== null}<span>{t('app.goals.confidence_line', { value: String(goal.confidence) })}</span>{/if}
+                {#if goal.child_count > 0}<span>{t('app.goals.children', { count: goal.child_count })}</span>{/if}
+              </p>
+              <div class="overall">
+                {#if goal.grade !== null}
+                  <span>{t('app.goals.graded', { percent: percentText(goal.grade) })}</span>
+                {:else if goal.progress === null}
+                  <span class="quiet">{t('app.goals.no_progress_hint')}</span>
+                {:else}
+                  <ProgressBar label={t('app.goals.progress_of', { title: goal.title })} value={percentOf(goal.progress)} valueLabel={t('app.goals.percent', { percent: percentText(goal.progress) })} />
+                {/if}
+              </div>
+              {#if goal.key_results.length > 0}
+                <ul class="results" aria-label={t('app.goals.key_results_of', { title: goal.title })}>
+                  {#each goal.key_results as result (result.id)}
+                    <li class="result">
+                      <span class="result-title">{result.title}</span>
+                      <ProgressBar size="sm" label={t('app.goals.progress_of', { title: result.title })} value={percentOf(result.progress)} valueLabel={resultValue(result)} />
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </li>
+          {/each}
+        </ul>
       {/if}
     {/if}
-  </Tabs>
+
+  {:else if current === 'portfolios'}
+    {#if portfoliosRefusal}
+      <Banner tone="danger">{portfoliosRefusal}</Banner>
+    {:else if !portfolioList}
+      <div aria-busy="true"><Skeleton lines={4} /></div>
+    {:else if portfolioList.length === 0}
+      <ProductEmpty kind="unused" icon="briefcase" title={t('app.portfolios.empty')} description={t('app.portfolios.empty_body')} create={primary}
+        whoCan={t('app.portfolios.who_can')} />
+    {:else}
+      <Table isStacked label={t('app.goals.tab_portfolios')} isLabelHidden columns={portfolioColumns}>
+        {#each portfolioList as each (each.id)}
+          <tr>
+            <th scope="row"><a href={`/portfolios/${each.id}`}>{each.name}</a></th>
+            <td>{portfolioName(each.parent_id)}</td>
+            <td>{personName(each.owner_id)}</td>
+            <td>{#if each.status !== 'NONE'}<Badge size="sm" tone={goalTone(each.status)}>{t(`app.goals.status_${each.status}`)}</Badge>{/if}</td>
+            <td class="number">{each.items.length}</td>
+          </tr>
+        {/each}
+      </Table>
+    {/if}
+
+  {:else}
+    {#if dashboardsRefusal}
+      <Banner tone="danger">{dashboardsRefusal}</Banner>
+    {:else if !dashboardList}
+      <div aria-busy="true"><Skeleton lines={4} /></div>
+    {:else if dashboardList.length === 0}
+      <ProductEmpty kind="unused" icon="gauge" title={t('app.dashboards.empty')} description={t('app.dashboards.empty_body')} create={primary} />
+    {:else}
+      <ul class="cards" aria-label={heading}>
+        {#each dashboardList as each (each.id)}
+          <li>
+            <a class="card" href={`/dashboards/${each.id}`}>
+              <span class="card-mark" aria-hidden="true"><Icon name="gauge" size="md" /></span>
+              <span class="card-name">{each.name}</span>
+              <span class="meta">
+                <span>{placeName(each)}</span>
+                <span>{t(`app.dashboards.sharing_${each.sharing}`)}</span>
+                <span>{t('app.dashboards.widget_count', { count: each.widgets.length })}</span>
+              </span>
+            </a>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {/if}
 </Stack>
 
 {#if isDefining}
@@ -424,12 +475,37 @@
 
 <style>
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-  .scroll { overflow-x: auto; }
+  .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-  .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .progress { min-width: var(--layout-board-column); }
-  .indent { display: inline-flex; align-items: center; gap: var(--sp-050); padding-inline-start: calc(var(--depth) * var(--sp-200)); }
-  .branch { display: inline-block; inline-size: var(--sp-100); block-size: var(--sp-100); border-inline-start: var(--bw-hairline) solid var(--border-strong); border-block-end: var(--bw-hairline) solid var(--border-strong); }
+  .goals, .results, .cards { display: grid; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .goal {
+    display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0;
+    margin-inline-start: calc(var(--depth) * var(--sp-300)); padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
+  }
+  .goal[data-depth] { border-inline-start: var(--bw-thick) solid var(--border-strong); }
+  .goal-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .goal-title { min-width: 0; color: var(--text-brand); font-size: var(--fs-200); font-weight: var(--fw-semibold); overflow-wrap: anywhere; text-decoration: none; }
+  .goal-title:hover { text-decoration: underline; }
+  .meta { display: flex; flex-wrap: wrap; gap: var(--sp-050) var(--sp-150); margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .results { gap: var(--sp-100); padding-block-start: var(--sp-100); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: center; gap: var(--sp-150); }
+  .result-title { overflow-wrap: anywhere; font-size: var(--fs-075); }
+  .cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-board-column)), 1fr)); }
+  .card {
+    display: flex; flex-direction: column; gap: var(--sp-100); block-size: 100%; padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
+    color: var(--text-primary); text-decoration: none;
+  }
+  .card:hover { border-color: var(--border-strong); }
+  .card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-ring); }
+  .card-mark { color: var(--accent-primary); }
+  .card-name { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .goal { margin-inline-start: calc(var(--depth) * var(--sp-100)); padding: var(--sp-150); }
+    .result { grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); }
+  }
 </style>

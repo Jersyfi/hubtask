@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
-  alignmentTree, barLayout, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
+  alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
   leftRows, percentText, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
   widgetWrite,
 } from './goals.ts';
@@ -156,4 +156,19 @@ test('hubOf reads null and the nil UUID as the workspace', () => {
   assert.equal(hubOf(undefined), null);
   assert.equal(hubOf({ hub_id: '00000000-0000-0000-0000-000000000000' }), null);
   assert.equal(hubOf({ hub_id: '01a0e2e0-0000-7000-8000-000000000001' }), '01a0e2e0-0000-7000-8000-000000000001');
+});
+
+// user-experience.md §4, §7.7: the current quarter is the period offered first, and the head says
+// how many goals need a look.
+test('the current quarter runs from its first to its last day', () => {
+  assert.deepEqual(currentQuarter('2026-11-04'), { year: 2026, quarter: 4, start_on: '2026-10-01', end_on: '2026-12-31' });
+  assert.deepEqual(currentQuarter('2027-01-01'), { year: 2027, quarter: 1, start_on: '2027-01-01', end_on: '2027-03-31' });
+  assert.deepEqual(currentQuarter('2028-05-31'), { year: 2028, quarter: 2, start_on: '2028-04-01', end_on: '2028-06-30' });
+  assert.deepEqual(currentQuarter('2026-09-30'), { year: 2026, quarter: 3, start_on: '2026-07-01', end_on: '2026-09-30' });
+});
+
+test('goals at risk or off track need a look', () => {
+  const of = (status: Goal['status']) => ({ status }) as Goal;
+  assert.equal(needingALook([of('ON_TRACK'), of('AT_RISK'), of('OFF_TRACK'), of('DONE'), of('NONE')]), 2);
+  assert.equal(needingALook([]), 0);
 });

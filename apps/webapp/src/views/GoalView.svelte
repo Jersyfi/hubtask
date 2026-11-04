@@ -337,7 +337,7 @@
 
     {#if children.length > 0 || goal.child_count > 0}
       <section class="block" aria-labelledby="goal-children">
-        <h2 id="goal-children" class="heading">{t('app.goals.children', { count: String(goal.child_count) })}</h2>
+        <h2 id="goal-children" class="heading">{t('app.goals.children', { count: goal.child_count })}</h2>
         <ul class="plain">
           {#each children as child (child.id)}
             <li><a href={`/goals/${child.id}`}>{child.title}</a> <span class="note">{t('app.goals.percent', { percent: percentText(child.progress) || '0' })}</span></li>

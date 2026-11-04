@@ -19,6 +19,21 @@ export function percentText(share: number | null | undefined): string {
   return String(Math.floor(Math.min(Math.max(share, 0), 1) * 100 + 1e-9));
 }
 
+/** The calendar quarter a day falls in, with its first and last day: the period offered first (§4). */
+export function currentQuarter(day: string): { year: number; quarter: number; start_on: string; end_on: string } {
+  const [year = 1970, month = 1] = day.split('-').map(Number);
+  const quarter = Math.floor((month - 1) / 3) + 1;
+  const first = (quarter - 1) * 3 + 1;
+  const last = new Date(Date.UTC(year, first + 2, 0)).getUTCDate();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return { year, quarter, start_on: `${year}-${pad(first)}-01`, end_on: `${year}-${pad(first + 2)}-${pad(last)}` };
+}
+
+/** How many goals are at risk or off track: the head's figure of what needs a look. */
+export function needingALook(goals: readonly Pick<Goal, 'status'>[]): number {
+  return goals.filter((goal) => goal.status === 'AT_RISK' || goal.status === 'OFF_TRACK').length;
+}
+
 /** A share as the 0-100 a progress bar takes; undefined for none, which the bar draws as unknown. */
 export function percentOf(share: number | null | undefined): number | undefined {
   const text = percentText(share);
