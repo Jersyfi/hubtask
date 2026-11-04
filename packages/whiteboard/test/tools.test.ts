@@ -188,3 +188,20 @@ test('an older version brought back stands in place of the scene, for everyone a
   assert.ok(board.replace(older));
   assert.deepEqual(new Board(b).elements().map((e) => e.id), ['a', 'l']);
 });
+
+test('pasted words holding an object the board cannot keep leave that object out, so the board still saves', () => {
+  const ok = sticky('a', 0, 0);
+  const text = JSON.stringify({
+    format: 'hubtask.whiteboard', version: 1,
+    elements: [
+      ok,
+      { ...sticky('long', 0, 0), text: 'x'.repeat(2001) },
+      { ...sticky('huge', 0, 0), width: 100_001 },
+      { ...sticky('negative', 0, 0), height: -5 },
+      { id: 'site', kind: 'LINK', x: 0, y: 0, width: 280, height: 72, url: 'javascript:alert(1)' },
+      { id: 'dots', kind: 'STROKE', x: 0, y: 0, width: 10, height: 10, points: Array.from({ length: 2 * (MAX_STROKE_POINTS + 1) }, () => 1) },
+      { id: 'ok-line', kind: 'CONNECTOR', x: 0, y: 0, width: -40, height: -40 },
+    ],
+  });
+  assert.deepEqual(readCopied(text)?.elements.map((e) => e.id), ['a', 'ok-line']);
+});

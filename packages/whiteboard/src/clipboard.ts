@@ -9,7 +9,24 @@
  */
 
 import { bounds, type Point } from './geometry.ts';
-import { MAX_ELEMENTS, type Element, type ElementKind } from './scene.ts';
+import { MAX_STROKE_POINTS } from './draw.ts';
+import { MAX_ELEMENTS, MAX_SIZE, type Element, type ElementKind } from './scene.ts';
+
+/** The most characters one object's words keep (`whiteboards.element_text_too_long`). */
+const MAX_TEXT = 2000;
+
+/**
+ * Whether the board can keep an object pasted from words of unknown origin - an export edited by
+ * hand, say. One the server refuses would stop every later save of the board, so it is left out.
+ */
+function keepable(e: Element): boolean {
+  const sizes = [e.width ?? 0, e.height ?? 0];
+  if (sizes.some((n) => Math.abs(n) > MAX_SIZE || (n < 0 && e.kind !== 'CONNECTOR'))) return false;
+  if (e.text !== undefined && (typeof e.text !== 'string' || [...e.text].length > MAX_TEXT)) return false;
+  if (e.points !== undefined && (!Array.isArray(e.points) || e.points.length > 2 * MAX_STROKE_POINTS)) return false;
+  if (e.kind === 'LINK' && !/^https?:\/\/[^\s]+$/iu.test(e.url ?? '')) return false;
+  return true;
+}
 
 export const CLIPBOARD_FORMAT = 'hubtask.whiteboard';
 
@@ -51,7 +68,8 @@ export function readCopied(text: string): Copied | undefined {
   const elements = (raw.elements as unknown[]).filter((e): e is Element => {
     const element = e as Partial<Element>;
     return typeof element?.id === 'string' && KINDS.includes(element.kind as ElementKind) &&
-      [element.x ?? 0, element.y ?? 0, element.width ?? 0, element.height ?? 0].every((n) => typeof n === 'number' && Number.isFinite(n));
+      [element.x ?? 0, element.y ?? 0, element.width ?? 0, element.height ?? 0].every((n) => typeof n === 'number' && Number.isFinite(n)) &&
+      keepable(element as Element);
   });
   return { format: CLIPBOARD_FORMAT, version: 1, elements: elements.slice(0, MAX_ELEMENTS) };
 }
