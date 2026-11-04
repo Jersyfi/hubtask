@@ -39,7 +39,7 @@ const TYPE = {
 };
 const ENTRY = ITEMS[3];
 
-async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}` }) {
+async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, title }) {
   const browser = await chromium.launch();
   const { context, page } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -49,6 +49,7 @@ async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}` }) 
     if (runs && read === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'], workspace_permissions: PERMISSIONS.OWNER } });
     }
+    if (title && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, title } });
     if (runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: ['WORKFLOWS'] } });
     if (runs && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, entry_type: 'incident', status: 'new' } });
     if (runs && read === `/items/${ENTRY.id}/steps`) {
@@ -144,5 +145,26 @@ test('chromium: a collection\'s Workflow settings name the workflow in force', {
     } finally {
       await close();
     }
+  }
+});
+
+// §5.6 on a phone: the key stands on its own line above the title, so a long title takes the
+// head's width rather than a column between the checkbox and the key, one word a line.
+test('chromium 375: a long title takes the head\'s width beside its key', { timeout: 60_000 }, async () => {
+  const title = 'VPN-Gateway Frankfurt antwortet sporadisch nicht (Paketverlust 30 %)';
+  const { page, close } = await open(375, { runs: false, title });
+  try {
+    const key = page.locator('.head .ticket-key');
+    await key.waitFor({ timeout: 10_000 });
+    const sizes = await page.evaluate(() => {
+      const head = document.querySelector('.head .title-row').getBoundingClientRect();
+      const field = document.querySelector('.head .title-field').getBoundingClientRect();
+      const key = document.querySelector('.head .ticket-key').getBoundingClientRect();
+      return { head: head.width, field: field.width, fieldTop: field.top, keyBottom: key.bottom };
+    });
+    assert.ok(sizes.field >= sizes.head * 0.8, `the title takes ${Math.round(sizes.field)} of ${Math.round(sizes.head)} px`);
+    assert.ok(sizes.keyBottom <= sizes.fieldTop + 1, 'the key stands above the title');
+  } finally {
+    await close();
   }
 });

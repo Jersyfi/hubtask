@@ -1639,6 +1639,14 @@
     font-variant-numeric: tabular-nums;
     cursor: pointer;
   }
+  /* On a phone the key stands on its own line above the title (§5.6), so a long title keeps the
+     line's width instead of a column between the checkbox and the key. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .title-row { flex-wrap: wrap; row-gap: 0; }
+    .ticket-key { order: -1; flex-basis: 100%; text-align: start; padding-inline: 0; }
+  }
+
   .ticket-key:hover { background: var(--bg-surface-hover); color: var(--text-secondary); }
   .ticket-key:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
 
