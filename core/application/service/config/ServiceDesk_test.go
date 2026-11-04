@@ -43,7 +43,7 @@ func TestTheServiceDesksBlocksAreInTheDocument(t *testing.T) {
 	}
 }
 
-// The portal's organisations are a section of the document after the canned replies: a change
+// The portal's organisations are a section of the document before the policies naming them: a change
 // is flagged as changing who may read what, and a domain moved from one organisation to another
 // in one apply is given up before it is claimed, whatever the keys' order.
 func TestTheOrganisationsAreInTheDocument(t *testing.T) {
@@ -55,7 +55,7 @@ func TestTheOrganisationsAreInTheDocument(t *testing.T) {
 			organisations = s
 		}
 	}
-	if organisations.module != module.ServiceDesk || at[sectionOrganisations] <= at[sectionReplies] {
+	if organisations.module != module.ServiceDesk || at[sectionOrganisations] >= at[sectionPolicies] {
 		t.Fatalf("the organisations' section is %+v at %v", organisations, at)
 	}
 	now := current{
@@ -125,5 +125,25 @@ func TestAPolicysOrganisationsAndGroupSurviveAnApply(t *testing.T) {
 	}, map[string]any{"key": "network"})
 	if err != nil || len(ops) != 1 || ops[0].Input["assignee_group"] != group || ops[0].Input["organisations"] == nil {
 		t.Fatalf("a renamed policy is defined as %+v, %v", ops, err)
+	}
+}
+
+// A policy for an organisation and the organisation, added in one apply - a workspace's document
+// applied to a new one -, define the organisation first: the policy names only one the workspace
+// holds (sla_policies.organisation_unknown).
+func TestAnOrganisationIsDefinedBeforeThePolicyNamingIt(t *testing.T) {
+	policy := domain.Block{
+		"name": "Acme incidents", "entry_types": []any{"incident"}, "organisations": []any{"acme"},
+		"goals": []any{map[string]any{"kind": "RESOLUTION", "minutes": 480}}, "position": 1, "enabled": true,
+	}
+	organisation := domain.Block{"name": "Acme", "domains": []any{"acme.example"}, "shares_requests": false}
+	p := Desk{Catalogue: &scoped{}}.planOf(current{Document: domain.Document{}}, domain.Document{
+		sectionPolicies: {"acme_incidents": policy}, sectionOrganisations: {"acme": organisation},
+	}, domain.ModeMerge)
+	if len(p.Refusals) > 0 || len(p.Ops) != 2 {
+		t.Fatalf("the plan is %+v", p)
+	}
+	if p.Ops[0].UseCase != "DefineRequesterOrganisation" || p.Ops[1].UseCase != "DefineSlaPolicy" {
+		t.Errorf("the apply runs %s before %s", p.Ops[0].UseCase, p.Ops[1].UseCase)
 	}
 }

@@ -200,6 +200,13 @@ func sections() []section {
 			locate: "key", locateFrom: "key", changeable: []string{"name", "zone", "hours", "holidays"}, whole: true,
 		},
 		{
+			name: sectionOrganisations, module: module.ServiceDesk, list: "ListRequesterOrganisations", rows: "data", key: "key",
+			attributes: []string{"name", "domains", "shares_requests"},
+			create:     "DefineRequesterOrganisation", change: "DefineRequesterOrganisation", remove: "DeleteRequesterOrganisation",
+			locate: "key", locateFrom: "key", changeable: []string{"name", "domains", "shares_requests"}, whole: true,
+			permissions: true, releases: releasesDomain,
+		},
+		{
 			name: sectionPolicies, module: module.ServiceDesk, list: "ListSlaPolicies", rows: "data", key: "key",
 			// Defined whole: an attribute left out here would be cleared by any apply touching the policy.
 			attributes: []string{"name", "calendar", "entry_types", "organisations", "assignee_group", "priority_field", "goals", "position", "enabled"},
@@ -212,13 +219,6 @@ func sections() []section {
 			attributes: []string{"name", "body"},
 			create:     "DefineReplyTemplate", change: "DefineReplyTemplate", remove: "DeleteReplyTemplate",
 			locate: "key", locateFrom: "key", changeable: []string{"name", "body"}, whole: true,
-		},
-		{
-			name: sectionOrganisations, module: module.ServiceDesk, list: "ListRequesterOrganisations", rows: "data", key: "key",
-			attributes: []string{"name", "domains", "shares_requests"},
-			create:     "DefineRequesterOrganisation", change: "DefineRequesterOrganisation", remove: "DeleteRequesterOrganisation",
-			locate: "key", locateFrom: "key", changeable: []string{"name", "domains", "shares_requests"}, whole: true,
-			permissions: true, releases: releasesDomain,
 		},
 	}, furnitureSections("")...)
 }

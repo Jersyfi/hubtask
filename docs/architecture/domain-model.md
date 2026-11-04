@@ -379,8 +379,9 @@ hub, a collection and a person (migration 0208).
 structure setting the workspace decides itself, set and reset through `SetWorkspaceStructure`, plus
 `locks` - the workspace's whole set of locks - and `default_preset`, a Hubtask preset's key or a
 workspace preset's `preset_id`, which a published template leaves out), `workflows`,
-`business_calendars`, `sla_policies`, `reply_templates` and `requester_organisations` (the service
-desk's, each defined whole under its key; an organisation's change is flagged *changes
+`business_calendars`, `requester_organisations`, `sla_policies` and `reply_templates` (the service
+desk's in that order, so a policy's calendar and organisations are held before it is defined, each
+defined whole under its key; an organisation's change is flagged *changes
 permissions*, one giving up a mail domain runs first in its section, and a published template
 leaves the organisations out), `views` (the views shared workspace-wide, a queue among them) and `rules` (the
 workspace's automation rules, a macro among them) by the stable key a view and a rule carry in their
