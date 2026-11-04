@@ -26,6 +26,7 @@ The renovation hub's page "What the kitchen needs" should reach the carpenter, w
 2. A share never passes a restriction: a restricted page is shared only with somebody it admits, and a share of a page restricted afterwards no longer opens it.
 3. Who manages the hub's members takes a share away, and the person it was shared with may leave it; the trail records each share and each removal.
 4. Where the workspace allows public links - off by default, and an installation or a plan may lock it - somebody who manages a hub's members makes a link to one of its pages; anybody holding the link reads that page alone without signing in, never a page behind a restriction. A new link replaces the old one; the link answers nothing once it is removed, once the workspace switches public links off, once the page is trashed or restricted, or once the person who made it no longer reads it - all with the same answer. Only a hash of the link is kept, and an export carries none.
+5. A page opened by its public link shows its pictures, loaded through that link alone - never another page's picture, and nothing once the link stops answering. A mention of another page shows that page's title, without a link, only where that page has a public link of its own; every other mention and every attached file is left out, and the document carries no internal address.
 
 ## Where it ends
 

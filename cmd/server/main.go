@@ -3822,7 +3822,10 @@ func run() error {
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
 		// A page's public link: not a catalogue entry, for the feed's reason.
-		controller.Feeds = &rest.FeedDoor{BaseURL: cfg.BaseURL, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace}}
+		controller.Feeds = &rest.FeedDoor{
+			BaseURL: cfg.BaseURL, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace},
+			Pictures: controller.Media.Content,
+		}
 		// A portfolio roadmap's public link, the page link's way (UC-GOL-03 check 15).
 		controller.Feeds.Roadmaps = goalservice.ReadPublicRoadmap{Steward: steward}
 		// A collection's public form, the page link's way (UC-SVC-13).
