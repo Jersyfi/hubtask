@@ -458,6 +458,21 @@ groups:
           description: "Its read fails, so devices are told everything else and go without it until a later pull reads it. The server's log names the kind and the failure's code."
           runbook: RB-A39-sync-kind-skipped.md
 
+      # A-40. No process got a WebSocket through the installation's public address for a quarter
+      # of an hour (the realtime probe, two failed attempts in a row before it reads down): a proxy
+      # in front drops the upgrade, and live editing is broken for everyone while every other
+      # check stays green.
+      - alert: HubtaskRealtimeUnreachable
+        expr: max(hubtask_dependency_up{dependency="realtime_public"}) == 0
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-40
+        annotations:
+          summary: "Live editing does not get through the public address"
+          description: "A WebSocket opened through HUBTASK_BASE_URL does not reach the server: the proxy in front drops the upgrade or answers it itself. People can still work, but pages and whiteboards are not edited together."
+          runbook: RB-A40-realtime-unreachable.md
+
       # A-31. More than one in twenty notification sends failed over a quarter of an hour, with at
       # least five failures so that one bounced address on a quiet installation stays silent. A
       # failure the breaker does not see - a refusal per recipient, a template the channel rejects -

@@ -41,5 +41,6 @@ test('a degraded feature links to the installation screen that changes it, where
 
 test('a feature the probes name is said in words; an unknown one keeps its key', () => {
   assert.equal(featureNameCode('media'), 'app.instance.feature.media');
+  assert.equal(featureNameCode('live_editing'), 'app.instance.feature.live_editing');
   assert.equal(featureNameCode('something_new'), undefined);
 });

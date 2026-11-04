@@ -315,6 +315,13 @@ func run() error {
 
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
+	if cfg.HasRole(envport.RoleAPI) {
+		// Through the public address, the way a browser comes in: the base URL is the operator's
+		// own configuration, so its host may be on a private network.
+		registry.Register(healthadapter.NewRealtimeProbe(cfg.BaseURL, rest.APIBasePath,
+			httpclient.NewGuardedClient(cfg.Outbound, httpclient.NewGuard(cfg.Outbound).ForOperatorService(baseHostOf(cfg.BaseURL))).
+				HTTPClient(healthadapter.RealtimeDependency), time.Now))
+	}
 
 	// The object store exists from here on, whether or not a use case consumes it yet: an
 	// operator who pointed the

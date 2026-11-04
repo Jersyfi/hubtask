@@ -776,3 +776,33 @@ tests:
               description: "Vacuum is not freezing old rows. Near two billion PostgreSQL refuses writes; find what holds vacuum back before then."
               runbook: RB-A37-transaction-id-age.md
 
+  # A-40: no process gets a socket through the public address.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="one"}'
+        values: '0x30'
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="two"}'
+        values: '0x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskRealtimeUnreachable
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-40
+            exp_annotations:
+              summary: "Live editing does not get through the public address"
+              description: "A WebSocket opened through HUBTASK_BASE_URL does not reach the server: the proxy in front drops the upgrade or answers it itself. People can still work, but pages and whiteboards are not edited together."
+              runbook: RB-A40-realtime-unreachable.md
+
+  # A-40 stays quiet while one process gets through.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="one"}'
+        values: '0x30'
+      - series: 'hubtask_dependency_up{dependency="realtime_public", instance="two"}'
+        values: '1x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HubtaskRealtimeUnreachable
+        exp_alerts: []

@@ -11,7 +11,7 @@ import type { HealthReport } from '@hubtask/sync-engine';
 
 /** The features the server's probes name (`Impact` of each probe); another is drawn by its key. */
 export const KNOWN_FEATURES = new Set([
-  'all', 'media', 'notifications', 'event_bus', 'ai_suggestions', 'semantic_search',
+  'all', 'media', 'notifications', 'event_bus', 'ai_suggestions', 'semantic_search', 'live_editing',
 ]);
 
 /**

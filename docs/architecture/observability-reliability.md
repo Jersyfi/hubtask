@@ -187,6 +187,7 @@ installation is missing, each a code with a severity, never free text (`Warnings
 | Object storage (S3-compatible) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
 | SMTP / push | Notifications stay in the queue and are caught up; no loss. An installation with no mail server at all sends no email by decision: each email is suppressed at once (`notifications.no_mail_server`), never retried into a dead letter. An address the server refuses for good (a 5xx at RCPT or DATA) fails at once and is marked (`mail_undeliverable`, 0360): later messages to it are suppressed (`notifications.undeliverable`) until the person chooses *Try mail again* on the profile; a changed address is tried at once | The reminder arrives late, with an in-app notice; without a mail server, the in-app notice alone |
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
+| The public address's WebSocket path (a proxy in front) | Each process serving the API opens a socket to `/api/v1/realtime/probe` through `HUBTASK_BASE_URL` every five minutes, in the background; two failed attempts in a row read `realtime_public` down (`health.realtime_unreachable`) with `live_editing` degraded, and A-40 tickets it after a quarter of an hour. Without a base URL the probe is `disabled` | Pages and whiteboards save but are not edited together; the administration and instance overviews name *live editing* |
 | AI provider | AI suggestions and search by meaning disappear (`ai_suggestions`, `semantic_search`); every manual route remains, and search still finds the words typed. One breaker **per endpoint**, a provider being per tenant. `/meta/health` names no endpoint or model: `disabled` until this process has called a provider, then `ok`, `down`, or `degraded` with `ai.embedding_too_wide`; with no provider, `ok` and no degraded feature | The feature greyed out with a reason; with no provider at all no control (`/meta/capabilities`) |
 | External search index (optional) | Fallback to PostgreSQL full-text search | Slower, slightly different search |
 | NATS (optional) | The breaker opens, the outbox holds the events, and the publish jobs retry on the queue's ladder; delivery resumes when the bus returns, without a restart | No visible change |
@@ -228,7 +229,7 @@ Alerts are symptom-based, each with a runbook. **The rule files and the runbooks
 catalogue**: condition, threshold and severity live in
 [`deploy/observability/alerts/`](../../deploy/observability/alerts/), meaning and action in
 [`deploy/observability/runbooks/`](../../deploy/observability/runbooks/). Every rule carries its
-catalogue ID (A-01…A-39) as the label `alert_id` and its runbook as the annotation `runbook`;
+catalogue ID (A-01…A-40) as the label `alert_id` and its runbook as the annotation `runbook`;
 thresholds are starting values an operator tunes in their own copy.
 
 **Which file an alert is in is a decision about who is paged** (§11):
