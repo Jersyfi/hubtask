@@ -84,13 +84,15 @@ test('the portal is offered only where a collection acts as a desk', () => {
     ({ key, level: 'TASK', system: false, position: 0, archived: false, form: channels ? { channels } : undefined, ...extra }) as never;
   const incident = type('incident', [{ channel: 'PORTAL' }]);
   const story = type('story');
-  assert.equal(actsAsDesk([incident, story], undefined), true, 'a type open to the portal makes the desk');
-  assert.equal(actsAsDesk([story], undefined), false, 'a Scrum collection has no portal');
-  assert.equal(actsAsDesk([type('closed', [{ channel: 'PORTAL', closed: true }])], undefined), false, 'a closed door is no desk');
-  assert.equal(actsAsDesk([type('public', [{ channel: 'PUBLIC' }])], undefined), false, 'a public form alone is not the portal');
+  assert.equal(actsAsDesk([incident, story], ['incident']), true, 'a type open to the portal, offered here, makes the desk');
+  assert.equal(actsAsDesk([incident, story], undefined), false, 'a workspace-wide request type alone makes no collection a desk');
+  assert.equal(actsAsDesk([incident, story], ['gone']), false, 'an offering naming no type in use falls back to all, which is no desk');
+  assert.equal(actsAsDesk([story], ['story']), false, 'a Scrum collection has no portal');
+  assert.equal(actsAsDesk([type('closed', [{ channel: 'PORTAL', closed: true }])], ['closed']), false, 'a closed door is no desk');
+  assert.equal(actsAsDesk([type('public', [{ channel: 'PUBLIC' }])], ['public']), false, 'a public form alone is not the portal');
   assert.equal(actsAsDesk([incident, story], ['story']), false, 'the collection offers only types without the portal');
-  assert.equal(actsAsDesk([type('own', [{ channel: 'PORTAL' }], { hub_id: 'h-2' })], undefined, 'h-1'), false, 'another hub\'s type');
-  assert.equal(actsAsDesk([type('arch', [{ channel: 'PORTAL' }], { archived: true })], undefined), false, 'an archived type');
+  assert.equal(actsAsDesk([type('own', [{ channel: 'PORTAL' }], { hub_id: 'h-2' })], ['own'], 'h-1'), false, 'another hub\'s type');
+  assert.equal(actsAsDesk([type('arch', [{ channel: 'PORTAL' }], { archived: true })], ['arch']), false, 'an archived type');
 });
 
 test('an article never shows a requester an internal address (user-experience.md §5.6)', () => {

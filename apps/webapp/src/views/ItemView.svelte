@@ -70,7 +70,8 @@
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor, fieldName, valueText } from '../lib/data/customfields.ts';
   import { hasForm, panelRows } from '../lib/data/entryforms.ts';
-  import { droppedBy, entryTypes, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import { droppedBy, entryTypes, entryTypesOffered, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
+  import { actsAsDesk } from '../lib/portal/portal.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import TypeDropsDialog from '../lib/entries/TypeDropsDialog.svelte';
   import type { EntryFormState } from '@hubtask/sync-engine';
@@ -376,13 +377,19 @@
     }));
   });
   const modulesOn = $derived(modulesHere(manifest.value?.modules_on, placeModules));
+  // An entry of a desk collection, not every entry where the module is on: a Scrum story beside
+  // an ITIL desk has no requester, no promised times and no internal notes (UC-SVC-05).
+  const isDeskEntry = $derived(
+    modulesOn.includes('SERVICE_DESK') && collection !== undefined
+      && actsAsDesk(entryTypes.all, entryTypesOffered(collection.structure?.settings ?? undefined, 'TASK'), collection.parent_id),
+  );
   const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
 
   // The entry's type's form, in edit mode (UC-FLW-01 check 2): its custom fields in the form's
   // sections and order, a hidden one left out, a read-only one opening nothing. The server answers
   // the conditions for the entry as it is stored, again whenever its version moves.
   $effect(() => {
-    if (!typesShown(placeManifest)) return;
+    if (!typesShown(placeManifest) && !modulesOn.includes('SERVICE_DESK')) return;
     return untrack(() => entryTypes.open());
   });
   const itemType = $derived(
@@ -1313,7 +1320,7 @@
       <div class="main-column">
         <!-- A desk entry's promised times first, directly under the head and above the notes
              (user-experience.md §5.6; UC-SVC-02 check 6): the handler reads what breaks first. -->
-        {#if modulesOn.includes('SERVICE_DESK')}
+        {#if isDeskEntry}
           {#key item.id}<EntrySla itemId={item.id} />{/key}
         {/if}
         <!-- The description first in the main column, as the concept draws it: a box that reads
@@ -1383,9 +1390,11 @@
           {#key item.id}<EntryTimer itemId={item.id} onnavigate={(path) => onnavigate?.(path)} />{/key}
         {/if}
         <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
-        {#if modulesOn.includes('SERVICE_DESK')}
+        {#if isDeskEntry}
           <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7). -->
           {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
+        {/if}
+        {#if modulesOn.includes('SERVICE_DESK')}
           {#key item.id}<EntryApprovals itemId={item.id} />{/key}
         {/if}
         <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01). Keyed, so
@@ -1427,7 +1436,7 @@
               <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
             {/if}
             <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
-              isDesk={modulesOn.includes('SERVICE_DESK')} />
+              isDesk={isDeskEntry} />
           {:else}
             <Stack gap="150">
               {#if historyFailure}

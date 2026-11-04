@@ -38,11 +38,13 @@ test('a queue is counted across hubs only once every hub has answered', () => {
 });
 
 // UC-SVC-05: a collection is a desk where it offers a type the portal takes; only those are asked.
+// A Scrum collection beside an ITIL one stays a Scrum collection, though the ITIL types are the
+// workspace's and so usable everywhere.
 test('a hub\'s desks are its collections offering a type open to the portal', () => {
   const type = (key: string, channels?: { channel: string }[]) => ({ key, level: 'TASK', system: false, position: 0, archived: false, form: channels ? { channels } : undefined }) as never;
   const types = [type('incident', [{ channel: 'PORTAL' }]), type('story')];
   const collection = (id: string, offered?: string[]) => ({ id, parent_id: 'hub', structure: offered ? { settings: { entry_types: { TASK: offered } } } : null });
-  assert.deepEqual(desksOf([collection('help', ['incident']), collection('scrum', ['story']), collection('all')], types), ['help', 'all']);
+  assert.deepEqual(desksOf([collection('help', ['incident']), collection('scrum', ['story']), collection('all')], types), ['help']);
   assert.deepEqual(desksOf([collection('help', ['incident'])], [type('story')]), []);
 });
 

@@ -141,13 +141,15 @@ export function deskHead(desk: Desk | undefined, words: { title: string; intro: 
 export const isTeamView = (failure: { readonly status?: number } | undefined): boolean => failure?.status === 403;
 
 /**
- * Whether a collection acts as a desk: a type its entries may take names the requester portal
- * in its form and leaves it open - what the server's catalogue offers (`CatalogueThrough`). Only
- * there is the portal a place to open; a Scrum or Kanban collection has none.
+ * Whether a collection acts as a desk: the types it offers by name (its own or its hub's
+ * `entry_types`) include one whose form leaves the requester portal open. A collection offering
+ * every type is no desk though a request type of the workspace is usable there: a template taken
+ * by the workspace would otherwise turn every Scrum or Kanban collection into one.
  */
 export function actsAsDesk(types: readonly EntryType[], offered: readonly string[] | undefined, hub?: string | null): boolean {
+  if (!offered || offered.length === 0) return false;
   return offeredTypes(types, 'TASK', offered, hub)
-    .some((type) => (type.form?.channels ?? []).some((rule) => rule.channel === 'PORTAL' && rule.closed !== true));
+    .some((type) => offered.includes(type.key) && (type.form?.channels ?? []).some((rule) => rule.channel === 'PORTAL' && rule.closed !== true));
 }
 
 /** A portal the signed-in account uses as a requester (`portals` on `GET /accounts/me`). */
