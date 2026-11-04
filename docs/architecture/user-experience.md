@@ -20,7 +20,9 @@ the binding look where this document does not draw a picture of its own.
 (the column, a product home, a hub with its tab strip, the phone's bars),
 [`first-start.html`](./user-experience/first-start.html) (the starter, Today for a newcomer, a
 module switched on) and [`patterns.html`](./user-experience/patterns.html) (empty states, create
-with a template, a plan in words, a refusal, a settings page, an import). They draw the generated token sheet
+with a template, a plan in words, a refusal, a settings page, an import) and
+[`administration.html`](./user-experience/administration.html) (the overview's first steps,
+*Changes*, roles). They draw the generated token sheet
 `packages/design-system/dist/tokens.css` and carry no colour, length or duration of their own
 (rule 15), so they cannot drift from the tokens; open them from a checkout after `make tokens` or
 `pnpm -r build`. They are pictures to build from, not screens: no data in them is real.
@@ -922,6 +924,68 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   *Modules* (the installation's switch and lock) and *Configuration file* (the instance file in
   force, read-only in enforce mode) as rows, reusing the workspace's components at this level.
 
+### 8.5 Getting started, as built
+
+Mockup: [`administration.html`](./user-experience/administration.html), *Getting started*. The
+overview's checklist is one card above the others, drawn for a reader who may act on at least one
+of its steps, and only with the steps that reader may act on — the permission the step's screen
+writes with:
+
+| Step | Shown to a holder of | Ticked when |
+|---|---|---|
+| *Invite people* | `MANAGE_MEMBERS` | the workspace holds more than one person |
+| *Choose your products* | `STRUCTURE` | a module is switched on |
+| *Connect a mailbox* | `AUTOMATION`, where the service desk is on | a mailbox is connected |
+| *Set up sign-in* | `STRUCTURE` | a sign-in provider of the workspace's own is connected, or a second factor is required |
+| *Back up every night* | `DELETE_CONTAINER` | an enabled backup schedule exists |
+| *Add a support contact* | `STRUCTURE` | the workspace names a support contact |
+
+Each step is a sentence of what it gives, a tick or its one press, and a figure *n of m done*.
+The card waits for every read it needs before it draws, so a step never flickers from open to
+done; a read that is refused or fails leaves its step out rather than open. When every shown step
+is done the card is gone. *Hide the first steps* puts it away for that reader in that browser, and
+the overview's menu offers *Show the first steps* again — a convenience of one reader, so it is kept
+in the browser, not on the server.
+
+### 8.6 Changes and the configuration file
+
+Mockup: `administration.html`, *Changes*. *Changes* answers two questions in this order: **what
+waits for a person's word**, then **what was changed**. Everything else on it is for the expert
+and folds (UX-4).
+
+* **Waiting for your word** joins the changes an agent proposed and the drafts not yet published,
+  each as its plan in words (§5.4) with its acts. Where nothing waits, one settled line.
+* **History**: the versions, newest first, each with when, how it came (*proposed by an agent*,
+  *from the template …*, *a rollback to version n*) and *Roll back to this* as a plan first.
+* **Advanced**, folded under one `Disclosure`: comparing two versions, the sandbox, an agent's
+  right to apply, and **the configuration file** in force (read-only, with *Copy*). The fold
+  opens by itself where the sandbox exists, so nothing that is running is hidden.
+* Every settings page keeps *View as file*, its own part of the same document (A10); the page
+  names nothing the file cannot hold.
+
+### 8.7 Roles and view as
+
+Mockup: `administration.html`, *Roles*. Roles are *People*'s third tab, *Who may do what* its
+fourth, as built.
+
+* **A role is said in what it lets somebody do**, never as a list of permission keys: the shipped
+  roles first, each card with its permissions as words, then the workspace's own roles with
+  *New role* as the tab's primary act. Deleting a role goes through its plan (§5.9).
+* **Each role card says how many people hold it** at the workspace — counted from the
+  workspace's memberships once they are read completely, so a count is never a first page's.
+* **Who may do what** takes a person, a place and a permission and answers in words, with why.
+  *View as* on a person opens their answer; *See their screens* starts a read-only view as them
+  (UC-ID-29) under `ViewAsBanner`, which names them, says that nothing can be written, and offers
+  *End the view* in one press.
+
+### 8.8 Your settings
+
+*Your settings* stays a section of its own with its four groups (*You*, *What you are told
+about*, *How you get in*, *What may act for you*; ADR-0065 decision 3). Its pages follow §5.4: a
+single on/off switch saves at once, any other change saves through the save bar. A value the
+person leaves to the workspace names the workspace's value in the choice itself (*Use the
+workspace's — English*), so leaving it says what it means.
+
 ---
 
 ## 9. What this changes elsewhere
@@ -1090,3 +1154,10 @@ section of the design system it changes, and is walked against the mockups befor
 32. Integrations: cards with their state in words, the add as a dialog, event types in words
     (§7.10).
 33. Imports: one four-step anatomy with the dry run in words (§7.11).
+
+**The administration's first steps, changes and roles**
+
+34. The overview's *Getting started* card with its steps by permission (§8.1, §8.5).
+35. *Changes* in two questions, the expert's parts folded (§8.6).
+36. Each role card's holders (§8.7).
+37. Your settings name the workspace's value they leave a choice to (§8.8).

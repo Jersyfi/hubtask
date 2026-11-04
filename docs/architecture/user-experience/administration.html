@@ -1,0 +1,134 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!--
+  Mockup of docs/architecture/user-experience.md §8.5-§8.7: the administration overview's first
+  steps, *Changes* in two questions with the expert's parts folded, and the roles with their
+  holders. Draws the generated token sheet only (rule 15); run `make tokens` before opening it.
+  A picture to build from: none of the names are real.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the administration</title>
+<link rel="stylesheet" href="../../../packages/design-system/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/design-system/dist/fonts.css">
+<style>
+  html, body { margin: 0; min-height: 100%; }
+  body { background: var(--bg-canvas); color: var(--text-primary); font-family: var(--font-ui); font-size: var(--fs-200); line-height: var(--lh-normal); }
+  button { font: inherit; color: inherit; }
+  .scenes { display: flex; flex-wrap: wrap; gap: var(--sp-100); padding: var(--sp-150) var(--sp-300); background: var(--bg-surface); border-bottom: var(--bw-hairline) solid var(--border-subtle); align-items: center; }
+  .scenes button { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-full); padding: var(--sp-050) var(--sp-200); cursor: pointer; }
+  .scenes button[aria-pressed="true"] { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); }
+  .scenes .note { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-100); }
+  .scene { display: none; padding: var(--sp-400) var(--sp-200); }
+  .scene.on { display: grid; gap: var(--sp-300); max-width: var(--layout-content-max); margin: 0 auto; }
+  h1 { margin: 0; font-size: var(--fs-600); }
+  h2 { margin: 0; font-size: var(--fs-300); }
+  .btn { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); }
+  .btn.p { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-inverse); }
+  .link { color: var(--text-brand); text-decoration: underline; }
+  .quiet { color: var(--text-secondary); font-size: var(--fs-100); margin: 0; }
+  .head { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: center; justify-content: space-between; }
+  .card { display: grid; gap: var(--sp-150); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); box-shadow: var(--shadow-raised); padding: var(--sp-200); }
+  .cards { display: grid; gap: var(--sp-200); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-100); }
+  .steps li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-150); align-items: center; padding: var(--sp-100) 0; border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .tick { display: inline-grid; place-items: center; inline-size: var(--sp-300); block-size: var(--sp-300); border-radius: var(--r-full); border: var(--bw-thick) solid var(--border-default); font-size: var(--fs-100); }
+  .tick.done { background: var(--status-success-surface); border-color: var(--status-success-border); color: var(--status-success-text); }
+  .done-text { color: var(--text-secondary); text-decoration: line-through; }
+  .bar { block-size: var(--sp-100); border-radius: var(--r-full); background: var(--bg-surface-sunken); overflow: hidden; }
+  .bar i { display: block; block-size: 100%; inline-size: 50%; background: var(--accent-primary); }
+  .badge { font-size: var(--fs-075); font-weight: var(--fw-medium); border-radius: var(--r-full); padding: 0 var(--sp-100); border: var(--bw-hairline) solid currentColor; }
+  .badge.ok { color: var(--status-success-text); background: var(--status-success-surface); }
+  .badge.warn { color: var(--status-warning-text); background: var(--status-warning-surface); }
+  .line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-150); align-items: start; }
+  .op { font-size: var(--fs-075); font-weight: var(--fw-semibold); border-radius: var(--r-sm); padding: 0 var(--sp-100); background: var(--status-info-surface); color: var(--status-info-text); }
+  details { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); padding: var(--sp-150) var(--sp-200); background: var(--bg-surface); }
+  summary { cursor: pointer; font-weight: var(--fw-semibold); }
+  .tabs { display: flex; gap: var(--sp-200); border-bottom: var(--bw-hairline) solid var(--border-subtle); }
+  .tabs a { padding: var(--sp-100) 0; color: var(--text-secondary); }
+  .tabs a[aria-current="page"] { color: var(--text-primary); border-bottom: var(--bw-thick) solid var(--accent-primary); font-weight: var(--fw-semibold); }
+  .perms { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .perm { font-size: var(--fs-075); border-radius: var(--r-full); padding: 0 var(--sp-100); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .viewas { display: flex; flex-wrap: wrap; gap: var(--sp-150); align-items: center; justify-content: space-between; background: var(--status-info-surface); border: var(--bw-hairline) solid var(--status-info-border); color: var(--status-info-text); border-radius: var(--r-md); padding: var(--sp-150) var(--sp-200); }
+  .explain { margin: 0; padding: var(--sp-200); border-inline-start: var(--bw-thick) solid var(--accent-primary); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-100); }
+</style>
+</head>
+<body>
+<div class="scenes" role="toolbar" aria-label="Scenes">
+  <button data-scene="first" aria-pressed="true">Getting started</button>
+  <button data-scene="changes" aria-pressed="false">Changes</button>
+  <button data-scene="roles" aria-pressed="false">Roles</button>
+  <button id="theme" aria-pressed="false">Dark</button>
+  <span class="note">user-experience.md §8.5–§8.7</span>
+</div>
+
+<section class="scene on" id="first">
+  <div class="head"><h1>Overview</h1><button class="btn" aria-label="More">⋯</button></div>
+  <div class="card" aria-labelledby="gs">
+    <div class="head"><h2 id="gs">Getting started</h2><span class="quiet">3 of 6 done</span></div>
+    <div class="bar" role="presentation"><i></i></div>
+    <ul class="steps">
+      <li><span class="tick done" aria-hidden="true">✓</span><span class="done-text">Invite the people you work with</span><span class="quiet">Done</span></li>
+      <li><span class="tick done" aria-hidden="true">✓</span><span class="done-text">Choose the products you use</span><span class="quiet">Done</span></li>
+      <li><span class="tick" aria-hidden="true"></span><span>Connect a mailbox, so mail to the desk becomes requests</span><a class="link">Connect a mailbox</a></li>
+      <li><span class="tick" aria-hidden="true"></span><span>Decide how people sign in</span><a class="link">Set up sign-in</a></li>
+      <li><span class="tick" aria-hidden="true"></span><span>Back this workspace up every night</span><a class="link">Back up</a></li>
+      <li><span class="tick done" aria-hidden="true">✓</span><span class="done-text">Tell people whom to ask for help</span><span class="quiet">Done</span></li>
+    </ul>
+    <div><button class="btn">Hide the first steps</button></div>
+  </div>
+  <div class="cards">
+    <div class="card"><h2>Limits</h2><p class="quiet">No limit with a ceiling counts anything here yet.</p></div>
+    <div class="card"><h2>Rules</h2><p class="quiet">No rule fails or needs a look.</p></div>
+    <div class="card"><h2>Backup</h2><p class="quiet">No backup target is set up, so nothing is backed up.</p></div>
+  </div>
+  <p class="explain">The first steps (§8.5): only what this reader may act on, each ticked by the state it checks and one press from its screen; drawn once every read has answered, gone when everything is done, and put away by <i>Hide the first steps</i> — the overview's menu brings it back.</p>
+</section>
+
+<section class="scene" id="changes">
+  <div class="head"><h1>Changes</h1></div>
+  <div class="card">
+    <h2>Waiting for your word</h2>
+    <div class="line"><span><span class="op">Draft</span> Type “Incident”: changes 2 fields of its form</span><button class="btn p">Publish…</button></div>
+    <div class="line"><span><span class="op">Proposed</span> Adds the SLA policy “Major incident” — proposed by the triage agent</span><button class="btn">Look at the plan</button></div>
+  </div>
+  <div class="card">
+    <h2>History</h2>
+    <div class="line"><span>Version 12 · today, 09:14 · from the template ITIL service desk</span><span class="badge ok">In force</span></div>
+    <div class="line"><span>Version 11 · yesterday, 16:02 · proposed by an agent</span><a class="link">Roll back to this…</a></div>
+    <div class="line"><span>Version 10 · 2 Nov, 11:40 · a rollback to version 8</span><a class="link">Roll back to this…</a></div>
+  </div>
+  <details><summary>Advanced: compare versions, the sandbox, the configuration file</summary><p class="quiet">Compare two versions · a sandbox an agent may change freely · an agent's right to apply · the configuration file in force, read-only, with Copy.</p></details>
+  <p class="explain">Two questions first (§8.6): what waits for a person's word, then what was changed. The expert's parts fold under one <i>Advanced</i>, which opens by itself while a sandbox exists.</p>
+</section>
+
+<section class="scene" id="roles">
+  <div class="head"><h1>People</h1><button class="btn p">+ New role</button></div>
+  <nav class="tabs" aria-label="People"><a>People</a><a>Groups</a><a aria-current="page">Roles</a><a>Who may do what</a></nav>
+  <div class="cards">
+    <div class="card"><div class="head"><h2>Owner</h2><span class="quiet">1 person</span></div><div class="perms"><span class="perm">Read</span><span class="perm">Write entries</span><span class="perm">Structure</span><span class="perm">People</span><span class="perm">Delete containers</span></div></div>
+    <div class="card"><div class="head"><h2>Administrator</h2><span class="quiet">2 people</span></div><div class="perms"><span class="perm">Read</span><span class="perm">Write entries</span><span class="perm">Structure</span><span class="perm">People</span></div></div>
+    <div class="card"><div class="head"><h2>Member</h2><span class="quiet">14 people</span></div><div class="perms"><span class="perm">Read</span><span class="perm">Write entries</span><span class="perm">Automation</span></div></div>
+    <div class="card"><div class="head"><h2>Viewer</h2><span class="quiet">Nobody yet</span></div><div class="perms"><span class="perm">Read</span></div></div>
+  </div>
+  <div class="viewas" role="status"><span>You are seeing Hubtask as Ben Weber. Nothing can be written while you do.</span><button class="btn">End the view</button></div>
+  <p class="explain">Roles in words (§8.7): what a role lets somebody do and how many hold it at the workspace — counted only once every membership is read. <i>See their screens</i> on a person starts a read-only view under the banner, ended in one press.</p>
+</section>
+
+<script>
+  const buttons = document.querySelectorAll('[data-scene]');
+  function show(id) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scene === id)));
+    document.querySelectorAll('.scene').forEach((s) => s.classList.toggle('on', s.id === id));
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => show(b.dataset.scene)));
+  document.getElementById('theme').addEventListener('click', (e) => {
+    const dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    e.currentTarget.setAttribute('aria-pressed', String(dark));
+  });
+</script>
+</body>
+</html>
