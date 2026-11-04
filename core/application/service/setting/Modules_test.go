@@ -449,3 +449,53 @@ func TestTheGateReadsItsAnswerInOneTransaction(t *testing.T) {
 		t.Errorf("the gate opened %d transactions, want one", work.opened)
 	}
 }
+
+// Switching the service desk on switches on what it reads, in the same write: its home reads the
+// entry types and workflows, and a desk with Workflows off answered module.off on every tab.
+func TestSwitchingTheServiceDeskOnSwitchesWorkflowsOn(t *testing.T) {
+	ctx := context.Background()
+	modules, _, sink := fixture()
+	states, err := settingservice.SetModule{Modules: modules}.Execute(ctx, actor(),
+		settingservice.SetModuleCommand{Module: module.ServiceDesk, Switch: settingservice.SwitchOn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !on(t, states, module.ServiceDesk).On() || !on(t, states, module.Workflows).On() {
+		t.Errorf("after switching the desk on: %v", module.SetOf(states))
+	}
+	if len(sink.entries) != 2 {
+		t.Errorf("trail holds %d entries, want one per module switched", len(sink.entries))
+	}
+	descriptor := usecase.Descriptor{
+		Name: "ListWorkflows", Summary: "test", Module: module.Workflows,
+		Handler: usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+			return usecase.Output{}, nil
+		}),
+	}
+	registry, err := usecase.NewRegistry(settingservice.ModuleGate{Modules: modules}.Wrap(nil), descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registry.Invoke(ctx, "ListWorkflows", actor(), usecase.Input{}); err != nil {
+		t.Errorf("the desk's read of the workflows = %v, want it served", err)
+	}
+}
+
+// Where Workflows is locked off above, the desk is refused rather than switched on broken.
+func TestTheServiceDeskIsRefusedWhereWorkflowsIsLockedOff(t *testing.T) {
+	ctx := context.Background()
+	modules, store, _ := fixture()
+	store.plan.Entries[module.Workflows.SettingKey()] = domain.Entry{Value: false, Hold: domain.HoldLock}
+	_, err := settingservice.SetModule{Modules: modules}.Execute(ctx, actor(),
+		settingservice.SetModuleCommand{Module: module.ServiceDesk, Switch: settingservice.SwitchOn})
+	if !refusedWith(err, "setting.locked") {
+		t.Errorf("the desk without the workflows it needs = %v, want setting.locked", err)
+	}
+	states, err := settingservice.ListModules{Modules: modules}.Execute(ctx, actor(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if on(t, states, module.ServiceDesk).On() {
+		t.Error("the desk was switched on although its workflows cannot be")
+	}
+}

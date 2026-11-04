@@ -465,7 +465,9 @@ switches it, a hub only switches off what the workspace has on. A use case of a 
 (`usecase.Descriptor.Module`); the registry refuses it with `403 module.off` where the module is
 off, through every door: at the hub its input names - directly, through a collection, an entry, a
 page, a board, a configuration item or a goal in it - and at the workspace where it names none. The installation's and a plan's documents carry them as the `module`
-area. Switching off hides and never deletes.
+area. Switching off hides and never deletes. A module that needs another (`Key.Needs`: the service
+desk needs Workflows, whose entry types and workflows a desk is) switches it on in the same write,
+with its own audit entry; where that one is locked off, the switch is refused and nothing is written.
 
 ---
 

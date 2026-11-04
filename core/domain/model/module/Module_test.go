@@ -108,3 +108,20 @@ func TestOnlyTheGoalsNarrowTheReplica(t *testing.T) {
 		}
 	}
 }
+
+// A desk is entry types and their workflows: the service desk cannot be on without Workflows,
+// and no other module needs another.
+func TestOnlyTheServiceDeskNeedsAnotherModule(t *testing.T) {
+	for _, key := range module.Keys() {
+		got := key.Needs()
+		if key == module.ServiceDesk {
+			if len(got) != 1 || got[0] != module.Workflows {
+				t.Errorf("SERVICE_DESK needs %v, want [WORKFLOWS]", got)
+			}
+			continue
+		}
+		if len(got) != 0 {
+			t.Errorf("%s needs %v, want none", key, got)
+		}
+	}
+}

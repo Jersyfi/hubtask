@@ -94,6 +94,15 @@ func (k Key) Definition() setting.Definition {
 // the copy and is hidden by the client.
 func (k Key) NarrowsReplica() bool { return k == Goals }
 
+// Needs answers the modules this one cannot work without, switched on with it: a desk is entry
+// types and their workflows, so its screens read what Workflows serves.
+func (k Key) Needs() []Key {
+	if k == ServiceDesk {
+		return []Key{Workflows}
+	}
+	return nil
+}
+
 // Definitions is every module's entry, in Keys' order.
 func Definitions() []setting.Definition {
 	out := make([]setting.Definition, 0, len(keys))

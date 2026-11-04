@@ -220,10 +220,21 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		if err != nil {
 			return err
 		}
+		now := m.Clock.Now()
+		if cmd.Switch == SwitchOn {
+			// What the module needs first, so a lock on it refuses before anything is written.
+			for _, needed := range cmd.Module.Needs() {
+				if err := m.switchOnNeeded(ctx, actor, where, layers, needed, now); err != nil {
+					return err
+				}
+			}
+			if layers, err = m.layers(ctx, where.walk); err != nil {
+				return err
+			}
+		}
 		definition := cmd.Module.Definition()
 		above := domain.Resolve(definition, layers[:len(layers)-1]...)
 		before := domain.Resolve(definition, layers...)
-		now := m.Clock.Now()
 		if cmd.Switch == SwitchInherit {
 			if _, err := m.Settings.Remove(ctx, where.at, definition.Key); err != nil {
 				return err
@@ -248,6 +259,31 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		return m.recordAudit(ctx, actor, where, cmd, before, after, now)
 	})
 	return states, err
+}
+
+// switchOnNeeded switches on at the place a module another one needs, where it is not on already,
+// with its own audit entry.
+func (m Modules) switchOnNeeded(
+	ctx context.Context, actor appshared.ActorContext, where place, layers []domain.Layer, needed module.Key, now time.Time,
+) error {
+	definition := needed.Definition()
+	before := domain.Resolve(definition, layers...)
+	if on, _ := before.Effective.(bool); on {
+		return nil
+	}
+	entry := domain.Entry{Value: true, Hold: domain.HoldSet, By: actor.AccountID}
+	if err := domain.Check(definition, where.at.Level, domain.Resolve(definition, layers[:len(layers)-1]...), entry); err != nil {
+		return err
+	}
+	if err := m.Settings.Put(ctx, m.IDs.NewID(), where.at, definition.Key, entry, now); err != nil {
+		return err
+	}
+	after, err := m.layers(ctx, where.walk)
+	if err != nil {
+		return err
+	}
+	cmd := SetModuleCommand{Module: needed, Switch: SwitchOn}
+	return m.recordAudit(ctx, actor, where, cmd, before, domain.Resolve(definition, after...), now)
 }
 
 // resynchronise advances the epoch when the workspace's switch of a module the replica narrows
