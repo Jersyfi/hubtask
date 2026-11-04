@@ -524,3 +524,25 @@ func TestASprintChangedMeanwhileIsReadUnderItsLock(t *testing.T) {
 		t.Errorf("the entry is held by a closed sprint: %+v", open)
 	}
 }
+
+// UC-PLN-06: unfinished entries are carried only into a sprint that can hold them; a full one
+// refuses the close, which leaves the sprint running for its closer to choose another.
+func TestUnfinishedEntriesAreNotCarriedIntoAFullSprint(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	sprint, next := planSprint(t, f, "Sprint 1", "2026-11-02"), planSprint(t, f, "Sprint 2", "2026-11-16")
+	if _, err := (AddSprintEntries{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, []shared.ID{build}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (StartSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID); err != nil {
+		t.Fatal(err)
+	}
+	for range domain.MaxSprintEntries {
+		store.members[next.ID] = append(store.members[next.ID], planrepo.SprintMember{
+			SprintEntry: domain.SprintEntry{SprintID: next.ID, EntryID: shared.ID("01936f2a-7c1e-7000-8000-00000000ffff")},
+		})
+	}
+	if _, err := (CloseSprint{Planner: f.planner}).Execute(ctx, actor(), sprint.ID, next.ID); detail(err) != "sprints.full" {
+		t.Errorf("carried into a full sprint: %v", err)
+	}
+}

@@ -1044,6 +1044,9 @@ func (h CloseSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 		if err != nil {
 			return err
 		}
+		if err := h.carryFits(ctx, carryTo, outcomes); err != nil {
+			return err
+		}
 		if err := h.Planner.Sprints.Update(ctx, sprint, version); err != nil {
 			return err
 		}
@@ -1095,6 +1098,29 @@ func (h CloseSprint) Execute(ctx context.Context, actor appshared.ActorContext, 
 	}
 	result.Sprint = sprint
 	return result, nil
+}
+
+// carryFits refuses carrying more unfinished entries into a sprint than it can hold.
+func (h CloseSprint) carryFits(ctx context.Context, carryTo shared.ID, outcomes map[shared.ID]domain.SprintOutcome) error {
+	carried := 0
+	for _, outcome := range outcomes {
+		if outcome == domain.OutcomeCarried {
+			carried++
+		}
+	}
+	if carried == 0 {
+		return nil
+	}
+	held, err := h.Planner.Sprints.Count(ctx, carryTo)
+	if err != nil {
+		return err
+	}
+	if held+carried > domain.MaxSprintEntries {
+		return shared.ErrValidation.WithDetail("sprints.full").
+			WithParams(map[string]string{"maximum": strconv.Itoa(domain.MaxSprintEntries)}).
+			WithFields(shared.FieldError{Path: "/carry_to_sprint_id", Code: "sprints.full"})
+	}
+	return nil
 }
 
 func entryIDs(entries []domain.SprintEntry) []shared.ID {
