@@ -3,7 +3,8 @@
 <!--
   Mockup of docs/architecture/user-experience.md §5: the product empty state in its three kinds,
   create with a template gallery, a plan in words, a refusal with a next step, a settings page
-  with sources, pickers and the save bar, and an import in its four steps (§7.11). Draws the generated token sheet only (rule 15);
+  with sources, pickers and the save bar, an import in its four steps (§7.11), and a connection
+  screen of the integrations (§7.10). Draws the generated token sheet only (rule 15);
   run `make tokens` before opening it. A picture to build from: none of the names are real.
 -->
 <html lang="en" data-theme="light">
@@ -85,6 +86,21 @@
   .steps .dialog { max-width: none; }
   .step { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .drop { display: grid; gap: var(--sp-050); justify-items: center; text-align: center; border: var(--bw-thick) dashed var(--border-default); border-radius: var(--r-md); padding: var(--sp-300); }
+  .head { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: start; justify-content: space-between; }
+  .head h2 { margin: 0; font-size: var(--fs-600); }
+  .connlayout { display: flex; flex-wrap: wrap; gap: var(--sp-300); }
+  .connlayout nav { flex: 1 1 var(--layout-sidenav-width); max-width: var(--layout-sidenav-width); }
+  .conns { display: grid; gap: var(--sp-200); flex: 999 1 var(--layout-gallery-card); min-width: 0; }
+  .conn { display: grid; gap: var(--sp-100); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); padding: var(--sp-200); }
+  .conn .top { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
+  .conn .target { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; font-weight: var(--fw-semibold); }
+  .badge { font-size: var(--fs-075); font-weight: var(--fw-medium); border-radius: var(--r-full); padding: 0 var(--sp-100); border: var(--bw-hairline) solid currentColor; }
+  .badge.ok { color: var(--status-success-text); background: var(--status-success-surface); }
+  .badge.warn { color: var(--status-warning-text); background: var(--status-warning-surface); }
+  .badge.bad { color: var(--status-danger-text); background: var(--status-danger-surface); }
+  .fix { display: grid; gap: var(--sp-100); justify-items: start; background: var(--status-danger-surface); border: var(--bw-hairline) solid var(--status-danger-border); color: var(--status-danger-text); border-radius: var(--r-md); padding: var(--sp-150) var(--sp-200); }
+  .colrow { display: flex; justify-content: space-between; gap: var(--sp-200); padding: var(--sp-050) var(--sp-150); border-radius: var(--r-sm); color: var(--text-secondary); }
+  .colrow[aria-current="page"] { background: var(--accent-primary-subtle); color: var(--text-brand); font-weight: var(--fw-medium); }
   .explain { padding: var(--sp-200); border-inline-start: var(--bw-thick) solid var(--accent-primary); background: var(--bg-surface); color: var(--text-secondary); font-size: var(--fs-100); }
 </style>
 </head>
@@ -96,6 +112,7 @@
   <button data-scene="refusal" aria-pressed="false">Refusals and failures</button>
   <button data-scene="settings" aria-pressed="false">A settings page</button>
   <button data-scene="import" aria-pressed="false">An import</button>
+  <button data-scene="connections" aria-pressed="false">Connections</button>
   <button id="theme" aria-pressed="false">Dark</button>
   <span class="note">user-experience.md §5</span>
 </div>
@@ -226,6 +243,43 @@
     </div>
   </div>
   <p class="explain">One import anatomy for every source (§7.11) — spreadsheets, task apps, trackers, wikis, a plan's project file, an asset inventory: the sources as cards, the file with its limit said before choosing, the check a dry run said through <code>PlanSummary</code> and stale once the mapping changes, the report in the same words with a way to what arrived. The same file again says <i>left as they are</i>.</p>
+</section>
+
+<section class="scene" id="connections">
+  <div class="connlayout">
+    <nav class="sections" aria-label="Administration, Connections">
+      <div class="label">Connections</div>
+      <a class="colrow" aria-current="page">E-mail <span class="quiet">1 failing</span></a>
+      <a class="colrow">Webhooks <span class="quiet">1 switched off</span></a>
+      <a class="colrow">Voice assistants</a>
+      <a class="colrow">AI <span class="quiet">Nothing answers</span></a>
+    </nav>
+    <div class="conns">
+      <div class="head">
+        <div><h2>E-mail</h2><span class="quiet">2 reading · 1 failing</span></div>
+        <button class="btn p">+ Connect a mailbox</button>
+      </div>
+      <div class="conn">
+        <div class="top"><span class="target">kitchen@example.org</span><span class="badge bad">Failing for an hour or longer</span></div>
+        <span class="quiet">IMAP · imap.example.org · last read yesterday, 11:00</span>
+        <div class="fix" role="note">
+          <span>The mail server refused the sign-in. Check the address and the password.</span>
+          <button class="btn p">Check now</button>
+        </div>
+        <div><button class="btn">Disconnect</button></div>
+      </div>
+      <div class="conn">
+        <div class="top"><span class="target">office@example.org</span><span class="badge warn">Last read failed</span></div>
+        <span class="quiet">IMAP · imap.example.org · the next read tries again in a minute</span>
+      </div>
+      <div class="conn">
+        <div class="top"><span class="target">info@example.org</span><span class="badge ok">Reading</span></div>
+        <span class="quiet">JMAP · signed in with the provider · last read a minute ago</span>
+      </div>
+      <div class="card"><div class="label">None yet</div><div class="empty"><span class="mark" aria-hidden="true">✉</span><h2>No mailbox is connected</h2><p>An existing mailbox is enough. Hubtask reads it every minute and takes only mail that arrives after connecting.</p><button class="btn p">+ Connect a mailbox</button></div></div>
+    </div>
+  </div>
+  <p class="explain">One anatomy for every connection (§7.10) — webhooks and chat rooms, mail, voice, the AI, machines and apps, a person's calendar pushes: what is connected comes first, each a card with its state as a badge in words and a failure beside the act that fixes it; the head counts them and its primary adds through a dialog; the column counts only what broke (switched off, failing for an hour, stopped, nothing answers) on every screen of the section, never a pause or one failed read.</p>
 </section>
 
 <script>

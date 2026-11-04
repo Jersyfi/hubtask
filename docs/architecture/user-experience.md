@@ -806,10 +806,23 @@ AI provider, machines and apps, and a person's own calendar feed and tokens — 
   fold (UX-4).
 * **Empty** says what the connection is for and offers the add (§5.5).
 
-As built: the webhooks (`WebhooksView`), and the column's *Webhooks* row counts those switched off
-after failures (*1 switched off*) on every screen of the administration. Not built: mail, voice,
-AI, machines and apps and the calendar pushes still open as before, and their failures are not yet
-counted in the column.
+* **The column counts only what broke**, on every screen of its section (SideNav's `meta`,
+  heard with the row): a pause, a connection never set up or a single failed read is said on its
+  card, not counted.
+
+As built, each screen and what its column row counts:
+
+| Screen | Cards and their states | The head | The column |
+|---|---|---|---|
+| Webhooks (`WebhooksView`) | *Active*, *Paused*, *Switched off after failures*, the failures beside *Switch it back on* | *3 delivering · 1 switched off after failures*; *Add a webhook* | *1 switched off* |
+| E-mail (`MailView`, `MailboxSection`) | the mailboxes first: *Reading*, *Last read failed*, *Failing for an hour or longer*, *Off*, a failure beside *Check now*; the intake's settings below | *2 reading · 1 failing*; *Connect a mailbox* (a dialog with the provider's sign-in and the password form) | *1 failing* - the server's `failing`, an hour of failed reads |
+| Calendars, in Your settings (`CalendarPushesView`) | *Writing*, *Stopped*, a stopped one's failure beside *Connect again* (the same feed and provider; it replaces the grant), a run that did not go through said while it still writes | *1 writing · 1 stopped*; no add - a push is connected from a view's calendar subscriptions, which the empty state names | *1 stopped* |
+| Machines and apps (`MachinesView`) | a service account without a role carries *No role yet*; the apps as before | *2 service accounts · 1 without a role · 1 app*; *Add a service account* or *Register an app*, by the tab, each a dialog | nothing: neither fails on its own |
+| AI (`AiSettingsView`) | the head's badge: *An offered model answers*, *Our own model answers*, *Own model set up, its use not yet allowed*, *No model set up*, *Nothing answers: the offered model was withdrawn*, *No AI is used here* | the badge | *Nothing answers* - only a withdrawn offered model |
+| Voice assistants (`VoiceView`) | the head's badges, from what is saved: *Spoken entries on/off*, *Alexa connected / not connected yet* | the badges; connecting Alexa stays the console's steps on the page | nothing: a skill that stops answering is Alexa's to say |
+
+Mockup: `patterns.html`, *Connections*. Not built: a person's own tokens (`MyTokensView`) keep
+their screen; voice and AI keep their settings forms under the head rather than cards.
 
 ### 7.11 Imports
 
