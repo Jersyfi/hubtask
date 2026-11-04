@@ -684,6 +684,14 @@
     .row:focus-within .more,
     .row .more:has([aria-expanded='true']) { opacity: 1; }
 
+    /* A row with no figure keeps no room for its menu until the menu shows: the name has the
+       width, and a five-hub tree reads its names rather than their first letters. */
+    .row:not(:hover, :focus, :focus-within) .end:not(:has(.meta), :has([aria-expanded='true'])) {
+      inline-size: 0;
+      overflow: hidden;
+      margin-inline-start: calc(-1 * var(--density-row-gap));
+    }
+
     /* Where the menu shows, the figure it covers steps back. */
     .row:hover .end:has(.more) .meta,
     .row:focus .end:has(.more) .meta,
