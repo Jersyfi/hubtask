@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { actsAsDesk, answersOf, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart } from './portal.ts';
+import { actsAsDesk, answersOf, articleText, askable, deflectionText, deskHead, deskLogoOf, goalTone, isTeamView, portalStart } from './portal.ts';
 
 const questions = [
   { key: 'room', kind: 'SELECT', options: ['floor_1', 'floor_2'] },
@@ -91,4 +91,10 @@ test('the portal is offered only where a collection acts as a desk', () => {
   assert.equal(actsAsDesk([incident, story], ['story']), false, 'the collection offers only types without the portal');
   assert.equal(actsAsDesk([type('own', [{ channel: 'PORTAL' }], { hub_id: 'h-2' })], undefined, 'h-1'), false, 'another hub\'s type');
   assert.equal(actsAsDesk([type('arch', [{ channel: 'PORTAL' }], { archived: true })], undefined), false, 'an archived type');
+});
+
+test('an article never shows a requester an internal address (user-experience.md §5.6)', () => {
+  const id = '01a0e2e0-0000-7000-8000-000000000901';
+  const body = `# Reset your password\n\nAsk [](hubtask:entry/${id}) first.\n\n![](hubtask:media/${id})\n\n::children\n\nThen [the guide](https://example.org).`;
+  assert.equal(articleText(body), '# Reset your password\n\nAsk  first.\n\nThen [the guide](https://example.org).');
 });

@@ -10,6 +10,7 @@
   import type { Article } from '@hubtask/sync-engine';
 
   import { articlePath, portal } from '../lib/data/portal.svelte.ts';
+  import { articleText } from '../lib/portal/portal.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -46,7 +47,7 @@
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
     <div><Button tone="subtle" size="sm" icon="arrow-left" onclick={() => onnavigate?.(`/portal/${collectionId}`)}>{t('app.portal.back')}</Button></div>
-    <article class="body" lang={read.content_language ?? undefined}>{read.body}</article>
+    <article class="body" lang={read.content_language ?? undefined}>{articleText(read.body)}</article>
     <section aria-labelledby="article-helped">
       <Stack gap="100">
         <h2 class="heading" id="article-helped">{t('app.portal.helped')}</h2>

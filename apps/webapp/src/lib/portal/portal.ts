@@ -160,3 +160,17 @@ export interface PortalPlace { readonly collection_id: string; readonly name: st
 export function portalStart(hasNoAccess: boolean, portals: readonly PortalPlace[]): string | undefined {
   return hasNoAccess && portals.length === 1 ? `/portal/${portals[0]?.collection_id}` : undefined;
 }
+
+/**
+ * An article's words as a requester reads them (user-experience.md §5.6, §7.4): every internal
+ * address - a mention, a card, a live view, a picture whose bytes the portal does not serve - is
+ * left out, and a line left empty by it goes with it, so a requester never reads an identifier.
+ */
+export function articleText(body: string): string {
+  return body
+    .replace(/!?\[[^\]]*\]\(hubtask:[a-z]+\/[0-9a-fA-F-]{36}(?:#[A-Za-z0-9_-]{1,64})?\)/gu, '')
+    .replace(/^::(?:toc|children)\s*$/gmu, '')
+    .replace(/[ \t]+$/gmu, '')
+    .replace(/\n{3,}/gu, '\n\n')
+    .trim();
+}
