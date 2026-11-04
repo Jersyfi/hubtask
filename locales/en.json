@@ -283,6 +283,7 @@
   "request.body_missing": "This operation needs a request body.",
   "request.body_unreadable": "The request body could not be read to the end.",
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
+  "request.parameter_invalid": "The address holds a value for {parameter} in a form this server does not accept.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.no_scope_named": "This operation names no scope to check, so it is refused.",
   "privacy.export_kudos_unwired": "This installation cannot read the kudos for a copy of a person's data, so the copy is not written.",

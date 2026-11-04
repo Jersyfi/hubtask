@@ -5,10 +5,13 @@ package rest
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -95,6 +98,46 @@ var errNotWired = shared.ErrInternal.WithDetail("rest.use_case_not_wired")
 // from drifting away from the contract (ADR-0004).
 func (c *RestController) Routes() *Mux {
 	mux := NewMux()
-	openapi.HandlerFromMuxWithBaseURL(c, mux, APIBasePath)
+	openapi.HandlerWithOptions(c, openapi.StdHTTPServerOptions{
+		BaseURL: APIBasePath, BaseRouter: mux, ErrorHandlerFunc: writeParameterProblem,
+	})
 	return mux
+}
+
+// writeParameterProblem answers a parameter the generated wrapper could not read. Its default
+// writes the parser's English text as text/plain (rule 8), which no client can tell from an answer
+// it cannot read; this names the parameter as a field error instead.
+func writeParameterProblem(w http.ResponseWriter, r *http.Request, err error) {
+	name := parameterOf(err)
+	WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.parameter_invalid").
+		WithParams(map[string]string{"parameter": name}).
+		WithFields(shared.FieldError{Path: name, Code: "request.parameter_invalid"}).
+		WithCause(err), correlation.RequestIDFrom(r.Context()))
+}
+
+// parameterOf is the parameter a generated wrapper error names.
+func parameterOf(err error) string {
+	var (
+		format    *openapi.InvalidParamFormatError
+		required  *openapi.RequiredParamError
+		header    *openapi.RequiredHeaderError
+		unmarshal *openapi.UnmarshalingParamError
+		many      *openapi.TooManyValuesForParamError
+		cookie    *openapi.UnescapedCookieParamError
+	)
+	switch {
+	case errors.As(err, &format):
+		return format.ParamName
+	case errors.As(err, &required):
+		return required.ParamName
+	case errors.As(err, &header):
+		return header.ParamName
+	case errors.As(err, &unmarshal):
+		return unmarshal.ParamName
+	case errors.As(err, &many):
+		return many.ParamName
+	case errors.As(err, &cookie):
+		return cookie.ParamName
+	}
+	return ""
 }

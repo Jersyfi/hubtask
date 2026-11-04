@@ -785,6 +785,7 @@
   "request.body_missing": "Diese Operation braucht einen Anfragetext.",
   "request.body_unreadable": "Der Anfragetext konnte nicht bis zum Ende gelesen werden.",
   "request.body_too_large": "Der Anfragetext darf höchstens {limit_bytes} Bytes haben.",
+  "request.parameter_invalid": "Die Adresse enthält für {parameter} einen Wert in einer Form, die dieser Server nicht annimmt.",
   "shared.id_malformed": "{value} ist keine gültige Kennung.",
   "shared.cursor_invalid": "Dieser Seitenlink ist nicht mehr verwendbar. Beginne die Liste bitte von vorn.",
   "text.normalizer_missing": "Diese Installation ist falsch konfiguriert und konnte diesen Text nicht speichern.",
