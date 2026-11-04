@@ -649,7 +649,9 @@
   .clip { max-inline-size: var(--layout-board-column); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .foot th, .foot td { border-block-start: var(--bw-hairline) solid var(--border-strong); }
   .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  /* No global `box-sizing`: a locked day is a `div`, whose padding and border would add to its 100%. */
   .day {
+    box-sizing: border-box;
     position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-025);
     inline-size: 100%; min-inline-size: 0; block-size: 100%; padding: var(--sp-100);
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);

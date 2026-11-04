@@ -200,6 +200,35 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   assert.deepEqual(walk.unstubbed(), []);
 });
 
+// A locked day is drawn as a card that is not a button, so both kinds are measured.
+for (const isLocked of [false, true]) test(`chromium: time - 1280 px, each ${isLocked ? 'locked' : 'open'} day card keeps inside its own cell and the content edge`, async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const backend = timeBackend();
+  const answer = (method, path, query, body) => {
+    const answered = backend(method, path, query, body);
+    if (isLocked && answered?.json?.days) return { json: { ...answered.json, days: answered.json.days.map((day) => ({ ...day, locked: true })) } };
+    return answered;
+  };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer, width: 1280, height: 900 });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  const days = page.getByRole('list', { name: /^The days of / });
+  await days.getByRole('listitem').nth(6).waitFor({ timeout: 10_000 });
+  const overruns = await days.evaluate((list) => {
+    const edge = list.getBoundingClientRect().right;
+    return [...list.querySelectorAll(':scope > li')].map((cell) => {
+      const card = cell.querySelector('.day').getBoundingClientRect();
+      const own = cell.getBoundingClientRect();
+      return Math.max(card.right - own.right, card.right - edge, 0);
+    }).filter((over) => over > 0.5);
+  });
+  assert.deepEqual(overruns, [], 'a day card overruns its cell or the content edge');
+  assert.deepEqual(walk.errors(), []);
+});
+
 // §4: a workspace's kinds of work are there on first use - the first reader who may write them
 // gets the usual ones, in their words - so the timer starts and a day records.
 test('chromium: time - a workspace without a kind of work is given the usual ones, and the timer starts', async (t) => {
