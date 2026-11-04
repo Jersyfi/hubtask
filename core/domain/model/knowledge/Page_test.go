@@ -220,3 +220,25 @@ func TestATreeIsExportedAsFoldersOfMarkdown(t *testing.T) {
 		t.Fatalf("content %q", files[1].Content)
 	}
 }
+
+// A page moves with the pages under it: the deepest of them must still fit the tree.
+func TestAMovedSubtreeFitsTheTree(t *testing.T) {
+	chain := []Page{{ID: pageA}, {ID: pageB, ParentID: pageA}, {ID: pageC, ParentID: pageB}}
+	cases := []struct {
+		name  string
+		root  shared.ID
+		level int
+		want  string
+	}{
+		{name: "a leaf at the bottom", root: pageC, level: MaxDepth},
+		{name: "three deep at the bottom", root: pageA, level: MaxDepth - 2},
+		{name: "three deep past the bottom", root: pageA, level: MaxDepth - 1, want: "pages.too_deep"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := detail(CheckSubtreeDepth(c.level, SubtreeHeight(chain, c.root))); got != c.want {
+				t.Fatalf("got %q, want %q", got, c.want)
+			}
+		})
+	}
+}

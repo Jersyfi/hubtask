@@ -468,3 +468,19 @@ func TestAPagesLiveDocumentSitsAtItsHub(t *testing.T) {
 
 func ptr(s string) *string { return &s }
 func ptrBool(b bool) *bool { return &b }
+
+// A move takes the pages under the page along: a subtree that would reach below the tree's
+// deepest level is refused, so no page ever sits deeper than a restriction's walk up sees.
+func TestAMoveKeepsTheWholeSubtreeWithinTheTreesDepth(t *testing.T) {
+	f := newFixture()
+	parent := shared.ID("")
+	for range domain.MaxDepth - 1 {
+		parent = f.create(t, anna, hub, parent, "Level", "").ID
+	}
+	moving := f.create(t, anna, hub, "", "Moving", "")
+	f.create(t, anna, hub, moving.ID, "Under", "")
+	_, err := (MovePage{Space: f.space}).Execute(context.Background(), as(anna), MovePageCommand{PageID: moving.ID, ParentID: parent})
+	if code(err) != "pages.too_deep" {
+		t.Fatalf("got %v; want pages.too_deep", err)
+	}
+}

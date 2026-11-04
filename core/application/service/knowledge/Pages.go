@@ -704,6 +704,7 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 		if cmd.ExpectedVersion != 0 && cmd.ExpectedVersion != current.Version {
 			return shared.ErrVersionConflict.WithDetail("pages.version_conflict")
 		}
+		level := 1
 		if !cmd.ParentID.IsZero() {
 			parent, err := h.Space.find(ctx, cmd.ParentID, false)
 			if err != nil {
@@ -719,9 +720,13 @@ func (h MovePage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 			if err := domain.CheckParent(current.ID, parent, ancestorIDs(ancestors), current.HubID); err != nil {
 				return err
 			}
+			level = len(ancestors) + 2
 		}
 		siblings, err := h.Space.Pages.List(ctx, current.HubID, true, false, domain.MaxPagesPerHub)
 		if err != nil {
+			return err
+		}
+		if err := domain.CheckSubtreeDepth(level, domain.SubtreeHeight(siblings, current.ID)); err != nil {
 			return err
 		}
 		key, err := placeAfter(siblings, current.ID, cmd.ParentID, cmd.AfterID)

@@ -297,6 +297,36 @@ func CheckParent(page shared.ID, parent Page, ancestors []shared.ID, hubID share
 	return nil
 }
 
+// SubtreeHeight answers how many levels a page and the pages under it span among pages: 1 for a
+// page with none under it.
+func SubtreeHeight(pages []Page, root shared.ID) int {
+	children := map[shared.ID][]shared.ID{}
+	for _, page := range pages {
+		if !page.ParentID.IsZero() {
+			children[page.ParentID] = append(children[page.ParentID], page.ID)
+		}
+	}
+	height, level := 0, []shared.ID{root}
+	for len(level) > 0 && height <= MaxDepth {
+		height++
+		var next []shared.ID
+		for _, id := range level {
+			next = append(next, children[id]...)
+		}
+		level = next
+	}
+	return height
+}
+
+// CheckSubtreeDepth judges a page placed at level with a subtree height levels tall: its deepest
+// page must still be within MaxDepth, or a restriction's walk up would no longer reach it.
+func CheckSubtreeDepth(level, height int) error {
+	if level+height-1 > MaxDepth {
+		return invalid("/parent_id", "pages.too_deep").WithParams(map[string]string{"maximum": "12"})
+	}
+	return nil
+}
+
 // CheckVerification judges a verification: a date not in the past.
 func CheckVerification(until *time.Time, now time.Time) error {
 	if until != nil && until.Before(now) {
