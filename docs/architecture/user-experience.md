@@ -512,6 +512,13 @@ templates*, so *Templates* means one thing. A test pins the section order per le
   (*12 comments, 3 page comments, 1 draft will be deleted*), the same words in the mode note and
   in the confirmation, and a test that every kind the eraser handles has a line.
 
+Today: role deletion goes through the plan (`BlockRemoval`: the REMOVE's reach and refusals, the
+acknowledgement, *Undo* planning the block back). The erasure's preview answers `lines` from
+`PlanErasure` - counted for comments, writings, assignments, entries and held intake, uncounted for
+what only the erasure counts - and the confirmation lists them; the mode note does not repeat them
+yet. The one trash is not built: `/trash` still lists entries and containers only, pages and
+whiteboards keep their hub's own trash lists.
+
 ### 5.10 Forms and errors
 
 * An error is drawn **where the field is**: `Input`'s `error` (which sets `aria-invalid` and
@@ -957,6 +964,9 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   it cancels the queued delivery, so the earlier link dies and the mailed token never kills the
   handed-over one (identity.md §12, "Never both", holds). A self-hosting alert fires when
   `hubtask_notification_failures_total` rises above its threshold for a period.
+  Today: an invited person's row shows the last invitation mail's state, time and failure
+  (`POST /accounts:invitation-deliveries`, read from the queue); a person's other mail is not
+  shown there. *Copy invitation link* where mail is configured is not built.
 * **Erasure**: §5.9.
 * **Changes and drafts**: `PlanSummary` everywhere (§5.4).
 
