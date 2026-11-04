@@ -777,9 +777,13 @@ administers agents (the kill switch, MCP's registered-only, the models, the mete
 shows the role, the person it acts for, the model, what it may do in words, its budget and its
 lifecycle presses; its *N waiting* opens the held acts narrowed to it, which is also where Today's
 held acts lead. A run reads *Triage helper on an entry · 2 proposals · 1,840 tokens*. An empty
-workspace offers the roles; a reader who may not add one is told that an administrator does. Not
-built: a held act's use case and preview are still the catalogue's names and the input's keys, not
-a plan in words.
+workspace offers the roles; a reader who may not add one is told that an administrator does. A
+held act of a shipped role is said in words (`heldActWordsOf`): *Add an internal comment to an
+entry* with the comment and *Open the entry*, *Create the page "…"* with its text, *Merge a
+duplicate configuration item into the one that stays*. Not built: an act no shipped role makes -
+an external agent may call any use case its scopes allow - keeps the use case's name and the
+input's keys, and the agent's ledger in its detail shows the names; words for them need a phrase
+per use case, which none has today.
 
 ### 7.9 A hub's overview
 

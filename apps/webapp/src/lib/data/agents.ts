@@ -127,6 +127,42 @@ export function previewOf(input: Record<string, unknown>, prefix = ''): PreviewL
   return out;
 }
 
+/** A held act said in words: the sentence, the text the agent wrote, where it would land. */
+export interface HeldActWords {
+  readonly code: string;
+  readonly params: Readonly<Record<string, string>>;
+  readonly text?: string;
+  readonly href?: string;
+}
+
+const textOf = (value: unknown): string | undefined => (typeof value === 'string' && value !== '' ? value : undefined);
+
+/**
+ * The acts the shipped roles propose (`Runner.go`: a comment on an entry, a page, a CI duplicate
+ * resolved) in the decider's words (user-experience.md §7.8). Any other use case - an external
+ * agent may call any its scopes allow - and any input not of the shipped shape answer nothing, so
+ * the card keeps the name and the keys rather than guess at words.
+ */
+export function heldActWordsOf(useCase: string, input: Record<string, unknown>): HeldActWords | undefined {
+  if (useCase === 'AddComment') {
+    const item = textOf(input['item_id']);
+    const body = textOf(input['body']);
+    if (!item || !body) return undefined;
+    return { code: input['internal'] === true ? 'app.agents.held.add_internal_comment' : 'app.agents.held.add_comment', params: {}, text: body, href: `/items/${item}` };
+  }
+  if (useCase === 'CreatePage') {
+    const title = textOf(input['title']);
+    if (!title) return undefined;
+    const body = textOf(input['body']);
+    return { code: 'app.agents.held.create_page', params: { title }, ...(body ? { text: body } : {}) };
+  }
+  if (useCase === 'ResolveCiDuplicate') {
+    if (!textOf(input['duplicate_id']) || !textOf(input['survivor_id'])) return undefined;
+    return { code: 'app.agents.held.resolve_ci_duplicate', params: {} };
+  }
+  return undefined;
+}
+
 /** One agent's sums over the days the metering answered. */
 export interface MeteringTotal {
   readonly agentId: string;

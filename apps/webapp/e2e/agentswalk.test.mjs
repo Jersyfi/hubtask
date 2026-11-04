@@ -38,7 +38,7 @@ function agentsBackend({ empty = false } = {}) {
   const triage = agent({ name: 'Triage helper', purpose: 'Sorts new requests into their queue.', owner_id: OTHER.id });
   const all = empty ? [] : [triage];
   const requests = empty ? [] : [{
-    id: id(), agent_id: triage.id, use_case: 'items.update', class: 'REVERSIBLE', input: { item_id: ITEMS[0].id, title: 'Tiles ordered' },
+    id: id(), agent_id: triage.id, use_case: 'AddComment', class: 'REVERSIBLE', input: { item_id: ITEMS[0].id, body: 'Belongs to the facilities queue.', internal: true },
     status: 'PENDING', decided_by: null, decided_at: null, code: '', created_at: now(),
   }];
   return (method, path, query, body) => {
@@ -129,6 +129,13 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await triage.getByRole('button', { name: '1 waiting' }).click();
   await page.waitForURL(/tab=requests&agent=/);
   await page.getByText('Waiting on Triage helper').waitFor({ timeout: 5_000 });
+  // The shipped role's act in words (user-experience.md §7.8): what it would do, what it wrote,
+  // where it would land - not the use case's name and the input's keys.
+  const held = page.locator('[data-held-act="AddComment"]');
+  await held.getByText('Add an internal comment to an entry').waitFor({ timeout: 5_000 });
+  await held.getByText('Belongs to the facilities queue.').waitFor();
+  assert.equal(await held.getByRole('link', { name: 'Open the entry' }).getAttribute('href'), `/items/${ITEMS[0].id}`);
+  assert.equal(await held.locator('code').count(), 0, 'the act is still said by its name');
   await page.getByRole('button', { name: 'Approve and do it' }).click();
   // Decided, it leaves what waits: the list says nothing waits any more.
   await page.getByText('Nothing waits for a person.').waitFor({ timeout: 5_000 });

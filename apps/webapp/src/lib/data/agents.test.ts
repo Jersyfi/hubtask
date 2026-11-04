@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DEFAULT_BUDGET, aiFields, byState, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
+  DEFAULT_BUDGET, aiFields, byState, draftOf, expectedFrom, heldCounts, jobTarget, lifecyclePresses, mayDecide, mayStartJob, meteringPath, meteringTotals, previewOf, heldActWordsOf, requestsPath, retentionOf, scopesFrom, selfEvaluation,
 } from './agents.ts';
 
 const admin = { administers: true, accountId: 'root' };
@@ -142,4 +142,19 @@ test('UC-AGT-02 check 9: each agent card counts the acts waiting on it', () => {
 test('the agent cards stand live first and a retired one last, else in the server order', () => {
   const list = [{ id: 'old', status: 'RETIRED' }, { id: 'draft', status: 'DRAFT' }, { id: 'live', status: 'ACTIVE' }, { id: 'stopped', status: 'SUSPENDED' }, { id: 'live2', status: 'ACTIVE' }] as const;
   assert.deepEqual(byState(list).map((each) => each.id), ['live', 'live2', 'stopped', 'draft', 'old']);
+});
+
+test("a shipped role's held act is said in words, any other keeps its name and keys", () => {
+  assert.deepEqual(heldActWordsOf('AddComment', { item_id: 'e1', body: 'Printer in room 4', internal: true }), {
+    code: 'app.agents.held.add_internal_comment', params: {}, text: 'Printer in room 4', href: '/items/e1',
+  });
+  assert.equal(heldActWordsOf('AddComment', { item_id: 'e1', body: 'Hi' })?.code, 'app.agents.held.add_comment');
+  assert.deepEqual(heldActWordsOf('CreatePage', { hub_id: 'h1', title: 'Resetting a printer', body: 'Steps…' }), {
+    code: 'app.agents.held.create_page', params: { title: 'Resetting a printer' }, text: 'Steps…',
+  });
+  assert.deepEqual(heldActWordsOf('ResolveCiDuplicate', { duplicate_id: 'c2', survivor_id: 'c1' }), {
+    code: 'app.agents.held.resolve_ci_duplicate', params: {},
+  });
+  assert.equal(heldActWordsOf('ArchiveContainer', { container_id: 'x' }), undefined, 'an act no shipped role makes has no words yet');
+  assert.equal(heldActWordsOf('AddComment', { body: 'no entry named' }), undefined, 'an input that is not the shipped shape keeps its keys');
 });
