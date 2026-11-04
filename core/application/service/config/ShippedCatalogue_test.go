@@ -260,3 +260,32 @@ func TestEveryServiceTemplateMakesItsHubsCollectionsDesks(t *testing.T) {
 		}
 	}
 }
+
+// A template that opens a portal ships the role that raises requests there, so a desk takes its
+// first request without anybody defining a role first (user-experience.md §4: a portal is there
+// on first use).
+func TestEveryServiceTemplateShipsARequesterRole(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, template := range templates {
+		opens := false
+		for _, block := range template.Document[sectionTypes] {
+			form, _ := block["form"].(map[string]any)
+			channels, _ := form["channels"].([]any)
+			for _, raw := range channels {
+				rule, _ := raw.(map[string]any)
+				opens = opens || (rule["channel"] == "PORTAL" && rule["closed"] != true)
+			}
+		}
+		if !opens {
+			continue
+		}
+		role := template.Document[sectionRoles]["requester"]
+		permissions, _ := role["permissions"].([]any)
+		if len(permissions) != 1 || permissions[0] != "REQUEST" {
+			t.Errorf("%s: the requester role = %v, want one holding REQUEST alone", template.Key, role)
+		}
+	}
+}

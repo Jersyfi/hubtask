@@ -151,7 +151,9 @@ an unchanged answer is no change. `itil_service_desk@9` asks the first group and
 holds *CAB member*; working hours and the time zone are still the calendar's own values.
 `itil_service_desk@11` tells by the notification path (UC-AUT-09), not by a comment only: a
 breached SLA goal tells the administrators along the entry's path (`NOTIFY_ROLE` `ADMIN`), a P1
-the first responding group (`NOTIFY_GROUP`).
+the first responding group (`NOTIFY_GROUP`). Every template that opens a portal ships the role
+`requester` (*Requester*, `REQUEST` alone), so a desk's first requester is invited or granted with
+a role that already exists (`itil_service_desk@14`, the six other service templates `@4`).
 
 **Roles mapped to groups** are the document's `role_groups` section: a block per custom role, its
 `groups` the groups holding it at the whole workspace. Applying adds a `GrantRole` for each group

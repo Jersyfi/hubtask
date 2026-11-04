@@ -1,6 +1,6 @@
 {
   "key": "customer_support",
-  "version": 3,
+  "version": 4,
   "document": {
     "modules": {
       "workflows": {
@@ -169,6 +169,14 @@
             }
           ]
         }
+      }
+    },
+    "roles": {
+      "requester": {
+        "name": "Requester",
+        "permissions": [
+          "REQUEST"
+        ]
       }
     }
   },

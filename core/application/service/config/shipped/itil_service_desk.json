@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 13,
+  "version": 14,
   "questions": [
     {
       "key": "first_group",
@@ -29,6 +29,12 @@
         "permissions": [
           "READ",
           "COMMENT"
+        ]
+      },
+      "requester": {
+        "name": "Requester",
+        "permissions": [
+          "REQUEST"
         ]
       }
     },
