@@ -37,11 +37,11 @@ const SPRINTS = [CLOSED, RUNNING, NEXT];
 const points = (value) => ({ unit: 'POINTS', value, size: null });
 const inSprint = (item, value, extra = {}) => ({
   item_id: item.id, title: item.title, added_at: `${addDays(today, -3)}T08:00:00Z`, removed_at: null, committed: true,
-  outcome: null, done: false, completed_at: null, estimate: points(value), ...extra,
+  outcome: null, done: false, started: false, completed_at: null, estimate: points(value), ...extra,
 });
 const DETAIL = {
   sprint: RUNNING,
-  entries: [inSprint(ITEMS[0], 5, { done: true, completed_at: `${addDays(today, -1)}T15:00:00Z` }), inSprint(ITEMS[1], 3)],
+  entries: [inSprint(ITEMS[0], 5, { done: true, completed_at: `${addDays(today, -1)}T15:00:00Z` }), inSprint(ITEMS[1], 3, { started: true })],
   burndown: [
     { day: addDays(today, -3), remaining: 8, scope: 8, ideal: 8 },
     { day: addDays(today, -2), remaining: 8, scope: 8, ideal: 7.4 },
@@ -130,10 +130,13 @@ test('chromium: 1280 px — the running sprint, its burndown and velocity, a mov
   assert.equal(await days.count(), DETAIL.burndown.length);
   await page.getByRole('heading', { name: 'Velocity: 5 points a sprint' }).waitFor({ timeout: 5_000 });
 
-  // The sprint is a board (user-experience.md §7.5): the backlog, what is to do, what is done.
+  // The sprint is a board (user-experience.md §7.5): the backlog, what is to do, what is in
+  // progress - an entry the server says is started - and what is done.
   const board = page.locator('[data-sprint-board]');
   await board.locator('[data-card]').first().waitFor({ timeout: 5_000 });
-  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), ['Backlog', 'To do', 'Done']);
+  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), ['Backlog', 'To do', 'In progress', 'Done']);
+  assert.equal(await board.locator(`[data-lane="in-progress"] [data-card="${ITEMS[1].id}"]`).count(), 1, 'the started entry is not in progress');
+  assert.equal(await board.locator(`[data-drop="sprint"] [data-card]`).count(), 0, 'a started entry is still to do');
 
   // An entry of the backlog moved into the sprint by its card's arrow, the keyboard's way.
   await page.getByRole('button', { name: `Move ${ITEMS[3].title} into the sprint` }).click();

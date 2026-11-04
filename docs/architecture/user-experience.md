@@ -729,13 +729,15 @@ and is described by them. A due date alone is a milestone that a drag moves with
 start; the entries with no dates are in the tray with *Give it dates*, which opens the entry. A
 plan with nothing in it says so and offers its place's list. A lag error stands at its field.
 The schedule answers `undated` and `due_only` for this, additively. The sprint is a board of
-*Backlog · To do · Done*: a card's estimate is a chip with its label hidden, kept by Enter or by
-leaving it and refused at the chip; a card moves by its arrow, or carried by a mouse onto the
-other lane; the head says the days left and how much of the scope is done beside a small
-burndown, whose table is folded under the board. The backlog lists the collection's top-level
-entries. Not built: *In progress* as its own lane (a sprint entry answers done or not, no status
-category), a finger carrying a card (it scrolls; the arrow is its way), and the milestone sentence
-*All done on … · n open since* (the milestone answers no count of entries added since).
+*Backlog · To do · In progress · Done*, *In progress* holding an open entry the server answers
+`started` for (its status of the `IN_PROGRESS` category in a workflow of the workspace, as the
+flow metrics count it; a closed sprint keeps its open entries in *To do*). A card's estimate is a
+chip with its label hidden, kept by Enter or by leaving it and refused at the chip; a card moves
+by its arrow, or carried by a mouse onto the other lane; the head says the days left and how much
+of the scope is done beside a small burndown, whose table is folded under the board. The backlog
+lists the collection's top-level entries. Not built: a finger carrying a card (it scrolls; the
+arrow is its way), and the milestone sentence *All done on … · n open since* (the milestone
+answers no count of entries added since).
 
 The releases follow the same anatomy: the head says how many are planned, the next one and its day
 (or that it is late) and how many went out, with *Plan a release* its primary and *Release* and

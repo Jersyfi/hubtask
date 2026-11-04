@@ -2,7 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Sprints* of a collection (M2, UC-PLN-06, UC-PLN-07): the chosen sprint as a board - the
-  // backlog, what is still to do and what is done, an estimate as a chip on each card - with its
+  // backlog, what is still to do, what is in progress and what is done, an estimate as a chip on each card - with its
   // burndown in the head and the team's velocity below (user-experience.md §7.5).
   //
   // **The server counts; this screen draws and writes.** Commitment, result, burndown and velocity
@@ -200,7 +200,11 @@
   }
 
   const open = $derived((detail?.entries ?? []).filter((e) => !e.removed_at));
-  const toDo = $derived(open.filter((e) => !e.done));
+  // *In progress* is its own lane while the sprint runs or is planned (§7.5); a closed sprint keeps
+  // what was left open in one lane with what became of it.
+  const hasStartedLane = $derived(chosen?.state !== 'CLOSED');
+  const toDo = $derived(open.filter((e) => !e.done && !(hasStartedLane && e.started)));
+  const inProgress = $derived(hasStartedLane ? open.filter((e) => !e.done && e.started) : []);
   const done = $derived(open.filter((e) => e.done));
   const noteOf = (entry: SprintEntry) =>
     entry.outcome ? t(`app.sprints.outcome_${entry.outcome}`) : !entry.committed && chosen?.state !== 'PLANNED' ? t('app.sprints.added_later') : undefined;
@@ -373,6 +377,21 @@
             {/if}
           </BucketColumn>
         </div>
+        {#if hasStartedLane}
+          <div class="lane" data-lane="in-progress">
+            <BucketColumn name={t('app.sprints.in_progress_column')} count={detail ? inProgress.length : null}>
+              {#if !detail}
+                <Skeleton lines={2} />
+              {:else if inProgress.length === 0}
+                <p class="quiet">{t('app.sprints.in_progress_empty')}</p>
+              {:else}
+                <ul class="cards">
+                  {#each inProgress as entry (entry.item_id)}{@render card(entry, 'sprint', noteOf(entry))}{/each}
+                </ul>
+              {/if}
+            </BucketColumn>
+          </div>
+        {/if}
         <div class="lane">
           <BucketColumn name={t('app.sprints.done_column')} count={detail ? done.length : null} isDoneBucket doneBucketLabel={t('app.sprints.done_column_hint')}>
             {#if detail && done.length === 0}
