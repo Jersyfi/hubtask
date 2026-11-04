@@ -268,7 +268,7 @@ func (a Affecting) read(ctx context.Context, actor appshared.ActorContext, id sh
 func entryOutput(e workrepo.EntrySummary, ci shared.ID) usecase.Output {
 	return usecase.Output{
 		"item_id": e.ID.String(), "title": e.Title, "handle": e.Handle, "number": e.Number, "entry_type": e.EntryType,
-		"ci_id": ci.String(), "start_at": e.StartAt, "due_at": e.DueAt,
+		"ci_id": ci.String(), "start_at": e.StartAt, "due_at": e.DueAt, "key_prefix": stringOrNil(e.KeyPrefix),
 	}
 }
 
@@ -396,4 +396,12 @@ func (a Affecting) change(ctx context.Context, actor appshared.ActorContext, in 
 		return nil, err
 	}
 	return a.read(ctx, actor, itemID)
+}
+
+// stringOrNil is an empty text as the API's null.
+func stringOrNil(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }

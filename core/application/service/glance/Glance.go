@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -119,18 +120,18 @@ func (g Glance) lines(ctx context.Context, actor appshared.ActorContext, rows []
 		return nil, err
 	}
 	base = strings.TrimSuffix(base, "/")
-	handles := map[string]string{}
+	collections := map[string]domainwork.Container{}
 	err = g.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		for _, row := range rows {
 			id, _ := row["collection_id"].(string)
-			if _, read := handles[id]; read || id == "" {
+			if _, read := collections[id]; read || id == "" {
 				continue
 			}
 			collection, err := g.Containers.Find(ctx, shared.ID(id))
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			handles[id] = collection.Handle
+			collections[id] = collection
 		}
 		return nil
 	})
@@ -144,8 +145,9 @@ func (g Glance) lines(ctx context.Context, actor appshared.ActorContext, rows []
 		line := Found{Kind: "ENTRY", ID: id, Title: title, DueAt: row["due_at"], UpdatedAt: row["updated_at"],
 			Link: base + "/items/" + id}
 		collection, _ := row["collection_id"].(string)
-		if number, ok := row["number"].(int64); ok && handles[collection] != "" {
-			line.Key = mail.Key{Handle: handles[collection], Number: number}.String()
+		if number, ok := row["number"].(int64); ok && collections[collection].Handle != "" {
+			held := collections[collection]
+			line.Key = mail.Key{Prefix: held.KeyPrefix, Handle: held.Handle, Number: number}.String()
 		}
 		out = append(out, line)
 	}

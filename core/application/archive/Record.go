@@ -410,11 +410,12 @@ var entities = []Entity{
 	},
 	{
 		Name: "containers", Table: "container", Keys: []string{"id"}, Duplicable: true,
-		// A copy's handle is cleared, and the store gives it one of its own (ADR-0094): the
-		// original's handle is what mail addressed to it names, and it stays with the original.
+		// A copy's handle and key prefix are cleared, and the store gives it its own (ADR-0094,
+		// migration 0356): the original's are what mail and quoted keys name, and they stay with it.
 		Unique: []UniqueField{
 			{Field: "name", Rule: UniqueRename, Within: []string{"parent_id"}},
 			{Field: "handle", Rule: UniqueClear},
+			{Field: "key_prefix", Rule: UniqueClear},
 		},
 		References: []Reference{
 			{Field: "parent_id", Table: "container"},

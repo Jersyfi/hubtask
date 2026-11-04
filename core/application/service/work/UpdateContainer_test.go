@@ -605,3 +605,27 @@ func assertCode(t *testing.T, err error, detailCode string) {
 		t.Fatalf("detail code %s, want %s", got, detailCode)
 	}
 }
+
+// A collection's key prefix (user-experience.md §5.6) is a field of the rename: the channel takes
+// it in lower case, the row and the answer carry it in capitals, and a device is told of it as of
+// any other field.
+func TestTheRenameSetsACollectionsKeyPrefix(t *testing.T) {
+	h := newContainerHarness()
+	h.withCollection()
+
+	out, err := RenameContainer{Writer: h.writer}.Descriptor().Handler.Invoke(t.Context(), actor(), map[string]any{
+		"container_id": shoppingID.String(), "key_prefix": "shp",
+	})
+	if err != nil {
+		t.Fatalf("setting the prefix was refused: %v", err)
+	}
+	if out["key_prefix"] != "SHP" {
+		t.Errorf("the answer carries key_prefix %v, want SHP", out["key_prefix"])
+	}
+	if len(h.containers.written) != 1 || h.containers.written[0].container.KeyPrefix != "SHP" {
+		t.Fatalf("unexpected writes: %+v", h.containers.written)
+	}
+	if len(h.changes.recorded) != 1 || h.changes.recorded[0].Field != domain.FieldKeyPrefix {
+		t.Fatalf("change log %+v, want one entry for key_prefix", h.changes.recorded)
+	}
+}

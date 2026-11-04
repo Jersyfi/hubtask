@@ -390,8 +390,8 @@ func (h ReadGoal) Descriptor() usecase.Descriptor {
 			entries := []usecase.Output{}
 			for _, e := range sight.Entries[id] {
 				key := any(nil)
-				if e.Handle != "" {
-					key = e.Handle + "-" + itoa(int(e.Number))
+				if k := e.Key(); k != "" {
+					key = k
 				}
 				entries = append(entries, usecase.Output{
 					"id": e.ID.String(), "title": e.Title, "key": key, "completed": e.Completed,

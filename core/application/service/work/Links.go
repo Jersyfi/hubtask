@@ -162,8 +162,8 @@ func EntrySummaryOutput(s repository.EntrySummary, anchor string) usecase.Output
 	}
 	if s.Number > 0 {
 		out["number"] = s.Number
-		if s.Handle != "" {
-			out["key"] = s.Handle + "-" + strconv.FormatInt(s.Number, 10)
+		if key := s.Key(); key != "" {
+			out["key"] = key
 		}
 	}
 	return out

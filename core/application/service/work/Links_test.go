@@ -277,7 +277,7 @@ func TestALinkIsDrawnAnnouncedAndReadFromBothEnds(t *testing.T) {
 	if len(read) != 1 || read[0]["outward"] != false || read[0]["waits"] != "SOURCE" {
 		t.Fatalf("the target reads %+v", read)
 	}
-	if other := read[0]["other"].(usecase.Output); other["available"] != true || other["title"] != "Design" || other["key"] != "shop-7" {
+	if other := read[0]["other"].(usecase.Output); other["available"] != true || other["title"] != "Design" || other["key"] != "SHOP-7" {
 		t.Errorf("the far end %+v", other)
 	}
 }

@@ -487,6 +487,12 @@ func (h RenameContainer) Descriptor() usecase.Descriptor {
 					"own palette. Empty clears it, omitted leaves it as it is.",
 			},
 			{
+				Name: "key_prefix", Kind: usecase.KindString,
+				Description: "A collection's key prefix, the word its entries' keys start with (INC in " +
+					"INC-42): a letter, then one to four letters or digits, in capitals. Empty clears " +
+					"it and the keys read with the handle; omitted leaves it as it is.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST. Omitted means " +
 					"the caller read none and accepts whatever is there; a version that has moved on " +
@@ -527,6 +533,7 @@ func (h RenameContainer) invoke(
 			Description: in.OptionalString("description"),
 			Icon:        in.OptionalString("icon"),
 			ColorToken:  in.OptionalString("color_token"),
+			KeyPrefix:   in.OptionalString("key_prefix"),
 		},
 		ExpectedVersion: in.Int("expected_version"),
 	}

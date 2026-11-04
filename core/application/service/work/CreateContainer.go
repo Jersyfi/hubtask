@@ -545,6 +545,9 @@ func containerOutput(container domain.Container) usecase.Output {
 		// subject, a plus address and a ticket key use for a collection, and the configuration
 		// document's name for a hub or a collection.
 		"handle": stringOrNil(container.Handle),
+		// The word its entries' keys start with (migration 0356); null where they read with the
+		// handle.
+		"key_prefix": stringOrNil(container.KeyPrefix),
 	}
 	if !container.ParentID.IsZero() {
 		out["parent_id"] = container.ParentID.String()
