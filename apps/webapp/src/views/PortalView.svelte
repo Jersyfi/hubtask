@@ -13,9 +13,10 @@
 
   import { tick, untrack } from 'svelte';
   import {
-    Badge, Button, EmptyState, ErrorState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
+    Badge, Button, EmptyState, Input, ListRow, LoadMore, PageHeader, Radio, Skeleton, Stack, TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
     type IconName,
   } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import { ICON_NAMES } from '@hubtask/design-system/icons';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { ApprovalList, DeskLogo, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
@@ -160,8 +161,7 @@
       {/snippet}
     </EmptyState>
   {:else if failure}
-    <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')} onRetry={() => void catalogue.refresh()} />
+    <FailureState problem={failure} onRetry={() => void catalogue.refresh()} />
   {:else if catalogue.state.status !== 'ready'}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if kinds.length === 0}

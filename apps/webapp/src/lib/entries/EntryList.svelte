@@ -23,7 +23,6 @@
     Checkbox,
     Dialog,
     EmptyState,
-    ErrorState,
     Icon,
     IconButton,
     Inline,
@@ -40,6 +39,7 @@
     TaskRow,
     type RankCommand,
   } from '@hubtask/design-system/components';
+  import FailureState from '../frame/FailureState.svelte';
   import type { BulkResult, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
 
   import { partition, type Sections } from './simplelist.ts';
@@ -1204,13 +1204,7 @@
   {#if levelState === undefined || levelState.status === 'loading' || levelState.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if failure}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => (root ? items.openSubtree(root.id) : items.openCollection(collectionId))()}
-    />
+    <FailureState problem={failure} onRetry={() => (root ? items.openSubtree(root.id) : items.openCollection(collectionId))()} />
   {:else}
     <ReplicaMark state={levelState} />
     {#if writeFailure}

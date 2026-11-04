@@ -27,7 +27,8 @@
   import { untrack } from 'svelte';
 
   import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
-  import { Button, EmptyState, ErrorState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
@@ -550,13 +551,7 @@
             <p class="failure" role="alert">{writeFailure.message}</p>
           {/if}
           {#if failure}
-            <ErrorState
-              title={failure.message}
-              reference={failure.reference}
-              referenceLabel={t('app.reference')}
-              retryLabel={t('app.retry')}
-              onRetry={() => today.open()()}
-            />
+            <FailureState problem={failure} onRetry={() => today.open()()} />
           {:else if isLoading || (looksNew && !isUseSettled)}
             <div aria-busy="true"><Skeleton lines={3} /></div>
           {:else if isNewWorkspace}

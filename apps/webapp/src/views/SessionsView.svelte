@@ -15,7 +15,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import { Button, EmptyState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
@@ -152,11 +153,7 @@
       {#if held === undefined || held.status === 'loading' || held.status === 'idle'}
         <div aria-busy="true"><Skeleton lines={2} /></div>
       {:else if held.status === 'failed'}
-        <ErrorState
-          title={renderProblem(held.error, messages).message}
-          retryLabel={t('app.retry')}
-          onRetry={() => sessions.open()}
-        />
+        <FailureState problem={renderProblem(held.error, messages)} onRetry={() => sessions.open()} />
       {:else if shown.length === 0}
         <EmptyState kind="unused" title={t('app.sessions.none')} />
       {:else}

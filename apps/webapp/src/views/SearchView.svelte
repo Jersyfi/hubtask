@@ -26,7 +26,6 @@
     Button,
     Checkbox,
     EmptyState,
-    ErrorState,
     Inline,
     PageHeader,
     SearchField,
@@ -36,6 +35,7 @@
     TaskRow,
     canCopy,
   } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
 
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import EntryActions from '../lib/entries/EntryActions.svelte';
@@ -634,13 +634,7 @@
   {#if !shows(shownKind, 'entries')}
     {#if hasWords && otherCount === 0}<EmptyState kind="filtered" title={t('app.search.kind_none')} icon="search" />{/if}
   {:else if failure}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => void search.run(asked)}
-    />
+    <FailureState problem={failure} onRetry={() => void search.run(asked)} />
   {:else if search.status === 'searching' && search.hits.length === 0}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if search.status === 'idle'}

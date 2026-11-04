@@ -644,16 +644,13 @@
 </Stack>
 
 {#snippet failureBanner(failure: NonNullable<typeof failureShown>)}
-  <Banner tone="danger" title={failure.message}>
-    <Stack gap="050">
-      {#each [...failure.fields] as [path, message] (path)}
-        <span>{message}</span>
-      {/each}
-      {#if failure.reference}
-        <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-      {/if}
-    </Stack>
-  </Banner>
+  <FailureNote problem={failure}>
+    {#if failure.fields.size > 0}
+      <Stack gap="050">
+        {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+      </Stack>
+    {/if}
+  </FailureNote>
 {/snippet}
 
 {#snippet addAct()}

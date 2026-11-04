@@ -60,7 +60,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -558,12 +559,7 @@
   {#if unreadable && !policy}
     <!-- Never a spinner for a read that failed (check 8, P-11): the server's sentence, and a way to
          ask again. -->
-    <ErrorState
-      title={unreadable.message}
-      reference={unreadable.reference}
-      retryLabel={t('app.retry')}
-      onRetry={() => signInPolicy.retry()}
-    />
+    <FailureState problem={unreadable} onRetry={() => signInPolicy.retry()} />
   {:else if reading.status === 'ready' && !policy}
     <!-- Read, and the workspace answered no rule: an installation wired without the level above,
          where there is nothing to set. Said, rather than drawn as eighteen rows nobody can save. -->

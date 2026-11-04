@@ -34,7 +34,6 @@
     Button,
     Checkbox,
     EmptyState,
-    ErrorState,
     Icon,
     IconButton,
     LoadMore,
@@ -50,6 +49,8 @@
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { ActivityEntry, ActivityPage, CommentPage, MediaPage, ResourceState, Suggestion, SuggestionPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -1101,13 +1102,7 @@
 {#if entry.state.status === 'loading' || entry.state.status === 'idle'}
   <div aria-busy="true"><Skeleton lines={3} /></div>
 {:else if failure}
-  <ErrorState
-    title={failure.message}
-    reference={failure.reference}
-    referenceLabel={t('app.reference')}
-    retryLabel={t('app.retry')}
-    onRetry={() => entry.refresh()}
-  />
+  <FailureState problem={failure} onRetry={() => entry.refresh()} />
 {:else if !item}
   <EmptyState kind="filtered" title={t('app.item.not_found')} />
 {:else}
@@ -1297,10 +1292,7 @@
                      on. The rows are missing because the installation could not be read, and that
                      is what it says — with the sentence the server gave, and where to ask again. -->
                 <p class="unread" role="status">{t('app.item.type_unread')}</p>
-                <p class="unread-detail">{typeFailure.message}</p>
-                {#if typeFailure.reference}
-                  <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
-                {/if}
+                <FailureNote problem={typeFailure} />
               {:else}
                 <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
               {/if}
@@ -1440,13 +1432,7 @@
           {:else}
             <Stack gap="150">
               {#if historyFailure}
-                <ErrorState
-                  title={historyFailure.message}
-                  reference={historyFailure.reference}
-                  referenceLabel={t('app.reference')}
-                  retryLabel={t('app.retry')}
-                  onRetry={() => history.refresh()}
-                />
+                <FailureState problem={historyFailure} onRetry={() => history.refresh()} />
               {:else if history.state.status === 'loading' || history.state.status === 'idle'}
                 <div aria-busy="true"><Skeleton lines={3} /></div>
               {:else}
@@ -1820,7 +1806,6 @@
 
   .unread { margin: var(--sp-150) 0 0; color: var(--text-primary); font-size: var(--fs-075); }
 
-  .unread-detail { margin: var(--sp-050) 0 var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* The column mark as a menu: a small badge's measure, with the turn that says it opens. */
   .column-mark {

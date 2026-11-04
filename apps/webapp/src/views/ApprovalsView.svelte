@@ -8,7 +8,8 @@
   // place with its own presses.
 
   import { untrack } from 'svelte';
-  import { EmptyState, ErrorState, LoadMore, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, LoadMore, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { AgentList, AgentRequest, AgentRequestList, ApprovalList } from '@hubtask/sync-engine';
 
   import HeldActCard from '../lib/agents/HeldActCard.svelte';
@@ -85,8 +86,7 @@
 <Stack gap="300">
   <PageHeader title={t('app.approvals.mine_title')} subtitle={t('app.approvals.mine_subtitle')} isTitleInBar={viewport.isCompact} />
   {#if failure}
-    <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')} onRetry={() => void list.refresh()} />
+    <FailureState problem={failure} onRetry={() => void list.refresh()} />
   {:else if !rows}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if isEmpty}

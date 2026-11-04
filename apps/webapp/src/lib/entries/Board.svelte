@@ -23,7 +23,6 @@
     Checkbox,
     Dialog,
     EmptyState,
-    ErrorState,
     IconButton,
     Icon,
     LabelChip,
@@ -39,6 +38,7 @@
     type RankCommand,
     type View,
   } from '@hubtask/design-system/components';
+  import FailureState from '../frame/FailureState.svelte';
   import type { Bucket, BulkResult, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
@@ -870,13 +870,7 @@
 {#if boardState === undefined || boardState.status === 'loading' || boardState.status === 'idle'}
   <div aria-busy="true"><Skeleton lines={3} shape="block" /></div>
 {:else if failure}
-  <ErrorState
-    title={failure.message}
-    reference={failure.reference}
-    referenceLabel={t('app.reference')}
-    retryLabel={t('app.retry')}
-    onRetry={() => items.openBoard(collectionId, query)()}
-  />
+  <FailureState problem={failure} onRetry={() => items.openBoard(collectionId, query)()} />
 {:else if columns.length === 0 && cardsOf(null).length === 0}
   <ReplicaMark state={boardState} />
   <!-- §4.1: say what this place is for, and offer the one action. A board with no columns that

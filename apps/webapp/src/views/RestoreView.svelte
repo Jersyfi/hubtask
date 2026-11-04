@@ -39,6 +39,7 @@
     Stack,
     Switch,
   } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { backup, type Archive } from '../lib/data/backup.svelte.ts';
@@ -308,16 +309,13 @@
     </Banner>
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        <Stack gap="050">
-          {#each [...failure.fields] as [path, message] (path)}
-            <span>{message}</span>
-          {/each}
-          {#if failure.reference}
-            <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-          {/if}
-        </Stack>
-      </Banner>
+      <FailureNote problem={failure}>
+        {#if failure.fields.size > 0}
+          <Stack gap="050">
+            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+          </Stack>
+        {/if}
+      </FailureNote>
     {/if}
 
     <WorkspaceGate permission="STRUCTURE">

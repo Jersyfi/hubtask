@@ -6,7 +6,8 @@
   // shared with them read-only, which is where a guest outside every hub starts (UC-DOC-08).
 
   import { untrack } from 'svelte';
-  import { Button, EmptyState, ErrorState, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { PersonalSpace, SharedPageList } from '@hubtask/sync-engine';
 
   import { pages, personalSpacePath, sharedPagesPath } from '../lib/data/pages.svelte.ts';
@@ -74,8 +75,7 @@
     <Stack gap="100">
       <h2 class="heading" id="notes-shared">{t('app.notes.shared')}</h2>
       {#if sharedFailure}
-        <ErrorState title={sharedFailure.message} reference={sharedFailure.reference} referenceLabel={t('app.reference')}
-          retryLabel={t('app.retry')} onRetry={() => void shared.refresh()} />
+        <FailureState problem={sharedFailure} onRetry={() => void shared.refresh()} />
       {:else if shared.state.status !== 'ready'}
         <div aria-busy="true"><Skeleton lines={2} /></div>
       {:else if sharedRows.length === 0}

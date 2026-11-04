@@ -18,7 +18,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
+  import { Button, EmptyState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
+  import FailureState from './FailureState.svelte';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { afterCreating } from '../workspace/hubGallery.ts';
@@ -493,13 +494,7 @@
   {#if !isTreeReady}
     {#if !isRail}<div aria-busy="true"><Skeleton lines={4} /></div>{/if}
   {:else if failure && !isRail}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => containers.refresh()}
-    />
+    <FailureState problem={failure} onRetry={() => containers.refresh()} />
   {:else if actor.hasNoAccess && actor.portals.length > 0}
     <!-- A requester holding nothing but portals: their portals are their navigation (UC-SVC-05). -->
     <SideNav label={t('app.nav.portals')} nodes={portalNodes} {isRail}

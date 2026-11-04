@@ -21,7 +21,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Button, EmptyState, ErrorState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { Container } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -68,13 +69,7 @@
   <PageHeader title={t('app.archive.title')} subtitle={t('app.archive.intro')} isTitleInBar={viewport.isCompact} />
 
   {#if failure}
-    <ErrorState
-      title={failure.message}
-      reference={failure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => containers.refresh()}
-    />
+    <FailureState problem={failure} onRetry={() => containers.refresh()} />
   {:else if !containers.isArchiveReady}
     <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if rows.length === 0}

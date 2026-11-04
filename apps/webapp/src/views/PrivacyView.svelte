@@ -302,16 +302,13 @@
     </Banner>
 
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        <Stack gap="050">
-          {#each [...failure.fields] as [path, message] (path)}
-            <span>{message}</span>
-          {/each}
-          {#if failure.reference}
-            <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-          {/if}
-        </Stack>
-      </Banner>
+      <FailureNote problem={failure}>
+        {#if failure.fields.size > 0}
+          <Stack gap="050">
+            {#each [...failure.fields] as [path, message] (path)}<span>{message}</span>{/each}
+          </Stack>
+        {/if}
+      </FailureNote>
     {/if}
 
     <Stack gap="150">
@@ -786,11 +783,7 @@
   <Stack gap="100">
     <!-- A refused start is said here: the page's own banner sits behind the dialog. -->
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
-        {#if failure.reference}
-          <span>{t('app.error_reference', { request_id: failure.reference })}</span>
-        {/if}
-      </Banner>
+      <FailureNote problem={failure} />
     {/if}
     <p>
       {t(`app.privacy.confirm_erase_${(confirming?.erasure_mode ?? 'ANONYMIZE').toLowerCase()}`, {

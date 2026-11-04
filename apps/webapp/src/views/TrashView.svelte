@@ -27,13 +27,13 @@
     Button,
     Dialog,
     EmptyState,
-    ErrorState,
     Inline,
     ListRow,
     PageHeader,
     Skeleton,
     Stack,
   } from '@hubtask/design-system/components';
+  import FailureState from '../lib/frame/FailureState.svelte';
   import type { TrashEntry } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -230,13 +230,7 @@
   {/if}
 
   {#if listFailure}
-    <ErrorState
-      title={listFailure.message}
-      reference={listFailure.reference}
-      referenceLabel={t('app.reference')}
-      retryLabel={t('app.retry')}
-      onRetry={() => trash.load()}
-    />
+    <FailureState problem={listFailure} onRetry={() => trash.load()} />
   {:else if trash.status === 'loading' && trash.rows.length === 0}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if trash.rows.length === 0}
