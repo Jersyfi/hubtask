@@ -1020,6 +1020,34 @@ workspace's — English*), so leaving it says what it means.
   operator switches it on with `hubctl admin settings set metering on` or the instance file, since
   *Defaults* has no metering switch.
 
+### 8.10 The settings shell and the products' settings, as built
+
+* **`SettingsPage`** (§5.4, `lib/settings/SettingsPage.svelte`): the screen's sections as links
+  into one page at the start - a row of its own that scrolls sideways on a phone - the one in view
+  marked, a press moving to the section and the keyboard with it; one section draws no list. A
+  screen whose writes wait for *Save* passes `save` and gets the save bar with its count (Mail,
+  Voice; the workspace screen keeps its own bar inside its form, where Enter submits). Every
+  screen on it passes `changes`, and the leave guard (`frame/leave.ts`, `LeaveDialog`) asks
+  *Leave without saving?* before a link, the column or the browser's back drops them; a reload or
+  a closed tab gets the browser's own question. Screens of instant acts (Retention, Backup) count
+  only what is typed and not yet sent - a justification, a hold's reason, a chosen schedule
+  target, a passphrase - and draw no bar. On the shell: Mail, Voice, Retention, Backup, Webhooks
+  and the workspace screen, held by `lib/settings/shell.test.ts` over the route table. Not yet on
+  it: Sign-in, AI, Time, the configuration items and the place settings. *Advanced* is not folded
+  on these five: none has a setting the direction names as advanced, and Mail's filing order and
+  handles are what a newcomer reads to send mail in.
+* **A product's settings at its home** (§8.2): the service desk's, the configuration items',
+  time's and the agents' screens left the administration column. Each is its home's last tab -
+  `/desk/settings`, `/assets/settings` (the assets home now *Inventory · Settings*, offered to
+  whoever reaches the administration, as its door before), `/time?tab=settings` (to a holder of
+  `STRUCTURE`, `APPROVE_TIME`, `MANAGE_COSTS` or `MANAGE_MEMBERS`), `/agents?tab=settings` - and
+  the old administration addresses replace themselves with the tab. The module card's *Set up*,
+  the settings search, the configuration drafts and the software register lead there. *Modules*
+  does not yet carry a *Settings* link per module beside its switch.
+* **Pickers in words** on the backup screen: a target's kind (*A folder on this server*, *A
+  server over SFTP*, …) and an archive's mode (*Full*, *Changes since the last*) instead of the
+  contract's keys.
+
 ---
 
 ## 9. What this changes elsewhere
