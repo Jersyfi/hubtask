@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -368,6 +369,10 @@ func (WhiteboardRepository) FoldVersion(ctx context.Context, version whiteboard.
 
 // NameVersion names a version, or takes its name away.
 func (WhiteboardRepository) NameVersion(ctx context.Context, boardID shared.ID, seq int, name string) error {
+	place, err := boardVersionSeq(seq)
+	if err != nil {
+		return err
+	}
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -377,7 +382,7 @@ func (WhiteboardRepository) NameVersion(ctx context.Context, boardID shared.ID, 
 		return err
 	}
 	rows, err := queries.NameWhiteboardVersion(ctx, sqlc.NameWhiteboardVersionParams{
-		WhiteboardID: board, Seq: int32(seq), Name: name, //nolint:gosec // a version's place
+		WhiteboardID: board, Seq: place, Name: name,
 	})
 	if err != nil {
 		return boardFailed("naming the version", err)
@@ -398,8 +403,13 @@ func (WhiteboardRepository) Versions(ctx context.Context, boardID shared.ID, bef
 	if err != nil {
 		return nil, err
 	}
+	// A place past the column is past every version: the newest on.
+	cursor, err := boardVersionSeq(before)
+	if err != nil {
+		cursor = 0
+	}
 	rows, err := queries.ListWhiteboardVersions(ctx, sqlc.ListWhiteboardVersionsParams{
-		WhiteboardID: board, Before: int32(before), Batch: int32(limit), //nolint:gosec // bounded by the use case
+		WhiteboardID: board, Before: cursor, Batch: int32(limit), //nolint:gosec // bounded by the use case
 	})
 	if err != nil {
 		return nil, boardFailed("listing the versions", err)
@@ -413,8 +423,21 @@ func (WhiteboardRepository) Versions(ctx context.Context, boardID shared.ID, bef
 	})
 }
 
+// boardVersionSeq is a version's place as its column holds it. A place outside it is no version:
+// converted, 2^32 + 1 would wrap onto version 1.
+func boardVersionSeq(seq int) (int32, error) {
+	if seq < 1 || seq > math.MaxInt32 {
+		return 0, shared.ErrNotFound.WithDetail("whiteboards.version_not_found")
+	}
+	return int32(seq), nil
+}
+
 // Version answers one version with its scene.
 func (WhiteboardRepository) Version(ctx context.Context, boardID shared.ID, seq int) (whiteboard.Version, error) {
+	place, err := boardVersionSeq(seq)
+	if err != nil {
+		return whiteboard.Version{}, err
+	}
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return whiteboard.Version{}, err
@@ -423,7 +446,7 @@ func (WhiteboardRepository) Version(ctx context.Context, boardID shared.ID, seq 
 	if err != nil {
 		return whiteboard.Version{}, shared.ErrNotFound.WithDetail("whiteboards.version_not_found")
 	}
-	row, err := queries.FindWhiteboardVersion(ctx, sqlc.FindWhiteboardVersionParams{WhiteboardID: board, Seq: int32(seq)}) //nolint:gosec // a version's place
+	row, err := queries.FindWhiteboardVersion(ctx, sqlc.FindWhiteboardVersionParams{WhiteboardID: board, Seq: place})
 	if IsNoRows(err) {
 		return whiteboard.Version{}, shared.ErrNotFound.WithDetail("whiteboards.version_not_found")
 	}
