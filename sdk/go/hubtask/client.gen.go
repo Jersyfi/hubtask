@@ -41180,7 +41180,7 @@ type ClientInterface interface {
 
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	//
-	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 	RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -64174,7 +64174,7 @@ func (c *Client) ExportWhiteboard(ctx context.Context, whiteboardId WhiteboardId
 
 // RestoreWhiteboard Bring a whiteboard back from the trash
 //
-// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
 //
 // Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 func (c *Client) RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -115325,7 +115325,7 @@ type ClientWithResponsesInterface interface {
 
 	// RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
 	//
-	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+	// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -174714,7 +174714,7 @@ func (c *ClientWithResponses) ExportWhiteboardWithResponse(ctx context.Context, 
 
 // RestoreWhiteboardWithResponse Bring a whiteboard back from the trash
 //
-// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+// The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A hub that holds 1000 boards already takes none back (409).
 //
 // Returns a wrapper object for the known response body format(s).
 //

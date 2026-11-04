@@ -23472,7 +23472,9 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "whiteboard restore"
       summary: Bring a whiteboard back from the trash
-      description: The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub.
+      description: >
+        The trashed board comes back with its objects as they were. Needs WRITE_ITEMS on the hub. A
+        hub that holds 1000 boards already takes none back (409).
       responses:
         "200":
           description: Restored
