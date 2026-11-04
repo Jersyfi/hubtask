@@ -298,6 +298,17 @@ workbench:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system workbench
 
+## demo: Make a demo workspace with content in every product (DEMO_SLUG=demo, DEMO_API=...)
+# A walk's data, through the product's REST operations (scripts/seed-demo.sh says what it needs:
+# HUBTASK_ADMIN_TOKEN, HUBTASK_DEMO_PASSWORD, a multi-workspace installation). It provisions a new
+# workspace, so a second run takes another DEMO_SLUG; DEMO_EMPTY=1 makes an empty one instead.
+DEMO_SLUG ?= demo
+DEMO_API ?= http://localhost:8080
+DEMO_EMPTY ?=
+.PHONY: demo
+demo:
+	scripts/seed-demo.sh --api $(DEMO_API) --slug $(DEMO_SLUG) $(if $(DEMO_EMPTY),--empty)
+
 ## workbench-build: Build the workbench into packages/design-system/dist/workbench
 # What workbench.hubtask.eu serves (ADR-0038). Still not part of `pnpm -r build`: a surface that
 # is published is not thereby a product artefact, and none of ADR-0037's three exclusions moves -

@@ -273,6 +273,12 @@ marks everything as sample, and removes it in one act. It is how the owner sees 
 what the UI/UX run walks "with very much content"; the R3 walk of `test/load/PLAN.md` extends to
 every product home.
 
+Today: `make demo` runs `scripts/seed-demo.sh`, which provisions a *new* workspace and fills it
+through REST in every product; it is not idempotent and marks nothing beyond a template's sample
+entries. `hubctl workspace demo` on an existing workspace, a sample mark on pages, whiteboards,
+CIs, goals and time records, and removing the whole showcase in one act are not built — the mark
+outside entries needs the domain and the contract first.
+
 ---
 
 ## 4. Getting started in each product

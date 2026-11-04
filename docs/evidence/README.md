@@ -68,6 +68,7 @@ A slug is provisioned once; the script lists any write the server refused and ex
 ```bash
 scripts/seed-demo.sh --api http://localhost:8080 --slug nordlicht
 scripts/seed-demo.sh --api http://localhost:8080 --slug leer --empty
+make demo DEMO_SLUG=nordlicht        # the same, through make; DEMO_EMPTY=1 for --empty
 ```
 
 One server per database: two both run the worker, and a job landing on the one whose local storage
