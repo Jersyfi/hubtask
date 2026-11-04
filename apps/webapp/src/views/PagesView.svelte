@@ -516,7 +516,8 @@
   <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>
     <Stack gap="100">
       <Inline justify="between" align="center">
-        <h2 class="heading">{t('app.pages.title')}</h2>
+        <!-- The screen's one h1 until a page is open; then the page's title is. -->
+        <svelte:element this={current ? 'h2' : 'h1'} class="heading">{t('app.pages.title')}</svelte:element>
         <Inline gap="050" align="center">
           {#if treeFolds}
             <Button size="sm" tone="subtle" icon={isTreeOpen ? 'chevron-up' : 'chevron-down'} aria-expanded={isTreeOpen} data-tree-toggle onclick={() => (isTreeOpen = !isTreeOpen)}>
@@ -684,7 +685,9 @@
                comments' toggle, sharing, and the rest in the page's menu. -->
           <div class="head" data-page-head>
             {#if current.writable}
-              <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. -->
+              <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
+                   heading is read, the field is what is seen: the title appears once. -->
+              <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
               <textarea
                 class="title"
                 rows="1"
