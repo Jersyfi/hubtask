@@ -150,6 +150,7 @@ type span struct {
 	text                       string
 	bold, italic, code, strike bool
 	href                       string
+	image                      bool // an image of href, which only a `hubtask:` address may be here
 }
 
 // spans reads the inline grammar of one block. A reference is drawn as its kind in brackets: the
@@ -175,7 +176,7 @@ func spans(text string) []span {
 			href := group(3)
 			if strings.HasPrefix(href, "hubtask:") {
 				kind := strings.SplitN(strings.TrimPrefix(href, "hubtask:"), "/", 2)[0]
-				out = append(out, span{text: "[" + kind + "]", href: href})
+				out = append(out, span{text: "[" + kind + "]", href: href, image: group(1) == "!"})
 			} else if group(1) == "" && linkable(href) {
 				out = append(out, span{text: group(2), href: href})
 			} else {
@@ -204,15 +205,19 @@ func spans(text string) []span {
 
 // HTMLFile writes a page as a standalone HTML document: no script, no style sheet from elsewhere,
 // every word escaped. A reference is a link to its `hubtask:` address.
-func HTMLFile(page Page) string {
+func HTMLFile(page Page) string { return htmlFile(page, nil) }
+
+func htmlFile(page Page, view *PublicView) string {
 	var out strings.Builder
 	lang := page.ContentLanguage
 	if lang == "" {
 		lang = "und"
 	}
 	out.WriteString("<!doctype html>\n<html lang=\"" + html.EscapeString(lang) + "\">\n<head>\n<meta charset=\"utf-8\">\n")
-	out.WriteString("<meta name=\"hubtask:id\" content=\"" + page.ID.String() + "\">\n")
-	if !page.ParentID.IsZero() {
+	if view == nil {
+		out.WriteString("<meta name=\"hubtask:id\" content=\"" + page.ID.String() + "\">\n")
+	}
+	if view == nil && !page.ParentID.IsZero() {
 		out.WriteString("<meta name=\"hubtask:parent\" content=\"" + page.ParentID.String() + "\">\n")
 	}
 	out.WriteString("<title>" + html.EscapeString(page.Title) + "</title>\n</head>\n<body>\n")
@@ -233,7 +238,7 @@ func HTMLFile(page Page) string {
 		switch b.kind {
 		case "open":
 			if b.variant == "details" {
-				out.WriteString("<details open><summary>" + htmlSpans(spans(b.text)) + "</summary>\n")
+				out.WriteString("<details open><summary>" + view.spans(spans(b.text)) + "</summary>\n")
 				open = append(open, "</details>\n")
 			} else {
 				out.WriteString("<aside role=\"note\" data-callout=\"" + b.variant + "\">\n")
@@ -248,7 +253,7 @@ func HTMLFile(page Page) string {
 			out.WriteString("<nav><ol>\n")
 			for _, heading := range parsed {
 				if heading.kind == "heading" {
-					out.WriteString("<li>" + htmlSpans(spans(heading.text)) + "</li>\n")
+					out.WriteString("<li>" + view.spans(spans(heading.text)) + "</li>\n")
 				}
 			}
 			out.WriteString("</ol></nav>\n")
@@ -256,17 +261,21 @@ func HTMLFile(page Page) string {
 			out.WriteString("<p><a href=\"" + html.EscapeString(b.text) + "\">" + html.EscapeString(b.text) + "</a></p>\n")
 		case "heading":
 			level := strconv.Itoa(min(6, b.level+1))
-			out.WriteString("<h" + level + ">" + htmlSpans(spans(b.text)) + "</h" + level + ">\n")
+			out.WriteString("<h" + level + ">" + view.spans(spans(b.text)) + "</h" + level + ">\n")
 		case "paragraph":
-			out.WriteString("<p>" + htmlSpans(spans(b.text)) + "</p>\n")
+			out.WriteString("<p>" + view.spans(spans(b.text)) + "</p>\n")
 		case "quote":
-			out.WriteString("<blockquote><p>" + htmlSpans(spans(b.text)) + "</p></blockquote>\n")
+			out.WriteString("<blockquote><p>" + view.spans(spans(b.text)) + "</p></blockquote>\n")
 		case "code":
 			out.WriteString("<pre><code>" + html.EscapeString(b.text) + "</code></pre>\n")
 		case "rule":
 			out.WriteString("<hr>\n")
 		case "reference":
-			out.WriteString("<p><a href=\"" + html.EscapeString(b.text) + "\">" + html.EscapeString(b.text) + "</a></p>\n")
+			if view == nil {
+				out.WriteString("<p><a href=\"" + html.EscapeString(b.text) + "\">" + html.EscapeString(b.text) + "</a></p>\n")
+			} else if shown := view.reference(b.text, true); shown != "" {
+				out.WriteString("<p>" + shown + "</p>\n")
+			}
 		case "item":
 			want := "ul"
 			if b.ordered {
@@ -284,7 +293,7 @@ func HTMLFile(page Page) string {
 			case 2:
 				box = "<input type=\"checkbox\" checked disabled> "
 			}
-			out.WriteString("<li>" + box + htmlSpans(spans(b.text)) + "</li>\n")
+			out.WriteString("<li>" + box + view.spans(spans(b.text)) + "</li>\n")
 		}
 	}
 	closeList()
