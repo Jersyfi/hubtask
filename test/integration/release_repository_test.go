@@ -89,7 +89,19 @@ func TestAReleaseStaysInItsWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		locked, err := releases.Lock(ctx, first.ID)
+		if err == nil && locked.State != planning.ReleaseReleased {
+			t.Errorf("locked = %+v", locked)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := releases.Lock(ctx, first.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the other workspace locked the release: %v", err)
+		}
 		return releases.Delete(ctx, first.ID)
 	}); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("the other workspace deleted the release: %v", err)

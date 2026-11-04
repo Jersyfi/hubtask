@@ -283,6 +283,51 @@ func (q *Queries) ListReleases(ctx context.Context, arg ListReleasesParams) ([]L
 	return items, nil
 }
 
+const lockRelease = `-- name: LockRelease :one
+SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,
+  created_by, updated_at, version
+FROM release
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+FOR UPDATE
+`
+
+type LockReleaseRow struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	Name        string
+	Description string
+	ReleaseOn   pgtype.Date
+	State       string
+	ReleasedAt  pgtype.Timestamptz
+	NotesPageID pgtype.UUID
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+	UpdatedAt   pgtype.Timestamptz
+	Version     int32
+}
+
+// A release read under its row lock, so that a change of its entries or state waits for a publish
+// or delete running meanwhile and then sees what it left.
+func (q *Queries) LockRelease(ctx context.Context, id pgtype.UUID) (LockReleaseRow, error) {
+	row := q.db.QueryRow(ctx, lockRelease, id)
+	var i LockReleaseRow
+	err := row.Scan(
+		&i.ID,
+		&i.HubID,
+		&i.Name,
+		&i.Description,
+		&i.ReleaseOn,
+		&i.State,
+		&i.ReleasedAt,
+		&i.NotesPageID,
+		&i.CreatedAt,
+		&i.CreatedBy,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
 const removeReleaseEntry = `-- name: RemoveReleaseEntry :execrows
 DELETE FROM release_entry
 WHERE tenant_id = current_tenant_id() AND release_id = $1::uuid

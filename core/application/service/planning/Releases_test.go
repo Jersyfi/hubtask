@@ -29,10 +29,22 @@ type releaseStore struct {
 	releases map[shared.ID]domain.Release
 	members  map[shared.ID][]planrepo.ReleaseMember
 	done     map[shared.ID]bool
+	// stale is what a read outside a transaction answers: the release before a concurrent change.
+	stale map[shared.ID]domain.Release
 }
 
 func newReleaseStore() *releaseStore {
-	return &releaseStore{releases: map[shared.ID]domain.Release{}, members: map[shared.ID][]planrepo.ReleaseMember{}, done: map[shared.ID]bool{}}
+	return &releaseStore{
+		releases: map[shared.ID]domain.Release{}, members: map[shared.ID][]planrepo.ReleaseMember{}, done: map[shared.ID]bool{},
+		stale: map[shared.ID]domain.Release{},
+	}
+}
+
+func (s *releaseStore) Lock(_ context.Context, id shared.ID) (domain.Release, error) {
+	if r, ok := s.releases[id]; ok {
+		return r, nil
+	}
+	return domain.Release{}, shared.ErrNotFound.WithDetail("releases.not_found")
 }
 
 func (s *releaseStore) Insert(_ context.Context, r domain.Release) error {
@@ -50,6 +62,9 @@ func (s *releaseStore) Update(_ context.Context, r domain.Release, expected int)
 }
 
 func (s *releaseStore) Find(_ context.Context, id shared.ID) (domain.Release, error) {
+	if r, ok := s.stale[id]; ok {
+		return r, nil
+	}
 	if r, ok := s.releases[id]; ok {
 		return r, nil
 	}
@@ -253,5 +268,77 @@ func TestReleasesAreToldToOfflineDevices(t *testing.T) {
 	}
 	if got, _ := log.last(ReleaseEntryEntity, design); got.Payload["release_id"] != release.ID.String() {
 		t.Errorf("the shipped entry's change = %+v", got)
+	}
+}
+
+func fillRelease(store *releaseStore, release shared.ID, n int) {
+	for range n {
+		store.members[release] = append(store.members[release], planrepo.ReleaseMember{EntryID: shared.ID("01936f2a-7c1e-7000-8000-00000000ffff")})
+	}
+}
+
+// UC-PLN-08: an entry named twice in one call joins once and counts once, so a release one short
+// of full still takes it.
+func TestAnEntryNamedTwiceJoinsAReleaseOnce(t *testing.T) {
+	f, store := releaseFixture()
+	release := planRelease(t, f, "2.4")
+	fillRelease(store, release.ID, domain.MaxReleaseEntries-1)
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(context.Background(), actor(), release.ID, []shared.ID{launch, launch}); err != nil {
+		t.Fatalf("an entry named twice was refused: %v", err)
+	}
+	if n := len(store.members[release.ID]); n != domain.MaxReleaseEntries {
+		t.Errorf("the release holds %d, want %d", n, domain.MaxReleaseEntries)
+	}
+}
+
+// UC-PLN-08: open entries carried into a release that cannot hold them are refused before the
+// release ships, rather than filling the next release past what its own release reads.
+func TestOpenEntriesAreNotCarriedIntoAFullRelease(t *testing.T) {
+	f, store := releaseFixture()
+	ctx := context.Background()
+	release, next := planRelease(t, f, "2.4"), planRelease(t, f, "2.5")
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{build}); err != nil {
+		t.Fatal(err)
+	}
+	fillRelease(store, next.ID, domain.MaxReleaseEntries)
+	_, err := PublishRelease{Planner: f.planner}.Execute(ctx, actor(), PublishReleaseCommand{ReleaseID: release.ID, CarryTo: next.ID})
+	if detail(err) != "releases.too_many_entries" {
+		t.Errorf("carried into a full release: %v", err)
+	}
+	if store.releases[release.ID].State != domain.ReleasePlanned || len(store.members[next.ID]) != domain.MaxReleaseEntries {
+		t.Errorf("the release shipped or the next one grew: %+v, %d", store.releases[release.ID], len(store.members[next.ID]))
+	}
+}
+
+// UC-PLN-08: a release published meanwhile by someone else is read under its lock: a second
+// publish writes no second notes page, and no entry joins or leaves it, nor is it deleted.
+func TestAReleasePublishedMeanwhileIsReadUnderItsLock(t *testing.T) {
+	f, store := releaseFixture()
+	ctx := context.Background()
+	release := planRelease(t, f, "2.4")
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{design}); err != nil {
+		t.Fatal(err)
+	}
+	store.done[design] = true
+	planned := store.releases[release.ID]
+	if _, err := (PublishRelease{Planner: f.planner}).Execute(ctx, actor(), PublishReleaseCommand{ReleaseID: release.ID, WriteNotes: true}); err != nil {
+		t.Fatal(err)
+	}
+	pages := len(f.catalogue.calls)
+	store.stale[release.ID] = planned
+	if _, err := (PublishRelease{Planner: f.planner}).Execute(ctx, actor(), PublishReleaseCommand{ReleaseID: release.ID, WriteNotes: true}); detail(err) != "releases.released" {
+		t.Errorf("a release published meanwhile was published again: %v", err)
+	}
+	if len(f.catalogue.calls) != pages {
+		t.Errorf("a second notes page was written for a refused publish")
+	}
+	if _, err := (AddReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{launch}); detail(err) != "releases.released" {
+		t.Errorf("an entry joined a release published meanwhile: %v", err)
+	}
+	if _, err := (RemoveReleaseEntries{Planner: f.planner}).Execute(ctx, actor(), release.ID, []shared.ID{design}); detail(err) != "releases.released" {
+		t.Errorf("an entry left a release published meanwhile: %v", err)
+	}
+	if err := (DeleteRelease{Planner: f.planner}).Execute(ctx, actor(), release.ID); detail(err) != "releases.released" {
+		t.Errorf("a release published meanwhile was deleted: %v", err)
 	}
 }

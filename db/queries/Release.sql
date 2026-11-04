@@ -25,6 +25,15 @@ SELECT id, hub_id, name, description, release_on, state, released_at, notes_page
 FROM release
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
 
+-- name: LockRelease :one
+-- A release read under its row lock, so that a change of its entries or state waits for a publish
+-- or delete running meanwhile and then sees what it left.
+SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,
+  created_by, updated_at, version
+FROM release
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
+FOR UPDATE;
+
 -- name: ListReleases :many
 -- A hub's releases, the latest day first, of one state or all, bounded.
 SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,

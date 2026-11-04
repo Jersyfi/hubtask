@@ -102,6 +102,26 @@ func (PlanningReleases) Find(ctx context.Context, id shared.ID) (planning.Releas
 	return releaseFrom(row)
 }
 
+// Lock returns a release under its row lock.
+func (PlanningReleases) Lock(ctx context.Context, id shared.ID) (planning.Release, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return planning.Release{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return planning.Release{}, err
+	}
+	row, err := queries.LockRelease(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return planning.Release{}, shared.ErrNotFound.WithDetail("releases.not_found")
+	}
+	if err != nil {
+		return planning.Release{}, planningError(err, "locking a release")
+	}
+	return releaseFrom(sqlc.FindReleaseRow(row))
+}
+
 // List returns a hub's releases, the latest day first.
 func (PlanningReleases) List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, limit int) ([]planning.Release, error) {
 	queries, err := queriesFrom(ctx)

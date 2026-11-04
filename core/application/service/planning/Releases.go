@@ -10,6 +10,7 @@ import (
 
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -474,6 +475,9 @@ func (h DeleteRelease) Execute(ctx context.Context, actor appshared.ActorContext
 	}
 	now := h.Planner.Clock.Now()
 	return h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if _, err := h.Planner.lockChangeable(ctx, release.ID); err != nil {
+			return err
+		}
 		members, err := h.Planner.Releases.Entries(ctx, release.ID, maxEntriesRead)
 		if err != nil {
 			return err
@@ -566,6 +570,16 @@ func (p Planner) hubEntries(ctx context.Context, actor appshared.ActorContext, h
 	return nil
 }
 
+// lockChangeable reads a release again under its row lock inside the caller's transaction, as
+// every change of a release does: one published or deleted meanwhile is seen, not undone.
+func (p Planner) lockChangeable(ctx context.Context, id shared.ID) (domain.Release, error) {
+	release, err := p.Releases.Lock(ctx, id)
+	if err != nil {
+		return domain.Release{}, err
+	}
+	return release, release.Changeable()
+}
+
 // AddReleaseEntries puts entries of the hub's collections into a planned release (PLN-08). An
 // entry is in one release at a time.
 type AddReleaseEntries struct{ Planner Planner }
@@ -584,6 +598,9 @@ func (h AddReleaseEntries) Execute(ctx context.Context, actor appshared.ActorCon
 	}
 	now := h.Planner.Clock.Now()
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if _, err := h.Planner.lockChangeable(ctx, release.ID); err != nil {
+			return err
+		}
 		of, err := h.Planner.Releases.Of(ctx, items)
 		if err != nil {
 			return err
@@ -603,6 +620,7 @@ func (h AddReleaseEntries) Execute(ctx context.Context, actor appshared.ActorCon
 		added := make([]shared.ID, 0, len(items))
 		for _, item := range items {
 			if !already[item] {
+				already[item] = true
 				added = append(added, item)
 			}
 		}
@@ -681,6 +699,9 @@ func (h RemoveReleaseEntries) Execute(ctx context.Context, actor appshared.Actor
 	}
 	now := h.Planner.Clock.Now()
 	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if _, err := h.Planner.lockChangeable(ctx, release.ID); err != nil {
+			return err
+		}
 		removed := make([]shared.ID, 0, len(items))
 		for _, item := range items {
 			was, err := h.Planner.Releases.Remove(ctx, release.ID, item)
@@ -754,31 +775,51 @@ func (h PublishRelease) Execute(ctx context.Context, actor appshared.ActorContex
 			return domain.Release{}, invalid("/carry_to", releaseCarryTargetInvalid)
 		}
 	}
-	var members []planrepo.ReleaseMember
-	if err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		members, err = h.Planner.Releases.Entries(ctx, release.ID, maxEntriesRead)
-		return err
-	}); err != nil {
-		return domain.Release{}, err
-	}
-	open := make([]shared.ID, 0, len(members))
-	for _, m := range members {
-		if !m.Done {
-			open = append(open, m.EntryID)
-		}
-	}
-	var page shared.ID
-	if cmd.WriteNotes {
-		if page, err = h.writeNotes(ctx, actor, release, members, cmd.NotesParentID); err != nil {
-			return domain.Release{}, err
-		}
-	}
+	// The release and its notes are written in one transaction, so a publish refused at its end - a
+	// version conflict, another publish meanwhile - leaves no notes page behind for its retry to
+	// write again. The page's own refusals are held until it ends.
+	writing, refusals := access.HoldRefusals(ctx)
+	defer refusals.Record(ctx)
 	before := release.Version
 	now := h.Planner.Clock.Now()
-	if err := release.Release(page, now); err != nil {
-		return domain.Release{}, err
-	}
-	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	var open []shared.ID
+	err = h.Planner.UnitOfWork.Within(writing, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.lock(ctx, &release, &carry); err != nil {
+			return err
+		}
+		if cmd.Version != 0 && cmd.Version != release.Version {
+			return shared.ErrVersionConflict.WithDetail("releases.version_conflict")
+		}
+		before, open = release.Version, open[:0]
+		members, err := h.Planner.Releases.Entries(ctx, release.ID, maxEntriesRead)
+		if err != nil {
+			return err
+		}
+		for _, m := range members {
+			if !m.Done {
+				open = append(open, m.EntryID)
+			}
+		}
+		if !carry.ID.IsZero() && len(open) > 0 {
+			held, err := h.Planner.Releases.Count(ctx, carry.ID)
+			if err != nil {
+				return err
+			}
+			if held+len(open) > domain.MaxReleaseEntries {
+				return shared.ErrValidation.WithDetail("releases.too_many_entries").
+					WithParams(map[string]string{"maximum": strconv.Itoa(domain.MaxReleaseEntries)}).
+					WithFields(shared.FieldError{Path: "/carry_to", Code: "releases.too_many_entries"})
+			}
+		}
+		var page shared.ID
+		if cmd.WriteNotes {
+			if page, err = h.writeNotes(ctx, actor, release, members, cmd.NotesParentID); err != nil {
+				return err
+			}
+		}
+		if err := release.Release(page, now); err != nil {
+			return err
+		}
 		if err := h.Planner.Releases.Update(ctx, release, before); err != nil {
 			return err
 		}
@@ -804,13 +845,40 @@ func (h PublishRelease) Execute(ctx context.Context, actor appshared.ActorContex
 			audit.Change{Field: "state", Classification: audit.Open, From: string(domain.ReleasePlanned), To: string(domain.ReleaseReleased)},
 			audit.Change{Field: "open_entries", Classification: audit.Open, To: strconv.Itoa(len(open))},
 			audit.Change{Field: "carry_to", Classification: audit.Open, To: carry.ID.String()},
-			audit.Change{Field: "notes_page_id", Classification: audit.Open, To: page.String()})
+			audit.Change{Field: "notes_page_id", Classification: audit.Open, To: release.NotesPageID.String()})
 	})
 	if err != nil {
 		return domain.Release{}, err
 	}
 	release.Version = before + 1
 	return release, nil
+}
+
+// lock reads the release and the one its open entries move into again under their row locks, in
+// the order of their identifiers so that two publishes carrying into each other cannot deadlock;
+// either published meanwhile refuses.
+func (h PublishRelease) lock(ctx context.Context, release, carry *domain.Release) error {
+	targets := []*domain.Release{release}
+	if !carry.ID.IsZero() {
+		targets = append(targets, carry)
+		if carry.ID < release.ID {
+			targets[0], targets[1] = carry, release
+		}
+	}
+	for _, target := range targets {
+		locked, err := h.Planner.Releases.Lock(ctx, target.ID)
+		if err != nil {
+			return err
+		}
+		if target == carry && locked.State != domain.ReleasePlanned {
+			return invalid("/carry_to", releaseCarryTargetInvalid)
+		}
+		if err := locked.Changeable(); err != nil {
+			return err
+		}
+		*target = locked
+	}
+	return nil
 }
 
 // writeNotes writes the notes page, naming the done entries the releaser may see (T-04).
@@ -847,7 +915,7 @@ func (h PublishRelease) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: PublishReleaseName, Permission: service.PermissionWriteItems,
 		Summary: "Marks a planned release as released. Its done entries ship in it; its open ones move into another " +
-			"planned release of the hub (carry_to) or out of it. With write_notes, its notes - the description and " +
+			"planned release of the hub (carry_to) that can hold them (releases.too_many_entries) or out of it. With write_notes, its notes - the description and " +
 			"the done entries the caller may see, under their type's name - are written as a page of the hub's " +
 			"space, which the release then names.",
 		SideEffects: "Writes the release, moves its open entries, writes the notes page through CreatePage when " +

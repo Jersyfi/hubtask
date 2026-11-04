@@ -147,6 +147,8 @@ type Releases interface {
 	Update(ctx context.Context, release planning.Release, expected int) error
 	// Find returns a release, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (planning.Release, error)
+	// Lock returns a release read under its row lock until the transaction ends, or ErrNotFound.
+	Lock(ctx context.Context, id shared.ID) (planning.Release, error)
 	// List returns a hub's releases, the latest day first, of one state or all, at most max.
 	List(ctx context.Context, hubID shared.ID, state planning.ReleaseState, limit int) ([]planning.Release, error)
 	// Delete removes a release and its entries' membership, or reports ErrNotFound.
