@@ -66,6 +66,8 @@
   import { media } from '../data/media.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
+  import EntryKey from './EntryKey.svelte';
+  import { containers } from '../data/containers.svelte.ts';
   import { outcomeOf } from '../data/bulk.ts';
   import { coverImageIdOf } from '../data/media.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -106,6 +108,11 @@
     /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
     mayShare?: boolean;
     /**
+     * Whether a card draws its key (user-experience.md §5.6): what the list's *Fields* say, so a
+     * card holding nothing else stays a title alone where nobody asked for keys.
+     */
+    showsKey?: boolean;
+    /**
      * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
      * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
      * a copy where the reader may create one.
@@ -136,7 +143,10 @@
     mayCreate,
     mayShape,
     statuses,
+    showsKey = false,
   }: Props = $props();
+  // The collection the cards' keys are read from (ticket.ts).
+  const keyedCollection = $derived(containers.find(collectionId));
 
   /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
   const isMovable = (card: WorkItem) => !isReadOnly && changeRefusal(card) === undefined;
@@ -1004,6 +1014,7 @@
                     {/if}
                   {/snippet}
                   {#snippet footer()}
+                    {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}
                       <span class="count"><Icon name="square-check" size="sm" /><span aria-hidden="true">{card.counts.parts_done}/{card.counts.parts}</span><VisuallyHidden>{t('app.board.parts_done', { done: String(card.counts.parts_done), count: String(card.counts.parts) })}</VisuallyHidden></span>

@@ -32,7 +32,7 @@ test('a template brings its arrangement: a list its amount by category, done at 
 test('only what the collection carries is offered, as a field and as a grouping', () => {
   assert.deepEqual(offeredFields(shopping), ['amount', 'labels']);
   assert.deepEqual(offeredGroupings(shopping), ['none', 'category']);
-  assert.deepEqual(offeredFields(project), ['column', 'due', 'people', 'labels', 'progress']);
+  assert.deepEqual(offeredFields(project), ['key', 'column', 'due', 'people', 'labels', 'progress']);
   assert.deepEqual(offeredGroupings(project), ['none', 'category', 'column', 'assignee', 'due']);
 });
 
@@ -83,7 +83,7 @@ test('a date falls in its band on the reader\'s day', () => {
 
 test('the entry type is a column and a grouping only where the workspace shows types', () => {
   const typed: ListOffer = { ...project, showsTypes: true };
-  assert.deepEqual(offeredFields(typed), ['type', 'column', 'due', 'people', 'labels', 'progress']);
+  assert.deepEqual(offeredFields(typed), ['key', 'type', 'column', 'due', 'people', 'labels', 'progress']);
   assert.deepEqual(offeredGroupings(typed), ['none', 'type', 'category', 'column', 'assignee', 'due']);
   assert.equal(offeredFields(project).includes('type'), false);
   assert.equal(offeredGroupings(project).includes('type'), false);
@@ -92,4 +92,11 @@ test('the entry type is a column and a grouping only where the workspace shows t
   rememberArrangement(store, 'anna', 'kitchen', { fields: ['type'], grouping: 'type', done: 'inline' });
   assert.deepEqual(openingArrangement({ store, accountId: 'anna', collectionId: 'kitchen', offer: typed }), { fields: ['type'], grouping: 'type', done: 'inline' });
   assert.deepEqual(openingArrangement({ store, accountId: 'anna', collectionId: 'kitchen', offer: project }), { fields: [], grouping: 'none', done: 'inline' }, 'without the workflows module the type falls back');
+});
+
+test('the key is a column of every list with levels, shown first where the workspace runs workflows', () => {
+  assert.equal(offeredFields(shopping).includes('key'), false, 'a shopping list draws no keys');
+  assert.equal(defaultArrangement(project).fields.includes('key'), false);
+  assert.deepEqual(defaultArrangement({ ...project, showsTypes: true }).fields, ['key', 'due', 'people', 'labels', 'progress']);
+  assert.deepEqual(toggleField(['due'], 'key'), ['key', 'due']);
 });

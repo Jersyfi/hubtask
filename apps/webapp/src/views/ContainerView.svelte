@@ -1191,6 +1191,14 @@
       {:else}
         {#snippet generalTab()}
           <LazyView load={settingsParts.ContainerEditDialog} props={{ isEmbedded: true, isOpen: true, container }} />
+          {#if container.type === 'COLLECTION'}
+            <!-- The word its entries' keys start with (user-experience.md §5.6). -->
+            <section class="mail-settings" aria-labelledby="key-settings-head" data-key-settings>
+              <h2 class="mail-head" id="key-settings-head">{t('app.keys.section')}</h2>
+              <p class="mail-hint">{t('app.keys.section_hint')}</p>
+              <LazyView load={settingsParts.KeyPrefixField} props={{ container, mayShape }} />
+            </section>
+          {/if}
           <!-- The collection's mail handle: the subject word, the address and its ticket keys (ADR-0094). -->
           {#if container.type === 'COLLECTION'}
             <section class="mail-settings" aria-labelledby="mail-settings-head" data-mail-settings>
@@ -1460,6 +1468,7 @@
               mayCreate={mayCreateHere}
               {mayShape}
               statuses={workflowHere?.published}
+              showsKey={arrangement?.fields.includes('key') ?? false}
             />
           {:else}
             <!-- Read-only follows the container: an archived collection's entries are read-only with

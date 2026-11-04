@@ -280,7 +280,7 @@ class Containers {
    */
   async update(
     id: string,
-    body: { name?: string; description?: string | null; icon?: string | null; color_token?: string | null },
+    body: { name?: string; description?: string | null; icon?: string | null; color_token?: string | null; key_prefix?: string | null },
     version: number,
   ): Promise<Container> {
     return engine.mutate<Container>('PATCH', `/containers/${id}`, body, {

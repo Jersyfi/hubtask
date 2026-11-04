@@ -72,6 +72,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
+  import EntryKey from './EntryKey.svelte';
   import ReplicaMark from '../frame/ReplicaMark.svelte';
   import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem, isBelowArchived } from '../data/lifecycle.ts';
@@ -202,6 +203,8 @@
   }: Props = $props();
 
   /** The columns beside each title: the view's, or for a subtree what an entry carries. */
+  // The collection the keys are read from (ticket.ts); a list is always one collection's.
+  const keyedCollection = $derived(containers.find(collectionId));
   const fields = $derived<readonly ListField[]>(arrangement?.fields ?? ['due', 'people', 'labels', 'progress']);
   /** The sort key a field's column head orders by, where the installation can order by it. */
   const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id' };
@@ -1465,7 +1468,9 @@
           {/if}
           {#each fields as field (field)}
             <span class="cell" data-field={field}>
-              {#if field === 'type'}
+              {#if field === 'key'}
+                <EntryKey collection={keyedCollection} number={row.item.number} />
+              {:else if field === 'type'}
                 <!-- The type as a column (S-03): every row's, the level's own included, so the
                      column reads as a value rather than as a mark only some rows carry. -->
                 {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
@@ -1781,6 +1786,7 @@
     .cells { flex-wrap: nowrap; }
     .cell { flex: none; flex-wrap: nowrap; overflow: hidden; }
     .cell:empty { display: inline-flex; }
+    .cell[data-field='key'] { inline-size: calc(var(--sp-1000) * 1.5); }
     .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
     .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }

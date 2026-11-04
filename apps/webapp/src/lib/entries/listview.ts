@@ -16,9 +16,12 @@
 
 import type { LayoutStore } from './layoutmemory.ts';
 
-/** What can stand beside a title, in the order the columns are drawn. */
-export type ListField = 'type' | 'amount' | 'column' | 'due' | 'people' | 'labels' | 'progress';
-export const LIST_FIELDS: readonly ListField[] = ['type', 'amount', 'column', 'due', 'people', 'labels', 'progress'];
+/**
+ * What can stand beside a title, in the order the columns are drawn. The key first: it is what a
+ * person quotes, drawn as everywhere else (`ticket.ts`, user-experience.md §5.6).
+ */
+export type ListField = 'key' | 'type' | 'amount' | 'column' | 'due' | 'people' | 'labels' | 'progress';
+export const LIST_FIELDS: readonly ListField[] = ['key', 'type', 'amount', 'column', 'due', 'people', 'labels', 'progress'];
 
 /** How the top level is grouped: nothing, or by one value each entry has. */
 export type ListGrouping = 'none' | 'type' | 'category' | 'column' | 'assignee' | 'due';
@@ -53,6 +56,8 @@ export interface ListOffer {
 export function offeredFields(offer: ListOffer): readonly ListField[] {
   return LIST_FIELDS.filter((field) => {
     switch (field) {
+      case 'key':
+        return !offer.isSimple;
       case 'type':
         return offer.showsTypes === true;
       case 'amount':
@@ -105,8 +110,11 @@ export function defaultArrangement(offer: ListOffer): ListArrangement {
       done: 'bottom',
     };
   }
+  // The key where entries run through a workflow - a desk's queue, a team's tickets - which is
+  // where they are quoted; a plain project list stays as quiet as it was.
+  const shownKey = offer.showsTypes === true;
   return {
-    fields: offered.filter((field) => field === 'due' || field === 'people' || field === 'labels' || field === 'progress'),
+    fields: offered.filter((field) => (field === 'key' && shownKey) || field === 'due' || field === 'people' || field === 'labels' || field === 'progress'),
     grouping: 'none',
     done: 'inline',
   };
