@@ -2,17 +2,17 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * Hubtask's board templates (research §4.3, the *Must* rows): three retrospectives, a Kanban
- * board, a brainstorm and a flowchart. A template is objects put on the board at a point; its
+ * Hubtask's board templates (research §4.3, the *Must* rows; user-experience.md §4): three
+ * retrospectives, a Kanban board, a brainstorm, a flowchart and a user story map. A template is objects put on the board at a point; its
  * words come from the application in the reader's language, by the keys each template names.
  */
 
 import type { Point } from './geometry.ts';
 import type { Element } from './scene.ts';
 
-export type TemplateName = 'RETRO_START_STOP_CONTINUE' | 'RETRO_FOUR_LS' | 'RETRO_MAD_SAD_GLAD' | 'KANBAN' | 'BRAINSTORM' | 'FLOWCHART';
+export type TemplateName = 'RETRO_START_STOP_CONTINUE' | 'RETRO_FOUR_LS' | 'RETRO_MAD_SAD_GLAD' | 'KANBAN' | 'BRAINSTORM' | 'FLOWCHART' | 'USER_STORY_MAP';
 
-export const TEMPLATES: readonly TemplateName[] = ['RETRO_START_STOP_CONTINUE', 'RETRO_FOUR_LS', 'RETRO_MAD_SAD_GLAD', 'KANBAN', 'BRAINSTORM', 'FLOWCHART'];
+export const TEMPLATES: readonly TemplateName[] = ['RETRO_START_STOP_CONTINUE', 'RETRO_FOUR_LS', 'RETRO_MAD_SAD_GLAD', 'KANBAN', 'BRAINSTORM', 'FLOWCHART', 'USER_STORY_MAP'];
 
 /** The word keys each template asks for, in order. */
 export const TEMPLATE_WORDS: Record<TemplateName, readonly string[]> = {
@@ -22,6 +22,7 @@ export const TEMPLATE_WORDS: Record<TemplateName, readonly string[]> = {
   KANBAN: ['to_do', 'doing', 'done'],
   BRAINSTORM: ['topic', 'idea'],
   FLOWCHART: ['begin', 'step', 'decision', 'yes', 'no', 'finish'],
+  USER_STORY_MAP: ['activity', 'story', 'release_first', 'release_next'],
 };
 
 const COLUMN = { width: 420, height: 720, gap: 40 };
@@ -49,6 +50,8 @@ export function template(name: TemplateName, input: TemplateInput): Element[] {
       return brainstorm(input);
     case 'FLOWCHART':
       return flowchart(input);
+    case 'USER_STORY_MAP':
+      return storyMap(input);
   }
 }
 
@@ -109,4 +112,25 @@ function flowchart(input: TemplateInput): Element[] {
     begin, step, decision, yes, finish, no,
     link(begin, step), link(step, decision), link(decision, yes, words('yes')), link(yes, finish), link(decision, no, words('no')), link(no, step),
   ];
+}
+
+/** Activities in a row along the top; under them one frame per release, across every activity. */
+function storyMap(input: TemplateInput): Element[] {
+  const { at, words, newId } = input;
+  const note = 160;
+  const gap = 40;
+  const count = 4;
+  const total = count * note + (count - 1) * gap;
+  const left = Math.round(at.x - total / 2);
+  const top = Math.round(at.y - 360);
+  const out: Element[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push({ id: newId(), kind: 'STICKY', x: left + i * (note + gap), y: top, width: note, height: 100, text: words('activity'), color_token: 'blue' });
+  }
+  (['release_first', 'release_next'] as const).forEach((key, i) => {
+    const y = top + 160 + i * 300;
+    out.push({ id: newId(), kind: 'FRAME', x: left - gap, y, width: total + 2 * gap, height: 260, text: words(key) });
+    out.push({ id: newId(), kind: 'STICKY', x: left, y: y + 40, width: note, height: note, text: words('story'), color_token: 'amber' });
+  });
+  return out;
 }

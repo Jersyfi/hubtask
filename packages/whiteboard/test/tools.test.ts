@@ -98,6 +98,21 @@ test('every template puts its objects on the board in the reader\'s words (UC-CN
   assert.equal(kanban.filter((e) => e.kind === 'CARD').length, 1, 'a Kanban board holds live cards');
 });
 
+test('a user story map lays its activities over releases, each release a frame across them all', () => {
+  const map = template('USER_STORY_MAP', { at: { x: 0, y: 0 }, words: (k) => k, newId });
+  const activities = map.filter((e) => e.kind === 'STICKY' && e.text === 'activity');
+  const releases = map.filter((e) => e.kind === 'FRAME');
+  assert.ok(activities.length >= 3, 'activities along the top');
+  assert.equal(new Set(activities.map((e) => e.y)).size, 1, 'the activities stand in one row');
+  assert.deepEqual(releases.map((e) => e.text), ['release_first', 'release_next']);
+  const left = Math.min(...activities.map((e) => e.x));
+  const right = Math.max(...activities.map((e) => e.x + e.width));
+  for (const release of releases) {
+    assert.ok(release.x <= left && release.x + release.width >= right, 'a release spans every activity');
+    assert.ok(release.y > (activities[0]?.y ?? 0), 'releases lie under the activities');
+  }
+});
+
 test('a voting session counts each person\'s votes up to their number and hides who voted when anonymous (UC-CNV-05 check 1)', () => {
   const doc = new Y.Doc();
   const other = new Y.Doc();
