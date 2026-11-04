@@ -105,6 +105,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
+  import { noteHubVisit } from '../lib/data/offlinehubs.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
@@ -806,6 +807,11 @@
   $effect(() => {
     if (!container?.name) return;
     recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name, placeId: container.parent_id ?? undefined });
+  });
+  // Which hubs the browser's copy of a very large workspace holds (offline-sync.md §1).
+  $effect(() => {
+    const hubId = container?.type === 'HUB' ? container.id : container?.parent_id;
+    if (hubId) noteHubVisit(actor.account?.id, hubId, Date.now());
   });
 
   /** The list, for the head's primary action: the form is the list's, the button is the head's. */

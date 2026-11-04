@@ -31,12 +31,12 @@ conflicts nobody can resolve.
   deleted whole at sign-out, never the offline promise. It sends no scope - its replica is everything
   the caller may read - until that passes 100 000 entries (decided 2026-11-01): the walk then stops,
   and the copy holds the hubs this device opened in the last thirty days (a hub, or a collection in
-  it, from the device's recents), most recent first, asked for as scopes (§3.1) on every snapshot
+  it, kept on the device by identifier, per account, until sign-out), most recent first, asked for as scopes (§3.1) on every snapshot
   and pull. A narrowed walk still past the bound holds the first half of those hubs, down to one,
   which is held whole; the stream's records outside the held hubs are not written to the copy and
   still make their reads stale. The rest is read online: a hub the copy leaves to the server says
   *Online only* in the navigation, and its lists are not answered from the copy while the server is
-  away (`sync.needs_connection`). Each start asks the recents again and takes a narrowed copy afresh
+  away (`sync.needs_connection`). Each start asks the device's visits again and takes a narrowed copy afresh
   where they changed (`packages/sync-engine` `ReplicaBound`, `renarrow`). There is no pinned hub
   yet, so a hub is held for having been opened, and a workspace that shrinks below the bound stays
   narrowed until the store is deleted.

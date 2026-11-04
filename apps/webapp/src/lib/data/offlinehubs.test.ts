@@ -4,23 +4,46 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { offlineHubs } from './offlinehubs.ts';
+import { MAX_REMEMBERED, forgetHubVisits, noteHubVisit, offlineHubs, type VisitStore } from './offlinehubs.ts';
 
 const NOW = Date.UTC(2026, 10, 4);
 const DAY = 24 * 60 * 60 * 1000;
 
-test('the hubs opened in the last thirty days, a collection counting for its hub, most recent first', () => {
-  const hubs = offlineHubs([
-    { kind: 'hub', id: 'h-old', title: 'Old', at: NOW - 31 * DAY },
-    { kind: 'collection', id: 'c-1', title: 'Inbox', placeId: 'h-2', at: NOW - 2 * DAY },
-    { kind: 'hub', id: 'h-1', title: 'Engines', at: NOW - DAY },
-    { kind: 'item', id: 'i-1', title: 'Buy milk', placeId: 'c-9', at: NOW },
-    { kind: 'hub', id: 'h-2', title: 'Rail', at: NOW - 3 * DAY },
-    { kind: 'hub', id: 'h-undated', title: 'Kept before dates' },
-  ], NOW);
-  assert.deepEqual(hubs, ['h-1', 'h-2']);
+function memory(): VisitStore {
+  const held = new Map<string, string>();
+  return {
+    getItem: (key) => held.get(key) ?? null,
+    setItem: (key, value) => void held.set(key, value),
+    removeItem: (key) => void held.delete(key),
+  };
+}
+
+test('the hubs opened in the last thirty days, most recent first, per account', () => {
+  const store = memory();
+  noteHubVisit('a-1', 'h-old', NOW - 31 * DAY, store);
+  noteHubVisit('a-1', 'h-2', NOW - 3 * DAY, store);
+  noteHubVisit('a-1', 'h-1', NOW - DAY, store);
+  noteHubVisit('a-1', 'h-2', NOW - 2 * DAY, store);
+  noteHubVisit('a-2', 'h-9', NOW, store);
+  assert.deepEqual(offlineHubs('a-1', NOW, store), ['h-1', 'h-2']);
+  assert.deepEqual(offlineHubs('a-2', NOW, store), ['h-9']);
+  assert.deepEqual(offlineHubs(undefined, NOW, store), []);
 });
 
-test('nothing opened lately holds no hub', () => {
-  assert.deepEqual(offlineHubs([], NOW), []);
+test('at most the cap is remembered, and the session\'s end forgets them', () => {
+  const store = memory();
+  for (let i = 0; i < MAX_REMEMBERED + 5; i += 1) noteHubVisit('a-1', `h-${i}`, NOW - (MAX_REMEMBERED + 5 - i) * 1000, store);
+  const held = offlineHubs('a-1', NOW, store);
+  assert.equal(held.length, MAX_REMEMBERED);
+  assert.equal(held[0], `h-${MAX_REMEMBERED + 4}`, 'the most recent first');
+  forgetHubVisits('a-1', store);
+  assert.deepEqual(offlineHubs('a-1', NOW, store), []);
+});
+
+test('a value another version wrote is read as nothing rather than thrown at', () => {
+  const store = memory();
+  store.setItem('hubtask.hub-visits.a-1', '[1,2]');
+  assert.deepEqual(offlineHubs('a-1', NOW, store), []);
+  store.setItem('hubtask.hub-visits.a-1', 'not json');
+  assert.deepEqual(offlineHubs('a-1', NOW, store), []);
 });

@@ -41,6 +41,7 @@ import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
 import { renderProblem, type RenderedProblem } from './problem.ts';
 import { recents } from './recents.svelte.ts';
+import { forgetHubVisits } from './data/offlinehubs.ts';
 import { search } from './data/search.svelte.ts';
 import { recoveryNote } from './data/recoverynote.svelte.ts';
 import { stepUp } from './data/stepup.svelte.ts';
@@ -701,6 +702,7 @@ class Session {
     // rather than outliving them in a browser somebody else also uses.
     recents.forget();
     search.forget();
+    forgetHubVisits(account);
     // A trip to the provider and the grant it earned belong to the session that is ending too.
     stepUp.forget();
     recoveryNote.close();

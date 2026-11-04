@@ -20,7 +20,6 @@ import { noteServerBuild } from '../frame/release.ts';
 import { Intents } from './intent.ts';
 import { mutationFor, storeFor } from './replica.ts';
 import { offlineHubs } from './offlinehubs.ts';
-import { keyFor, parse } from '../recents.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -166,20 +165,10 @@ class IntentEngine extends SyncEngine {
   }
 }
 
-/** Whose copy the engine holds: the hubs it narrows to are that account's recents. */
+/** Whose copy the engine holds: the hubs it narrows to are the ones that account opened lately. */
 let offlineAccount: string | undefined;
 export function holdOfflineAccount(accountId: string | undefined): void {
   offlineAccount = accountId;
-}
-
-/** The device's recents of one account, read where they are kept (`recents.svelte.ts`). */
-function recentsOf(accountId: string | undefined) {
-  if (!accountId) return [];
-  try {
-    return parse(globalThis.localStorage?.getItem(keyFor(accountId)) ?? null);
-  } catch {
-    return [];
-  }
 }
 
 export const engine = new IntentEngine({
@@ -196,7 +185,7 @@ export const engine = new IntentEngine({
     bound: {
       records: platform.replicaEntries,
       counts: (record) => collectionOf(record.entity) === 'items' && record.op === 'UPSERT',
-      containers: async () => offlineHubs(recentsOf(offlineAccount), Date.now()),
+      containers: async () => offlineHubs(offlineAccount, Date.now()),
     },
   }),
   // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
