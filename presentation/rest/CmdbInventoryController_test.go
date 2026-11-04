@@ -69,3 +69,18 @@ func TestAnInventoryPostsBasicPasswordIsThePresentedSecretAndAContactGetsItsTask
 		t.Fatalf("the agent reads its task: %s", response.Body)
 	}
 }
+
+// An authentication scheme is named without regard to case (RFC 9110 §11.1): a monitoring
+// script that writes "bearer" or "BASIC" presents its secret as one writing "Bearer" does.
+func TestTheSchemeOfAPresentedSecretIsReadWithoutRegardToCase(t *testing.T) {
+	for header, want := range map[string]string{
+		"Bearer s3cret": "s3cret", "bearer s3cret": "s3cret", "BEARER  s3cret ": "s3cret",
+		"basic YWdlbnQ6czNjcmV0": "s3cret", "Basic YWdlbnQ6czNjcmV0": "s3cret", "Token s3cret": "",
+	} {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", nil)
+		r.Header.Set("Authorization", header)
+		if got := presentedSecret(r); got != want {
+			t.Errorf("%q presented %q, want %q", header, got, want)
+		}
+	}
+}

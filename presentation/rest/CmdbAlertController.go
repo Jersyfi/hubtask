@@ -69,12 +69,14 @@ func (c *IntakeDoor) DeliverCiAlerts(
 // password of basic authentication for a program that knows no other way. Whether it is the
 // intake's is decided inwards.
 func presentedSecret(r *http.Request) string {
-	header := r.Header.Get("Authorization")
-	if bearer, ok := strings.CutPrefix(header, "Bearer "); ok {
-		return strings.TrimSpace(bearer)
-	}
-	if encoded, ok := strings.CutPrefix(header, "Basic "); ok {
-		raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(encoded))
+	// The scheme is named without regard to case (RFC 9110 §11.1).
+	scheme, credential, _ := strings.Cut(strings.TrimSpace(r.Header.Get("Authorization")), " ")
+	credential = strings.TrimSpace(credential)
+	switch {
+	case strings.EqualFold(scheme, "Bearer"):
+		return credential
+	case strings.EqualFold(scheme, "Basic"):
+		raw, err := base64.StdEncoding.DecodeString(credential)
 		if err != nil {
 			return ""
 		}
