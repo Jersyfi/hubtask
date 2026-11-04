@@ -221,6 +221,17 @@ portfolio*. Today's four purposes are the first two families and the plain team 
 
 This changes UC-WRK-30 check 5 (§9).
 
+**As built.** `POST /tenant/starter:apply` takes `template`, `answers`, `samples` and
+`acknowledge`; inside the starter's transaction the template's workspace part is planned and
+applied as `ApplyConfig` applies it, then the hub is made (on the workspace's default unless
+`hub_preset` is given) and takes the hub part, so a refused part leaves no hub and the question
+open (`core/application/service/config/Starter.go`). The dialog's families are the gallery's
+(`hubGallery.ts`), *Simple* first with the four purposes; the plan shown in words before *Set up* is
+the workspace part's, since the hub part can only be planned once the hub exists. The coordinator
+(`apps/webapp/src/lib/onboarding/`) holds the base tour back while the starter is offered or open.
+Not built yet: *Choose what you use Hubtask for* on Today after a skip, which needs the closed
+question to take a template-led set once more.
+
 ### 3.3 Today, the place the app opens on
 
 Today stays UC-WRK-34's page and becomes **where the products meet** for the reader. New bands,
