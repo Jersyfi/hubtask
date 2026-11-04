@@ -59,9 +59,13 @@
         </li>
       {/if}
       <li class="crumb">
-        {#if crumb.href === undefined}
+        {#if index === trail.length - 1}
           <!-- The current level is not a link, and says so rather than only looking different. -->
           <span class="current" aria-current="page">{crumb.label}</span>
+        {:else if crumb.href === undefined}
+          <!-- A level with no page of its own - *Products* - is named, and still leads on. -->
+          <span class="level">{crumb.label}</span>
+          <span class="separator" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>
         {:else}
           <a
             class="link"
@@ -110,6 +114,7 @@
   }
 
   .link,
+  .level,
   .current {
     display: block;
     max-width: 24ch;
@@ -117,6 +122,8 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .level { color: var(--text-secondary); }
 
   .link {
     color: var(--text-secondary);

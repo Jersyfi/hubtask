@@ -162,6 +162,11 @@ test('chromium: the desk without a desk offers its templates though hubs exist',
   await page.getByText('No desk takes requests yet').waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: 'ITIL service desk', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'Scrum team', exact: true }).count(), 0, 'a template that does not switch the desk on is offered');
+  // The product's trail reads as a hub's does: a chevron between the levels, one current level.
+  const trail = page.getByRole('navigation', { name: 'Where you are among the products' }).first();
+  assert.equal(await trail.locator('li').count(), 2);
+  assert.equal(await trail.locator('li').first().locator('.separator').count(), 1, 'no separator after Products');
+  assert.equal(await trail.locator('[aria-current="page"]').count(), 1);
   assert.deepEqual(failures, []);
 });
 
