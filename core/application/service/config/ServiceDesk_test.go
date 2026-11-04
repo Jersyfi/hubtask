@@ -4,6 +4,7 @@
 package config
 
 import (
+	"slices"
 	"testing"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
@@ -43,9 +44,11 @@ func TestTheServiceDesksBlocksAreInTheDocument(t *testing.T) {
 	}
 }
 
-// The portal's organisations are a section of the document before the policies naming them: a change
-// is flagged as changing who may read what, and a domain moved from one organisation to another
-// in one apply is given up before it is claimed, whatever the keys' order.
+// UC-SVC-11 check 6: the portal's organisations are a section of the document by their keys,
+// before the policies naming them, exported with name, domains and sharing and applied through
+// their own use cases: a change is flagged as changing who may read what, and a domain moved from
+// one organisation to another in one apply is given up before it is claimed, whatever the keys'
+// order.
 func TestTheOrganisationsAreInTheDocument(t *testing.T) {
 	var organisations section
 	at := map[string]int{}
@@ -57,6 +60,9 @@ func TestTheOrganisationsAreInTheDocument(t *testing.T) {
 	}
 	if organisations.module != module.ServiceDesk || at[sectionOrganisations] >= at[sectionPolicies] {
 		t.Fatalf("the organisations' section is %+v at %v", organisations, at)
+	}
+	if !slices.Equal(organisations.attributes, []string{"name", "domains", "shares_requests"}) || organisations.key != "key" {
+		t.Errorf("the organisations are exported as %v by %q", organisations.attributes, organisations.key)
 	}
 	now := current{
 		Document: domain.Document{sectionOrganisations: {
@@ -86,7 +92,8 @@ func TestTheOrganisationsAreInTheDocument(t *testing.T) {
 	}
 }
 
-// A published template leaves out the organisations: their domains name this workspace's customers.
+// UC-SVC-11 check 6: a published template leaves out the organisations - their domains name this
+// workspace's customers.
 func TestATemplateLeavesTheOrganisationsOut(t *testing.T) {
 	kept := templateDocument(domain.Document{
 		sectionOrganisations: {"acme": {"name": "Acme", "domains": []any{"acme.example"}}},
