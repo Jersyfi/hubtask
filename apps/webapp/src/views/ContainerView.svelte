@@ -99,7 +99,7 @@
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { workflowFor, workflows } from '../lib/data/workflows.svelte.ts';
+  import { boardShapeIn, workflowFor, workflows } from '../lib/data/workflows.svelte.ts';
   import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -242,6 +242,10 @@
   });
   const workflowHere = $derived(
     container?.type === 'COLLECTION' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
+  );
+  /** The board's status columns: every workflow a type runs here, not only the task's. */
+  const boardShape = $derived(
+    container?.type === 'COLLECTION' ? boardShapeIn(workflows.list, container.id, container.parent_id ?? undefined) : undefined,
   );
 
   /** What this collection offers: the installation's answers, narrowed to its structure in force. */
@@ -1490,7 +1494,7 @@
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
-              statuses={workflowHere?.published}
+              statuses={boardShape}
               showsKey={arrangement?.fields.includes('key') ?? false}
             />
           {:else}

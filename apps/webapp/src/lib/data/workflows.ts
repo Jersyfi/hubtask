@@ -37,6 +37,32 @@ export function workflowFor(
 }
 
 /**
+ * A board's columns where its collection runs workflows (UC-FLW-03 check 2): every status of every
+ * workflow a type runs there - the collection's row for a type before its hub's, as
+ * `workflowFor` - each key once, in the order of the four categories. Templates map their own
+ * types (story, bug) and not `task`, so asking for one type's workflow finds none there.
+ */
+export function boardShapeIn(list: WorkflowList | undefined, collectionId: string, hubId: string | undefined): WorkflowShape | undefined {
+  if (!list) return undefined;
+  const chosen = new Map<string, string>();
+  for (const container of [collectionId, hubId]) {
+    for (const row of list.scheme) {
+      const type = row.entry_type ?? '';
+      if (container && row.container_id === container && !chosen.has(type)) chosen.set(type, row.workflow);
+    }
+  }
+  const shapes = [...new Set(chosen.values())]
+    .map((key) => list.data.find((workflow) => workflow.key === key)?.published)
+    .filter((shape): shape is WorkflowShape => shape !== undefined && shape !== null);
+  const [first] = shapes;
+  if (!first) return undefined;
+  const statuses = new Map<string, WorkflowStatus>();
+  for (const shape of shapes) for (const status of shape.statuses) if (!statuses.has(status.key)) statuses.set(status.key, status);
+  const rank = (status: WorkflowStatus) => CATEGORIES.indexOf(status.category as Category);
+  return { ...first, statuses: [...statuses.values()].sort((a, b) => rank(a) - rank(b)) };
+}
+
+/**
  * A hub's settings: the workflows shared with it, read-only there, and its own (UC-FLW-02 check
  * 9) - never another hub's, which the hub may not run (`Workflows.Within`).
  */

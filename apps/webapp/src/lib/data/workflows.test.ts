@@ -8,7 +8,7 @@ import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
   addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
-  removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub,
+  removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub, boardShapeIn,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -139,4 +139,27 @@ test('the designer starts from a workflow held in a reactive store, which cannot
   const draft = startingDraft(held);
   assert.deepEqual(draft, shape);
   assert.notEqual(draft, shape, 'the draft is a copy, not the shape in force');
+});
+
+// The scrum template maps its stories and bugs to workflows and nothing to `task`: a board asking
+// for the task's workflow found none and put every story in *No column* (UC-FLW-03 check 2).
+test('a board draws the statuses of every workflow its collection runs, each once', () => {
+  const status = (key: string, category: string) => ({ key, name: key, category });
+  const list = {
+    data: [
+      { key: 'story', published: { initial: 'backlog', steps: [], statuses: [status('backlog', 'BACKLOG'), status('in_progress', 'IN_PROGRESS'), status('done', 'DONE')] } },
+      { key: 'bug', published: { initial: 'backlog', steps: [], statuses: [status('backlog', 'BACKLOG'), status('triage', 'TODO'), status('done', 'DONE')] } },
+      { key: 'elsewhere', published: { initial: 'x', steps: [], statuses: [status('x', 'TODO')] } },
+    ],
+    scheme: [
+      { container_id: 'hub', entry_type: 'story', workflow: 'story' },
+      { container_id: 'hub', entry_type: 'bug', workflow: 'bug' },
+      { container_id: 'other', entry_type: null, workflow: 'elsewhere' },
+    ],
+  } as unknown as WorkflowList;
+  assert.deepEqual(boardShapeIn(list, 'col', 'hub')?.statuses.map((each) => each.key), ['backlog', 'triage', 'in_progress', 'done']);
+  assert.equal(boardShapeIn(list, 'col', undefined), undefined);
+  // The collection's own row for a type wins over its hub's.
+  const own = { ...list, scheme: [...list.scheme, { container_id: 'col', entry_type: 'bug', workflow: 'elsewhere' }] } as unknown as WorkflowList;
+  assert.deepEqual(boardShapeIn(own, 'col', 'hub')?.statuses.map((each) => each.key), ['backlog', 'x', 'in_progress', 'done']);
 });
