@@ -449,7 +449,7 @@
   {:else if route.name === 'workspace-settings'}
     <LazyView load={views.WorkspaceSettingsView} />
   {:else if route.name === 'presets'}
-    <LazyView load={views.PresetsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
+    <LazyView load={views.PresetsView} props={{ template: route.query['template'], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'people'}
     <LazyView load={views.PeopleView} props={{ tab: route.query['tab'], person: route.query['person'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'machines'}

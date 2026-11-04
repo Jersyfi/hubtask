@@ -39,13 +39,19 @@
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
   import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, minutesFor, policyDefinitionOf, reportRows, textOf, withMinutes, wordsOf } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
+  import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
   // On the desk's home its *Settings* tab (user-experience.md §7.4), under the home's own head.
-  const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
+  const { isEmbedded = false, onnavigate }: { isEmbedded?: boolean; onnavigate?: (path: string) => void } = $props();
   $effect(() => {
     if (!isEmbedded) page.entitle(t('app.desk.title'));
   });
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
+  // An empty calendars, policies or replies section starts from the ITIL desk template (§7.4): its
+  // workspace part's plan, in words, at the templates - the calendar and the P1-P4 policies with
+  // the types, priorities and statuses they measure, which a policy alone would name in vain.
+  const offersItil = $derived(mayShape && onnavigate !== undefined);
+  const startFromItil = () => onnavigate?.(`/administration/presets?template=${ITIL_TEMPLATE}`);
 
   const TABS = ['calendars', 'policies', 'replies', 'organisations', 'report'] as const;
   let current = $state<(typeof TABS)[number]>('calendars');
@@ -261,6 +267,10 @@
   const calendarOptions = $derived([{ value: '', label: t('app.desk.around_the_clock') }, ...(calendarRows ?? []).map((row) => ({ value: row.key, label: row.name }))]);
 </script>
 
+{#snippet itilAct()}
+  <Button tone="secondary" icon="layout-template" data-itil-defaults onclick={startFromItil}>{t('app.desk.itil_defaults')}</Button>
+{/snippet}
+
 <Stack gap="300">
   {#if !isEmbedded}<PageHeader title={t('app.desk.title')} subtitle={t('app.desk.subtitle')} isTitleInBar={viewport.isCompact}
     breadcrumb={{
@@ -277,7 +287,8 @@
 
     {#if current === 'calendars'}
       <Stack gap="150">
-        {#if !calendarRows}<Skeleton lines={3} />{:else if calendarRows.length === 0}<EmptyState kind="unused" title={t('app.desk.calendars_none')} />{/if}
+        {#if !calendarRows}<Skeleton lines={3} />{:else if calendarRows.length === 0}<EmptyState kind="unused" title={t('app.desk.calendars_none')}
+          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{/if}
         <ul class="rows">
           {#each calendarRows ?? [] as row (row.key)}
             <li>
@@ -327,7 +338,8 @@
       </Stack>
     {:else if current === 'policies'}
       <Stack gap="150">
-        {#if !policyRows}<Skeleton lines={3} />{:else if policyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.policies_none')} />{/if}
+        {#if !policyRows}<Skeleton lines={3} />{:else if policyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.policies_none')}
+          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{/if}
         <ul class="rows">
           {#each policyRows ?? [] as row (row.key)}
             <li>
@@ -425,7 +437,8 @@
       </Stack>
     {:else if current === 'replies'}
       <Stack gap="150">
-        {#if !replyRows}<Skeleton lines={3} />{:else if replyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.replies_none')} />{/if}
+        {#if !replyRows}<Skeleton lines={3} />{:else if replyRows.length === 0}<EmptyState kind="unused" title={t('app.desk.replies_none')}
+          description={offersItil ? t('app.desk.itil_defaults_hint') : undefined} action={offersItil ? itilAct : undefined} />{/if}
         <ul class="rows">
           {#each replyRows ?? [] as row (row.key)}
             <li>

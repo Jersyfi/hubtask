@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, COLLECTION, HUB, ITEMS, OTHER, PAGE } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, DEFAULT_STRUCTURE, HUB, ITEMS, OTHER, PAGE, WORKSPACE } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -195,4 +195,41 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   assert.deepEqual(policy.goals.find((goal) => goal.kind === 'FIRST_RESPONSE')?.by_priority, { P1: 15 });
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
+});
+
+// §7.4: an empty calendars section offers the ITIL defaults to whoever may shape the workspace,
+// which open the ITIL template's plan at the templates - shown in words before anything changes.
+test('chromium: service desk - an empty section starts from the ITIL defaults through the template\'s plan', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const backend = deskBackend();
+  const itil = {
+    key: 'itil_service_desk', version: 6, name: 'itil_service_desk', origin: 'HUBTASK', provenance: 'itil_service_desk@6', created_at: '2026-09-01T00:00:00Z',
+    update_available: false, taken_version: null, hub_document: {}, document: { modules: { service_desk: { switch: 'ON' } } }, questions: [],
+  };
+  const plans = [];
+  const walk = await productWalk(browser, {
+    modules: ['SERVICE_DESK', 'WORKFLOWS'],
+    answer: (method, path, query, body) => {
+      if (path === '/tenant' && method === 'GET') return { json: { ...WORKSPACE, structure: { ...DEFAULT_STRUCTURE, default_preset: null, default_preset_id: null } } };
+      if (path === '/config/templates' && method === 'GET') return { json: { data: [itil] } };
+      if (path === `/config/templates/${itil.key}:plan`) {
+        plans.push(body?.hub_id ?? '');
+        return { json: {
+          template: itil.key, upgrade: [], document: {}, mode: 'MERGE', base_hash: 'b1', plan_hash: 'p1', refusals: [], operations: [], hub_id: null,
+          flags: { hides_data: false, changes_permissions: false }, counts: { added: 1, changed: 0, removed: 0 },
+          changes: [{ path: 'business_calendars.office', section: 'business_calendars', key: 'office', op: 'ADD', fields: [] }],
+        } };
+      }
+      return backend(method, path, query, body);
+    },
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/desk/settings`);
+  await page.locator('[data-itil-defaults]').click();
+  await page.waitForURL(/\/administration\/presets\?template=itil_service_desk$/, { timeout: 10_000 });
+  await page.getByRole('dialog').waitFor({ timeout: 10_000 });
+  assert.deepEqual(plans, [''], 'the ITIL plan was not asked for the workspace once');
+  assert.deepEqual(walk.errors(), []);
 });

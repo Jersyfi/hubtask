@@ -196,3 +196,6 @@ export function withMinutes(text: string, option: string, minutes: string): stri
   if (minutes.trim() !== '') kept.splice(at < 0 ? kept.length : at, 0, [option, minutes.trim()]);
   return kept.map(([key, value]) => `${key}=${value}`).join(', ');
 }
+
+/** The shipped template a desk's settings start from (user-experience.md §7.4). */
+export const ITIL_TEMPLATE = 'itil_service_desk';

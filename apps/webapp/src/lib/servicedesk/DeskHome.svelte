@@ -110,7 +110,7 @@
   <PlaceTabs label={name} {tabs} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
 
   {#if current === 'settings'}
-    <ServiceDeskView isEmbedded />
+    <ServiceDeskView isEmbedded {onnavigate} />
   {:else if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
       <ProductEmpty kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}

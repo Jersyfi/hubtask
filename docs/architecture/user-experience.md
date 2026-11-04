@@ -687,8 +687,11 @@ primary. The settings tab is the workspace's calendars, policies, canned replies
 and report; every form opens in a dialog from *Add …* or a row's pencil, and a policy picks its
 types, organisations, priority field and pausing statuses from the workspace's own values, its
 targets per priority one `DurationInput` per option of that field, the warning and position
-behind *Advanced*. *Start from the ITIL defaults* is not built: no read answers the shipped
-template's calendars and policies alone. A desk entry's SLA chips lead its main column, above the
+behind *Advanced*. An empty calendars, policies or replies section offers whoever holds
+`STRUCTURE` *Start from the ITIL defaults*: the workspace's *Templates* open on the ITIL desk
+template's plan (`/administration/presets?template=itil_service_desk`), in words before anything
+changes - its whole workspace part, since its policies measure the types, priorities and statuses
+that part brings and would measure nothing alone. A desk entry's SLA chips lead its main column, above the
 notes; the triage fields stay in the fields beside it. The portal draws its kinds as
 `TemplateCard`s with their mark and sentence and *Ask for this*; the form follows only once one is
 chosen, focus moving to it, with the articles beside it from the expanded width. A request's

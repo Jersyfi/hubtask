@@ -12067,6 +12067,8 @@
   "app.desk.cancel": "Cancel",
   "app.desk.policies_none": "No SLA policy yet.",
   "app.desk.replies_none": "No canned reply yet.",
+  "app.desk.itil_defaults": "Start from the ITIL defaults",
+  "app.desk.itil_defaults_hint": "The ITIL service desk template brings office hours, policies for P1 to P4 with the types and priorities they measure, and replies. Its plan is shown before anything changes.",
   "app.desk.spans": "{count} working spans",
   "app.desk.edit": "Edit",
   "app.desk.delete": "Delete",

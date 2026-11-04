@@ -12067,6 +12067,8 @@
   "app.desk.cancel": "Abbrechen",
   "app.desk.policies_none": "Noch keine SLA-Richtlinie.",
   "app.desk.replies_none": "Noch kein Textbaustein.",
+  "app.desk.itil_defaults": "Mit den ITIL-Vorgaben beginnen",
+  "app.desk.itil_defaults_hint": "Die Vorlage ITIL-Servicedesk bringt Bürozeiten, Richtlinien für P1 bis P4 mit den Typen und Prioritäten, die sie messen, und Textbausteine mit. Ihr Plan wird gezeigt, bevor sich etwas ändert.",
   "app.desk.spans": "{count} Arbeitszeitspannen",
   "app.desk.edit": "Bearbeiten",
   "app.desk.delete": "Löschen",

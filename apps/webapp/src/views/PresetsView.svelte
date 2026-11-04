@@ -36,7 +36,7 @@
   import { pagePart } from '../lib/settings/asFile.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
 
-  const { onnavigate }: { onnavigate?: (path: string) => void } = $props();
+  const { onnavigate, template }: { onnavigate?: (path: string) => void; template?: string } = $props();
 
   $effect(() => untrack(() => workspace.open()));
   $effect(() => untrack(() => presets.open()));
@@ -149,7 +149,7 @@
 
     <WorkspaceGate permission="STRUCTURE">
       <Stack gap="400">
-        <TemplatesGallery {onnavigate} />
+        <TemplatesGallery {onnavigate} preselect={template} />
 
         <section class="block" aria-labelledby="presets-saved" data-presets-saved>
           <h2 id="presets-saved">{t('app.presets.saved_title')}</h2>
