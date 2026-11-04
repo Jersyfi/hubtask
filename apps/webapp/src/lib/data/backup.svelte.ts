@@ -92,6 +92,7 @@ export interface Schedule {
   readonly full_rrule?: string | null;
   readonly include_media?: boolean;
   readonly include_audit?: boolean;
+  readonly trial_restore?: boolean;
   readonly retention?: Retention;
   readonly notify_on?: readonly string[];
   readonly enabled?: boolean;

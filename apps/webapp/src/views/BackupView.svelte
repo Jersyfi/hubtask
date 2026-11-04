@@ -23,7 +23,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, EmptyState, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import FrequencyPicker from '../lib/forms/FrequencyPicker.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
   import { deviceZone } from '../lib/i18n/zone.ts';
@@ -187,6 +187,44 @@
     );
   }
 
+  /**
+   * The empty screen's one act (user-experience.md §8.3): a target in the installation's backup
+   * volume and a nightly schedule on it, as `backup-restore.md` §4's example - incremental each
+   * night, full on Sunday with the trial restore, the server's default retention. The path is the
+   * same for every workspace: an archive's name carries its workspace, and a target lists only its
+   * own workspace's archives. A schedule refused after the target was added leaves the target on
+   * screen with the schedule form under it, which is the hand-made way the rest of the page offers.
+   */
+  let isGuiding = $state(false);
+  async function backUpNightly(): Promise<void> {
+    isGuiding = true;
+    await attempt(async () => {
+      const target = await backup.createTarget({
+        name: t('app.backup.guided_target_name'),
+        kind: 'LOCAL',
+        config: { path: GUIDED_PATH },
+        encryption_mode: 'AES256_GCM',
+      });
+      await backup.createSchedule({
+        target_id: target.id,
+        scope: { kind: 'TENANT' },
+        rrule: 'FREQ=DAILY;BYHOUR=3;BYMINUTE=0',
+        timezone: deviceZone(),
+        mode: 'INCREMENTAL',
+        full_rrule: 'FREQ=WEEKLY;BYDAY=SU',
+        trial_restore: true,
+        notify_on: ['FAILURE', 'FIRST_SUCCESS_AFTER_FAILURE'],
+      });
+    }, t('app.backup.guided_done_announced'));
+    isGuiding = false;
+  }
+
+  /** Where the guided target writes inside the installation's backup volume. */
+  const GUIDED_PATH = 'workspaces';
+
+  /** Every target on this machine's disk: one failure takes the archives with the data. */
+  const onlyHere = $derived(targets.length > 0 && targets.every((target) => target.kind === 'LOCAL'));
+
   async function start(targetId: string): Promise<void> {
     await attempt(async () => {
       const accepted = await backup.start({ target_id: targetId });
@@ -345,28 +383,6 @@
       </section>
     {/if}
 
-    {#if mayOwn}
-      <section class="panel">
-        <Stack gap="100">
-          <h2 class="section">{t('app.backup.download_title')}</h2>
-          <p class="quiet">{t('app.backup.download_intro')}</p>
-          <Input
-            label={t('app.backup.download_passphrase')}
-            hint={t('app.backup.download_passphrase_hint')}
-            type="password"
-            autocomplete="new-password"
-            revealLabel={t('app.backup.download_passphrase_show')}
-            hideLabel={t('app.backup.download_passphrase_hide')}
-            bind:value={downloadPassphrase}
-          />
-          <div>
-            <Button tone="secondary" isBusy={isDownloading} busyLabel={t('app.backup.downloading')} onclick={() => void downloadWorkspace()}>
-              {t('app.backup.download')}
-            </Button>
-          </div>
-        </Stack>
-      </section>
-    {/if}
 
     <Stack gap="150">
       <h2 class="section">{t('app.backup.targets_title')}</h2>
@@ -528,8 +544,27 @@
             </Stack>
           </section>
         {:else}
-          <p class="quiet">{t('app.backup.no_targets')}</p>
+          {#if mayOwn}
+            <EmptyState kind="unused" icon="archive" title={t('app.backup.guided_title')} description={t('app.backup.guided_description')}>
+              {#snippet action()}
+                <Button tone="primary" isBusy={isGuiding} busyLabel={t('app.backup.guided_working')} onclick={() => void backUpNightly()}>
+                  {t('app.backup.guided_start')}
+                </Button>
+              {/snippet}
+              {#snippet footnote()}{t('app.backup.guided_footnote')}{/snippet}
+            </EmptyState>
+          {:else}
+            <EmptyState kind="unused" icon="archive" title={t('app.backup.no_targets')} />
+          {/if}
         {/each}
+        {#if onlyHere && mayOwn}
+          <aside class="panel suggestion" aria-labelledby="backup-offsite">
+            <Stack gap="050">
+              <h3 class="section" id="backup-offsite">{t('app.backup.offsite_title')}</h3>
+              <p class="quiet small">{t('app.backup.offsite_note')}</p>
+            </Stack>
+          </aside>
+        {/if}
       {/if}
 
       <WorkspaceGate permission="DELETE_CONTAINER">
@@ -678,6 +713,29 @@
         </WorkspaceGate>
       {/if}
     </Stack>
+
+    {#if mayOwn}
+      <section class="panel">
+        <Stack gap="100">
+          <h2 class="section">{t('app.backup.download_title')}</h2>
+          <p class="quiet">{t('app.backup.download_intro')}</p>
+          <Input
+            label={t('app.backup.download_passphrase')}
+            hint={t('app.backup.download_passphrase_hint')}
+            type="password"
+            autocomplete="new-password"
+            revealLabel={t('app.backup.download_passphrase_show')}
+            hideLabel={t('app.backup.download_passphrase_hide')}
+            bind:value={downloadPassphrase}
+          />
+          <div>
+            <Button tone="secondary" isBusy={isDownloading} busyLabel={t('app.backup.downloading')} onclick={() => void downloadWorkspace()}>
+              {t('app.backup.download')}
+            </Button>
+          </div>
+        </Stack>
+      </section>
+    {/if}
     </Stack>
 </Stack>
 
@@ -792,6 +850,9 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
   }
+
+  /* A suggestion, not a warning: nothing is wrong yet, so the mark is the accent, not a tone. */
+  .suggestion { border-inline-start: var(--bw-thick) solid var(--accent-primary); }
 
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
