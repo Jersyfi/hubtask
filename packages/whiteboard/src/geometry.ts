@@ -132,10 +132,18 @@ export function inside(elements: readonly Element[], area: Box): Element[] {
   });
 }
 
-/** The objects a frame holds - itself and what lies wholly in it - and their connectors. */
+/**
+ * The objects a frame holds - itself and what lies wholly in it - and the connectors whose ends
+ * it holds: attached to one of those, or free at a point inside it. The server's Within agrees.
+ */
 export function withinFrame(elements: readonly Element[], frame: Element): Element[] {
-  const ids = new Set([frame.id, ...inside(elements, box(frame)).map((e) => e.id)]);
-  return elements.filter((e) => (e.kind === 'CONNECTOR' ? ids.has(e.from ?? '') && ids.has(e.to ?? '') : ids.has(e.id)));
+  const area = box(frame);
+  const ids = new Set([frame.id, ...inside(elements, area).map((e) => e.id)]);
+  const holds = (x: number, y: number) => x >= area.left && y >= area.top && x <= area.right && y <= area.bottom;
+  const end = (attached: string | null | undefined, x: number, y: number) => (attached ? ids.has(attached) : holds(x, y));
+  return elements.filter((e) =>
+    e.kind === 'CONNECTOR' ? end(e.from, e.x, e.y) && end(e.to, e.x + e.width, e.y + e.height) : ids.has(e.id),
+  );
 }
 
 /** The box around objects, connectors' ends included; undefined for none. */

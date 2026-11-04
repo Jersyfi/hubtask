@@ -200,6 +200,27 @@ func TestWithinAFrame(t *testing.T) {
 	}
 }
 
+// A connector with a free end is within a frame when that end's point is: an arrow drawn inside a
+// frame is exported with it, one running out of it is not.
+func TestAFreeArrowInsideAFrameIsWithinIt(t *testing.T) {
+	scene := whiteboard.Scene{Elements: []whiteboard.Element{
+		{ID: "f", Kind: whiteboard.KindFrame, X: 0, Y: 0, Width: 500, Height: 500},
+		{ID: "in", Kind: whiteboard.KindSticky, X: 10, Y: 10, Width: 100, Height: 100},
+		{ID: "free", Kind: whiteboard.KindConnector, X: 50, Y: 300, Width: 200, Height: -100},
+		{ID: "half", Kind: whiteboard.KindConnector, From: "in", X: 0, Y: 0, Width: 400, Height: 400},
+		{ID: "away", Kind: whiteboard.KindConnector, X: 50, Y: 300, Width: 600, Height: 0},
+		{ID: "outward", Kind: whiteboard.KindConnector, From: "in", X: 0, Y: 0, Width: 900, Height: 0},
+	}}
+	frame, _ := scene.Frame("f")
+	var ids []string
+	for _, element := range scene.Within(frame).Elements {
+		ids = append(ids, element.ID)
+	}
+	if strings.Join(ids, ",") != "f,in,free,half" {
+		t.Fatalf("within the frame: %v", ids)
+	}
+}
+
 func TestBoardChanged(t *testing.T) {
 	now := time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC)
 	board, err := whiteboard.NewBoard(whiteboard.NewBoardInput{

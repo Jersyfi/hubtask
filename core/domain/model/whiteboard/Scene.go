@@ -209,7 +209,8 @@ func (s Scene) Frame(id string) (Element, bool) {
 }
 
 // Within answers the objects inside a frame - the frame, whatever lies wholly inside it, and the
-// connectors between two of those - in drawing order.
+// connectors whose ends are: attached to one of those, or free at a point inside the frame - in
+// drawing order.
 func (s Scene) Within(frame Element) Scene {
 	inside := map[string]bool{}
 	var out []Element
@@ -224,7 +225,9 @@ func (s Scene) Within(frame Element) Scene {
 	for _, element := range s.Elements {
 		switch {
 		case element.Kind == KindConnector:
-			if inside[element.From] && inside[element.To] {
+			start := inside[element.From] || (element.From == "" && holds(frame, element.X, element.Y))
+			end := inside[element.To] || (element.To == "" && holds(frame, element.X+element.Width, element.Y+element.Height))
+			if start && end {
 				out = append(out, element)
 			}
 		case inside[element.ID]:
@@ -238,6 +241,11 @@ func contains(frame, element Element) bool {
 	left, top, right, bottom := box(frame)
 	l, t, r, b := box(element)
 	return l >= left && t >= top && r <= right && b <= bottom
+}
+
+func holds(frame Element, x, y float64) bool {
+	left, top, right, bottom := box(frame)
+	return x >= left && y >= top && x <= right && y <= bottom
 }
 
 func box(e Element) (left, top, right, bottom float64) {

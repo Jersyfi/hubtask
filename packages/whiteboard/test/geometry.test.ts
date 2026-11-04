@@ -38,6 +38,19 @@ test('a point hits the top-most object, a frame only where nothing else is', () 
   assert.deepEqual(withinFrame([frame, a, b, link, { ...a, id: 'out', x: 900 }], frame).map((e) => e.id), ['f', 'a', 'b', 'l']);
 });
 
+test('a connector with a free end is within a frame when that end is: an arrow drawn inside it exports with it', () => {
+  const frame: Element = { id: 'f', kind: 'FRAME', x: 0, y: 0, width: 500, height: 500 };
+  const note: Element = { id: 'in', kind: 'STICKY', x: 10, y: 10, width: 100, height: 100 };
+  const all: Element[] = [
+    frame, note,
+    { id: 'free', kind: 'CONNECTOR', x: 50, y: 300, width: 200, height: -100 },
+    { id: 'half', kind: 'CONNECTOR', from: 'in', x: 0, y: 0, width: 400, height: 400 },
+    { id: 'away', kind: 'CONNECTOR', x: 50, y: 300, width: 600, height: 0 },
+    { id: 'outward', kind: 'CONNECTOR', from: 'in', x: 0, y: 0, width: 900, height: 0 },
+  ];
+  assert.deepEqual(withinFrame(all, frame).map((e) => e.id), ['f', 'in', 'free', 'half']);
+});
+
 test('zooming keeps the point under the pointer, and fitting shows a box whole', () => {
   const view = { x: 0, y: 0, zoom: 1, width: 800, height: 600 };
   const zoomed = zoomAt(view, { x: 400, y: 300 }, 2);
