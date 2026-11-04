@@ -40,11 +40,14 @@ export interface LimitLine {
 /**
  * The limits with a ceiling and a live count, fullest first. A limit without a ceiling (`0`) or
  * without a count says nothing about how close anything is, so it is not a line here; the limits
- * page lists it.
+ * page lists it. Where no AI answers (`aiOn` false), the AI limits measure nothing the workspace
+ * uses, so they are left out until AI is set up.
  */
-export function limitLines(standings: readonly LimitStanding[]): LimitLine[] {
+export function limitLines(standings: readonly LimitStanding[], options: { readonly aiOn?: boolean } = {}): LimitLine[] {
+  const aiOn = options.aiOn ?? true;
   return standings
     .filter((standing) => standing.limit > 0 && typeof standing.used === 'number')
+    .filter((standing) => aiOn || !standing.quota.startsWith('ai_'))
     .map((standing) => {
       const used = standing.used as number;
       const ratio = typeof standing.ratio === 'number' ? standing.ratio : used / standing.limit;

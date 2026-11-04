@@ -28,6 +28,17 @@ test('limits: a ratio the server leaves out is computed from use and ceiling', (
   assert.equal(limitLines([{ quota: 'items', limit: 10, used: 9 }])[0]?.state, 'near');
 });
 
+test('limits: a workspace without AI is shown no AI limit; one with AI sees them', () => {
+  const standings = [
+    { quota: 'items', limit: 1000, used: 1 },
+    { quota: 'ai_tokens_per_day', limit: 200000, used: 0 },
+    { quota: 'ai_own_tokens_per_day', limit: 5000, used: 0 },
+    { quota: 'ai_arrival_proposals_per_day', limit: 200, used: 0 },
+  ];
+  assert.deepEqual(limitLines(standings, { aiOn: false }).map((line) => line.quota), ['items']);
+  assert.equal(limitLines(standings, { aiOn: true }).length, 4);
+});
+
 test('rules: failing first by failures, then broken, then attention; a quiet rule is no line', () => {
   const lines = ruleLines([
     { id: 'a', name: 'Quiet', enabled: true, failure_count: 0, findings: [] },

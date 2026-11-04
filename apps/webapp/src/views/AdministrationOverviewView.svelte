@@ -189,7 +189,7 @@
   };
   const isStepsOwed = $derived(isOwed(steps));
 
-  const limits = $derived(limitLines(quotas.standings));
+  const limits = $derived(limitLines(quotas.standings, { aiOn: manifest.value?.features?.ai_suggestions === true }));
   const failing = $derived(ruleLines(rules.all));
   const now = Date.now();
   const owed = $derived(owedSoon(privacy.of(false), (request) => standingOf(request, now)));
