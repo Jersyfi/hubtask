@@ -207,3 +207,29 @@ func TestAWorkspacesConfigurationSandboxIsItsOwn(t *testing.T) {
 		return nil
 	})
 }
+
+// An apply holds its workspace's configuration: a second apply of the same workspace waits for the
+// first, the workspace next door does not.
+func TestAHeldConfigurationMakesTheOtherApplyWait(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewConfigRepository()
+	if err := write(ctx, t, tenantA, func(held context.Context) error {
+		if err := store.Hold(held); err != nil {
+			return err
+		}
+		waiting, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+		defer cancel()
+		if err := write(waiting, t, tenantA, store.Hold); err == nil {
+			t.Error("a second apply held the same configuration at once")
+		}
+		next, cancelNext := context.WithTimeout(ctx, 5*time.Second)
+		defer cancelNext()
+		if err := write(next, t, tenantB, store.Hold); err != nil {
+			t.Errorf("the workspace next door waited: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("hold: %v", err)
+	}
+}

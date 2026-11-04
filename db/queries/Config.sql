@@ -1,6 +1,11 @@
 -- The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
 -- is the transaction's in every statement (ADR-0010).
 
+-- name: HoldConfiguration :exec
+-- One hold per workspace for the length of an apply: it plans, runs and records against the
+-- configuration as it stands, which another apply through any door may be changing.
+SELECT pg_advisory_xact_lock(hashtextextended('config/' || current_tenant_id()::text, 0));
+
 -- name: LatestConfigRevision :one
 -- The newest of every scope: the workspace numbers its versions once, whatever they configured.
 SELECT tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by,

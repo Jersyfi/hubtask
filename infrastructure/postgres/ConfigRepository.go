@@ -71,6 +71,17 @@ func textOf(s *string) string {
 	return *s
 }
 
+func (ConfigRepository) Hold(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.HoldConfiguration(ctx); err != nil {
+		return configError(err, "holding the configuration")
+	}
+	return nil
+}
+
 func (ConfigRepository) Latest(ctx context.Context) (domain.Revision, bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

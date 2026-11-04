@@ -625,6 +625,9 @@ func (d Desk) apply(ctx context.Context, actor appshared.ActorContext, in usecas
 	}
 	var out usecase.Output
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := d.Store.Hold(ctx); err != nil {
+			return err
+		}
 		document, mode, rollback, err := d.desired(ctx, in)
 		if err != nil {
 			return err
@@ -876,6 +879,9 @@ func (h DecideConfigProposal) Descriptor() usecase.Descriptor {
 func (d Desk) decide(ctx context.Context, actor appshared.ActorContext, id shared.ID, apply, acknowledge bool, stepUp string) (usecase.Output, error) {
 	var out usecase.Output
 	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := d.Store.Hold(ctx); err != nil {
+			return err
+		}
 		proposal, err := d.Store.FindProposal(ctx, id)
 		if err != nil {
 			return err

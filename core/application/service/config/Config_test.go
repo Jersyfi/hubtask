@@ -349,6 +349,8 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, s persistence.Scope, fn
 }
 
 type store struct {
+	// onHold runs once at Hold, as another transaction committing while this one waited for it.
+	onHold    func()
 	revisions []domain.Revision
 	proposals []domain.Proposal
 	templates []domain.Template
@@ -378,6 +380,14 @@ func (s *store) DropSandbox(context.Context) (bool, error) {
 	held := s.sandbox != nil
 	s.sandbox = nil
 	return held, nil
+}
+
+func (s *store) Hold(context.Context) error {
+	if hook := s.onHold; hook != nil {
+		s.onHold = nil
+		hook()
+	}
+	return nil
 }
 
 func (s *store) Latest(context.Context) (domain.Revision, bool, error) {

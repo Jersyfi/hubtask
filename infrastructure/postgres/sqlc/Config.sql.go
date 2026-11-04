@@ -161,6 +161,20 @@ func (q *Queries) FindConfigTemplate(ctx context.Context, arg FindConfigTemplate
 	return i, err
 }
 
+const holdConfiguration = `-- name: HoldConfiguration :exec
+
+SELECT pg_advisory_xact_lock(hashtextextended('config/' || current_tenant_id()::text, 0))
+`
+
+// The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
+// is the transaction's in every statement (ADR-0010).
+// One hold per workspace for the length of an apply: it plans, runs and records against the
+// configuration as it stands, which another apply through any door may be changing.
+func (q *Queries) HoldConfiguration(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, holdConfiguration)
+	return err
+}
+
 const insertConfigProposal = `-- name: InsertConfigProposal :exec
 INSERT INTO config_proposal (id, tenant_id, state, document, mode, base_hash, plan_hash, template,
                              added, changed, removed, hides_data, changes_permissions, proposed_by,
@@ -297,7 +311,6 @@ func (q *Queries) InsertConfigTemplate(ctx context.Context, arg InsertConfigTemp
 }
 
 const latestConfigRevision = `-- name: LatestConfigRevision :one
-
 SELECT tenant_id, version, document, hash, plan_hash, actor_kind, actor_id, proposed_by,
        rolled_back_to, template, added, changed, removed, created_at, hub_id
 FROM config_revision
@@ -305,8 +318,6 @@ ORDER BY version DESC
 LIMIT 1
 `
 
-// The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
-// is the transaction's in every statement (ADR-0010).
 // The newest of every scope: the workspace numbers its versions once, whatever they configured.
 func (q *Queries) LatestConfigRevision(ctx context.Context) (ConfigRevision, error) {
 	row := q.db.QueryRow(ctx, latestConfigRevision)

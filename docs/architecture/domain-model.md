@@ -400,7 +400,9 @@ acknowledge - *hides data* (a field or type removed, a field turned read-restric
 permissions* (a role) - and a plan hash over the hash of the document in force and the document it
 leads to. A plan changing the sign-in rule says `step_up`: its sign-in and legal changes run as
 one `UpdateWorkspace` call that carries the apply's fresh proof (`X-Hubtask-Step-Up`), so only a
-person's session applies it. `ApplyConfig` re-exports, refuses `config.version_conflict` where the configuration moved
+person's session applies it. `ApplyConfig` (and deciding a proposal) first holds the workspace's
+configuration for its transaction (`HoldConfiguration`), so a second apply waits and reads what the
+first left; it re-exports, refuses `config.version_conflict` where the configuration moved
 through any door, runs every operation in one transaction and writes a `config_revision` (the
 document after, who applied it, who proposed it, the counts) and one trail entry with counts only
 (rule 10). A rollback is a `REPLACE` plan of an earlier version's document. An agent's apply
