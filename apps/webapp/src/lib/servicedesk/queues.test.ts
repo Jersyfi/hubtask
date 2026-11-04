@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DESK_QUEUES, desksOf, queueQuery, queueTotal } from './queues.ts';
+import { DESK_QUEUES, desksOf, priorityOf, queueQuery, queueTotal } from './queues.ts';
 
 // UC-SVC-03 checks 1 to 3: a queue is ordered by what breaks first and counted exactly; the four
 // queues of §7.4 differ only in their narrowing, all inside the hub's desks and open.
@@ -44,4 +44,12 @@ test('a hub\'s desks are its collections offering a type open to the portal', ()
   const collection = (id: string, offered?: string[]) => ({ id, parent_id: 'hub', structure: offered ? { settings: { entry_types: { TASK: offered } } } : null });
   assert.deepEqual(desksOf([collection('help', ['incident']), collection('scrum', ['story']), collection('all')], types), ['help', 'all']);
   assert.deepEqual(desksOf([collection('help', ['incident'])], [type('story')]), []);
+});
+
+// user-experience.md §7.4: the queue's priority column reads the field the policies name.
+test('a priority is the first field the policies name that the entry answers, else priority', () => {
+  assert.equal(priorityOf({ custom_fields: { urgency: 'High', priority: 'P2' } }, ['urgency']), 'High');
+  assert.equal(priorityOf({ custom_fields: { priority: 'P2' } }, [null, 'severity']), 'P2');
+  assert.equal(priorityOf({ custom_fields: { priority: 3 } }, []), undefined);
+  assert.equal(priorityOf({ custom_fields: null }, ['priority']), undefined);
 });

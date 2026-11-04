@@ -68,3 +68,15 @@ export function desksOf(
     .filter((collection) => actsAsDesk(types, entryTypesOffered(collection.structure?.settings ?? undefined, 'TASK'), collection.parent_id))
     .map((collection) => collection.id);
 }
+
+/**
+ * An entry's priority as a queue shows it: the value of the first priority field the policies
+ * name that the entry answers, else of the shipped desks' `priority`; only a choice's text.
+ */
+export function priorityOf(item: { readonly custom_fields?: Record<string, unknown> | null }, fields: readonly (string | null | undefined)[]): string | undefined {
+  for (const field of [...fields, 'priority']) {
+    const value = field ? item.custom_fields?.[field] : undefined;
+    if (typeof value === 'string' && value !== '') return value;
+  }
+  return undefined;
+}

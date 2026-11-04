@@ -3,20 +3,27 @@
 <script lang="ts">
   // The handler's queues (user-experience.md §2.2, §7.4; UC-SVC-03): *Mine*, *Unassigned*,
   // *About to breach* and *All open* as tabs with their exact counts, the chosen queue's open
-  // requests below, what breaks first on top. One query per queue and hub (`queues.ts`); across
-  // hubs the requests stand hub by hub, each hub's in its own order, because the order is the
-  // server's and a client cannot merge two orders by a moment it is not sent.
+  // requests below as a table - key, request, requester, status, priority, SLA, assignee - what
+  // breaks first on top. One query per queue and hub (`queues.ts`); across hubs the requests stand
+  // hub by hub, each hub's in its own order, because the order is the server's and a client cannot
+  // merge two orders by a moment it is not sent. The SLA is one read per row shown (at most
+  // `QUEUE_SHOWN` a hub): the query answers no goal.
   import { untrack } from 'svelte';
-  import { Banner, EmptyState, Icon, ListRow, Skeleton, Stack, Tabs } from '@hubtask/design-system/components';
-  import type { ItemQueryResult } from '@hubtask/sync-engine';
+  import { Avatar, Banner, EmptyState, LabelChip, Skeleton, Stack, Table, Tabs } from '@hubtask/design-system/components';
+  import type { ItemQueryResult, SlaPolicyList, WorkItem } from '@hubtask/sync-engine';
 
+  import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { policiesPath } from '../data/desk.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import DueMark from '../entries/DueMark.svelte';
+  import { resource } from '../data/resource.svelte.ts';
+  import { statusLabel, workflowFor, workflows } from '../data/workflows.svelte.ts';
+  import EntryKey from '../entries/EntryKey.svelte';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import EntryPlace from '../workspace/EntryPlace.svelte';
-  import { DESK_QUEUES, QUEUE_SHOWN, queueQuery, queueTotal, type DeskQueue } from './queues.ts';
+  import { DESK_QUEUES, QUEUE_SHOWN, priorityOf, queueQuery, queueTotal, type DeskQueue } from './queues.ts';
+  import SlaRemaining from './SlaRemaining.svelte';
 
   interface Props {
     /** Each hub's desk collections, in the order the hubs are drawn; a hub with none is not asked. */
@@ -24,8 +31,10 @@
     /** Whether a row names its hub too: on the workspace's home, where requests of several mix. */
     withHub?: boolean;
     onnavigate: (path: string) => void;
+    /** Each queue's count across the hubs once every hub answered it, for the home's figure. */
+    ontotals?: (totals: Partial<Record<DeskQueue, number>>) => void;
   }
-  const { desks, withHub = false, onnavigate }: Props = $props();
+  const { desks, withHub = false, onnavigate, ontotals }: Props = $props();
 
   let selected = $state<DeskQueue>('mine');
   let answers = $state<Record<string, ItemQueryResult>>({});
@@ -58,9 +67,46 @@
       return { id: queue, label: total === undefined ? name : t('app.desk_queues.with_count', { queue: name, count: String(total) }) };
     }),
   );
+  $effect(() => {
+    const totals = Object.fromEntries(DESK_QUEUES.map((queue) => [queue, totalOf(queue)]).filter(([, total]) => total !== undefined));
+    untrack(() => ontotals?.(totals));
+  });
   const shown = $derived(hubIds.map((hubId) => ({ hubId, answer: answers[at(selected, hubId)] })));
   const isReading = $derived(shown.some((each) => each.answer === undefined));
   const rows = $derived(shown.flatMap((each) => each.answer?.data ?? []));
+
+  $effect(() => untrack(() => workflows.open()));
+  // Which field names a priority is the policies' word; a member may read them (UC-SVC-02).
+  const policies = untrack(() => resource<SlaPolicyList>(policiesPath));
+  const priorityFields = $derived(policies.state.status === 'ready' ? policies.state.data.data.map((policy) => policy.priority_field) : []);
+  $effect(() => accounts.resolve(rows.flatMap((item) => [item.created_by, item.assignee_id])));
+  // One moment for every row, renewed each minute, so two rows never disagree about now.
+  let now = $state(new Date());
+  $effect(() => {
+    const timer = setInterval(() => (now = new Date()), 60_000);
+    return () => clearInterval(timer);
+  });
+
+  function statusOf(item: WorkItem) {
+    if (!item.status) return undefined;
+    const collection = containers.find(item.collection_id);
+    const shape = workflowFor(workflows.list, item.collection_id, collection?.parent_id ?? undefined, item.entry_type ?? 'task')?.published;
+    return shape?.statuses.find((status) => status.key === item.status);
+  }
+  const columns = $derived([
+    { id: 'key', label: t('app.desk_queues.col_key') },
+    { id: 'request', label: t('app.desk_queues.col_request') },
+    { id: 'requester', label: t('app.desk_queues.col_requester') },
+    { id: 'status', label: t('app.desk_queues.col_status') },
+    { id: 'priority', label: t('app.desk_queues.col_priority') },
+    { id: 'sla', label: t('app.desk_queues.col_sla') },
+    { id: 'assignee', label: t('app.desk_queues.col_assignee') },
+  ]);
+  const open = (event: MouseEvent, item: WorkItem) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+    event.preventDefault();
+    onnavigate(`/items/${item.id}`);
+  };
 </script>
 
 <Tabs label={t('app.desk_queues.label')} {tabs} selected={selected} onselect={(id) => (selected = id as DeskQueue)}>
@@ -72,17 +118,30 @@
     <EmptyState kind="settled" title={t('app.desk_queues.empty')} description={t('app.desk_queues.empty_body')} />
   {:else}
     <Stack gap="100">
-      <ul class="rows">
+      <Table label={t('app.desk_queues.table', { queue: t(`app.desk_queues.${selected}`) })} isLabelHidden isStacked {columns}>
         {#each rows as item (item.id)}
-          <li>
-            <ListRow href={`/items/${item.id}`} onactivate={() => onnavigate(`/items/${item.id}`)} label={item.title}>
-              {#snippet leading()}<Icon name="inbox" size="sm" />{/snippet}
-              <span class="name" title={item.title}>{item.title}</span>
-              {#snippet trailing()}<EntryPlace collectionId={item.collection_id} {withHub} /><DueMark {item} />{/snippet}
-            </ListRow>
-          </li>
+          {@const collection = containers.find(item.collection_id)}
+          {@const status = statusOf(item)}
+          {@const priority = priorityOf(item, priorityFields)}
+          <tr data-queue-row>
+            <td><EntryKey {collection} number={item.number} /></td>
+            <td>
+              <div class="request">
+                <a class="title" href={`/items/${item.id}`} title={item.title} onclick={(event) => open(event, item)}>{item.title}</a>
+                <EntryPlace collectionId={item.collection_id} {withHub} />
+              </div>
+            </td>
+            <td class="who">{accounts.nameOf(item.created_by) ?? ''}</td>
+            <td>{#if status}<LabelChip name={statusLabel(status, t)} colorToken={status.color_token} />{:else if item.status}{item.status}{/if}</td>
+            <td>{priority ?? ''}</td>
+            <td>{#key item.id}<SlaRemaining itemId={item.id} {now} />{/key}</td>
+            <td>
+              {#if item.assignee_id}<Avatar name={accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')} size="sm" />
+              {:else}<span class="quiet">{t('app.desk_queues.nobody')}</span>{/if}
+            </td>
+          </tr>
         {/each}
-      </ul>
+      </Table>
       {#each shown as each (each.hubId)}
         {#if each.answer && typeof each.answer.total === 'number' && each.answer.total > each.answer.data.length}
           <p class="hint">{t('app.desk_queues.partial', { shown: String(Math.min(QUEUE_SHOWN, each.answer.data.length)), total: String(each.answer.total), hub: containers.find(each.hubId)?.name ?? '' })}</p>
@@ -93,8 +152,11 @@
 </Tabs>
 
 <style>
-  .rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .request { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
   /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5). */
-  .name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title { display: block; max-inline-size: 48ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
+  .title:hover { text-decoration: underline; }
+  .quiet { color: var(--text-secondary); }
+  .who { white-space: nowrap; }
   .hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
