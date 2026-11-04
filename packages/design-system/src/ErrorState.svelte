@@ -20,6 +20,8 @@
   // server no longer has (user-experience.md §5.8). It reads as news rather than danger, politely
   // announced, and its reload is the primary act, because it is the whole of the remedy.
 
+  import type { Snippet } from 'svelte';
+
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
 
@@ -39,9 +41,15 @@
     onRetry?: () => void;
     /** `updated`: the screen belongs to an older release; the retry is a reload onto the new one. */
     kind?: 'failed' | 'updated';
+    /**
+     * What support needs, folded below the retry in place of the bare reference - the client's
+     * one way of showing a reference and a code with a copy control, so a failed list and a
+     * refused act read alike.
+     */
+    details?: Snippet;
   }
 
-  const { title, description, reference, referenceLabel, retryLabel, onRetry, kind = 'failed' }: Props = $props();
+  const { title, description, reference, referenceLabel, retryLabel, onRetry, kind = 'failed', details }: Props = $props();
   const updated = $derived(kind === 'updated');
 </script>
 
@@ -52,7 +60,9 @@
   {#if retryLabel}
     <div class="action"><Button tone={updated ? 'primary' : 'secondary'} onclick={() => onRetry?.()}>{retryLabel}</Button></div>
   {/if}
-  {#if reference && referenceLabel}
+  {#if details}
+    <div class="details">{@render details()}</div>
+  {:else if reference && referenceLabel}
     <!-- Selectable, and in a monospace face: it exists to be copied into a support request, and a
          proportional font is where a `1` and an `l` stop being distinguishable. -->
     <p class="reference">{referenceLabel} <code>{reference}</code></p>
@@ -89,6 +99,8 @@
   }
 
   .action { margin-top: var(--sp-100); }
+
+  .details { max-width: 56ch; text-align: start; }
 
   .reference {
     margin: 0;
