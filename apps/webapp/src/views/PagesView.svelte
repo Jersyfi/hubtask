@@ -1,11 +1,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Pages* in a hub (M3, UC-DOC-01 … UC-DOC-12): the hub's space as a tree beside the open page.
-  // The page is the block editor (`PageEditor`), and beside it its comments (on the page or at a
-  // block), its history with two versions compared, and what links to it. Templates - the space's
-  // own and Hubtask's, in the reader's words - start a new page; a page is verified until a date,
-  // moved, exported as Markdown and put in the trash with the pages under it.
+  // *Pages* in a hub (M3, UC-DOC-01 … UC-DOC-12), in three regions (user-experience.md §7.1): the
+  // space's tree with its search, the open page with a one-row head, and a side sheet the head
+  // toggles - comments (on the page or at a block), history with two versions compared, what links
+  // to it, who reads it and its details. A space opens on its home page; an empty one offers its
+  // templates in one press. A page is verified until a date, moved, exported and put in the trash
+  // with the pages under it, from the page's menu.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
   // reads the tree and the page and is offered no write; the page's own `writable` says the same
@@ -13,12 +14,12 @@
 
   import { untrack } from 'svelte';
   import {
-    Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, SearchField, Select, Spinner, Stack, Switch, Tabs,
-    Textarea,
+    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, SearchField, Select, Spinner, Stack, Switch,
+    TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
-    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageLabelCounts, PageList, PageRead, PageSpaceDrafts, PageVersionList,
+    Page, PageBacklinkList, PageComment, PageCommentList, PageHitList, PageLabelCounts, PageList, PageRead, PageVersionList,
     PageVersionRead,
   } from '@hubtask/sync-engine';
 
@@ -28,7 +29,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, shippedSpace, spaceDraftsPath, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
+    CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, shippedSpace, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, trashedPagesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
     type ChangedWithin, type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
@@ -36,7 +37,7 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
-  import { page as frame } from '../lib/frame/page.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import PageAccess from '../lib/pages/PageAccess.svelte';
@@ -52,9 +53,11 @@
     hubId?: string;
     pageId?: string;
     onnavigate: (path: string) => void;
+    /** Goes on without a step back: a space's address sent on to its home page. */
+    onreplace?: (path: string) => void;
   }
 
-  const { hubId: hubFromRoute, pageId, onnavigate }: Props = $props();
+  const { hubId: hubFromRoute, pageId, onnavigate, onreplace }: Props = $props();
 
   // --- What is read ------------------------------------------------------------------------------
 
@@ -63,7 +66,6 @@
   const hubId = $derived(hubFromRoute ?? current?.hub_id ?? '');
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
 
-  $effect(() => frame.entitle(current?.title ?? t('app.pages.title')));
 
   let treeState = $state<PageList | undefined>(undefined);
   let templateRows = $state<readonly Page[]>([]);
@@ -100,6 +102,13 @@
     });
   });
   const drawn = $derived(visibleRows(tree, openedBranches));
+
+  // A space opens on its home page, never on "open a page" (user-experience.md §7.1).
+  $effect(() => {
+    if (pageId || !hubFromRoute || !treeState) return;
+    const home = homePageOf(treeState.data);
+    if (home) untrack(() => (onreplace ?? onnavigate)(`/pages/${home}`));
+  });
   const hasChildren = $derived(new Set(rows.map((row) => row.parent_id).filter((id): id is string => id !== null)));
 
   const mayWrite = $derived(
@@ -147,6 +156,13 @@
     draftTemplate = '';
     draftWithSubpages = true;
     isCreating = true;
+  }
+
+  /** An empty space started from one of Hubtask's space templates, in one press. */
+  async function startSpace(key: ShippedSpace) {
+    const space = shippedSpace(key, t);
+    const made = await act(() => pages.create(hubId, { title: space.title, body: space.body, subpages: space.subpages }));
+    if (made) onnavigate(`/pages/${made.id}`);
   }
 
   async function create() {
@@ -260,6 +276,7 @@
       if (next.status === 'ready') facet = next.data.data;
     }));
   });
+  const filters = $derived((chosenLabel ? 1 : 0) + (ownOnly ? 1 : 0) + (changedWithin === 'any' ? 0 : 1));
   const changedOptions = $derived(
     (Object.keys(CHANGED_WITHIN) as ChangedWithin[]).map((value) => ({ value, label: t(`app.pages.changed_${value}`) })),
   );
@@ -287,7 +304,14 @@
 
   // --- Beside the page: comments, history, backlinks ---------------------------------------------
 
-  let side = $state('comments');
+  // The side sheet the head toggles; closed, the page has the width (user-experience.md §7.1).
+  let side = $state<'comments' | 'history' | 'backlinks' | 'access' | 'details' | undefined>(undefined);
+  const toggleSide = (which: NonNullable<typeof side>) => (side = side === which ? undefined : which);
+  let present = $state<string[]>([]);
+  let isFilterOpen = $state(false);
+  // On a narrow screen an open page comes first: the tree folds above it, one press away.
+  let isTreeOpen = $state(false);
+  const treeFolds = $derived(viewport.isBelowExpanded && Boolean(pageId));
   let block = $state<SelectedBlock | undefined>(undefined);
   let reveal = $state<string | undefined>(undefined);
 
@@ -417,12 +441,33 @@
     if (done) namingSeq = undefined;
   }
 
-  const sideTabs = $derived([
-    { id: 'comments', label: t('app.pages.side_comments', { count: String(threads.filter((each) => !each.first.resolved).length) }) },
-    { id: 'history', label: t('app.pages.side_history') },
-    { id: 'backlinks', label: t('app.pages.side_backlinks', { count: String(backlinkState.length) }) },
-    { id: 'details', label: t('app.pages.side_details') },
-  ]);
+  const openThreads = $derived(threads.filter((each) => !each.first.resolved).length);
+  const sideTitle = $derived(
+    side === 'comments' ? t('app.pages.side_comments', { count: String(openThreads) })
+      : side === 'history' ? t('app.pages.side_history')
+        : side === 'backlinks' ? t('app.pages.side_backlinks', { count: String(backlinkState.length) })
+          : side === 'access' ? t('app.pages.access')
+            : t('app.pages.side_details'),
+  );
+
+  // The page's menu: what is not the head's one row, the destructive item last (§5.9).
+  const pageMenu = $derived(current ? [
+    ...(current.writable ? [{ id: 'child', label: t('app.pages.new_child'), icon: 'plus' as const }] : []),
+    ...(current.writable ? [{ id: 'copy', label: t('app.pages.copy'), icon: 'copy' as const }] : []),
+    ...(current.writable ? [{ id: 'move', label: t('app.pages.move'), icon: 'arrow-right' as const }] : []),
+    { id: 'history', label: t('app.pages.side_history'), icon: 'clock' as const, hasSeparatorBefore: current.writable },
+    { id: 'backlinks', label: t('app.pages.side_backlinks', { count: String(backlinkState.length) }), icon: 'link' as const },
+    { id: 'details', label: t('app.pages.side_details'), icon: 'info' as const },
+    ...(current.writable ? [{ id: 'trash', label: t('app.pages.to_trash'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true }] : []),
+  ] : []);
+  function choose(id: string) {
+    if (!current) return;
+    if (id === 'child') startCreate(current.id);
+    else if (id === 'copy') void copy();
+    else if (id === 'move') { moveParent = current.parent_id ?? ''; isMoving = true; }
+    else if (id === 'trash') void trash();
+    else if (id === 'history' || id === 'backlinks' || id === 'details') side = id;
+  }
 
   const spacePages = $derived(rows.map((row) => ({ id: row.id, title: row.title, parent_id: row.parent_id })));
   const hubViews = $derived(views.of(hubId).map((view) => ({ id: view.id, name: view.name })));
@@ -438,26 +483,8 @@
 
   // --- A space with drafts (UC-DOC-15) -----------------------------------------------------------
 
-  const mayShape = $derived(
-    hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted' : false,
-  );
-  let spaceDrafts = $state<PageSpaceDrafts | undefined>(undefined);
-  $effect(() => {
-    if (!hubId) return;
-    const at = hubId;
-    return untrack(() =>
-      engine.subscribe<PageSpaceDrafts>({ path: spaceDraftsPath(at) }, (next) => {
-        if (next.status === 'ready') spaceDrafts = next.data;
-      }),
-    );
-  });
   const pageDraft = $derived(current ? draftStateOf(current) : 'live');
   let discarded = $state<{ body: string } | undefined>(undefined);
-
-  async function switchDrafts(on: boolean) {
-    if (!hubId) return;
-    await act(() => pages.setDrafts(hubId, on), t(on ? 'app.pages.drafts_on' : 'app.pages.drafts_off'));
-  }
 
   async function release() {
     if (!current) return;
@@ -484,38 +511,53 @@
   });
 </script>
 
-{#if hubFromRoute && !pageId}<PlaceStrip placeId={hubFromRoute} current="pages" {onnavigate} />{/if}
+{#if hubId}<PlaceStrip placeId={hubId} current="pages" {onnavigate} />{/if}
 <div class="space">
   <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>
     <Stack gap="100">
       <Inline justify="between" align="center">
-        <h1 class="heading">{t('app.pages.title')}</h1>
-        {#if mayWrite}
-          <IconButton icon="plus" label={t('app.pages.new')} onclick={() => startCreate()} />
-        {/if}
+        <h2 class="heading">{t('app.pages.title')}</h2>
+        <Inline gap="050" align="center">
+          {#if treeFolds}
+            <Button size="sm" tone="subtle" icon={isTreeOpen ? 'chevron-up' : 'chevron-down'} aria-expanded={isTreeOpen} data-tree-toggle onclick={() => (isTreeOpen = !isTreeOpen)}>
+              {t('app.pages.tree_toggle', { count: rows.length })}
+            </Button>
+          {/if}
+          {#if mayWrite}
+            <IconButton icon="plus" label={t('app.pages.new')} onclick={() => startCreate()} />
+          {/if}
+        </Inline>
       </Inline>
-      {#if hub}
-        <a class="hub" href={`/hubs/${hub.id}`}>{hub.name}</a>
-      {/if}
-      <SearchField label={t('app.pages.search')} clearLabel={t('app.pages.search_clear')} bind:value={words} size="sm" />
-      <div class="narrow" data-page-search-narrow>
-        {#if facet.length > 0}
-          <Inline gap="050" isWrapping>
-            {#each facet.slice(0, 12) as each (each.label)}
-              <Button
-                size="sm"
-                tone={chosenLabel === each.label ? 'secondary' : 'subtle'}
-                aria-pressed={chosenLabel === each.label}
-                onclick={() => (chosenLabel = chosenLabel === each.label ? '' : each.label)}
-              >{t('app.pages.label_facet', { label: each.label, count: String(each.pages) })}</Button>
-            {/each}
-          </Inline>
-        {/if}
-        <Inline gap="100" align="center" isWrapping>
+      {#if !treeFolds || isTreeOpen}
+      <Inline gap="050" align="end">
+        <div class="search"><SearchField label={t('app.pages.search')} clearLabel={t('app.pages.search_clear')} bind:value={words} size="sm" /></div>
+        <Button
+          size="sm"
+          tone={filters > 0 ? 'secondary' : 'subtle'}
+          icon="funnel"
+          aria-expanded={isFilterOpen}
+          aria-controls="page-search-narrow"
+          onclick={() => (isFilterOpen = !isFilterOpen)}
+        >{filters > 0 ? t('app.pages.filter_count', { count: String(filters) }) : t('app.pages.filter')}</Button>
+      </Inline>
+      {#if isFilterOpen}
+        <div class="narrow" id="page-search-narrow" data-page-search-narrow>
+          {#if facet.length > 0}
+            <Inline gap="050" isWrapping>
+              {#each facet.slice(0, 12) as each (each.label)}
+                <Button
+                  size="sm"
+                  tone={chosenLabel === each.label ? 'secondary' : 'subtle'}
+                  aria-pressed={chosenLabel === each.label}
+                  onclick={() => (chosenLabel = chosenLabel === each.label ? '' : each.label)}
+                >{t('app.pages.label_facet', { label: each.label, count: String(each.pages) })}</Button>
+              {/each}
+            </Inline>
+          {/if}
           <Select label={t('app.pages.changed')} size="sm" bind:value={changedWithin} options={changedOptions} />
           <Switch label={t('app.pages.own_only')} checked={ownOnly} onchange={(event: Event) => (ownOnly = (event.currentTarget as HTMLInputElement).checked)} />
-        </Inline>
-      </div>
+        </div>
+      {/if}
 
       {#if hits !== undefined}
         <ul class="hits" aria-label={t('app.pages.search_results')}>
@@ -564,16 +606,8 @@
         </ul>
       {/if}
 
-      {#if mayShape && spaceDrafts}
-        <Switch
-          label={t('app.pages.drafts_switch')}
-          hint={t('app.pages.drafts_switch_hint')}
-          checked={spaceDrafts.drafts}
-          onchange={(event: Event) => void switchDrafts((event.currentTarget as HTMLInputElement).checked)}
-        />
-      {/if}
-      {#if mayWrite}
-        <Button size="sm" tone="subtle" icon="trash" onclick={() => (showsTrash = !showsTrash)}>{t('app.pages.trash')}</Button>
+      {#if mayWrite && rows.length > 0}
+        <Button size="sm" tone="subtle" icon="trash" aria-expanded={showsTrash} onclick={() => (showsTrash = !showsTrash)}>{t('app.pages.trash')}</Button>
         {#if showsTrash}
           <ul class="hits" aria-label={t('app.pages.trash')}>
             {#each trashRows as row (row.id)}
@@ -587,6 +621,7 @@
           </ul>
         {/if}
       {/if}
+      {/if}
     </Stack>
   </nav>
 
@@ -596,11 +631,40 @@
     {/if}
 
     {#if !pageId}
-      <EmptyState kind="unused" title={t('app.pages.none_open')} description={t('app.pages.none_open_hint')} icon="file-text">
-        {#snippet action()}
-          {#if mayWrite}<Button icon="plus" onclick={() => startCreate()}>{t('app.pages.new')}</Button>{/if}
-        {/snippet}
-      </EmptyState>
+      {#if !treeState && !treeRefusal}
+        <Spinner label={t('app.pages.loading')} />
+      {:else if treeState && rows.length === 0 && mayWrite}
+        <!-- An empty space starts from a template in one press (user-experience.md §7.1, §5.5). -->
+        <div class="start" data-space-start>
+          <EmptyState kind="unused" title={t('app.pages.space_empty')} description={t('app.pages.space_empty_hint')} icon="book-open" />
+          <TemplateGallery label={t('app.pages.space_starts')} isLabelHidden>
+            {#each SHIPPED_SPACES as key (key)}
+              <TemplateCard
+                name={t(`app.pages.space.${key}.title`)}
+                summary={t(`app.pages.space.${key}.lead`)}
+                note={t('app.pages.space_pages', { count: shippedSpace(key, t).subpages.length })}
+                mark="layout-template"
+                data-space-template={key}
+              >
+                {#snippet action()}
+                  <Button size="sm" tone="primary" busyLabel={busy ? t('app.pages.creating') : undefined} onclick={() => void startSpace(key)}>{t('app.pages.space_use')}</Button>
+                {/snippet}
+              </TemplateCard>
+            {/each}
+            <TemplateCard name={t('app.pages.blank')} summary={t('app.pages.blank_hint')} mark="file-text" data-space-template="blank">
+              {#snippet action()}
+                <Button size="sm" tone="secondary" onclick={() => startCreate()}>{t('app.pages.new')}</Button>
+              {/snippet}
+            </TemplateCard>
+          </TemplateGallery>
+        </div>
+      {:else if treeState && rows.length === 0}
+        <EmptyState kind="unused" title={t('app.pages.space_empty_reader')} description={t('app.pages.space_empty_reader_hint')} icon="book-open" />
+      {:else if treeRefusal}
+        <p class="refusal">{treeRefusal}</p>
+      {:else}
+        <Spinner label={t('app.pages.loading')} />
+      {/if}
     {:else if opened?.state.status === 'failed'}
       <p class="refusal">{renderProblem(opened.state.error, messages).message}</p>
     {:else if !current}
@@ -616,29 +680,66 @@
               ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
             ]}
           />
-          <Inline gap="100" align="center" isWrapping>
+          <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
+               comments' toggle, sharing, and the rest in the page's menu. -->
+          <div class="head" data-page-head>
             {#if current.writable}
-              <input
+              <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. -->
+              <textarea
                 class="title"
+                rows="1"
                 aria-label={t('app.pages.page_title')}
                 value={titleDraft ?? current.title}
-                oninput={(event) => (titleDraft = (event.currentTarget as HTMLInputElement).value)}
+                oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
                 onblur={rename}
-                onkeydown={(event) => { if (event.key === 'Enter') (event.currentTarget as HTMLInputElement).blur(); }}
-              />
+                onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
+              ></textarea>
             {:else}
-              <h2 class="title">{current.title}</h2>
+              <h1 class="title">{current.title}</h1>
             {/if}
-            {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
-            {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
-            {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
-            {#if current.due_for_review}
-              <Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>
-            {:else if current.verified_until}
-              <Badge tone="success" size="sm">{t('app.pages.verified_until', { date: when(current.verified_until) })}</Badge>
-            {/if}
-          </Inline>
-          {#key current.id}<PageLabels page={current} onchoose={(label) => { chosenLabel = label; }} />{/key}
+            <Inline gap="100" align="center">
+              {#if present.length > 0}
+                <span class="here" data-page-here>
+                  <AvatarGroup
+                    people={present.map((name) => ({ name }))}
+                    max={3}
+                    size="sm"
+                    overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
+                  />
+                  <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
+                </span>
+              {/if}
+              <Button
+                size="sm"
+                tone={side === 'comments' ? 'secondary' : 'subtle'}
+                icon="message-square"
+                aria-pressed={side === 'comments'}
+                data-page-comments
+                onclick={() => toggleSide('comments')}
+              >{t('app.pages.side_comments', { count: String(openThreads) })}</Button>
+              {#if !current.shared && hubId}
+                <Button size="sm" tone={side === 'access' ? 'secondary' : 'subtle'} icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
+              {/if}
+              <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
+                {#snippet trigger(props)}
+                  <IconButton icon="ellipsis" label={t('app.pages.page_menu')} data-page-menu {...props} />
+                {/snippet}
+              </Menu>
+            </Inline>
+          </div>
+          {#if current.template || current.restricted || current.shared || current.due_for_review || current.verified_until}
+            <Inline gap="050" isWrapping>
+              {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
+              {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
+              {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
+              {#if current.due_for_review}
+                <Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>
+              {:else if current.verified_until}
+                <Badge tone="success" size="sm">{t('app.pages.verified_until', { date: when(current.verified_until) })}</Badge>
+              {/if}
+            </Inline>
+          {/if}
+          {#key current.id}<PageLabels page={current} onchoose={(label) => { chosenLabel = label; isFilterOpen = true; }} />{/key}
           {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
             <Banner tone="info">
               {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
@@ -652,16 +753,8 @@
           {:else if current.writable && pageDraft === 'published'}
             <p class="quiet">{t('app.pages.published_hint')}</p>
           {/if}
-          {#if current.writable}
-            <Inline gap="100" isWrapping>
-              <Button size="sm" tone="secondary" icon="plus" onclick={() => startCreate(current.id)}>{t('app.pages.new_child')}</Button>
-              <Button size="sm" tone="subtle" onclick={() => { moveParent = current.parent_id ?? ''; isMoving = true; }}>{t('app.pages.move')}</Button>
-              <Button size="sm" tone="subtle" data-page-copy onclick={() => void copy()}>{t('app.pages.copy')}</Button>
-              <Button size="sm" tone="danger" icon="trash" onclick={trash}>{t('app.pages.to_trash')}</Button>
-            </Inline>
-          {/if}
 
-          <div class="body-and-side">
+          <div class="body-and-side" class:with-side={side !== undefined}>
             <div class="body" bind:this={bodyElement}>
               <PageEditor
                 page={current}
@@ -673,6 +766,7 @@
                 replaceWith={discarded}
                 passages={side === 'comments' ? passages : []}
                 onpassages={passagesMoved}
+                onpresent={(names) => (present = names)}
                 onblock={(seen) => {
                   block = seen;
                   // Words selected are a comment's passage, unless the person chooses the page.
@@ -681,8 +775,12 @@
               />
             </div>
 
-            <aside class="side" aria-label={t('app.pages.side')}>
-              <Tabs label={t('app.pages.side')} tabs={sideTabs} selected={side} onselect={(id) => (side = id)} />
+            {#if side}
+            <aside class="side" aria-label={sideTitle} data-page-side={side}>
+              <Inline justify="between" align="center">
+                <h2 class="heading">{sideTitle}</h2>
+                <IconButton size="sm" icon="x" label={t('app.pages.side_close')} onclick={() => (side = undefined)} />
+              </Inline>
 
               {#snippet threadCard(thread: (typeof threads)[number])}
                 <article class="thread" class:resolved={thread.first.resolved}>
@@ -775,9 +873,10 @@
                     <li class="quiet">{t('app.pages.no_backlinks')}</li>
                   {/each}
                 </ul>
+              {:else if side === 'access'}
+                {#if !current.shared && hubId}<PageAccess page={current} {hubId} />{/if}
               {:else}
                 <Stack gap="150">
-                  {#if !current.shared && hubId}<PageAccess page={current} {hubId} />{/if}
                   <section>
                     <h3 class="heading">{t('app.pages.verification')}</h3>
                     {#if current.verified_until}
@@ -810,6 +909,7 @@
                 </Stack>
               {/if}
             </aside>
+            {/if}
           </div>
         </Stack>
       {/key}
@@ -862,6 +962,8 @@
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .space { grid-template-columns: minmax(22ch, 30ch) minmax(0, 1fr); }
+    /* A long tree scrolls in its own column, so the page beside it stays where it is. */
+    .tree { position: sticky; inset-block-start: var(--sp-200); max-block-size: calc(100dvh - var(--sp-1000)); overflow-y: auto; }
   }
   .tree {
     padding: var(--sp-150);
@@ -871,7 +973,16 @@
     align-self: start;
   }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .hub { color: var(--text-secondary); font-size: var(--fs-075); }
+  .search { flex: 1 1 auto; min-inline-size: 0; }
+  .start { display: grid; gap: var(--sp-200); }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-100);
+  }
+  .here { display: inline-flex; }
   .narrow { display: grid; gap: var(--sp-050); }
   .rows, .hits, .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .row {
@@ -900,8 +1011,10 @@
   .page { min-inline-size: 0; }
   .title {
     margin: 0;
-    flex: 1 1 auto;
+    flex: 1 1 24ch;
     min-inline-size: 0;
+    line-height: var(--lh-tight);
+    overflow-wrap: anywhere;
     font-family: var(--font-display);
     font-size: var(--fs-300);
     font-weight: var(--fw-semibold);
@@ -911,15 +1024,24 @@
     color: var(--text-primary);
     padding: var(--sp-025) var(--sp-050);
   }
-  input.title:hover { border-color: var(--border-subtle); }
-  input.title:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  textarea.title { resize: none; overflow: hidden; field-sizing: content; font-family: var(--font-display); }
+  textarea.title:hover { border-color: var(--border-subtle); }
+  textarea.title:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
   .body-and-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); }
   /* design-system-lint-ignore: `primitive.breakpoint.large` (1240px); a media query cannot read a custom property. */
   @media (width >= 1240px) {
-    .body-and-side { grid-template-columns: minmax(0, 1fr) minmax(28ch, 40ch); }
+    .body-and-side.with-side { grid-template-columns: minmax(0, 1fr) minmax(28ch, 40ch); }
   }
   .body { display: grid; gap: var(--sp-100); min-inline-size: 0; }
-  .side { display: grid; gap: var(--sp-150); align-content: start; }
+  .side {
+    display: grid;
+    gap: var(--sp-150);
+    align-content: start;
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
+  }
   .thread {
     display: grid;
     gap: var(--sp-050);

@@ -550,6 +550,7 @@
           hubId: route.name === 'hub-pages' ? route.params.id : undefined,
           pageId: route.name === 'page' ? route.params.id : undefined,
           onnavigate: (path: string) => router.navigate(path),
+          onreplace: (path: string) => router.replace(path),
         }}
       />
     {/key}

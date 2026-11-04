@@ -31,7 +31,7 @@
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { media } from '../data/media.svelte.ts';
-  import { caretOf, pages, writtenBody } from '../data/pages.svelte.ts';
+  import { caretOf, pages, writersHere, writtenBody } from '../data/pages.svelte.ts';
   import { unsentDocuments } from '../data/unsentdocs.ts';
   import { liveKeeper } from '../data/unsentkeeper.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -65,9 +65,11 @@
     onpassages?: (tops: Map<string, number>) => void;
     /** The hub's collections, offered to hold a checklist line made a task (UC-DOC-03). */
     collections?: readonly { id: string; name: string }[];
+    /** Called with the names of the other writers in the live document, whenever they change. */
+    onpresent?: (names: string[]) => void;
   }
 
-  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith }: Props = $props();
+  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith, onpresent }: Props = $props();
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -281,7 +283,11 @@
           if (seedFromMarkdown(current, body)) changed(markdownOf(current));
         },
       });
+      const present = () => onpresent?.(writersHere(connection.awareness.getStates(), doc.clientID));
+      connection.awareness.on('change', present);
       return () => {
+        connection.awareness.off('change', present);
+        onpresent?.([]);
         clearTimeout(timer);
         // What was typed in the last moment is saved on the way out.
         if (isLive && current.isEditable) void save(markdownOf(current));

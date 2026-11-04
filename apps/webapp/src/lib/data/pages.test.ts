@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Page } from '@hubtask/sync-engine';
 
-import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
+import { SHIPPED_SPACES, SHIPPED_TEMPLATES, ancestorsOf, homePageOf, publicPreviewOf, writersHere, draftStateOf, hasSubpages, shippedSpace, writtenBody, caretOf, changedFrom, withLabels, exportFileName, publicLinkAddress, pageTree, shippedTemplate, subtreeOf, verifiedUntil, visibleRows } from './pages.ts';
 
 const page = (id: string, parent: string | null, position: string, title = id): Page => ({
   id, hub_id: 'hub', parent_id: parent, title, icon: null, position, template: false, content_language: null, owner_id: null,
@@ -97,4 +97,24 @@ test('a search narrowed by when a page changed starts that many days back, or no
   const now = new Date('2026-10-31T12:00:00Z');
   assert.equal(changedFrom('any', now), undefined);
   assert.equal(changedFrom('week', now), '2026-10-24T12:00:00.000Z');
+});
+
+test('a space opens on its first top page, never on a template (user-experience.md §7.1)', () => {
+  assert.equal(homePageOf(rows), 'a');
+  assert.equal(homePageOf([{ ...page('t', null, 'a'), template: true }, page('z', null, 'z')]), 'z');
+  assert.equal(homePageOf([page('child', 'gone', 'a')]), 'child');
+  assert.equal(homePageOf([]), undefined);
+});
+
+test('the public preview counts what the link shows and what it leaves out (UC-DOC-08 check 5)', () => {
+  const id = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const body = `See [](hubtask:page/${id(1)}) and [](hubtask:entry/${id(2)}) twice [](hubtask:entry/${id(2)}).\n\n`
+    + `![](hubtask:media/${id(3)})\n\n![](hubtask:view/${id(4)})\n\n![](hubtask:media/${id(5)})\n`;
+  assert.deepEqual(publicPreviewOf(body), { media: 2, pages: 1, others: 2 });
+  assert.deepEqual(publicPreviewOf('plain words'), { media: 0, pages: 0, others: 0 });
+});
+
+test('who else writes on a page is named once, never the reader (user-experience.md §7.1)', () => {
+  const states = new Map<number, unknown>([[1, { user: { name: 'Me' } }], [2, { user: { name: 'Bert' } }], [3, { user: { name: 'Bert' } }], [4, {}], [5, { user: { name: ' ' } }]]);
+  assert.deepEqual(writersHere(states, 1), ['Bert']);
 });

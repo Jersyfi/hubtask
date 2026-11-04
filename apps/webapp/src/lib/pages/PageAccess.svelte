@@ -8,13 +8,13 @@
   // only its hash is kept.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, CheckboxGroup, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, CheckboxGroup, Dialog, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { PageAccess, PageLanguageVariants, PageList, PageRead } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { accessPath, languagesPath, pages, pagesPath, publicLinkAddress } from '../data/pages.svelte.ts';
+  import { accessPath, languagesPath, pages, pagesPath, publicLinkAddress, publicPreviewOf } from '../data/pages.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -94,7 +94,13 @@
   let madeAddress = $state<string | undefined>(undefined);
   const linkable = $derived(info?.may_share === true && info.public_links_allowed && !info.restricted && !info.restricted_above);
 
+  // The link is made from a preview of what it shows (user-experience.md §7.1, UC-DOC-08 check 5):
+  // counted from the body as the server resolves it, so nothing appears publicly by surprise.
+  let isPreviewing = $state(false);
+  const preview = $derived(publicPreviewOf(page.body ?? ''));
+
   async function makeLink() {
+    isPreviewing = false;
     refusal = undefined;
     try {
       const made = await pages.link(page.id);
@@ -298,7 +304,7 @@
         {#if info.may_share}
           <Inline gap="100" isWrapping>
             {#if linkable}
-              <Button size="sm" tone="secondary" icon="link" onclick={makeLink}>
+              <Button size="sm" tone="secondary" icon="link" data-public-link-make onclick={() => (isPreviewing = true)}>
                 {info.public_link ? t('app.pages.access_link_renew') : t('app.pages.access_link_make')}
               </Button>
             {/if}
@@ -313,12 +319,37 @@
   </Stack>
 </section>
 
+{#if isPreviewing}
+  <Dialog bind:isOpen={isPreviewing} title={t('app.pages.public_preview_title', { title: page.title })} dismissLabel={t('app.pages.cancel')}>
+    <div class="preview" data-public-preview>
+      <p class="quiet">{t('app.pages.public_preview_lead')}</p>
+      <h4 class="sub">{t('app.pages.public_shows')}</h4>
+      <ul class="facts">
+        <li>{t('app.pages.public_shows_words')}</li>
+        {#if preview.media > 0}<li>{t('app.pages.public_shows_media', { count: preview.media })}</li>{/if}
+      </ul>
+      <h4 class="sub">{t('app.pages.public_hides')}</h4>
+      <ul class="facts">
+        {#if preview.pages > 0}<li>{t('app.pages.public_hides_pages', { count: preview.pages })}</li>{/if}
+        {#if preview.others > 0}<li>{t('app.pages.public_hides_others', { count: preview.others })}</li>{/if}
+        <li>{t('app.pages.public_hides_rest')}</li>
+      </ul>
+    </div>
+    {#snippet actions()}
+      <Button tone="subtle" onclick={() => (isPreviewing = false)}>{t('app.pages.cancel')}</Button>
+      <Button tone="primary" icon="link" onclick={makeLink}>{t('app.pages.public_make')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 <style>
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .sub { margin: 0; font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
+  .preview { display: grid; gap: var(--sp-100); }
+  .facts { margin: 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-050); }
   .shares { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .shares li { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-100); }
 </style>

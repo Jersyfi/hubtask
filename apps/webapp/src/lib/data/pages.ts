@@ -200,6 +200,48 @@ export function exportBytes(file: { content: string; encoding: 'TEXT' | 'BASE64'
 export const publicLinkAddress = (origin: string, token: string) => `${origin.replace(/\/+$/u, '')}/api/v1/public/pages/${token}`;
 
 /**
+ * The page a space opens on (user-experience.md §7.1): its first top page in the tree's order, not
+ * a template. A space opens on a page, never on a blank "open a page".
+ */
+export function homePageOf(rows: readonly Page[]): string | undefined {
+  const tree = pageTree(rows);
+  return (tree.find((node) => !node.page.template) ?? tree[0])?.page.id;
+}
+
+/**
+ * The other writers in a page's live document, by the name their caret carries, once each: the
+ * reader's own connection is never among them, and an unnamed caret is nobody to show.
+ */
+export function writersHere(states: ReadonlyMap<number, unknown>, ownClient: number): string[] {
+  const names = new Set<string>();
+  states.forEach((state, client) => {
+    if (client === ownClient || !state || typeof state !== 'object') return;
+    const name = (state as { user?: { name?: unknown } }).user?.name;
+    if (typeof name === 'string' && name.trim() !== '') names.add(name.trim());
+  });
+  return [...names];
+}
+
+const ADDRESS = /(!?)\[[^\]]*\]\(hubtask:([a-z]+)\/([0-9a-fA-F-]{36})(?:#[A-Za-z0-9_-]{1,64})?\)/gu;
+
+/**
+ * What a page's public link shows and leaves out, counted from its body (UC-DOC-08 check 5): its
+ * pictures, the pages it mentions (shown as their title only where that page is public itself)
+ * and every other mention, which the public page leaves out. Each object counted once.
+ */
+export function publicPreviewOf(body: string): { media: number; pages: number; others: number } {
+  const seen = { media: new Set<string>(), pages: new Set<string>(), others: new Set<string>() };
+  for (const match of body.matchAll(ADDRESS)) {
+    const kind = match[2] ?? '';
+    const id = (match[3] ?? '').toLowerCase();
+    if (kind === 'media') seen.media.add(id);
+    else if (kind === 'page') seen.pages.add(id);
+    else seen.others.add(`${kind}/${id}`);
+  }
+  return { media: seen.media.size, pages: seen.pages.size, others: seen.others.size };
+}
+
+/**
  * The labels a page carries after a writer types more: each word in the server's written form
  * (lower case, once, alphabetical), so the chip drawn is the label the server keeps.
  */
