@@ -12482,5 +12482,6 @@
   "app.agents.scopes_pick_hint": "Nur ankreuzen, was seine Arbeit braucht; ein Token seines Kontos mit mehr wird darauf beschränkt.",
   "app.agents.scopes_advanced": "Erweitert: Bereiche als Text",
   "app.agents.scopes_typed": "Bereiche",
-  "app.assets.attention_why": "Ein Konfigurationselement braucht Aufmerksamkeit, wenn es unvollständig, veraltet, verwaist oder eine Dublette ist, keine Verantwortlichen hat oder seine Prüfung überfällig ist."
+  "app.assets.attention_why": "Ein Konfigurationselement braucht Aufmerksamkeit, wenn es unvollständig, veraltet, verwaist oder eine Dublette ist, keine Verantwortlichen hat oder seine Prüfung überfällig ist.",
+  "app.sign_in.to_workspace_named": "bei {name}"
 }

@@ -9,10 +9,10 @@
   // under the keyboard. The mark moves onto the card, where it is also the thing that says
   // which product this is.
   //
-  // **The host is named, and it is not a field.** Which workspace somebody is signing in to is
-  // resolved from the address (multi-tenancy.md §3) and never from a body. Naming it turns the
-  // address bar into something a reader can check, which is the cheapest anti-phishing measure a
-  // sign-in screen has; making it a field would be the opposite.
+  // **The workspace is named, its host beside it, and neither is a field.** Which workspace somebody
+  // is signing in to is resolved from the address (multi-tenancy.md §3) and never from a body. The
+  // host under the name turns the address bar into something a reader can check, which is the
+  // cheapest anti-phishing measure a sign-in screen has; making it a field would be the opposite.
   //
   // **The two washes are the only brand moment.** `ambient.primary` and `ambient.signature` have
   // been in `tokens.json` since v0.1 for exactly this - a tint laid over the canvas, the quietest
@@ -46,6 +46,7 @@
   const { title, step, lead, notice, children }: Props = $props();
 
   const host = $derived(signInRules.workspaceHost ?? location.hostname);
+  const workspace = $derived(signInRules.workspaceName);
   const legal = $derived(signInRules.legal);
 </script>
 
@@ -55,7 +56,14 @@
       <div class="brand">
         <!-- A name rather than a message: the product is called Hubtask in every language. -->
         <Logo size="md" wordmark="Hubtask" />
-        <span class="host">{t('app.sign_in.to_workspace', { host })}</span>
+        {#if workspace}
+          <span class="workspace" data-sign-in-workspace>
+            <span class="name">{t('app.sign_in.to_workspace_named', { name: workspace })}</span>
+            <span class="host">{host}</span>
+          </span>
+        {:else}
+          <span class="host">{t('app.sign_in.to_workspace', { host })}</span>
+        {/if}
       </div>
 
       <Stack gap="250">
@@ -144,6 +152,9 @@
     justify-content: space-between;
     gap: var(--sp-100);
   }
+
+  .workspace { display: grid; justify-items: end; gap: var(--sp-025); text-align: end; }
+  .name { font-size: var(--fs-100); font-weight: var(--fw-medium); color: var(--text-primary); overflow-wrap: anywhere; }
 
   .host {
     font-family: var(--font-mono);

@@ -40,6 +40,7 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 	fallback := boolValue(out["password_fallback"])
 	names := boolValue(out["sign_in_names"])
 	return openapi.SignInRules{
+		WorkspaceName:    optionalTextField(out["workspace_name"]),
 		PasswordFallback: &fallback,
 		SignInNames:      &names,
 		WorkspaceHost:    out.String("workspace_host"),

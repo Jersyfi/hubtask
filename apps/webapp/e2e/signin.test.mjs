@@ -42,11 +42,11 @@ const TOKENS = {
 };
 
 /** What the sign-in screens read, and nothing else: an unsigned visitor reaches nothing else. */
-function stubFor({ answer, onCheck }) {
+function stubFor({ answer, onCheck, rules = RULES }) {
   return async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
-    if (path.endsWith('/api/v1/auth/sign-in-rules')) return route.fulfill({ json: RULES });
+    if (path.endsWith('/api/v1/auth/sign-in-rules')) return route.fulfill({ json: rules });
     if (path.endsWith('/api/v1/auth/password:check')) {
       const violations = onCheck?.(request.postDataJSON()) ?? [];
       return route.fulfill({ json: { violations } });
@@ -1302,6 +1302,27 @@ test('a provider mark is drawn inline in its owner\'s colours, and nothing is fe
     }
     const foreign = requests.filter((url) => new URL(url).origin !== new URL(origin).origin);
     assert.deepEqual(foreign, [], 'the card reached another origin');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+test('the card names the workspace by its name, its host beside it as the secondary line', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    await context.route('**/api/v1/**', stubFor({ answer: refused, rules: { ...RULES, workspace_name: 'Leerer Arbeitsbereich' } }));
+    const page = await context.newPage();
+    await page.goto(origin);
+    const named = page.locator('[data-sign-in-workspace]');
+    await named.waitFor({ timeout: 10_000 });
+    assert.equal(await named.locator('.name').innerText(), 'to Leerer Arbeitsbereich');
+    assert.equal(await named.locator('.host').innerText(), 'contoso.hubtask.eu');
+    const [nameSize, hostSize] = await Promise.all(['.name', '.host'].map((each) => named.locator(each).evaluate((node) => parseFloat(getComputedStyle(node).fontSize))));
+    assert.ok(nameSize > hostSize, `the name (${nameSize}px) does not lead the host (${hostSize}px)`);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the card scrolls sideways at 375');
   } finally {
     await browser.close();
     await close();

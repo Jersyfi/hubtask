@@ -12482,5 +12482,6 @@
   "app.agents.scopes_pick_hint": "Tick only what its work needs; a token of its account holding more is narrowed to these.",
   "app.agents.scopes_advanced": "Advanced: scopes as text",
   "app.agents.scopes_typed": "Scopes",
-  "app.assets.attention_why": "A configuration item needs attention when it is incomplete, stale, orphaned, a duplicate, has no owner or is overdue for review."
+  "app.assets.attention_why": "A configuration item needs attention when it is incomplete, stale, orphaned, a duplicate, has no owner or is overdue for review.",
+  "app.sign_in.to_workspace_named": "to {name}"
 }

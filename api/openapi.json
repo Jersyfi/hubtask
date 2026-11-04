@@ -40072,7 +40072,11 @@
         "properties": {
           "workspace_host": {
             "type": "string",
-            "description": "The host this answer was resolved for, which is what the card shows."
+            "description": "The host this answer was resolved for, which the card shows beside the workspace's name."
+          },
+          "workspace_name": {
+            "type": "string",
+            "description": "The display name of the workspace this host answers, which is what the card names. Absent where no workspace answers the host.\n"
           },
           "methods": {
             "type": "array",

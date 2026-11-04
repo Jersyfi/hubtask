@@ -183,6 +183,8 @@ type ProviderSummary struct {
 // SignInRules is the whole answer.
 type SignInRules struct {
 	WorkspaceHost string
+	// WorkspaceName is the display name of the workspace the host answers; empty where none does.
+	WorkspaceName string
 	Methods       []string
 	Providers     []ProviderSummary
 	Password      PasswordRulesView
@@ -338,6 +340,7 @@ func (h GetSignInRules) Execute(
 
 	return SignInRules{
 		WorkspaceHost:    strings.TrimSpace(cmd.Host),
+		WorkspaceName:    resolved.Workspace.DisplayName,
 		Methods:          methods,
 		Providers:        providers,
 		Password:         passwordRulesView(resolved, cmd.HasAccount),
@@ -453,7 +456,7 @@ func rulesOutput(rules SignInRules) usecase.Output {
 			"scope":        provider.Scope,
 		})
 	}
-	return usecase.Output{
+	out := usecase.Output{
 		"workspace_host": rules.WorkspaceHost,
 		"methods":        methods,
 		"providers":      providers,
@@ -463,6 +466,10 @@ func rulesOutput(rules SignInRules) usecase.Output {
 		"password_fallback": rules.PasswordFallback,
 		"sign_in_names":     rules.SignInNames,
 	}
+	if rules.WorkspaceName != "" {
+		out["workspace_name"] = rules.WorkspaceName
+	}
+	return out
 }
 
 func passwordRulesOutput(view PasswordRulesView) usecase.Output {

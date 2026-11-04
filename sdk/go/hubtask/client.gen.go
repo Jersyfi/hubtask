@@ -23024,8 +23024,11 @@ type SignInRules struct {
 	// SignInNames True while this workspace has at least one managed account - a person who signs in with a sign-in name instead of an address - so the card's first field asks for either. False everywhere else, a host without a workspace included.
 	SignInNames *bool `json:"sign_in_names,omitempty"`
 
-	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
+	// WorkspaceHost The host this answer was resolved for, which the card shows beside the workspace's name.
 	WorkspaceHost string `json:"workspace_host"`
+
+	// WorkspaceName The display name of the workspace this host answers, which is what the card names. Absent where no workspace answers the host.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
 }
 
 // SlaGoal defines model for SlaGoal.

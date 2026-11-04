@@ -1053,6 +1053,7 @@ class LegalLinks(TypedDict, total=False):
 class SignInRules(TypedDict, total=False):
     """The least a sign-in screen needs, and deliberately no more."""
     workspace_host: Required[str]
+    workspace_name: str
     methods: Required[list["SignInMethod"]]
     providers: Required[list["ProviderSummary"]]
     password: Required["PasswordRules"]

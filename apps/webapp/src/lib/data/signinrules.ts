@@ -74,6 +74,8 @@ export interface LegalLinks {
 /** What `GET /auth/sign-in-rules` answers. Deliberately the least a sign-in screen needs. */
 export interface SignInRules {
   readonly workspace_host: string;
+  /** The workspace the host answers, by its name; absent where none does. */
+  readonly workspace_name?: string;
   readonly methods: readonly string[];
   readonly providers: readonly ProviderSummary[];
   readonly password: PasswordRules;
