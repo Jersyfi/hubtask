@@ -5,7 +5,7 @@ context: goal
 actors: [PE-planner, PE-owner, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, core/application/service/goal/Roadmap_test.go, core/application/service/goal/RoadmapLink_test.go, core/domain/model/integration/RoadmapLinkToken_test.go, presentation/rest/PublicRoadmapController_test.go, test/integration/portfolio_public_link_test.go, apps/webapp/src/lib/data/roadmap.test.ts, apps/webapp/e2e/roadmap.test.mjs, apps/webapp/src/lib/data/replica.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs]
 ---

@@ -65,7 +65,7 @@ function goalsBackend({ seed } = {}) {
     const folio = /^\/portfolios\/([^/]+)(\/updates)?$/.exec(path);
     const portfolio = folio && (seed?.portfolios ?? []).find((each) => each.id === folio[1]);
     if (portfolio && !folio[2] && method === 'GET') return { json: portfolio };
-    if (portfolio && folio[2] && method === 'GET') return { json: page([]) };
+    if (portfolio && folio[2] && method === 'GET') return { json: page(seed?.updates?.[portfolio.id] ?? []) };
     if (path.startsWith('/dashboards') && !path.slice('/dashboards'.length).startsWith('/') && method === 'GET') return { json: page(dashboards) };
     if (path === '/dashboards' && method === 'POST') {
       const made = { id: id(), hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], widgets: [], version: 1, ...body };
@@ -241,13 +241,22 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
   const folio = (n, items) => ({ id: `01a0e2e0-0000-7000-8000-00000000a50${n}`, parent_id: null, name: `Programme ${n}`, description: '', owner_id: ACCOUNT.id, status: 'NONE', items, progress: null, version: 1 });
   const full = folio(1, [{ container_id: COLLECTION.id, kind: 'COLLECTION', name: 'Kitchen', archived: false, start_on: '2027-01-04', end_on: '2027-03-26', status: 'AT_RISK', entries: 12, done: 5, progress: 0.42 }]);
   const empty = folio(2, []);
-  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { portfolios: [full, empty] } }), width: 375, height: 812 });
+  const update = { id: '01a0e2e0-0000-7000-8000-00000000a601', portfolio_id: full.id, author_id: ACCOUNT.id, status: 'AT_RISK', summary: 'Kitchen slips a week.', created_at: '2026-11-02T09:00:00Z' };
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { portfolios: [full, empty], updates: { [full.id]: [update] } } }), width: 375, height: 812 });
   t.after(walk.close);
   const { page } = walk;
 
   await page.goto(`${served.origin}/portfolios/${full.id}`);
   await page.getByText('Jan 4, 2027', { exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByText('2027-01-04').count(), 0, 'no ISO day reaches the reader');
+  // UC-GOL-03 check 8: each project's dates, health and progress, and the portfolio's updates.
+  await page.getByText('Mar 26, 2027', { exact: true }).waitFor({ timeout: 5_000 });
+  const kitchen = page.getByRole('progressbar', { name: /Kitchen/ });
+  assert.equal(await kitchen.evaluate((each) => each.value), 42, 'the project\'s progress');
+  await page.getByText('42 %', { exact: true }).first().waitFor({ timeout: 5_000 });
+  const updates = page.getByRole('table', { name: 'Status updates' });
+  await updates.getByText('Kitchen slips a week.').waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByText('At risk').count() >= 2, 'the project\'s health and the update\'s');
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 
