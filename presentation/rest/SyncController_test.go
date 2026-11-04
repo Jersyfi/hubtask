@@ -251,7 +251,9 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 			{OpID: shared.MustParseID("0192f000-0000-7000-8000-000000000f01"), Result: "APPLIED",
 				EntityID: itemID, ServerState: map[string]any{"title": "Fix the tap"}},
 			{OpID: shared.MustParseID("0192f000-0000-7000-8000-000000000f02"), Result: "REJECTED",
-				Error: &syncservice.ResultError{Code: "gone", MessageCode: "sync.gone"}},
+				Error: &syncservice.ResultError{Code: "gone", MessageCode: "sync.gone",
+					Params: map[string]string{"since": "2026-01-01"},
+					Fields: []shared.FieldError{{Path: "/title", Code: "work.title_too_long", Params: map[string]string{"max": "500"}}}}},
 		},
 		Cursor: syncservice.Position{Seq: 9, IssuedAt: streamNow}, ServerTime: streamNow,
 	}}
@@ -314,8 +316,14 @@ func TestAPushMapsTheQueueAndTheResults(t *testing.T) {
 		body.Results[0]["server_state"].(map[string]any)["title"] != "Fix the tap" {
 		t.Errorf("the first result is %v", body.Results[0])
 	}
-	if failure, ok := body.Results[1]["error"].(map[string]any); !ok || failure["message_code"] != "sync.gone" {
+	failure, ok := body.Results[1]["error"].(map[string]any)
+	if !ok || failure["message_code"] != "sync.gone" || failure["params"].(map[string]any)["since"] != "2026-01-01" {
 		t.Errorf("the second result is %v", body.Results[1])
+	}
+	if fields, _ := failure["field_errors"].([]any); len(fields) != 1 ||
+		fields[0].(map[string]any)["path"] != "/title" || fields[0].(map[string]any)["code"] != "work.title_too_long" ||
+		fields[0].(map[string]any)["params"].(map[string]any)["max"] != "500" {
+		t.Errorf("the refusal's fields are %v", failure["field_errors"])
 	}
 	if len(signals.results) != 2 || signals.results[1] != "REJECTED" {
 		t.Errorf("counted %v", signals.results)

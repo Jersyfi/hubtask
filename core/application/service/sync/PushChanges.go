@@ -100,6 +100,8 @@ type ConflictDetail struct {
 type ResultError struct {
 	Code        string
 	MessageCode string
+	Params      map[string]string
+	Fields      []shared.FieldError
 }
 
 // PushResponse is the answer to a push: one result per mutation in the order they were sent, and
@@ -534,7 +536,7 @@ func rejected(m Mutation, err error) Result {
 	}
 	return Result{
 		OpID: m.OpID, Result: domain.Rejected, EntityID: m.ItemID,
-		Error: &ResultError{Code: failure.Code, MessageCode: code},
+		Error: &ResultError{Code: failure.Code, MessageCode: code, Params: failure.Params, Fields: failure.Fields},
 	}
 }
 
@@ -590,7 +592,46 @@ func resultOutput(result Result) map[string]any {
 		out["conflict"] = conflict
 	}
 	if result.Error != nil {
-		out["error"] = map[string]any{"code": result.Error.Code, "message_code": result.Error.MessageCode}
+		failure := map[string]any{"code": result.Error.Code, "message_code": result.Error.MessageCode}
+		if len(result.Error.Params) > 0 {
+			failure["params"] = paramsOutput(result.Error.Params)
+		}
+		if len(result.Error.Fields) > 0 {
+			fields := make([]any, 0, len(result.Error.Fields))
+			for _, field := range result.Error.Fields {
+				entry := map[string]any{"path": field.Path, "code": field.Code}
+				if len(field.Params) > 0 {
+					entry["params"] = paramsOutput(field.Params)
+				}
+				fields = append(fields, entry)
+			}
+			failure["field_errors"] = fields
+		}
+		out["error"] = failure
+	}
+	return out
+}
+
+// paramsOutput and paramsOf hold a message's values in the JSON shape the log stores, so that the
+// answer and its repeat read the same.
+func paramsOutput(params map[string]string) map[string]any {
+	out := make(map[string]any, len(params))
+	for key, value := range params {
+		out[key] = value
+	}
+	return out
+}
+
+func paramsOf(raw any) map[string]string {
+	values, ok := raw.(map[string]any)
+	if !ok || len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		if text, ok := value.(string); ok {
+			out[key] = text
+		}
 	}
 	return out
 }
@@ -613,7 +654,18 @@ func resultFromRecord(record repository.OpRecord) Result {
 	if failure, ok := record.Response["error"].(map[string]any); ok {
 		code, _ := failure["code"].(string)
 		message, _ := failure["message_code"].(string)
-		result.Error = &ResultError{Code: code, MessageCode: message}
+		result.Error = &ResultError{Code: code, MessageCode: message, Params: paramsOf(failure["params"])}
+		fields, _ := failure["field_errors"].([]any)
+		for _, raw := range fields {
+			field, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			path, _ := field["path"].(string)
+			fieldCode, _ := field["code"].(string)
+			result.Error.Fields = append(result.Error.Fields,
+				shared.FieldError{Path: path, Code: fieldCode, Params: paramsOf(field["params"])})
+		}
 	}
 	return result
 }

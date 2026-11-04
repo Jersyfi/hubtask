@@ -315,11 +315,51 @@ func mutationResult(result syncservice.Result) openapi.SyncMutationResult {
 		}
 	}
 	if result.Error != nil {
-		code, message := result.Error.Code, result.Error.MessageCode
-		out.Error = &struct {
-			Code        *string `json:"code,omitempty"`
-			MessageCode *string `json:"message_code,omitempty"`
-		}{Code: &code, MessageCode: &message}
+		out.Error = refusalOutput(result.Error)
 	}
 	return out
+}
+
+// refusalField is one entry of a refusal's field_errors, in the generated type's shape.
+type refusalField = struct {
+	Code   *string                 `json:"code,omitempty"`
+	Params *map[string]interface{} `json:"params,omitempty"`
+	Path   *string                 `json:"path,omitempty"`
+}
+
+// refusalOutput is why a mutation was refused, with the message's values and what it says about
+// single fields, as a problem document carries them.
+func refusalOutput(failure *syncservice.ResultError) *struct {
+	Code        *string                 `json:"code,omitempty"`
+	FieldErrors *[]refusalField         `json:"field_errors,omitempty"`
+	MessageCode *string                 `json:"message_code,omitempty"`
+	Params      *map[string]interface{} `json:"params,omitempty"`
+} {
+	code, message := failure.Code, failure.MessageCode
+	out := &struct {
+		Code        *string                 `json:"code,omitempty"`
+		FieldErrors *[]refusalField         `json:"field_errors,omitempty"`
+		MessageCode *string                 `json:"message_code,omitempty"`
+		Params      *map[string]interface{} `json:"params,omitempty"`
+	}{Code: &code, MessageCode: &message, Params: refusalParams(failure.Params)}
+	if len(failure.Fields) > 0 {
+		fields := make([]refusalField, 0, len(failure.Fields))
+		for _, field := range failure.Fields {
+			path, fieldCode := field.Path, field.Code
+			fields = append(fields, refusalField{Path: &path, Code: &fieldCode, Params: refusalParams(field.Params)})
+		}
+		out.FieldErrors = &fields
+	}
+	return out
+}
+
+func refusalParams(params map[string]string) *map[string]interface{} {
+	if len(params) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(params))
+	for key, value := range params {
+		out[key] = value
+	}
+	return &out
 }

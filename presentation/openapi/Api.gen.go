@@ -23761,8 +23761,18 @@ type SyncMutationResult struct {
 	} `json:"conflict,omitempty"`
 	EntityId *openapi_types.UUID `json:"entity_id,omitempty"`
 	Error    *struct {
-		Code        *string `json:"code,omitempty"`
+		Code *string `json:"code,omitempty"`
+
+		// FieldErrors What the refusal says about single fields, as a problem document's `field_errors`: `path` is a JSON Pointer into the mutation's values, so a device can show the reason beside the field it is about.
+		FieldErrors *[]struct {
+			Code   *string                 `json:"code,omitempty"`
+			Params *map[string]interface{} `json:"params,omitempty"`
+			Path   *string                 `json:"path,omitempty"`
+		} `json:"field_errors,omitempty"`
 		MessageCode *string `json:"message_code,omitempty"`
+
+		// Params The values of the message, as a problem document's `params`.
+		Params *map[string]interface{} `json:"params,omitempty"`
 	} `json:"error,omitempty"`
 	OpId        openapi_types.UUID       `json:"op_id"`
 	Result      SyncMutationResultResult `json:"result"`

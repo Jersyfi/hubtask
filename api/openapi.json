@@ -64371,6 +64371,30 @@
               },
               "message_code": {
                 "type": "string"
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "The values of the message, as a problem document's `params`."
+              },
+              "field_errors": {
+                "type": "array",
+                "description": "What the refusal says about single fields, as a problem document's `field_errors`: `path` is a JSON Pointer into the mutation's values, so a device can show the reason beside the field it is about.\n",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  }
+                }
               }
             }
           }
