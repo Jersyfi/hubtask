@@ -644,8 +644,11 @@ Rules:
   refuse what the source accepted. A form that cannot be asked retries the job.
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
-  (`containers.name_taken`, `backup.row_conflicts`), and a row naming what neither the archive nor
-  the workspace holds as `backup.row_dangles` - never as a database error the queue would retry.
+  (`containers.name_taken`, `backup.row_conflicts`), a row naming what neither the archive nor
+  the workspace holds as `backup.row_dangles`, and a row holding what no column takes - a check it
+  fails, a column it leaves empty, a value of the wrong shape - as `backup.row_refused` - never as
+  a database error the queue would retry. The converters keep a title or a name to one line and
+  take the zero byte out of every text, so that a stray one in a file does not refuse its row.
 * **A ZIP is bounded by what it yields, not what it declares**: 256 MiB a member and 1 GiB in all,
   beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
   digest and the applier stores them as a restore does, one object per content.

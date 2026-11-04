@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -104,7 +105,8 @@ func markRestoring(ctx context.Context) error {
 //
 // A foreign key refusing the row is answered the same way: the row names something - by identity
 // or by key - that neither the archive nor the workspace holds, and every attempt meets that again.
-// The restore stops with the constraint named rather than writing the row without it.
+// So is a row refused for what it holds (`backup.row_refused`). The restore stops with the
+// constraint named rather than writing the row without it.
 func rowConflict(err error, table string, data map[string]any) error {
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) {
@@ -114,6 +116,18 @@ func rowConflict(err error, table string, data map[string]any) error {
 		return shared.ErrConflict.
 			WithDetail("backup.row_dangles").
 			WithParams(map[string]string{"constraint": pgErr.ConstraintName}).
+			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
+	}
+	if pgErr.Code == "23514" || pgErr.Code == "23502" || strings.HasPrefix(pgErr.Code, "22") {
+		// A check it fails, a column it leaves empty, a value no column takes (class 22, a zero
+		// byte among them): named by the constraint, or the table where there is none.
+		named := pgErr.ConstraintName
+		if named == "" {
+			named = table
+		}
+		return shared.ErrConflict.
+			WithDetail("backup.row_refused").
+			WithParams(map[string]string{"constraint": named}).
 			WithCause(fmt.Errorf("importing a row into %s: %w", table, err))
 	}
 	if pgErr.Code != uniqueViolation {
