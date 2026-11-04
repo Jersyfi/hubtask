@@ -11126,6 +11126,7 @@
   "app.time.timer_running": "Timer running: {minutes}",
   "app.time.timer_elsewhere": "Your timer runs on another entry: {minutes}",
   "app.time.timer_open": "Open that entry",
+  "app.time.timer_on": "On {title}",
   "app.time.discard": "Discard",
   "app.time.timer_discarded": "Timer discarded; nothing was recorded.",
   "app.time.no_work_types": "This workspace has no kind of work to record time as yet. An administrator adds them in Time's settings.",

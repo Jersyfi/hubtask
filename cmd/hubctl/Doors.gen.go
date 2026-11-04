@@ -2861,7 +2861,7 @@ var generatedCommands = []door{
 	{Group: "timer", Verb: "discard", OperationID: "discardTimer", Method: "DELETE", Path: "/timer", Summary: "Stop the timer without recording it",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "timer", Verb: "show", OperationID: "readTimer", Method: "GET", Path: "/timer", Summary: "The caller's running timer",
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"billable", "elapsed_minutes", "entry_id", "note", "running"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"billable", "elapsed_minutes", "entry_id", "entry_title", "note"}},
 	{Group: "timer", Verb: "start", OperationID: "startTimer", Method: "POST", Path: "/timer:start", Summary: "Start the caller's timer",
 		Body: []doorParam{
 			{Name: "billable", Kind: "boolean", Help: "", Required: false},
@@ -2870,7 +2870,7 @@ var generatedCommands = []door{
 			{Name: "started_at", Kind: "string", Help: "When the device started it, for a start made while the server was away; now without one", Required: false},
 			{Name: "work_type", Kind: "string", Help: "", Required: false},
 		},
-		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"billable", "elapsed_minutes", "entry_id", "note", "running"}},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"billable", "elapsed_minutes", "entry_id", "entry_title", "note"}},
 	{Group: "timer", Verb: "stop", OperationID: "stopTimer", Method: "POST", Path: "/timer:stop", Summary: "Stop the timer into a record",
 		Body: []doorParam{
 			{Name: "stopped_at", Kind: "string", Help: "When it stopped: a stop made while the server was away, or a moment within a day of the start for a …", Required: false},

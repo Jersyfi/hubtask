@@ -180,19 +180,19 @@ export function heldActRows(
 export interface TimeToday {
   readonly today: number;
   readonly week: number;
-  readonly running: { readonly minutes: number; readonly entryId: string | null | undefined } | undefined;
+  readonly running: { readonly minutes: number; readonly entryId: string | null | undefined; readonly entryTitle?: string | undefined } | undefined;
 }
 
 /** Undefined until the week is read: a zero shown before then would be a figure nobody measured. */
 export function timeTodayOf(
   week: { readonly minutes: number; readonly days: readonly { readonly day: string; readonly minutes: number }[] } | undefined,
   day: string,
-  timer: { readonly running: boolean; readonly elapsed_minutes?: number; readonly entry_id?: string | null } | undefined,
+  timer: { readonly running: boolean; readonly elapsed_minutes?: number; readonly entry_id?: string | null; readonly entry_title?: string } | undefined,
 ): TimeToday | undefined {
   if (!week) return undefined;
   return {
     today: week.days.find((each) => each.day === day)?.minutes ?? 0,
     week: week.minutes,
-    running: timer?.running ? { minutes: timer.elapsed_minutes ?? 0, entryId: timer.entry_id } : undefined,
+    running: timer?.running ? { minutes: timer.elapsed_minutes ?? 0, entryId: timer.entry_id, ...(timer.entry_title ? { entryTitle: timer.entry_title } : {}) } : undefined,
   };
 }

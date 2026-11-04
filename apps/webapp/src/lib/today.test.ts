@@ -102,6 +102,8 @@ test('time today is the day\'s recorded minutes against the week, with the runni
   const week = { minutes: 600, days: [{ day: '2026-11-02', minutes: 240, locked: false }, { day: '2026-11-03', minutes: 360, locked: false }] };
   assert.deepEqual(timeTodayOf(week, '2026-11-03', { running: false }), { today: 360, week: 600, running: undefined });
   assert.deepEqual(timeTodayOf(week, '2026-11-04', { running: true, elapsed_minutes: 25, entry_id: 'e1' }), { today: 0, week: 600, running: { minutes: 25, entryId: 'e1' } });
+  // The timer's entry by name, where the server answers it (user-experience.md §7.6).
+  assert.deepEqual(timeTodayOf(week, '2026-11-04', { running: true, elapsed_minutes: 25, entry_id: 'e1', entry_title: 'Checkout form' })?.running, { minutes: 25, entryId: 'e1', entryTitle: 'Checkout form' });
   assert.equal(timeTodayOf(undefined, '2026-11-04', { running: false }), undefined, 'not drawn before the week is read');
 });
 

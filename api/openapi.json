@@ -42845,6 +42845,10 @@
             ],
             "format": "uuid"
           },
+          "entry_title": {
+            "type": "string",
+            "description": "The entry's title where the reader may still read it; absent otherwise. Answered by the timer's read."
+          },
           "work_type": {
             "type": "string"
           },

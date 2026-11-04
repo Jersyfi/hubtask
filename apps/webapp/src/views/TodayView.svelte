@@ -652,7 +652,7 @@
               <h2 class="head" id="today-time">{t('app.today.time')}</h2>
               <p class="figures"><b>{minutesText(timeToday.today)}</b> {t('app.today.time_against', { week: minutesText(timeToday.week) })}</p>
               {#if timeToday.running}
-                <p class="running"><span class="running-mark" aria-hidden="true"><Icon name="clock" size="sm" /></span><span>{t('app.time.timer_running', { minutes: minutesText(timeToday.running.minutes) })}</span>{#if timeToday.running.entryId}<span aria-hidden="true">·</span><a href={`/items/${timeToday.running.entryId}`}>{t('app.time.timer_open')}</a>{/if}</p>
+                <p class="running"><span class="running-mark" aria-hidden="true"><Icon name="clock" size="sm" /></span><span>{t('app.time.timer_running', { minutes: minutesText(timeToday.running.minutes) })}</span>{#if timeToday.running.entryId}<span aria-hidden="true">·</span><a href={`/items/${timeToday.running.entryId}`}>{timeToday.running.entryTitle ? t('app.time.timer_on', { title: timeToday.running.entryTitle }) : t('app.time.timer_open')}</a>{/if}</p>
               {/if}
               <p class="more"><a href="/time">{t('app.today.time_open')} →</a></p>
             </Stack>

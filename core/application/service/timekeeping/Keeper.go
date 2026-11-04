@@ -155,21 +155,27 @@ func person(actor appshared.ActorContext) error {
 }
 
 // entryReadable reads an entry time is recorded on and asks READ on it: a person records time on
-// what they may see. It answers the entry's place.
+// what they may see.
 func (k Keeper) entryReadable(ctx context.Context, actor appshared.ActorContext, id shared.ID, action audit.Action) error {
+	_, err := k.readableEntry(ctx, actor, id, action)
+	return err
+}
+
+// readableEntry is entryReadable answering the entry's summary.
+func (k Keeper) readableEntry(ctx context.Context, actor appshared.ActorContext, id shared.ID, action audit.Action) (workrepo.EntrySummary, error) {
 	var summaries []workrepo.EntrySummary
 	if err := k.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		summaries, err = k.References.Entries(ctx, []shared.ID{id})
 		return err
 	}); err != nil {
-		return err
+		return workrepo.EntrySummary{}, err
 	}
 	if len(summaries) == 0 {
-		return appshared.ItemNotFound(id)
+		return workrepo.EntrySummary{}, appshared.ItemNotFound(id)
 	}
 	s := summaries[0]
-	return k.Authorizer.Authorize(ctx, actor, access.Request{
+	return s, k.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionRead, Path: entryPath(s.HubID, s.CollectionID, s.ID),
 		Action: action, TokenScope: itemsRead, TargetType: itemTarget, TargetID: s.ID,
 		On: access.ItemSubject{Does: service.ItemRead, ID: s.ID},

@@ -771,8 +771,9 @@ grid of entries by day is drawn from `medium` up; the records are a table that s
 changed and removed by icon buttons. An empty week, an empty queue and an empty report are §5.5's
 empty states; a refusal in the record, correction or send-back dialog is a `Banner` inside it. The
 report draws a bar beside each group's total. The absence calendar names its month (*November
-2026*) and every day column (*Mon 2*). Not built: the timer's entry by name in the head (the
-timer answers its entry's identifier only).
+2026*) and every day column (*Mon 2*). The running timer names its entry in the head (*On
+Checkout form*, the timer's `entry_title`, left out where the reader may no longer read it) and
+opens it.
 
 ### 7.7 Goals and dashboards
 

@@ -1516,6 +1516,7 @@ class TimeExport(TypedDict, total=False):
 class TimeTimer(TypedDict, total=False):
     running: Required[bool]
     entry_id: str | None
+    entry_title: str
     work_type: str
     note: str
     billable: bool

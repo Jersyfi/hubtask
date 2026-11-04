@@ -5,6 +5,7 @@ package timekeeping
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -316,7 +317,17 @@ func (h ReadTimer) Descriptor() usecase.Descriptor {
 			if !running {
 				return usecase.Output{"running": false}, nil
 			}
-			return TimerOutput(t, h.Keeper.Clock.Now()), nil
+			out := TimerOutput(t, h.Keeper.Clock.Now())
+			if !t.EntryID.IsZero() {
+				// Asked again rather than trusted from the start: a share taken away since leaves
+				// the timer running but its entry unnamed, never failing the read.
+				if s, err := h.Keeper.readableEntry(ctx, actor, t.EntryID, RecordsReadAction); err == nil {
+					out["entry_title"] = s.Title
+				} else if !errors.Is(err, shared.ErrNotFound) && !errors.Is(err, shared.ErrForbidden) {
+					return nil, err
+				}
+			}
+			return out, nil
 		}),
 	}, timerTarget)
 }

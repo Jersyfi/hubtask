@@ -286,3 +286,22 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+// The time head names the entry the timer runs on (user-experience.md §7.6), and the name opens it.
+test('chromium: time - the running timer names its entry in the head and opens it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const started = new Date(Date.now() - 25 * 60_000).toISOString();
+  const running = { running: true, entry_id: ENTRY.id, entry_title: ENTRY.title, work_type: 'work', note: '', billable: true, started_at: started, elapsed_minutes: 25 };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  const named = page.locator('[data-timer="running"]').getByRole('button', { name: `On ${ENTRY.title}` });
+  await named.waitFor({ timeout: 5_000 });
+  await named.click();
+  await page.waitForURL(new RegExp(`/items/${ENTRY.id}$`));
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});

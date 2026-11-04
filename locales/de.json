@@ -11126,6 +11126,7 @@
   "app.time.timer_running": "Timer läuft: {minutes}",
   "app.time.timer_elsewhere": "Dein Timer läuft auf einem anderen Eintrag: {minutes}",
   "app.time.timer_open": "Diesen Eintrag öffnen",
+  "app.time.timer_on": "An {title}",
   "app.time.discard": "Verwerfen",
   "app.time.timer_discarded": "Timer verworfen; nichts wurde erfasst.",
   "app.time.no_work_types": "Dieser Arbeitsbereich hat noch keine Art von Arbeit, auf die Zeit gebucht werden kann. Eine Administratorin legt sie in den Einstellungen von Zeit an.",

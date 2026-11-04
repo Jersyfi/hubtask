@@ -24266,10 +24266,13 @@ type TimeTimer struct {
 	Billable       *bool               `json:"billable,omitempty"`
 	ElapsedMinutes *int                `json:"elapsed_minutes,omitempty"`
 	EntryId        *openapi_types.UUID `json:"entry_id,omitempty"`
-	Note           *string             `json:"note,omitempty"`
-	Running        bool                `json:"running"`
-	StartedAt      *time.Time          `json:"started_at,omitempty"`
-	WorkType       *string             `json:"work_type,omitempty"`
+
+	// EntryTitle The entry's title where the reader may still read it; absent otherwise. Answered by the timer's read.
+	EntryTitle *string    `json:"entry_title,omitempty"`
+	Note       *string    `json:"note,omitempty"`
+	Running    bool       `json:"running"`
+	StartedAt  *time.Time `json:"started_at,omitempty"`
+	WorkType   *string    `json:"work_type,omitempty"`
 }
 
 // Timesheet defines model for Timesheet.

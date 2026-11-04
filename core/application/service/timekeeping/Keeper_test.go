@@ -489,6 +489,29 @@ func TestATimerRunsOnceAndStopsIntoARecord(t *testing.T) {
 	}
 }
 
+// The running timer is read with its entry's title, so its head names what the time goes on; an
+// entry the person may no longer read leaves the title out rather than failing the timer.
+func TestTheRunningTimerNamesItsEntry(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	if _, err := (StartTimer{Keeper: f.keeper}).Execute(ctx, as(ana), checkout, "development", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	read := (ReadTimer{Keeper: f.keeper}).Descriptor().Handler
+	out, err := read.Invoke(ctx, as(ana), nil)
+	if err != nil || out["entry_title"] != "Checkout form" {
+		t.Fatalf("the timer reads %v, %v", out, err)
+	}
+	f.gate.hidden = map[shared.ID]bool{checkout: true}
+	out, err = read.Invoke(ctx, as(ana), nil)
+	if err != nil || out["running"] != true {
+		t.Fatalf("a hidden entry failed the timer: %v, %v", out, err)
+	}
+	if _, named := out["entry_title"]; named {
+		t.Errorf("an entry the person may not read is named: %v", out["entry_title"])
+	}
+}
+
 // UC-TIM-02 checks 1-4: the week answers its days; handed in, its records no longer change
 // and the timer cannot stop into it; taken back it is open; last week is copied day by day.
 func TestAWeekIsFilledInAndHandedIn(t *testing.T) {

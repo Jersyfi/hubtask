@@ -131,7 +131,9 @@
     {:else}
       <span class="running" role="status"><Icon name="clock" size="sm" />{t('app.time.timer_running', { minutes: minutesText(elapsed) })}</span>
       {#if timer.entry_id}
-        <Button size="sm" tone="subtle" onclick={() => onnavigate(`/items/${timer?.entry_id}`)}>{t('app.time.timer_open')}</Button>
+        <!-- The entry by name where the reader may still read it (user-experience.md §7.6). -->
+        <Button size="sm" tone="subtle" onclick={() => onnavigate(`/items/${timer?.entry_id}`)}>
+          {timer.entry_title ? t('app.time.timer_on', { title: timer.entry_title }) : t('app.time.timer_open')}</Button>
       {/if}
       <Button size="sm" tone="secondary" icon="square" {isBusy} busyLabel={t('app.time.stop')} disabledReason={offline} onclick={stop}>{t('app.time.stop')}</Button>
       <IconButton size="sm" icon="x" label={t('app.time.discard')} disabledReason={offline} onclick={() => void discard()} />
