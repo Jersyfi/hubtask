@@ -661,3 +661,24 @@ func TestAPagesDraftIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A second daily note of one day is refused by the day's index as taken, not as a failed query,
+// so that the open which lost the race reads the one written.
+func TestASecondDailyNoteOfADayIsTaken(t *testing.T) {
+	ctx := context.Background()
+	hub, _, _ := seedSpace(ctx, t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	day := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
+	note := func() knowledge.Page {
+		return knowledge.Page{ID: freshID(t), HubID: hub, Title: "2026-10-30", OrderKey: "c0", DailyFor: &day,
+			CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1}
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return repo.Insert(ctx, note()) }); err != nil {
+		t.Fatal(err)
+	}
+	err := write(ctx, t, tenantA, func(ctx context.Context) error { return repo.Insert(ctx, note()) })
+	if problem := shared.AsError(err); problem == nil || problem.DetailCode != "pages.daily_note_taken" {
+		t.Fatalf("the second note answered %v", err)
+	}
+}
