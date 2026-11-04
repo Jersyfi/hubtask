@@ -29,6 +29,7 @@ test('the nine kinds are offered, CSV as text, a ZIP as a ZIP and the rest as JS
   assert.match(acceptFor('JIRA'), /zip/);
 });
 
+// UC-IMP-05 check 4: a collection's Import… does not offer a kind that lands pages.
 test('a wiki lands pages in the hub, so a collection does not offer it', () => {
   assert.ok(kindsFor(false).includes('CONFLUENCE'));
   assert.ok(!kindsFor(true).includes('CONFLUENCE'));

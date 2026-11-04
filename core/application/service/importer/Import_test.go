@@ -299,6 +299,7 @@ func TestAnImportIsAcceptedWithItsRunAndItsJob(t *testing.T) {
 	}
 }
 
+// Among them UC-IMP-05 check 4: a wiki lands in the hub, never in a named collection.
 func TestAnImportIsRefusedForTheRightReasons(t *testing.T) {
 	hub := work.Container{ID: hubID, Type: work.ContainerHub}
 	cases := map[string]struct {
