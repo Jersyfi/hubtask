@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT } from './fixture.mjs';
+import { ACCOUNT, COLLECTION } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -61,7 +61,11 @@ function goalsBackend({ seed } = {}) {
       Object.assign(goal, { status: body.status, confidence: body.confidence, check_ins: [made, ...goal.check_ins], version: goal.version + 1 });
       return { status: 201, json: goal };
     }
-    if (path === '/portfolios' && method === 'GET') return { json: page([]) };
+    if (path === '/portfolios' && method === 'GET') return { json: page(seed?.portfolios ?? []) };
+    const folio = /^\/portfolios\/([^/]+)(\/updates)?$/.exec(path);
+    const portfolio = folio && (seed?.portfolios ?? []).find((each) => each.id === folio[1]);
+    if (portfolio && !folio[2] && method === 'GET') return { json: portfolio };
+    if (portfolio && folio[2] && method === 'GET') return { json: page([]) };
     if (path.startsWith('/dashboards') && !path.slice('/dashboards'.length).startsWith('/') && method === 'GET') return { json: page(dashboards) };
     if (path === '/dashboards' && method === 'POST') {
       const made = { id: id(), hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], widgets: [], version: 1, ...body };
@@ -223,6 +227,29 @@ test('chromium: a widget with nothing to show names why, by its source', async (
   await page.getByText('None of its goals is one you may read, or they were deleted.').waitFor({ timeout: 5_000 });
   await page.getByText('No entry matches what this widget counts yet.').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('Nothing to count.', { exact: true }).count(), 0);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+test('chromium: 375 px - a portfolio names its projects\' days in words and stacks them; an empty one says what fills it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const folio = (n, items) => ({ id: `01a0e2e0-0000-7000-8000-00000000a50${n}`, parent_id: null, name: `Programme ${n}`, description: '', owner_id: ACCOUNT.id, status: 'NONE', items, progress: null, version: 1 });
+  const full = folio(1, [{ container_id: COLLECTION.id, kind: 'COLLECTION', name: 'Kitchen', archived: false, start_on: '2027-01-04', end_on: '2027-03-26', status: 'AT_RISK', entries: 12, done: 5, progress: 0.42 }]);
+  const empty = folio(2, []);
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { portfolios: [full, empty] } }), width: 375, height: 812 });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/portfolios/${full.id}`);
+  await page.getByText('Jan 4, 2027', { exact: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByText('2027-01-04').count(), 0, 'no ISO day reaches the reader');
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
+
+  await page.goto(`${served.origin}/portfolios/${empty.id}`);
+  await page.getByText('No project in this portfolio yet.').waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('table').count(), 0, 'an empty portfolio draws no empty table');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });

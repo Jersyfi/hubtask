@@ -10948,6 +10948,7 @@
   "app.portfolios.latest": "Latest update, {when}, by {name}",
   "app.portfolios.projects": "{count} projects",
   "app.portfolios.no_projects": "No project in this portfolio yet.",
+  "app.portfolios.no_projects_body": "Add the hubs and collections it watches; their health, progress and roadmap gather here.",
   "app.portfolios.col_project": "Project",
   "app.portfolios.col_start": "Start",
   "app.portfolios.col_end": "End",

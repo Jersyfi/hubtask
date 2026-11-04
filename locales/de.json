@@ -10948,6 +10948,7 @@
   "app.portfolios.latest": "Letzte Statusmeldung, {when}, von {name}",
   "app.portfolios.projects": "{count} Projekte",
   "app.portfolios.no_projects": "Noch kein Projekt in diesem Portfolio.",
+  "app.portfolios.no_projects_body": "Füge die Hubs und Sammlungen hinzu, die es beobachtet; ihr Zustand, ihr Fortschritt und ihre Roadmap sammeln sich hier.",
   "app.portfolios.col_project": "Projekt",
   "app.portfolios.col_start": "Beginn",
   "app.portfolios.col_end": "Ende",

@@ -27,7 +27,8 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { goalTone } from '../lib/goals/tone.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
   import { minutesText, moneyText } from '../lib/data/time.ts';
@@ -207,13 +208,13 @@
     primary={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
     secondary={mayWrite ? [
       { label: t('app.portfolios.report'), icon: 'send', onclick: () => { report.status = portfolio?.status && portfolio.status !== 'NONE' ? portfolio.status : 'ON_TRACK'; report.summary = ''; isReporting = true; } },
-    ] : []}
+      { label: t('app.roadmap.title'), icon: 'calendar', onclick: () => onnavigate(`/portfolios/${portfolioId}/roadmap`) },
+    ] : [{ label: t('app.roadmap.title'), icon: 'calendar', onclick: () => onnavigate(`/portfolios/${portfolioId}/roadmap`) }]}
     menu={{
       label: t('app.goals.more'),
       items: [
         { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
         { id: 'export_sheet', label: t('app.portfolios.export_sheet'), icon: 'layout-template' },
-        { id: 'roadmap', label: t('app.roadmap.title'), icon: 'calendar' },
         ...(mayWrite ? [
           { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
           { id: 'delete', label: t('app.portfolios.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
@@ -222,7 +223,6 @@
       onselect: (id: string) => {
         if (id === 'export') exportTable();
         if (id === 'export_sheet') exportTable(true);
-        if (id === 'roadmap') onnavigate(`/portfolios/${portfolioId}/roadmap`);
         if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
         if (id === 'delete') isDeleting = true;
       },
@@ -259,14 +259,16 @@
 
     <section class="block" aria-labelledby="portfolio-projects">
       <h2 id="portfolio-projects" class="heading">{t('app.portfolios.projects', { count: String(portfolio.items.length) })}</h2>
-      <div class="scroll">
-        <Table label={t('app.portfolios.projects', { count: String(portfolio.items.length) })} isLabelHidden {columns}>
-          {#snippet empty()}{t('app.portfolios.no_projects')}{/snippet}
+      {#if portfolio.items.length === 0}
+        <ProductEmpty kind="unused" icon="briefcase" title={t('app.portfolios.no_projects')} description={t('app.portfolios.no_projects_body')}
+          create={mayWrite ? { label: t('app.portfolios.add_project'), onclick: () => openProject() } : undefined} whoCan={t('app.portfolios.who_can')} />
+      {:else}
+        <Table isStacked label={t('app.portfolios.projects', { count: String(portfolio.items.length) })} isLabelHidden {columns}>
           {#each portfolio.items as item (item.container_id)}
             <tr>
               <th scope="row"><a href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}</th>
-              <td>{item.start_on ?? ''}</td>
-              <td>{item.end_on ?? ''}</td>
+              <td class="day">{item.start_on ? formatPlainDay(item.start_on, locale) : ''}</td>
+              <td class="day">{item.end_on ? formatPlainDay(item.end_on, locale) : ''}</td>
               <td>{#if item.status !== 'NONE'}<Badge size="sm" tone={goalTone(item.status)}>{t(`app.goals.status_${item.status}`)}</Badge>{/if}</td>
               <td class="number">{item.entries ?? ''}</td>
               <td class="number">{item.done ?? ''}</td>
@@ -283,7 +285,7 @@
             </tr>
           {/each}
         </Table>
-      </div>
+      {/if}
     </section>
 
     {#if nested.length > 0}
@@ -295,9 +297,10 @@
 
     <section class="block" aria-labelledby="portfolio-updates">
       <h2 id="portfolio-updates" class="heading">{t('app.portfolios.updates')}</h2>
-      <div class="scroll">
-        <Table label={t('app.portfolios.updates')} isLabelHidden columns={updateColumns}>
-          {#snippet empty()}{t('app.portfolios.no_updates')}{/snippet}
+      {#if updates.length === 0}
+        <p class="quiet">{t('app.portfolios.no_updates')}</p>
+      {:else}
+        <Table isStacked label={t('app.portfolios.updates')} isLabelHidden columns={updateColumns}>
           {#each updates as each (each.id)}
             <tr>
               <td>{formatDateTime(each.created_at, locale)}</td>
@@ -307,7 +310,7 @@
             </tr>
           {/each}
         </Table>
-      </div>
+      {/if}
     </section>
   {/if}
 </Stack>
@@ -358,11 +361,11 @@
 {/if}
 
 <style>
+  .day { white-space: nowrap; }
   .summary, .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
   .facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .description { margin: 0; white-space: pre-wrap; }
-  .scroll { overflow-x: auto; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
