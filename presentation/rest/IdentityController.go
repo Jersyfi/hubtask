@@ -195,6 +195,16 @@ func accountResponse(out usecase.Output) openapi.Account {
 		// The caller's own account only, for has_second_factor's reason.
 		account.HasAccess = &access
 	}
+	if rows, held := out["portals"].([]usecase.Output); held {
+		// The caller's own account only: where a requester is sent (UC-SVC-05).
+		var portals []struct {
+			CollectionId openapi_types.UUID `json:"collection_id"`
+			Name         string             `json:"name"`
+		}
+		if throughJSON(rows, &portals) == nil {
+			account.Portals = &portals
+		}
+	}
 	if remaining, held := out["recovery_codes_remaining"].(int); held {
 		// Present exactly where a factor is armed, and then zero is answered as zero, because there
 		// zero is the number to act on. Absent is not zero: an account holding no factor

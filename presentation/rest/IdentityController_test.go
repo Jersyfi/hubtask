@@ -602,3 +602,26 @@ func TestSettingANotificationPreferencePassesThePairAndBothSwitches(t *testing.T
 		t.Errorf("answered %+v", written)
 	}
 }
+
+// A person whose only access is a portal is sent there (UC-SVC-05): the portals the use case
+// answered travel on GET /accounts/me, beside has_access false.
+func TestTheOwnAccountCarriesItsRequesterPortals(t *testing.T) {
+	out := ownAccount()
+	out["has_access"] = false
+	out["portals"] = []usecase.Output{{"collection_id": "0192f000-0000-7000-8000-0000000000c1", "name": "Requests"}}
+	recorder := identityRequest(t, &catalogue{out: out}, http.MethodGet, "/accounts/me")
+	var answer openapi.Account
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if answer.HasAccess == nil || *answer.HasAccess {
+		t.Errorf("has_access = %v, want false", answer.HasAccess)
+	}
+	if answer.Portals == nil || len(*answer.Portals) != 1 {
+		t.Fatalf("portals = %v, want the one portal: %s", answer.Portals, recorder.Body)
+	}
+	portal := (*answer.Portals)[0]
+	if portal.CollectionId.String() != "0192f000-0000-7000-8000-0000000000c1" || portal.Name != "Requests" {
+		t.Errorf("portal = %+v", portal)
+	}
+}
