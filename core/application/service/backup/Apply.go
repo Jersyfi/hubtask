@@ -283,6 +283,8 @@ type IngestInput struct {
 	Progress func(ctx context.Context, report domain.Report, decided map[string]int) error
 	Resume   domain.Restore
 	Report   func(float64)
+	// DryRun decides every record and writes none, as a restore's dry run does.
+	DryRun bool
 }
 
 // Ingest applies an archive somebody built rather than backed up: the importer's records, in
@@ -309,7 +311,7 @@ func (a Applier) Ingest(ctx context.Context, in IngestInput) (domain.Report, err
 	p := plan{
 		restore: restore, chain: []archive.Description{description},
 		reader: reader, scope: persistence.Scope{TenantID: in.TenantID}, asker: in.TenantID,
-		report: in.Report, progress: in.Progress,
+		report: in.Report, progress: in.Progress, dry: in.DryRun,
 	}
 	return a.apply(ctx, p)
 }

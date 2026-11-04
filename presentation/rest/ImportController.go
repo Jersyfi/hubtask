@@ -37,6 +37,9 @@ func importRunResponse(out usecase.Output) openapi.ImportRun {
 		id := uuidValue(collection)
 		run.CollectionId = &id
 	}
+	if dry, ok := out["dry_run"].(bool); ok {
+		run.DryRun = &dry
+	}
 	if media := out.String("media_id"); media != "" {
 		id := uuidValue(media)
 		run.MediaId = &id

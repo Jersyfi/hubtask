@@ -1969,6 +1969,7 @@ type ImportRun struct {
 	StartedAt    pgtype.Timestamptz
 	FinishedAt   pgtype.Timestamptz
 	CollectionID pgtype.UUID
+	DryRun       bool
 }
 
 type InstallationPreset struct {

@@ -116,6 +116,8 @@ type ImportCommand struct {
 	// collections under the hub.
 	CollectionID shared.ID
 	Mapping      map[string]string
+	// DryRun plans the import and writes nothing but its report.
+	DryRun bool
 }
 
 // Accepted is what the use case answers: the job, and the run whose report the job will write.
@@ -196,7 +198,7 @@ func (h ImportEntries) Execute(
 		if err := h.Runs.Insert(ctx, domain.Run{
 			ID: importID, TenantID: actor.TenantID, RequestedBy: actor.AccountID,
 			Kind: cmd.Kind, MediaID: cmd.MediaID, HubID: cmd.HubID, CollectionID: cmd.CollectionID,
-			Mapping: cmd.Mapping, Zone: actor.TimeZone, Language: actor.Locale,
+			Mapping: cmd.Mapping, Zone: actor.TimeZone, Language: actor.Locale, DryRun: cmd.DryRun,
 			Status: domain.StatusPending, CreatedAt: h.Clock.Now(),
 		}); err != nil {
 			return err
@@ -309,6 +311,7 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 				Name: "mapping", Kind: usecase.KindObject,
 				Description: "For CSV and XLSX: which column carries which field, by header name, where the header does not already say.",
 			},
+			{Name: "dry_run", Kind: usecase.KindBool, Description: "Read and plan only: the report says what the import would do, and the file is kept for the import itself."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ImportedAction, TargetType: importTarget, Severity: audit.SeverityInfo, Required: true,
@@ -344,7 +347,9 @@ func (h ImportEntries) invoke(
 			}
 		}
 	}
-	accepted, err := h.Execute(ctx, actor, ImportCommand{MediaID: mediaID, Kind: kind, HubID: hubID, CollectionID: collectionID, Mapping: mapping})
+	accepted, err := h.Execute(ctx, actor, ImportCommand{
+		MediaID: mediaID, Kind: kind, HubID: hubID, CollectionID: collectionID, Mapping: mapping, DryRun: in.Bool("dry_run"),
+	})
 	if err != nil {
 		return nil, err
 	}

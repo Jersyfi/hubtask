@@ -36,13 +36,14 @@ func (q *Queries) ClaimImportRun(ctx context.Context, arg ClaimImportRunParams) 
 
 const findImportRun = `-- name: FindImportRun :one
 SELECT id, tenant_id, requested_by, kind, media_id, hub_id, mapping, time_zone, language, status,
-       report, refused, progress, error_code, created_at, started_at, finished_at, collection_id
+       report, refused, progress, error_code, created_at, started_at, finished_at, collection_id,
+       dry_run
 FROM import_run
 WHERE id = $1
 `
 
-// The columns in the table's order, collection_id last as migration 0200 added it, so that the
-// row is the table's model.
+// The columns in the table's order - collection_id and dry_run last, as migrations 0200 and 0358
+// added them - so that the row is the table's model.
 func (q *Queries) FindImportRun(ctx context.Context, id pgtype.UUID) (ImportRun, error) {
 	row := q.db.QueryRow(ctx, findImportRun, id)
 	var i ImportRun
@@ -65,6 +66,7 @@ func (q *Queries) FindImportRun(ctx context.Context, id pgtype.UUID) (ImportRun,
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.CollectionID,
+		&i.DryRun,
 	)
 	return i, err
 }
@@ -110,11 +112,11 @@ const insertImportRun = `-- name: InsertImportRun :exec
 
 INSERT INTO import_run (
   id, tenant_id, requested_by, kind, media_id, hub_id, collection_id, mapping, time_zone, language,
-  status
+  status, dry_run
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
-  $8, $9, 'PENDING'
+  $8, $9, 'PENDING', $10
 )
 `
 
@@ -128,6 +130,7 @@ type InsertImportRunParams struct {
 	Mapping      []byte
 	TimeZone     *string
 	Language     *string
+	DryRun       bool
 }
 
 // The import from another system (backup-restore.md §9). Every statement is bounded by the
@@ -145,6 +148,7 @@ func (q *Queries) InsertImportRun(ctx context.Context, arg InsertImportRunParams
 		arg.Mapping,
 		arg.TimeZone,
 		arg.Language,
+		arg.DryRun,
 	)
 	return err
 }

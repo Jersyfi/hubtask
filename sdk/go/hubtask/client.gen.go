@@ -17399,6 +17399,9 @@ type ImportRequest struct {
 	// CollectionId A collection of that hub to land the entries in, instead of new collections under the hub. Absent: the import creates collections.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
+	// DryRun Read and plan only: the job converts the file and decides every record as the import would, and writes nothing but its own report. The file is kept, so that the same `media_id` can be imported for real afterwards.
+	DryRun *bool `json:"dry_run,omitempty"`
+
 	// HubId The hub the imported collections land under.
 	HubId openapi_types.UUID `json:"hub_id"`
 
@@ -17417,10 +17420,13 @@ type ImportRun struct {
 	// CollectionId The collection the entries landed in, or null where the import created collections.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	CreatedAt    time.Time           `json:"created_at"`
-	ErrorCode    *string             `json:"error_code,omitempty"`
-	FinishedAt   *time.Time          `json:"finished_at,omitempty"`
-	HubId        openapi_types.UUID  `json:"hub_id"`
-	Id           openapi_types.UUID  `json:"id"`
+
+	// DryRun A run that only planned; its report is what the import would do.
+	DryRun     *bool              `json:"dry_run,omitempty"`
+	ErrorCode  *string            `json:"error_code,omitempty"`
+	FinishedAt *time.Time         `json:"finished_at,omitempty"`
+	HubId      openapi_types.UUID `json:"hub_id"`
+	Id         openapi_types.UUID `json:"id"`
 
 	// Kind The system the file came from. `CSV` is a header row and one entry per line; `XLSX` is a workbook whose first sheet is read as `CSV` is, with the same mapping, its dates as dates and its numbers as stored; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. `JIRA` is the issue search's JSON answer with its names, schema and change log expanded, or a ZIP of such answers with the attachments under `attachments/<attachment id>/`: each project becomes a collection with its issue types, statuses, custom fields, history, comments, links and attachments. `CONFLUENCE` is a space's HTML export as a ZIP: its pages become the hub's pages in their tree. `MARKDOWN` is a ZIP of Markdown files: each file a page, its folders the tree, links between the files page references and pictures in the ZIP the pages' files. `HTML` is one HTML file or a ZIP of them, a notes app's HTML export included, and `DOCX` one word-processor document or a ZIP of them; each becomes pages as `MARKDOWN` does. `CONFLUENCE`, `MARKDOWN`, `HTML` and `DOCX` land in the hub and take no `collection_id`. A kind this build does not serve is refused by name.
 	Kind    ImportKind          `json:"kind"`
@@ -17435,7 +17441,7 @@ type ImportRun struct {
 		Row    int       `json:"row"`
 	} `json:"refused,omitempty"`
 
-	// Report What landed, in the restore's shape; absent until the job has run.
+	// Report What landed - or, on a dry run, what would - in the restore's shape; absent until the job has run.
 	Report *RestoreReport  `json:"report,omitempty"`
 	Status ImportRunStatus `json:"status"`
 }

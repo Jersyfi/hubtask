@@ -92,7 +92,7 @@ func (h GetImport) invoke(ctx context.Context, actor appshared.ActorContext, in 
 func RunOutput(run domain.Run) usecase.Output {
 	out := usecase.Output{
 		"id": run.ID.String(), "kind": string(run.Kind), "hub_id": run.HubID.String(),
-		"collection_id": nil, "media_id": run.MediaID.String(), "status": string(run.Status),
+		"collection_id": nil, "media_id": run.MediaID.String(), "dry_run": run.DryRun, "status": string(run.Status),
 		"created_at": run.CreatedAt, "finished_at": nil, "error_code": nil,
 	}
 	if !run.CollectionID.IsZero() {

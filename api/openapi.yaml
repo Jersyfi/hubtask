@@ -38234,6 +38234,13 @@ components:
             For `CSV` only: which column carries which field, by header name, where the header
             does not already say - `title`, `notes`, `due`, `completed`, `labels`, `bucket`,
             `parent`. A column not mapped and not named like a field is ignored.
+        dry_run:
+          type: boolean
+          default: false
+          description: >
+            Read and plan only: the job converts the file and decides every record as the import
+            would, and writes nothing but its own report. The file is kept, so that the same
+            `media_id` can be imported for real afterwards.
 
     ImportRun:
       type: object
@@ -38247,13 +38254,18 @@ components:
           format: uuid
           description: The collection the entries landed in, or null where the import created collections.
         media_id: { type: string, format: uuid }
+        dry_run:
+          type: boolean
+          description: A run that only planned; its report is what the import would do.
         status:
           type: string
           enum: [PENDING, RUNNING, SUCCEEDED, FAILED]
         report:
           allOf:
             - $ref: "#/components/schemas/RestoreReport"
-          description: What landed, in the restore's shape; absent until the job has run.
+          description: >
+            What landed - or, on a dry run, what would - in the restore's shape; absent until the
+            job has run.
         refused:
           type: array
           description: >

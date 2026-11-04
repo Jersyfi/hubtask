@@ -573,3 +573,38 @@ func TestASecondFileUnderATakenNameIsRefusedWithACode(t *testing.T) {
 		t.Error("the epoch stood and the second file went")
 	}
 }
+
+func TestADryRunReportsWhatTheImportWouldDoAndChangesNothing(t *testing.T) {
+	run, queued := newRuns(), &jobs{}
+	h := acceptor(&authorizer{}, run, readyObject(), work.Container{ID: hubID, Type: work.ContainerHub}, queued)
+	if _, err := h.Descriptor().Handler.Invoke(context.Background(), actor(), usecase.Input{
+		"media_id": mediaID.String(), "kind": "CSV", "hub_id": hubID.String(), "dry_run": true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !run.rows[runID].DryRun {
+		t.Fatalf("the run is accepted as a dry run: %+v", run.rows[runID])
+	}
+
+	object := readyObject()
+	r, landed, stored, epoch := runner(run, object, map[string][]byte{object.StorageKey: []byte("one\n@two\nbad three\n")}, converter{})
+	if err := r.Run(context.Background(), importer.RunInput{ImportID: runID, TenantID: tenantID}); err != nil {
+		t.Fatal(err)
+	}
+	planned := run.rows[runID]
+	if planned.Status != domain.StatusSucceeded || planned.Report.New != 3 || planned.Report.Entities["work_items"] != 2 {
+		t.Fatalf("the dry run reports what the import would do: %+v", planned)
+	}
+	if len(planned.Refused) != 1 {
+		t.Errorf("a row the converter refuses is reported by the dry run too: %+v", planned.Refused)
+	}
+	if len(landed.rows["work_item"]) != 0 || len(landed.rows["container"]) != 1 {
+		t.Errorf("a dry run writes nothing: %v", landed.rows)
+	}
+	if len(stored.deleted) != 0 {
+		t.Error("the file is kept, so that the same media_id can be imported afterwards")
+	}
+	if epoch.advanced != 0 {
+		t.Error("nothing was written, so no device has to resynchronise")
+	}
+}

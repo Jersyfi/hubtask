@@ -79,6 +79,23 @@ func TestAnImportRunIsWrittenAndReadBackWhole(t *testing.T) {
 	if found.FinishedAt == nil || found.StartedAt == nil {
 		t.Errorf("the stamps did not travel: %+v", found)
 	}
+	if found.DryRun {
+		t.Error("a run accepted without dry_run is a real one")
+	}
+	dry, planned := freshID(t), importRunIn(tenantA, freshID(t), hub, mediaID)
+	planned.ID, planned.DryRun = dry, true
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := importRunRepo().Insert(ctx, planned); err != nil {
+			return err
+		}
+		found, err := importRunRepo().Find(ctx, dry)
+		if err == nil && !found.DryRun {
+			t.Error("a dry run is read back as one")
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("dry run: %v", err)
+	}
 	// A finished run refuses a second outcome.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return importRunRepo().Finish(ctx, domain.Outcome{ID: id, Status: domain.StatusFailed, FinishedAt: created})

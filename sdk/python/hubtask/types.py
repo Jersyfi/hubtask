@@ -5216,6 +5216,7 @@ class ImportRequest(TypedDict, total=False):
     hub_id: Required[str]
     collection_id: str
     mapping: dict[str, Any]
+    dry_run: bool
 
 class ImportRun(TypedDict, total=False):
     id: Required[str]
@@ -5223,6 +5224,7 @@ class ImportRun(TypedDict, total=False):
     hub_id: Required[str]
     collection_id: str | None
     media_id: str
+    dry_run: bool
     status: Required[Literal["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]]
     report: "RestoreReport"
     refused: list[dict[str, Any]]

@@ -94,7 +94,10 @@ type Run struct {
 	// entry without a language are read in.
 	Zone     string
 	Language string
-	Status   Status
+	// DryRun is a run that only plans: it converts and decides every record, writes nothing but
+	// its own report, and keeps the file for the import that follows.
+	DryRun bool
+	Status Status
 	// Report is what the applier did, in the restore's shape, once the job has run.
 	Report backup.Report
 	// Refused is what the converter could not read, by row.

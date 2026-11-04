@@ -259,7 +259,7 @@ func (r Runner) perform(
 			return r.Runs.RecordProgress(ctx, run.ID, report, decided)
 		},
 		Resume: backupdomain.Restore{Progress: run.Progress, Report: run.Report},
-		Report: in.Report,
+		Report: in.Report, DryRun: run.DryRun,
 	})
 	if err != nil && shared.AsError(err).DetailCode == "containers.name_taken" {
 		// A collection the file would create meets one the hub already holds, by name. The run's
@@ -282,7 +282,9 @@ func (r Runner) perform(
 }
 
 // finish records the outcome, advances the epoch on success, and marks the file for deletion
-// either way - a file somebody imported is not a file they attached.
+// either way - a file somebody imported is not a file they attached. A dry run wrote nothing and
+// keeps the file for the import it previews; one never imported is the media sweep's, as any
+// object nothing references.
 func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.Run, report backupdomain.Report, refused []domain.Refusal, applied error) error {
 	status := domain.StatusSucceeded
 	code := ""
@@ -295,6 +297,9 @@ func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.
 			ID: run.ID, Status: status, Report: report, Refused: refused, ErrorCode: code, FinishedAt: r.Clock.Now(),
 		}); err != nil {
 			return err
+		}
+		if run.DryRun {
+			return nil
 		}
 		if _, err := r.Objects.MarkDeleted(ctx, run.MediaID, r.Clock.Now()); err != nil && !errors.Is(err, shared.ErrNotFound) {
 			return err

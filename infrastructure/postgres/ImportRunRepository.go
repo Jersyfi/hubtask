@@ -60,7 +60,7 @@ func (r ImportRunRepository) Insert(ctx context.Context, run domain.Run) error {
 	}
 	err = queries.InsertImportRun(ctx, sqlc.InsertImportRunParams{
 		ID: id, RequestedBy: requestedBy, Kind: string(run.Kind), MediaID: mediaID, HubID: hubID, CollectionID: collectionID, Mapping: mapping,
-		TimeZone: optionalText(run.Zone), Language: optionalText(run.Language),
+		TimeZone: optionalText(run.Zone), Language: optionalText(run.Language), DryRun: run.DryRun,
 	})
 	if err != nil {
 		return shared.ErrUnavailable.WithDetail("postgres.query_failed").
@@ -231,7 +231,7 @@ func importRunFrom(row sqlc.ImportRun) (domain.Run, error) {
 	}
 	run := domain.Run{
 		ID: id, TenantID: tenantID, RequestedBy: requestedBy, Kind: domain.Kind(row.Kind),
-		MediaID: mediaID, HubID: hubID, CollectionID: collectionID, Status: domain.Status(row.Status), Report: report,
+		MediaID: mediaID, HubID: hubID, CollectionID: collectionID, DryRun: row.DryRun, Status: domain.Status(row.Status), Report: report,
 		Progress: progress, CreatedAt: row.CreatedAt.Time,
 		StartedAt: optionalTime(row.StartedAt), FinishedAt: optionalTime(row.FinishedAt),
 	}

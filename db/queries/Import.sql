@@ -6,18 +6,19 @@
 -- started, and a caller polling `result_url` sees that rather than a 404.
 INSERT INTO import_run (
   id, tenant_id, requested_by, kind, media_id, hub_id, collection_id, mapping, time_zone, language,
-  status
+  status, dry_run
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('requested_by'), sqlc.arg('kind'),
   sqlc.arg('media_id'), sqlc.arg('hub_id'), sqlc.narg('collection_id'), sqlc.narg('mapping'),
-  sqlc.narg('time_zone'), sqlc.narg('language'), 'PENDING'
+  sqlc.narg('time_zone'), sqlc.narg('language'), 'PENDING', sqlc.arg('dry_run')
 );
 
 -- name: FindImportRun :one
--- The columns in the table's order, collection_id last as migration 0200 added it, so that the
--- row is the table's model.
+-- The columns in the table's order - collection_id and dry_run last, as migrations 0200 and 0358
+-- added them - so that the row is the table's model.
 SELECT id, tenant_id, requested_by, kind, media_id, hub_id, mapping, time_zone, language, status,
-       report, refused, progress, error_code, created_at, started_at, finished_at, collection_id
+       report, refused, progress, error_code, created_at, started_at, finished_at, collection_id,
+       dry_run
 FROM import_run
 WHERE id = sqlc.arg('id');
 
