@@ -550,6 +550,16 @@ path alone); an internal reference renders as its target's title without a link,
 where the target is itself public. The *Publish* dialog shows a preview of the public page and
 lists what will not appear publicly.
 
+As built: an empty space offers the three space templates and a blank page as cards, one press
+each; the space's address goes on to its first top page that is no template. The head's row is
+the title, who else writes in the live document (readers open no live connection, so they are not
+counted), *Comments*, *Share* and the page's menu (new subpage, copy, move, history, links here,
+details, the trash last); the side sheet is closed until one of them opens it. On a narrow screen
+an open page comes first and the tree folds above it. A link to another page shows that page's
+title only, without a link, because a link's token is kept as a hash and cannot be written into
+another page; the preview counts what the body names rather than drawing the public document.
+A portal article leaves every internal address out of what a requester reads.
+
 ### 7.2 Whiteboards
 
 A **full-bleed canvas**. One compact floating tool bar of icon buttons (with tooltips and names)
