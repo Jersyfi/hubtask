@@ -124,8 +124,8 @@ test('a held act is approved at Today\'s row only where it can be undone', () =>
   ];
   const agents = [{ id: 'a1', name: 'Request sorter', owner_id: 'me' }, { id: 'a2', name: 'Duplicate finder', owner_id: 'other' }];
   assert.deepEqual(heldActRows(acts, agents, 'me', true), [
-    { id: 'r1', name: 'Request sorter', at: '2026-11-03T08:00:00Z', mayApproveHere: true, path: '/profile/agents?tab=requests' },
-    { id: 'r2', name: 'Duplicate finder', at: '2026-11-03T09:00:00Z', mayApproveHere: false, path: '/administration/agents?tab=requests' },
+    { id: 'r1', name: 'Request sorter', at: '2026-11-03T08:00:00Z', mayApproveHere: true, path: '/agents?tab=requests&agent=a1' },
+    { id: 'r2', name: 'Duplicate finder', at: '2026-11-03T09:00:00Z', mayApproveHere: false, path: '/agents?tab=requests&agent=a2' },
   ]);
   assert.deepEqual(heldActRows(acts, [], 'me', false).map((row) => [row.name, row.path]), [['', undefined], ['', undefined]], 'an agent not read yet has no name and no way there');
   assert.deepEqual(heldActRows(undefined, agents, 'me', true), []);

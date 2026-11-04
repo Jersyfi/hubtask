@@ -21,16 +21,14 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { agentRows, homeTabs, recentRuns, hubScreenOf, inventorySummary, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { homeTabs, hubScreenOf, inventorySummary, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
-  import { agentJobsPath, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
-  import { heldActRows } from '../lib/today.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { AgentJobList, AgentList, AgentRequestList, CmdbHealth, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CmdbHealth, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
   import { healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
@@ -122,46 +120,6 @@
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
   const hubName = (id: string) => containers.find(id)?.name ?? '';
 
-  /** The agents' home lists the agents working here that the reader may see (§2.2). */
-  let agentList = $state<AgentList['data'] | undefined>(undefined);
-  $effect(() => {
-    if (module !== 'AGENTS') return;
-    return untrack(() => engine.subscribe<AgentList>({ path: agentsPath }, (next) => {
-      if (next.status === 'ready') agentList = next.data.data;
-    }));
-  });
-  const workingAgents = $derived(agentList ? agentRows(agentList, actor.account?.id, reachesAdministrationArea() === true) : []);
-  /** Their held acts (§2.2): only those the reader may decide are answered, each to its preview. */
-  let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
-  $effect(() => {
-    if (module !== 'AGENTS') return;
-    return untrack(() => engine.subscribe<AgentRequestList>({ path: requestsPath('PENDING') }, (next) => {
-      if (next.status === 'ready') heldActs = next.data.data;
-    }));
-  });
-  const heldRows = $derived(heldActRows(heldActs, agentList ?? [], actor.account?.id, reachesAdministrationArea() === true));
-  /**
-   * Their recent runs (§2.2), read for the agents the reader acts on - their own, or any where
-   * they administer agents - since only those may read an agent's jobs; at most ten agents asked.
-   */
-  const RUNS_SHOWN = 8;
-  const runAgentKey = $derived(workingAgents.filter((row) => row.path !== undefined).slice(0, 10).map((row) => row.agent.id).join(','));
-  let jobsAt = $state<Record<string, AgentJobList['data']>>({});
-  $effect(() => {
-    const ids = runAgentKey === '' ? [] : runAgentKey.split(',');
-    return untrack(() => {
-      const stops = ids.map((agentId) => engine.subscribe<AgentJobList>({ path: agentJobsPath(agentId) }, (next) => {
-        if (next.status === 'ready') jobsAt = { ...jobsAt, [agentId]: next.data.data };
-      }));
-      return () => stops.forEach((stop) => stop());
-    });
-  });
-  const runs = $derived(recentRuns(jobsAt, runAgentKey === '' ? [] : runAgentKey.split(','), RUNS_SHOWN));
-  const agentNamed = (id: string) => agentList?.find((agent) => agent.id === id)?.name ?? '';
-  const runPath = (agentId: string) => workingAgents.find((row) => row.agent.id === agentId)?.path;
-  const runTone = (status: string) => (status === 'FAILED' ? 'danger' : status === 'RUNNING' ? 'info' : 'neutral');
-  const agentTone = (status: string) => (status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'warning' : 'neutral');
-
   const doors = $derived(productDoors(module, { isAdministrationReachable: reachesAdministrationArea() === true }));
   const creation = $derived(hubCreationHere());
   const mayCreateHub = $derived(creation === 'shared' || creation === 'private');
@@ -207,64 +165,6 @@
       </ul>
     {/if}
 
-    {#if workingAgents.length > 0}
-      <section aria-labelledby="product-agents">
-        <Stack gap="100">
-          <h2 class="heading" id="product-agents">{t('app.product_home.agents_working')}</h2>
-          <ul class="hubs">
-            {#each workingAgents as row (row.agent.id)}
-              <li>
-                <ListRow href={row.path} onactivate={row.path ? () => onnavigate(row.path ?? '/') : undefined} label={row.agent.name}>
-                  {#snippet leading()}<Icon name="zap" size="sm" />{/snippet}
-                  <span class="name" title={row.agent.name}>{row.agent.name}</span>
-                  {#if row.agent.purpose}<span class="purpose">{row.agent.purpose}</span>{/if}
-                  {#snippet trailing()}<Badge tone={agentTone(row.agent.status)} size="sm">{t(`app.agents.status.${row.agent.status}`)}</Badge>{/snippet}
-                </ListRow>
-              </li>
-            {/each}
-          </ul>
-        </Stack>
-      </section>
-    {/if}
-    {#if heldRows.length > 0}
-      <section aria-labelledby="product-held">
-        <Stack gap="100">
-          <h2 class="heading" id="product-held">{t('app.today.approvals')}</h2>
-          <ul class="hubs">
-            {#each heldRows as act (act.id)}
-              {@const label = t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}
-              <li>
-                <ListRow href={act.path} onactivate={act.path ? () => onnavigate(act.path ?? '/') : undefined} {label}>
-                  {#snippet leading()}<Icon name="zap" size="sm" />{/snippet}
-                  <span class="name" title={label}>{label}</span>
-                  <span class="purpose">{formatRelative(act.at, messages.locale)}</span>
-                </ListRow>
-              </li>
-            {/each}
-          </ul>
-        </Stack>
-      </section>
-    {/if}
-    {#if runs.length > 0}
-      <section aria-labelledby="product-runs">
-        <Stack gap="100">
-          <h2 class="heading" id="product-runs">{t('app.product_home.agents_runs')}</h2>
-          <ul class="hubs">
-            {#each runs as run (run.id)}
-              {@const path = runPath(run.agent_id)}
-              <li>
-                <ListRow href={path} onactivate={path ? () => onnavigate(path) : undefined} label={agentNamed(run.agent_id)}>
-                  {#snippet leading()}<Icon name="zap" size="sm" />{/snippet}
-                  <span class="name" title={agentNamed(run.agent_id)}>{agentNamed(run.agent_id)}</span>
-                  <span class="purpose">{formatRelative(run.started_at, messages.locale)}</span>
-                  {#snippet trailing()}<Badge tone={runTone(run.status)} size="sm">{t(`app.agents.job_status.${run.status}`)}</Badge>{/snippet}
-                </ListRow>
-              </li>
-            {/each}
-          </ul>
-        </Stack>
-      </section>
-    {/if}
     {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0}
       <section aria-labelledby="product-inventory" aria-busy={!inventory.isWhole}>
         <Stack gap="100">

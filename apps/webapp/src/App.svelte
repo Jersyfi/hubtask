@@ -476,9 +476,9 @@
   {:else if route.name === 'time-settings'}
     <LazyView load={views.TimeSettingsView} />
   {:else if route.name === 'agents'}
-    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
+    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'own-agents'}
-    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
+    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'cmdb'}
     <LazyView load={views.CmdbView} />
   {:else if route.name === 'changes'}
@@ -530,6 +530,9 @@
     <LazyView load={views.ProductHomeView} props={{ module: 'KNOWLEDGE', tab: 'notes', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'desk-desks' || route.name === 'desk-settings'}
     <LazyView load={views.ProductHomeView} props={{ module: 'SERVICE_DESK', tab: route.name === 'desk-desks' ? 'desks' : 'settings', onnavigate: (path: string) => router.navigate(path) }} />
+  {:else if route.name === 'agents-home'}
+    <!-- The agents' home is their one screen (user-experience.md §7.8), at the product's address. -->
+    <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/agents', onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name && PRODUCT_HOMES[route.name]}
     <LazyView load={views.ProductHomeView} props={{ module: PRODUCT_HOMES[route.name], onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal'}

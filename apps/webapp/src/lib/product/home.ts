@@ -34,6 +34,15 @@ export function homeTabs(module: string): readonly HomeTab[] {
       { id: 'settings', code: 'app.product_home.tab_settings', path: '/desk/settings' },
     ];
   }
+  if (module === 'AGENTS') {
+    // The agents' one screen (§7.8): the cards, their held acts, their runs, then their settings.
+    return [
+      { id: 'agents', code: 'app.agents.tab_agents', path: '/agents' },
+      { id: 'requests', code: 'app.agents.tab_requests', path: '/agents?tab=requests' },
+      { id: 'runs', code: 'app.agents.tab_runs', path: '/agents?tab=runs' },
+      { id: 'settings', code: 'app.product_home.tab_settings', path: '/agents?tab=settings' },
+    ];
+  }
   if (module === 'KNOWLEDGE') {
     return [
       { id: 'spaces', code: 'app.product_home.tab_spaces', path: '/pages' },
@@ -74,13 +83,6 @@ export function productDoors(module: string, options: { readonly isAdministratio
       return options.isAdministrationReachable
         ? [{ id: 'settings', code: 'app.product_home.cmdb_settings', icon: 'settings', path: '/administration/configuration-items' }]
         : [];
-    case 'AGENTS':
-      return [
-        { id: 'mine', code: 'app.product_home.agents_mine', icon: 'user', path: '/profile/agents' },
-        ...(options.isAdministrationReachable
-          ? [{ id: 'all', code: 'app.product_home.agents_all', icon: 'zap' as const, path: '/administration/agents' }]
-          : []),
-      ];
     default:
       return [];
   }
@@ -112,29 +114,7 @@ export function recentBoards<B extends { readonly hub_id: string; readonly updat
     .slice(0, limit);
 }
 
-const AGENT_ORDER: Readonly<Record<string, number>> = { ACTIVE: 0, APPROVED: 1, SUSPENDED: 2, DRAFT: 3 };
-
-/**
- * The agents working here (§2.2), live ones first, each with the screen the reader may act on it
- * from: their own on *Agents acting for you*, anybody's in the administration where the reader
- * reaches it, and none otherwise. A retired agent works nowhere and is left out.
- */
-export function agentRows<A extends { readonly status: string; readonly owner_id: string | null }>(
-  list: readonly A[],
-  viewerId: string | undefined,
-  isAdministrationReachable: boolean,
-): { readonly agent: A; readonly path: string | undefined }[] {
-  return list
-    .filter((agent) => agent.status !== 'RETIRED')
-    .map((agent, index) => ({ agent, index }))
-    .sort((a, b) => (AGENT_ORDER[a.agent.status] ?? 9) - (AGENT_ORDER[b.agent.status] ?? 9) || a.index - b.index)
-    .map(({ agent }) => ({
-      agent,
-      path: viewerId !== undefined && agent.owner_id === viewerId ? '/profile/agents' : isAdministrationReachable ? '/administration/agents' : undefined,
-    }));
-}
-
-/** The agents' recent runs (§2.2), the newest first across the agents listed, at most `limit`. */
+/** The agents' recent runs (§7.8), the newest first across the agents listed, at most `limit`. */
 export function recentRuns<J extends { readonly started_at: string }>(
   jobsAt: Readonly<Record<string, readonly J[]>>,
   agentIds: readonly string[],

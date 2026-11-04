@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/catalogue.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { agentRows, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from './home.ts';
+import { recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, productDoors, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -17,7 +17,7 @@ test('every product home has a way in, and every address it offers is a route', 
     if (row.module === 'TIME' || row.module === 'GOALS') continue; // their own pages are the home
     const doors = productDoors(row.module, { isAdministrationReachable: true });
     const hub = hubScreenOf(row.module, '01a0e2e0-0000-7000-8000-000000000002');
-    assert.ok(doors.length > 0 || hub !== undefined, `${row.module}'s home leads nowhere`);
+    assert.ok(doors.length > 0 || hub !== undefined || homeTabs(row.module).length > 0, `${row.module}'s home leads nowhere`);
     for (const path of [...doors.map((door) => door.path), ...(hub ? [hub] : []), ...homeTabs(row.module).map((tab) => tab.path)]) {
       assert.ok(resolve(ROUTES, path).name, `${row.module} offers ${path}, which is no route`);
     }
@@ -45,6 +45,12 @@ test('the desk home holds its queues, its desks and its settings, settings last'
   assert.deepEqual(productDoors('SERVICE_DESK', { isAdministrationReachable: true }), []);
 });
 
+// user-experience.md §5.1, §7.8: the agents' screen is Agents · Waiting · Runs · Settings, Settings last.
+test('the agents home holds the agents, their held acts, their runs and their settings, settings last', () => {
+  assert.deepEqual(homeTabs('AGENTS').map((tab) => tab.id), ['agents', 'requests', 'runs', 'settings']);
+  assert.deepEqual(productDoors('AGENTS', { isAdministrationReachable: true }), []);
+});
+
 // user-experience.md §3.3: the switched-off products are offered to whoever may switch one on, and
 // to nobody else; nothing while the manifest is unread.
 test('More in Hubtask lists the products that are off, for a holder of STRUCTURE only', () => {
@@ -66,20 +72,6 @@ test('the boards of every hub are one list, the last changed first, cut where th
   // A hub the module is off at is not listed, even where an earlier answer is still held.
   assert.deepEqual(recentBoards(lists, ['h1'], 10).map((each) => each.id), ['a', 'b']);
   assert.deepEqual(recentBoards({}, ['h1'], 10), []);
-});
-
-// §2.2: the agents' home lists the agents working here that the reader may see, each leading to
-// the screen where the reader may act on it; a retired agent works nowhere and is not listed.
-test('the agents working here, live first, each with the screen the reader reaches it on', () => {
-  const agent = (id: string, status: string, owner: string) => ({ id, name: id, purpose: '', status, owner_id: owner });
-  const list = [agent('old', 'RETIRED', 'me'), agent('draft', 'DRAFT', 'other'), agent('live', 'ACTIVE', 'me'), agent('stopped', 'SUSPENDED', 'other')];
-  assert.deepEqual(agentRows(list, 'me', true).map((row) => [row.agent.id, row.path]), [
-    ['live', '/profile/agents'], ['stopped', '/administration/agents'], ['draft', '/administration/agents'],
-  ]);
-  // Without the administration, somebody else's agent is shown but leads nowhere.
-  assert.deepEqual(agentRows(list, 'me', false).map((row) => [row.agent.id, row.path]), [
-    ['live', '/profile/agents'], ['stopped', undefined], ['draft', undefined],
-  ]);
 });
 
 // §2.2: the pages' home lists recently changed pages across hubs - the space's content only - and

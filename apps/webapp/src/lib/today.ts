@@ -150,8 +150,9 @@ export interface HeldActRow {
 
 /**
  * The agents' acts waiting for the reader (`GET /agent-requests` answers only those the reader
- * may decide), each leading to the screen that shows its preview: the reader's own agents on
- * *Agents acting for you*, anybody's in the administration where the reader reaches it.
+ * may decide), each leading to the agents' held acts narrowed to its agent (user-experience.md
+ * §7.8) where the reader may decide it: their own agent's, or anybody's where they reach the
+ * administration.
  */
 export function heldActRows(
   acts: readonly { readonly id: string; readonly agent_id: string; readonly class: string; readonly status: string; readonly created_at: string }[] | undefined,
@@ -170,7 +171,7 @@ export function heldActRows(
         name: agent?.name ?? '',
         at: act.created_at,
         mayApproveHere: act.class === 'REVERSIBLE',
-        path: isOwn ? '/profile/agents?tab=requests' : isAdministrationReachable ? '/administration/agents?tab=requests' : undefined,
+        path: isOwn || isAdministrationReachable ? `/agents?tab=requests&agent=${encodeURIComponent(act.agent_id)}` : undefined,
       };
     });
 }
