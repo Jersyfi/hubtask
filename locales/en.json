@@ -11502,6 +11502,7 @@
   "app.time_settings.visibility_AGGREGATED": "Only sums for a team",
   "app.time_settings.visibility_AGGREGATED_hint": "Reports name nobody and leave out groups of fewer than three people; a week is read only while it waits for a decision.",
   "app.time_settings.save": "Save",
+  "app.time_settings.saving": "Saving",
   "app.time_settings.policy_saved": "Time policy saved.",
   "app.time_settings.kinds": "Kinds of work",
   "app.time_settings.no_kinds": "No kind of work yet.",

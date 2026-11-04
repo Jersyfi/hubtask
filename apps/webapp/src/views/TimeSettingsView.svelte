@@ -31,6 +31,7 @@
   import SettingControl from '../lib/settings/SettingControl.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
 
   /** Drawn as the time home's *Settings* tab (user-experience.md §8.2), under the home's own head. */
   const { isEmbedded = false }: { isEmbedded?: boolean } = $props();
@@ -83,13 +84,29 @@
   $effect(() => untrack(() => settingsCatalogue.read((next) => {
     if (next.status === 'ready') definitions = Object.fromEntries(next.data.settings.map((each) => [each.key, each]));
   })));
-  const isPolicyChanged = $derived(policy !== undefined && ((policy.locked_through ?? '') !== draft.lockedThrough || policy.visibility !== draft.visibility));
+  // The save bar's count and the leave guard's (user-experience.md §5.4).
+  const changes = $derived(policy === undefined ? 0
+    : [(policy.locked_through ?? '') !== draft.lockedThrough, policy.visibility !== draft.visibility].filter(Boolean).length);
+  let isSaving = $state(false);
   // A press with nothing changed writes nothing (UC-WRK-32 check 3: the save is never unavailable for it).
-  function savePolicy() {
+  async function savePolicy() {
     const read = policy;
-    if (!read || !isPolicyChanged) return;
-    void act(() => time.setPolicy(read, { locked_through: draft.lockedThrough || null, visibility: draft.visibility === 'AGGREGATED' ? 'AGGREGATED' : 'FULL' }), t('app.time_settings.policy_saved'));
+    if (!read || changes === 0 || isSaving) return;
+    isSaving = true;
+    await act(() => time.setPolicy(read, { locked_through: draft.lockedThrough || null, visibility: draft.visibility === 'AGGREGATED' ? 'AGGREGATED' : 'FULL' }), t('app.time_settings.policy_saved'));
+    isSaving = false;
   }
+  function discardPolicy() {
+    const read = policy;
+    if (!read) return;
+    draft.lockedThrough = read.locked_through ?? '';
+    draft.visibility = read.visibility;
+  }
+  const sections = $derived([
+    { id: 'time-part-policy', label: t('app.time_settings.policy') },
+    { id: 'time-part-kinds', label: t('app.time_settings.kinds') },
+    ...(mayCost ? [{ id: 'time-part-rates', label: t('app.rates.title') }] : []),
+  ]);
 
   // --- The kinds of work --------------------------------------------------------------------------
 
@@ -169,7 +186,13 @@
   {:else if !policy || !kinds}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
-    <section class="block" aria-labelledby="time-policy">
+    <SettingsPage
+      label={t('app.settings_page.sections', { name: t('app.time_settings.title') })}
+      {sections}
+      {changes}
+      save={mayLock ? { label: t('app.time_settings.save'), savingLabel: t('app.time_settings.saving'), isSaving, onSave: () => void savePolicy(), onDiscard: discardPolicy } : undefined}
+    >
+    <section id="time-part-policy" class="block" aria-labelledby="time-policy">
       <h2 id="time-policy" class="heading">{t('app.time_settings.policy')}</h2>
       {#if mayLock}
         {#if definitions['time.locked_through']}
@@ -180,14 +203,13 @@
           <SettingControl definition={definitions['time.visibility']} cell={{ ...partOf(policy, 'time.visibility'), value: policy.visibility }}
             value={draft.visibility} holds={() => mayLock} onchange={(next) => (draft.visibility = String(next))} />
         {/if}
-        <Inline justify="end"><Button onclick={savePolicy}>{t('app.time_settings.save')}</Button></Inline>
       {:else}
         <p>{policy.locked_through ? t('app.time_settings.locked_until', { day: policy.locked_through }) : t('app.time_settings.nothing_locked')}</p>
         <p>{t(`app.time_settings.visibility_${policy.visibility}`)}</p>
       {/if}
     </section>
 
-    <section class="block" aria-labelledby="time-kinds">
+    <section id="time-part-kinds" class="block" aria-labelledby="time-kinds">
       <h2 id="time-kinds" class="heading">{t('app.time_settings.kinds')}</h2>
       <Table label={t('app.time_settings.kinds')} isLabelHidden {columns}>
         {#snippet empty()}{t('app.time_settings.no_kinds')}{/snippet}
@@ -213,6 +235,7 @@
     </section>
 
     {#if mayCost}<CostRates />{/if}
+    </SettingsPage>
   {/if}
 </Stack>
 

@@ -11,9 +11,10 @@
   // page lists the definitions and offers no control.
 
   import {
-    Banner, Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs, Textarea,
+    Banner, Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Textarea,
     type SelectOption,
   } from '@hubtask/design-system/components';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import type {
     CiAttribute, CiClass, CiClassList, CiRelationType, CiRelationTypeList, CiSource, CiSourceDefine, CiSourceList, SoftwareAlias, SoftwareAliasList,
   } from '@hubtask/sync-engine';
@@ -262,7 +263,8 @@
   {:else if classesRead.state.status !== 'ready'}
     <Spinner label={t('app.assets.loading')} />
   {:else}
-    <Tabs label={t('app.cmdb_admin.title')} {tabs} bind:selected={shown}>
+    <!-- Every change here is a dialog's own save, so the shell holds nothing unsaved. -->
+    <SettingsPage label={t('app.settings_page.sections', { name: t('app.cmdb_admin.title') })} sections={tabs} selected={shown} onselect={(id) => (shown = id)}>
       {#if shown === 'classes'}
         <Stack gap="100">
           <p class="meta">{t('app.cmdb_admin.classes_hint')}</p>
@@ -358,7 +360,7 @@
           </ul>
         </Stack>
       {/if}
-    </Tabs>
+    </SettingsPage>
   {/if}
 </Stack>
 

@@ -87,7 +87,7 @@
   }
 </script>
 
-<section class="block" aria-labelledby="time-rates">
+<section id="time-part-rates" class="block" aria-labelledby="time-rates">
   <Inline justify="between">
     <h2 id="time-rates" class="heading">{t('app.rates.title')}</h2>
     <Button size="sm" tone="subtle" icon="plus" onclick={() => open(undefined)}>{t('app.rates.add')}</Button>
