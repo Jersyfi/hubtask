@@ -191,6 +191,8 @@ test('the invitation card asks for the agreement and sends the terms with either
     const redeemed = sent.find((each) => each.path === '/auth/invitations:redeem');
     assert.equal(redeemed?.body.terms_url, TERMS_URL);
     assert.equal(redeemed?.body.terms_version, '3');
+    // And the card's language, which names a new workspace's defaults for its owner.
+    assert.equal(redeemed?.body.locale, 'en');
   } finally {
     await done();
   }

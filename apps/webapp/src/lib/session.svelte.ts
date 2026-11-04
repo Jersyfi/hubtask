@@ -502,7 +502,13 @@ class Session {
       ? { terms_url: terms.url, ...(terms.version ? { terms_version: terms.version } : {}) }
       : {};
     return this.#open(() =>
-      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', REDEEM, { token, password, ...agreed }),
+      // The card's language: the owner a workspace was made for finds its defaults named in it.
+      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', REDEEM, {
+        token,
+        password,
+        locale: messages.locale,
+        ...agreed,
+      }),
     );
   }
 
