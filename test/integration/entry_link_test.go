@@ -116,6 +116,24 @@ func TestAWorkspacesLinksAreItsOwn(t *testing.T) {
 		}
 		return nil
 	})
+	// A summary carries the entry's status: the sprint board's In progress lane reads it.
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE work_item SET status = 'in_progress' WHERE id = $1`, one.String()); err != nil {
+		t.Fatalf("setting one's status: %v", err)
+	}
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		summaries, err := links.Entries(ctx, []shared.ID{one, two})
+		if err != nil {
+			t.Fatalf("the summaries: %v", err)
+		}
+		statuses := map[shared.ID]string{}
+		for _, summary := range summaries {
+			statuses[summary.ID] = summary.Status
+		}
+		if statuses[one] != "in_progress" || statuses[two] != "" {
+			t.Errorf("the summaries' statuses: %v", statuses)
+		}
+		return nil
+	})
 
 	// The texts that point: the notes of one mention two as a card, a comment on three mentions two.
 	admin := adminPool(ctx, t)
