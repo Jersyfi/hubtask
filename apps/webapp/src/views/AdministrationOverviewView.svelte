@@ -13,6 +13,7 @@
   // **Nothing here writes.** Every card is a reading and a link, so an auditor sees the same
   // overview an administrator does, read-only by construction.
 
+  import { featureNameCode } from '../lib/instance/health.ts';
   import { untrack } from 'svelte';
 
   import { Badge, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
@@ -400,7 +401,7 @@
               {#each degraded as degradation (degradation.feature)}
                 {@const where = pageOfFeature(degradation.feature)}
                 <li>
-                  <span>{t('app.health.feature', { feature: degradation.feature, reason: t(degradation.reasonCode) })}</span>
+                  <span>{t('app.health.feature', { feature: featureNameCode(degradation.feature) ? t(featureNameCode(degradation.feature)!) : degradation.feature, reason: t(degradation.reasonCode) })}</span>
                   {#if where}<a href={where}>{t('app.admin_overview.open_feature')}</a>{/if}
                 </li>
               {/each}

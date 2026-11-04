@@ -176,15 +176,62 @@ test('chromium: only an installation of many counts suspended and deleted worksp
   assert.match(multi, /Being deleted/);
 });
 
-// The places this level holds open name only what is not built yet: the installation's backup
-// targets have their own screen, so the overview must not promise them as "later".
-test('chromium: the overview does not promise backup targets as later', async (t) => {
+// user-experience.md §8.4: a degraded feature is said by its name with its reason and since when,
+// the schema as the Upgrade row's state, and a backlog above its alert's line in the warning tone.
+// The section that promised later screens is gone.
+test('chromium: the health report is said in words, with the upgrade row and the backlogs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
+  const since = new Date(Date.now() - 2 * 3_600_000).toISOString();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/admin/overview') return route.fulfill({ json: census(0) });
+    if (path === '/meta/health') {
+      return route.fulfill({ json: {
+        status: 'degraded', version: '1.4.0',
+        degraded_features: [
+          { feature: 'semantic_search', reason_code: 'dependency.unavailable', since },
+          { feature: 'media', reason_code: 'dependency.unavailable', since },
+        ],
+        migration: { applied: 140, expected: 141, status: 'behind' },
+        backlogs: { sampled_at: new Date().toISOString(), dead_letter_total: 3, outbox_lag_seconds: 4, job_queue_depth: 12, webhook_retry_backlog: 0 },
+      } });
+    }
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/instance`);
+  const degraded = page.locator('[data-degraded]');
+  await degraded.waitFor({ timeout: 15_000 });
+  const lines = await degraded.locator('li').allTextContents();
+  assert.match(lines[0], /Search by meaning/);
+  assert.match(lines[0], /cannot be reached at the moment/);
+  assert.match(lines[0], /since 2 hours ago/);
+  assert.doesNotMatch(lines.join(' '), /semantic_search/);
+  // Search by meaning is changed on the installation's AI screen; files and images have no screen.
+  assert.equal(await degraded.locator('li').nth(0).getByRole('button', { name: 'Open its settings' }).count(), 1);
+  assert.equal(await degraded.locator('li').nth(1).getByRole('button').count(), 0);
 
-  const text = await overview(browser, 0);
-  assert.match(text, /What this level will hold/);
-  assert.doesNotMatch(text, /Backup targets the installation offers/);
+  const upgrade = await page.locator('[data-upgrade]').textContent();
+  assert.match(upgrade ?? '', /Version 1\.4\.0/);
+  assert.match(upgrade ?? '', /waiting for a migration/);
+
+  assert.equal(await page.locator('[data-backlog="dead_letters"]').getAttribute('data-tone'), 'warning');
+  assert.equal(await page.locator('[data-backlog="outbox_lag"]').getAttribute('data-tone'), null);
+  assert.equal(await page.locator('[data-backlog="job_queue"]').getAttribute('data-tone'), null);
+  const text = await page.locator('main').textContent() ?? '';
+  assert.doesNotMatch(text, /What this level will hold/);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
 });
 
 /** The installation's screens, and the word each puts at the end of its trail. */

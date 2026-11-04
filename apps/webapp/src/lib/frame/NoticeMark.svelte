@@ -24,6 +24,7 @@
   // A notice about **the page** - a refused write, a check's findings - stays where `PageHeader`
   // draws it. This is for what is true wherever the reader stands.
 
+  import { featureNameCode } from '../instance/health.ts';
   import { Button, Drawer, IconButton, Popover, Stack } from '@hubtask/design-system/components';
 
   import { viewport } from './viewport.svelte.ts';
@@ -126,7 +127,7 @@
           <Stack gap="050">
             <h3 class="heading">{t('app.health.title')}</h3>
             {#each health.degradations as degradation (degradation.feature)}
-              <p class="line">{t('app.health.feature', { feature: degradation.feature, reason: t(degradation.reasonCode) })}</p>
+              <p class="line">{t('app.health.feature', { feature: featureNameCode(degradation.feature) ? t(featureNameCode(degradation.feature)!) : degradation.feature, reason: t(degradation.reasonCode) })}</p>
             {/each}
           </Stack>
         </section>
