@@ -81,7 +81,7 @@ func (s Scheduled) Output() usecase.Output {
 			"duration_days": p.Duration, "moved": p.Moved, "total_float_days": p.TotalFloat,
 			"free_float_days": p.FreeFloat, "critical": p.Critical, "summary": p.Summary,
 			"external": s.Loaded.External[p.ID], "mode": string(mode), "milestone": entry.Milestone,
-			"done": entry.Done,
+			"done": entry.Done, "due_only": entry.StartAt == nil && entry.DueAt != nil,
 		})
 	}
 	conflicts := make([]usecase.Output, 0, len(s.Result.Conflicts))
@@ -100,9 +100,11 @@ func (s Scheduled) Output() usecase.Output {
 		})
 	}
 	unscheduled := make([]string, 0, len(s.Result.Unscheduled))
+	undated := make([]usecase.Output, 0, len(s.Result.Unscheduled))
 	for _, id := range s.Result.Unscheduled {
 		if !s.Loaded.External[id] {
 			unscheduled = append(unscheduled, id.String())
+			undated = append(undated, usecase.Output{"item_id": id.String(), "title": s.Loaded.Entries[id].Title})
 		}
 	}
 	critical := make([]string, 0, len(s.Result.CriticalPath))
@@ -115,7 +117,7 @@ func (s Scheduled) Output() usecase.Output {
 	}
 	return usecase.Output{
 		"zone": s.Loaded.Zone.String(), "finish": finish, "entries": entries, "dependencies": dependencies,
-		"conflicts": conflicts, "unscheduled": unscheduled, "critical_path": critical,
+		"conflicts": conflicts, "unscheduled": unscheduled, "undated": undated, "critical_path": critical,
 	}
 }
 

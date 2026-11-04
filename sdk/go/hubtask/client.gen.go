@@ -20742,6 +20742,12 @@ type PlanSchedule struct {
 	// Finish The plan's last working day; null for a plan without dates.
 	Finish *openapi_types.Date `json:"finish"`
 
+	// Undated The entries of `unscheduled`, each with its title.
+	Undated *[]struct {
+		ItemId openapi_types.UUID `json:"item_id"`
+		Title  string             `json:"title"`
+	} `json:"undated,omitempty"`
+
 	// Unscheduled Entries with neither a start nor a due date.
 	Unscheduled []openapi_types.UUID `json:"unscheduled"`
 	Zone        string               `json:"zone"`
@@ -20752,6 +20758,9 @@ type PlanScheduleEntry struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 	Critical     bool               `json:"critical"`
 	Done         bool               `json:"done"`
+
+	// DueOnly The entry has a due date and no start; its start and finish are that day.
+	DueOnly *bool `json:"due_only,omitempty"`
 
 	// DurationDays Working days; 0 for a milestone.
 	DurationDays int `json:"duration_days"`

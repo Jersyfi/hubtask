@@ -41555,6 +41555,10 @@
           },
           "done": {
             "type": "boolean"
+          },
+          "due_only": {
+            "type": "boolean",
+            "description": "The entry has a due date and no start; its start and finish are that day."
           }
         }
       },
@@ -41680,6 +41684,26 @@
               "format": "uuid"
             },
             "description": "Entries with neither a start nor a due date."
+          },
+          "undated": {
+            "type": "array",
+            "description": "The entries of `unscheduled`, each with its title.",
+            "items": {
+              "type": "object",
+              "required": [
+                "item_id",
+                "title"
+              ],
+              "properties": {
+                "item_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "critical_path": {
             "type": "array",

@@ -1319,6 +1319,7 @@ class PlanScheduleEntry(TypedDict, total=False):
     mode: Required[Literal["MANUAL", "AUTOMATIC"]]
     milestone: Required[bool]
     done: Required[bool]
+    due_only: bool
 
 class PlanDependency(TypedDict, total=False):
     link_id: Required[str]
@@ -1342,6 +1343,7 @@ class PlanSchedule(TypedDict, total=False):
     dependencies: Required[list["PlanDependency"]]
     conflicts: Required[list["PlanConflict"]]
     unscheduled: Required[list[str]]
+    undated: list[dict[str, Any]]
     critical_path: Required[list[str]]
 
 class PlanMoves(TypedDict, total=False):

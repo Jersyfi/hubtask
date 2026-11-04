@@ -28375,6 +28375,7 @@ components:
         mode: { type: string, enum: [MANUAL, AUTOMATIC] }
         milestone: { type: boolean }
         done: { type: boolean }
+        due_only: { type: boolean, description: "The entry has a due date and no start; its start and finish are that day." }
 
     PlanDependency:
       type: object
@@ -28407,6 +28408,15 @@ components:
         dependencies: { type: array, items: { $ref: "#/components/schemas/PlanDependency" } }
         conflicts: { type: array, items: { $ref: "#/components/schemas/PlanConflict" } }
         unscheduled: { type: array, items: { type: string, format: uuid }, description: "Entries with neither a start nor a due date." }
+        undated:
+          type: array
+          description: The entries of `unscheduled`, each with its title.
+          items:
+            type: object
+            required: [item_id, title]
+            properties:
+              item_id: { type: string, format: uuid }
+              title: { type: string }
         critical_path: { type: array, items: { type: string, format: uuid }, description: "The critical entries, earliest first." }
 
     PlanMoves:

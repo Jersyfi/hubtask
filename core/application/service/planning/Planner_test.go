@@ -499,3 +499,30 @@ func TestABaselineIsTakenAndComparedForItsReader(t *testing.T) {
 		t.Errorf("somebody who may not read the plan listed its baselines: %v", err)
 	}
 }
+
+// UC-PLN-02 check 7: the plan answers an entry it cannot place by its title, so the chart can tray
+// it, and says which placed entries have only a due date, which the chart draws as a point.
+func TestAPlanAnswersItsUndatedEntriesAndItsDueOnlyOnes(t *testing.T) {
+	f := newFixture()
+	undated := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000105")
+	dueOnly := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000106")
+	f.plans.entries = append(f.plans.entries,
+		planrepo.PlanEntry{ID: undated, CollectionID: collection, HubID: hubID, Title: "Write the brief", Mode: domain.Manual},
+		planrepo.PlanEntry{ID: dueOnly, CollectionID: collection, HubID: hubID, Title: "Send the invoice", DueAt: at("2026-11-12"), Mode: domain.Manual},
+	)
+	scheduled, err := ReadPlanSchedule{Planner: f.planner}.Execute(context.Background(), actor(), ScheduleQuery{PlanID: hubID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := scheduled.Output()
+	tray, _ := out["undated"].([]usecase.Output)
+	if len(tray) != 1 || tray[0]["item_id"] != undated.String() || tray[0]["title"] != "Write the brief" {
+		t.Errorf("undated = %v, want the brief with its title", out["undated"])
+	}
+	if e := entryOf(t, out, dueOnly); e == nil || e["due_only"] != true {
+		t.Errorf("the due-only entry = %v, want due_only", e)
+	}
+	if e := entryOf(t, out, design); e == nil || e["due_only"] != false {
+		t.Errorf("the dated entry = %v, want not due_only", e)
+	}
+}
