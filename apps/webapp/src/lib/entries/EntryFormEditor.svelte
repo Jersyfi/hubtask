@@ -127,7 +127,7 @@
       <Stack gap="100">
         {#each draft.sections as section, index (section.key)}
           <Inline gap="100" align="end">
-            <Input label={t('app.entry_forms.section_name', { key: section.key })} size="sm" bind:value={section.name} error={refusalAt(`sections.${index}.name`)} />
+            <Input label={t('app.entry_forms.section_name', { number: index + 1 })} size="sm" bind:value={section.name} error={refusalAt(`sections.${index}.name`)} />
             <IconButton icon="trash" size="sm" tone="subtle" label={t('app.entry_forms.remove_section', { name: section.name })} onclick={() => removeSection(draft, section.key)} />
           </Inline>
         {/each}

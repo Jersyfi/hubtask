@@ -274,10 +274,14 @@
               <li class="row" style:--depth={depthOf(each)}>
                 <span class="what">
                   <strong class="indent">{nameOf(each.key)}</strong>
-                  <span class="meta">
-                    {each.key}{#if each.abstract} · {t('app.cmdb_admin.abstract')}{/if}{#if each.system} · {t('app.cmdb_admin.shipped')}{/if}{#if each.archived} · {t('app.cmdb_admin.archived')}{/if}
-                    · {t('app.cmdb_admin.attribute_count', { count: each.all_attributes.length })} · {t('app.cmdb_admin.staleness', { days: each.staleness_days })}
-                  </span>
+                  <!-- One joined line: a separator inside an {#if} loses its leading space. -->
+                  <span class="meta" data-class-meta>{[
+                    each.abstract ? t('app.cmdb_admin.abstract') : '',
+                    each.system ? t('app.cmdb_admin.shipped') : '',
+                    each.archived ? t('app.cmdb_admin.archived') : '',
+                    t('app.cmdb_admin.attribute_count', { count: each.all_attributes.length }),
+                    t('app.cmdb_admin.staleness', { days: each.staleness_days }),
+                  ].filter((part) => part !== '').join(' · ')}</span>
                 </span>
                 {#if mayShape && !each.system}
                   <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.cmdb_admin.edit_named', { name: nameOf(each.key) })} onclick={() => openClass(each)} />
@@ -295,13 +299,15 @@
               <li class="row">
                 <span class="what">
                   <strong>{relationWord(each, each.key, true, words)} / {relationWord(each, each.key, false, words)}</strong>
-                  <span class="meta">
-                    {each.key} · {t(`app.cmdb_admin.impact.${each.impact}`)}{#if each.system} · {t('app.cmdb_admin.shipped')}{/if}{#if each.archived} · {t('app.cmdb_admin.archived')}{/if}
-                    {#if each.pairs.length > 0} · {each.pairs.map((pair) => t('app.cmdb_admin.pair', { from: nameOf(pair.from), to: nameOf(pair.to) })).join(', ')}{/if}
-                  </span>
+                  <span class="meta">{[
+                    t(`app.cmdb_admin.impact.${each.impact}`),
+                    each.system ? t('app.cmdb_admin.shipped') : '',
+                    each.archived ? t('app.cmdb_admin.archived') : '',
+                    each.pairs.map((pair) => t('app.cmdb_admin.pair', { from: nameOf(pair.from), to: nameOf(pair.to) })).join(', '),
+                  ].filter((part) => part !== '').join(' · ')}</span>
                 </span>
                 {#if mayShape && !each.system}
-                  <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.cmdb_admin.edit_named', { name: each.key })} onclick={() => openType(each)} />
+                  <IconButton icon="pencil" size="sm" tone="subtle" label={t('app.cmdb_admin.edit_named', { name: relationWord(each, each.key, true, words) })} onclick={() => openType(each)} />
                 {/if}
               </li>
             {/each}
@@ -345,7 +351,8 @@
             {#each sources as each (each.key)}
               <li class="row">
                 <span class="what">
-                  <strong>{each.key}</strong>
+                  <!-- A source has no name of its own: its key is what names it. -->
+                  <strong data-key-is-name>{each.key}</strong>
                   <span class="meta">
                     {t(`app.cmdb_admin.source_kind.${each.kind}`)} · {t('app.cmdb_admin.rank', { rank: each.rank })}
                     · {each.classes.length > 0 ? each.classes.map(nameOf).join(', ') : t('app.cmdb_admin.every_class')}

@@ -13,7 +13,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { EmptyState, Banner, Button, CheckboxGroup, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Banner, Button, CheckboxGroup, Disclosure, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { AccessExplanation, CustomRole } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -82,6 +82,11 @@
   let name = $state('');
   let key = $state('');
   let isKeyTouched = $state(false);
+  /** *Advanced* with the key, open by itself where the name yields no valid key. */
+  let isKeyOpen = $state(false);
+  $effect(() => {
+    if (editing === 'new' && (name.trim() !== '' || missing.key) && !ROLE_KEY.test(key)) isKeyOpen = true;
+  });
   let checked = $state<readonly string[]>([]);
   let removing = $state<string | undefined>(undefined);
 
@@ -109,6 +114,7 @@
     name = '';
     key = '';
     isKeyTouched = false;
+    isKeyOpen = false;
     checked = [];
     missing = {};
   }
@@ -247,7 +253,6 @@
             <Stack gap="100">
               <div class="head">
                 <h3 class="name">{role.name}</h3>
-                <code class="key">{role.key}</code>
               </div>
               <p class="quiet small">{role.permissions.map(permissionLabel).join(' · ')}</p>
               <ul class="grants">
@@ -314,9 +319,12 @@
               <Input label={t('app.roles.name')} bind:value={name} isRequired
                 error={missing.name && !name.trim() ? t(missing.name) : undefined} />
               {#if editing === 'new'}
-                <Input label={t('app.roles.key')} hint={t('app.roles.key_hint')} bind:value={key} isRequired
-                  oninput={() => (isKeyTouched = true)}
-                  error={missing.key && !ROLE_KEY.test(key) ? t(missing.key) : undefined} />
+                <!-- The key is made from the name (UX-5); it opens by itself where that yields none. -->
+                <Disclosure label={t('app.roles.advanced')} tone="quiet" bind:isOpen={isKeyOpen}>
+                  <Input label={t('app.roles.key')} hint={t('app.roles.key_hint')} bind:value={key} isRequired
+                    oninput={() => (isKeyTouched = true)}
+                    error={missing.key && !ROLE_KEY.test(key) ? t(missing.key) : undefined} />
+                </Disclosure>
               {/if}
               <p class="quiet small">{t('app.roles.offered_hint')}</p>
               {#each areas as area (area.group)}
@@ -393,7 +401,6 @@
 
   .head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); }
 
-  .key { font-size: var(--fs-075); color: var(--text-secondary); }
 
   .add,
   .row { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }

@@ -187,3 +187,29 @@ test('chromium: a new connector asks for its program settings', async (t) => {
   assert.equal(await dialog.getByLabel('Client ID').inputValue(), '');
   assert.deepEqual(failures, []);
 });
+
+// UX-5: a class is named, never keyed, on the settings' list, and its line's parts are spaced the
+// same whichever of them a class has.
+test('chromium: the class list names each class and spaces its line', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const SHIPPED = { ...SERVER_CLASS, key: 'business_process', name: 'Business process', parent: null, lineage: ['business_process'], system: true, all_attributes: [] };
+  await context.route('**/api/v1/**', (route) => (new URL(route.request().url()).pathname.endsWith('/cmdb/classes')
+    ? route.fulfill({ json: { data: [SHIPPED] } })
+    : stub(route)));
+  await context.addInitScript(() => { sessionStorage.setItem('hubtask.bearer', 'e2e-bearer'); sessionStorage.setItem('hubtask.refresh', 'e2e-refresh'); });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+
+  await page.goto(`${served.origin}/assets/settings`);
+  const meta = page.locator('[data-class-meta]').first();
+  await meta.waitFor({ timeout: 15_000 });
+  const line = (await meta.textContent()).trim();
+  assert.ok(!line.includes('business_process'), `the key is drawn: ${line}`);
+  assert.match(line, /^shipped · /iu);
+  assert.doesNotMatch(line, /\S·|·\S/u, `a separator is not spaced: ${line}`);
+  assert.deepEqual(failures, []);
+});

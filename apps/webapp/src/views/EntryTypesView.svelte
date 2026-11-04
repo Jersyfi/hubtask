@@ -18,7 +18,7 @@
   import { untrack } from 'svelte';
   import { labelTokens } from '@hubtask/design-system';
   import {
-    Button, CheckboxGroup, Dialog, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
+    Button, CheckboxGroup, Dialog, Disclosure, Icon, IconButton, Inline, Input, LabelChip, PageHeader, Select, Spinner, Stack, Switch,
     Textarea,
   } from '@hubtask/design-system/components';
   import type { EntryType } from '@hubtask/sync-engine';
@@ -107,6 +107,11 @@
   let editing = $state<EntryType | undefined>(undefined);
   let draft = $state<Draft | undefined>(undefined);
   let isEditorOpen = $state(false);
+  /** *Advanced* with the key, open by itself where the name yields no key or a refusal names it. */
+  let isKeyOpen = $state(false);
+  $effect(() => {
+    if (draft && !editing && draft.name.trim() !== '' && draft.key === '') isKeyOpen = true;
+  });
   let isSaving = $state(false);
   let editorRefusal = $state<string | undefined>(undefined);
 
@@ -118,6 +123,7 @@
       allowed: [],
     };
     editorRefusal = undefined;
+    isKeyOpen = false;
     isEditorOpen = true;
   }
 
@@ -277,7 +283,6 @@
                 <div class="identity">
                   <Icon name={iconOf(type)} size="sm" />
                   <LabelChip name={nameOf(type)} colorToken={type.color_token} />
-                  <code class="key">{type.key}</code>
                   {#if type.system}<span class="note">{t('app.entry_types.system')}</span>{/if}
                   {#if type.record}<span class="note">{t('app.entry_types.record')}</span>{/if}
                   {#if !type.schedulable}<span class="note">{t('app.entry_types.not_scheduled')}</span>{/if}
@@ -383,13 +388,16 @@
         {/if}
       </fieldset>
       {#if !editing}
-        <Input
-          label={t('app.entry_types.key')}
-          hint={t('app.entry_types.key_hint')}
-          value={draft.key}
-          isRequired
-          oninput={(event) => { if (draft) { draft.key = (event.currentTarget as HTMLInputElement).value; draft.isKeyTouched = true; } }}
-        />
+        <!-- The key is made from the name (UX-5); it opens by itself where the name yields none. -->
+        <Disclosure label={t('app.entry_types.advanced')} tone="quiet" bind:isOpen={isKeyOpen}>
+          <Input
+            label={t('app.entry_types.key')}
+            hint={t('app.entry_types.key_hint')}
+            value={draft.key}
+            isRequired
+            oninput={(event) => { if (draft) { draft.key = (event.currentTarget as HTMLInputElement).value; draft.isKeyTouched = true; } }}
+          />
+        </Disclosure>
       {/if}
       <Inline gap="200" align="start">
         <Select label={t('app.entry_types.icon')} options={iconOptions} bind:value={draft.icon} />
@@ -495,7 +503,6 @@
   .type.archived .identity { color: var(--text-subtle); }
 
   .identity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
-  .key { color: var(--text-subtle); font-size: var(--fs-075); }
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .preview { display: inline-flex; align-items: center; gap: var(--sp-050); align-self: end; padding-block-end: var(--sp-100); }
   .refusal { margin: 0; flex-basis: 100%; color: var(--text-danger); }

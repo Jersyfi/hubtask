@@ -221,7 +221,6 @@
               <div class="identity">
                 <span class="name">{nameOf(type)}</span>
                 {#if type.direction === 'DIRECTED'}<span class="inverse">/ {inverseOf(type)}</span>{/if}
-                <code class="key">{type.key}</code>
                 {#if type.system}<span class="note">{t('app.link_types.system')}</span>{/if}
                 {#if type.direction === 'SYMMETRIC'}<span class="note">{t('app.link_types.symmetric')}</span>{/if}
                 {#if type.waits === 'SOURCE'}<span class="note">{t('app.link_types.waits_source')}</span>{/if}
@@ -370,7 +369,6 @@
   .identity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
   .name { font-weight: var(--fw-medium); }
   .inverse { color: var(--text-secondary); }
-  .key { color: var(--text-subtle); font-size: var(--fs-075); }
   .note { color: var(--text-subtle); font-size: var(--fs-075); }
   .refusal { margin: 0; flex-basis: 100%; color: var(--text-danger); }
   .file { display: flex; justify-content: flex-end; }
