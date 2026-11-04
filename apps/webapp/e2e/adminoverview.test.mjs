@@ -100,7 +100,7 @@ test('chromium: the administration opens on an overview of what needs attention,
   assert.equal(new URL(page.url()).pathname, '/administration', 'the address was replaced with a settings page');
 
   assert.match(await cardText(page, 'limits'), /People\s*28 of 30/);
-  assert.match(await cardText(page, 'limits'), /Entries\s*120 of 10000/);
+  assert.match(await cardText(page, 'limits'), /Entries\s*120 of 10,000/);
   // No AI answers in this workspace, so its AI limits measure nothing it uses.
   assert.doesNotMatch(await cardText(page, 'limits'), /AI/);
   // Every line's badge sits beside its name at the line's end, a long name wrapping in its own
