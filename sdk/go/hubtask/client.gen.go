@@ -38197,7 +38197,7 @@ type ClientInterface interface {
 
 	// RestorePageVersion Bring an older version back
 	//
-	// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+	// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. In a space with drafts a published page's restore waits in its draft, as any change to its title and body does, until it is published. Needs WRITE_ITEMS on the hub.
 	//
 	// Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
 	RestorePageVersion(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -57921,7 +57921,7 @@ func (c *Client) NamePageVersionWithApplicationMergePatchPlusJSONBody(ctx contex
 
 // RestorePageVersion Bring an older version back
 //
-// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. In a space with drafts a published page's restore waits in its draft, as any change to its title and body does, until it is published. Needs WRITE_ITEMS on the hub.
 //
 // Corresponds with POST /pages/{pageId}/versions/{seq}:restore (the `RestorePageVersion` operationId).
 func (c *Client) RestorePageVersion(ctx context.Context, pageId PageId, seq int, params *RestorePageVersionParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -112088,7 +112088,7 @@ type ClientWithResponsesInterface interface {
 
 	// RestorePageVersionWithResponse Bring an older version back
 	//
-	// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+	// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. In a space with drafts a published page's restore waits in its draft, as any change to its title and body does, until it is published. Needs WRITE_ITEMS on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -169515,7 +169515,7 @@ func (c *ClientWithResponses) NamePageVersionWithApplicationMergePatchPlusJSONBo
 
 // RestorePageVersionWithResponse Bring an older version back
 //
-// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+// The version's title and body become the page's, written as a new version that names the one it brought back, so nothing in between is lost. In a space with drafts a published page's restore waits in its draft, as any change to its title and body does, until it is published. Needs WRITE_ITEMS on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //

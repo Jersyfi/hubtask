@@ -22343,7 +22343,9 @@ paths:
       summary: Bring an older version back
       description: >
         The version's title and body become the page's, written as a new version that names the
-        one it brought back, so nothing in between is lost. Needs WRITE_ITEMS on the hub.
+        one it brought back, so nothing in between is lost. In a space with drafts a published
+        page's restore waits in its draft, as any change to its title and body does, until it is
+        published. Needs WRITE_ITEMS on the hub.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       responses:
