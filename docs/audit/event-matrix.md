@@ -40,6 +40,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.avatar_set` | SetOwnAvatar | `account` | INFO | Every time |
 | `account.invitation_renewed` | RenewInvitation | `account` | NOTICE | Every time |
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
+| `account.mail_undeliverable_cleared` | ClearOwnMailUndeliverable | `account` | INFO | Every time |
 | `account.managed_created` | CreateManagedAccount | `account` | NOTICE | Every time |
 | `account.notification_preference_changed` | SetNotificationPreference | `account` | INFO | Every time |
 | `account.notification_preferences_read` | ListNotificationPreferences | `account` | INFO | When refused |
@@ -53,7 +54,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.read` | ResolveAccounts | `account` | INFO | When refused |
 | `account.renamed` | UpdateOwnAccount | `account` | INFO | Every time |
 | `account.second_factor_reset` | ResetSecondFactor | `account` | WARNING | Every time |
-| `account.mail_undeliverable_cleared` | ClearOwnMailUndeliverable | `account` | INFO | Every time |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
