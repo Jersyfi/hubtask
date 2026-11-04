@@ -485,6 +485,8 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 		if chosen == nil {
 			return domain.ErrTemplateUnknown(key)
 		}
+		local := localizedTemplate(*chosen, d.Words, actor.Locale)
+		chosen = &local
 		uses, err := d.Store.TemplateUses(ctx, "")
 		if err != nil {
 			return err
@@ -527,7 +529,12 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			from = use.Version
 			// The base is answered as the new version is, so an answer given again is no change
 			// and the template's own edits around it are TAKEs.
+			// The base is what was taken, recorded as shipped, in the words the new version is
+			// planned in: a name the workspace kept in another language counts as its own edit.
 			took := use.Document
+			if chosen.Origin == domain.OriginHubtask && d.Words != nil {
+				took = localizedDocument(use.Document, d.Words, actor.Locale)
+			}
 			if handle != "" {
 				took = keyedUnder(took, handle)
 			}

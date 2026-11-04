@@ -297,8 +297,11 @@ the module (`modules` of each template), so a product never ships a second templ
 **Template content in the reader's language.** Every name a shipped template writes — types,
 fields, options, statuses, roles, sample entries, pages — becomes a message code resolved in the
 applying person's locale (else the workspace default) at apply time and stored as plain text
-afterwards, so it stays editable. `locales/ShippedTemplateWord_test.go` extends from the
-template's name and questions to every name and option in each catalogue.
+afterwards, so it stays editable. The code is `templates.text.<hash of the English text>`, so one
+word shared by two templates is one translation; the upgrade's base is read in the same words, so a
+name kept in another language counts as the workspace's own edit. `locales/ShippedTemplateWord_test.go`
+and `ShippedTemplateWords_test.go` hold the template's name, questions and every name, title and
+body to each catalogue.
 
 **The default containers in the owner's language.** Provisioning names the default hub, the
 example collection, its columns and its labels in the workspace's language, because the owner's is

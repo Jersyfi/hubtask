@@ -66,9 +66,9 @@ func (d Desk) presetTemplates(ctx context.Context, actor appshared.ActorContext)
 }
 
 // shipped holds Hubtask's document templates, one file each: a template of the HUBTASK origin is
-// the release's, read once (configuration.md §7). Its words are the template's own, which the
-// workspace takes as its own vocabulary and renames at will - the template is content, not a
-// sentence the backend says (rule 8).
+// the release's, read once (configuration.md §7). Its words are written in English and planned in
+// the applying person's language (TemplateWords.go); the workspace stores them as its own text and
+// renames them at will.
 //
 //go:embed shipped/*.json
 var shipped embed.FS

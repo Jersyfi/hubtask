@@ -33,6 +33,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -83,6 +84,9 @@ type Desk struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Words renders a Hubtask template's names in the applying person's language (user-experience.md
+	// §4). Nil keeps them as shipped.
+	Words i18n.Renderer
 }
 
 // current is the document in force with the rows behind it, so that a change names the block by

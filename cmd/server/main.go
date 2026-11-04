@@ -1969,6 +1969,8 @@ func run() error {
 		TemplatePages: postgres.TemplatePageRepository{}, Drafts: postgres.ConfigDraftRepository{},
 		Settings:   postgres.SettingRepository{},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		// A Hubtask template's names in the applying person's language (user-experience.md §4).
+		Words: renderer,
 	}
 	// The workspace's type registry (UC-FLW-01), shared by its four use cases.
 	entryTypeRegistry := workflowservice.Registry{
