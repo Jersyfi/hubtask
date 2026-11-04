@@ -476,3 +476,237 @@ Not changed: with no mail server configured at all, the mail probe reports the d
 I did not re-run the walk against a fresh server and browser, so the four symptoms (wrong place label, 456 job warnings, console 403, memberships 404) were not checked live. For finding 4, the cause (the place not yet read when the plan opens) is inferred from the code and was not observed in a network trace. Checks that ran: go build ./...; go test on core/application/service/notification, core/domain/model/notification, presentation/rest and locales; node --test on goals, planning and moduleroute tests; svelte-check typecheck and pnpm lint in apps/webapp. Not run: the full webapp test script with its TZ variants, the e2e suites, make check. Pushed to origin suite/concept. Notes are appended to the pull request notes.
 
 ```
+
+## After the resume of 2026-11-03: UI build, re-walk fixes and functional tests
+
+Each step's own report of what it found and did not fix, verbatim. A functional tester's
+"found but not fixed" list is open work for the Leftovers step, not a note.
+
+=== ui build: the app shell (4) done=False
+Pushed to origin suite/concept up to 3b0c91109; the tree is clean. My choices are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+
+What I ran: webapp typecheck and lint. The whole webapp unit suite: 1507 pass, local time zone only, after the switchedon fix. These e2e files pass: productsband, search, entrybyrole, entrymenu, looks, placetabs, palette, todaybands, moduleswitch, servicedeskwalk, frame, shell, agentswalk, today.
+
+What I did not run: the full e2e suite; Firefox or WebKit; axe or a contrast measurement; a walk against scripts/seed-demo.sh data (full or empty); make check; the unit suite in the other two time zones. No Go code changed.
+
+Still to build (user-experience.md §11):
+- Step 11: §5.3 also names CIs and assets, goals, portfolios, dashboards, releases and sprints as search kinds; none of these is built.
+- Step 3: a hub's tree row has no figure. The contract has a figure per collection only, and the hub's head shows none either, so this needs a server-side hub figure.
+- Step 4: 'Start with…' templates in the switch-on card. Nothing in the contract says which config templates need a module; the server only finds a module that is off when it plans a template. Proposal: add a ConfigTemplate field naming those modules, computed by the server, and only add to the contract.
+- Step 2: the homes have no create action yet, so there is nothing to split into 'From a template…'. Building it needs a way to choose the hub.
+- Step 15: the 'Needs your answer' and 'Sprint' bands need a read across the whole workspace on the server. Pages waiting for review on Today need one too (the pages' home asks every hub instead).
+- Step 14: the onboarding coordinator and the template-led starter with one server-side apply (UC-WRK-30 check 5).
+- Step 16: product tours, and the first-visit CoachMark remembered per person (needs a new account field: contract and migration, adding only).
+
+Still failing from before, not fixed: go run ./tools/checkdocs reports UC-CFG-05 as cited but missing.
+
+=== ui build: the shared patterns in packages/design-system (create (4) done=False
+Pushed to origin suite/concept at 909b06a1c. Notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+
+Still open:
+- Step 9: per-field server errors inside dialogs. Business days in DurationInput (still not offered, because a business day's length depends on the policy's calendar).
+- Step 10: SettingsPage, PlanSummary, and moving Mail, Voice, Retention, the backup schedule and Webhooks onto the settings shell.
+- Steps 12, 13, 14, 16-19 and 20-31.
+- Left from earlier runs:
+  - Product empty states have no guide link and no 'who can' sentence. ProductEmpty has a whoCan prop that no caller passes, and no product guide exists to link to.
+  - Template cards have no summary and no product chips.
+  - The hub-create gallery and the 'From a template…' split button are not built.
+
+What I checked:
+- go build ./....
+- go test for the touched packages: identity domain, service/identity, admin, config, setting, presentation/rest, locales, and the new postgres unit test only.
+- make generate and make api-client.
+- Webapp typecheck and lint, and the unit tests once in the default time zone (1526 pass).
+- 15 e2e suites passed: dialogrefusal, agentswalk, connectorreturn, entryintegrations, assetforms, templatemodules, changes, servicedeskwalk, moduleswitch, signinsettings, instancesettings, signin, helpdetails, shell, palette.
+
+What I did not run:
+- make check.
+- The whole e2e suite, Firefox and WebKit.
+- The Testcontainers repository tests.
+- The three-time-zone unit run.
+- axe or contrast measurement.
+- A walk with scripts/seed-demo.sh data at phone width and in dark mode.
+
+Use cases' Today: UC-ID-18 (the legal links) has no Today section, and its Goal does not cover the help links, so nothing changed.
+Owner items: UC-ID-18 How to check (or a new Help use case): proposal - add a check that a workspace's support contact and documentation, set or locked from above, are shown in Help and never in the sign-in footer. A use case's How to check is the owner's decision, so I did not add it. | Product guides for ProductEmpty's guide link: proposal - each product's guide is a path under the resolved docs_url (for example docs_url + '/plans'), shown only where docs_url is set. This needs the owner's word on where the documentation lives and how it is structured.
+
+=== ui build: entries (4) done=False
+Not run: make check; the whole of make gate-quick (my 300 s limit stopped it inside golangci-lint; I then linted only the touched packages); the whole e2e suite; Firefox and WebKit; an axe check (axe-core is not a dependency); a seed-demo walk with real data, full and empty. The screenshots used the e2e fixture, not seed-demo.
+
+Not built:
+- A template cannot yet set its own prefix. Templates get the one derived from their collection names (Incidents gives INC). Plan: add key_prefix as an attribute of the configuration document's collection section, applied through the rename.
+- The web app search does not jump to an entry by its key. No such lookup existed before either.
+
+Choices, also written to .git/suite-pr-notes.md:
+- Collections made before migration 0356 keep no prefix, so their keys stay as people already quote them. Restoring an older archive derives one.
+- A name with no Latin letters left (Cyrillic, for example) gets the prefix KEY, because the unaccent function only removes Latin diacritics.
+- Plus addresses keep the handle, as ADR-0094 says.
+
+=== ui build: settings (4) done=False
+Checks run: webapp svelte-check (0 errors, 0 warnings), lint, and vite build with its CSP check. pnpm test (all three time zones) gave 1612 passes and 1 failure; the failure was build/residue.test.js not listing the two new installation screens. After fixing it, the build tests pass 30/30; the src tests were not run again after the fix. make locales, go test ./locales and make gate-docs all pass.
+
+E2e tests that passed: signinsettings, admintabs, aisettings, personoptout, stepup, timewalk, assetsscreen, settingsshell, arrivalproposals, moduleswitch (both tests), productstart (new), productsband, servicedeskwalk, templatemodules, today, noaccess, instancepresets, instancesettings, instanceoverview, instanceai, instanceworkspaces.
+
+Not run: make check, go build (no Go code changed), the whole e2e suite, a seed-demo walk against a running server (full and empty), Firefox/WebKit, an axe check, and screenshots of the changed screens at desktop/phone width in light/dark.
+
+Still open:
+- The place (hub and collection) settings are not on SettingsPage yet.
+- Step 30 is not started: the delivery state on People rows and 'Copy invitation link' need backend work: a renewal that returns a link and cancels the queued delivery, behind step-up, audited, with a cross-tenant test.
+- The first visit has no per-template preview, and the hub name is not prefilled from the chosen template.
+- Assets offer no template on their first visit, because no shipped template switches the assets module on. Fixing that needs a catalogue change.
+- The people, entries and bytes columns were not added to the workspaces list. Those counts exist only through metering, so they stay on Usage.
+- Mockups were not updated for §8.9 to §8.11.
+- The new Configuration file screen has a unit test (installationFile) and a residue-walk render, but no e2e test.
+
+Everything is pushed to origin suite/concept (HEAD c1c0f9bb5).
+
+=== re-walk fix 1.3 done=False
+Not done:
+- Finding 4, create half: the Plans home still has no create action. runs_sprints now exists, but only per collection, so finding one would mean reading every collection's sprints. 'Add a phase' still has nothing in the domain to create. 'New release' exists at a hub, but it is not the concept's action, so I did not put it there.
+- Finding 6: the service desk's defaults are still not created when the module is first switched on. It needs server work, and it is still open which hub and which entry types and priority field the P1-P4 policies would apply to.
+- Today's 'Choose what you use Hubtask for' step is not built. What exists today is the starter set, and starter:apply refuses once the starter was skipped. The step needs the template-led starter with one server-side apply (user-experience.md section 3.2, build step 14), which is also not built.
+- Not built: a sentence per template card (this needs written copy in English and German for about 25 templates, and the template files carry English type names only), and 'Ask an administrator' with names (no screen reads the administrators for a member yet).
+
+Checks run, all green: go build ./...; go test for planning, config, presentation/rest, presentation/mcp, catalogue and locales; make generate; make api-client; make gate-architecture; webapp svelte-check (0 errors, 0 warnings), lint and vite build; unit tests 1620/1620 in the default time zone; e2e placetabs, sprints, createhub, productstart and templatemodules.
+
+Not run: make check, pnpm test in the other two time zones, the whole e2e suite, a live walk against a running server, screenshots. No Testcontainers test was run; no repository method was added.
+
+Everything is pushed to origin suite/concept (HEAD 21ceb641a). The first pushes were rejected with a remote Internal Server Error; a retry went through. My choices are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+Owner items: Which templates count as working in sprints: I took Scrum team only, because the docs name only 'Scrum on the sprint board' (planning.sprintTemplates). Proposal: confirm that, or add Hybrid project and Scaled agile.
+
+=== func: entries done=False
+I did not do the live functional walk the task named: no running server, hubctl, MCP session or web app was used. Every finding came from reading the code, and each one was proven with a failing unit or Testcontainers test before the fix. Concurrent edits and offline-then-online were not exercised against a running server. hubctl was not traced to see whether it goes through the use-case registry, so the integer-bound fix is only known to cover MCP. Not run: make check, the full integration and e2e suites, and any web app tests (no web app file changed). What did run: go build ./...; go test for the touched packages (view, work domain, usecase, work service, importer service, presentation/rest, infrastructure/postgres, cmd/server); integration tests filtered to copy, duplicate, materialisation, occurrence, subtree, import, workflow, template and instantiate; make generate; make gate-architecture; make gate-docs. Possible next step: a live REST/MCP walk of the status board with entries that were copied, templated and imported, plus the concurrent and offline scenarios. The run's choices are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md. The branch is pushed and the tree is clean at fb0b7c471.
+
+=== func: knowledge done=True
+Nothing is left for this tester's scope. Everything is pushed to origin suite/concept at 4731d7a53, and the notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md. What I ran: go build ./...; the Go tests of the knowledge domain and service packages, infrastructure/postgres, infrastructure/importer, presentation/rest, cmd/server, core/application/catalogue and locales; the page integration tests with Testcontainers (-run 'Page|Article|Space|Daily'), plus the two new ones, each also shown failing without its fix; make generate, make api-client, make gate-architecture, make gate-docs, and golangci-lint on the three changed Go packages. Not run: make check, the full integration and e2e suites, and any webapp or editor test (no client file changed). There was also no live walk through REST, hubctl, MCP or the web app, and no offline replay against a running server. One cost to note: a public page now checks the link of each mentioned page, up to 200 mentions, each with a few extra queries on the unauthenticated route. Choice to note: UC-DOC-08 check 5 was left as written; a link that no longer answers is treated as no link.
+Owner items: Copying a restricted page (CopyPage, UC-DOC-01 check 8 says restrictions are not copied) puts the copy unrestricted beside the original, so the whole hub can read words the restriction kept to a few people. Proposal: the copy is restricted to the same people as the page it was copied from, and the copier can lift that. | Pre-existing, not changed in this run: the importer's subtree depth checks and restoring separately trashed subpages under a parent that moved deeper are covered only for the restored page's own subtree. No owner decision needed; named only for completeness.
+
+=== func: whiteboards done=True
+Not run: make check, make verify, e2e tests, and a walk in the running app. None of the webapp changes (paste/import placing, side panel size and link fields, link dialog) was seen in a browser. The webapp node tests (1619) ran in the default time zone only. Found but not fixed:
+- A hub's trash has no limit, but the trash list reads at most 1000 boards, so boards past that cannot be seen to restore. Fixing it needs a paged trash list, which is a contract change.
+- Two CreateWhiteboard calls at the same moment on a hub with 999 boards are not serialised (count, then insert) and can reach 1001.
+- A DELETE retry on a board comment already taken back answers 404, as page comments do.
+- Two devices of the same voter voting at the same instant keep only one of the two votes.
+- Page titles in the pages module (knowledge CheckTitle) have the same zero-byte gap.
+The notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md, and everything is pushed to origin suite/concept.
+
+=== func: CMDB done=True
+Found but not fixed:
+- An Alertmanager group of more than 200 alerts is refused whole with a 422, and Alertmanager does not retry a 4xx, so those alerts are lost. Options: take the first 200 and count the rest, or document max_alerts: 200 for the webhook.
+- A stale firing alert retried after its resolution reopens the alert. The signal's startsAt is parsed but not used; using it needs a stored signal time, which means a migration.
+- Two repeated firings arriving at the same moment for an alert whose first entry write had failed could still open two entries, because the entry is written outside the lock.
+- Relating CIs across hubs answers cmdb.relation_across_hubs, which tells a writer that a CI id exists in a hub they cannot read.
+- Review-due days and the 'disputed: due the same day' rule use UTC days, not the workspace's time zone.
+
+Ran: go build ./...; go test on core/domain/model/cmdb, core/application/service/cmdb, presentation/rest, presentation/intake, presentation/mcp, cmd/server and locales; the Testcontainers test TestAConnectorAndItsAlertsStayInTheirWorkspace; make gate-architecture; golangci-lint on the three touched Go packages (one revive finding in IdentityController.go, a file this run did not touch); the webapp's cmdb.test.ts (34 pass, default time zone only) and svelte-check (0 errors).
+
+Not run: make check, make verify, the full integration and e2e suites, webapp lint, and any walk through REST, hubctl, MCP or the running app. That PostgreSQL refuses a zero byte in text and jsonb was not measured here; it is the known behaviour.
+
+All commits are pushed to origin/suite/concept. Notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+
+=== func: service desk done=True
+Found but not fixed (recorded in suite-pr-notes.md):
+(1) Deleting an organisation that a policy names is not refused. The policy then measures nobody, and every later edit of the policy is refused with sla_policies.organisation_unknown.
+(2) The web app's requester panel lists "other open requests" by creator, so for a mail-filed request it lists everything the intake filed.
+(3) An organisation's domain has to be typed in its ASCII (xn--) form; müller.de is refused as malformed.
+(4) A changed priority does not re-target goals that are already running.
+(5) A reopened request is not measured again; the use case does not say what should happen.
+(6) A person who is counted at a level and is also an absent approver's delegate can only decide for themselves, never for the absent one.
+
+Run: go build ./...; go test of the servicedesk domain and service, config, chatbot, locales, presentation/rest and presentation/mcp packages; go vet ./cmd/server; make gate-architecture (green); golangci-lint on the three touched packages (0 issues).
+Not run: make check, make verify, the integration and e2e suites, any webapp test, a walk in the running app, and the hubctl and MCP doors live.
+No earlier service desk tester run was found in the notes or the log, so nothing had to be resumed.
+
+=== func: planning done=True
+All findings came from reading the code; each fix was shown failing in a test first. I did not run a server, hubctl, MCP or a walk in the web app.
+
+What I ran (all passed):
+- go build ./... and make generate (the new sqlc queries).
+- go test of planning domain and service, sync, locales, presentation/rest, presentation/mcp, catalogue, cmd/server and infrastructure/postgres.
+- The sprint and release integration tests against Testcontainers.
+- make gate-architecture, and golangci-lint on the touched Go packages (0 issues).
+- The webapp's planning, cmdb and imports node tests (default time zone only), svelte-check (0 errors) and lint.
+
+Not run: make check, make verify, the full integration and e2e suites.
+
+The release unit tests use a fake store that does not roll back, so 'no notes page on a refused publish' is shown by 'no page was written', not by a real database rollback.
+
+Found but not fixed:
+- Two TakeBaseline calls at the same time at 19 baselines can reach 21.
+- ReadPlanTolerance writes an audit entry on every read that finds an exception; its descriptor says so, and the notification is sent only once.
+- CompareBaseline counts variance days in UTC.
+- ApplyPlanSchedule writes a start date on an automatic milestone it moves.
+- A project XML in Windows-1252 that declares its encoding is refused as not XML.
+- A release dated 1970-01-01 is refused as having no date.
+- The tolerance fix assumes a due that is all-day now was all-day when the baseline was taken, because a baseline stores only the instant.
+
+Notes appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md. Everything is pushed to origin suite/concept up to 85d006d33.
+
+=== func: time done=True
+Not run: make check, make verify, the full integration and e2e suites, any web app test (no client file changed), and a walk in the running app. Ran: go build ./...; make generate; make api-client; go test on the touched packages plus presentation/rest, presentation/mcp, cmd/server, the catalogue and locales; three integration tests with Testcontainers; make gate-architecture; golangci-lint (0 issues).
+
+Found but not fixed:
+- Period close grades at most 2000 goals; any beyond stay ungraded.
+- A record's day can be any year from 0001 to 9999, so a typo year makes a budget's burn chart thousands of weeks long.
+- A time note's length is counted before the database normalises it (NFC), so a few characters could push it over 2000 and fail as 503. Reasoned only, not reproduced.
+- Two goal moves at the same moment (A under B, B under A) can still form a cycle. The progress walk has a depth limit, so it does not hang.
+- An offline timer stop stamped before a start set by another device answers timers.not_started, and the timer keeps running.
+
+Not examined: concurrent absence overlap, the sync engine's replay of time operations, and the web app's goal and dashboard screens.
+
+Run notes were appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md. Everything is pushed to origin suite/concept.
+Owner items: Aggregated time visibility (UC-TIM-04 check 3): a report still says how many minutes it withheld, so with a narrow filter (one entry, one person) it reveals that person's minutes. Proposal: give the withheld-minutes figure only when at least two groups are withheld, or when the withheld total covers at least three people. This changes what the use case's How to check says, so it is the owner's decision. | UC-TIM-03 How to check does not name the new refusal time.correction_below_zero. Proposal: add 'a correction takes away at most what the record and its corrections still hold' to check 3. This wording change is the owner's decision.
+
+=== func: agents done=True
+This was a fresh run: the notes and the log hold no earlier tester run for this area, so nothing was lost to the interruption. Each fix has a test that failed before the fix. All work came from reading the code; I did not use a running server, hubctl, an MCP session or the web app.
+
+What ran: go build ./...; make generate and make api-client; the tests of every touched package and its neighbours (rest, mcp, cmd/server, catalogue, locales); three integration tests against Testcontainers; make gate-architecture (green); golangci-lint on the touched packages (0 issues). For the two concurrency fixes, the unit tests check that the row is held before the count is read. I did not reproduce either race against a real database.
+
+Not run: make check, make verify, the full integration and e2e suites, any web app test (no client file changed).
+
+Found but not fixed, recorded in .git/suite-pr-notes.md:
+- An agent request's approval commits before the act runs, in a separate transaction, so a crash between the two leaves an approved request that was never done.
+- The hourly agent budget resets at the top of the clock hour, so near the turn of an hour an agent can spend almost two budgets within minutes.
+- A poll cursor dated in the future (only possible if forged) is taken as is, and the poller then sees nothing until that moment.
+- I did not check how Microsoft's API writes a date-only due for Microsoft To Do; if it is the person's midnight converted to UTC, those dues land as timed dues.
+- A CalDAV client that names its own custom zone (Outlook-style names) is now refused rather than read from the zone definition it sends along.
+- TZID=Local reads the server's own zone.
+
+The choices I made are in /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md. Everything is pushed to origin/suite/concept (546f45ee8..99d8b8a94).
+
+=== func: settings done=True
+Not fixed:
+- A config draft key may be at most 50 characters (config_draft CHECK), but a custom role key may have 63, so a role with a longer key cannot be drafted. Fixing it needs a migration that widens the CHECK.
+- A view-as keeps running for up to its 30 minutes after the viewer loses MANAGE_MEMBERS or the role ceiling. AuthenticateToken.viewedAs only ends it on the viewed person's state.
+- DeleteRole still counts the rules that name the role without a lock.
+- A retried apply after a lost answer is refused as config.version_conflict instead of being answered as the earlier success.
+
+Not run: make check, make verify, the full integration and e2e suites, webapp tests (no client file changed), any walk in the running app, and hubctl or MCP against a running server. The races were proven with fakes and lock-wait integration tests, not reproduced end to end. Notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md and everything is pushed to origin/suite/concept at d5f0c47b3.
+Owner items: View-as after the viewer loses their rights (UC-ID-29): proposal is to also end the view at authentication when the viewer no longer holds MANAGE_MEMBERS at the workspace. That puts one more question on every request of a running view, so it is the owner's call.
+
+=== leftovers 1 fix 1 done=False
+I handed over before the context limit. These findings are confirmed in the code but not fixed:
+- 5: CheckSnapshot in core/domain/model/realtime/Document.go checks only size and sequence, and Documents.Compact stores the snapshot unchecked. A proper fix needs either a Go reader for Yjs update-v1 struct headers (to compare the snapshot's state vector with the log's up to upTo) or a provisional snapshot that a second opener promotes. That is a realtime protocol change, so it is its own step, with offline-sync.md updated alongside.
+- 3: packages/sync-engine/src has no 100 000-entry bound and no hub-bounded replication, offline-sync.md §1 is unchanged, and PLAN.md has no L3 snapshot run.
+- 6: StarterSet still holds only hub_name and hub_preset; there is no template-led single apply.
+- 8: packages/editor/package.json adds only @tiptap/extension-table; there is no katex, mermaid, lowlight or emojibase-data, and Render.go does not render tables.
+Not run: make check, make verify, the full integration and e2e suites, golangci-lint over the whole repo (on the touched packages it found one issue in my code, now fixed, and one older issue at cmd/server/main.go:5595), and a walk in the running app. All work is pushed to origin suite/concept, and my choices are appended to .git/suite-pr-notes.md.
+
+=== leftovers 1 fix 1.2 done=False
+I resumed from a clean, fully pushed branch. The first worker's commits were all on origin, so no task was lost to the usage limit. I worked on the four findings it handed over. Everything is pushed to origin suite/concept (head ece9b23d7) and my choices are appended to .git/suite-pr-notes.md.
+
+Still open:
+- Finding 5, the rest: the server still does not check a writer's snapshot against the log's content, so a buggy or hostile writer's snapshot is accepted. The fix is a Go reader of Yjs update-v1 struct headers (written here, no new dependency) that compares the snapshot's state vector and delete set with the log's up to the snapshot's place. It is its own step.
+- Finding 6, not started: the template-led starter with one server-side apply (user-experience.md §3.2, build step 14). StarterSet still holds only hub_name and hub_preset. It needs a contract change (a template key and answers on starter:apply), the configuration plan and apply run inside ApplyStarter's transaction with the configuration hold, the family gallery dialog with the template's questions, and UC-WRK-30 check 5.
+- Finding 8, not started: the editor blocks (fourth answers item 2). Only @tiptap/extension-table is in packages/editor. Still missing: extension-details, katex, mermaid, lowlight and emojibase-data (lazy chunks, through the licence gate), their nodes, the Markdown round-trip, tables in Render.go, the wiki import mapping and THIRD-PARTY-LICENSES.md.
+
+Choices I made for finding 3, which the owner may overrule:
+- 'Or pinned' is not built, because the app has no pinned hub.
+- Membership is not checked per hub; the server applies the scope after its own permission check.
+- A newly opened hub joins the copy at the next start, not at once.
+- A workspace that shrinks below the bound stays narrowed.
+
+Ran: go build ./...; go test ./presentation/realtime and ./locales; golangci-lint on presentation/realtime (0 issues); the sync-engine tests, typecheck and lint (all pass); the webapp svelte-check (0 errors, 0 warnings), node tests in the default time zone (pass) and lint.
+
+Not run: make check, make verify, the webapp tests in the two other time zones, e2e, the integration suites, a walk in the running app, and a real browser sync of 100 000 entries (L3 is not built).
+
