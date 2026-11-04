@@ -115,6 +115,10 @@ test('the Today row counts the approvals and held acts waiting for the reader\'s
   assert.equal(todayRowCountOf([{ state: 'DECLINED' }]), undefined);
   assert.equal(todayRowCountOf(undefined, [{ status: 'PENDING' }]), 1, 'an agent\'s held act waits too');
   assert.equal(todayRowCountOf([{ state: 'PENDING' }], [{ status: 'PENDING' }, { status: 'FAILED' }]), 2);
+  // The reader's approvals come a page at a time: a first page with more behind it is a floor.
+  const page = Array.from({ length: 50 }, () => ({ state: 'PENDING' }));
+  assert.equal(todayRowCountOf(page, undefined, true), '50+', 'a first page was counted as all');
+  assert.equal(todayRowCountOf([], undefined, true), undefined, 'nothing pending on the first page says nothing');
 });
 
 // An irreversible act is approved where its preview is read, never from a row on Today.

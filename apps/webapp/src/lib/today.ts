@@ -132,10 +132,12 @@ export function productBandsOf(modulesOn: readonly string[] | undefined): Produc
 export function todayRowCountOf(
   approvals: readonly { readonly state: string }[] | undefined,
   acts?: readonly { readonly status: string }[],
-): number | undefined {
+  approvalsHaveMore = false,
+): number | string | undefined {
   const count = (approvals?.filter((approval) => approval.state === 'PENDING').length ?? 0)
     + (acts?.filter((act) => act.status === 'PENDING').length ?? 0);
-  return count > 0 ? count : undefined;
+  if (count === 0) return undefined;
+  return approvalsHaveMore ? `${count}+` : count;
 }
 
 /** One held act on Today: whose agent, since when, and where it is decided. */

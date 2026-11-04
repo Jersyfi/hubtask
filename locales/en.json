@@ -10967,6 +10967,7 @@
   "app.portal.articles_found": "These articles may already answer it",
   "app.portal.articles_read": "Read most often",
   "app.portal.waiting_for_yes": "Waiting for your yes",
+  "app.portal.more_waiting": "More are waiting: all of them",
   "app.portal.mine": "Your requests",
   "app.portal.mine_none": "You have not asked anything here yet.",
   "app.portal.whose": "Whose requests",

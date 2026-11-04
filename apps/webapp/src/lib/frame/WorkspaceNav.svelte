@@ -82,6 +82,7 @@
    * (user-experience.md §3.3); each read only where Today draws it, from the same list it reads.
    */
   let waiting = $state<ApprovalList['data'] | undefined>(undefined);
+  let waitingHasMore = $state(false);
   let heldActs = $state<AgentRequestList['data'] | undefined>(undefined);
   const todayBands = $derived(productBandsOf(modulesOn));
   const countsApprovals = $derived(todayBands.includes('approvals'));
@@ -92,7 +93,10 @@
       return;
     }
     return untrack(() => engine.subscribe<ApprovalList>({ path: myApprovalsPath }, (next) => {
-      if (next.status === 'ready') waiting = next.data.data;
+      if (next.status === 'ready') {
+        waiting = next.data.data;
+        waitingHasMore = next.data.page?.has_more === true;
+      }
     }));
   });
   $effect(() => {
@@ -104,7 +108,7 @@
       if (next.status === 'ready') heldActs = next.data.data;
     }));
   });
-  const todayCount = $derived(todayRowCountOf(waiting, heldActs));
+  const todayCount = $derived(todayRowCountOf(waiting, heldActs, waitingHasMore));
   const destinationNodes = $derived(
     places.map((destination) => ({
       id: destination.id,

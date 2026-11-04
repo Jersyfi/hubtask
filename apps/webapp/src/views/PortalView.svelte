@@ -69,6 +69,8 @@
   const mine = untrack(() => resource<PortalRequestPage>(myRequestsPath(collectionId)));
   const asked = untrack(() => resource<ApprovalList>(myApprovalsPath));
   const waiting = $derived(asked.state.status === 'ready' ? asked.state.data.data : []);
+  // The reader's approvals come a page at a time; the rest are decided on their own screen.
+  const waitingHasMore = $derived(asked.state.status === 'ready' && asked.state.data.page?.has_more === true);
 
   const kinds = $derived(catalogue.state.status === 'ready' ? catalogue.state.data.data : []);
   // The desk's team opening the portal from its collection holds no REQUEST there: told as such,
@@ -222,6 +224,9 @@
         {#each waiting as approval (approval.id)}
           <ApprovalCard {approval} />
         {/each}
+        {#if waitingHasMore}
+          <a href="/approvals" data-portal-more-approvals onclick={(event) => { if (onnavigate) { event.preventDefault(); onnavigate('/approvals'); } }}>{t('app.portal.more_waiting')}</a>
+        {/if}
       </Stack>
     </section>
   {/if}
