@@ -8,7 +8,7 @@
  * until it has its place; its words are `app.sync.what.entity.<entity>.write` and `.delete`.
  */
 
-import type { VocabularyEntity } from '@hubtask/sync-engine';
+import type { RefusedField, VocabularyEntity } from '@hubtask/sync-engine';
 
 export interface EntityPlace {
   /** The replica's collection the entity's name is read from; none for one shown by its entry. */
@@ -37,4 +37,26 @@ export function draftFields(local: unknown): Record<string, string> {
     if (typeof value === 'string' && ['title', 'notes', 'name', 'description', 'body'].includes(field)) fields[field] = value;
   }
   return fields;
+}
+
+/** One draft field's reason, as a message code and its values. */
+export interface FieldRefusal {
+  readonly code: string;
+  readonly params: Readonly<Record<string, string>>;
+}
+
+/**
+ * The draft fields a refusal names, keyed by field: a JSON Pointer of one segment (`/title`) is a
+ * field of the change's values; a deeper or empty one is about something a draft does not show and
+ * stays with the refusal's own reason.
+ */
+export function fieldRefusals(fields: readonly RefusedField[] | undefined): Record<string, FieldRefusal> {
+  const refusals: Record<string, FieldRefusal> = {};
+  for (const field of fields ?? []) {
+    const segments = field.path.split('/');
+    if (segments.length !== 2 || segments[0] !== '' || segments[1] === '') continue;
+    const name = segments[1]!.replaceAll('~1', '/').replaceAll('~0', '~');
+    refusals[name] ??= { code: field.code, params: field.params ?? {} };
+  }
+  return refusals;
 }

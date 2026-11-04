@@ -203,7 +203,8 @@ The kinds are `ITEM_CREATE`, `ITEM_PATCH`, `ITEM_DELETE`, `SET_ADD`, `SET_REMOVE
 `COMMENT_ADD` for an entry, and `ENTITY_UPSERT`, `ENTITY_PATCH` and `ENTITY_DELETE` for the
 workspace's vocabulary (`entity` and `entity_key` name what, §4.4); a new kind is an additive enum
 value. Each mutation is answered `applied`, `merged`
-(with the resulting object), `rejected` (with a stable code) or `conflict` (with both values, §5).
+(with the resulting object), `rejected` (with a stable code, its `params` and the `field_errors`
+a problem document would carry) or `conflict` (with both values, §5).
 
 * **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once.
 * **An `op_id` per mutation** is kept server-side for the offline window (`HUBTASK_TOMBSTONE_WINDOW`, 90 days by default — the one period the change log, the operation log and the tombstones share, retention kind `SYNC_LOG`); a duplicate push takes effect exactly once.

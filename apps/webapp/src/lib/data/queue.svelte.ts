@@ -10,7 +10,7 @@
 import type { ConflictRecord, MutationKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { ENTITY_PLACES } from './queueplaces.ts';
+import { ENTITY_PLACES, fieldRefusals } from './queueplaces.ts';
 import { messages, t } from '../i18n/i18n.svelte.ts';
 
 /** The message code for a mutation kind, and for a patch the field that moved. */
@@ -67,6 +67,8 @@ export interface ListedChange {
 
 export interface ListedRefusal extends ListedChange {
   readonly reason: string;
+  /** The reason beside each draft field the server named, where the catalogue words it. */
+  readonly fieldReasons: Readonly<Record<string, string>>;
   readonly record: RejectedMutation;
 }
 
@@ -138,6 +140,7 @@ class QueueView {
         where: await whereOf(record.itemId, record.mutation),
         href: hrefOf(record.itemId, record.mutation),
         reason: reasonOf(record),
+        fieldReasons: fieldReasonsOf(record),
         record,
       });
     }
@@ -172,9 +175,18 @@ function reasonOf(record: RejectedMutation): string {
   if (code === 'access.forbidden' || record.code === 'forbidden') return t('app.sync.refused.forbidden');
   if (code === 'sync.device_revoked') return t('app.sync.refused.device_revoked');
   if (record.messageCode && messages.has(record.messageCode)) {
-    return t('app.sync.refused.named', { reason: t(record.messageCode) });
+    return t('app.sync.refused.named', { reason: t(record.messageCode, record.params ?? {}) });
   }
   return t('app.sync.refused.other');
+}
+
+/** Each named field's reason in words; a code the catalogue lacks stays with the refusal's own. */
+function fieldReasonsOf(record: RejectedMutation): Record<string, string> {
+  const reasons: Record<string, string> = {};
+  for (const [field, refusal] of Object.entries(fieldRefusals(record.fieldErrors))) {
+    if (messages.has(refusal.code)) reasons[field] = t(refusal.code, refusal.params);
+  }
+  return reasons;
 }
 
 export const queue = new QueueView();

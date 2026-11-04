@@ -514,8 +514,9 @@ templates*, so *Templates* means one thing. A test pins the section order per le
   refusal to its screen; a catalogue test asserts every queueable entity has its *what* and *href*
   (`queueplaces.ts`). Built: the refusal keeps the mutation it was, the draft (`RefusedDraft`)
   offers its text fields and the server's reason, and *Send again* queues a new write
-  (`SyncEngine.resendRejected`). The push's answer names no field, so the reason is shown above
-  the fields rather than beside one.
+  (`SyncEngine.resendRejected`). The push's answer carries the refusal's `params` and
+  `field_errors`; a field named by a one-segment pointer (`/title`) shows its reason beside it,
+  any other reason stays above the fields (`fieldRefusals`).
 
 ### 5.12 Narrow screens
 

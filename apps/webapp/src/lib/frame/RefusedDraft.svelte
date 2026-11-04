@@ -50,9 +50,9 @@
     <p class="reason" role="alert" data-refusal-reason>{refusal.reason}</p>
     {#each Object.keys(values) as field (field)}
       {#if field === 'notes' || field === 'description' || field === 'body'}
-        <Textarea label={t(`app.sync.draft.field.${field}`)} bind:value={values[field]} />
+        <Textarea label={t(`app.sync.draft.field.${field}`)} error={refusal.fieldReasons[field]} bind:value={values[field]} />
       {:else}
-        <Input label={t(`app.sync.draft.field.${field}`)} bind:value={values[field]} />
+        <Input label={t(`app.sync.draft.field.${field}`)} error={refusal.fieldReasons[field]} bind:value={values[field]} />
       {/if}
     {:else}
       <p>{t('app.sync.draft.no_fields')}</p>

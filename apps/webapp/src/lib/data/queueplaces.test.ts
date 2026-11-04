@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { ENTITY_PLACES, QUEUEABLE_ENTITIES, draftFields } from './queueplaces.ts';
+import { ENTITY_PLACES, QUEUEABLE_ENTITIES, draftFields, fieldRefusals } from './queueplaces.ts';
 
 const catalogue = (name: string): Record<string, string> =>
   JSON.parse(readFileSync(new URL(`../../../../../locales/${name}`, import.meta.url), 'utf8')) as Record<string, string>;
@@ -30,4 +30,18 @@ test('a draft offers the text a refused change carried, nothing else', () => {
   assert.deepEqual(draftFields({ name: 'Incident', notes: 'x' }), { name: 'Incident', notes: 'x' });
   assert.deepEqual(draftFields(undefined), {});
   assert.deepEqual(draftFields(['title']), {});
+});
+
+test('a refusal names the draft fields it is about, read from their JSON Pointer', () => {
+  const refusals = fieldRefusals([
+    { path: '/title', code: 'items.title_too_long', params: { max: '500' } },
+    { path: '/fields/notes', code: 'items.nested' },
+    { path: '/a~1b', code: 'items.escaped' },
+    { path: '', code: 'items.whole' },
+  ]);
+  assert.deepEqual(refusals, {
+    title: { code: 'items.title_too_long', params: { max: '500' } },
+    'a/b': { code: 'items.escaped', params: {} },
+  });
+  assert.deepEqual(fieldRefusals(undefined), {});
 });

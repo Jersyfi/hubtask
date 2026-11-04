@@ -535,6 +535,7 @@ export type {
   QueueState,
   VocabularyEntity,
   RejectedMutation,
+  RefusedField,
   ConflictRecord,
   SetName,
   SyncDevice,
