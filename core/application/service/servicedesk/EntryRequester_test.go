@@ -108,3 +108,31 @@ func TestARequestsReaderSeesTheRequestersAssetsTheyMayRead(t *testing.T) {
 		t.Errorf("a build without the CMDB read %+v, %v; want an empty list", found.Assets, err)
 	}
 }
+
+// UC-SVC-03 checks 7 and 9, UC-SVC-11 *Where it ends*: a request the mail intake filed for a
+// requester without an account was raised by the administrator who opened the intake; beside it
+// the handler reads no organisation and no configuration items, which would be the
+// administrator's, never the requester's.
+func TestARequestFiledByMailNamesNoOrganisationNorAssets(t *testing.T) {
+	items := &itemStore{item: work.WorkItem{ID: itemID, TenantID: tenantID, CollectionID: itemID, CreatedBy: requesterID}}
+	read := ReadEntryRequester{
+		Desk: Desk{
+			Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Visibility: readsDeskHub{},
+			Organisations: &organisationStore{rows: map[string]domain.Organisation{
+				"acme": {Key: "acme", Name: "Acme", Domains: []string{"acme.example"}},
+			}},
+		},
+		Items: items, Containers: containerStore{},
+		Accounts:   addressBook{emails: map[shared.ID]string{requesterID: "admin@acme.example"}},
+		Assets:     ownedCIs{{ID: itemID, HubID: hubID, Name: "Admin laptop", Compliance: cmdb.Compliance{OwnerAccount: requesterID}}},
+		Modules:    assetsAt{},
+		Requesters: requesterBook{itemID: {{Address: "visitor@example.org"}}},
+	}
+	found, err := read.Execute(context.Background(), reader(), itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Organisation != nil || len(found.Assets) != 0 {
+		t.Errorf("a request filed by mail names %+v and %d assets", found.Organisation, len(found.Assets))
+	}
+}

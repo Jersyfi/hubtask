@@ -2387,7 +2387,10 @@ func run() error {
 		servicedeskservice.CopySlaPolicyHere{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteSlaPolicy{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ReadEntrySla{Desk: serviceDesk, Items: items, Containers: containers}.Descriptor(),
-		servicedeskservice.ReadEntryRequester{Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts, Assets: postgres.NewCmdbRepository(), Modules: modules}.Descriptor(),
+		servicedeskservice.ReadEntryRequester{
+			Desk: serviceDesk, Items: items, Containers: containers, Accounts: accounts, Assets: postgres.NewCmdbRepository(), Modules: modules,
+			Requesters: postgres.RequesterRepository{IDs: ids},
+		}.Descriptor(),
 		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.ListReplyTemplates{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineReplyTemplate{Desk: serviceDesk}.Descriptor(),

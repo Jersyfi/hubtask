@@ -62,6 +62,9 @@ type ReadEntryRequester struct {
 	// Assets and Modules serve the requester's CIs; either nil answers none.
 	Assets  OwnedAssets
 	Modules ModuleStates
+	// Requesters tells the entries the mail intake filed for a requester without an account, whose
+	// creator is the administrator who opened the intake; nil takes every creator as the requester.
+	Requesters RequesterAddresses
 }
 
 // Execute answers the entry's requester.
@@ -102,6 +105,14 @@ func (h ReadEntryRequester) Execute(ctx context.Context, actor appshared.ActorCo
 	out := EntryRequester{AccountID: creator, Assets: []cmdb.CI{}}
 	var owned []cmdb.CI
 	err = h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if h.Requesters != nil {
+			// Filed by mail: the creator's organisation and CIs are the intake owner's, not the
+			// requester's, who belongs to none (UC-SVC-11).
+			filed, err := h.Requesters.AddressesOn(ctx, itemID)
+			if err != nil || len(filed) > 0 {
+				return err
+			}
+		}
 		organisation, found, err := organisationOf(ctx, h.Accounts, h.Desk.Organisations, creator)
 		if found {
 			out.Organisation = &organisation
