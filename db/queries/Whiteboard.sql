@@ -90,6 +90,12 @@ INSERT INTO whiteboard_media (tenant_id, whiteboard_id, media_id)
 VALUES (current_tenant_id(), sqlc.arg('whiteboard_id'), sqlc.arg('media_id'))
 ON CONFLICT DO NOTHING;
 
+-- name: WhiteboardHoldsMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM whiteboard_media
+  WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id') AND media_id = sqlc.arg('media_id')
+) AS held;
+
 -- name: CountWhiteboardMedia :one
 SELECT count(*)::int FROM whiteboard_media
 WHERE tenant_id = current_tenant_id() AND whiteboard_id = sqlc.arg('whiteboard_id');

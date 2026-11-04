@@ -615,6 +615,25 @@ func (q *Queries) UpdateWhiteboardComment(ctx context.Context, arg UpdateWhitebo
 	return result.RowsAffected(), nil
 }
 
+const whiteboardHoldsMedia = `-- name: WhiteboardHoldsMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM whiteboard_media
+  WHERE tenant_id = current_tenant_id() AND whiteboard_id = $1 AND media_id = $2
+) AS held
+`
+
+type WhiteboardHoldsMediaParams struct {
+	WhiteboardID pgtype.UUID
+	MediaID      pgtype.UUID
+}
+
+func (q *Queries) WhiteboardHoldsMedia(ctx context.Context, arg WhiteboardHoldsMediaParams) (bool, error) {
+	row := q.db.QueryRow(ctx, whiteboardHoldsMedia, arg.WhiteboardID, arg.MediaID)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
 const whiteboardsByID = `-- name: WhiteboardsByID :many
 SELECT id, hub_id, title, jsonb_array_length(scene)::int AS elements
 FROM whiteboard

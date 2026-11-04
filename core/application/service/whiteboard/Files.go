@@ -85,6 +85,11 @@ func (h AttachWhiteboardMedia) Execute(ctx context.Context, actor appshared.Acto
 		if _, err := h.Studio.find(ctx, board.ID, true, false); err != nil {
 			return err
 		}
+		// The board holds it already: a retry, answered as the first placing was, full board or not.
+		held, err := h.Studio.Boards.HoldsMedia(ctx, board.ID, mediaID)
+		if err != nil || held {
+			return err
+		}
 		count, err := h.Studio.Boards.CountMedia(ctx, board.ID)
 		if err != nil {
 			return err

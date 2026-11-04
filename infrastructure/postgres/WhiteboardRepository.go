@@ -504,6 +504,27 @@ func (WhiteboardRepository) AttachMedia(ctx context.Context, boardID, mediaID sh
 	return nil
 }
 
+// HoldsMedia answers whether a board holds a media object already.
+func (WhiteboardRepository) HoldsMedia(ctx context.Context, boardID, mediaID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	board, err := uuidOf(boardID)
+	if err != nil {
+		return false, err
+	}
+	object, err := uuidOf(mediaID)
+	if err != nil {
+		return false, err
+	}
+	held, err := queries.WhiteboardHoldsMedia(ctx, sqlc.WhiteboardHoldsMediaParams{WhiteboardID: board, MediaID: object})
+	if err != nil {
+		return false, boardFailed("reading the files", err)
+	}
+	return held, nil
+}
+
 // CountMedia answers how many media objects a board holds.
 func (WhiteboardRepository) CountMedia(ctx context.Context, boardID shared.ID) (int, error) {
 	queries, err := queriesFrom(ctx)

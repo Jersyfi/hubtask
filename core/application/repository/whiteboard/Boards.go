@@ -64,6 +64,8 @@ type Boards interface {
 	Version(ctx context.Context, boardID shared.ID, seq int) (whiteboard.Version, error)
 	// AttachMedia places a media object on a board (UC-CNV-08); placing it twice is once.
 	AttachMedia(ctx context.Context, boardID, mediaID shared.ID) error
+	// HoldsMedia answers whether a board holds a media object already: placing it again is a retry.
+	HoldsMedia(ctx context.Context, boardID, mediaID shared.ID) (bool, error)
 	CountMedia(ctx context.Context, boardID shared.ID) (int, error)
 	// InsertComment, FindComment, Comments and UpdateComment keep a board's comments (UC-CNV-09);
 	// Comments answers them oldest first, UpdateComment writes at the version expected.

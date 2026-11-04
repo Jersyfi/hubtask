@@ -196,6 +196,12 @@ func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 		if n, err := repo.CountMedia(ctx, board); err != nil || n != 1 {
 			t.Errorf("held %d, %v", n, err)
 		}
+		if held, err := repo.HoldsMedia(ctx, board, picture); err != nil || !held {
+			t.Errorf("holds %v, %v", held, err)
+		}
+		if held, err := repo.HoldsMedia(ctx, board, freshID(t)); err != nil || held {
+			t.Errorf("holds an object never placed: %v, %v", held, err)
+		}
 		hubs, err := media.ReferencingBoards(ctx, picture)
 		if err != nil || len(hubs) != 1 || hubs[0] != hub {
 			t.Errorf("boards %v, %v", hubs, err)
@@ -213,6 +219,9 @@ func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if hubs, _ := media.ReferencingBoards(ctx, picture); len(hubs) != 0 {
 			t.Error("the workspace next door found the board holding the picture")
+		}
+		if held, _ := repo.HoldsMedia(ctx, board, picture); held {
+			t.Error("the workspace next door read that the board holds the picture")
 		}
 		return nil
 	}); err != nil {

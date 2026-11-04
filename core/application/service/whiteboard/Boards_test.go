@@ -502,6 +502,10 @@ func (s *store) AttachMedia(_ context.Context, boardID, mediaID shared.ID) error
 	return nil
 }
 
+func (s *store) HoldsMedia(_ context.Context, boardID, mediaID shared.ID) (bool, error) {
+	return slices.Contains(s.media[boardID], mediaID), nil
+}
+
 func (s *store) CountMedia(_ context.Context, boardID shared.ID) (int, error) {
 	return len(s.media[boardID]), nil
 }

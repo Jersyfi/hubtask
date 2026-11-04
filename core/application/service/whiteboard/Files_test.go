@@ -107,3 +107,32 @@ func TestAPictureIsPlacedOnABoard(t *testing.T) {
 		t.Errorf("a reader who may not write placed a file: %v", err)
 	}
 }
+
+// Placing what a board already holds is a retry and answers as the first placing did, even on a
+// board that holds as many files as it may, and writes nothing.
+func TestPlacingWhatABoardHoldsAgainIsARetry(t *testing.T) {
+	s, boards, sink := studio(gate{})
+	s.Media = uploads{}
+	ctx := context.Background()
+	board, err := CreateWhiteboard{Studio: s}.Execute(ctx, actor(anna), CreateWhiteboardCommand{HubID: hub, Title: "Moodboard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (AttachWhiteboardMedia{Studio: s}).Execute(ctx, actor(anna), board.ID, annasPicture); err != nil {
+		t.Fatal(err)
+	}
+	ids := counter{n: 900}
+	for range MaxMediaPerBoard - 1 {
+		boards.media[board.ID] = append(boards.media[board.ID], ids.NewID())
+	}
+	recorded := len(sink.entries)
+	if err := (AttachWhiteboardMedia{Studio: s}).Execute(ctx, actor(anna), board.ID, annasPicture); err != nil {
+		t.Fatalf("the retry answered %v", err)
+	}
+	if len(sink.entries) != recorded {
+		t.Fatal("a retry that changed nothing was recorded")
+	}
+	if err := (AttachWhiteboardMedia{Studio: s}).Execute(ctx, actor(anna), board.ID, privatePic); detail(err) != "whiteboards.media_full" {
+		t.Fatalf("a new file on a full board answered %v", err)
+	}
+}
