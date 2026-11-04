@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, ErrorState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -65,6 +65,9 @@
   import { todayIn } from '../lib/i18n/zone.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { moreInHubtask } from '../lib/product/home.ts';
+  import { productTemplates } from '../lib/product/templates.ts';
+  import { afterCreating } from '../lib/workspace/hubGallery.ts';
+  import { config } from '../lib/data/config.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { mayCaptureHere } from '../lib/capture/places.svelte.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
@@ -310,6 +313,26 @@
     }
   }
   const moreProducts = $derived(isMoreDismissed ? [] : moreInHubtask({ modulesOn: manifest.value?.modules_on, mayShape: holdsHere('STRUCTURE') === true }));
+  // *Try it* takes the product's template through the hub dialog (user-experience.md §3.3): a hub
+  // made from it opens on the template's plan, which switches the product on. A product no
+  // template starts, or a reader who may make no hub, goes to its home and its switch.
+  let catalogue = $state<readonly ConfigTemplate[]>([]);
+  $effect(() => {
+    if (moreProducts.length === 0 || (creation !== 'shared' && creation !== 'private')) return;
+    return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
+      if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
+    }));
+  });
+  let tryingWith = $state<string | undefined>(undefined);
+  function tryProduct(product: { readonly module: string; readonly path: string }): void {
+    const template = creation === 'shared' || creation === 'private' ? productTemplates(catalogue, product.module, 1)[0] : undefined;
+    if (!template) {
+      onnavigate?.(product.path);
+      return;
+    }
+    tryingWith = template.key;
+    isCreatingHub = true;
+  }
   const hasCompany = $derived(people.along({}).filter((membership) => membership.scope_type === 'TENANT').length > 1);
 
   /**
@@ -468,7 +491,7 @@
     <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
       {#snippet action()}
         {#if createLabel}
-          <Button icon="plus" onclick={() => (isCreatingHub = true)}>{createLabel}</Button>
+          <Button icon="plus" onclick={() => { tryingWith = undefined; isCreatingHub = true; }}>{createLabel}</Button>
         {/if}
       {/snippet}
     </EmptyState>
@@ -737,7 +760,7 @@
                       <span class="offer-name">{t(product.code)}</span>
                       <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
                     </span>
-                    <Button size="sm" tone="secondary" onclick={() => onnavigate?.(product.path)}>{t('app.today.more_try')}</Button>
+                    <Button size="sm" tone="secondary" onclick={() => tryProduct(product)}>{t('app.today.more_try')}</Button>
                   </li>
                 {/each}
               </ul>
@@ -753,7 +776,8 @@
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
 <StarterDialog onstarted={(id) => onnavigate?.(`/hubs/${id}`)} />
-<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
+<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={tryingWith}
+  oncreated={(id, template) => { tryingWith = undefined; onnavigate?.(afterCreating(id, template, `/hubs/${id}`)); }} />
 
 <style>
   .offers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }

@@ -267,3 +267,51 @@ test('chromium: a template the workspace has not taken is planned for the worksp
   assert.deepEqual(plans, [NEW_HUB, '', NEW_HUB], 'the plans were not hub, workspace, hub');
   assert.deepEqual(failures, []);
 });
+
+// §3.3: *Try it* in More in Hubtask takes the product's template through the hub dialog - not to
+// the product's switched-off page - and a product no template starts still goes to its home,
+// whose switch then says what the product still needs (§2.8).
+test('chromium: Try it opens the hub dialog on the product\'s template', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const ITIL = template('itil_service_desk', ['workflows', 'service_desk', 'knowledge']);
+  let on = ['WORKFLOWS'];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: on } });
+    if (path === '/config/templates' && request.method() === 'GET') return route.fulfill({ json: { data: [KANBAN, ITIL] } });
+    if (path === '/tenant/modules/TIME' && request.method() === 'PUT') {
+      on = [...on, 'TIME'];
+      return route.fulfill({ json: { modules: [] } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/`);
+  const more = page.getByRole('region', { name: 'More in Hubtask' });
+  await more.waitFor({ timeout: 15_000 });
+  await more.getByRole('listitem').filter({ hasText: 'Service desk' }).getByRole('button', { name: 'Try it' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.locator('[data-hub-template="itil_service_desk"] button[aria-pressed="true"]').waitFor({ timeout: 10_000 });
+  assert.equal(new URL(page.url()).pathname, '/', 'Try it left Today instead of opening the dialog');
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+
+  // No template switches Time on here: Try it goes to its home and its switch.
+  await more.getByRole('listitem').filter({ has: page.locator('.offer-name', { hasText: /^Time$/ }) }).getByRole('button', { name: 'Try it' }).click();
+  await page.waitForFunction(() => location.pathname === '/time', null, { timeout: 5_000 });
+  await page.getByRole('button', { name: 'Switch Time on' }).click();
+  // The page gives way to the product; the message keeps what it still needs.
+  await page.getByRole('link', { name: 'Set up time: the time policy and kinds of work' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});

@@ -11,6 +11,7 @@
   import { modules } from '../data/modules.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { switchedOn } from '../product/switchedon.ts';
   import { page } from './page.svelte.ts';
   import { toast } from './toasts.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
@@ -29,7 +30,10 @@
     refusal = undefined;
     try {
       await modules.switch(module as ModuleState['module'], 'ON');
-      toast.show({ text: t('app.modules.switched_on', { module: name }), tone: 'success' });
+      // The page gives way to the product's home; what it still needs travels with the message
+      // (user-experience.md §2.8), as the card under the switch says it.
+      const setup = switchedOn(module).setup;
+      toast.show({ text: t('app.modules.switched_on', { module: name }), tone: 'success', ...(setup ? { link: { label: t(setup.code), href: setup.href } } : {}) });
     } catch (error) {
       refusal = renderProblem(error as never, messages).message;
     } finally {
