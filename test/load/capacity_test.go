@@ -213,13 +213,17 @@ const envWalk = "HUBTASK_LOAD_WALK"
 
 // walk runs apps/webapp/e2e/scalewalk.mjs over one workspace's start, hub and collection and
 // answers its rows. A walk that cannot run is the run's error, never an empty list.
+// productHomes are the products' homes the R3 walk visits beside a hub and a collection
+// (user-experience.md §3.6): the paths of PRODUCTS in apps/webapp/src/lib/navigation.ts.
+var productHomes = []string{"/plans", "/pages", "/whiteboards", "/desk", "/assets", "/time", "/goals", "/agents"}
+
 func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
 	t.Helper()
 	out := filepath.Join(t.TempDir(), "walk.json")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "node", "e2e/scalewalk.mjs", stack.baseURL, as.walkToken, out,
-		"/", "/hubs/"+as.hub, "/collections/"+as.collection)
+	paths := append([]string{"/", "/hubs/" + as.hub, "/collections/" + as.collection}, productHomes...)
+	cmd := exec.CommandContext(ctx, "node", append([]string{"e2e/scalewalk.mjs", stack.baseURL, as.walkToken, out}, paths...)...)
 	cmd.Dir = filepath.Join(repositoryRoot(), "apps", "webapp")
 	output, err := cmd.CombinedOutput()
 	t.Logf("walk of %s:\n%s", as.id, output)

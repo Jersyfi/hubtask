@@ -75,7 +75,8 @@ request of the page counted the same way (`page.on('console')` and `page.on('req
 `apps/webapp/e2e/fixture.mjs` already records `pageerror`), is run R3, accepted by the owner (fourth answers 13; about the seed's 40 minutes plus the walk).
 It is `HUBTASK_LOAD_WALK=1` on R1's command ([README.md](./README.md)): `apps/webapp/e2e/scalewalk.mjs`
 records `console`, `pageerror`, `requestfailed` and every 5xx, folded into `browser` rows of
-`errors-<items>.json` (`scalewalk-errors.test.mjs`).
+`errors-<items>.json` (`scalewalk-errors.test.mjs`). It visits Today, a hub, a collection and every
+product's home (`productHomes` in `capacity_test.go`, the paths of the web app's product band).
 
 ## What happens with what was collected
 
