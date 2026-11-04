@@ -231,6 +231,31 @@ test('chromium: the rank keys the list shows are the keys that rank (check 3)', 
   assert.deepEqual(failures, []);
 });
 
+test('chromium: summoned again, the last words are selected and what is typed replaces them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 1280);
+  t.after(() => context.close());
+
+  await onKitchen(page);
+  const field = page.getByRole('combobox', { name: FIELD });
+  for (const focus of ['body', 'field']) {
+    if (focus === 'body') await page.locator('body').click({ position: { x: 1, y: 300 } });
+    await page.keyboard.press('Meta+k');
+    await listOf(page).waitFor();
+    await page.keyboard.type('Orion');
+    await page.keyboard.press('Escape');
+    await listOf(page).waitFor({ state: 'detached' });
+    await page.keyboard.press('Meta+k');
+    await listOf(page).waitFor();
+    await page.keyboard.type('kitch');
+    assert.equal(await field.inputValue(), 'kitch', `from the ${focus}`);
+    await page.keyboard.press('Escape');
+    await listOf(page).waitFor({ state: 'detached' });
+  }
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: by keyboard alone, Enter performs the highlighted row and Escape returns focus (check 5)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

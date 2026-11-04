@@ -23,7 +23,7 @@
   // wrong for a list under a field somebody is still typing in. Focus stays in the field; the
   // arrows move a highlight a screen reader is told about through `aria-activedescendant`.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
   import type { Container, SettingDefinition, WorkItem } from '@hubtask/sync-engine';
@@ -407,6 +407,12 @@
     if (host !== 'bar' || !isOpen) return;
     const node = form;
     if (node && !node.contains(document.activeElement)) node.querySelector('input')?.focus();
+  });
+
+  // Summoned again, the words left from the last question are selected: typing replaces them.
+  $effect(() => {
+    if (palette.summons === 0 || !isOpen) return;
+    void tick().then(() => form?.querySelector('input')?.select());
   });
 
   // ------------------------------------------------------------------------------------------
