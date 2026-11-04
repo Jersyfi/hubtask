@@ -33,7 +33,7 @@
     Table,
     Tabs,
   } from '@hubtask/design-system/components';
-  import type { MembershipRole } from '@hubtask/sync-engine';
+  import type { InvitationDelivery, MembershipRole } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -51,7 +51,8 @@
   import StartPasswordResult from '../lib/people/StartPasswordResult.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
-  import { collectionChoice, invitePlaceOf, inviteRoleChoices, inviteWay } from '../lib/people/invitation.ts';
+  import { collectionChoice, deliveryLine, invitePlaceOf, inviteRoleChoices, inviteWay } from '../lib/people/invitation.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { roles as workspaceRoles } from '../lib/data/roles.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -364,6 +365,29 @@
     return accountId ? accounts.statusOf(accountId) : undefined;
   }
 
+  /**
+   * How the last invitation mail to each invited person went (user-experience.md §8.3), for whoever
+   * may invite, where invitations go by mail. Read again after a renewal; a refusal leaves the rows
+   * without the line rather than failing the list.
+   */
+  let deliveries = $state<Readonly<Record<string, InvitationDelivery>>>({});
+  const invitedIds = $derived(
+    way === 'mail' && holdsHere('MANAGE_MEMBERS') === true
+      ? [...new Set(holders.map((holder) => holder.accountId).filter((id): id is string => !!id && statusOf(id) === 'INVITED'))].sort()
+      : [],
+  );
+  const invitedKey = $derived(invitedIds.join(','));
+  function readDeliveries(ids: readonly string[]): void {
+    void people.invitationDeliveries(ids)
+      .then((answer) => (deliveries = Object.fromEntries(answer.map((delivery) => [delivery.account_id, delivery]))))
+      .catch(() => (deliveries = {}));
+  }
+  $effect(() => {
+    void invitedKey;
+    const ids = invitedIds;
+    untrack(() => readDeliveries(ids));
+  });
+
   /** Whether the account counts as an owner who can act: active or restricted, as the server counts. */
   function canAct(accountId: string): boolean {
     const status = statusOf(accountId);
@@ -456,6 +480,7 @@
       } else {
         invited = nameOf(holder);
         announcer.say(t('app.people.invited_announced'));
+        readDeliveries(invitedIds);
       }
     });
   }
@@ -714,6 +739,13 @@
               {#if statusOf(holder.accountId) === 'INVITED'}
                 <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
                 <Badge tone="info">{t('app.people.invited')}</Badge>
+                {@const delivery = holder.accountId ? deliveries[holder.accountId] : undefined}
+                {#if delivery}
+                  {@const line = deliveryLine(delivery)}
+                  <p class="delivery" class:failed={delivery.state === 'FAILED'} data-delivery={delivery.state}>
+                    {t(line.code, { at: formatDateTime(delivery.at, messages.locale) })}{#if line.reason}<br />{t(line.reason.code, line.reason.params)}{/if}
+                  </p>
+                {/if}
               {:else if statusOf(holder.accountId)}
                 <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
               {/if}
@@ -830,6 +862,9 @@
 </Stack>
 
 <style>
+  .delivery { margin: var(--sp-050) 0 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  .delivery.failed { color: var(--text-danger); }
+
   /* A form is neither prose nor a table, and it is the third case of ADR-0065 decision 2: an
      input as wide as the region is a target nobody aims at, so the fields carry a measure of
      their own while the lists and tables beside them take the width. */

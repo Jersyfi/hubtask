@@ -3,8 +3,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
-import { handedOverLink, inviteWay, collectionChoice, customRoleOf, invitePlaceOf, inviteRoleChoices } from './invitation.ts';
+import { deliveryLine, handedOverLink, inviteWay, collectionChoice, customRoleOf, invitePlaceOf, inviteRoleChoices } from './invitation.ts';
 
 test('the form promises a link exactly where the installation sends no mail (UC-ID-14 check 5)', () => {
   assert.equal(inviteWay({ mail: false }), 'link');
@@ -37,4 +38,17 @@ test('an invitation offers the workspace\'s own roles beside the shipped ones, a
   assert.deepEqual(invitePlaceOf(''), { scopeType: 'TENANT' });
   assert.deepEqual(invitePlaceOf('h1'), { scopeType: 'HUB', scopeId: 'h1' });
   assert.deepEqual(invitePlaceOf(collectionChoice('c1')), { scopeType: 'COLLECTION', scopeId: 'c1' });
+});
+
+// user-experience.md §8.3: an invited person's row says how the last mail went, in every state the
+// server answers, and a failure's own reason beside it.
+test('each invitation delivery state has its sentence, and a failure its reason', () => {
+  const catalogue = JSON.parse(readFileSync(new URL('../../../../../locales/en.json', import.meta.url), 'utf8')) as Record<string, string>;
+  for (const state of ['QUEUED', 'SENDING', 'SENT', 'FAILED', 'CANCELLED'] as const) {
+    const line = deliveryLine({ state, at: '2026-11-04T09:00:00Z', code: null });
+    assert.ok(catalogue[line.code], `${state} has no words`);
+    assert.equal(line.reason, undefined);
+  }
+  const failed = deliveryLine({ state: 'FAILED', at: '2026-11-04T09:00:00Z', code: 'mail.recipient_rejected', params: { status: '550' } });
+  assert.deepEqual(failed.reason, { code: 'mail.recipient_rejected', params: { status: '550' } });
 });

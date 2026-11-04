@@ -9,6 +9,7 @@
  * follows the press is read from the answer itself: a link is shown exactly when the server answered
  * one, and never guessed from a manifest that may be a moment old.
  */
+import type { InvitationDelivery } from '@hubtask/sync-engine';
 
 /** `unknown` until the manifest has been read: the form then promises neither. */
 export type InviteWay = 'mail' | 'link' | 'unknown';
@@ -60,4 +61,16 @@ export function invitePlaceOf(choice: string): InvitePlace {
   if (choice === '') return { scopeType: 'TENANT' };
   if (choice.startsWith(COLLECTION)) return { scopeType: 'COLLECTION', scopeId: choice.slice(COLLECTION.length) };
   return { scopeType: 'HUB', scopeId: choice };
+}
+
+/**
+ * The row's line of how the last invitation mail went (user-experience.md §8.3): its state's
+ * sentence with the time, and - where an attempt failed - the failure's own code and parameters,
+ * rendered beside it as its reason.
+ */
+export function deliveryLine(
+  delivery: Pick<InvitationDelivery, 'state' | 'at' | 'code' | 'params'>,
+): { code: string; reason?: { code: string; params: Readonly<Record<string, string>> } } {
+  const line = { code: `app.people.delivery_${delivery.state.toLowerCase()}` };
+  return delivery.code ? { ...line, reason: { code: delivery.code, params: delivery.params ?? {} } } : line;
 }

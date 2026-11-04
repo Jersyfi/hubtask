@@ -555,6 +555,7 @@ export type {
   ReminderUpdate,
   ErasureKept,
   ErasureLine,
+  InvitationDelivery,
   ErasurePreview,
   RetentionDataKind,
   RetentionPolicy,

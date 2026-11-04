@@ -599,6 +599,8 @@ export type ErasureKept = components['schemas']['ErasureKept'];
 export type ErasurePreview = components['schemas']['ErasurePreview'];
 /** What an erasure does to one kind of data, counted where the preview reads the rows. */
 export type ErasureLine = components['schemas']['ErasureLine'];
+/** How the last invitation mail to one account went, for the people list's row. */
+export type InvitationDelivery = components['schemas']['InvitationDelivery'];
 
 /**
  * How a workspace signs its people in through its own provider, and how that is set.

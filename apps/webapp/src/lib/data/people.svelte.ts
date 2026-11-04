@@ -16,7 +16,7 @@
  * and re-reading it per picker would be a request per keystroke's worth of nothing.
  */
 
-import type { GroupDetail, Membership, MembershipPage, MembershipRole, MembershipScope } from '@hubtask/sync-engine';
+import type { GroupDetail, InvitationDelivery, Membership, MembershipPage, MembershipRole, MembershipScope } from '@hubtask/sync-engine';
 
 import { accounts } from './accounts.svelte.ts';
 import { containers } from './containers.svelte.ts';
@@ -237,6 +237,19 @@ class People {
       return link === undefined ? { grantFailure } : { link, grantFailure };
     }
     return link === undefined ? {} : { link };
+  }
+
+  /**
+   * How the last invitation mail to each of these accounts went (user-experience.md §8.3), read
+   * afresh: it answers a question about the queue, which moves on its own.
+   */
+  async invitationDeliveries(accountIds: readonly string[]): Promise<InvitationDelivery[]> {
+    if (accountIds.length === 0) return [];
+    const state = await engine.refresh<{ data: InvitationDelivery[] }>({
+      path: '/accounts:invitation-deliveries', body: { ids: accountIds.slice(0, 200) },
+    });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
   }
 
   /**
