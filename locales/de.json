@@ -4086,6 +4086,8 @@
   "app.templates.change_add": "Fügt hinzu: {section} „{key}“",
   "app.templates.change_change": "Ändert: {section} „{key}“",
   "app.templates.change_remove": "Entfernt: {section} „{key}“",
+  "app.templates.change_module_on": "Schaltet {key} ein",
+  "app.templates.change_module_off": "Schaltet {key} aus",
   "app.templates.needs_module": "Braucht {module}, das hier ausgeschaltet ist.",
   "app.templates.needs_modules_title": "Diese Vorlage braucht einen Teil von Hubtask, der hier ausgeschaltet ist",
   "app.templates.needs_modules_body": "Eingeschaltet zeigt er allen im Arbeitsbereich seine Ansichten; sonst ändert sich nichts, bis Sie die Vorlage anwenden.",

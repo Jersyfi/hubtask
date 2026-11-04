@@ -110,7 +110,12 @@ export function modulesToSwitchOn(refusals: readonly Refused[]): string[] {
 export function changeWords(change: Changed): { code: string; section: string; key: string; module?: string } {
   const code = `app.templates.change_${change.op.toLowerCase()}`;
   // A module is named by its product's word, a block with a name by that name (§5.4).
-  if (change.section === 'modules') return { code, section: sectionWord(change.section), key: change.key, module: `app.modules.name_${change.key.toLowerCase()}` };
+  if (change.section === 'modules') {
+    // Said as the switch it is: *Switches on Pages*, not a change of a module.
+    const to = change.after?.['switch'];
+    const said = to === 'ON' ? 'app.templates.change_module_on' : to === 'OFF' ? 'app.templates.change_module_off' : code;
+    return { code: said, section: sectionWord(change.section), key: change.key, module: `app.modules.name_${change.key.toLowerCase()}` };
+  }
   const named = [change.after?.['name'], change.before?.['name']].find((each): each is string => typeof each === 'string' && each.trim() !== '');
   return { code, section: sectionWord(change.section), key: named ?? change.key };
 }

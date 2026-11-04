@@ -72,7 +72,10 @@ test('a plan is said in words: no message code and no key path is shown', () => 
   assert.equal(changeWords({ section: 'roles', key: 'cab_member', op: 'ADD', after: { name: 'CAB member' } }).key, 'CAB member');
   assert.equal(changeWords({ section: 'fields', key: 'responding_group', op: 'REMOVE', before: { name: 'Responding group' }, after: null }).key, 'Responding group');
   assert.deepEqual(changeWords({ section: 'modules', key: 'knowledge', op: 'CHANGE', after: { switch: 'ON' } }),
-    { code: 'app.templates.change_change', section: 'app.templates.section_modules', key: 'knowledge', module: 'app.modules.name_knowledge' });
+    { code: 'app.templates.change_module_on', section: 'app.templates.section_modules', key: 'knowledge', module: 'app.modules.name_knowledge' });
+  assert.equal(changeWords({ section: 'modules', key: 'goals', op: 'ADD', after: { switch: 'OFF' } }).code, 'app.templates.change_module_off');
+  assert.equal(changeWords({ section: 'modules', key: 'goals', op: 'REMOVE', before: { switch: 'ON' }, after: null }).code, 'app.templates.change_remove',
+    'a module left to the level above is no switch either way');
   assert.deepEqual(refusalWords({ path: '/workflows', code: 'module.off', params: { module: 'WORKFLOWS' } }),
     { section: 'app.templates.section_workflows', code: 'app.templates.needs_module', module: 'app.modules.name_workflows' });
   assert.deepEqual(refusalWords({ path: '/settings/ai.source', code: 'config.section_withheld' }),

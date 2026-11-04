@@ -4756,6 +4756,8 @@
   "app.templates.change_add": "Adds the {section} “{key}”",
   "app.templates.change_change": "Changes the {section} “{key}”",
   "app.templates.change_remove": "Removes the {section} “{key}”",
+  "app.templates.change_module_on": "Switches on {key}",
+  "app.templates.change_module_off": "Switches off {key}",
   "app.templates.needs_module": "Needs {module}, which is switched off here.",
   "app.templates.needs_modules_title": "This template needs a part of Hubtask that is switched off here",
   "app.templates.needs_modules_body": "Switching it on shows its screens to everyone in the workspace; nothing else changes until you apply the template.",
