@@ -140,3 +140,21 @@ func TestOneSearchAnswersEntriesAndPages(t *testing.T) {
 		}
 	}
 }
+
+// UC-INT-20 check 3: both reads need items:read and nothing else, and a refusal of the search
+// below them is answered as it is.
+func TestBothReadsNeedItemsReadAndPassARefusalThrough(t *testing.T) {
+	g := Glance{Invoker: &searches{refuse: shared.ErrForbidden.WithDetail("access.forbidden")}, Addresses: address{}, Containers: collections{}, UnitOfWork: inline{}}
+	for name, descriptor := range map[string]usecase.Descriptor{
+		"open entries": ListMyOpenEntries{Glance: g}.Descriptor(),
+		"search":       SearchEverywhere{Glance: g}.Descriptor(),
+	} {
+		if descriptor.TokenScope != "items:read" || !descriptor.ReadOnly {
+			t.Errorf("%s asks for %q, read only %v", name, descriptor.TokenScope, descriptor.ReadOnly)
+		}
+	}
+	_, _, err := SearchEverywhere{Glance: g}.Execute(context.Background(), appshared.ActorContext{}, "Milch", 0, "")
+	if refusal := shared.AsError(err); !errors.Is(err, shared.ErrForbidden) || refusal.DetailCode != "access.forbidden" {
+		t.Errorf("the search's refusal came back as %v", err)
+	}
+}

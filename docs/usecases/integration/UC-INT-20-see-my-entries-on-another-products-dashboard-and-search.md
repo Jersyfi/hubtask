@@ -5,7 +5,7 @@ context: integration
 actors: [PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-12]
-state: built
+state: verified
 tasks: []
 checked_by: [core/application/service/glance/Glance_test.go, test/integration/private_hub_readers_test.go]
 ---
