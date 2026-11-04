@@ -164,7 +164,6 @@ const healthSampleInterval = 30 * time.Second
 // previousUIAssets is where the release image keeps the previous release's interface assets.
 const previousUIAssets = "/app/ui-previous"
 
-
 // poolCloseDeadline bounds a pool's Close, which waits for every connection to come back: one held
 // by a loop abandoned at the grace period would otherwise keep the process alive after SIGTERM.
 const poolCloseDeadline = 5 * time.Second
