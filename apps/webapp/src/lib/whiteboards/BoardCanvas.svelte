@@ -50,7 +50,7 @@
   import { media } from '../data/media.svelte.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
-    BOARD_COLOURS, backlinkHref, boardCommentsPath, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, pinOf,
+    BOARD_COLOURS, backlinkHref, linkAddress, boardCommentsPath, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, pinOf,
     placeCarried, threadsOf, voterKey, whiteboards,
   } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -674,20 +674,12 @@
 
   // --- Web links -----------------------------------------------------------------------------------
 
-  const linkError = $derived.by(() => {
-    if (!linkDraft.trim()) return undefined;
-    try {
-      const url = new URL(linkDraft.trim());
-      return url.protocol === 'https:' || url.protocol === 'http:' ? undefined : t('whiteboards.link_url_invalid');
-    } catch {
-      return t('whiteboards.link_url_invalid');
-    }
-  });
+  const linkError = $derived(!linkDraft.trim() || linkAddress(linkDraft) ? undefined : t('whiteboards.link_url_invalid'));
 
   function putLink() {
-    const url = linkDraft.trim();
+    const url = linkAddress(linkDraft);
     isLinking = false;
-    if (!url || linkError) return;
+    if (!url) return;
     put('LINK', linkAt ?? centre(), { url });
   }
 

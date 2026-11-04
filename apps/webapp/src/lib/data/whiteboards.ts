@@ -59,6 +59,24 @@ export async function placeCarried(elements: readonly Element[], place: (mediaId
   return ids.filter((_, i) => outcomes[i]?.status === 'rejected');
 }
 
+/** The longest web address a link keeps (`whiteboards.link_url_invalid`). */
+const MAX_URL_LENGTH = 2048;
+
+/**
+ * A typed web address as a link keeps it: parsed and written back, so a space in it is encoded as
+ * the server takes it; anything but http(s), without a host or too long is none. A stored address
+ * the server refuses would stop every later save of the board.
+ */
+export function linkAddress(typed: string): string | undefined {
+  try {
+    const url = new URL(typed.trim());
+    if ((url.protocol !== 'https:' && url.protocol !== 'http:') || !url.host) return undefined;
+    return url.href.length <= MAX_URL_LENGTH ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** The entries a board's cards draw, once each. */
 export function cardEntries(elements: readonly Element[]): string[] {
   return [...new Set(elements.flatMap((e) => (e.kind === 'CARD' && e.target ? [e.target.id] : [])))];

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
-  backlinkHref, placeCarried, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
+  backlinkHref, linkAddress, placeCarried, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
   threadsOf, voterKey,
 } from './whiteboards.ts';
 
@@ -131,4 +131,13 @@ test('pictures and files carried onto a board - pasted from another or imported 
   );
   assert.deepEqual(placed, ['m1', 'm2']);
   assert.deepEqual(failed, ['m2']);
+});
+
+test('a web link is kept as an address the server takes: a space in it encoded, anything but http(s) or too long refused', () => {
+  assert.equal(linkAddress(' https://example.com/our plan '), 'https://example.com/our%20plan');
+  assert.equal(linkAddress('http://example.com'), 'http://example.com/');
+  assert.equal(linkAddress('javascript:alert(1)'), undefined);
+  assert.equal(linkAddress('example.com'), undefined);
+  assert.equal(linkAddress(''), undefined);
+  assert.equal(linkAddress(`https://example.com/${'a'.repeat(2048)}`), undefined);
 });
