@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afterCreating, hubFamilies, switchedOn } from './hubGallery.ts';
+import { afterCreating, hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
 
 const of = (key: string, origin: 'HUBTASK' | 'INSTALLATION' | 'WORKSPACE' | 'OWN' = 'HUBTASK', hub = true) => ({
   key, origin, hub_document: hub ? {} : null,
@@ -43,4 +43,12 @@ test('a card names the products a template switches on, workflows left out', () 
 test('a hub made from a chosen template opens on that template\'s plan, else where the caller goes', () => {
   assert.equal(afterCreating('h1', 'itil_service_desk', '/hubs/h1'), '/hubs/h1/settings/modules?template=itil_service_desk');
   assert.equal(afterCreating('h1', undefined, '/hubs/h1'), '/hubs/h1');
+});
+
+test('choosing a template fills in its name until the reader types one', () => {
+  assert.equal(prefilledName('', '', 'Scrum team'), 'Scrum team');
+  assert.equal(prefilledName('Scrum team', 'Scrum team', 'Kanban team'), 'Kanban team', 'another choice replaces a filled-in name');
+  assert.equal(prefilledName('Mobile app', 'Scrum team', 'Kanban team'), 'Mobile app', 'a typed name stays');
+  assert.equal(prefilledName('Scrum team', 'Scrum team', ''), '', 'unchoosing takes the filled-in name away');
+  assert.equal(prefilledName('  ', '', 'Scrum team'), 'Scrum team');
 });

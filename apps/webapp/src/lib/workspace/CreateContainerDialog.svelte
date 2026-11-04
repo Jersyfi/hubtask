@@ -40,7 +40,7 @@
 
   import { config } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
-  import { hubFamilies, switchedOn } from './hubGallery.ts';
+  import { hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
 
   import { containers } from '../data/containers.svelte.ts';
   import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
@@ -83,6 +83,8 @@
   let preset = $state('');
   /** The catalogue template chosen for a hub, or empty where a preset (or the default) is. */
   let fromTemplate = $state('');
+  /** The name the last template chosen filled in, so a name the reader typed is never replaced. */
+  let filled = $state('');
   let symbol = $state<PlaceSymbol | undefined>(undefined);
   let colour = $state<LabelToken | undefined>(undefined);
   let isSaving = $state(false);
@@ -97,6 +99,7 @@
     isPrivate = false;
     preset = '';
     fromTemplate = '';
+    filled = '';
     symbol = undefined;
     colour = undefined;
     failure = undefined;
@@ -123,14 +126,27 @@
     each.origin === 'HUBTASK' ? t(`app.structure.preset.${each.key.toUpperCase()}`) : each.name;
   const productsOf = (each: ConfigTemplate): string[] =>
     switchedOn(each).map((module) => t(`app.modules.name_${module.toLowerCase()}`));
+  function fillName(next: string): void {
+    name = prefilledName(name, filled, next);
+    filled = next;
+  }
   function pickPreset(value: string): void {
     preset = value;
+    if (fromTemplate) fillName('');
     fromTemplate = '';
   }
   function pickTemplate(key: string): void {
     fromTemplate = key;
     preset = '';
+    const chosen = catalogue.find((each) => each.key === key);
+    if (chosen) fillName(templateName(chosen));
   }
+  // A template chosen before the dialog opened names the hub once the catalogue has answered.
+  $effect(() => {
+    if (!isOpen || !preselected || fromTemplate !== preselected) return;
+    const chosen = catalogue.find((each) => each.key === preselected);
+    if (chosen) untrack(() => { if (name.trim() === '') fillName(templateName(chosen)); });
+  });
 
   $effect(() => {
     if (!isOpen) return;

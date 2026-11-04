@@ -98,7 +98,15 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
   await dialog.locator('[data-hub-template="scrum_team"] button[aria-pressed="true"]').waitFor({ timeout: 10_000 });
   assert.equal(await dialog.locator('[data-family="teams"] [data-hub-template]').count(), 2, 'the teams family does not hold both team templates');
   assert.equal(await dialog.locator('[data-family="simple"]').count(), 1, 'the presets are not the Simple family');
-  await dialog.getByLabel('Hub name').fill('Delivery');
+  // §8.11: the chosen template names the hub until the reader types a name; another choice
+  // renames it, a typed name stays.
+  const hubName = dialog.getByLabel('Hub name');
+  assert.equal(await hubName.inputValue(), 'Scrum team');
+  await dialog.locator('[data-hub-template="kanban_team"] button').click();
+  assert.equal(await hubName.inputValue(), 'Kanban team');
+  await hubName.fill('Delivery');
+  await dialog.locator('[data-hub-template="scrum_team"] button').click();
+  assert.equal(await hubName.inputValue(), 'Delivery');
   await dialog.getByRole('button', { name: 'Create hub', exact: true }).click();
   await page.waitForURL(`**/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`, { timeout: 10_000 });
   // The live stream brings the new hub to a running client; this fixture has none, so the address

@@ -52,3 +52,12 @@ export function switchedOn(template: { readonly document?: { readonly modules?: 
 export function afterCreating(id: string, template: string | undefined, otherwise: string): string {
   return template ? `/hubs/${encodeURIComponent(id)}/settings/modules?template=${encodeURIComponent(template)}` : otherwise;
 }
+
+/**
+ * The hub's name once a template is chosen (§8.11): the template's name where the reader has typed
+ * none or the name is still the one the last choice filled in; a name the reader typed stays.
+ * Unchoosing (`next` empty) takes a filled-in name away again.
+ */
+export function prefilledName(current: string, filled: string, next: string): string {
+  return current.trim() === '' || current === filled ? next : current;
+}

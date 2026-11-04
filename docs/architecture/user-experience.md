@@ -1071,8 +1071,9 @@ workspace's — English*), so leaving it says what it means.
   first, three at most (`product/templates.ts`). One press asks the hub's name; the new hub opens
   on its *Products* section (`/hubs/<id>/settings/modules?template=<key>`) with that template's
   plan open, so taking it is one more press. Workflows, which every shipped template switches on,
-  offers none. Not built here: a preview per template and the hub's name prefilled from it; the
-  assets have no shipped template that switches them on, so their home offers none.
+  offers none. The template chosen names the hub until the reader types a name (another choice
+  renames it, a typed name stays). Not built here: a preview per template; the assets have no
+  shipped template that switches them on, so their home offers none.
 * **Creating a hub** (§5.2): the dialog draws the gallery - *Simple* (the workspace's default and
   the presets), then the catalogue's templates with a hub part by the families of
   `configuration.md` §9, placed by key on the client (`workspace/hubGallery.ts`, the contract
