@@ -459,7 +459,7 @@ func TestARevocationClosesTheConnectionAtOnce(t *testing.T) {
 }
 
 func compactMessage(upTo int64, state []byte) []byte {
-	return appendBytes(appendUvarint(appendUvarint(nil, messageCompact), uint64(upTo)), state) //nolint:gosec // a test's place
+	return appendBytes(appendUvarint(appendUvarint(nil, messageCompact), uint64(upTo)), state)
 }
 
 // A writer's snapshot is its state when it read the server's request: it can cover only what this
