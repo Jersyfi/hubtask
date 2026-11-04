@@ -250,6 +250,23 @@ export function mayIssueWayIn(
 }
 
 /**
+ * Whether a row offers *Reset second factor* (fifth answers 6): a person, not a group, active, not
+ * the reader themselves (their own factor is turned off in their own settings), and within the role
+ * ceiling as every new way in is - so an administrator never sees it on an owner's row. Whether the
+ * person holds an app is the server's to answer (`auth.mfa_not_enrolled`).
+ */
+export function mayResetFactor(
+  holder: { readonly accountId?: string; readonly groupId?: string; readonly role: MembershipRole },
+  ownAccountId: string | undefined,
+  status: string | undefined,
+  grantableAtWorkspace: readonly MembershipRole[] | undefined,
+): boolean {
+  if (holder.groupId !== undefined || holder.accountId === undefined) return false;
+  if (holder.accountId === ownAccountId || status !== 'ACTIVE') return false;
+  return mayIssueWayIn([holder.role], grantableAtWorkspace);
+}
+
+/**
  * Whether revoking this row would end the workspace's last owner, which the server refuses
  * (`memberships.last_owner`, domain-model.md §3.2): a person's own `OWNER` on the workspace, the
  * person able to act, and no other `OWNER` row on the workspace at all.

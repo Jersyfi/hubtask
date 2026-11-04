@@ -42,11 +42,12 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { endsTheLastOwner, grantableOf, mayIssueWayIn, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
+  import { endsTheLastOwner, grantableOf, mayIssueWayIn, mayResetFactor, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
   import RenewDialog from '../lib/people/RenewDialog.svelte';
+  import ResetFactorDialog from '../lib/people/ResetFactorDialog.svelte';
   import StartPasswordResult from '../lib/people/StartPasswordResult.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
@@ -204,6 +205,8 @@
   let renewing = $state<Holder | undefined>(undefined);
   /** The one answer that carried the new start password, until the reader dismisses it. */
   let renewed = $state<{ signInName: string; startPassword: string; who: string } | undefined>(undefined);
+  /** The row a second factor's reset is being confirmed for (fifth answers 6). */
+  let resettingFactor = $state<Holder | undefined>(undefined);
   /** The person an address is being added for. */
   let addressing = $state<{ accountId: string; who: string } | undefined>(undefined);
 
@@ -234,6 +237,17 @@
       const issued = await people.issueStartPassword(holder.accountId as string);
       renewed = { ...issued, who };
     }, t('app.people.renewed_announced', { who }));
+  }
+
+  async function resetFactor(): Promise<void> {
+    const holder = resettingFactor;
+    resettingFactor = undefined;
+    if (!holder?.accountId) return;
+    const who = nameOf(holder);
+    await attempt(
+      () => people.resetSecondFactor(holder.accountId as string),
+      t('app.people.factor_reset_announced', { who }),
+    );
   }
 
   async function revoke(): Promise<void> {
@@ -752,6 +766,11 @@
                     </Button>
                   {/if}
                 {/if}
+                {#if mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT))}
+                  <Button size="sm" tone="secondary" onclick={() => (resettingFactor = holder)}>
+                    {t('app.people.factor_reset')}
+                  </Button>
+                {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. Absent for a role above the reader's own: taking it away
                      is refused as handing it out is. On the workspace's last owner, which the
@@ -785,6 +804,13 @@
       isBusy={isWriting}
       onConfirm={() => void issueStartPassword()}
       onCancel={() => (renewing = undefined)}
+    />
+
+    <ResetFactorDialog
+      who={resettingFactor ? nameOf(resettingFactor) : undefined}
+      isBusy={isWriting}
+      onConfirm={() => void resetFactor()}
+      onCancel={() => (resettingFactor = undefined)}
     />
 
     <AddressDialog target={addressing} onClose={() => (addressing = undefined)} />

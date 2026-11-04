@@ -4,9 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { Membership } from '@hubtask/sync-engine';
+import type { Membership, MembershipRole } from '@hubtask/sync-engine';
 
-import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayRevoke, membershipsPath, ownershipOf, readWhole, scopeAnswer, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayResetFactor, mayRevoke, membershipsPath, ownershipOf, readWhole, scopeAnswer, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -285,4 +285,16 @@ test('a scope read no further than its bound, or a page that did not arrive, sta
   assert.equal(await readWhole(endless, async () => undefined), 1, 'a failed page ends the walk');
   assert.equal(scopeAnswer([], false, false), undefined);
   assert.equal(scopeAnswer([], false, true), 'refused');
+});
+
+test('a second factor is reset only for another active person within the ceiling (fifth answers 6)', () => {
+  const belowOwner: MembershipRole[] = ['ADMIN', 'MEMBER', 'VIEWER'];
+  const member = { accountId: 'a-2', role: 'MEMBER' as MembershipRole };
+  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', belowOwner), true);
+  assert.equal(mayResetFactor({ accountId: 'a-3', role: 'OWNER' }, 'a-1', 'ACTIVE', belowOwner), false);
+  assert.equal(mayResetFactor({ accountId: 'a-3', role: 'OWNER' }, 'a-1', 'ACTIVE', ['OWNER', ...belowOwner]), true);
+  assert.equal(mayResetFactor(member, 'a-2', 'ACTIVE', belowOwner), false);
+  assert.equal(mayResetFactor(member, 'a-1', 'INVITED', belowOwner), false);
+  assert.equal(mayResetFactor({ groupId: 'g-1', role: 'MEMBER' }, 'a-1', 'ACTIVE', belowOwner), false);
+  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', undefined), false);
 });

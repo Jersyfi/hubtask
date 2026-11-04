@@ -296,6 +296,19 @@ class People {
   }
 
   /**
+   * Resets the second factor of a person who lost the app and the recovery codes (fifth answers
+   * 6): behind a fresh proof, every session of that account ended. Nothing a screen holds changes.
+   */
+  async resetSecondFactor(accountId: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate<void>('POST', `/accounts/${accountId}:reset-second-factor`, undefined, {
+        invalidates: [],
+        stepUpToken,
+      }),
+    );
+  }
+
+  /**
    * Sends the link that gives a managed account an address (ADR-0074 §6). Nothing changes until
    * somebody holding that mailbox follows it, so nothing a screen holds is stale.
    */
