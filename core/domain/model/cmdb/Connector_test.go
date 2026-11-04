@@ -204,6 +204,25 @@ func TestAZeroByteAMonitoringProgramSendsIsDroppedNotStored(t *testing.T) {
 	}
 }
 
+func TestAnIPv6HostNamesItsCIByTheWholeAddress(t *testing.T) {
+	cases := []struct{ host, want string }{
+		{"2001:db8::5", "2001:db8::5"},
+		{"[2001:db8::5]:9100", "2001:db8::5"},
+		{"[2001:DB8::5]", "2001:db8::5"},
+		{"10.0.0.5:9100", "10.0.0.5"},
+		{"web01:9100", "web01"},
+	}
+	for _, c := range cases {
+		s, err := CheckSignal(AlertSignal{Key: "k", Status: AlertFiring, Hosts: []string{c.host}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if l := AlertLookups(s); len(l) != 1 || l[0]["ip_address"] != c.want {
+			t.Errorf("%s: lookups %v, want %q", c.host, l, c.want)
+		}
+	}
+}
+
 func TestASettingWithAZeroByteIsRefused(t *testing.T) {
 	_, err := NewConnector(ConnectorInput{Key: "glpi", Kind: ConnectorGLPI, Source: connectorSource(),
 		BaseURL: "https://glpi.example.org", Settings: map[string]string{"client_id": "c\x00"}, Now: now}, nil)

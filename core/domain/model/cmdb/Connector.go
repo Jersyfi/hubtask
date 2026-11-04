@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"maps"
+	"net"
 	"net/url"
 	"slices"
 	"strings"
@@ -395,10 +396,7 @@ func truncate(s string, n int) string {
 func AlertLookups(s AlertSignal) []map[string]string {
 	var out []map[string]string
 	for _, h := range s.Hosts {
-		v := strings.ToLower(h)
-		if host, _, ok := strings.Cut(v, ":"); ok && !strings.Contains(host, "[") {
-			v = host
-		}
+		v := hostPart(strings.ToLower(h))
 		pairs := map[string]string{"hostname": v, "ip_address": v, FieldName: v}
 		out = append(out, pairs)
 		if short, _, ok := strings.Cut(v, "."); ok && short != "" && !isAddress(v) {
@@ -408,9 +406,22 @@ func AlertLookups(s AlertSignal) []map[string]string {
 	return out
 }
 
-func isAddress(v string) bool {
-	return strings.Trim(v, "0123456789.") == ""
+// hostPart is a host without its port: an IPv6 address, bracketed or bare, is kept whole.
+func hostPart(v string) string {
+	if host, _, err := net.SplitHostPort(v); err == nil {
+		return host
+	}
+	if strings.HasPrefix(v, "[") && strings.HasSuffix(v, "]") {
+		return v[1 : len(v)-1]
+	}
+	if strings.Count(v, ":") == 1 {
+		host, _, _ := strings.Cut(v, ":")
+		return host
+	}
+	return v
 }
+
+func isAddress(v string) bool { return net.ParseIP(v) != nil }
 
 // Alert is a monitored problem as Hubtask keeps it: one per connector and key, bound to the CI it
 // names, with the entry opened for it.
