@@ -1032,8 +1032,15 @@ workspace's — English*), so leaving it says what it means.
   a closed tab gets the browser's own question. Screens of instant acts (Retention, Backup) count
   only what is typed and not yet sent - a justification, a hold's reason, a chosen schedule
   target, a passphrase - and draw no bar. On the shell: Mail, Voice, Retention, Backup, Webhooks
-  and the workspace screen, held by `lib/settings/shell.test.ts` over the route table. Not yet on
-  it: Sign-in, AI, Time, the configuration items and the place settings. *Advanced* is not folded
+  and the workspace screen, and since then Sign-in (with its legal page), AI, Time's settings and
+  the configuration items', held by `lib/settings/shell.test.ts` over the route table and the
+  product settings' views. A screen whose sections are addresses of their own (`?tab=`) or too long
+  for one page passes `selected` and `onselect`: the shell then draws only the open section - "the
+  open one beside it" - marks it `aria-current="page"` and moves the keyboard to its heading;
+  Sign-in and AI keep their addresses that way, the configuration items keep theirs in the page,
+  and the guard counts every section's unsaved values, not only the open one's. Time's policy saves
+  through the shell's bar; Sign-in keeps its bar in its form, where Enter submits. Not yet on it:
+  the place settings. *Advanced* is not folded
   on these five: none has a setting the direction names as advanced, and Mail's filing order and
   handles are what a newcomer reads to send mail in.
 * **A product's settings at its home** (§8.2): the service desk's, the configuration items',
@@ -1043,10 +1050,31 @@ workspace's — English*), so leaving it says what it means.
   `STRUCTURE`, `APPROVE_TIME`, `MANAGE_COSTS` or `MANAGE_MEMBERS`), `/agents?tab=settings` - and
   the old administration addresses replace themselves with the tab. The module card's *Set up*,
   the settings search, the configuration drafts and the software register lead there. *Modules*
-  does not yet carry a *Settings* link per module beside its switch.
+  carries *<Product> settings* beside a switch that is on, at the workspace, to a reader the home's
+  *Settings* tab is offered to (`product/switchedon.ts` `settingsOf`).
 * **Pickers in words** on the backup screen: a target's kind (*A folder on this server*, *A
   server over SFTP*, …) and an archive's mode (*Full*, *Changes since the last*) instead of the
   contract's keys.
+
+### 8.11 A product's first visit and the installation's anatomy, as built
+
+* **A product's first visit** (§4): while no hub uses the product, its empty home (`ProductEmpty`
+  on the product home and the desk's home) offers beside *Create hub* the catalogue's templates
+  that switch it on in their document (`modules.<product>.switch: ON`), with a hub part, Hubtask's
+  first, three at most (`product/templates.ts`). One press asks the hub's name; the new hub opens
+  on its *Products* section (`/hubs/<id>/settings/modules?template=<key>`) with that template's
+  plan open, so taking it is one more press. Workflows, which every shipped template switches on,
+  offers none. Not built here: a preview per template and the hub's name prefilled from it; the
+  assets have no shipped template that switches them on, so their home offers none.
+* **The installation's anatomy** (§8.4): *Templates* (`/instance/templates`, the installation's
+  presets, on an installation of many workspaces), *Modules* (the settings' *Modules* area,
+  `/instance/settings?tab=module`) and *Configuration file* (`/instance/configuration-file`, every
+  value in force as the document with its source and lock, read-only, naming the file where it is
+  enforced) are rows of the installation's column. The presets left the end of the settings screen.
+* **The workspaces' *Limits* filter** (§8.4): *Near or at a limit* and *At a limit* narrow the rows
+  read so far, since the list's read takes no such filter; where more remain, a line says how many
+  of `/admin/quotas`' whole answer are read and *Show more* stays. The people, entries and bytes
+  columns stay on *Usage*, which reads them per workspace and day only while metering is on.
 
 ---
 
