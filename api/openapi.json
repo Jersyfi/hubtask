@@ -54884,6 +54884,11 @@
             "type": "boolean",
             "description": "True where the figure could not be counted; the container is answered all the same."
           },
+          "counted_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Present where the numbers are the last count kept before the collection's latest change, answered for up to a minute after that count was made while a newer one is being counted: the moment they were counted, for a client to show them as of that time. Absent where they are current.\n"
+          },
           "open": {
             "type": "integer",
             "minimum": 0,

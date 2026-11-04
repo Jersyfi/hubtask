@@ -29,6 +29,7 @@ The shopping list says "5 items · about €38", the household "3 due today", th
 5. A person may give *kudos* on an entry somebody else completed; the person who completed it sees who did, nobody sees counts per person.
 6. Figures about one person are shown only to that person: no administrator, auditor or report sees them; team figures count the collection, not people.
 7. The account's `celebrations` preference switches milestones, kudos and celebrations off together.
+8. In a collection written to all the time, a figure shows the last count kept for up to a minute after that count was made, marked "as of <time>", while a newer count runs beside the read - not "could not be counted" and not a recount in every read (decision: the owner's fifth answers 3).
 
 ## Where it ends
 

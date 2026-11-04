@@ -3989,6 +3989,7 @@
   "app.figure.flow_over_limit": "{count, plural, one {# Spalte über ihrem Limit} other {# Spalten über ihrem Limit}}",
   "app.figure.progress_label": "Erledigt in {name}",
   "app.figure.unavailable": "Konnte nicht gezählt werden",
+  "app.figure.as_of": "Stand {time}",
   "app.milestone.reached": "Alles erledigt am {date}",
   "app.kudos.give": "Loben",
   "app.kudos.give_to": "{name} für das Erledigen loben",

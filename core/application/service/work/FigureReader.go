@@ -142,10 +142,16 @@ func (r FigureReader) Count(
 	}
 
 	answered := map[shared.ID]domain.FigureCounts{}
+	asOf := map[shared.ID]time.Time{}
 	var missing, late []domain.FigureRequest
 	for _, request := range offered {
-		if counts, held := keptAnswer(states, request, window); held {
+		if counts, at, held := keptAnswer(states, request, window); held {
 			answered[request.CollectionID] = counts
+			if !at.IsZero() {
+				// Answered as of its time; a late count makes the next read's (fifth answers 3).
+				asOf[request.CollectionID] = at
+				late = append(late, request)
+			}
 			continue
 		}
 		// Being counted late already: counting it here as well would only wait out the deadline
@@ -196,7 +202,11 @@ func (r FigureReader) Count(
 	}
 	for _, request := range offered {
 		if counts, done := answered[request.CollectionID]; done {
-			figures[request.CollectionID] = domain.NewCollectionFigure(request, window, counts)
+			figure := domain.NewCollectionFigure(request, window, counts)
+			if at, stale := asOf[request.CollectionID]; stale {
+				figure = figure.AsOf(at)
+			}
+			figures[request.CollectionID] = figure
 		}
 	}
 	return figures
@@ -218,22 +228,30 @@ func keptKey(request domain.FigureRequest, window domain.FigureWindow) repositor
 }
 
 // keptAnswer answers a request from its kept count where that count was made at the collection's
-// number of changes now - and, for a kind the clock moves, no longer ago than the kind allows.
+// number of changes now - and, for a kind the clock moves, no longer ago than the kind allows. A
+// count made before the collection's last change answers for domain.FigureStaleFor after it was
+// made, with that moment: the zero time is a current count.
 func keptAnswer(
 	states map[repository.KeptFigureKey]repository.KeptFigureState, request domain.FigureRequest,
 	window domain.FigureWindow,
-) (domain.FigureCounts, bool) {
+) (domain.FigureCounts, time.Time, bool) {
 	state, known := states[keptKey(request, window)]
-	if !known || !state.Kept.Present || state.Kept.Changes != state.Changes {
-		return domain.FigureCounts{}, false
+	if !known || !state.Kept.Present {
+		return domain.FigureCounts{}, time.Time{}, false
 	}
 	if life := request.Kind.KeptFor(); life > 0 {
 		age := window.Now.Sub(state.Kept.CountedAt)
 		if age < 0 || age >= life {
-			return domain.FigureCounts{}, false
+			return domain.FigureCounts{}, time.Time{}, false
 		}
 	}
-	return state.Kept.Counts, true
+	if state.Kept.Changes != state.Changes {
+		if !domain.StaleAnswers(state.Kept.CountedAt, window.Now) {
+			return domain.FigureCounts{}, time.Time{}, false
+		}
+		return state.Kept.Counts, state.Kept.CountedAt, true
+	}
+	return state.Kept.Counts, time.Time{}, true
 }
 
 // countLate counts the requests a read was cut off on, outside the read and its deadline, and keeps
@@ -361,6 +379,9 @@ func figureOutput(figure domain.CollectionFigure) map[string]any {
 	if figure.Unavailable {
 		out["unavailable"] = true
 		return out
+	}
+	if !figure.CountedAt.IsZero() {
+		out["counted_at"] = figure.CountedAt.Format(time.RFC3339)
 	}
 	counts := figure.Counts
 	switch figure.Kind {

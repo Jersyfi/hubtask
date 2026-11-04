@@ -153,6 +153,15 @@ type CollectionFigure struct {
 	Unavailable bool
 	Counts      FigureCounts
 	WeekStart   string
+	// CountedAt is set where the counts are a kept count made before the collection's last
+	// change (StaleAnswers): the reader is told whose moment they are. Zero where they are current.
+	CountedAt time.Time
+}
+
+// AsOf marks the figure as counted at the moment given, before the collection's last change.
+func (f CollectionFigure) AsOf(at time.Time) CollectionFigure {
+	f.CountedAt = at.UTC()
+	return f
 }
 
 // NewCollectionFigure assembles the answer for one collection.

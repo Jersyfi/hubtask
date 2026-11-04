@@ -108,10 +108,56 @@ func TestAKeptFigureAnswersOnlyWhileItsCollectionIsUnchanged(t *testing.T) {
 		t.Fatalf("an unchanged collection was counted again: asked %d, answered %+v", len(store.asked), second)
 	}
 
+	// A minute after the count, the changed collection is counted again (within the minute it is
+	// answered as of its time: TestAChangedCollectionAnswersItsLastCountAsOfItsTime).
 	kept.changes[collection.ID] = 8
-	third := reader.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
-	if len(store.asked) != 2 || third[collection.ID].Counts.Done != 2 {
+	later := figureKeptReader(store, kept, jobs, now.Add(domain.FigureStaleFor))
+	third := later.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	if len(store.asked) != 2 || third[collection.ID].Counts.Done != 2 || !third[collection.ID].CountedAt.IsZero() {
 		t.Fatalf("a changed collection answered %+v", third)
+	}
+}
+
+// UC-WRK-29 check 8 (the owner's fifth answers 3): under steady writes, a read within a minute of the last
+// kept count answers it marked with its time, without counting in the read, and hands the count to
+// a late one that keeps the next read's.
+func TestAChangedCollectionAnswersItsLastCountAsOfItsTime(t *testing.T) {
+	collection := countedCollection(collectionID)
+	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureProgress, domain.ItemTask, domain.ItemWorkPackage)}
+	store := &figureStore{counts: map[shared.ID]domain.FigureCounts{collection.ID: {Done: 1, Total: 4}}}
+	kept := &keptStore{changes: map[shared.ID]int64{collection.ID: 7}, kept: map[repository.KeptFigureKey]repository.KeptFigure{}}
+	var held []func(context.Context)
+	reader := func(at time.Time) FigureReader {
+		r := figureKeptReader(store, kept, &jobsAsked{}, at)
+		r.Spawn = func(_ context.Context, _ string, fn func(context.Context)) { held = append(held, fn) }
+		return r
+	}
+	reader(now).Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+
+	kept.changes[collection.ID] = 8
+	store.counts = map[shared.ID]domain.FigureCounts{collection.ID: {Done: 2, Total: 4}}
+	stale := reader(now.Add(30*time.Second)).Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	figure := stale[collection.ID]
+	if figure.Unavailable || figure.Counts.Done != 1 || !figure.CountedAt.Equal(now) {
+		t.Fatalf("within the minute answered %+v, want the kept count as of %v", figure, now)
+	}
+	if len(store.asked) != 1 {
+		t.Errorf("the read counted itself (%d counts), want it handed to a late count", len(store.asked))
+	}
+	if out := figureOutput(figure); out["counted_at"] != now.UTC().Format(time.RFC3339) {
+		t.Errorf("answered %v, want counted_at", out)
+	}
+	if len(held) != 1 {
+		t.Fatalf("%d late counts started, want one", len(held))
+	}
+	held[0](context.Background())
+
+	fresh := reader(now.Add(31*time.Second)).Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
+	if got := fresh[collection.ID]; got.Counts.Done != 2 || !got.CountedAt.IsZero() {
+		t.Fatalf("after the late count answered %+v, want the current count", got)
+	}
+	if out := figureOutput(fresh[collection.ID]); out["counted_at"] != nil {
+		t.Errorf("a current count carries counted_at: %v", out)
 	}
 }
 
@@ -309,7 +355,9 @@ func TestASlowFigureIsCountedLateWithoutWaitingOutTheRead(t *testing.T) {
 	held[0](context.Background())
 	kept.changes[collection.ID] = 8 // a write leaves the kept count behind
 
-	if figure := read(); !figure.Unavailable {
+	// Within the minute the kept count answers as of its time (fifth answers 3), and the count
+	// goes to a late one rather than the read.
+	if figure := read(); figure.Unavailable || figure.CountedAt.IsZero() || figure.Counts.Done != 3 {
 		t.Fatalf("the read after the write answered %+v", figure)
 	}
 	if len(store.deadlines) != 2 || len(held) != 2 {
@@ -320,6 +368,7 @@ func TestASlowFigureIsCountedLateWithoutWaitingOutTheRead(t *testing.T) {
 	ticking.step = 0 // the late count now answers at once
 	held[1](context.Background())
 	kept.changes[collection.ID] = 9
+	ticking.at = ticking.at.Add(domain.FigureStaleFor) // past the minute a kept count answers
 	if figure := read(); figure.Unavailable || figure.Counts.Done != 3 {
 		t.Fatalf("a figure counted quickly again was not counted by the read: %+v", figure)
 	}

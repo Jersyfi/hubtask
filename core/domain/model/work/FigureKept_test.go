@@ -108,3 +108,27 @@ func TestSameCountsComparesTheFigure(t *testing.T) {
 		}
 	}
 }
+
+// UC-WRK-29 check 8 (the owner's fifth answers 3): a kept count answers for up to a minute after a
+// change, marked with its time, and never one from the future or older.
+func TestAKeptCountAnswersAMinuteAfterAChange(t *testing.T) {
+	counted := time.Date(2026, 11, 4, 9, 0, 0, 0, time.UTC)
+	for _, c := range []struct {
+		name    string
+		now     time.Time
+		answers bool
+	}{
+		{"at once", counted, true},
+		{"59 seconds on", counted.Add(59 * time.Second), true},
+		{"a minute on", counted.Add(time.Minute), false},
+		{"counted after now", counted.Add(-time.Second), false},
+	} {
+		if got := StaleAnswers(counted, c.now); got != c.answers {
+			t.Errorf("%s: answers %v, want %v", c.name, got, c.answers)
+		}
+	}
+	berlin := time.FixedZone("CET", 3600)
+	if got := (CollectionFigure{}).AsOf(counted.In(berlin)).CountedAt; !got.Equal(counted) || got.Location() != time.UTC {
+		t.Errorf("as of %v, want the moment in UTC", got)
+	}
+}

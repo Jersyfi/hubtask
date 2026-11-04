@@ -4659,6 +4659,7 @@
   "app.figure.flow_over_limit": "{count, plural, one {# column over its limit} other {# columns over their limit}}",
   "app.figure.progress_label": "Done in {name}",
   "app.figure.unavailable": "Could not be counted",
+  "app.figure.as_of": "as of {time}",
   "app.milestone.reached": "Everything done on {date}",
   "app.kudos.give": "Give kudos",
   "app.kudos.give_to": "Give kudos to {name} for finishing this",

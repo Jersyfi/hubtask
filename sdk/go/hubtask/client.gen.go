@@ -14489,6 +14489,9 @@ type CollectionFigure struct {
 	// Completed FLOW - entries at the top level completed in the seven days up to the moment of counting, archived ones included.
 	Completed *int `json:"completed,omitempty"`
 
+	// CountedAt Present where the numbers are the last count kept before the collection's latest change, answered for up to a minute after that count was made while a newer one is being counted: the moment they were counted, for a client to show them as of that time. Absent where they are current.
+	CountedAt *time.Time `json:"counted_at,omitempty"`
+
 	// Days RHYTHM - the dates of the reader's week on which something was completed.
 	Days *[]openapi_types.Date `json:"days,omitempty"`
 

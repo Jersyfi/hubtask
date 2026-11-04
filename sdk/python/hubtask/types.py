@@ -3602,6 +3602,7 @@ class CollectionFigure(TypedDict, total=False):
     kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW"]]
     today: Required[str]
     unavailable: bool
+    counted_at: str
     open: int
     sum: float | None
     summed: int

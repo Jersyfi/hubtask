@@ -20,6 +20,19 @@ const FigureClockBound = time.Minute
 // job's bound on what it walks, and a day is longer than any reader keeps one basis.
 const FigureKeptLife = 24 * time.Hour
 
+// FigureStaleFor is how long after it was counted a kept count still answers once its collection
+// has changed (the owner's fifth answers 3): in a collection written to all the time every write
+// would otherwise make each read count again. It is answered marked with its time, while a late
+// count makes the next one.
+const FigureStaleFor = time.Minute
+
+// StaleAnswers reports whether a kept count made at countedAt may still answer at now, marked as of
+// its time, although its collection changed since.
+func StaleAnswers(countedAt, now time.Time) bool {
+	age := now.Sub(countedAt)
+	return age >= 0 && age < FigureStaleFor
+}
+
 // KeptFor is how long a kept count of the kind may answer, zero where the collection's changes
 // alone decide.
 func (f Figure) KeptFor() time.Duration {
