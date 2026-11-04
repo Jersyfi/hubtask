@@ -105,6 +105,10 @@ func CheckCommentBody(raw string, form text.Normalizer) (string, error) {
 	if len(raw) > MaxCommentBytes {
 		return "", invalid("/body", "whiteboards.comment_too_long").WithParams(map[string]string{"maximum": "65536"})
 	}
+	// The database stores no zero byte; refused here, the write is not answered as an outage.
+	if strings.ContainsRune(raw, 0) {
+		return "", invalid("/body", "whiteboards.comment_malformed")
+	}
 	return shared.NFC(raw, form)
 }
 

@@ -129,7 +129,7 @@ func CheckTitle(raw string, form text.Normalizer) (string, error) {
 		return "", invalid("/title", "whiteboards.title_empty")
 	case utf8.RuneCountInString(title) > MaxTitleLength:
 		return "", invalid("/title", "whiteboards.title_too_long").WithParams(map[string]string{"maximum": "200"})
-	case strings.ContainsAny(title, "\r\n"):
+	case strings.ContainsAny(title, "\r\n\x00"):
 		return "", invalid("/title", "whiteboards.title_malformed")
 	}
 	return title, nil

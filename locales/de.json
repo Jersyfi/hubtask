@@ -9682,6 +9682,7 @@
   "whiteboards.card_target_malformed": "Eine Karte muss den Eintrag nennen, den sie zeigt.",
   "whiteboards.card_target_unsupported": "Eine Karte auf einem Whiteboard kann nur einen Eintrag zeigen.",
   "whiteboards.comment_empty": "Ein Kommentar braucht Worte.",
+  "whiteboards.comment_malformed": "Ein Kommentar enthält Zeichen, die nicht gespeichert werden können.",
   "whiteboards.comment_not_found": "Diesen Kommentar gibt es auf diesem Whiteboard nicht.",
   "whiteboards.comment_not_own": "Nur wer einen Kommentar geschrieben hat, darf ihn ändern oder zurücknehmen.",
   "whiteboards.comment_pin_malformed": "Ein Kommentar steht an einem Objekt des Whiteboards oder an einer Stelle darauf.",

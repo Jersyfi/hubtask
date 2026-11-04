@@ -9682,6 +9682,7 @@
   "whiteboards.card_target_malformed": "A card has to name the entry it shows.",
   "whiteboards.card_target_unsupported": "A card on a whiteboard can show an entry only.",
   "whiteboards.comment_empty": "A comment needs words.",
+  "whiteboards.comment_malformed": "A comment holds characters that cannot be stored.",
   "whiteboards.comment_not_found": "There is no such comment on this whiteboard.",
   "whiteboards.comment_not_own": "Only the person who wrote a comment may change it or take it back.",
   "whiteboards.comment_pin_malformed": "A comment is pinned to an object of the board or to a place on it.",
