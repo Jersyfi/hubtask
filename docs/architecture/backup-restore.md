@@ -653,7 +653,7 @@ Rules:
   beyond which it is `imports.archive_unreadable`; attachments travel into the in-memory archive by
   digest and the applier stores them as a restore does, one object per content.
 * The run (`import_run`) carries the report and the refused rows, with their codes and form keys; the file is deleted when
-  the job ends; the `sync_epoch` advances as after a `MERGE` restore, the rows landing without
+  the job ends - a job the queue gives up on closes its run `FAILED` as `imports.run_abandoned`; the `sync_epoch` advances as after a `MERGE` restore, the rows landing without
   change log entries.
 * **A dry run** (`dry_run: true`) is the same job up to the apply, which decides every record in
   read-only transactions as a restore's dry run does: its report and refused rows are what the

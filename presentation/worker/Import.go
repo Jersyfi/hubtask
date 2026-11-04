@@ -30,7 +30,23 @@ var (
 	_ queue.Handler     = Import{}
 	_ queue.Detached    = Import{}
 	_ queue.LongRunning = Import{}
+	_ queue.Releaser    = Import{}
 )
+
+// Release closes the run of a job the queue has given up on (queue.Releaser): with the job in the
+// dead letter nothing else would, and the person reading the run would see it running for ever.
+func (h Import) Release(ctx context.Context, job queue.Job) {
+	raw, _ := job.Payload["import_id"].(string)
+	importID, err := shared.ParseID(raw)
+	if err != nil || job.TenantID.IsZero() {
+		return
+	}
+	if err := h.Runner.Abandon(ctx, importID, job.TenantID); err != nil {
+		slog.WarnContext(ctx, "an abandoned import could not be closed; its run stays open",
+			slog.String("import_id", importID.String()),
+			slog.String("error", shared.AsError(err).Code))
+	}
+}
 
 // OwnsItsTransactions is the assertion queue.Detached asks for. See the type's comment.
 func (h Import) OwnsItsTransactions() {}

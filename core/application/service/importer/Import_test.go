@@ -609,3 +609,34 @@ func TestADryRunReportsWhatTheImportWouldDoAndChangesNothing(t *testing.T) {
 		t.Error("nothing was written, so no device has to resynchronise")
 	}
 }
+
+// A job the queue has given up on - the store or the database away for every attempt - leaves no
+// run standing RUNNING for ever: the person reading the run is told it failed, the file goes, and
+// a run that had ended already is left as it ended.
+func TestAnImportWhoseJobWasGivenUpOnEndsFailed(t *testing.T) {
+	run := newRuns()
+	running := pendingRun()
+	running.Status = domain.StatusRunning
+	run.rows[runID] = running
+	object := readyObject()
+	r, _, stored, epoch := runner(run, object, nil, converter{})
+	if err := r.Abandon(context.Background(), runID, tenantID); err != nil {
+		t.Fatalf("abandoning: %v", err)
+	}
+	if got := run.rows[runID]; got.Status != domain.StatusFailed || got.ErrorCode != domain.CodeRunAbandoned || got.FinishedAt == nil {
+		t.Errorf("run = %+v", got)
+	}
+	if len(stored.deleted) != 1 || epoch.advanced != 0 {
+		t.Errorf("deleted %v, epoch %d: the file goes and the epoch stands", stored.deleted, epoch.advanced)
+	}
+
+	done := pendingRun()
+	done.Status = domain.StatusSucceeded
+	run.rows[runID] = done
+	if err := r.Abandon(context.Background(), runID, tenantID); err != nil || run.rows[runID].Status != domain.StatusSucceeded {
+		t.Errorf("a finished run was changed: %v %+v", err, run.rows[runID])
+	}
+	if err := r.Abandon(context.Background(), shared.MustParseID("0192f000-0000-7000-8000-0000000000ff"), tenantID); err != nil {
+		t.Errorf("a run that is not there: %v", err)
+	}
+}

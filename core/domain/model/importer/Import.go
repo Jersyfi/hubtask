@@ -131,10 +131,13 @@ const (
 	CodeHubRequired     = "imports.hub_required"
 	CodeNotAHub         = "imports.not_a_hub"
 	// CodeNotInHub is a target collection that is not a live collection of the named hub.
-	CodeNotInHub         = "imports.not_in_hub"
-	CodeFileNotKind      = "imports.file_not_kind"
-	CodeFileEmpty        = "imports.file_empty"
-	CodeRunNotRunning    = "imports.run_not_running"
+	CodeNotInHub      = "imports.not_in_hub"
+	CodeFileNotKind   = "imports.file_not_kind"
+	CodeFileEmpty     = "imports.file_empty"
+	CodeRunNotRunning = "imports.run_not_running"
+	// CodeRunAbandoned is a run whose job the queue gave up on: every attempt failed, and nothing
+	// would have closed the run otherwise.
+	CodeRunAbandoned     = "imports.run_abandoned"
 	CodeRowUnreadable    = "imports.row_unreadable"
 	CodeRowDateInvalid   = "imports.row_date_invalid"
 	CodeRowZoneUnknown   = "imports.row_zone_unknown"

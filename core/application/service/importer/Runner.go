@@ -368,6 +368,37 @@ func (r Runner) finish(ctx context.Context, scope persistence.Scope, run domain.
 	return err
 }
 
+// Abandon closes a run whose job the queue has given up on: FAILED under its own code, and the
+// file marked for deletion as after any import that ran. A dry run keeps its file, as when it ends;
+// a run that ended already, or is not there, is left as it is.
+func (r Runner) Abandon(ctx context.Context, importID, tenantID shared.ID) error {
+	err := r.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+		run, err := r.Runs.Find(ctx, importID)
+		if err != nil {
+			return err
+		}
+		if run.Status == domain.StatusSucceeded || run.Status == domain.StatusFailed {
+			return nil
+		}
+		if err := r.Runs.Finish(ctx, domain.Outcome{
+			ID: run.ID, Status: domain.StatusFailed, Report: run.Report, ErrorCode: domain.CodeRunAbandoned, FinishedAt: r.Clock.Now(),
+		}); err != nil {
+			return err
+		}
+		if run.DryRun {
+			return nil
+		}
+		if _, err := r.Objects.MarkDeleted(ctx, run.MediaID, r.Clock.Now()); err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
+		return nil
+	})
+	if errors.Is(err, shared.ErrNotFound) || errors.Is(err, shared.ErrConflict) {
+		return nil
+	}
+	return err
+}
+
 // errorCode is what the run records about a failure: the typed error's detail, or the category.
 func errorCode(err error) string {
 	var typed *shared.Error

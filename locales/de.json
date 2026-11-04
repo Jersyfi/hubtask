@@ -1340,6 +1340,7 @@
   "imports.row_channel_closed": "Der Typ dieses Eintrags nimmt keine Einträge aus einem Import an.",
   "imports.row_parent_refused": "Dieser Eintrag liegt unter einem abgelehnten und hat darum keinen Platz.",
   "imports.collection_exists": "Eine Sammlung, die diese Datei anlegen würde, gibt es in diesem Hub schon unter demselben Namen. Nichts wurde importiert: Benenne die bestehende Sammlung um, benenne die Sammlungen in der Datei anders oder importiere in einen anderen Hub.",
+  "imports.run_abandoned": "Der Import ließ sich nicht ausführen: Jeder Versuch schlug fehl, und es wird nichts mehr versucht. Lade die Datei erneut hoch und importiere sie, sobald der Dienst wieder da ist.",
   "imports.mapping_unknown": "Die Zuordnung nennt ein Feld oder eine Spalte, die die Datei nicht hat.",
   "imports.encoding_invalid": "Die Datei ist nicht in UTF-8.",
   "backup.restore_not_found": "Diese Wiederherstellung gibt es nicht.",

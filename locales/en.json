@@ -2300,6 +2300,7 @@
   "imports.row_channel_closed": "This entry's type takes no entries from an import.",
   "imports.row_parent_refused": "This entry sits under one that was refused, so it has nowhere to land.",
   "imports.collection_exists": "A collection this file would create already exists in that hub under the same name. Nothing was imported: rename the existing collection, name the collections in the file differently, or import into another hub.",
+  "imports.run_abandoned": "The import could not be run: every attempt failed, and nothing more will be tried. Upload the file again and import it once the service is back.",
   "imports.mapping_unknown": "The mapping names a field or a column the file does not have.",
   "imports.encoding_invalid": "The file is not UTF-8.",
   "backup.restore_not_found": "There is no such restore.",
