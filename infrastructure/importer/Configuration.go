@@ -75,7 +75,7 @@ func (b *builder) entryType(key, name, icon string, level work.ItemType, workflo
 	id := b.id("entry_types", key)
 	b.add("entry_types", id, map[string]any{
 		"id": id.String(), "key": key, "level": string(level), "system": false,
-		"name": clip(strings.TrimSpace(name), 120), "icon": icon, "color_token": string(shared.LabelTokenSlate),
+		"name": line(name, 120), "icon": icon, "color_token": string(shared.LabelTokenSlate),
 		"completable": true, "workflow": workflow, "record": false, "schedulable": true, "estimable": false,
 		"allowed_children": []string{}, "form": map[string]any{}, "position": position,
 		"archived_at": nil, "created_at": stamp(b.source.Now), "updated_at": stamp(b.source.Now), "version": 1,
@@ -102,7 +102,7 @@ func (b *builder) workflow(key, name string, shape work.WorkflowShape, collectio
 	}
 	id := b.id("workflows", key)
 	b.add("workflows", id, map[string]any{
-		"id": id.String(), "key": key, "system": false, "name": clip(strings.TrimSpace(name), 120),
+		"id": id.String(), "key": key, "system": false, "name": line(name, 120),
 		"published":    map[string]any{"statuses": statuses, "initial": shape.Initial, "steps": steps},
 		"draft":        nil,
 		"published_at": stamp(b.source.Now), "published_by": b.source.Actor.String(),
@@ -308,8 +308,8 @@ func (b *builder) linkType(key, name, inverse string, position int) {
 	}
 	id := b.id("link_types", key)
 	b.add("link_types", id, map[string]any{
-		"id": id.String(), "key": key, "name": clip(strings.TrimSpace(name), 120),
-		"inverse_name": nilIfEmpty(clip(strings.TrimSpace(inverse), 120)), "direction": direction,
+		"id": id.String(), "key": key, "name": line(name, 120),
+		"inverse_name": nilIfEmpty(line(inverse, 120)), "direction": direction,
 		"cardinality": string(work.LinkMany), "cycles": string(work.LinkCyclesAllowed), "waits": string(work.LinkWaitsNone),
 		"position": position, "archived_at": nil, "created_at": stamp(b.source.Now), "updated_at": stamp(b.source.Now), "version": 1,
 	})
@@ -353,7 +353,7 @@ type PageVersion struct {
 
 // page adds a hub's page, after its parent. A body over the column's bound is cut at it.
 func (b *builder) page(in Page) (shared.ID, bool) {
-	title := clip(strings.TrimSpace(in.Title), 200)
+	title := line(in.Title, 200)
 	if title == "" {
 		return shared.ID(""), false
 	}
@@ -388,7 +388,7 @@ func (b *builder) page(in Page) (shared.ID, bool) {
 	versions := append(append([]PageVersion(nil), in.Versions...), PageVersion{Title: title, Body: body, At: updated})
 	for i, version := range versions {
 		seq := i + 1
-		versionTitle := clip(strings.TrimSpace(version.Title), 200)
+		versionTitle := line(version.Title, 200)
 		if versionTitle == "" {
 			versionTitle = title
 		}
@@ -400,7 +400,7 @@ func (b *builder) page(in Page) (shared.ID, bool) {
 			ID: id.String() + "/" + strconv.Itoa(seq), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
 			Data: map[string]any{
 				"page_id": id.String(), "seq": seq, "title": versionTitle, "body": versionBody, "author_id": b.source.Actor.String(),
-				"name": clip(strings.TrimSpace(version.Name), 120), "restored": 0, "created_at": stamp(version.At),
+				"name": line(version.Name, 120), "restored": 0, "created_at": stamp(version.At),
 			},
 		})
 	}

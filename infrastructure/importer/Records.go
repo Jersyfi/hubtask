@@ -104,7 +104,7 @@ func nameKey(entity string, collection shared.ID, name string) string {
 // titles remembers an entry by its title, first one wins: a parent named by title is the first
 // entry that carried it.
 func (b *builder) titles(title, key string) {
-	lower := strings.ToLower(strings.TrimSpace(title))
+	lower := strings.ToLower(line(title, 500))
 	if _, taken := b.byTitle[lower]; !taken {
 		b.byTitle[lower] = key
 	}
@@ -148,7 +148,7 @@ func (b *builder) collection(key, name, description string) shared.ID {
 		return b.source.Into.Collection
 	}
 	id := b.id("containers", key)
-	name = clip(strings.TrimSpace(name), 200)
+	name = line(name, 200)
 	if name == "" {
 		name = "Imported"
 	}
@@ -166,7 +166,7 @@ func (b *builder) collection(key, name, description string) shared.ID {
 
 // bucket adds a bucket to a collection.
 func (b *builder) bucket(key string, collection shared.ID, name string, done bool) shared.ID {
-	name = clip(strings.TrimSpace(name), 120)
+	name = line(name, 120)
 	if name == "" {
 		name = "Bucket"
 	}
@@ -186,7 +186,7 @@ func (b *builder) bucket(key string, collection shared.ID, name string, done boo
 
 // label adds a label to a collection, in one of the ten tokens.
 func (b *builder) label(key string, collection shared.ID, name, token string) shared.ID {
-	name = clip(strings.TrimSpace(name), 120)
+	name = line(name, 120)
 	if name == "" {
 		name = "Label"
 	}
@@ -248,7 +248,7 @@ func (b *builder) item(in Item) (shared.ID, bool) {
 			row = parent.row
 		}
 	}
-	title := clip(strings.TrimSpace(in.Title), 500)
+	title := line(in.Title, 500)
 	if title == "" {
 		return shared.ID(""), false
 	}
@@ -357,11 +357,73 @@ func (b *builder) reminder(key string, item shared.ID, at time.Time) {
 }
 
 func (b *builder) result(refused []refusal) service.Result {
+	for _, records := range b.records {
+		for i := range records {
+			records[i].Data, _ = withoutZeroByte(records[i].Data).(map[string]any)
+		}
+	}
 	out := service.Result{Records: b.records, Media: b.media, Rows: b.rows}
 	for _, r := range refused {
 		out.Refused = append(out.Refused, r.refusal())
 	}
 	return out
+}
+
+// line is a title or a name as the entries' own rules hold one: a single line without a control
+// character. A line break or a tab - a spreadsheet cell may hold either - becomes a space, any other
+// control character goes; then it is trimmed and clipped.
+func line(s string, limit int) string {
+	var out strings.Builder
+	space := false
+	for _, r := range s {
+		switch {
+		case r == '\t' || r == '\n' || r == '\v' || r == '\f' || r == '\r' || r == 0x85:
+			if !space {
+				out.WriteByte(' ')
+			}
+			space = true
+			continue
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f):
+			continue
+		}
+		out.WriteRune(r)
+		space = r == ' '
+	}
+	return clip(strings.TrimSpace(out.String()), limit)
+}
+
+// withoutZeroByte takes the zero byte out of every text of a record, keys included: PostgreSQL
+// stores none in text or JSON, and a row it refuses for one would be refused on every attempt.
+func withoutZeroByte(value any) any {
+	switch v := value.(type) {
+	case string:
+		return strings.ReplaceAll(v, "\x00", "")
+	case map[string]any:
+		for key, each := range v {
+			clean := strings.ReplaceAll(key, "\x00", "")
+			if clean != key {
+				delete(v, key)
+			}
+			v[clean] = withoutZeroByte(each)
+		}
+		return v
+	case []any:
+		for i, each := range v {
+			v[i] = withoutZeroByte(each)
+		}
+		return v
+	case []map[string]any:
+		for _, each := range v {
+			withoutZeroByte(each)
+		}
+		return v
+	case []string:
+		for i, each := range v {
+			v[i] = strings.ReplaceAll(each, "\x00", "")
+		}
+		return v
+	}
+	return value
 }
 
 func clip(s string, limit int) string {

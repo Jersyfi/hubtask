@@ -232,7 +232,7 @@ func csvParentKey(parent string, b *builder) (string, bool) {
 			return "row:" + parent, true
 		}
 	}
-	key, ok := b.byTitle[strings.ToLower(parent)]
+	key, ok := b.byTitle[strings.ToLower(line(parent, 500))]
 	return key, ok
 }
 

@@ -5,6 +5,7 @@ package importer
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -197,5 +198,39 @@ func TestADateWithSecondsAndNoZoneIsReadInThePersonsZone(t *testing.T) {
 	}
 	if items[1].Data["due_at"] != "2026-10-30T08:15:30.25Z" {
 		t.Errorf("second due = %v", items[1].Data["due_at"])
+	}
+}
+
+// A spreadsheet cell may hold a line break, a tab or a stray zero byte. A title and a name are one
+// line, as the entry's own rules hold them, and no text keeps a zero byte, which the database
+// refuses - a refusal the job would meet again on every attempt.
+func TestATitleIsOneLineAndNoTextKeepsAZeroByte(t *testing.T) {
+	csv := "title,notes,bucket,labels\n\"Buy\r\nmilk\",\"two\x00 lines\nkept\",\"Do\x00ing\",\"ur\tgent\"\nCall\x07 Anna,,,\n"
+	result, err := CSV{}.Convert(context.Background(), source(t, csv, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Refused) != 0 {
+		t.Fatalf("refused = %+v", result.Refused)
+	}
+	items := result.Records["work_items"]
+	if items[0].Data["title"] != "Buy milk" || items[1].Data["title"] != "Call Anna" {
+		t.Errorf("titles = %q, %q", items[0].Data["title"], items[1].Data["title"])
+	}
+	if items[0].Data["notes"] != "two lines\nkept" {
+		t.Errorf("notes = %q", items[0].Data["notes"])
+	}
+	if name := result.Records["buckets"][0].Data["name"]; name != "Doing" {
+		t.Errorf("bucket = %q", name)
+	}
+	if name := result.Records["labels"][0].Data["name"]; name != "ur gent" {
+		t.Errorf("label = %q", name)
+	}
+	for entity, records := range result.Records {
+		for _, record := range records {
+			if strings.Contains(fmt.Sprint(record.Data), "\x00") {
+				t.Errorf("%s keeps a zero byte: %v", entity, record.Data)
+			}
+		}
 	}
 }

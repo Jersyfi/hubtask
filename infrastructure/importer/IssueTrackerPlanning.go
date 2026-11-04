@@ -183,7 +183,7 @@ func (r *trackerRun) stepsOf(statuses []work.WorkflowStatus, idKeys map[string]s
 			initial = to
 			continue
 		}
-		step := work.WorkflowStep{Name: clip(strings.TrimSpace(transition.Name), 120), To: to}
+		step := work.WorkflowStep{Name: line(transition.Name, 120), To: to}
 		if step.Name == "" {
 			step.Name = to
 		}
@@ -221,7 +221,7 @@ func (r *trackerRun) boardViews(project string, collection shared.ID) {
 	b := r.b
 	for _, board := range r.boardsOf(project) {
 		id := b.id("saved_views", "board:"+project+":"+board.ID.String())
-		name := clip(strings.TrimSpace(board.Name), 120)
+		name := line(board.Name, 120)
 		if name == "" {
 			continue
 		}
@@ -397,7 +397,7 @@ func sprintRowID(data map[string]any) string {
 // today for two weeks, one longer than a sprint may be cut at the bound.
 func (r *trackerRun) sprintRow(project string, sprint trackerSprint, collection shared.ID) *sprintRow {
 	b := r.b
-	name := clip(strings.TrimSpace(sprint.Name), 120)
+	name := line(sprint.Name, 120)
 	if name == "" || sprint.ID.String() == "" {
 		return nil
 	}

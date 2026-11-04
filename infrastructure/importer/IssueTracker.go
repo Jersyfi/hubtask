@@ -413,7 +413,7 @@ func (r *trackerRun) workflowOf(project string, indexes []int) (work.WorkflowSha
 		token := map[work.StatusCategory]shared.LabelToken{
 			work.CategoryTodo: shared.LabelTokenSlate, work.CategoryInProgress: shared.LabelTokenBlue, work.CategoryDone: shared.LabelTokenGreen,
 		}[category]
-		statuses = append(statuses, work.WorkflowStatus{Key: key, Name: clip(name, 120), Category: category, ColorToken: string(token)})
+		statuses = append(statuses, work.WorkflowStatus{Key: key, Name: line(name, 120), Category: category, ColorToken: string(token)})
 	}
 	if len(statuses) == 0 {
 		return work.WorkflowShape{}, nil
