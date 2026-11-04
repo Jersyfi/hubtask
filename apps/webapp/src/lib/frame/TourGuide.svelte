@@ -9,6 +9,7 @@
 
   import { actor } from '../data/account.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { onboarding } from '../onboarding/onboarding.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { startsAt } from '../tour.ts';
 
@@ -30,7 +31,8 @@
   let startedFor = $state<string | undefined>(undefined);
   $effect(() => {
     const account = actor.account;
-    if (!account || startedFor === account.id || tour.isOpen) return;
+    // The starter first (user-experience.md §3.1): the tour then walks what it made.
+    if (!account || startedFor === account.id || tour.isOpen || !onboarding.tourMayStart) return;
     // A tab loaded anew in the middle of the tour goes on where it was, whatever the screen.
     const resumesAt = tour.resumesAt();
     if ((resumesAt === undefined && !startsAt(path)) || !tour.shouldStart()) return;
