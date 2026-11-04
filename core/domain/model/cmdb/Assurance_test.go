@@ -4,6 +4,8 @@
 package cmdb
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -244,5 +246,22 @@ func TestTheNextReviewFromAMonthsEndStaysInItsMonth(t *testing.T) {
 		if got := (Campaign{ReviewMonths: c.months}).NextReview(from.Add(10 * time.Hour)).Format(time.DateOnly); got != c.want {
 			t.Errorf("%s + %d months: %s, want %s", c.from, c.months, got, c.want)
 		}
+	}
+}
+
+// A product's versions are listed newest first by their numbers, not by their letters: 10.0
+// is newer than 9.4, and 1.10 than 1.9.
+func TestAProductsVersionsAreListedNewestFirstByTheirNumbers(t *testing.T) {
+	var cis []CI
+	for i, v := range []string{"9.4", "10.0", "1.9", "1.10", "10.0.1", "", "2.0-beta"} {
+		cis = append(cis, CI{ID: id(fmt.Sprintf("%02d", 20+i)), Class: "software", Name: "Tool", Attributes: map[string]any{"version": v}})
+	}
+	got := Normalise(cis, NewClasses(nil), nil, nil)
+	var order []string
+	for _, v := range got[0].Versions {
+		order = append(order, v.Version)
+	}
+	if want := []string{"10.0.1", "10.0", "9.4", "2.0-beta", "1.10", "1.9", ""}; !slices.Equal(order, want) {
+		t.Fatalf("versions %q, want %q", order, want)
 	}
 }

@@ -144,7 +144,7 @@ func Normalise(cis []CI, classes Classes, aliases []SoftwareAlias, installations
 	out := make([]Product, 0, len(order))
 	for _, k := range order {
 		p := *groups[k]
-		slices.SortFunc(p.Versions, func(a, b ProductVersion) int { return strings.Compare(b.Version, a.Version) })
+		slices.SortFunc(p.Versions, func(a, b ProductVersion) int { return CompareVersions(b.Version, a.Version) })
 		out = append(out, p)
 	}
 	slices.SortFunc(out, func(a, b Product) int {
@@ -155,3 +155,38 @@ func Normalise(cis []CI, classes Classes, aliases []SoftwareAlias, installations
 	})
 	return out
 }
+
+// CompareVersions orders two versions by their numbers, a run of digits against a run of digits
+// by its value and the rest by its letters: 10.0 is after 9.4, and 1.10 after 1.9.
+func CompareVersions(a, b string) int {
+	for a != "" && b != "" {
+		x, restA := versionPart(a)
+		y, restB := versionPart(b)
+		if c := comparePart(x, y); c != 0 {
+			return c
+		}
+		a, b = restA, restB
+	}
+	return strings.Compare(a, b)
+}
+
+func versionPart(v string) (string, string) {
+	digit := isDigit(v[0])
+	i := 1
+	for i < len(v) && isDigit(v[i]) == digit {
+		i++
+	}
+	return v[:i], v[i:]
+}
+
+func comparePart(x, y string) int {
+	if isDigit(x[0]) && isDigit(y[0]) {
+		x, y = strings.TrimLeft(x, "0"), strings.TrimLeft(y, "0")
+		if len(x) != len(y) {
+			return len(x) - len(y)
+		}
+	}
+	return strings.Compare(x, y)
+}
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
