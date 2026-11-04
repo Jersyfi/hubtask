@@ -161,6 +161,10 @@ const defaultOpsPort = 9090
 // already bounded by its own timeout.
 const healthSampleInterval = 30 * time.Second
 
+// poolCloseDeadline bounds a pool's Close, which waits for every connection to come back: one held
+// by a loop abandoned at the grace period would otherwise keep the process alive after SIGTERM.
+const poolCloseDeadline = 5 * time.Second
+
 // Set at build time via ldflags.
 var (
 	version   = "0.0.0-dev"
@@ -282,7 +286,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
-	defer pool.Close()
+	defer closeWithin("database", poolCloseDeadline, pool.Close)
 
 	// The background roles get a pool of their own whenever this process also serves the API.
 	// Their budget is the long one, and their saturation is theirs alone: a worker holding ten
@@ -295,7 +299,7 @@ func run() error {
 		if err != nil {
 			return fmt.Errorf("database (background): %w", err)
 		}
-		defer backgroundPool.Close()
+		defer closeWithin("database (background)", poolCloseDeadline, backgroundPool.Close)
 	}
 
 	// Every loop started below runs under this context, and it ends on any return - before the
@@ -5513,6 +5517,8 @@ func run() error {
 	// seconds buys: an ingress still holding the endpoint, and two requests answered with 502
 	// during a rollout that was otherwise clean (docs/archive/evidence/RT-8-2026-08-21.md).
 	registry.MarkClosing()
+	slog.Info("shutdown: deregistered, still serving while the load balancer lets go",
+		slog.Int("seconds", cfg.ShutdownDeregisterSeconds))
 
 	// The streams are asked to end at the same moment, and before the deregistration wait rather
 	// than after it. A stream has no natural end, so Shutdown would otherwise sit out the whole
@@ -5527,6 +5533,7 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), grace)
 	defer cancel()
 
+	slog.Info("shutdown: draining requests", slog.Int("grace_seconds", cfg.ShutdownGraceSeconds))
 	var shutdownErr error
 	if api != nil {
 		if err := api.Shutdown(shutdownCtx); err != nil {
@@ -5537,6 +5544,7 @@ func run() error {
 		shutdownErr = errors.Join(shutdownErr, err)
 	}
 
+	slog.Info("shutdown: waiting for the background loops")
 	// The background loops stopped claiming when the context ended; what they had already claimed
 	// runs to its own deadline. Waiting for it here is what makes terminationGracePeriodSeconds
 	// mean something for jobs rather than only for requests.
@@ -5550,6 +5558,28 @@ func run() error {
 
 	slog.Info("stopped")
 	return shutdownErr
+}
+
+// closeWithin runs a close and waits for it no longer than the deadline, saying which stage gave
+// up. It reports whether the close finished. A close that never returns is left behind: the
+// process is on its way out, and an exit is what releases what it holds.
+func closeWithin(stage string, deadline time.Duration, close func()) bool {
+	slog.Info("shutdown: closing", slog.String("stage", stage))
+	done := make(chan struct{}, 1)
+	concurrency.Go(context.Background(), "shutdown."+stage, func(context.Context) {
+		defer func() { done <- struct{}{} }()
+		close()
+	})
+	timer := time.NewTimer(deadline)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		slog.Warn("shutdown: a close did not finish in time; exiting without it",
+			slog.String("stage", stage), slog.Duration("deadline", deadline))
+		return false
+	}
 }
 
 // start runs a loop and hands back the channel that closes when it has finished. concurrency.Go
