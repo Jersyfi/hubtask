@@ -710,3 +710,14 @@ Ran: go build ./...; go test ./presentation/realtime and ./locales; golangci-lin
 
 Not run: make check, make verify, the webapp tests in the two other time zones, e2e, the integration suites, a walk in the running app, and a real browser sync of 100 000 entries (L3 is not built).
 
+
+## Lost to a network failure on 2026-11-04
+
+The first Leftovers round's second fixer batch ended at 18:41 on "Can't reach the API server" before
+it fixed anything. The second triage found its other findings again, but not these four, which the
+first triage had confirmed in the code:
+
+- Mail notifications dead-letter when no mail server is configured.
+- An address refused for good (SMTP 5xx) is never marked undeliverable.
+- The migrator and the platform-event numbering share advisory lock 8_010_002.
+- The audit filter by request_id has no index.
