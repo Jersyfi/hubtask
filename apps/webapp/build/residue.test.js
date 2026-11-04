@@ -314,6 +314,7 @@ async function views() {
     ['instance-operators', await load('InstanceOperatorsView'), { onnavigate: noop }],
     ['instance-journal', await load('InstanceJournalView'), { onnavigate: noop }],
     ['instance-dead-letters', await load('InstanceDeadLettersView'), { onnavigate: noop }],
+    ['instance-usage', await load('InstanceUsageView'), { onnavigate: noop }],
     ['sign-in', await load('SignInView'), {}],
     ['redeem', await load('RedeemView'), { onnavigate: noop }],
     ['reset', await load('ResetView'), { onnavigate: noop }],

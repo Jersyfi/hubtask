@@ -238,6 +238,7 @@ test('chromium: the health report is said in words, with the upgrade row and the
 const INSTALLATION_SECTION = [
   ['/instance', 'Installation'],
   ['/instance/workspaces', 'Workspaces'],
+  ['/instance/usage', 'Usage'],
   ['/instance/plans', 'Plans'],
   ['/instance/settings', 'Defaults'],
   ['/instance/providers', 'Sign-in providers'],
@@ -281,4 +282,62 @@ test('chromium: every screen of the installation says where it is and leads back
   await page.goto(`${served.origin}/instance/journal`);
   await page.getByRole('navigation', { name: 'Where you are in the installation' }).getByRole('link', { name: 'Installation' }).click();
   await page.waitForFunction(() => location.pathname === '/instance', null, { timeout: 5_000 });
+});
+
+/** The usage screen against the given answer of `GET /admin/usage`. */
+async function usageScreen(browser, answer) {
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: 'multi' } });
+    if (path === '/admin/usage') return route.fulfill(answer);
+    if (path === '/admin/tenants') return route.fulfill({ json: [{ id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', created_at: '2026-08-01T08:00:00Z' }] });
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/instance/usage`);
+  return { page, close: () => context.close() };
+}
+
+// user-experience.md §8.4: *Usage* draws each workspace's latest people, entries and stored bytes
+// once metering is on, and says how to switch it on while it is off - never as a failure.
+test('chromium: usage shows each workspace\'s latest counts, and how to switch metering on', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const on = await usageScreen(browser, { json: {
+    data: [{ workspace_id: '01a0e2e0-0000-7000-8000-0000000005a1', purged: false, metrics: {
+      accounts: [{ day: '2026-11-03', value: 6 }, { day: '2026-11-04', value: 7 }],
+      items: [{ day: '2026-11-04', value: 1234 }],
+      media_bytes: [{ day: '2026-11-04', value: 2048 }],
+    } }],
+    page: { next_cursor: null, has_more: false },
+    metrics: [{ name: 'items', aggregate: 'HIGHEST', day: 'UTC' }],
+    final_through: '2026-11-03',
+  } });
+  t.after(on.close);
+  const row = on.page.locator('[data-usage="01a0e2e0-0000-7000-8000-0000000005a1"]');
+  await row.waitFor({ timeout: 15_000 });
+  const text = await row.textContent() ?? '';
+  assert.match(text, /house/);
+  assert.match(text, /7/);
+  assert.match(text, /1,234/);
+  assert.match(text, /2 kB/);
+  const overflow = await on.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
+
+  const off = await usageScreen(browser, { status: 409, contentType: 'application/problem+json', json: {
+    type: 'about:blank', title: 'Conflict', status: 409, code: 'conflict', detail_code: 'admin.metering_off',
+  } });
+  t.after(off.close);
+  await off.page.getByText('Metering is off, so no use is offered.').waitFor({ timeout: 15_000 });
+  await off.page.getByText(/hubctl admin settings set metering on/).waitFor();
+  assert.equal(await off.page.getByRole('alert').filter({ hasText: /conflict/i }).count(), 0);
 });

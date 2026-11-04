@@ -528,6 +528,8 @@ export const INSTANCE: readonly SectionGroup[] = [
     rows: [
       { id: 'overview', icon: 'gauge', code: 'app.instance.overview', path: '/instance', routes: ['instance'] },
       { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
+      // Each workspace's people, entries and stored bytes, once metering is on (§8.4).
+      { id: 'usage', icon: 'gauge', code: 'app.instance.usage', path: '/instance/usage', routes: ['instance-usage'] },
       { id: 'plans', icon: 'sliders-horizontal', code: 'app.instance.plans', path: '/instance/plans', routes: ['instance-plans', 'instance-plan'] },
       { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
@@ -554,7 +556,7 @@ export const INSTANCE: readonly SectionGroup[] = [
  * (UC-AI-06 check 8) - and without the events to a purchase platform, which single mode offers
  * none of (UC-INS-14 check 7), nor plans (multi-tenancy.md §4.2).
  */
-const MULTI_ONLY = new Set(['ai', 'platform', 'plans']);
+const MULTI_ONLY = new Set(['ai', 'platform', 'plans', 'usage']);
 
 export function instanceSection(options: { readonly isSingleWorkspace: boolean }): readonly SectionGroup[] {
   if (!options.isSingleWorkspace) return INSTANCE;

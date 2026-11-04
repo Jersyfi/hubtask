@@ -99,11 +99,12 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // does not belong to this area however convenient it would be. The list is written out so that
   // adding one is a decision somebody made against that sentence rather than a file that appeared.
   //
-  // Twelve, among them the plans' two (multi-tenancy.md §4.2) and the five the control plane would otherwise have only at a terminal — the
+  // Thirteen, among them the plans' two (multi-tenancy.md §4.2) and the five the control plane would otherwise have only at a terminal — the
   // providers and the AI models it offers every workspace (ADR-0072 §1), its own backup targets
   // (multi-tenancy.md §5), the subscriptions of a purchase platform (§4.3), and the keyring's census
   // — here by the parity rule (ADR-0070 §5). None reads into a workspace: four are the
-  // installation's own rows, the other a count per key that names no workspace at all.
+  // installation's own rows, the other a count per key that names no workspace at all. *Usage* is
+  // counts per workspace and day, the metering read `hubctl admin usage` already has.
   const built = ROUTES.filter((route) => route.area === 'instance').map((route) => route.name).sort();
   assert.deepEqual(built, [
     'instance',
@@ -118,6 +119,7 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
     'instance-providers',
     'instance-settings',
     'instance-targets',
+    'instance-usage',
     'instance-workspaces',
   ]);
 });

@@ -476,6 +476,8 @@ export type {
   PlatformSubscriptionSecret,
   PlatformDelivery,
   DeadLetter,
+  UsagePage,
+  WorkspaceUsage,
   AdminTenant,
   InstanceSettings,
   InstanceSettingsPlan,
