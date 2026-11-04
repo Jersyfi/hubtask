@@ -26,7 +26,7 @@
   import { untrack } from 'svelte';
 
   import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
-  import type { Container, SettingDefinition, WorkItem } from '@hubtask/sync-engine';
+  import type { Container, GoalList, SettingDefinition, WhiteboardList, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
@@ -56,6 +56,8 @@
   import { queryFields } from '../data/query.ts';
   import { search } from '../data/search.svelte.ts';
   import { pages } from '../data/pages.svelte.ts';
+  import { boardsPath } from '../data/whiteboards.svelte.ts';
+  import { nameMatches } from '../search/kinds.ts';
   import { QUICK, compile, parse } from '../data/searchquery.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
@@ -81,6 +83,7 @@
   let pageHits = $state<readonly { id: string; title: string }[]>([]);
   let searching = $state(false);
   let form = $state<HTMLFormElement | null>(null);
+
 
   const words = $derived(term.trim());
   const isOpen = $derived(palette.isOpen);
@@ -259,6 +262,31 @@
   });
   const catalogueRows = $derived(catalogueOffers(catalogue, reach, t, shapedPlace));
 
+  // Boards and goals by their names, where their module is on (user-experience.md §5.3): read
+  // while the palette is open with words, matched as the words change - the search's own reads.
+  const isModuleOn = (module: string) => ((manifest.value?.modules_on ?? []) as readonly string[]).includes(module);
+  const wantsObjects = $derived(isOpen && words !== '');
+  const boardHubs = $derived(wantsObjects && isModuleOn('WHITEBOARD') ? containers.hubs.map((hub) => hub.id).join(',') : '');
+  let boardsAt = $state<Record<string, WhiteboardList['data']>>({});
+  $effect(() => {
+    const ids = boardHubs === '' ? [] : boardHubs.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) => engine.subscribe<WhiteboardList>({ path: boardsPath(hubId) }, (next) => {
+        if (next.status === 'ready') boardsAt = { ...boardsAt, [hubId]: next.data.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const wantsGoals = $derived(wantsObjects && isModuleOn('GOALS'));
+  let goals = $state<GoalList['data']>([]);
+  $effect(() => {
+    if (!wantsGoals) return;
+    return untrack(() => engine.subscribe<GoalList>({ path: '/goals' }, (next) => { if (next.status === 'ready') goals = next.data.data; }));
+  });
+  const OBJECTS_SHOWN = 5;
+  const boardHits = $derived(boardHubs === '' ? [] : Object.values(boardsAt).flat().filter((board) => nameMatches(board.title, words)).slice(0, OBJECTS_SHOWN));
+  const goalHits = $derived(wantsGoals ? goals.filter((goal) => nameMatches(goal.title, words)).slice(0, OBJECTS_SHOWN) : []);
+
   /** What may be offered, each with what pressing it does. */
   const offers = $derived<readonly (Offer | (Candidate & { readonly run: () => void }))[]>([
     ...containerOffers(placed),
@@ -289,6 +317,8 @@
     ...catalogueRows,
     ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
     ...pageHits.map((hit) => ({ kind: 'place' as const, id: `page:${hit.id}`, label: hit.title, target: { kind: 'route' as const, path: `/pages/${hit.id}` } })),
+    ...boardHits.map((board) => ({ kind: 'place' as const, id: `board:${board.id}`, label: board.title, target: { kind: 'route' as const, path: `/whiteboards/${board.id}` } })),
+    ...goalHits.map((goal) => ({ kind: 'place' as const, id: `goal:${goal.id}`, label: goal.title, target: { kind: 'route' as const, path: `/goals/${goal.id}` } })),
     ...recentOffers(recents.rows),
   ]);
 

@@ -68,6 +68,8 @@ function queueOf(body) {
 const queries = [];
 const releaseOf = (n, name, on, state = 'PLANNED') => ({ id: `01a0e2e0-0000-7000-8000-0000000007${n}`, hub_id: HUB.id, name, description: '', release_on: on, state, released_at: null, notes_page_id: null, version: 1 });
 const RELEASES = [releaseOf('01', 'Winter release with the new planning board and the reworked reports', '2026-12-10'), releaseOf('02', 'Autumn fixes', '2026-11-20'), releaseOf('03', 'Summer', '2026-07-01', 'RELEASED')];
+const GOAL_ROWS = [{ id: '01a0e2e0-0000-7000-8000-000000000801', period_id: 'p1', hub_id: null, parent_id: null, title: 'Mehr Kundinnen gewinnen', description: '', owner_id: null, status: 'ON_TRACK', confidence: null, grade: null, key_results: [], entries: [], child_count: 0, progress: 0, version: 1 }];
+const CIS = [{ id: '01a0e2e0-0000-7000-8000-000000000901', hub_id: HUB.id, class: 'firewall', name: 'FortiGate 60F', stage: 'LIVE', status: 'OK', attributes: {}, provenance: {}, protection: null, quantity: 1, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version: 1 }];
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
@@ -91,6 +93,8 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith(`/api/v1/agents/${AGENTS[1].id}/jobs`)) return route.fulfill({ json: { data: JOBS } });
     if (/\/api\/v1\/agents\/[^/]+\/jobs$/.test(path)) return route.fulfill({ json: { data: [] } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/whiteboards`)) return route.fulfill({ json: { data: BOARDS } });
+    if (path.endsWith('/api/v1/goals')) return route.fulfill({ json: { data: GOAL_ROWS } });
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/cis`)) return route.fulfill({ json: { data: CIS, next_after: null } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/releases`)) return route.fulfill({ json: { data: RELEASES } });
@@ -449,4 +453,30 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     assert.deepEqual(await opened.page.evaluate(() => window.__arrivals ?? []), [], `a row moved although ${label} asked for reduced motion`);
     assert.deepEqual(opened.failures, []);
   }
+});
+
+// §5.3: goals and configuration items are found by the search, and the palette finds boards and
+// goals beside pages - "FortiGate" and a goal's title found nothing before.
+test('chromium 1280 px: the search finds goals and configuration items, the palette boards and goals', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['WHITEBOARD', 'GOALS', 'ASSETS'] });
+  t.after(close);
+  const field = page.getByRole('searchbox', { name: 'Search everything you can see' });
+  await field.fill('kundinnen');
+  const goals = page.getByRole('region', { name: 'Goals' });
+  await goals.waitFor({ timeout: 10_000 });
+  assert.equal(await goals.getByRole('link').first().getAttribute('href'), `/goals/${GOAL_ROWS[0].id}`);
+  await field.fill('fortigate');
+  const assets = page.getByRole('region', { name: 'Assets' });
+  await assets.waitFor({ timeout: 10_000 });
+  assert.equal(await assets.getByRole('link').first().getAttribute('href'), `/cis/${CIS[0].id}`);
+
+  const palette = page.getByRole('combobox', { name: 'Search everything' });
+  await palette.click();
+  await palette.fill('kick-off');
+  await page.locator('#search-menu').getByRole('option', { name: /Kick-off/u }).waitFor({ timeout: 10_000 });
+  await palette.fill('kundinnen');
+  await page.locator('#search-menu').getByRole('option', { name: /Mehr Kundinnen gewinnen/u }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
 });
