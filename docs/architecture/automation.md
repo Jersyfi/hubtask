@@ -771,8 +771,12 @@ and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
 ### 5.1 Names and the routing order
 
 Every collection has a *handle* (`einkauf`, letters and digits, unique in the workspace over
-trashed collections too, kept on a rename) and every entry a number in its collection; together
-they are the *ticket key* `EINKAUF-42`. On the operator's domain a workspace has a *name*
+trashed collections too, kept on a rename) and every entry a number in its collection. A
+collection made since migration 0356 also has a *key prefix* (`EIN`, a letter and up to four
+letters or digits, derived from the name, changeable or clearable, unique in the workspace and
+never another collection's handle); the *ticket key* is the prefix and the number (`EIN-42`), or
+the handle in capitals and the number (`EINKAUF-42`) where there is no prefix, and either form
+names the entry in rule 1 (user-experience.md §5.6). An address always carries the handle. On the operator's domain a workspace has a *name*
 (`familie`, unique on the installation): `familie@`, `familie+tag@` and `tag.familie@` all reach
 it. The first rule that matches decides:
 

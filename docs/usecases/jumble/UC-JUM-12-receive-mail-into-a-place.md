@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
 state: built
 tasks: []
-checked_by: [core/application/service/privacy/IntakeLines_test.go, core/application/service/privacy/ErasureAddress_test.go, test/integration/requester_test.go, core/domain/model/mail/Route_test.go, core/domain/model/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, apps/webapp/e2e/mail.test.mjs]
+checked_by: [core/application/service/privacy/IntakeLines_test.go, core/application/service/privacy/ErasureAddress_test.go, test/integration/requester_test.go, core/domain/model/mail/Route_test.go, core/domain/model/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, apps/webapp/e2e/mail.test.mjs, test/integration/mail_intake_test.go, apps/webapp/e2e/entrykeys.test.mjs]
 ---
 
 # Receive mail into a place
@@ -34,9 +34,11 @@ operator's receiving domain.
 ## How to check
 
 1. Every collection has a handle, derived from its name and unique in the workspace, and every
-   entry a number in its collection; the entry shows its ticket key (`BUERO-42`) above its title.
-2. A ticket key - `[KEY-42]` or `KEY-42` in the subject, `+key-42` or `key-42.` in the address -
-   makes the mail a comment on that entry; a handle - `#handle` in the subject, `+handle` or
+   entry a number in its collection; the entry shows its ticket key above its title - the
+   collection's key prefix and the number (`BUE-42`), or the handle in capitals where the
+   collection has no prefix (`BUERO-42`).
+2. A ticket key in either form - `[KEY-42]` or `KEY-42` in the subject, `+key-42` or `key-42.` in
+   the address - makes the mail a comment on that entry; a handle - `#handle` in the subject, `+handle` or
    `handle.` in the address - makes it an entry in that collection, the subject without the
    routing words as its title.
 3. Without either, a sender rule, then the workspace's default collection decide; otherwise the
