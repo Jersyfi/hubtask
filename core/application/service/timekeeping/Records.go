@@ -268,7 +268,8 @@ func (h UpdateTimeRecord) Execute(
 		if err != nil {
 			return err
 		}
-		for _, d := range []domain.Day{before.Day, after.Day} {
+		// The earlier week is held first, so two moves between the same two weeks never wait on each other.
+		for _, d := range []domain.Day{min(before.Day, after.Day), max(before.Day, after.Day)} {
 			if err := h.Keeper.mayWrite(ctx, policy, actor.AccountID, d); err != nil {
 				return err
 			}

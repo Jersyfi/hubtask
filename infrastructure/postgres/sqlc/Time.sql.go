@@ -543,6 +543,24 @@ func (q *Queries) ListTimesheets(ctx context.Context, arg ListTimesheetsParams) 
 	return items, nil
 }
 
+const lockTimesheetWeek = `-- name: LockTimesheetWeek :exec
+SELECT pg_advisory_xact_lock(hashtextextended(
+  'timesheet/' || current_tenant_id()::text || '/' || $1::uuid::text || '/' ||
+  $2::date::text, 0))
+`
+
+type LockTimesheetWeekParams struct {
+	AccountID pgtype.UUID
+	WeekStart pgtype.Date
+}
+
+// Holds one person's week until the transaction ends: a record's write and the week's hand-in each
+// take it before reading the week's state, so neither reads it open while the other changes it.
+func (q *Queries) LockTimesheetWeek(ctx context.Context, arg LockTimesheetWeekParams) error {
+	_, err := q.db.Exec(ctx, lockTimesheetWeek, arg.AccountID, arg.WeekStart)
+	return err
+}
+
 const sumTimeLines = `-- name: SumTimeLines :many
 SELECT r.account_id, r.entry_id, wi.collection_id, c.parent_id AS hub_id, r.work_type, r.day,
   r.billable, sum(r.minutes)::bigint AS minutes, count(*)::bigint AS records

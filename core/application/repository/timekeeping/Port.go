@@ -64,6 +64,9 @@ type Store interface {
 	// RemoveTimer stops a person's timer, and reports whether one ran.
 	RemoveTimer(ctx context.Context, account shared.ID) (bool, error)
 
+	// LockWeek holds a person's week from Monday until the transaction ends, before its state is
+	// read for a write of its records or for its hand-in.
+	LockWeek(ctx context.Context, account shared.ID, week domain.Day) error
 	// Sheet answers a person's week, and whether it was ever handed in.
 	Sheet(ctx context.Context, account shared.ID, week domain.Day) (domain.Timesheet, bool, error)
 	// Sheets answers the weeks in a state (every state for ""), of one person or everybody, from a

@@ -176,3 +176,39 @@ func TestTheTimeWalkStaysWithItsPerson(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A person's held week makes another transaction wait for it - a record's write and the week's
+// hand-in never both read it open - and holds nothing in the workspace next door.
+func TestAHeldWeekMakesTheOtherWriterWait(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewTimeRepository()
+	day, _ := timekeeping.ParseDay("2026-11-04")
+	if err := write(ctx, t, tenantA, func(held context.Context) error {
+		if err := store.LockWeek(held, authorA, day); err != nil {
+			return err
+		}
+		waiting, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+		defer cancel()
+		if err := write(waiting, t, tenantA, func(inner context.Context) error {
+			return store.LockWeek(inner, authorA, day+2)
+		}); err == nil {
+			t.Error("a second transaction held the same week at once")
+		}
+		next, cancelNext := context.WithTimeout(ctx, 5*time.Second)
+		defer cancelNext()
+		if err := write(next, t, tenantA, func(inner context.Context) error {
+			return store.LockWeek(inner, authorA, day+7)
+		}); err != nil {
+			t.Errorf("the next week waited: %v", err)
+		}
+		if err := write(next, t, tenantB, func(inner context.Context) error {
+			return store.LockWeek(inner, authorA, day)
+		}); err != nil {
+			t.Errorf("the workspace next door waited: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("hold: %v", err)
+	}
+}

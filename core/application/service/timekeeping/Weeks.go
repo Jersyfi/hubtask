@@ -287,6 +287,9 @@ func (h SubmitTimesheet) Execute(ctx context.Context, actor appshared.ActorConte
 	now := h.Keeper.Clock.Now()
 	var out domain.Timesheet
 	err := h.Keeper.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := h.Keeper.Store.LockWeek(ctx, actor.AccountID, domain.WeekOf(day)); err != nil {
+			return err
+		}
 		sheet, held, err := h.Keeper.Store.Sheet(ctx, actor.AccountID, day)
 		if err != nil {
 			return err

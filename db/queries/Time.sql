@@ -107,6 +107,13 @@ VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.narg('
 -- name: DeleteTimeTimer :execrows
 DELETE FROM time_timer WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::uuid;
 
+-- name: LockTimesheetWeek :exec
+-- Holds one person's week until the transaction ends: a record's write and the week's hand-in each
+-- take it before reading the week's state, so neither reads it open while the other changes it.
+SELECT pg_advisory_xact_lock(hashtextextended(
+  'timesheet/' || current_tenant_id()::text || '/' || sqlc.arg('account_id')::uuid::text || '/' ||
+  sqlc.arg('week_start')::date::text, 0));
+
 -- name: FindTimesheet :one
 SELECT id, account_id, week_start, state, minutes, submitted_at, decided_at, decided_by, reason, version
 FROM timesheet

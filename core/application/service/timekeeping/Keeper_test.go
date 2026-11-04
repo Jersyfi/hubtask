@@ -178,6 +178,8 @@ type store struct {
 	timers  map[shared.ID]domain.Timer
 	policy  domain.Policy
 	kinds   []domain.WorkType
+	// steps logs the week locks and the week reads, in their order.
+	steps []string
 }
 
 func newStore() *store {
@@ -285,7 +287,12 @@ func (s *store) RemoveTimer(_ context.Context, a shared.ID) (bool, error) {
 	delete(s.timers, a)
 	return ok, nil
 }
+func (s *store) LockWeek(_ context.Context, a shared.ID, week domain.Day) error {
+	s.steps = append(s.steps, "lock "+a.String()+" "+week.String())
+	return nil
+}
 func (s *store) Sheet(_ context.Context, a shared.ID, d domain.Day) (domain.Timesheet, bool, error) {
+	s.steps = append(s.steps, "read "+a.String()+" "+domain.WeekOf(d).String())
 	sheet, ok := s.sheets[sheetKey(a, d)]
 	if !ok {
 		return domain.OpenSheet(a, d), false, nil

@@ -290,8 +290,13 @@ func ResolvePolicy(ctx context.Context, settings settingrepo.Settings, stored do
 // policyPrefix is the catalogue's area of the time policy.
 const policyPrefix = "time."
 
-// weekState answers the state of a person's week holding a day.
+// weekState answers the state of a person's week holding a day, inside the caller's transaction,
+// holding the week first: a hand-in on another device waits, or is waited for, rather than both
+// reading the week open (UC-TIM-02 check 4).
 func (k Keeper) weekState(ctx context.Context, account shared.ID, day domain.Day) (domain.SheetState, error) {
+	if err := k.Store.LockWeek(ctx, account, domain.WeekOf(day)); err != nil {
+		return "", err
+	}
 	sheet, _, err := k.Store.Sheet(ctx, account, day)
 	if err != nil {
 		return "", err

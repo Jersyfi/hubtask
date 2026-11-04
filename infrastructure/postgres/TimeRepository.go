@@ -467,6 +467,22 @@ func sheetFrom(
 	}, nil
 }
 
+// LockWeek holds a person's week until the transaction ends.
+func (TimeRepository) LockWeek(ctx context.Context, account shared.ID, week domain.Day) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(account)
+	if err != nil {
+		return err
+	}
+	if err := queries.LockTimesheetWeek(ctx, sqlc.LockTimesheetWeekParams{AccountID: key, WeekStart: dayDate(domain.WeekOf(week))}); err != nil {
+		return timeError(err, "holding a week")
+	}
+	return nil
+}
+
 // Sheet answers a person's week.
 func (TimeRepository) Sheet(ctx context.Context, account shared.ID, week domain.Day) (domain.Timesheet, bool, error) {
 	queries, err := queriesFrom(ctx)
