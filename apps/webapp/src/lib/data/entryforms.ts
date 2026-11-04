@@ -78,6 +78,31 @@ export function standingOf(field: EntryFormField, state: EntryFormState | undefi
 }
 
 /** Whether a field depends on the entry: one of its conditions is set. */
+/** A condition as a person picks it: a custom field, how it compares, and the value. */
+export interface ConditionPick {
+  readonly field: string;
+  readonly op: 'is' | 'is_not';
+  readonly value: string;
+}
+
+const CONDITION = /^entry\.custom_fields\.([A-Za-z_][A-Za-z0-9_]*) (==|!=) "((?:[^"\\]|\\.)*)"$/;
+
+/** The expression a pick stands for; no field picked is never (empty). */
+export function conditionOf(pick: ConditionPick): string {
+  if (pick.field === '') return '';
+  const quoted = pick.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `entry.custom_fields.${pick.field} ${pick.op === 'is' ? '==' : '!='} "${quoted}"`;
+}
+
+/** The pick an expression was written by, or undefined for one only an expression says. */
+export function pickOf(expression: string): ConditionPick | undefined {
+  const text = expression.trim();
+  if (text === '') return { field: '', op: 'is', value: '' };
+  const match = CONDITION.exec(text);
+  if (!match) return undefined;
+  return { field: match[1] as string, op: match[2] === '==' ? 'is' : 'is_not', value: (match[3] as string).replace(/\\(.)/g, '$1') };
+}
+
 export function isConditional(field: EntryFormField): boolean {
   return Boolean(field.required_when || field.read_only_when || field.hidden_when);
 }

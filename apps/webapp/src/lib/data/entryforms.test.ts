@@ -12,7 +12,7 @@ import type { EntryForm, EntryFormState } from '@hubtask/sync-engine';
 
 import {
   OPT_IN_CHANNELS, addableKeys, channelIn, panelRows, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
-  removeSection, standingOf, unfilled, unfoldedIn, validationWords,
+  conditionOf, pickOf, removeSection, standingOf, unfilled, unfoldedIn, validationWords,
 } from './entryforms.ts';
 
 const form: EntryForm = {
@@ -174,4 +174,16 @@ test('hiding a field on a door a form opens does not open it', () => {
   channelIn(draft, 'PUBLIC').hidden.push('notes');
   assert.equal(channelIn(draft, 'PUBLIC').closed, true);
   assert.equal(channelIn(draft, 'MAIL').closed, false);
+});
+
+test('UX-4: a field\'s condition is picked as field, comparison and value, the expression kept behind Advanced', () => {
+  assert.equal(conditionOf({ field: 'severity', op: 'is', value: 'high' }), 'entry.custom_fields.severity == "high"');
+  assert.equal(conditionOf({ field: 'severity', op: 'is_not', value: 'say "hi"' }), 'entry.custom_fields.severity != "say \\"hi\\""');
+  assert.equal(conditionOf({ field: '', op: 'is', value: 'high' }), '', 'no field picked is never');
+  // What a picker wrote reads back as the picker; anything else is only an expression.
+  assert.deepEqual(pickOf('entry.custom_fields.severity == "high"'), { field: 'severity', op: 'is', value: 'high' });
+  assert.deepEqual(pickOf('  entry.custom_fields.severity != "say \\"hi\\""  '), { field: 'severity', op: 'is_not', value: 'say "hi"' });
+  assert.deepEqual(pickOf(''), { field: '', op: 'is', value: '' });
+  assert.equal(pickOf('actor.role == "AGENT"'), undefined);
+  assert.equal(pickOf('entry.custom_fields.a == "x" && entry.custom_fields.b == "y"'), undefined);
 });

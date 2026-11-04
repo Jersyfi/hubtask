@@ -12483,5 +12483,18 @@
   "app.agents.scopes_advanced": "Advanced: scopes as text",
   "app.agents.scopes_typed": "Scopes",
   "app.assets.attention_why": "A configuration item needs attention when it is incomplete, stale, orphaned, a duplicate, has no owner or is overdue for review.",
-  "app.sign_in.to_workspace_named": "to {name}"
+  "app.sign_in.to_workspace_named": "to {name}",
+  "app.entry_forms.conditions": "Conditions",
+  "app.entry_forms.conditions_none": "Always as set above",
+  "app.entry_forms.conditions_set": "Depends on a condition",
+  "app.entry_forms.condition_never": "Never",
+  "app.entry_forms.condition_field": "When the field",
+  "app.entry_forms.condition_op": "Compares",
+  "app.entry_forms.condition_is": "is",
+  "app.entry_forms.condition_is_not": "is not",
+  "app.entry_forms.condition_value": "Value",
+  "app.entry_forms.condition_choose": "Choose a value",
+  "app.entry_forms.condition_written": "Written as an expression under Advanced.",
+  "app.entry_forms.condition_advanced": "Advanced: write it as an expression",
+  "app.entry_forms.condition_expression": "{label} (expression)"
 }

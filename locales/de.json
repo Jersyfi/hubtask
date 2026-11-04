@@ -12483,5 +12483,18 @@
   "app.agents.scopes_advanced": "Erweitert: Bereiche als Text",
   "app.agents.scopes_typed": "Bereiche",
   "app.assets.attention_why": "Ein Konfigurationselement braucht Aufmerksamkeit, wenn es unvollständig, veraltet, verwaist oder eine Dublette ist, keine Verantwortlichen hat oder seine Prüfung überfällig ist.",
-  "app.sign_in.to_workspace_named": "bei {name}"
+  "app.sign_in.to_workspace_named": "bei {name}",
+  "app.entry_forms.conditions": "Bedingungen",
+  "app.entry_forms.conditions_none": "Immer wie oben eingestellt",
+  "app.entry_forms.conditions_set": "Hängt von einer Bedingung ab",
+  "app.entry_forms.condition_never": "Nie",
+  "app.entry_forms.condition_field": "Wenn das Feld",
+  "app.entry_forms.condition_op": "Vergleich",
+  "app.entry_forms.condition_is": "ist",
+  "app.entry_forms.condition_is_not": "ist nicht",
+  "app.entry_forms.condition_value": "Wert",
+  "app.entry_forms.condition_choose": "Wert wählen",
+  "app.entry_forms.condition_written": "Als Ausdruck unter Erweitert geschrieben.",
+  "app.entry_forms.condition_advanced": "Erweitert: als Ausdruck schreiben",
+  "app.entry_forms.condition_expression": "{label} (Ausdruck)"
 }

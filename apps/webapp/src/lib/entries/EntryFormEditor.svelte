@@ -14,18 +14,19 @@
   // condition that does not compile comes back as a refusal naming where it sits.
 
   import { untrack } from 'svelte';
-  import { Button, Checkbox, Dialog, IconButton, Inline, Input, Select, Stack, Switch } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Disclosure, IconButton, Inline, Input, Select, Stack, Switch } from '@hubtask/design-system/components';
   import type { EntryType } from '@hubtask/sync-engine';
 
   import { customFields } from '../data/customfields.svelte.ts';
   import { fieldName, valueFor } from '../data/customfields.ts';
   import {
     FORM_CHANNELS, OPT_IN_CHANNELS, addableKeys, channelIn, customKeyOf, draftOfForm, formKeyOfCustom, formOfDraft, moveField, newField,
-    refusalsByField, removeField, removeSection, type FormDraft,
+    isConditional, refusalsByField, removeField, removeSection, type FormDraft,
   } from '../data/entryforms.ts';
   import { keyFrom } from '../data/entrytypes.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import DraftPublish from '../settings/DraftPublish.svelte';
+  import ConditionPicker from './ConditionPicker.svelte';
 
   interface Props {
     type: EntryType;
@@ -60,6 +61,15 @@
     { value: '', label: t('app.entry_forms.no_section') },
     ...draft.sections.map((section) => ({ value: section.key, label: section.name || section.key })),
   ]);
+  /** The custom fields of the form a condition may name, with their closed values (UX-4). */
+  const conditionFields = $derived(draft.fields.flatMap((field) => {
+    const custom = customKeyOf(field.key);
+    if (custom === undefined || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(custom)) return [];
+    const definition = definitions.find((each) => each.key === custom);
+    return [{ key: custom, label: labelOf(field.key), options: definition?.options as readonly string[] | undefined }];
+  }));
+  const conditionsOpen = (index: number) => ['required_when', 'read_only_when', 'hidden_when'].some((part) => refusalAt(`fields.${index}.${part}`) !== undefined);
+
   const fieldOptions = $derived([
     { value: '', label: t('app.entry_forms.whole_entry') },
     ...draft.fields.map((field) => ({ value: field.key, label: labelOf(field.key) })),
@@ -160,11 +170,17 @@
                 <Select label={t('app.entry_forms.section')} size="sm" options={sectionOptions} bind:value={field.section} />
                 <Switch label={t('app.entry_forms.required')} bind:checked={field.required} />
               </Inline>
-              <Input label={t('app.entry_forms.required_when')} hint={t('app.entry_forms.condition_hint')} size="sm" bind:value={field.required_when} error={refusalAt(`fields.${index}.required_when`)} />
-              <Input label={t('app.entry_forms.read_only_when')} size="sm" bind:value={field.read_only_when} error={refusalAt(`fields.${index}.read_only_when`)} />
-              {#if field.key !== 'title'}
-                <Input label={t('app.entry_forms.hidden_when')} size="sm" bind:value={field.hidden_when} error={refusalAt(`fields.${index}.hidden_when`)} />
-              {/if}
+              <Disclosure tone="quiet" label={t('app.entry_forms.conditions')}
+                description={isConditional(field) ? t('app.entry_forms.conditions_set') : t('app.entry_forms.conditions_none')}
+                isOpen={conditionsOpen(index)}>
+                <Stack gap="150">
+                  <ConditionPicker label={t('app.entry_forms.required_when')} fields={conditionFields} bind:value={field.required_when} error={refusalAt(`fields.${index}.required_when`)} />
+                  <ConditionPicker label={t('app.entry_forms.read_only_when')} fields={conditionFields} bind:value={field.read_only_when} error={refusalAt(`fields.${index}.read_only_when`)} />
+                  {#if field.key !== 'title'}
+                    <ConditionPicker label={t('app.entry_forms.hidden_when')} fields={conditionFields} bind:value={field.hidden_when} error={refusalAt(`fields.${index}.hidden_when`)} />
+                  {/if}
+                </Stack>
+              </Disclosure>
               {#if custom !== undefined}
                 <Input label={t('app.entry_forms.default')} size="sm" bind:value={field.default} error={refusalAt(`fields.${index}.default`)} />
               {/if}
