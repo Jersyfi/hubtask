@@ -14,6 +14,14 @@ SELECT id, name, start_on, end_on, state, version
 FROM goal_period
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
 
+-- name: LockGoalPeriod :one
+-- Holds a period until the transaction ends: its close and a goal set or moved into it read its
+-- state under the lock, so no goal lands ungraded in a period closed meanwhile.
+SELECT id, name, start_on, end_on, state, version
+FROM goal_period
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid
+FOR UPDATE;
+
 -- name: InsertGoalPeriod :exec
 INSERT INTO goal_period (id, tenant_id, name, start_on, end_on, state, created_at, created_by, updated_at, version)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('name'), sqlc.arg('start_on'), sqlc.arg('end_on'),

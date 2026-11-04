@@ -211,6 +211,10 @@ func (h CloseGoalPeriod) Descriptor() usecase.Descriptor {
 			now := s.Clock.Now()
 			var period domain.Period
 			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				// Held before its goals are listed, so a goal set into it meanwhile is graded or refused.
+				if _, err := s.Store.LockPeriod(ctx, id); err != nil {
+					return err
+				}
 				goals, err := s.Store.Goals(ctx, goalrepo.GoalFilter{PeriodID: id, Max: maxGoals})
 				if err != nil {
 					return err
@@ -526,6 +530,19 @@ func (s Steward) period(ctx context.Context, actor appshared.ActorContext, id sh
 	return nil
 }
 
+// stillOpen holds a goal's period inside the write's transaction and refuses one closed since the
+// write's first look: the close holds it too before it grades its goals.
+func (s Steward) stillOpen(ctx context.Context, id shared.ID) error {
+	p, err := s.Store.LockPeriod(ctx, id)
+	if err != nil {
+		return err
+	}
+	if p.State == domain.PeriodClosed {
+		return shared.ErrConflict.WithDetail("goal_periods.closed")
+	}
+	return nil
+}
+
 // sources checks a writer may read what a key result is fed by: a milestone's entry.
 func (s Steward) sources(ctx context.Context, actor appshared.ActorContext, results []domain.KeyResult) error {
 	var entries []shared.ID
@@ -604,6 +621,9 @@ func (h CreateGoal) Descriptor() usecase.Descriptor {
 			}
 			now := s.Clock.Now()
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				if err := s.stillOpen(ctx, g.PeriodID); err != nil {
+					return err
+				}
 				if err := s.Store.InsertGoal(ctx, g, actor.AccountID, now); err != nil {
 					return err
 				}
@@ -669,6 +689,7 @@ func (h UpdateGoal) Descriptor() usecase.Descriptor {
 			if g.Grade != nil {
 				return nil, shared.ErrConflict.WithDetail("goals.graded")
 			}
+			before := g.PeriodID
 			if f.PeriodID != g.PeriodID {
 				if err := s.period(ctx, actor, f.PeriodID); err != nil {
 					return nil, err
@@ -688,7 +709,13 @@ func (h UpdateGoal) Descriptor() usecase.Descriptor {
 				g.OwnerID = f.OwnerID
 			}
 			now := s.Clock.Now()
+			moved := f.PeriodID != before
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				if moved {
+					if err := s.stillOpen(ctx, g.PeriodID); err != nil {
+						return err
+					}
+				}
 				if err := s.Store.UpdateGoal(ctx, g, expected, actor.AccountID, now); err != nil {
 					return err
 				}

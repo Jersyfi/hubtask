@@ -571,6 +571,11 @@ type memory struct {
 	updates    []domain.StatusUpdate
 	dashboards map[shared.ID]domain.Dashboard
 	digests    map[shared.ID]domain.Digest
+	// closeOnRead closes a period once it was read outside a lock: a close that lands between a
+	// writer's check and its write.
+	closeOnRead bool
+	// steps logs the period locks and the goal listings, in their order.
+	steps []string
 }
 
 var _ goalrepo.Store = (*memory)(nil)
@@ -586,6 +591,20 @@ func (m *memory) Periods(context.Context, int) ([]domain.Period, error) {
 }
 
 func (m *memory) Period(_ context.Context, id shared.ID) (domain.Period, error) {
+	p, ok := m.periods[id]
+	if !ok {
+		return domain.Period{}, shared.ErrNotFound
+	}
+	if m.closeOnRead {
+		closed := p
+		closed.State = domain.PeriodClosed
+		m.periods[id] = closed
+	}
+	return p, nil
+}
+
+func (m *memory) LockPeriod(_ context.Context, id shared.ID) (domain.Period, error) {
+	m.steps = append(m.steps, "lock "+id.String())
 	p, ok := m.periods[id]
 	if !ok {
 		return domain.Period{}, shared.ErrNotFound
@@ -625,6 +644,7 @@ func (m *memory) ClosePeriod(_ context.Context, id shared.ID, expected int, grad
 }
 
 func (m *memory) Goals(_ context.Context, f goalrepo.GoalFilter) ([]domain.Goal, error) {
+	m.steps = append(m.steps, "goals "+f.PeriodID.String())
 	var out []domain.Goal
 	for _, id := range m.order {
 		g, ok := m.goals[id]

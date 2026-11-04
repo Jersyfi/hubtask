@@ -1068,6 +1068,38 @@ func (q *Queries) ListPortfolios(ctx context.Context, max int32) ([]ListPortfoli
 	return items, nil
 }
 
+const lockGoalPeriod = `-- name: LockGoalPeriod :one
+SELECT id, name, start_on, end_on, state, version
+FROM goal_period
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid
+FOR UPDATE
+`
+
+type LockGoalPeriodRow struct {
+	ID      pgtype.UUID
+	Name    string
+	StartOn pgtype.Date
+	EndOn   pgtype.Date
+	State   string
+	Version int32
+}
+
+// Holds a period until the transaction ends: its close and a goal set or moved into it read its
+// state under the lock, so no goal lands ungraded in a period closed meanwhile.
+func (q *Queries) LockGoalPeriod(ctx context.Context, id pgtype.UUID) (LockGoalPeriodRow, error) {
+	row := q.db.QueryRow(ctx, lockGoalPeriod, id)
+	var i LockGoalPeriodRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.StartOn,
+		&i.EndOn,
+		&i.State,
+		&i.Version,
+	)
+	return i, err
+}
+
 const markDashboardDigestSent = `-- name: MarkDashboardDigestSent :execrows
 UPDATE dashboard_digest SET last_sent_at = COALESCE($1, last_sent_at), next_at = $2
 WHERE tenant_id = current_tenant_id() AND id = $3::uuid

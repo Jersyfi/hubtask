@@ -29,6 +29,8 @@ type GoalFilter struct {
 type Store interface {
 	Periods(ctx context.Context, limit int) ([]domain.Period, error)
 	Period(ctx context.Context, id shared.ID) (domain.Period, error)
+	// LockPeriod reads a period and holds it until the transaction ends.
+	LockPeriod(ctx context.Context, id shared.ID) (domain.Period, error)
 	InsertPeriod(ctx context.Context, p domain.Period, by shared.ID, at time.Time) error
 	UpdatePeriod(ctx context.Context, p domain.Period, expected int, at time.Time) error
 	// ClosePeriod closes an open period and grades every goal it names, once.

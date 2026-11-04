@@ -255,6 +255,29 @@ func (GoalRepository) Periods(ctx context.Context, limit int) ([]domain.Period, 
 	return out, nil
 }
 
+// LockPeriod reads a period and holds it until the transaction ends.
+func (GoalRepository) LockPeriod(ctx context.Context, id shared.ID) (domain.Period, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.Period{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return domain.Period{}, err
+	}
+	r, err := queries.LockGoalPeriod(ctx, key)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Period{}, shared.ErrNotFound.WithDetail("goal_periods.not_found")
+	}
+	if err != nil {
+		return domain.Period{}, goalError(err, "holding a period")
+	}
+	return domain.Period{
+		ID: id, Name: r.Name, StartOn: planDay(r.StartOn), EndOn: planDay(r.EndOn),
+		State: domain.PeriodState(r.State), Version: int(r.Version),
+	}, nil
+}
+
 // Period answers one period.
 func (GoalRepository) Period(ctx context.Context, id shared.ID) (domain.Period, error) {
 	queries, err := queriesFrom(ctx)

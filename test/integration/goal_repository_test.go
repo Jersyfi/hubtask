@@ -143,6 +143,21 @@ func TestGoalsAndInsightStayInTheirWorkspace(t *testing.T) {
 	}); !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("the other workspace deleted the dashboard: %v", err)
 	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		held, err := store.LockPeriod(ctx, period.ID)
+		if err != nil || held.ID != period.ID || held.State != goal.PeriodOpen {
+			t.Errorf("held period = %+v %v", held, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := store.LockPeriod(ctx, period.ID)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the other workspace holds the period: %v", err)
+	}
 }
 
 // A person's digest of a dashboard is kept once per dashboard and person, replaced by a second
