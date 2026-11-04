@@ -327,7 +327,7 @@
                   <IconButton icon="trash" label={t('app.voice.alias_remove', { name: alias.phrase || '…' })} onclick={() => removeAlias(alias.key)} />
                 </div>
               {/each}
-              <div><Button tone="secondary" size="sm" icon="plus" onclick={addAlias}>{t('app.voice.alias_add')}</Button></div>
+              <div><Button data-list-add tone="secondary" size="sm" icon="plus" onclick={addAlias}>{t('app.voice.alias_add')}</Button></div>
             </Stack>
           </section>
 

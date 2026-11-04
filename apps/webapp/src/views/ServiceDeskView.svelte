@@ -295,7 +295,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button tone="secondary" icon="plus" onclick={addCalendar}>{t('app.desk.add_calendar')}</Button></div>
+          <div><Button data-list-add tone="secondary" icon="plus" onclick={addCalendar}>{t('app.desk.add_calendar')}</Button></div>
           <Dialog title={calendar.key ? calendar.name : t('app.desk.add_calendar')} isOpen={editing === 'calendar'} onClose={close} dismissLabel={t('app.desk.cancel')}>
             <form onsubmit={(event) => void saveCalendar(event)}>
             <Stack gap="100">
@@ -350,7 +350,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button tone="secondary" icon="plus" onclick={addPolicy}>{t('app.desk.add_policy')}</Button></div>
+          <div><Button data-list-add tone="secondary" icon="plus" onclick={addPolicy}>{t('app.desk.add_policy')}</Button></div>
           <Dialog title={policy.key ? policy.name : t('app.desk.add_policy')} isOpen={editing === 'policy'} onClose={close} dismissLabel={t('app.desk.cancel')} isWide>
             <form onsubmit={(event) => void savePolicy(event)}>
             <Stack gap="100">
@@ -444,7 +444,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button tone="secondary" icon="plus" onclick={() => { reply = { key: '', name: '', body: '' }; editing = 'reply'; }}>{t('app.desk.add_reply')}</Button></div>
+          <div><Button data-list-add tone="secondary" icon="plus" onclick={() => { reply = { key: '', name: '', body: '' }; editing = 'reply'; }}>{t('app.desk.add_reply')}</Button></div>
           <Dialog title={reply.key ? reply.name : t('app.desk.add_reply')} isOpen={editing === 'reply'} onClose={close} dismissLabel={t('app.desk.cancel')}>
             <form onsubmit={(event) => void saveReply(event)}>
             <Stack gap="100">
@@ -483,7 +483,7 @@
           {/each}
         </ul>
         {#if mayShape}
-          <div><Button tone="secondary" icon="plus" onclick={() => { organisation = emptyOrganisation(); editing = 'organisation'; }}>{t('app.desk.add_organisation')}</Button></div>
+          <div><Button data-list-add tone="secondary" icon="plus" onclick={() => { organisation = emptyOrganisation(); editing = 'organisation'; }}>{t('app.desk.add_organisation')}</Button></div>
           <Dialog title={organisation.key ? organisation.name : t('app.desk.add_organisation')} isOpen={editing === 'organisation'} onClose={close} dismissLabel={t('app.desk.cancel')}>
             <form onsubmit={(event) => void saveOrganisation(event)}>
             <Stack gap="100">

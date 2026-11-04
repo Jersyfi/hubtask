@@ -225,7 +225,7 @@
             </li>
           {/each}
         </ul>
-        <Button tone="secondary" size="sm" icon="plus" data-new-workflow onclick={() => (isNewOpen = true)}>
+        <Button data-list-add tone="secondary" size="sm" icon="plus" data-new-workflow onclick={() => (isNewOpen = true)}>
           {t('app.workflow_designer.new')}
         </Button>
       </nav>

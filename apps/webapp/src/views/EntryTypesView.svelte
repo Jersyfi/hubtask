@@ -265,7 +265,7 @@
           <Inline gap="150" align="center" justify="between">
             <h2 class="heading">{t('app.entry_types.level_heading', { level })}</h2>
             {#if mayShape}
-              <Button tone="secondary" size="sm" icon="plus" data-new-type={level} onclick={() => startNew(level)}>
+              <Button data-list-add tone="secondary" size="sm" icon="plus" data-new-type={level} onclick={() => startNew(level)}>
                 {t('app.entry_types.new')}
               </Button>
             {/if}

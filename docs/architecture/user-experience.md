@@ -340,7 +340,9 @@ Every product home and every hub tab has one anatomy (mockup: `shell.html`, *Pro
   kinds) go into the split's list, not into tabs or the body. On a phone the primary is the thumb
   button `PageHeader` already draws. A lint over `views/*.svelte` fails where a `Button` with
   `icon="plus"` outside a dialog, a form or a list's own add sits on a screen whose `PageHeader`
-  has no primary. Adding an entry stays capture (design-system §11.8, *One add*).
+  has no primary (`apps/webapp/build/create.test.js`); a list's own add says so with
+  `data-list-add`, and an empty state's first act counts as inside it. Adding an entry stays capture
+  (design-system §11.8, *One add*).
 * **One create dialog anatomy**: the title field first, the template gallery (with *Blank* as
   one card) where templates exist, the place chips (*In:*), and the one primary.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its

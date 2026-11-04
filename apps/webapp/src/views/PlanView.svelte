@@ -706,7 +706,7 @@
             <Select label={t('app.planning.new_waited')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
             <Select label={t('app.planning.col_kind')} size="sm" bind:value={newKind} options={kinds} />
             <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" error={newLagError} />
-            <Button size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
+            <Button data-list-add size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
           </div>
         {/if}
       </section>

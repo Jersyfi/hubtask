@@ -268,7 +268,7 @@
       {#if shown === 'classes'}
         <Stack gap="100">
           <p class="meta">{t('app.cmdb_admin.classes_hint')}</p>
-          {#if mayShape}<div><Button icon="plus" onclick={() => openClass()}>{t('app.cmdb_admin.new_class')}</Button></div>{/if}
+          {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openClass()}>{t('app.cmdb_admin.new_class')}</Button></div>{/if}
           <ul class="rows">
             {#each tree as each (each.key)}
               <li class="row" style:--depth={depthOf(each)}>
@@ -289,7 +289,7 @@
       {:else if shown === 'types'}
         <Stack gap="100">
           <p class="meta">{t('app.cmdb_admin.types_hint')}</p>
-          {#if mayShape}<div><Button icon="plus" onclick={() => openType()}>{t('app.cmdb_admin.new_type')}</Button></div>{/if}
+          {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openType()}>{t('app.cmdb_admin.new_type')}</Button></div>{/if}
           <ul class="rows">
             {#each types as each (each.key)}
               <li class="row">
@@ -310,7 +310,7 @@
       {:else if shown === 'aliases'}
         <Stack gap="100">
           <p class="meta">{t('app.cmdb_admin.aliases_hint')}</p>
-          {#if mayShape}<div><Button icon="plus" data-new-alias onclick={openAlias}>{t('app.cmdb_admin.new_alias')}</Button></div>{/if}
+          {#if mayShape}<div><Button data-list-add icon="plus" data-new-alias onclick={openAlias}>{t('app.cmdb_admin.new_alias')}</Button></div>{/if}
           {#if !aliases}
             <Spinner label={t('app.assets.loading')} />
           {:else if aliases.length === 0}
@@ -340,7 +340,7 @@
       {:else}
         <Stack gap="100">
           <p class="meta">{t('app.cmdb_admin.sources_hint')}</p>
-          {#if mayShape}<div><Button icon="plus" onclick={() => openSource()}>{t('app.cmdb_admin.new_source')}</Button></div>{/if}
+          {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openSource()}>{t('app.cmdb_admin.new_source')}</Button></div>{/if}
           <ul class="rows">
             {#each sources as each (each.key)}
               <li class="row">

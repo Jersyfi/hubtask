@@ -190,6 +190,7 @@
   <PageHeader
     title={t('app.link_types.title')}
     isTitleInBar={viewport.isCompact}
+    primary={mayShape && !readRefusal ? { label: t('app.link_types.new'), icon: 'plus', onclick: startNew } : undefined}
     breadcrumb={{
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
@@ -213,11 +214,6 @@
   {:else}
     <section class="panel">
       <Stack gap="200">
-        {#if mayShape}
-          <Inline gap="150" align="center" justify="end">
-            <Button tone="secondary" size="sm" icon="plus" data-new-link-type onclick={startNew}>{t('app.link_types.new')}</Button>
-          </Inline>
-        {/if}
         <ul class="types">
           {#each ordered as type (type.key)}
             {@const index = movable.findIndex((each) => each.key === type.key)}
