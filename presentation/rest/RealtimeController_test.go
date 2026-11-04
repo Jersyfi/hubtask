@@ -25,7 +25,7 @@ func TestTheRealtimeProbeUpgradesAndClosesAtOnce(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
-	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http"),
+	conn, _, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(server.URL, "http"), //nolint:bodyclose // the library owns the handshake's body
 		&websocket.DialOptions{Subprotocols: []string{realtime.Subprotocol}})
 	if err != nil {
 		t.Fatalf("the probe did not upgrade: %v", err)
