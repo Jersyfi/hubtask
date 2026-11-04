@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { IMPORT_KINDS, acceptFor, contentTypeFor, importIdOf, kindsFor, mappingFor, parseHeader, prefill } from './imports.ts';
+import { IMPORT_KINDS, SOURCE_FAMILIES, acceptFor, contentTypeFor, importIdOf, kindsFor, mappingFor, parseHeader, planOf, prefill } from './imports.ts';
 
 test('the nine kinds are offered, CSV as text, a ZIP as a ZIP and the rest as JSON', () => {
   assert.deepEqual([...IMPORT_KINDS], ['CSV', 'XLSX', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX']);
@@ -67,4 +67,49 @@ test('the import a job points at is the last segment of result_url', () => {
   assert.equal(importIdOf('/imports/abc?x=1'), 'abc');
   assert.equal(importIdOf(null), undefined);
   assert.equal(importIdOf('/imports/'), undefined);
+});
+
+/** Words that show what was asked: the code, then its parameters in order. */
+const words = {
+  t: (code: string, params: Record<string, string> = {}) =>
+    [code.replace('app.import.', ''), ...Object.values(params)].join(' '),
+  list: (parts: readonly string[]) => parts.join(' + '),
+};
+
+test('a plan says what an import would create by the things a person counts, never a key', () => {
+  const run = {
+    report: {
+      new: 260,
+      entities: { containers: 1, buckets: 6, labels: 3, work_items: 248, item_labels: 2, comments: 1, page_comments: 1 },
+    },
+    refused: [{ row: 17, code: 'imports.row_title_missing' }],
+  };
+  assert.deepEqual(planOf(run, true, words), [
+    { tone: 'add', text: 'plan_creates_dry count_collections 1 + count_columns 6 + count_labels 3 + count_entries 248 + count_comments 2' },
+    { tone: 'refuse', text: 'plan_refused_dry 1' },
+  ]);
+  assert.equal(planOf(run, false, words)[0]?.text.startsWith('plan_creates_done'), true, 'after the run, in the past');
+});
+
+test('the same file again is left as it is, a mix says both, and a withheld reason is said in words', () => {
+  assert.deepEqual(planOf({ report: { skipped: 251, entities: { work_items: 251 } } }, true, words), [
+    { tone: 'keep', text: 'plan_all_kept_dry 251' },
+  ]);
+  const mixed = planOf({ report: { new: 4, skipped: 10, entities: { work_items: 14 }, withheld: { unmapped_members: 3, legal_hold_kept: 1 } } }, false, words);
+  assert.deepEqual(mixed, [
+    { tone: 'add', text: 'plan_some_new_done count_entries 14 4' },
+    { tone: 'keep', text: 'plan_kept_done 10' },
+    { tone: 'remove', text: 'plan_withheld_unmapped_members 3' },
+    { tone: 'remove', text: 'plan_withheld_other 1' },
+  ]);
+  assert.deepEqual(planOf({ report: { new: 2, entities: { reminders: 2 } } }, true, words), [
+    { tone: 'add', text: 'plan_creates_dry count_things 2' },
+  ], 'an entity nobody counts is part of a total, not a name');
+  assert.deepEqual(planOf({}, true, words), [], 'an empty file is an empty plan, said by the caller');
+});
+
+test('every source stands in exactly one family', () => {
+  const listed = SOURCE_FAMILIES.flatMap((family) => [...family.kinds]);
+  assert.deepEqual([...listed].sort(), [...IMPORT_KINDS].sort());
+  assert.equal(new Set(listed).size, listed.length);
 });

@@ -3,11 +3,11 @@
 <script lang="ts">
   // A file brought into the inventory (UC-AST-04 check 5): the file read in the browser, its format
   // found, a CSV table's or JSON array's columns mapped to the class's attributes (a source's saved
-  // mapping first) - a workbook's first sheet read as such a table (check 6) -, a dry run's decisions shown row by row, and then the import itself - all through
+  // mapping first) - a workbook's first sheet read as such a table (check 6) -, a dry run said in words (`PlanSummary`) with its decisions row by row, and then the import itself - all through
   // the reconciliation of UC-AST-02 as the source chosen. Only a member who may write sees it.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Select, Stack, UploadField, type SelectOption } from '@hubtask/design-system/components';
+  import { Banner, Button, Select, Stack, UploadField, type SelectOption, PlanSummary, type PlanLine } from '@hubtask/design-system/components';
   import type { CiClass, CiFileImport, CiFileMapping, CiRun, CiSource, CiSourceList } from '@hubtask/sync-engine';
 
   import { classWord, cmdb, fileColumns, fileFormat, guessMapping, instantiable, sourcesPath, type Words } from '../data/cmdb.svelte.ts';
@@ -140,6 +140,15 @@
   const formats = $derived<SelectOption[]>((format === 'XLSX' ? (['XLSX'] as const) : (['CSV', 'JSON', 'CYCLONEDX', 'SPDX'] as const)).map((each) => ({ value: each, label: t(`app.assets.format.${each}`) })));
   const sourceOptions = $derived<SelectOption[]>(sources.map((each) => ({ value: each.key, label: each.key })));
   const classOptions = $derived<SelectOption[]>(instantiable(classes).map((each) => ({ value: each.key, label: classWord(each.key, classes, words) })));
+
+  /** A run's counts as a plan in words (user-experience.md §7.11), a line for each that is not zero. */
+  const PLAN_TONES = { created: 'add', updated: 'change', unchanged: 'keep', held: 'refuse', duplicates: 'refuse', refused: 'refuse' } as const;
+  function planOf(answer: NonNullable<typeof run>): PlanLine[] {
+    const tense = answer.dry_run ? 'dry' : 'done';
+    return (Object.keys(PLAN_TONES) as (keyof typeof PLAN_TONES)[])
+      .filter((outcome) => Number(answer.counts[outcome] ?? 0) > 0)
+      .map((outcome) => ({ tone: PLAN_TONES[outcome], text: t(`app.assets.plan_${outcome}_${tense}`, { count: String(answer.counts[outcome]) }) }));
+  }
 </script>
 
 <Stack gap="150">
@@ -180,10 +189,7 @@
   {#if run}
     <section class="part" aria-labelledby="import-preview">
       <h2 id="import-preview" class="heading">{run.dry_run ? t('app.assets.import_preview') : t('app.assets.decisions')}</h2>
-      <p class="meta">{t('app.assets.run_counts', {
-        created: run.counts.created, updated: run.counts.updated, unchanged: run.counts.unchanged,
-        held: run.counts.held, duplicates: run.counts.duplicates, refused: run.counts.refused,
-      })}</p>
+      <PlanSummary label={run.dry_run ? t('app.assets.import_preview') : t('app.assets.import_did')} lines={planOf(run)} emptyLabel={t('app.assets.plan_nothing')} />
       {#if run.skipped_rows?.length}<Banner tone="warning">{t('app.assets.import_skipped', { rows: run.skipped_rows.join(', ') })}</Banner>{/if}
       <Decisions decisions={run.decisions ?? []} {classes} {words} />
     </section>
@@ -195,5 +201,4 @@
   .buttons { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
   .part { display: grid; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
-  .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>

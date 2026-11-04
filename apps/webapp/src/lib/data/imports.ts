@@ -27,6 +27,27 @@ export const IMPORT_KINDS = [
   'CSV', 'XLSX', 'TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO', 'JIRA', 'CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX',
 ] as const satisfies readonly ImportKind[];
 
+/**
+ * The sources as a person looks for them (user-experience.md §7.11, *Where from*): by what they
+ * kept their work in, not by file format. Every kind in exactly one family.
+ */
+export const SOURCE_FAMILIES = [
+  { family: 'spreadsheets', kinds: ['CSV', 'XLSX'] },
+  { family: 'task_apps', kinds: ['TRELLO', 'GOOGLE_TASKS', 'MICROSOFT_TODO'] },
+  { family: 'trackers', kinds: ['JIRA'] },
+  { family: 'documents', kinds: ['CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX'] },
+] as const satisfies readonly { family: string; kinds: readonly ImportKind[] }[];
+
+const MARKS = {
+  CSV: 'file-text', XLSX: 'file-text', TRELLO: 'layout-template', GOOGLE_TASKS: 'square-check',
+  MICROSOFT_TODO: 'square-check', JIRA: 'flag', CONFLUENCE: 'book-open', MARKDOWN: 'file-text', HTML: 'globe', DOCX: 'file-text',
+} as const satisfies Record<ImportKind, string>;
+
+/** A source's mark on its card. */
+export function markOf(kind: ImportKind): (typeof MARKS)[ImportKind] {
+  return MARKS[kind];
+}
+
 /** The kinds that land pages in the hub: offered on a hub only, never into a collection. */
 const LANDS_PAGES: ReadonlySet<ImportKind> = new Set<ImportKind>(['CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX']);
 
@@ -163,4 +184,86 @@ export function importIdOf(resultUrl: string | null | undefined): string | undef
   if (!resultUrl) return undefined;
   const segment = resultUrl.split('?')[0]?.split('/').pop();
   return segment === '' ? undefined : segment;
+}
+
+/**
+ * The entities a person counts, in the order a plan names them, each with the word it is counted
+ * by (`app.import.count_<word>`). Two archive entities can share a word - a page's comments are
+ * comments. What is not here (a label on an entry, a sprint's membership) is part of the total
+ * and not named, because nobody counts it.
+ */
+const COUNTED: readonly (readonly [entity: string, word: string])[] = [
+  ['containers', 'collections'],
+  ['buckets', 'columns'],
+  ['labels', 'labels'],
+  ['entry_types', 'types'],
+  ['custom_field_definitions', 'fields'],
+  ['workflows', 'workflows'],
+  ['sprints', 'sprints'],
+  ['work_items', 'entries'],
+  ['pages', 'pages'],
+  ['page_versions', 'versions'],
+  ['comments', 'comments'],
+  ['page_comments', 'comments'],
+  ['media_objects', 'files'],
+  ['saved_views', 'views'],
+];
+
+/** The withheld reasons an import says in its own words; any other is said generically. */
+const WITHHELD = new Set(['unmapped_members', 'orphaned', 'media_missing']);
+
+export type PlanTone = 'add' | 'keep' | 'remove' | 'refuse';
+
+export interface PlanLine {
+  readonly text: string;
+  readonly tone: PlanTone;
+}
+
+export interface PlanWords {
+  t(code: string, params?: Record<string, string>): string;
+  /** *1 collection, 6 columns and 248 entries*: the locale's conjunction. */
+  list(parts: readonly string[]): string;
+}
+
+/**
+ * An import's report as a plan in words (user-experience.md §7.11): what it would create - or
+ * created - by the things a person counts, what is left as it is because it is already here, the
+ * rows that would not land and what the source carried that has no place here. Never a key: a
+ * reason without words of its own is said generically. `isDry` chooses the tense.
+ */
+export function planOf(run: Pick<ImportRun, 'report' | 'refused'>, isDry: boolean, words: PlanWords): PlanLine[] {
+  const report = run.report ?? {};
+  const counts = new Map<string, number>();
+  for (const [entity, word] of COUNTED) {
+    const count = report.entities?.[entity] ?? 0;
+    if (count > 0) counts.set(word, (counts.get(word) ?? 0) + count);
+  }
+  const fresh = report.new ?? 0;
+  const kept = report.skipped ?? 0;
+  const total = fresh + kept + (report.overwritten ?? 0) + (report.duplicated ?? 0);
+  const things =
+    counts.size > 0
+      ? words.list([...counts].map(([word, count]) => words.t(`app.import.count_${word}`, { count: String(count) })))
+      : words.t('app.import.count_things', { count: String(total) });
+  const tense = isDry ? 'dry' : 'done';
+
+  const lines: PlanLine[] = [];
+  if (fresh > 0 && kept === 0) {
+    lines.push({ tone: 'add', text: words.t(`app.import.plan_creates_${tense}`, { things }) });
+  } else if (fresh === 0 && kept > 0) {
+    lines.push({ tone: 'keep', text: words.t(`app.import.plan_all_kept_${tense}`, { count: String(kept) }) });
+  } else if (fresh > 0) {
+    lines.push({ tone: 'add', text: words.t(`app.import.plan_some_new_${tense}`, { things, count: String(fresh) }) });
+    lines.push({ tone: 'keep', text: words.t(`app.import.plan_kept_${tense}`, { count: String(kept) }) });
+  }
+  const refused = run.refused?.length ?? 0;
+  if (refused > 0) {
+    lines.push({ tone: 'refuse', text: words.t(`app.import.plan_refused_${tense}`, { count: String(refused) }) });
+  }
+  for (const [reason, count] of Object.entries(report.withheld ?? {})) {
+    if (count <= 0) continue;
+    const code = WITHHELD.has(reason) ? `app.import.plan_withheld_${reason}` : 'app.import.plan_withheld_other';
+    lines.push({ tone: 'remove', text: words.t(code, { count: String(count) }) });
+  }
+  return lines;
 }

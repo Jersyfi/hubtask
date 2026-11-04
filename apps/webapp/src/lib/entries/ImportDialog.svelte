@@ -1,29 +1,39 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Import… on a hub, or in a collection's add split: four steps in one dialog
-  // (design-system.md §11.8). On a hub the file becomes collections under it; in a collection its
-  // entries land there, and the dialog says so before the kind is chosen.
+  // Import… on a hub, or in a collection's add split: one anatomy of four steps in one dialog
+  // (user-experience.md §7.11). On a hub the file becomes collections under it; in a collection its
+  // entries land there, and the dialog says so before the source is chosen.
   //
-  // **The kind, the file, the mapping, the run.** The kinds are the contract's enum, each with
-  // one sentence saying what file it takes and where the source exports it. The file goes through
-  // the media upload staged as `IMPORT`, claiming the kind's type rather than the browser's guess.
-  // For `CSV` only, the header row is read here and each of the seven fields offers the file's
-  // columns, prefilled where a header already names one; what differs is sent as `mapping`. Then
-  // `POST /imports`, the job followed the way every job is, and the report rendered by the
-  // restore's own component - an import lands through the restore and reports in its shape.
+  // **Where from, the file, the check, the run.** The sources are cards in families, each with one
+  // sentence; one press chooses and moves on. The file goes through the media upload staged as
+  // `IMPORT`, claiming the kind's type rather than the browser's guess, its size limit said before
+  // choosing. The check is the mapping where the source has columns (`CSV`: the header row read
+  // here, each field prefilled where a header names one) and a dry run of the same file
+  // (`dry_run`), said in words through `PlanSummary` - never a key or a path. Changing the mapping
+  // makes the plan stale until it is checked again. Then the import itself, its job followed the
+  // way every job is, and its report said in the same words.
   //
-  // **A second import of the same file is a no-op**, and the dialog says so in the
-  // report - "left as they are" - rather than warning beforehand: it cannot know, and the server
-  // creates nothing the second time.
+  // **A second import of the same file is a no-op**, and the check already says so: everything is
+  // left as it is. The dry run keeps the file, so the import names the same object.
   //
   // **A kind this build refuses answers by name** (`imports.kind_unsupported`) and that answer is
   // what the dialog shows; the manifest declares no import capability and nothing is hidden here.
   //
-  // **Each step is announced**: the heading changes and the announcer says it, so a reader
-  // who is not looking hears where they are.
+  // **Each step is announced**: the heading changes and the announcer says it.
 
-  import { Button, Inline, ProgressBar, Radio, Select, Stack, UploadField } from '@hubtask/design-system/components';
+  import {
+    Button,
+    Inline,
+    PlanSummary,
+    ProgressBar,
+    Select,
+    Stack,
+    TemplateCard,
+    TemplateGallery,
+    UploadField,
+    VisuallyHidden,
+  } from '@hubtask/design-system/components';
   import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
   import { untrack } from 'svelte';
 
@@ -34,18 +44,22 @@
   import { imports } from '../data/imports.svelte.ts';
   import {
     CSV_FIELDS,
+    SOURCE_FAMILIES,
     acceptFor,
-    kindsFor,
     contentTypeFor,
     importIdOf,
+    kindsFor,
     mappingFor,
+    markOf,
     parseHeader,
+    planOf,
     prefill,
     type CsvField,
     type ImportKind,
   } from '../data/imports.ts';
   import { jobs, type Watch } from '../data/jobs.svelte.ts';
   import { isTerminal } from '../data/jobs.ts';
+  import { namesOf } from '../data/kudos.ts';
   import { media } from '../data/media.svelte.ts';
   import { isWithinUploadLimit, uploadLimitOf } from '../data/media.ts';
   import { TOUCHES_ANY_ENTRY } from '../data/touches.ts';
@@ -53,7 +67,6 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { focusFirst } from '../forms/missing.ts';
-  import RestoreReport from '../restore/RestoreReport.svelte';
 
   interface Props {
     /** Drawn inside capture's *Import a file* mode rather than as a dialog of its own. */
@@ -69,8 +82,8 @@
 
   let { isEmbedded = false, isOpen = $bindable(false), hubId, collection, onnavigate }: Props = $props();
 
-  type Step = 'kind' | 'file' | 'mapping' | 'run';
-  const STEPS: readonly Step[] = ['kind', 'file', 'mapping', 'run'];
+  type Step = 'kind' | 'file' | 'check' | 'run';
+  const STEPS: readonly Step[] = ['kind', 'file', 'check', 'run'];
 
   let step = $state<Step>('kind');
   let kind = $state<ImportKind>('CSV');
@@ -81,6 +94,12 @@
   let controller = $state<AbortController | undefined>(undefined);
   let mediaId = $state<string | undefined>(undefined);
   let failure = $state<string | undefined>(undefined);
+  /** The dry run: its job, its run, and the mapping it was asked with. */
+  let checkJobId = $state<string | undefined>(undefined);
+  let checkId = $state<string | undefined>(undefined);
+  let checkedMapping = $state<string | undefined>(undefined);
+  let isChecking = $state(false);
+  /** The import itself. */
   let jobId = $state<string | undefined>(undefined);
   let importId = $state<string | undefined>(undefined);
   let isStarting = $state(false);
@@ -109,13 +128,38 @@
   const isUploading = $derived(controller !== undefined);
   const overLimit = $derived(chosen !== undefined && !isWithinUploadLimit(chosen.size, limit));
   const percent = $derived(chosen && chosen.size > 0 ? Math.floor((sent / chosen.size) * 100) : 0);
+  const checkWatch = $derived<Watch | undefined>(checkJobId ? jobs.of(checkJobId) : undefined);
+  const check = $derived(checkId ? imports.of(checkId) : undefined);
   const watch = $derived<Watch | undefined>(jobId ? jobs.of(jobId) : undefined);
   const run = $derived(importId ? imports.of(importId) : undefined);
-  /** The step's number for the heading: "Step 2 of 4". The mapping step counts only for CSV. */
-  const steps = $derived(kind === 'CSV' ? STEPS : STEPS.filter((each) => each !== 'mapping'));
-  const stepNumber = $derived(steps.indexOf(step) + 1);
   const heading = $derived(
-    t('app.import.step', { number: String(stepNumber), of: String(steps.length), name: t(`app.import.step_${step}`) }),
+    t('app.import.step', { number: String(STEPS.indexOf(step) + 1), of: String(STEPS.length), name: t(`app.import.step_${step}`) }),
+  );
+  const families = $derived(
+    SOURCE_FAMILIES.map((family) => ({
+      family: family.family,
+      kinds: family.kinds.filter((each) => kindsFor(collection !== undefined).includes(each)),
+    })).filter((family) => family.kinds.length > 0),
+  );
+
+  const mappingKey = $derived(kind === 'CSV' ? JSON.stringify(mappingFor(mapping) ?? {}) : '');
+  /** The plan no longer says what the import would do: the mapping changed since it was checked. */
+  const isStale = $derived(checkedMapping !== undefined && checkedMapping !== mappingKey);
+  const isCheckRunning = $derived(isChecking || checkWatch?.watching === true || (checkId !== undefined && check === undefined));
+  const fileHint = $derived(
+    limit === undefined
+      ? t(`app.import.kind_${kind}_hint`)
+      : `${t(`app.import.kind_${kind}_hint`)} ${t('app.import.file_limit', { limit: formatBytes(limit, messages.locale) })}`,
+  );
+
+  const words = $derived({
+    t: (code: string, params?: Record<string, string>) => t(code, params),
+    list: (parts: readonly string[]) => namesOf(parts, messages.locale),
+  });
+  const checkPlan = $derived(check?.status === 'SUCCEEDED' ? planOf(check, true, words) : []);
+  const runPlan = $derived(run?.status === 'SUCCEEDED' ? planOf(run, false, words) : []);
+  const where = $derived(
+    collection ? t('app.import.reach_collection', { name: collection.name }) : t('app.import.reach_hub', { name: containers.find(hubId)?.name ?? '' }),
   );
 
   const sizeLabel = $derived(
@@ -149,13 +193,37 @@
       sent = 0;
       mediaId = undefined;
       failure = undefined;
+      forgetCheck();
       if (jobId) jobs.forget(jobId);
       jobId = undefined;
       importId = undefined;
     });
   });
 
-  // A finished job means the report has arrived. Read it once; the watcher already stopped.
+  // A finished dry run: its plan has arrived. Read once; nothing was written, so nothing is read again.
+  $effect(() => {
+    const current = checkWatch;
+    if (!current || current.watching || !isTerminal(current.job.status)) return;
+    const id = checkId;
+    if (!id) return;
+    void untrack(async () => {
+      await imports.read(id);
+      const done = imports.of(id);
+      if (done !== undefined && done.dry_run !== true) {
+        // An instance from before the dry run, met during a rolling update, imported instead of
+        // checking: what it did is said as the import, never as a plan.
+        before = new Set(containers.collectionsOf(hubId).map((each) => each.id));
+        if (collection === undefined) await containers.refreshLevel(hubId);
+        else engine.landed([...TOUCHES_ANY_ENTRY, `/containers/${collection.id}`]);
+        importId = id;
+        go('run');
+        return;
+      }
+      announcer.say(done?.status === 'SUCCEEDED' ? t('app.import.checked_announced') : t('app.import.check_failed'));
+    });
+  });
+
+  // A finished import means the report has arrived. Read it once; the watcher already stopped.
   $effect(() => {
     const current = watch;
     if (!current || current.watching || !isTerminal(current.job.status)) return;
@@ -174,12 +242,32 @@
     });
   });
 
+  function forgetCheck() {
+    if (checkJobId) jobs.forget(checkJobId);
+    checkJobId = undefined;
+    checkId = undefined;
+    checkedMapping = undefined;
+  }
+
   function go(next: Step) {
     step = next;
     failure = undefined;
     announcer.say(
-      t('app.import.step', { number: String(steps.indexOf(next) + 1), of: String(steps.length), name: t(`app.import.step_${next}`) }),
+      t('app.import.step', { number: String(STEPS.indexOf(next) + 1), of: String(STEPS.length), name: t(`app.import.step_${next}`) }),
     );
+  }
+
+  function pick(next: ImportKind) {
+    if (next !== kind) {
+      // Another source is another file: what was uploaded for the first is not offered to it.
+      chosen = undefined;
+      mediaId = undefined;
+      columns = [];
+      mapping = prefill([]);
+      forgetCheck();
+    }
+    kind = next;
+    go('file');
   }
 
   async function choose(file: File) {
@@ -188,6 +276,7 @@
     sent = 0;
     mediaId = undefined;
     columns = [];
+    forgetCheck();
     if (!isWithinUploadLimit(file.size, limit)) return;
 
     if (kind === 'CSV') {
@@ -223,20 +312,52 @@
     controller?.abort();
   }
 
+  function request(isDry: boolean) {
+    const sent = kind === 'CSV' ? mappingFor(mapping) : undefined;
+    return {
+      media_id: mediaId ?? '',
+      kind,
+      hub_id: hubId,
+      ...(collection ? { collection_id: collection.id } : {}),
+      ...(sent ? { mapping: sent } : {}),
+      dry_run: isDry,
+    };
+  }
+
+  /** The check: the same import as a dry run, so the plan is the server's, not a guess here. */
+  async function startCheck() {
+    if (!mediaId) return;
+    if (kind === 'CSV' && mapping.title === '') return;
+    forgetCheck();
+    isChecking = true;
+    failure = undefined;
+    try {
+      const asked = mappingKey;
+      const accepted = await imports.start(request(true));
+      checkJobId = accepted.job_id;
+      checkId = importIdOf(accepted.result_url);
+      checkedMapping = asked;
+    } catch (error) {
+      failure = renderProblem(error as never, messages).message;
+    } finally {
+      isChecking = false;
+    }
+  }
+
+  function toCheck() {
+    go('check');
+    // A source without columns has nothing to set first: its check starts at once. A CSV's
+    // starts too when the header already names the title.
+    if (kind !== 'CSV' || mapping.title !== '') void startCheck();
+  }
+
   async function start() {
     if (!mediaId) return;
     isStarting = true;
     failure = undefined;
     try {
-      const sent = kind === 'CSV' ? mappingFor(mapping) : undefined;
       before = new Set(containers.collectionsOf(hubId).map((each) => each.id));
-      const accepted = await imports.start({
-        media_id: mediaId,
-        kind,
-        hub_id: hubId,
-        ...(collection ? { collection_id: collection.id } : {}),
-        ...(sent ? { mapping: sent } : {}),
-      });
+      const accepted = await imports.start(request(false));
       jobId = accepted.job_id;
       importId = importIdOf(accepted.result_url);
       go('run');
@@ -247,8 +368,9 @@
     }
   }
 
-  const sentence = (code: string | null | undefined) =>
-    code ? (messages.has(code) ? t(code) : code) : undefined;
+  /** A code in words; one without words of its own is said generically, never shown as a key. */
+  const sentence = (code: string | null | undefined, otherwise = 'app.import.failed') =>
+    code ? (messages.has(code) ? t(code) : t(otherwise)) : undefined;
 
   const columnOptions = $derived([
     { value: '', label: t('app.import.column_none') },
@@ -256,8 +378,30 @@
   ]);
 </script>
 
+{#snippet refusedRows(rows: NonNullable<typeof run>['refused'])}
+  {#if rows && rows.length > 0}
+    <!-- The rows that did not land, by number: unreadable, or refused by their type's form with
+         the entries under them - so a row may appear twice. -->
+    <ul class="refused">
+      {#each rows as refusal, index (index)}
+        <li class="quiet">
+          {#if refusal.fields && refusal.fields.length > 0}
+            {t('app.import.refused_row_fields', {
+              row: String(refusal.row),
+              reason: sentence(refusal.code, 'app.import.refused_other') ?? '',
+              fields: refusal.fields.join(', '),
+            })}
+          {:else}
+            {t('app.import.refused_row', { row: String(refusal.row), reason: sentence(refusal.code, 'app.import.refused_other') ?? '' })}
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  {/if}
+{/snippet}
+
 <PanelOrDialog {isEmbedded} bind:isOpen title={t('app.import.title')} dismissLabel={t('app.workspace.cancel')}>
-  <div bind:this={stepBody}>
+  <div bind:this={stepBody} data-import-step={step}>
   <Stack gap="150">
     <h3 class="step" aria-live="polite">{heading}</h3>
 
@@ -265,22 +409,23 @@
       {#if collection}
         <p class="quiet">{t('app.import.into', { name: collection.name })}</p>
       {/if}
-      <Radio
-        label={t('app.import.kind')}
-        bind:value={kind}
-        options={kindsFor(collection !== undefined).map((each) => ({
-          value: each,
-          label: t(`app.import.kind_${each}`),
-          hint: t(`app.import.kind_${each}_hint`),
-        }))}
-      />
-      <Inline gap="100">
-        <Button onclick={() => go('file')}>{t('app.import.next')}</Button>
-      </Inline>
+      {#each families as family (family.family)}
+        <TemplateGallery label={t(`app.import.family_${family.family}`)}>
+          {#each family.kinds as each (each)}
+            <TemplateCard name={t(`app.import.kind_${each}`)} summary={t(`app.import.kind_${each}_card`)} mark={markOf(each)} isCompact data-import-kind={each}>
+              {#snippet action()}
+                <Button size="sm" tone={each === kind && mediaId ? 'primary' : 'secondary'} onclick={() => pick(each)}>
+                  {t('app.import.choose_source')}<VisuallyHidden>{` ${t(`app.import.kind_${each}`)}`}</VisuallyHidden>
+                </Button>
+              {/snippet}
+            </TemplateCard>
+          {/each}
+        </TemplateGallery>
+      {/each}
     {:else if step === 'file'}
       <UploadField
-        label={t('app.import.file')}
-        hint={t(`app.import.kind_${kind}_hint`)}
+        label={t('app.import.file_of', { source: t(`app.import.kind_${kind}`) })}
+        hint={fileHint}
         chooseLabel={t('app.import.choose')}
         dropLabel={t('app.media.drop')}
         cancelLabel={t('app.media.cancel')}
@@ -303,47 +448,70 @@
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Inline gap="100">
         <Button tone="secondary" onclick={() => go('kind')}>{t('app.import.back')}</Button>
-        {#if kind === 'CSV'}
+        <Button
+          tone="primary"
+          isBusy={isUploading}
+          busyLabel={t('app.media.uploading', { percent: String(percent) })}
+          onclick={() => needs('file', mediaId !== undefined, toCheck)}
+        >
+          {t('app.import.next')}
+        </Button>
+      </Inline>
+    {:else if step === 'check'}
+      {#if kind === 'CSV'}
+        <p class="quiet">
+          {columns.length > 0 ? t('app.import.mapping_hint') : t('app.import.no_header')}
+        </p>
+        <div class="mapping">
+          {#each CSV_FIELDS as field (field)}
+            <Select
+              label={t(`app.import.field_${field}`)}
+              hint={t(`app.import.field_${field}_hint`)}
+              bind:value={mapping[field]}
+              error={field === 'title' && missing === 'title' && mapping.title === '' ? t('app.import.title_needed') : undefined}
+              options={columnOptions}
+            />
+          {/each}
+        </div>
+      {/if}
+
+      {#if isCheckRunning}
+        <ProgressBar label={t('app.import.checking')} valueLabel={t('app.import.checking')} />
+      {:else if check?.status === 'SUCCEEDED'}
+        <PlanSummary
+          label={t('app.import.plan_label_dry')}
+          lines={checkPlan}
+          emptyLabel={t('app.import.plan_empty')}
+          reach={isStale ? t('app.import.plan_stale') : `${where} ${t('app.import.plan_nothing_yet')}`}
+        />
+        {@render refusedRows(check.refused)}
+      {:else if check?.status === 'FAILED'}
+        <p class="failure" role="alert">{sentence(check.error_code) ?? t('app.import.check_failed')}</p>
+      {:else if checkWatch?.unreachable}
+        <p class="failure" role="alert">{sentence(checkWatch.unreachable)}</p>
+      {/if}
+      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+
+      <Inline gap="100">
+        <Button tone="secondary" onclick={() => go('file')}>{t('app.import.back')}</Button>
+        {#if kind === 'CSV' && (check === undefined || isStale) && !isCheckRunning}
           <Button
-            isBusy={isUploading}
-            busyLabel={t('app.media.uploading', { percent: String(percent) })}
-            onclick={() => needs('file', mediaId !== undefined, () => go('mapping'))}
+            tone="secondary"
+            onclick={() => needs('title', mapping.title !== '', () => void startCheck())}
           >
-            {t('app.import.next')}
+            {check === undefined ? t('app.import.check') : t('app.import.check_again')}
           </Button>
-        {:else}
+        {/if}
+        {#if check?.status !== 'FAILED'}
           <Button
-            isBusy={isStarting || isUploading}
-            busyLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : t('app.import.starting')}
-            onclick={() => needs('file', mediaId !== undefined, () => void start())}
+            tone="primary"
+            isBusy={isStarting}
+            busyLabel={t('app.import.starting')}
+            onclick={() => needs('title', kind !== 'CSV' || mapping.title !== '', () => void start())}
           >
             {t('app.import.go')}
           </Button>
         {/if}
-      </Inline>
-    {:else if step === 'mapping'}
-      <p class="quiet">
-        {columns.length > 0 ? t('app.import.mapping_hint') : t('app.import.no_header')}
-      </p>
-      {#each CSV_FIELDS as field (field)}
-        <Select
-          label={t(`app.import.field_${field}`)}
-          hint={t(`app.import.field_${field}_hint`)}
-          bind:value={mapping[field]}
-          error={field === 'title' && missing === 'title' && mapping.title === '' ? t('app.import.title_needed') : undefined}
-          options={columnOptions}
-        />
-      {/each}
-      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-      <Inline gap="100">
-        <Button tone="secondary" onclick={() => go('file')}>{t('app.import.back')}</Button>
-        <Button
-          isBusy={isStarting}
-          busyLabel={t('app.import.starting')}
-          onclick={() => needs('title', mapping.title !== '', () => void start())}
-        >
-          {t('app.import.go')}
-        </Button>
       </Inline>
     {:else}
       {#if watch?.watching}
@@ -362,36 +530,16 @@
 
       {#if run}
         {#if run.status === 'SUCCEEDED'}
-          <p class="quiet">{t('app.import.done')}</p>
-          <RestoreReport report={run.report} />
+          <p class="quiet">{t('app.import.done_announced')}</p>
+          <PlanSummary label={t('app.import.plan_label_done')} lines={runPlan} emptyLabel={t('app.import.plan_empty_done')} reach={where} />
         {:else if run.status === 'FAILED'}
           <p class="failure" role="alert">{sentence(run.error_code) ?? t('app.import.failed')}</p>
         {/if}
-
-        {#if run.refused && run.refused.length > 0}
-          <!-- The rows that did not land, by number: unreadable, or refused by their type's form
-               with the entries under them - so a row may appear twice. The rest landed. -->
-          <p class="quiet">{t('app.import.refused_title', { count: String(run.refused.length) })}</p>
-          <ul class="refused">
-            {#each run.refused as refusal, index (index)}
-              <li class="quiet">
-                {#if refusal.fields && refusal.fields.length > 0}
-                  {t('app.import.refused_row_fields', {
-                    row: String(refusal.row),
-                    reason: sentence(refusal.code) ?? refusal.code,
-                    fields: refusal.fields.join(', '),
-                  })}
-                {:else}
-                  {t('app.import.refused_row', { row: String(refusal.row), reason: sentence(refusal.code) ?? refusal.code })}
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        {/if}
+        {@render refusedRows(run.refused)}
       {/if}
 
       {#if landed.length > 0}
-        <!-- Where it went: the collections under the hub that were not there before the run. -->
+        <!-- Open what arrived: the collections under the hub that were not there before the run. -->
         <ul class="landed">
           {#each landed as collection (collection.id)}
             <li>
@@ -430,6 +578,9 @@
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); max-width: 64ch; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+
+  /* The seven fields two by two where there is room, one under the other on a phone. */
+  .mapping { display: grid; gap: var(--sp-150); grid-template-columns: repeat(auto-fit, minmax(min(100%, 28ch), 1fr)); }
 
   .refused,
   .landed { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }

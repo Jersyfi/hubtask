@@ -2,13 +2,15 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A plan brought into a collection from a project file (UC-PLN-09): the file read in the browser,
-  // its format found from its name, a dry run's counts shown, and then the import itself - all or
+  // its format found from its name, a dry run said in words (`PlanSummary`, user-experience.md
+  // §7.11), and then the import itself - all or
   // nothing, every entry and dependency written through its own use case on the server.
 
-  import { Banner, Button, Select, Stack, UploadField } from '@hubtask/design-system/components';
+  import { Banner, Button, PlanSummary, Select, Stack, UploadField, type PlanLine } from '@hubtask/design-system/components';
   import type { PlanImport } from '@hubtask/sync-engine';
 
   import { engine } from '../data/engine.ts';
+  import { namesOf } from '../data/kudos.ts';
   import { projectFormatOf, schedulePath } from '../data/planning.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -31,6 +33,24 @@
   let preview = $state<PlanImport | undefined>(undefined);
   let failure = $state<string | undefined>(undefined);
   let isBusy = $state(false);
+
+  /** The dry run in words: what the file would create, by the things a planner counts. */
+  const plan = $derived.by((): PlanLine[] => {
+    if (!preview) return [];
+    const counted = (
+      [
+        ['tasks', preview.tasks], ['packages', preview.work_packages], ['activities', preview.activities],
+        ['milestones', preview.milestones], ['dependencies', preview.dependencies],
+      ] as const
+    ).filter(([, count]) => count > 0);
+    const lines: PlanLine[] = [];
+    if (counted.length > 0) {
+      const things = namesOf(counted.map(([word, count]) => t(`app.import.count_${word}`, { count: String(count) })), messages.locale);
+      lines.push({ tone: 'add', text: t('app.import.plan_creates_dry', { things }) });
+    }
+    if (preview.flattened > 0) lines.push({ tone: 'change', text: t('app.planning.import_flattened', { count: String(preview.flattened) }) });
+    return lines;
+  });
 
   async function readFile(file: File) {
     preview = undefined;
@@ -88,14 +108,7 @@
   {/if}
   {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
   {#if preview}
-    <section class="part" aria-labelledby="plan-import-preview">
-      <h2 id="plan-import-preview" class="heading">{t('app.planning.import_preview')}</h2>
-      <p class="meta">{t('app.planning.import_counts', {
-        tasks: String(preview.tasks), packages: String(preview.work_packages), activities: String(preview.activities),
-        dependencies: String(preview.dependencies), milestones: String(preview.milestones),
-      })}</p>
-      {#if preview.flattened > 0}<Banner tone="warning">{t('app.planning.import_flattened', { count: String(preview.flattened) })}</Banner>{/if}
-    </section>
+    <PlanSummary label={t('app.planning.import_preview')} lines={plan} emptyLabel={t('app.import.plan_empty')} reach={t('app.planning.import_nothing_yet')} />
   {/if}
   <div class="buttons">
     <Button tone="primary" disabledReason={preview ? undefined : t('app.planning.import_choose_first')} {isBusy} onclick={() => void send(false)}>{t('app.planning.import_run')}</Button>
@@ -104,7 +117,5 @@
 
 <style>
   .buttons { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
-  .part { display: grid; gap: var(--sp-100); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>
