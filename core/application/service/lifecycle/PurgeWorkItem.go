@@ -64,6 +64,9 @@ type EmptyTrash struct {
 	Purger     Purger
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Documents reaches the trashed pages and whiteboards, the one trash's other kinds; only its
+	// Trash, Changes and HLC are read. Wired without it, emptying leaves them to the period.
+	Documents DocumentSweep
 }
 
 // PurgeWorkItemCommand is the input, typed.
@@ -178,6 +181,13 @@ func (h EmptyTrash) Execute(
 		if err != nil {
 			return err
 		}
+		documents, err := sweepDocuments(ctx, h.Purger, h.Documents, documentPass{
+			tenantID: actor.TenantID, cutoff: now, now: now, reason: domain.DeletedByUser,
+		})
+		if err != nil {
+			return err
+		}
+		outcome.add(documents)
 		return h.Purger.RecordAudit(ctx, actor, TrashEmptiedAction, trashTarget, actor.TenantID,
 			outcome, domain.DeletedByUser, now)
 	})

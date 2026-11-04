@@ -3440,6 +3440,7 @@ func run() error {
 			Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork,
 			Policies: lifecycleStore, TombstoneWindow: cfg.Retention.TombstoneWindow,
 			Holds: legalHolds.Holds, Contributors: lifecycleStore, Restrictions: privacyStore,
+			PageReaders: postgres.NewPageRepository(),
 		}.Descriptor(),
 		lifecycle.PurgeWorkItem{
 			Items: items, Containers: containers, Purger: purger,
@@ -3447,6 +3448,7 @@ func run() error {
 		}.Descriptor(),
 		lifecycle.EmptyTrash{
 			Purger: purger, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Documents: lifecycle.DocumentSweep{Trash: postgres.DocumentTrash{}, Changes: changes, HLC: hybrid},
 		}.Descriptor(),
 		lifecycle.CreateRetentionPolicy{Rules: retentionRules}.Descriptor(),
 		lifecycle.ListRetentionPolicies{Rules: retentionRules}.Descriptor(),

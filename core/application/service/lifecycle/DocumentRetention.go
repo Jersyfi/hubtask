@@ -70,21 +70,42 @@ const documentRounds = 17
 func (h RunRetention) sweepTrashedDocuments(
 	ctx context.Context, tenantID shared.ID, cutoff, now time.Time,
 ) (Outcome, error) {
-	if h.Documents.Trash == nil {
+	return sweepDocuments(ctx, h.Purger, h.Documents, documentPass{
+		tenantID: tenantID, cutoff: cutoff, now: now,
+		reason: domain.DeletedByRetention, observeRestrictions: true,
+	})
+}
+
+// documentPass is one sweep of the pages' and boards' trash: the automatic one after the period,
+// or a person emptying the trash, whose own act a restriction does not stop.
+type documentPass struct {
+	tenantID            shared.ID
+	cutoff, now         time.Time
+	reason              domain.DeletionReason
+	observeRestrictions bool
+}
+
+// sweepDocuments removes the trashed pages and boards the pass reaches; a page with a page under
+// it waits for the next round.
+func sweepDocuments(ctx context.Context, purger Purger, documents DocumentSweep, pass documentPass) (Outcome, error) {
+	if documents.Trash == nil {
 		return Outcome{}, nil
 	}
-	holds, err := h.Purger.Holds.Active(ctx)
+	holds, err := purger.Holds.Active(ctx)
 	if err != nil {
 		return Outcome{}, err
 	}
-	restricted, err := restrictionsOf(ctx, h.Purger.Restrictions)
-	if err != nil {
-		return Outcome{}, err
+	restricted := privacy.Restricted{}
+	if pass.observeRestrictions {
+		if restricted, err = restrictionsOf(ctx, purger.Restrictions); err != nil {
+			return Outcome{}, err
+		}
 	}
+	cutoff, now := pass.cutoff, pass.now
 
 	var outcome Outcome
 	var passed []shared.ID
-	batch := h.Purger.BatchSize
+	batch := purger.BatchSize
 	for round := 0; round < documentRounds; round++ {
 		room := batch
 		if batch > 0 {
@@ -93,7 +114,7 @@ func (h RunRetention) sweepTrashedDocuments(
 				break
 			}
 		}
-		expired, err := h.Documents.Trash.Expired(ctx, cutoff, passed, room)
+		expired, err := documents.Trash.Expired(ctx, cutoff, passed, room)
 		if err != nil {
 			return outcome, err
 		}
@@ -104,18 +125,18 @@ func (h RunRetention) sweepTrashedDocuments(
 		removals := make([]domain.Removal, 0, len(going))
 		for _, document := range going {
 			removals = append(removals, domain.Removal{
-				Entity: document.Entity, EntityID: document.ID, Reason: domain.DeletedByRetention,
+				Entity: document.Entity, EntityID: document.ID, Reason: pass.reason,
 			})
 		}
-		if err := h.Purger.record(ctx, removals, now); err != nil {
+		if err := purger.record(ctx, removals, now); err != nil {
 			return outcome, err
 		}
-		removed, err := h.Documents.Trash.Remove(ctx, going, cutoff)
+		removed, err := documents.Trash.Remove(ctx, going, cutoff)
 		if err != nil {
 			return outcome, err
 		}
 		outcome.Removed += removed
-		if err := h.announceGone(ctx, tenantID, going); err != nil {
+		if err := announceGone(ctx, documents, pass.tenantID, going); err != nil {
 			return outcome, err
 		}
 		if removed < len(going) {
@@ -156,14 +177,14 @@ func judgeDocuments(
 
 // announceGone records a delete per removed page or board, filed under its hub, so a device drops
 // its copy.
-func (h RunRetention) announceGone(ctx context.Context, tenantID shared.ID, gone []TrashedDocument) error {
-	if h.Documents.Changes == nil || h.Documents.HLC == nil {
+func announceGone(ctx context.Context, documents DocumentSweep, tenantID shared.ID, gone []TrashedDocument) error {
+	if documents.Changes == nil || documents.HLC == nil {
 		return nil
 	}
 	for _, document := range gone {
-		if err := h.Documents.Changes.Record(ctx, changelog.Change{
+		if err := documents.Changes.Record(ctx, changelog.Change{
 			TenantID: tenantID, Entity: document.Entity, EntityID: document.ID, Op: changelog.Delete,
-			ContainerID: document.HubID, HLC: h.Documents.HLC.Next(),
+			ContainerID: document.HubID, HLC: documents.HLC.Next(),
 		}); err != nil {
 			return err
 		}
