@@ -12,8 +12,8 @@ import (
 )
 
 // Hubtask's templates carry their key as the name and their questions as keys, and a client names
-// both in the reader's language (rule 8): every shipped template and every question it asks has its
-// words in each catalogue.
+// both in the reader's language (rule 8): every shipped template, the sentence its card says it
+// does with (user-experience.md §5.2) and every question it asks have their words in each catalogue.
 func TestEveryShippedTemplateAndQuestionHasItsWords(t *testing.T) {
 	files, err := filepath.Glob("../core/application/service/config/shipped/*.json")
 	if err != nil || len(files) == 0 {
@@ -34,7 +34,7 @@ func TestEveryShippedTemplateAndQuestionHasItsWords(t *testing.T) {
 		if err := json.Unmarshal(raw, &template); err != nil {
 			t.Fatalf("%s: %v", file, err)
 		}
-		codes := []string{"app.structure.preset." + strings.ToUpper(template.Key)}
+		codes := []string{"app.structure.preset." + strings.ToUpper(template.Key), "app.templates.summary." + strings.ToUpper(template.Key)}
 		for _, question := range template.Questions {
 			codes = append(codes, "app.templates.question."+question.Key)
 		}

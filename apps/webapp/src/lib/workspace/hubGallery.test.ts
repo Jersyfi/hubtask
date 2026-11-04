@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afterCreating, hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
+import { afterCreating, familiesOf, familyOf, hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
 
 const of = (key: string, origin: 'HUBTASK' | 'INSTALLATION' | 'WORKSPACE' | 'OWN' = 'HUBTASK', hub = true) => ({
   key, origin, hub_document: hub ? {} : null,
@@ -51,4 +51,12 @@ test('choosing a template fills in its name until the reader types one', () => {
   assert.equal(prefilledName('Mobile app', 'Scrum team', 'Kanban team'), 'Mobile app', 'a typed name stays');
   assert.equal(prefilledName('Scrum team', 'Scrum team', ''), '', 'unchoosing takes the filled-in name away');
   assert.equal(prefilledName('  ', '', 'Scrum team'), 'Scrum team');
+});
+
+// §5.2: the catalogue filters by family, so a newcomer finds the service templates among thirty;
+// a register stands in its own family, not under *More from Hubtask*.
+test('the catalogue\'s families are the ones its templates fall in, in the gallery\'s order', () => {
+  const list = [of('it_asset_register', 'HUBTASK', false), of('itil_service_desk'), of('mine', 'WORKSPACE'), of('household')];
+  assert.equal(familyOf(of('vendor_contracts', 'HUBTASK', false)), 'registers');
+  assert.deepEqual(familiesOf(list), ['personal', 'service', 'registers', 'workspace']);
 });

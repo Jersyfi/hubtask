@@ -126,6 +126,8 @@
     each.origin === 'HUBTASK' ? t(`app.structure.preset.${each.key.toUpperCase()}`) : each.name;
   const productsOf = (each: ConfigTemplate): string[] =>
     switchedOn(each).map((module) => t(`app.modules.name_${module.toLowerCase()}`));
+  const summaryOf = (each: ConfigTemplate): string | undefined =>
+    each.origin === 'HUBTASK' ? t(`app.templates.summary.${each.key.toUpperCase()}`) : undefined;
   function fillName(next: string): void {
     name = prefilledName(name, filled, next);
     filled = next;
@@ -267,7 +269,7 @@
               {#each group.templates as each (each.key)}
                 {@const isChosen = fromTemplate === each.key}
                 {@const name = templateName(each)}
-                <TemplateCard {name} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
+                <TemplateCard {name} summary={summaryOf(each)} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
                   note={each.taken_version == null ? undefined : t('app.workspace.hub_template_in_workspace')}>
                   {#snippet action()}
                     <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickTemplate(each.key)}>

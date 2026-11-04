@@ -8,7 +8,7 @@
  * published in the installation or the workspace stands under its origin.
  */
 
-export const FAMILIES = ['personal', 'teams', 'projects', 'programmes', 'service', 'processes'] as const;
+export const FAMILIES = ['personal', 'teams', 'projects', 'programmes', 'service', 'processes', 'registers'] as const;
 export type Family = (typeof FAMILIES)[number] | 'installation' | 'workspace' | 'own' | 'other';
 
 const FAMILY_OF: Readonly<Record<string, (typeof FAMILIES)[number]>> = {
@@ -19,6 +19,7 @@ const FAMILY_OF: Readonly<Record<string, (typeof FAMILIES)[number]>> = {
   itil_service_desk: 'service', internal_it: 'service', facility_requests: 'service', hr_requests: 'service', customer_support: 'service',
   approvals: 'processes', onboarding: 'processes', procurement: 'processes', capa: 'processes', risk_controls: 'processes',
   records_of_processing: 'processes',
+  it_asset_register: 'registers', risk_register: 'registers', contact_register: 'registers', vendor_contracts: 'registers',
 };
 
 const ORDER: readonly Family[] = [...FAMILIES, 'installation', 'workspace', 'own', 'other'];
@@ -39,6 +40,11 @@ export function hubFamilies<T extends Offered>(templates: readonly T[]): { famil
   const withHub = templates.filter((each) => each.hub_document != null);
   return ORDER.map((family) => ({ family, templates: withHub.filter((each) => familyOf(each) === family) }))
     .filter((group) => group.templates.length > 0);
+}
+
+/** The families the templates fall in, in the gallery's order: the catalogue's filter (§5.2). */
+export function familiesOf(templates: readonly Offered[]): Family[] {
+  return ORDER.filter((family) => templates.some((each) => familyOf(each) === family));
 }
 
 /** The products a template switches on, as module keys, workflows left out: every template has it. */

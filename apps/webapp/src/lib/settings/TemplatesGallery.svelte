@@ -11,7 +11,7 @@
   // with a collection part, which the collection takes under its own handle.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery } from '@hubtask/design-system/components';
+  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, ViewSwitcher } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
 
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
@@ -24,6 +24,7 @@
   import { renderProblem } from '../problem.ts';
   import PlanReach from './PlanReach.svelte';
   import { afterTaking } from '../product/templates.ts';
+  import { familiesOf, familyOf, switchedOn } from '../workspace/hubGallery.ts';
 
   interface Props {
     /** A hub taking a template's hub part; omitted is the workspace. */
@@ -47,12 +48,27 @@
     return untrack(() => config.templates((next) => (list = next), hub, collection));
   });
 
-  const groups = $derived(list?.status === 'ready' ? byOrigin(list.data.data) : []);
+  // The family filter (user-experience.md §5.2): All, then each family the catalogue holds.
+  let family = $state('all');
+  const families = $derived(list?.status === 'ready' ? familiesOf(list.data.data) : []);
+  const filterViews = $derived([
+    { id: 'all', label: t('app.templates.family_all') },
+    ...families.map((each) => ({ id: each, label: t(`app.workspace.hub_family.${each}`) })),
+  ]);
+  const shown = $derived(
+    list?.status !== 'ready' ? [] : family === 'all' ? list.data.data : list.data.data.filter((each) => familyOf(each) === family),
+  );
+  const groups = $derived(byOrigin(shown));
   const refusal = $derived(list?.status === 'failed' ? renderProblem(list.error, messages) : undefined);
 
   /** Hubtask's templates are named by their key, in the reader's language. */
   const nameOf = (template: ConfigTemplate) =>
     template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
+  /** What a card says it does: Hubtask's own sentence, with the standard it follows; nothing for another's. */
+  const summaryOf = (template: ConfigTemplate) =>
+    template.origin === 'HUBTASK' ? t(`app.templates.summary.${template.key.toUpperCase()}`) : undefined;
+  const productsOf = (template: ConfigTemplate): string[] =>
+    switchedOn(template).map((module) => t(`app.modules.name_${module.toLowerCase()}`));
 
   let chosen = $state<ConfigTemplate>();
   /** The answers to the chosen template's questions, by key. */
@@ -250,6 +266,9 @@
   {:else if hubId && groups.length === 0}
     <p class="quiet" data-no-hub-templates>{t('app.templates.hub_none')}</p>
   {:else}
+    {#if families.length > 1}
+      <ViewSwitcher label={t('app.templates.families')} views={filterViews} selected={family} onselect={(id) => (family = id)} />
+    {/if}
     {#each groups as group (group.origin)}
       <div data-origin={group.origin}>
         <TemplateGallery label={t(`app.templates.origin.${group.origin}`)}>
@@ -257,6 +276,8 @@
             {@const offer = offerOf(template)}
             <TemplateCard
               name={nameOf(template)}
+              summary={summaryOf(template)}
+              products={productsOf(template)}
               data-template={template.key}
               note={offer === 'UPDATE'
                 ? t('app.templates.update_available', { from: template.taken_version ?? 0, to: template.version })
