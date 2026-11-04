@@ -499,3 +499,34 @@ func TestTheServiceDeskIsRefusedWhereWorkflowsIsLockedOff(t *testing.T) {
 		t.Error("the desk was switched on although its workflows cannot be")
 	}
 }
+
+// Workflows switched off under a desk that is on would leave the desk reading what is refused:
+// the switch is refused and nothing is written.
+func TestWorkflowsIsNotSwitchedOffUnderTheServiceDesk(t *testing.T) {
+	ctx := context.Background()
+	modules, _, sink := fixture()
+	set := settingservice.SetModule{Modules: modules}
+	if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.ServiceDesk, Switch: settingservice.SwitchOn}); err != nil {
+		t.Fatal(err)
+	}
+	written := len(sink.entries)
+	for _, to := range []settingservice.Switch{settingservice.SwitchOff, settingservice.SwitchInherit} {
+		_, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Workflows, Switch: to})
+		if !refusedWith(err, "module.needed") {
+			t.Errorf("workflows %s under the desk = %v, want module.needed", to, err)
+		}
+	}
+	states, err := settingservice.ListModules{Modules: modules}.Execute(ctx, actor(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !on(t, states, module.Workflows).On() || len(sink.entries) != written {
+		t.Errorf("after the refusals: %v, %d trail entries, want workflows on and none added", module.SetOf(states), len(sink.entries)-written)
+	}
+	if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.ServiceDesk, Switch: settingservice.SwitchOff}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := set.Execute(ctx, actor(), settingservice.SetModuleCommand{Module: module.Workflows, Switch: settingservice.SwitchOff}); err != nil {
+		t.Errorf("workflows off once the desk is off = %v, want it switched", err)
+	}
+}

@@ -9131,6 +9131,7 @@
   "module.unknown": "Dieses Modul gibt es nicht.",
   "module.hub_only": "Ein Modul wird für den Arbeitsbereich oder einen Hub geschaltet, nicht für eine einzelne Sammlung.",
   "module.switch_invalid": "Wähle an, aus oder wie darüber.",
+  "module.needed": "Ein Modul, das hier eingeschaltet ist, arbeitet mit diesem. Schalte zuerst jenes Modul aus.",
   "access.permission_above_own": "Du kannst hier nur Berechtigungen vergeben, die du selbst hast; dir fehlt {permissions}.",
   "roles.identity_incomplete": "Diese Installation konnte die Rolle nicht speichern.",
   "roles.key_invalid": "Der Schlüssel einer Rolle ist klein geschrieben, beginnt mit einem Buchstaben und enthält Buchstaben, Ziffern und Unterstriche – {key} ist keiner, oder er lautet wie eine mitgelieferte Rolle.",

@@ -125,3 +125,30 @@ func TestOnlyTheServiceDeskNeedsAnotherModule(t *testing.T) {
 		}
 	}
 }
+
+// A module on whose needed module is off is the one state a switch may not leave behind.
+func TestUnmetNamesTheModuleOnWithoutWhatItNeeds(t *testing.T) {
+	cases := []struct {
+		name      string
+		workflows bool
+		wantUnmet bool
+		desk      bool
+	}{
+		{"desk and workflows on", true, false, true},
+		{"desk on, workflows off", false, true, true},
+		{"desk off, workflows off", false, false, false},
+	}
+	for _, c := range cases {
+		layer := setting.Layer{Level: setting.LevelWorkspace, Entries: map[setting.Key]setting.Entry{
+			module.ServiceDesk.SettingKey(): {Value: c.desk, Hold: setting.HoldSet},
+			module.Workflows.SettingKey():   {Value: c.workflows, Hold: setting.HoldSet},
+		}}
+		on, needed, unmet := module.Unmet(module.Resolve(layer))
+		if unmet != c.wantUnmet {
+			t.Errorf("%s: unmet = %v, want %v", c.name, unmet, c.wantUnmet)
+		}
+		if unmet && (on != module.ServiceDesk || needed != module.Workflows) {
+			t.Errorf("%s: unmet names %s needing %s", c.name, on, needed)
+		}
+	}
+}

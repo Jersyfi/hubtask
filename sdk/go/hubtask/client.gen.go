@@ -40415,7 +40415,7 @@ type ClientInterface interface {
 
 	// SetModuleWithBody Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40424,7 +40424,7 @@ type ClientInterface interface {
 
 	// SetModule Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -62450,7 +62450,7 @@ func (c *Client) ListModules(ctx context.Context, params *ListModulesParams, req
 
 // SetModuleWithBody Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes any type of body and a specified content type.
 //
@@ -62469,7 +62469,7 @@ func (c *Client) SetModuleWithBody(ctx context.Context, module Module, contentTy
 
 // SetModule Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -114422,7 +114422,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetModuleWithBodyWithResponse Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -114431,7 +114431,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetModuleWithResponse Switch a module on or off
 	//
-	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -173182,7 +173182,7 @@ func (c *ClientWithResponses) ListModulesWithResponse(ctx context.Context, param
 
 // SetModuleWithBodyWithResponse Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -173197,7 +173197,7 @@ func (c *ClientWithResponses) SetModuleWithBodyWithResponse(ctx context.Context,
 
 // SetModuleWithResponse Switch a module on or off
 //
-// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. The service desk needs Workflows: switching the desk on switches Workflows on with it, and switching Workflows off - or to `INHERIT` - where the desk is on is refused with `module.needed`. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

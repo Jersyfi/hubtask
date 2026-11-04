@@ -9,6 +9,8 @@ package setting
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -236,6 +238,9 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		above := domain.Resolve(definition, layers[:len(layers)-1]...)
 		before := domain.Resolve(definition, layers...)
 		if cmd.Switch == SwitchInherit {
+			if err := refuseUnmet(layers, definition.Key, cmd.Switch); err != nil {
+				return err
+			}
 			if _, err := m.Settings.Remove(ctx, where.at, definition.Key); err != nil {
 				return err
 			}
@@ -243,6 +248,11 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 			entry := domain.Entry{Value: cmd.Switch == SwitchOn, Hold: domain.HoldSet, By: actor.AccountID}
 			if err := domain.Check(definition, where.at.Level, above, entry); err != nil {
 				return err
+			}
+			if cmd.Switch == SwitchOff {
+				if err := refuseUnmet(layers, definition.Key, cmd.Switch); err != nil {
+					return err
+				}
 			}
 			if err := m.Settings.Put(ctx, m.IDs.NewID(), where.at, definition.Key, entry, now); err != nil {
 				return err
@@ -259,6 +269,30 @@ func (h SetModule) Execute(ctx context.Context, actor appshared.ActorContext, cm
 		return m.recordAudit(ctx, actor, where, cmd, before, after, now)
 	})
 	return states, err
+}
+
+// refuseUnmet refuses a switch off, or back to the level above, that would leave a module on
+// without one it needs (a desk without its workflows), before anything is written.
+func refuseUnmet(layers []domain.Layer, key domain.Key, to Switch) error {
+	prospect := slices.Clone(layers)
+	last := prospect[len(prospect)-1]
+	entries := maps.Clone(last.Entries)
+	if entries == nil {
+		entries = map[domain.Key]domain.Entry{}
+	}
+	if to == SwitchInherit {
+		delete(entries, key)
+	} else {
+		entries[key] = domain.Entry{Value: false, Hold: domain.HoldSet}
+	}
+	prospect[len(prospect)-1] = domain.Layer{Level: last.Level, Entries: entries}
+	on, needed, unmet := module.Unmet(module.Resolve(prospect...))
+	if !unmet {
+		return nil
+	}
+	return shared.ErrConflict.WithDetail("module.needed").
+		WithFields(shared.FieldError{Path: "/switch", Code: "module.needed"}).
+		WithParams(map[string]string{"module": string(needed), "needed_by": string(on)})
 }
 
 // switchOnNeeded switches on at the place a module another one needs, where it is not on already,

@@ -468,6 +468,8 @@ page, a board, a configuration item or a goal in it - and at the workspace where
 area. Switching off hides and never deletes. A module that needs another (`Key.Needs`: the service
 desk needs Workflows, whose entry types and workflows a desk is) switches it on in the same write,
 with its own audit entry; where that one is locked off, the switch is refused and nothing is written.
+The other way round, switching the needed module off - or back to the level above - while the one
+that needs it is on there is refused with `409 module.needed` (`module.Unmet`), nothing written.
 
 ---
 

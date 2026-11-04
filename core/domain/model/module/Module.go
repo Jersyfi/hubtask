@@ -103,6 +103,26 @@ func (k Key) Needs() []Key {
 	return nil
 }
 
+// Unmet answers the first module on in the states whose needed module is off - the one state a
+// switch may not leave behind, since the module's screens would read what is refused.
+func Unmet(states []State) (on, needed Key, unmet bool) {
+	isOn := map[Key]bool{}
+	for _, state := range states {
+		isOn[state.Module] = state.On()
+	}
+	for _, state := range states {
+		if !state.On() {
+			continue
+		}
+		for _, want := range state.Module.Needs() {
+			if !isOn[want] {
+				return state.Module, want, true
+			}
+		}
+	}
+	return "", "", false
+}
+
 // Definitions is every module's entry, in Keys' order.
 func Definitions() []setting.Definition {
 	out := make([]setting.Definition, 0, len(keys))
