@@ -3859,6 +3859,15 @@ func (c *RestController) PreviewWorkspaceStructure(w http.ResponseWriter, r *htt
 	c.door(w, r, restDoors["previewWorkspaceStructure"], usecase.Input{}, nil, &body, &answer)
 }
 
+// ProbeRealtime answers GET /realtime/probe by the adapter in Realtime, which holds the connection.
+func (c *RestController) ProbeRealtime(w http.ResponseWriter, r *http.Request) {
+	if c.Realtime == nil {
+		c.pending.ProbeRealtime(w, r)
+		return
+	}
+	c.Realtime.ProbeRealtime(w, r)
+}
+
 // ProposeConfig answers POST /config:propose by the generated mapping.
 func (c *RestController) ProposeConfig(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ProposeConfigJSONRequestBody

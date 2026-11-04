@@ -3135,6 +3135,10 @@ class Client:
         """The change stream, as server-sent events"""
         return self._call("GET", "/stream", {}, None, {"Last-Event-ID": last_event_id}, None, "none", None, "raw")
 
+    def probe_realtime(self) -> None:
+        """Check that a WebSocket reaches the server"""
+        return self._call("GET", "/realtime/probe", {}, None, {}, None, "none", None, "void")
+
     def open_realtime_document(self, kind: str, document_id: str) -> None:
         """A live document, as a WebSocket"""
         return self._call("GET", "/realtime/documents/{kind}/{documentId}", {"kind": kind, "documentId": document_id}, None, {}, None, "none", None, "void")

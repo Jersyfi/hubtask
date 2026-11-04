@@ -55,6 +55,20 @@ const (
 // tooFastCode is the reason closeTooFast carries, with the seconds to wait after a colon.
 const tooFastCode = "realtime.too_fast"
 
+// ProbeReason is the reason the probe's connection closes with, so its opener can tell this server
+// answered and not something in front of it.
+const ProbeReason = "realtime.probe"
+
+// Probe upgrades and closes at once with ProbeReason.
+func Probe(w http.ResponseWriter, r *http.Request) {
+	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{Subprotocol}})
+	if err != nil {
+		// Accept has answered the client already.
+		return
+	}
+	_ = conn.Close(websocket.StatusNormalClosure, ProbeReason)
+}
+
 // Documents is the whole of what the adapter may do with a document: the realtime service.
 type Documents interface {
 	Open(ctx context.Context, actor appshared.ActorContext, ref domain.Ref) (realtimeservice.Opened, error)

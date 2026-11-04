@@ -39570,6 +39570,17 @@ type ClientInterface interface {
 	// Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
 	OpenRealtimeDocument(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ProbeRealtime Check that a WebSocket reaches the server
+	//
+	// Switches to the WebSocket protocol and closes at once with the normal closure code and the
+	// reason `realtime.probe`, reading and storing nothing. The installation opens it through its
+	// own public address now and then: a proxy in front that drops the upgrade breaks live
+	// editing for everyone, and this is how the health report and the alert learn of it before a
+	// person does. Anyone may open it; it carries no data.
+	//
+	// Corresponds with GET /realtime/probe (the `ProbeRealtime` operationId).
+	ProbeRealtime(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ResolveReferencesWithBody Resolve references for the caller
 	//
 	// Resolves up to 100 references to what a mention, a card or a live view shows of each: the title, key and state the caller may see. One the caller may not see, one that is not there, and one of a module that does not exist yet all answer only their address and `available: false` - never a title. Text writes a reference as a Markdown link to `hubtask:<kind>/<id>#<anchor>`; an image of the link draws a card or a live view.
@@ -60463,6 +60474,27 @@ func (c *Client) ReadQuotas(ctx context.Context, reqEditors ...RequestEditorFn) 
 // Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
 func (c *Client) OpenRealtimeDocument(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewOpenRealtimeDocumentRequest(c.Server, kind, documentId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ProbeRealtime Check that a WebSocket reaches the server
+//
+// Switches to the WebSocket protocol and closes at once with the normal closure code and the
+// reason `realtime.probe`, reading and storing nothing. The installation opens it through its
+// own public address now and then: a proxy in front that drops the upgrade breaks live
+// editing for everyone, and this is how the health report and the alert learn of it before a
+// person does. Anyone may open it; it carries no data.
+//
+// Corresponds with GET /realtime/probe (the `ProbeRealtime` operationId).
+func (c *Client) ProbeRealtime(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewProbeRealtimeRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -96737,6 +96769,33 @@ func NewOpenRealtimeDocumentRequest(server string, kind string, documentId opena
 	return req, nil
 }
 
+// NewProbeRealtimeRequest constructs an http.Request for the ProbeRealtime method
+func NewProbeRealtimeRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/realtime/probe")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewResolveReferencesRequest calls the generic ResolveReferences builder with application/json body
 func NewResolveReferencesRequest(server string, body ResolveReferencesJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -114047,6 +114106,19 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /realtime/documents/{kind}/{documentId} (the `OpenRealtimeDocument` operationId).
 	OpenRealtimeDocumentWithResponse(ctx context.Context, kind string, documentId openapi_types.UUID, reqEditors ...RequestEditorFn) (*OpenRealtimeDocumentResult, error)
+
+	// ProbeRealtimeWithResponse Check that a WebSocket reaches the server
+	//
+	// Switches to the WebSocket protocol and closes at once with the normal closure code and the
+	// reason `realtime.probe`, reading and storing nothing. The installation opens it through its
+	// own public address now and then: a proxy in front that drops the upgrade breaks live
+	// editing for everyone, and this is how the health report and the alert learn of it before a
+	// person does. Anyone may open it; it carries no data.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /realtime/probe (the `ProbeRealtime` operationId).
+	ProbeRealtimeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProbeRealtimeResult, error)
 
 	// ResolveReferencesWithBodyWithResponse Resolve references for the caller
 	//
@@ -149107,6 +149179,47 @@ func (r OpenRealtimeDocumentResult) ContentType() string {
 	return ""
 }
 
+type ProbeRealtimeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ProbeRealtimeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ProbeRealtimeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ProbeRealtimeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ProbeRealtimeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ProbeRealtimeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ResolveReferencesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -172406,6 +172519,25 @@ func (c *ClientWithResponses) OpenRealtimeDocumentWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseOpenRealtimeDocumentResult(rsp)
+}
+
+// ProbeRealtimeWithResponse Check that a WebSocket reaches the server
+//
+// Switches to the WebSocket protocol and closes at once with the normal closure code and the
+// reason `realtime.probe`, reading and storing nothing. The installation opens it through its
+// own public address now and then: a proxy in front that drops the upgrade breaks live
+// editing for everyone, and this is how the health report and the alert learn of it before a
+// person does. Anyone may open it; it carries no data.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /realtime/probe (the `ProbeRealtime` operationId).
+func (c *ClientWithResponses) ProbeRealtimeWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProbeRealtimeResult, error) {
+	rsp, err := c.ProbeRealtime(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseProbeRealtimeResult(rsp)
 }
 
 // ResolveReferencesWithBodyWithResponse Resolve references for the caller
@@ -199371,6 +199503,35 @@ func ParseOpenRealtimeDocumentResult(rsp *http.Response) (*OpenRealtimeDocumentR
 			headers.RetryAfter = &value
 		}
 		response.Headers503 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseProbeRealtimeResult parses an HTTP response from a ProbeRealtimeWithResponse call
+func ParseProbeRealtimeResult(rsp *http.Response) (*ProbeRealtimeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ProbeRealtimeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 101:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

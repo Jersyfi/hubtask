@@ -55,3 +55,10 @@ func (c RealtimeController) OpenRealtimeDocument(
 		WriteProblem(w, err, requestID)
 	}
 }
+
+// ProbeRealtime answers GET /realtime/probe: an upgrade closed at once, for the installation's own
+// check that a WebSocket gets through its public address. It needs no credential and so reads
+// nothing, and it holds no slot: the connection ends before it could count.
+func (c RealtimeController) ProbeRealtime(w http.ResponseWriter, r *http.Request) {
+	realtime.Probe(w, r)
+}

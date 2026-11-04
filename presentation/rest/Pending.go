@@ -1241,6 +1241,10 @@ func (pending) OpenRealtimeDocument(w http.ResponseWriter, r *http.Request, _ st
 	notAvailable(w, r)
 }
 
+func (pending) ProbeRealtime(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) StreamChanges(w http.ResponseWriter, r *http.Request, _ openapi.StreamChangesParams) {
 	notAvailable(w, r)
 }

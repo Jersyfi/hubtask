@@ -32616,6 +32616,9 @@ type ServerInterface interface {
 	// OpenRealtimeDocument A live document, as a WebSocket
 	// (GET /realtime/documents/{kind}/{documentId})
 	OpenRealtimeDocument(w http.ResponseWriter, r *http.Request, kind string, documentId openapi_types.UUID)
+	// ProbeRealtime Check that a WebSocket reaches the server
+	// (GET /realtime/probe)
+	ProbeRealtime(w http.ResponseWriter, r *http.Request)
 	// ResolveReferences Resolve references for the caller
 	// (POST /references:resolve)
 	ResolveReferences(w http.ResponseWriter, r *http.Request)
@@ -55783,6 +55786,20 @@ func (siw *ServerInterfaceWrapper) OpenRealtimeDocument(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ProbeRealtime operation middleware
+func (siw *ServerInterfaceWrapper) ProbeRealtime(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProbeRealtime(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResolveReferences operation middleware
 func (siw *ServerInterfaceWrapper) ResolveReferences(w http.ResponseWriter, r *http.Request) {
 
@@ -61767,6 +61784,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/probe", wrapper.ProbeRealtime)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/documents/{kind}/{documentId}", wrapper.OpenRealtimeDocument)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/page-labels", wrapper.ListSpaceLabels)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/pages", wrapper.ListPages)

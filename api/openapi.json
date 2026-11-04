@@ -31928,6 +31928,27 @@
         }
       }
     },
+    "/realtime/probe": {
+      "get": {
+        "tags": [
+          "sync"
+        ],
+        "operationId": "probeRealtime",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Realtime",
+        "security": [],
+        "summary": "Check that a WebSocket reaches the server",
+        "description": "Switches to the WebSocket protocol and closes at once with the normal closure code and the\nreason `realtime.probe`, reading and storing nothing. The installation opens it through its\nown public address now and then: a proxy in front that drops the upgrade breaks live\nediting for everyone, and this is how the health report and the alert learn of it before a\nperson does. Anyone may open it; it carries no data.\n",
+        "responses": {
+          "101": {
+            "description": "Switched to the WebSocket protocol, then closed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/realtime/documents/{kind}/{documentId}": {
       "get": {
         "tags": [
