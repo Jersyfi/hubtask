@@ -105,6 +105,9 @@ func (t Timesheet) Reject(approver shared.ID, reason string, now time.Time) (Tim
 			WithParams(map[string]string{"maximum": strconv.Itoa(MaxReasonLength)}).
 			WithFields(shared.FieldError{Path: "/reason", Code: "timesheets.reason_too_long"})
 	}
+	if strings.ContainsRune(reason, 0) {
+		return t, invalid("/reason", "timesheets.reason_malformed")
+	}
 	t.State, t.DecidedAt, t.DecidedBy, t.Reason = SheetRejected, &now, approver, reason
 	return t, nil
 }
@@ -195,7 +198,7 @@ func CheckWorkType(w WorkType) error {
 	if name == "" {
 		return invalid("/name", "work_types.name_required")
 	}
-	if utf8.RuneCountInString(name) > MaxWorkTypeName || strings.ContainsAny(name, "\n\r\t") {
+	if utf8.RuneCountInString(name) > MaxWorkTypeName || strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) }) {
 		return shared.ErrValidation.WithDetail("work_types.name_invalid").
 			WithParams(map[string]string{"maximum": strconv.Itoa(MaxWorkTypeName)}).
 			WithFields(shared.FieldError{Path: "/name", Code: "work_types.name_invalid"})

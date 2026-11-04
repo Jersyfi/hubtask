@@ -6,6 +6,7 @@ package timekeeping
 import (
 	"strconv"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -39,6 +40,10 @@ func (r CostRate) HoldsOn(d Day) bool { return r.From <= d && (r.To == nil || d 
 func CheckCostRate(r CostRate) error {
 	if r.AccountID.IsZero() == (r.Role == "") {
 		return invalid("/account_id", "time.rate_subject_required")
+	}
+	if r.Role != "" && !identity.Role(r.Role).Valid() && !identity.ValidCustomRoleKey(r.Role) {
+		// A role no key spells prices nobody: it is refused rather than kept as a rate that never holds.
+		return invalid("/role", "time.rate_role_invalid")
 	}
 	if r.HourMinor < 0 || r.HourMinor > MaxRateMinor {
 		return shared.ErrValidation.WithDetail("time.rate_out_of_range").
