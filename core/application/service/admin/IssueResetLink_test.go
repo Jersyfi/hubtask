@@ -31,10 +31,10 @@ func newResetLinkFixture(minted MintedReset, base string) (IssueResetLink, *mint
 	register := newRegister()
 	register.addresses = map[string]shared.ID{"acme\x00jerome@example.eu": adaAccount}
 	writer, _, journal := newInstanceWriter(register)
-	recover := newRecoverFixture(adminrepo.TenantRecord{})
+	workspaces := newRecoverFixture(adminrepo.TenantRecord{})
 	minter := &minterFake{minted: minted}
 	return IssueResetLink{
-		Workspaces: recover.handler, Writer: writer, Minter: minter, Addresses: baseFake(base),
+		Workspaces: workspaces.handler, Writer: writer, Minter: minter, Addresses: baseFake(base),
 	}, minter, journal
 }
 
