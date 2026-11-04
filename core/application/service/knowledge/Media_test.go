@@ -124,3 +124,28 @@ func TestAPagesPictureIsReadByThePagesReaders(t *testing.T) {
 		t.Fatal("the person a restriction names did not read the picture")
 	}
 }
+
+// Attaching what a page already holds is a retry and answers as the first attach did, even on a
+// page that holds as many files as it may.
+func TestAttachingWhatAPageHoldsAgainIsARetry(t *testing.T) {
+	f := newFixture()
+	f.space.Media = uploads{store: f.store}
+	ctx := context.Background()
+	page := f.create(t, anna, hub, "", "Handbook", "")
+	if err := (AttachPageMedia{Space: f.space}).Execute(ctx, as(anna), page.ID, annasPicture); err != nil {
+		t.Fatal(err)
+	}
+	for range MaxMediaPerPage - 1 {
+		f.store.media[page.ID] = append(f.store.media[page.ID], f.space.IDs.NewID())
+	}
+	recorded := len(f.trail.entries)
+	if err := (AttachPageMedia{Space: f.space}).Execute(ctx, as(anna), page.ID, annasPicture); err != nil {
+		t.Fatalf("the retry answered %v", err)
+	}
+	if len(f.trail.entries) != recorded {
+		t.Fatal("a retry that changed nothing was recorded")
+	}
+	if err := (AttachPageMedia{Space: f.space}).Execute(ctx, as(anna), page.ID, annasFile); code(err) != "pages.media_full" {
+		t.Fatalf("a new file on a full page answered %v", err)
+	}
+}

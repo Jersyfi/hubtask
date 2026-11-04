@@ -6,6 +6,7 @@ package knowledge
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -73,6 +74,10 @@ func (h AttachPageMedia) Execute(ctx context.Context, actor appshared.ActorConte
 	}
 	if err != nil {
 		return err
+	}
+	// The page holds it already: a retry, answered as the first attach was, full page or not.
+	if slices.Contains(holders, page.ID) {
+		return nil
 	}
 	if object.CreatedBy != actor.AccountID {
 		mayRead, err := h.Space.readsAnyPage(ctx, actor, holders)
