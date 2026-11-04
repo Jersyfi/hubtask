@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { eventGroups, eventKey, scopeChoiceOf, scopeOfChoice, subscriptionBody, webhookFigure } from './webhooks.ts';
+import { eventGroups, eventKey, scopeChoiceOf, scopeOfChoice, subscriptionBody, webhookColumnFigure, webhookFigure } from './webhooks.ts';
 
 const HUB = '01936f2a-7c1e-7000-8000-000000000f31';
 
@@ -113,4 +113,11 @@ test('an event type reads by its words, grouped by what it is about', () => {
 test('the head says how many deliver and how many were switched off after failures', () => {
   assert.deepEqual(webhookFigure([{ state: 'ACTIVE' }, { state: 'ACTIVE' }, { state: 'PAUSED' }, { state: 'DISABLED' }]), { active: 2, paused: 1, disabled: 1 });
   assert.deepEqual(webhookFigure([]), { active: 0, paused: 0, disabled: 0 });
+});
+
+test("the column counts a connection switched off after failures, and says nothing while all deliver", () => {
+  const t = (code: string, params: Record<string, string> = {}) => [code, ...Object.values(params)].join(' ');
+  assert.equal(webhookColumnFigure([{ state: 'ACTIVE' }, { state: 'DISABLED' }, { state: 'DISABLED' }], t), 'app.webhooks.column_disabled 2');
+  assert.equal(webhookColumnFigure([{ state: 'ACTIVE' }, { state: 'PAUSED' }], t), undefined, 'a pause is somebody\'s choice, not a failure');
+  assert.equal(webhookColumnFigure([], t), undefined);
 });

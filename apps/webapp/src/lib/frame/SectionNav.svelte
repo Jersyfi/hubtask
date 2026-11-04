@@ -29,6 +29,8 @@
     label: string;
     /** The section's list, in its groups. */
     groups: readonly SectionGroup[];
+    /** A short figure at the end of a row, by the row's id: what needs attention there (user-experience.md §7.10). */
+    figures?: Readonly<Record<string, string>>;
     /** The row the reader is on, by the id the list gives it. The frame decides, because it has the route. */
     current?: string;
     /** Folded to its marks, from `expanded` up: the same list, drawing its marks alone. */
@@ -36,7 +38,7 @@
     onnavigate: (path: string) => void;
   }
 
-  const { label, groups, current, isRail = false, onnavigate }: Props = $props();
+  const { label, groups, figures = {}, current, isRail = false, onnavigate }: Props = $props();
 
   // The groups as one list: each group's first row opens a band, and the way back opens none - it
   // is one row above everything and needs no caption to say so.
@@ -46,6 +48,7 @@
         id: row.id,
         label: t(row.code),
         icon: row.icon,
+        ...(figures[row.id] ? { meta: figures[row.id] } : {}),
         ...(index === 0 && group.code ? { band: { caption: t(group.code) } } : {}),
       })),
     ),

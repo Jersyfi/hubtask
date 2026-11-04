@@ -6230,6 +6230,7 @@
   "app.webhooks.figure_active": "{count} liefern",
   "app.webhooks.figure_paused": "{count} pausiert",
   "app.webhooks.figure_disabled": "{count} nach Fehlern abgeschaltet",
+  "app.webhooks.column_disabled": "{count} abgeschaltet",
   "app.webhooks.empty_title": "Noch wird kein Dienst benachrichtigt",
   "app.webhooks.empty_body": "Ein Webhook teilt deinem eigenen Server oder einem Chatraum mit, was hier geschieht, sobald es geschieht.",
   "app.webhooks.group_choose": "Einzeln auswählen",

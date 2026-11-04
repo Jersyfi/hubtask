@@ -68,6 +68,8 @@
   import { t } from '../i18n/i18n.svelte.ts';
   import { DESTINATIONS, MORE_CODE, PRODUCTS, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
+  import { webhooks } from '../data/webhooks.svelte.ts';
+  import { webhookColumnFigure } from '../data/webhooks.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
@@ -145,6 +147,16 @@
   $effect(() => {
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => privateHubs.open());
+  });
+  // The webhooks too, so the column counts a connection switched off after failures
+  // (user-experience.md §7.10) before anybody opens the screen.
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => webhooks.open());
+  });
+  const sectionFigures = $derived.by((): Readonly<Record<string, string>> => {
+    const switchedOff = isInAdministration ? webhookColumnFigure(webhooks.all, t) : undefined;
+    return switchedOff ? { webhooks: switchedOff } : {};
   });
   // And the workspace, for whether it holds more than one person: there the row stays drawn with
   // no private hub in it, because it is where *Private hubs allowed* is set (ADR-0073 §6).
@@ -557,7 +569,7 @@
       {#if viewport.isBelowExpanded}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
-            <SectionNav label={section.label} groups={section.groups} current={sectionRow} onnavigate={go} />
+            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} hasDestinations={!viewport.isCompact} onnavigate={go} />
           {/if}
@@ -576,7 +588,7 @@
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
                  `hubs` step points at the tree, so it does not point here: a step that pointed at
                  a column the tree is not in would explain the wrong thing. -->
-            <SectionNav label={section.label} groups={section.groups} current={sectionRow} {isRail} onnavigate={go} />
+            <SectionNav label={section.label} groups={section.groups} figures={sectionFigures} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
           {/if}

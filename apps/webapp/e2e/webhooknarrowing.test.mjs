@@ -99,3 +99,23 @@ test('chromium: a subscription takes a condition and a scope, and says both back
   });
   assert.deepEqual(failures, []);
 });
+
+// The column counts a connection switched off after failures on the *Webhooks* row, on every
+// screen of the administration, before the webhooks are opened (user-experience.md §7.10).
+test('chromium: the column counts a webhook switched off after failures', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  const OFF = { ...SUBSCRIPTION, id: '01a0e2e0-0000-7000-8000-000000001803', state: 'DISABLED', failure_count: 12 };
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', (route) => (new URL(route.request().url()).pathname.endsWith('/integrations/webhooks')
+    ? route.fulfill({ json: [SUBSCRIPTION, OFF] })
+    : stub(route)));
+
+  await page.goto(`${served.origin}/administration/people`);
+  const column = page.getByRole('navigation', { name: 'Administration' });
+  await column.getByText('1 switched off').waitFor({ timeout: 10_000 });
+  assert.equal(await column.getByRole('treeitem', { name: /Webhooks.*1 switched off/ }).count(), 1, 'the figure is not heard with the row');
+  assert.deepEqual(failures, []);
+});

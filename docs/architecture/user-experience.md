@@ -806,8 +806,10 @@ AI provider, machines and apps, and a person's own calendar feed and tokens — 
   fold (UX-4).
 * **Empty** says what the connection is for and offers the add (§5.5).
 
-As built: the webhooks (`WebhooksView`). Not built: mail, voice, AI, machines and apps and the
-calendar pushes still open as before; a failed connection is not yet counted in the column.
+As built: the webhooks (`WebhooksView`), and the column's *Webhooks* row counts those switched off
+after failures (*1 switched off*) on every screen of the administration. Not built: mail, voice,
+AI, machines and apps and the calendar pushes still open as before, and their failures are not yet
+counted in the column.
 
 ### 7.11 Imports
 

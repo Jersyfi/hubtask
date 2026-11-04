@@ -6230,6 +6230,7 @@
   "app.webhooks.figure_active": "{count} delivering",
   "app.webhooks.figure_paused": "{count} paused",
   "app.webhooks.figure_disabled": "{count} switched off after failures",
+  "app.webhooks.column_disabled": "{count} switched off",
   "app.webhooks.empty_title": "No service is told anything yet",
   "app.webhooks.empty_body": "A webhook tells your own server or a chat room what happens here, as it happens.",
   "app.webhooks.group_choose": "Choose one by one",

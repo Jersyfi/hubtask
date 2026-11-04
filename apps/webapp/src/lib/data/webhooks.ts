@@ -116,3 +116,16 @@ export function webhookFigure(list: readonly { readonly state: string }[]): { ac
     disabled: list.filter((each) => each.state === 'DISABLED').length,
   };
 }
+
+/**
+ * The administration column's figure on *Webhooks* (user-experience.md §7.10): the connections
+ * switched off after failures, so an administrator sees one is down before opening the screen.
+ * Nothing while every one delivers or is paused - a pause is somebody's choice, not a failure.
+ */
+export function webhookColumnFigure(
+  list: readonly { readonly state: string }[],
+  t: (code: string, params?: Record<string, string>) => string,
+): string | undefined {
+  const { disabled } = webhookFigure(list);
+  return disabled > 0 ? t('app.webhooks.column_disabled', { count: String(disabled) }) : undefined;
+}
