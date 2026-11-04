@@ -155,9 +155,12 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	}
 	// Only the chosen rows are read whole; the choosing reads identifiers.
 	b.write(` FROM work_item wi`, retentionJoin, ` WHERE wi.id = ANY (ARRAY(`)
-	if known := knownValues(groupField); known != nil {
+	switch known := knownValues(groupField); {
+	case known != nil:
 		b.columns(search, group, known, probe)
-	} else {
+	case !customGroup && skipsThrough(search):
+		b.skipped(search, group, probe)
+	default:
 		b.numbered(search, group, customGroup, probe)
 	}
 	b.write(`))) g ORDER BY `)
@@ -213,6 +216,51 @@ func (b *builder) columns(search repository.ItemSearch, group string, known []vi
 		b.param(int64(probe))
 		b.write(`)`)
 	}
+}
+
+// skipsThrough reports whether a board's columns can be found by skipping through an index rather
+// than by numbering the scope: a board column or a status, over one collection's top entries,
+// without the trash - exactly what migration 0364's indexes hold.
+func skipsThrough(search repository.ItemSearch) bool {
+	name := search.Spec.GroupBy.Field.Name
+	return (name == view.FieldBucketID || name == view.FieldStatus) &&
+		search.Anchor.Kind == repository.AnchorCollection && !search.Anchor.IncludeDescendants &&
+		!search.Spec.IncludeTrashed
+}
+
+// skipped chooses each group's first rows one column at a time where the values are data: the
+// values the collection holds are found by a recursive skip through the column's index, one seek
+// per value, and each is an ordered page that stops at probe, as columns reads them. The entries
+// without a value are a page of their own. A value no entry the filter keeps holds is an empty
+// page, and so no group, as numbering would answer.
+func (b *builder) skipped(search repository.ItemSearch, group string, probe int) {
+	held := func() {
+		b.write(`wi.tenant_id = current_tenant_id() AND wi.collection_id = `)
+		b.uuid(search.Anchor.CollectionID)
+		b.write(` AND wi.parent_id IS NULL AND wi.deleted_at IS NULL AND `)
+	}
+	page := func() {
+		b.write(` ORDER BY `)
+		b.ordering(search.Spec.Sort, itemPrefix)
+		b.write(`, wi.id LIMIT `)
+		b.param(int64(probe))
+	}
+
+	b.write(`SELECT x.id FROM (WITH RECURSIVE v(g) AS ((SELECT `, group, ` FROM work_item wi WHERE `)
+	held()
+	b.write(group, ` IS NOT NULL ORDER BY `, group, ` LIMIT 1) UNION ALL SELECT (SELECT `, group,
+		` FROM work_item wi WHERE `)
+	held()
+	b.write(group, ` > v.g ORDER BY `, group, ` LIMIT 1) FROM v WHERE v.g IS NOT NULL) `,
+		`SELECT g FROM v WHERE g IS NOT NULL) v CROSS JOIN LATERAL (SELECT wi.id FROM work_item wi WHERE `)
+	b.predicates(search)
+	b.write(` AND `, group, ` = v.g`)
+	page()
+	b.write(`) x UNION ALL (SELECT wi.id FROM work_item wi WHERE `)
+	b.predicates(search)
+	b.write(` AND `, group, ` IS NULL`)
+	page()
+	b.write(`)`)
 }
 
 // knownValues is every value a field can hold when its type alone says so - a flag, an enum that

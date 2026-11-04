@@ -444,6 +444,53 @@ func TestAGroupWhoseTypeNamesItsValuesIsReadPerColumn(t *testing.T) {
 	}
 }
 
+// A board's column or status over one collection is read a column at a time too, though its values
+// are data: they are found by skipping through the column's index (migration 0364), so the
+// collection is never numbered whole. A scope the index does not hold is still numbered.
+func TestABoardsColumnsAreFoundBySkippingThroughTheIndex(t *testing.T) {
+	board := func(t *testing.T, field string, descendants, trashed bool) string {
+		t.Helper()
+		group, err := view.ParseGroupBy(map[string]any{"field": field}, "/group_by")
+		if err != nil {
+			t.Fatalf("the grammar refused the grouping: %v", err)
+		}
+		search := searchOf(t, nil, view.Spec{GroupBy: group, IncludeArchived: true, IncludeTrashed: trashed})
+		search.Anchor.IncludeDescendants = descendants
+		statement, err := Groups(search, 51)
+		if err != nil {
+			t.Fatalf("compilation failed: %v", err)
+		}
+		return statement.SQL
+	}
+
+	for _, field := range []string{"bucket_id", "status"} {
+		t.Run(field, func(t *testing.T) {
+			sql := board(t, field, false, false)
+			if strings.Contains(sql, "row_number()") {
+				t.Errorf("the board was numbered whole:\n  %s", sql)
+			}
+			for _, want := range []string{
+				`WITH RECURSIVE v(g) AS ((SELECT wi.` + field + ` FROM work_item wi WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid AND wi.parent_id IS NULL AND wi.deleted_at IS NULL AND wi.` + field + ` IS NOT NULL ORDER BY wi.` + field + ` LIMIT 1)`,
+				`wi.` + field + ` > v.g ORDER BY wi.` + field + ` LIMIT 1) FROM v WHERE v.g IS NOT NULL)`,
+				`CROSS JOIN LATERAL (SELECT wi.id FROM work_item wi WHERE`,
+				`AND wi.` + field + ` = v.g ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $`,
+				`AND wi.` + field + ` IS NULL ORDER BY wi.order_key COLLATE "C" ASC, wi.id LIMIT $`,
+				` ORDER BY ` + field + ` ASC NULLS LAST, order_key`,
+			} {
+				if !strings.Contains(sql, want) {
+					t.Errorf("compiled to\n  %s\nand should contain\n  %s", sql, want)
+				}
+			}
+		})
+	}
+	if sql := board(t, "bucket_id", true, false); !strings.Contains(sql, "row_number()") {
+		t.Errorf("a scope with the entries below was skipped through an index that does not hold them:\n  %s", sql)
+	}
+	if sql := board(t, "status", false, true); !strings.Contains(sql, "row_number()") {
+		t.Errorf("the trash was skipped through an index that does not hold it:\n  %s", sql)
+	}
+}
+
 func TestTheCountIsTheSameFilterWithoutThePage(t *testing.T) {
 	plain, err := Count(searchOf(t, map[string]any{
 		"field": "is_completed", "op": "EQ", "value": true,

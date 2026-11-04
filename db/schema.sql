@@ -1290,6 +1290,11 @@ ALTER TABLE work_item ADD CONSTRAINT work_item_parent_id_fkey
     FOREIGN KEY (tenant_id, parent_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, order_key)
   WHERE deleted_at IS NULL AND archived_at IS NULL;
+-- A board's columns, by column or by status, archived entries included (migration 0364).
+CREATE INDEX wi_board_bucket_idx ON work_item (tenant_id, collection_id, bucket_id, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL AND parent_id IS NULL;
+CREATE INDEX wi_board_status_idx ON work_item (tenant_id, collection_id, status, order_key COLLATE "C", id)
+  WHERE deleted_at IS NULL AND parent_id IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
 -- A collection's figure: its open rows directly under it (OPEN, FIELD_SUM), and its completions

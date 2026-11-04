@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -815,6 +816,97 @@ func TestEveryGroupableFieldAnswersItsColumnsAndCounts(t *testing.T) {
 			}
 			if counted != 4 || result.Total != 4 {
 				t.Errorf("the columns count %d and the result %d, want 4 and 4", counted, result.Total)
+			}
+		})
+	}
+}
+
+// The web app's board: one collection's top entries, archived ones included, grouped by column or
+// status, each column counted. The columns are found by skipping through migration 0364's indexes,
+// so this proves that path answers what numbering answered: every column a kept entry holds, in
+// order, the entries without a value last; nothing below an entry, nothing from the trash.
+func TestABoardOfOneCollectionAnswersEveryColumnItsTopEntriesHold(t *testing.T) {
+	ctx := context.Background()
+	f := queryFixture(ctx, t)
+	pool := adminPool(ctx, t)
+
+	// A second column with one living entry and one in the trash, and statuses on three entries:
+	// the trashed entry's status is a value no kept entry holds, so it must be no group.
+	second := seedBucket(ctx, t, tenantA, f.collection, "a1")
+	trashedKey, err := service.OrderKeyAfter(f.lastKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	livingKey, err := service.OrderKeyAfter(trashedKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trashed := taskIn(tenantA, authorA, f.collection, freshID(t), "Zeta trashed", trashedKey)
+	trashed.BucketID = second.ID
+	living := taskIn(tenantA, authorA, f.collection, freshID(t), "Eta living", livingKey)
+	living.BucketID = second.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, task := range []work.WorkItem{trashed, living} {
+			if _, err := itemRepo().Insert(ctx, task); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seeding the second column: %v", err)
+	}
+	for _, update := range []struct {
+		sql string
+		id  shared.ID
+	}{
+		{`UPDATE work_item SET deleted_at = now(), status = 'gone' WHERE tenant_id = $1 AND id = $2`, trashed.ID},
+		{`UPDATE work_item SET status = 'doing' WHERE tenant_id = $1 AND id = $2`, f.tasks[0].ID},
+		{`UPDATE work_item SET status = 'doing' WHERE tenant_id = $1 AND id = $2`, f.tasks[2].ID},
+		{`UPDATE work_item SET status = 'done' WHERE tenant_id = $1 AND id = $2`, living.ID},
+		{`UPDATE work_item SET status = 'doing' WHERE tenant_id = $1 AND id = $2`, f.child.ID},
+	} {
+		if _, err := pool.Exec(ctx, update.sql, tenantA.String(), update.id.String()); err != nil {
+			t.Fatalf("preparing the board: %v", err)
+		}
+	}
+
+	tests := map[string]struct {
+		field  string
+		keys   []string
+		titles [][]string
+	}{
+		"by column": {view.FieldBucketID, []string{f.bucket.ID.String(), second.ID.String(), ""}, [][]string{
+			{"Alpha milk", "Beta bread"}, {"Eta living"}, {"Gamma milk", "Delta cheese"},
+		}},
+		"by status": {view.FieldStatus, []string{"doing", "done", ""}, [][]string{
+			{"Alpha milk", "Gamma milk"}, {"Eta living"}, {"Beta bread", "Delta cheese"},
+		}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			group, err := view.ParseGroupBy(map[string]any{"field": test.field}, "/group_by")
+			if err != nil {
+				t.Fatalf("the grammar refused the grouping: %v", err)
+			}
+			search := searchIn(t, f.collection, nil, view.Spec{
+				GroupBy: group, Count: view.CountExact, IncludeArchived: true,
+			})
+			search.Anchor.IncludeDescendants = false
+
+			result := queried(ctx, t, tenantA, search)
+			if len(result.Groups) != len(test.keys) {
+				t.Fatalf("%d groups %v, want %v", len(result.Groups), result.Groups, test.keys)
+			}
+			for index, answered := range result.Groups {
+				if answered.Key != test.keys[index] {
+					t.Errorf("group %d is keyed %q, want %q", index, answered.Key, test.keys[index])
+				}
+				if got := titlesOf(answered.Items); !slices.Equal(got, test.titles[index]) {
+					t.Errorf("group %q holds %v, want %v", answered.Key, got, test.titles[index])
+				}
+				if answered.Total != len(test.titles[index]) {
+					t.Errorf("group %q counts %d, want %d", answered.Key, answered.Total, len(test.titles[index]))
+				}
 			}
 		})
 	}
