@@ -185,7 +185,7 @@ func NewConnector(in ConnectorInput, existing *Connector) (Connector, error) {
 	settings := map[string]string{}
 	for k, v := range in.Settings {
 		v = strings.TrimSpace(v)
-		if !keyPattern.MatchString(k) || len(v) > MaxConnectorSetting {
+		if !keyPattern.MatchString(k) || len(v) > MaxConnectorSetting || strings.ContainsRune(v, 0) {
 			return Connector{}, invalid("/settings/"+k, "cmdb.connector_setting_invalid")
 		}
 		if v != "" {
@@ -358,26 +358,29 @@ type AlertSignal struct {
 	At    *time.Time
 }
 
-// CheckSignal refuses a signal that cannot be kept and trims what may be shortened.
+// CheckSignal refuses a signal that cannot be kept and trims what may be shortened. A zero byte
+// is dropped: no text column stores one, and refusing it would make the program retry for ever.
 func CheckSignal(s AlertSignal) (AlertSignal, error) {
-	s.Key = strings.TrimSpace(s.Key)
+	s.Key = strings.TrimSpace(noZero(s.Key))
 	if s.Key == "" || len(s.Key) > MaxAlertKey {
 		return AlertSignal{}, invalid("/alerts", "cmdb.alert_key_invalid")
 	}
 	if s.Status != AlertFiring && s.Status != AlertResolved {
 		return AlertSignal{}, invalid("/alerts", "cmdb.alert_status_unknown")
 	}
-	s.Title = truncate(strings.TrimSpace(s.Title), MaxAlertTitle)
-	s.Severity = truncate(strings.ToUpper(strings.TrimSpace(s.Severity)), MaxAlertSeverity)
+	s.Title = truncate(strings.TrimSpace(noZero(s.Title)), MaxAlertTitle)
+	s.Severity = truncate(strings.ToUpper(strings.TrimSpace(noZero(s.Severity))), MaxAlertSeverity)
 	hosts := make([]string, 0, len(s.Hosts))
 	for _, h := range s.Hosts {
-		if h = strings.TrimSpace(h); h != "" && len(hosts) < MaxAlertHosts {
+		if h = strings.TrimSpace(noZero(h)); h != "" && len(hosts) < MaxAlertHosts {
 			hosts = append(hosts, h)
 		}
 	}
 	s.Hosts = hosts
 	return s, nil
 }
+
+func noZero(s string) string { return strings.ReplaceAll(s, "\x00", "") }
 
 func truncate(s string, n int) string {
 	r := []rune(s)

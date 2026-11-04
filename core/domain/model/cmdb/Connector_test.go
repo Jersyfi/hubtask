@@ -189,3 +189,25 @@ func mustRunAlert(t *testing.T, o ConnectorOutcome, code string) AlertSignal {
 	}
 	return s
 }
+
+func TestAZeroByteAMonitoringProgramSendsIsDroppedNotStored(t *testing.T) {
+	s, err := CheckSignal(AlertSignal{Key: "fp\x001", Status: AlertFiring, Severity: "crit\x00ical",
+		Title: "disk\x00 full", Hosts: []string{"web01\x00", "\x00"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Key != "fp1" || s.Severity != "CRITICAL" || s.Title != "disk full" || len(s.Hosts) != 1 || s.Hosts[0] != "web01" {
+		t.Fatalf("no text column stores a zero byte: %+v", s)
+	}
+	if _, err := CheckSignal(AlertSignal{Key: "\x00", Status: AlertFiring}); code(err) != "cmdb.alert_key_invalid" {
+		t.Fatalf("a key of zero bytes only is none: %v", err)
+	}
+}
+
+func TestASettingWithAZeroByteIsRefused(t *testing.T) {
+	_, err := NewConnector(ConnectorInput{Key: "glpi", Kind: ConnectorGLPI, Source: connectorSource(),
+		BaseURL: "https://glpi.example.org", Settings: map[string]string{"client_id": "c\x00"}, Now: now}, nil)
+	if code(err) != "cmdb.connector_setting_invalid" {
+		t.Fatalf("a setting no column stores: %v", err)
+	}
+}
