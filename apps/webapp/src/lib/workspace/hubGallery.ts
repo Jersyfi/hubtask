@@ -56,6 +56,11 @@ const FAMILY_MARK: Readonly<Partial<Record<Family, IconName>>> = {
   personal: 'user', teams: 'users', projects: 'briefcase', programmes: 'folder', service: 'inbox', processes: 'automation', registers: 'archive',
 };
 
+/** A family's mark on its card in the starter (user-experience.md §3.2). */
+export function familyMark(family: Family): IconName {
+  return FAMILY_MARK[family] ?? 'layout-template';
+}
+
 export function markOf(template: Offered): IconName {
   return (template.origin === 'HUBTASK' ? MARK_OF[template.key] : undefined) ?? FAMILY_MARK[familyOf(template)] ?? 'layout-template';
 }

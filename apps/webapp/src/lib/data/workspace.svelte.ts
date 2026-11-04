@@ -17,15 +17,23 @@
 
 import type { Container, ResourceState, WorkspaceStructure, WorkspaceStructureChange } from '@hubtask/sync-engine';
 
+import { TOUCHED } from './config.svelte.ts';
 import { engine } from './engine.ts';
 
 const PATH = '/tenant';
 
-/** The first start's set, as `StarterSet` takes it: names in the reader's language. */
+/**
+ * The first start's set, as `StarterSet` takes it: names in the reader's language. With
+ * `template` the set is built on that template, its preset left to the workspace's default.
+ */
 export interface StarterSetBody {
   readonly hub_name: string;
-  readonly hub_preset: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
+  readonly hub_preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
   readonly collections: readonly { readonly name: string; readonly preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' }[];
+  readonly template?: string;
+  readonly answers?: Readonly<Record<string, string>>;
+  readonly samples?: boolean;
+  readonly acknowledge?: boolean;
 }
 
 /** The workspace, as `Workspace` answers it. */
@@ -131,9 +139,10 @@ class WorkspaceStore {
    * than making a second set; the answer is the hub.
    */
   async applyStarter(body: StarterSetBody, idempotencyKey: string): Promise<Container> {
+    // A template's set changes the configuration too: what any apply of it changes is read anew.
     return engine.mutate<Container>('POST', `${PATH}/starter:apply`, body, {
       idempotencyKey,
-      invalidates: [PATH, '/containers'],
+      invalidates: body.template ? [...new Set([PATH, '/containers', ...TOUCHED])] : [PATH, '/containers'],
     });
   }
 

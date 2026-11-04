@@ -942,7 +942,7 @@
 
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
-<StarterDialog onstarted={(id) => onnavigate?.(`/hubs/${id}`)} />
+<StarterDialog onstarted={(path) => onnavigate?.(path)} />
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={tryingWith}
   oncreated={(id, template) => { tryingWith = undefined; onnavigate?.(afterCreating(id, template, `/hubs/${id}`)); }} />
 

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A workspace's first start (UC-WRK-30 check 5), walked on Home: whoever `GET /tenant` offers it
-// to is asked what the workspace is used for; the answer is one command that makes a hub and its
-// collections on matching presets and closes the question, retried under the same key after a
-// failure; a skip closes it and creates nothing;
+// A workspace's first start (UC-WRK-30 check 5, user-experience.md §3.2), walked on Home: whoever
+// `GET /tenant` offers it to is asked what is run here, by the catalogue's families; *Simple* holds
+// the four purposes, each one command that makes a hub and its collections on matching presets; a
+// template is one command too, with its answers and samples, after its plan in words. Each closes
+// the question, retried under the same key after a failure; a skip closes it and creates nothing;
 // where it is not offered nobody is asked. Chromium only; who is offered it is the server's tests'.
 
 import { test } from 'node:test';
@@ -23,6 +24,21 @@ test.after(() => served.close());
 
 /** This walk's own identifiers: no other fixture record uses them. */
 const STARTED_HUB = '01a0e2e0-0000-7000-8000-0000000028a1';
+
+/** A template of the catalogue with a hub part, its question and its samples. */
+const DESK = {
+  key: 'itil_service_desk', version: 11, name: 'itil_service_desk', origin: 'HUBTASK', provenance: 'itil_service_desk@11',
+  created_at: '2026-01-01T00:00:00Z', taken_version: null, update_available: false,
+  document: { modules: { workflows: { switch: 'ON' }, service_desk: { switch: 'ON' }, knowledge: { switch: 'ON' } }, types: { incident: { level: 'TASK', name: 'Incident' } } },
+  hub_document: { samples: { s1: { title: 'Printer offline' } } },
+  questions: [{ key: 'first_group', kind: 'GROUP', options: [], required: false }],
+};
+const PLAN = {
+  base_hash: 'b', plan_hash: 'p', changes: [{ op: 'ADD', section: 'types', key: 'incident', path: 'types.incident', after: { name: 'Incident' } }],
+  operations: [], refusals: [], flags: { hides_data: false, changes_permissions: false }, step_up: false, reach: [],
+  counts: { added: 1, changed: 0, removed: 0 }, template: 'itil_service_desk@11', hub_id: null, collection_id: null,
+  from_version: null, upgrade: [], document: DESK.document, mode: 'MERGE',
+};
 
 async function as(browser, offered, { failFirstApply = false } = {}) {
   const { page, failures, context } = await signedIn(browser, 1280, 900);
@@ -51,6 +67,12 @@ async function as(browser, offered, { failFirstApply = false } = {}) {
       closed = true;
       return route.fulfill({ status: 201, json: { ...HUB, id: STARTED_HUB, type: 'HUB', parent_id: null, name: body.hub_name } });
     }
+    if (path === '/config/templates' && request.method() === 'GET') {
+      return route.fulfill({ json: { data: [DESK] } });
+    }
+    if (path === '/config/templates/itil_service_desk:plan' && request.method() === 'POST') {
+      return route.fulfill({ json: PLAN });
+    }
     if (path === '/containers' && request.method() === 'POST') {
       sent.push({ path, body: request.postDataJSON() });
       return route.fulfill({ status: 500, json: {} });
@@ -71,11 +93,12 @@ test('chromium: the first start - asked once, answered by one command making a h
   await page.goto(`${served.origin}/`);
   const dialog = dialogOf(page);
   await dialog.waitFor({ timeout: 10_000 });
-  for (const name of ['For myself', 'Our household', 'My clients', 'Our team']) {
-    assert.equal(await dialog.getByRole('radio', { name }).count(), 1, `${name} is not offered`);
+  await dialog.locator('[data-starter-family="service"]').waitFor({ timeout: 10_000 });
+  await dialog.locator('[data-starter-family="simple"] button').click();
+  for (const purpose of ['MYSELF', 'HOUSEHOLD', 'CLIENTS', 'TEAM']) {
+    assert.equal(await dialog.locator(`[data-starter-purpose="${purpose}"]`).count(), 1, `${purpose} is not offered`);
   }
-  await dialog.getByRole('radio', { name: 'Our household' }).check();
-  await page.getByRole('button', { name: 'Set up' }).click();
+  await dialog.locator('[data-starter-purpose="HOUSEHOLD"] button').click();
   await page.waitForURL(`**/hubs/${STARTED_HUB}`, { timeout: 10_000 });
 
   assert.equal(sent.length, 1, `one command makes the set, not ${sent.length} writes`);
@@ -102,10 +125,10 @@ test('chromium: the first start failed once - the retry sends the same key and m
   await page.goto(`${served.origin}/`);
   const dialog = dialogOf(page);
   await dialog.waitFor({ timeout: 10_000 });
-  await dialog.getByRole('radio', { name: 'Our team' }).check();
-  await page.getByRole('button', { name: 'Set up' }).click();
+  await dialog.locator('[data-starter-family="simple"] button').click();
+  await dialog.locator('[data-starter-purpose="TEAM"] button').click();
   await dialog.getByRole('alert').waitFor({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'Set up' }).click();
+  await dialog.locator('[data-starter-purpose="TEAM"] button').click();
   await page.waitForURL(`**/hubs/${STARTED_HUB}`, { timeout: 10_000 });
 
   const applied = sent.filter((write) => write.path === '/tenant/starter:apply');
@@ -140,5 +163,32 @@ test('chromium: where the first start is not offered, nobody is asked', async (t
   await page.waitForTimeout(1200);
   assert.equal(await dialogOf(page).count() > 0 && (await dialogOf(page).isVisible()), false, 'asked where it is not offered');
   assert.deepEqual(sent, []);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the first start on a template - its family, its plan in words, then one command with the template and its samples', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, sent } = await as(browser, true);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/`);
+  const dialog = dialogOf(page);
+  await dialog.locator('[data-starter-family="service"] button').click({ timeout: 10_000 });
+  const card = dialog.locator('[data-starter-template="itil_service_desk"]');
+  assert.match(await card.innerText(), /Service desk|Pages/i, 'the card names neither the products it switches on nor itself');
+  assert.doesNotMatch(await card.innerText(), /itil_service_desk/, 'the card shows a machine key');
+  await card.locator('button').last().click();
+  await dialog.locator('[data-plan-changes] li').first().waitFor({ timeout: 10_000 });
+  assert.match(await dialog.locator('[data-plan-changes]').innerText(), /Adds the .*Incident/, 'the plan is not said in words');
+  assert.equal(await dialog.locator('input[data-template-samples]').isChecked(), true, 'sample entries are not on by default');
+  await page.locator('[data-starter-start]').click();
+  await page.waitForURL(new RegExp(STARTED_HUB), { timeout: 10_000 });
+
+  assert.deepEqual(sent.map((write) => write.path), ['/tenant/starter:apply'], 'more than the one command was written');
+  assert.equal(sent[0].body.template, 'itil_service_desk');
+  assert.equal(sent[0].body.samples, true);
+  assert.equal(sent[0].body.hub_preset, undefined, 'a template set chose a preset of its own');
+  assert.ok(sent[0].body.hub_name.length > 0);
   assert.deepEqual(failures, []);
 });
