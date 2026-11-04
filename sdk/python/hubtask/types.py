@@ -1434,6 +1434,7 @@ class ReleaseDetail(TypedDict, total=False):
 
 class SprintList(TypedDict, total=False):
     data: Required[list["Sprint"]]
+    runs_sprints: Required[bool]
 
 class Estimate(TypedDict, total=False):
     unit: Required[Literal["POINTS", "HOURS", "SIZE"]]

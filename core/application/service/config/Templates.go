@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	configrepo "github.com/Jersyfi/hubtask/core/application/repository/config"
 	"github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -579,4 +580,25 @@ func (d Desk) hubTemplate(ctx context.Context, chosen domain.Template, workspace
 		return nil, nil, err
 	}
 	return chosen.Hub, uses, nil
+}
+
+// TakenTemplates names the templates a hub or a collection took, by key, for another module that
+// reads its place's provenance inside its own unit of work. It authorises nothing: the caller has
+// asked its permission at the place.
+type TakenTemplates struct{ Store configrepo.Store }
+
+// TemplatesTaken answers the keys; a zero place names none rather than the workspace's.
+func (t TakenTemplates) TemplatesTaken(ctx context.Context, place shared.ID) ([]string, error) {
+	if place.IsZero() {
+		return nil, nil
+	}
+	uses, err := t.Store.TemplateUses(ctx, place)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(uses))
+	for _, use := range uses {
+		keys = append(keys, use.TemplateKey)
+	}
+	return keys, nil
 }

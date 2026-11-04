@@ -1168,7 +1168,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "sprint ls",
         "summary": "A collection's sprints",
-        "description": "The collection's sprints, the latest first, at most 200. Needs READ at the collection.",
+        "description": "The collection's sprints, the latest first, at most 200, and whether the collection runs sprints. Needs READ at the collection.\n",
         "parameters": [
           {
             "name": "state",
@@ -42217,7 +42217,8 @@
       "SprintList": {
         "type": "object",
         "required": [
-          "data"
+          "data",
+          "runs_sprints"
         ],
         "properties": {
           "data": {
@@ -42225,6 +42226,10 @@
             "items": {
               "$ref": "#/components/schemas/Sprint"
             }
+          },
+          "runs_sprints": {
+            "type": "boolean",
+            "description": "Whether the collection runs sprints: a sprint was planned here, in any state and whatever the state filter, or the collection or its hub took a template that works in sprints (Scrum team). A client shows its sprints only where this holds.\n"
           }
         }
       },

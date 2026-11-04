@@ -2091,6 +2091,7 @@ func run() error {
 		Plans: planningStore, Baselines: planningStore.Baselines(), Sprints: planningStore.Sprints(), Releases: planningStore.Releases(), Settings: postgres.SettingRepository{}, Items: items, Containers: containers,
 		LinkTypes: linkTypeRegistry.Types, Links: entryLinks, References: entryLinks,
 		Calendars: servicedeskservice.WithInstallation{Calendars: serviceDeskStore.Calendars(), Installation: installationCalendars},
+		Templates: configservice.TakenTemplates{Store: postgres.NewConfigRepository()},
 		Catalogue: planMoves, Authorizer: authorizer, Reader: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Changes: changes, HLC: hybrid,

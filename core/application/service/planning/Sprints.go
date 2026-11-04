@@ -5,6 +5,7 @@ package planning
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"time"
 
@@ -356,19 +357,61 @@ type ListSprints struct{ Planner Planner }
 
 // Execute lists them.
 func (h ListSprints) Execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, state domain.SprintState) ([]domain.Sprint, error) {
+	out, _, err := h.execute(ctx, actor, collectionID, state)
+	return out, err
+}
+
+// sprintTemplates are the templates that work in sprints: a collection that or whose hub took one
+// runs sprints before its first is planned (user-experience.md §2.4, "Scrum on the sprint board").
+var sprintTemplates = []string{"scrum_team"}
+
+// execute lists the sprints and says whether the collection runs sprints at all.
+func (h ListSprints) execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, state domain.SprintState) ([]domain.Sprint, bool, error) {
 	if state != "" && state != domain.SprintPlanned && state != domain.SprintActive && state != domain.SprintClosed {
-		return nil, invalid("/state", "sprints.state_unknown")
+		return nil, false, invalid("/state", "sprints.state_unknown")
 	}
-	if _, err := h.Planner.collection(ctx, actor, collectionID, service.PermissionRead, SprintReadAction, itemsRead); err != nil {
-		return nil, err
+	container, err := h.Planner.collection(ctx, actor, collectionID, service.PermissionRead, SprintReadAction, itemsRead)
+	if err != nil {
+		return nil, false, err
 	}
 	var out []domain.Sprint
-	err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	runs := false
+	err = h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		out, err = h.Planner.Sprints.List(ctx, collectionID, state, maxSprintsListed)
-		return err
+		if out, err = h.Planner.Sprints.List(ctx, collectionID, state, maxSprintsListed); err != nil {
+			return err
+		}
+		if runs = len(out) > 0; runs {
+			return nil
+		}
+		if state != "" {
+			ever, err := h.Planner.Sprints.List(ctx, collectionID, "", 1)
+			if err != nil {
+				return err
+			}
+			if runs = len(ever) > 0; runs {
+				return nil
+			}
+		}
+		if h.Planner.Templates == nil {
+			return nil
+		}
+		for _, place := range []shared.ID{collectionID, container.ParentID} {
+			if place.IsZero() {
+				continue
+			}
+			keys, err := h.Planner.Templates.TemplatesTaken(ctx, place)
+			if err != nil {
+				return err
+			}
+			if slices.ContainsFunc(keys, func(key string) bool { return slices.Contains(sprintTemplates, key) }) {
+				runs = true
+				return nil
+			}
+		}
+		return nil
 	})
-	return out, err
+	return out, runs, err
 }
 
 // Descriptor is the catalogue entry.
@@ -388,7 +431,7 @@ func (h ListSprints) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			sprints, err := h.Execute(ctx, actor, collection, domain.SprintState(in.String("state")))
+			sprints, runs, err := h.execute(ctx, actor, collection, domain.SprintState(in.String("state")))
 			if err != nil {
 				return nil, err
 			}
@@ -396,7 +439,7 @@ func (h ListSprints) Descriptor() usecase.Descriptor {
 			for _, s := range sprints {
 				data = append(data, SprintOutput(s))
 			}
-			return usecase.Output{"data": data}, nil
+			return usecase.Output{"data": data, "runs_sprints": runs}, nil
 		}),
 	}, sprintTarget)
 }

@@ -89,6 +89,12 @@ type Catalogue interface {
 }
 
 // Planner is what every planning use case shares.
+// TemplatesTaken names the templates a hub or a collection took (configuration.md §6), read inside
+// the caller's unit of work.
+type TemplatesTaken interface {
+	TemplatesTaken(ctx context.Context, place shared.ID) ([]string, error)
+}
+
 type Planner struct {
 	Plans     planrepo.Plans
 	Baselines planrepo.Baselines
@@ -106,7 +112,10 @@ type Planner struct {
 	References workrepo.References
 	// Calendars names the business calendars a plan may be counted on (UC-SVC-01); nil counts
 	// Monday to Friday.
-	Calendars  deskrepo.Calendars
+	Calendars deskrepo.Calendars
+	// Templates names the templates a place took, so a collection of a Scrum hub runs sprints
+	// before its first one; nil names none, and only a planned sprint says so.
+	Templates  TemplatesTaken
 	Catalogue  Catalogue
 	Authorizer Authorizer
 	Reader     Reader

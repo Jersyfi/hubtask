@@ -23275,6 +23275,9 @@ type SprintEntryOutcome string
 // SprintList defines model for SprintList.
 type SprintList struct {
 	Data []Sprint `json:"data"`
+
+	// RunsSprints Whether the collection runs sprints: a sprint was planned here, in any state and whatever the state filter, or the collection or its hub took a template that works in sprints (Scrum team). A client shows its sprints only where this holds.
+	RunsSprints bool `json:"runs_sprints"`
 }
 
 // StartPasswordIssued defines model for StartPasswordIssued.
@@ -34181,7 +34184,7 @@ type ClientInterface interface {
 
 	// ListSprints A collection's sprints
 	//
-	// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+	// The collection's sprints, the latest first, at most 200, and whether the collection runs sprints. Needs READ at the collection.
 	//
 	// Corresponds with GET /collections/{collectionId}/sprints (the `ListSprints` operationId).
 	ListSprints(ctx context.Context, collectionId SprintCollectionId, params *ListSprintsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -48996,7 +48999,7 @@ func (c *Client) ReadSprintBacklog(ctx context.Context, collectionId SprintColle
 
 // ListSprints A collection's sprints
 //
-// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+// The collection's sprints, the latest first, at most 200, and whether the collection runs sprints. Needs READ at the collection.
 //
 // Corresponds with GET /collections/{collectionId}/sprints (the `ListSprints` operationId).
 func (c *Client) ListSprints(ctx context.Context, collectionId SprintCollectionId, params *ListSprintsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -107558,7 +107561,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListSprintsWithResponse A collection's sprints
 	//
-	// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+	// The collection's sprints, the latest first, at most 200, and whether the collection runs sprints. Needs READ at the collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -161986,7 +161989,7 @@ func (c *ClientWithResponses) ReadSprintBacklogWithResponse(ctx context.Context,
 
 // ListSprintsWithResponse A collection's sprints
 //
-// The collection's sprints, the latest first, at most 200. Needs READ at the collection.
+// The collection's sprints, the latest first, at most 200, and whether the collection runs sprints. Needs READ at the collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //

@@ -369,3 +369,49 @@ func TestTheBacklogListsTopLevelEntries(t *testing.T) {
 		t.Errorf("backlog = %v, want the build without its work package", ids)
 	}
 }
+
+// taken names the templates each place took.
+type taken map[shared.ID][]string
+
+func (t taken) TemplatesTaken(_ context.Context, place shared.ID) ([]string, error) {
+	return t[place], nil
+}
+
+// user-experience.md §2.4: a collection runs sprints where a sprint was planned there - whatever the
+// state asked for - or where it or its hub took the Scrum team; a Kanban hub's collection does not.
+func TestACollectionRunsSprintsWhereOneWasPlannedOrItsTemplateBringsThem(t *testing.T) {
+	f, _ := sprintFixture()
+	ctx := context.Background()
+	runs := func(state string) any {
+		t.Helper()
+		in := usecase.Input{"collection_id": collection.String()}
+		if state != "" {
+			in["state"] = state
+		}
+		out, err := ListSprints{Planner: f.planner}.Descriptor().Handler.Invoke(ctx, actor(), in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out["runs_sprints"]
+	}
+	if got := runs(""); got != false {
+		t.Errorf("a collection without sprints or template runs sprints: %v", got)
+	}
+	f.planner.Templates = taken{hubID: {"kanban_team"}}
+	if got := runs(""); got != false {
+		t.Errorf("a Kanban hub's collection runs sprints: %v", got)
+	}
+	f.planner.Templates = taken{hubID: {"kanban_team", "scrum_team"}}
+	if got := runs(""); got != true {
+		t.Errorf("a Scrum hub's collection does not run sprints: %v", got)
+	}
+	f.planner.Templates = taken{collection: {"scrum_team"}}
+	if got := runs(""); got != true {
+		t.Errorf("a collection that took the Scrum team does not run sprints: %v", got)
+	}
+	f.planner.Templates = nil
+	planSprint(t, f, "Sprint 1", "2026-11-02")
+	if got := runs("CLOSED"); got != true {
+		t.Errorf("a collection with a planned sprint does not run sprints when closed ones are asked: %v", got)
+	}
+}

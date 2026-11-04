@@ -23269,6 +23269,9 @@ type SprintEntryOutcome string
 // SprintList defines model for SprintList.
 type SprintList struct {
 	Data []Sprint `json:"data"`
+
+	// RunsSprints Whether the collection runs sprints: a sprint was planned here, in any state and whatever the state filter, or the collection or its hub took a template that works in sprints (Scrum team). A client shows its sprints only where this holds.
+	RunsSprints bool `json:"runs_sprints"`
 }
 
 // StartPasswordIssued defines model for StartPasswordIssued.
