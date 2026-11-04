@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { draftOf, draftRows, draftWords, publishStep } from './configdrafts.ts';
+import { draftOf, draftRows, draftWords, publishStep, removalDocument, removedBlock } from './configdrafts.ts';
 
 const draft = (section: 'types' | 'roles', key: string) => ({ section, key, block: {}, saved_by: 'a', saved_at: '2026-10-31T09:00:00Z', version: 1 });
 
@@ -45,4 +45,15 @@ test('a draft reads as the draft of its section, by its name or else its key', (
   assert.deepEqual(draftWords({ path: 'sla_policies.gold', href: '/x' }),
     { code: 'app.changes.draft_of', section: 'app.templates.section_sla_policies', key: 'gold' });
   assert.equal(draftWords({ path: 'something_new.x', href: '/x' }).section, 'app.templates.section_other');
+});
+
+test('a role is deleted by planning its removal, and Undo plans back the block the plan took', () => {
+  assert.deepEqual(removalDocument('roles', 'auditor'), { roles: { auditor: null } });
+  const before = { name: 'Auditor', permissions: ['READ'] };
+  const plan = { changes: [
+    { path: 'roles.other', section: 'roles', key: 'other', op: 'REMOVE', fields: [], before: { name: 'Other' }, after: null },
+    { path: 'roles.auditor', section: 'roles', key: 'auditor', op: 'REMOVE', fields: [], before, after: null },
+  ] };
+  assert.deepEqual(removedBlock(plan as never, 'roles', 'auditor'), before);
+  assert.equal(removedBlock({ changes: [{ ...plan.changes[1], op: 'CHANGE' }] } as never, 'roles', 'auditor'), undefined);
 });

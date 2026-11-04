@@ -63,3 +63,19 @@ export function draftWords(row: DraftRow): { code: string; section: string; key:
   const key = dot < 0 ? '' : row.path.slice(dot + 1);
   return { code: 'app.changes.draft_of', section: sectionWord(section), key: row.name ?? key };
 }
+
+/** The document that removes one block: a null block removes it (user-experience.md §5.9). */
+export function removalDocument(section: string, key: string): Record<string, Record<string, null>> {
+  return { [section]: { [key]: null } };
+}
+
+/**
+ * The block a removal plan takes away, as the plan's change states it before: what *Undo* plans
+ * back. Undefined where the plan removes nothing of that block.
+ */
+export function removedBlock(
+  plan: Pick<ConfigPlan, 'changes'>, section: string, key: string,
+): Record<string, unknown> | undefined {
+  const change = plan.changes.find((each) => each.op === 'REMOVE' && each.section === section && each.key === key);
+  return change?.before ?? undefined;
+}

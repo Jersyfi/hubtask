@@ -9,7 +9,8 @@
   // is shown ticked and locked, with its reason, and kept on save: the server refuses removing it
   // as it refuses adding it.
   //
-  // **Deleting a role takes its grants with it.** Said before the button, as on the groups tab.
+  // **Deleting a role goes through the configuration's plan** (user-experience.md §5.9): its reach
+  // and refusals are shown before the button, and *Undo* plans it back.
 
   import { tick, untrack } from 'svelte';
 
@@ -33,6 +34,7 @@
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import SectionFindings from '../lib/settings/SectionFindings.svelte';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
+  import BlockRemoval from '../lib/settings/BlockRemoval.svelte';
 
   const TENANT = { scopeType: 'TENANT' } as const;
   // Who holds each shipped role at the workspace, once every page of its memberships is read.
@@ -285,14 +287,9 @@
                       <Button tone="subtle" onclick={() => (grantingRole = undefined)}>{t('app.roles.cancel')}</Button>
                     </div>
                   {:else if removing === role.key}
-                    <Banner tone="warning">{t('app.roles.delete_cost')}</Banner>
-                    <div class="row">
-                      <Button tone="danger" isBusy={isWriting} busyLabel={t('app.roles.working')}
-                        onclick={() => void attempt(() => roles.remove(role.key), t('app.roles.removed_announced')).then(() => (removing = undefined))}>
-                        {t('app.roles.delete_now')}
-                      </Button>
-                      <Button tone="subtle" onclick={() => (removing = undefined)}>{t('app.roles.keep')}</Button>
-                    </div>
+                    <p class="quiet small">{t('app.roles.delete_cost')}</p>
+                    <BlockRemoval section="roles" key={role.key} removed={t('app.roles.removed_announced')}
+                      confirm={t('app.roles.delete_now')} keep={t('app.roles.keep')} onDone={() => (removing = undefined)} />
                   {:else}
                     <div class="row">
                       <Button size="sm" onclick={() => (grantingRole = role.key)}>{t('app.roles.give')}</Button>

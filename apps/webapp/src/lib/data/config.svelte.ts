@@ -196,6 +196,18 @@ class Config {
     }, { idempotencyKey: INTENT, invalidates: TOUCHED });
   }
 
+  /** The plan of a document merged into the one in force: a removal (a null block) or its undoing. */
+  async planDocument(document: Record<string, Record<string, unknown>>): Promise<ConfigPlan> {
+    return engine.mutate<ConfigPlan>('POST', '/config:plan', { document });
+  }
+
+  /** Applies a document by the plan made of it; refused where the configuration changed since. */
+  async applyDocument(document: Record<string, Record<string, unknown>>, plan: ConfigPlan, acknowledge: boolean): Promise<ConfigApplyResult> {
+    return engine.mutate<ConfigApplyResult>('POST', '/config:apply', {
+      document, plan_hash: plan.plan_hash, base_hash: plan.base_hash, acknowledge,
+    }, { idempotencyKey: INTENT, invalidates: TOUCHED });
+  }
+
   /** Sets what an agent's apply does in the workspace (D-16); a person's decision, never an agent's. */
   async setAgentApply(agentApply: 'ALLOWED' | 'APPROVAL' | 'NEVER'): Promise<{ agent_apply: string }> {
     return engine.mutate<{ agent_apply: string }>('PUT', '/config/policy', { agent_apply: agentApply }, {

@@ -62,10 +62,6 @@ class Roles {
     });
   }
 
-  async remove(key: string): Promise<void> {
-    await engine.mutate<void>('DELETE', `${PATH}/${encodeURIComponent(key)}`, undefined, { invalidates: TOUCHES });
-  }
-
   grant(body: CustomRoleGrantCreate): Promise<CustomRoleGrant> {
     return engine.mutate<CustomRoleGrant>('POST', GRANTS, body, {
       idempotencyKey: INTENT, invalidates: TOUCHES,
