@@ -361,7 +361,9 @@
       // it in words at the end of the row, so the choice does not cost the fact.
       icon: hub.private && !chosenSymbol(hub) ? ('lock' as const) : markOf(hub),
       colorToken: hub.color_token ?? undefined,
-      meta: hub.private && chosenSymbol(hub) ? t('app.nav.private') : undefined,
+      meta: hub.private && chosenSymbol(hub)
+        ? t('app.nav.private')
+        : live.isOnlineOnly(hub.id) ? t('app.nav.online_only') : undefined,
       isMovable: mayRankIn(hub.id),
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it

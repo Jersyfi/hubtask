@@ -44,6 +44,8 @@ function browserName(): string {
 export const platform: Platform = {
   target: 'browser',
 
+  replicaEntries: 100_000,
+
   // Answering `undefined` rather than an empty string is the difference between "no credential"
   // and "a credential that is empty", and only one of those is ever true.
   bearer: () => store.read(),

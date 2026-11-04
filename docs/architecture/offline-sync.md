@@ -28,10 +28,20 @@ conflicts nobody can resolve.
 ([README](../../packages/sync-engine/README.md#the-replica)):
 
 * The **browser** holds a replica in IndexedDB as a best-effort cache with no encryption of its own,
-  deleted whole at sign-out, never the offline promise. It sends no scope: its replica is everything
-  the caller may read.
-* The **shells** hold the same replica in SQLite under the platform keystore; the promise lives
-  there.
+  deleted whole at sign-out, never the offline promise. It sends no scope - its replica is everything
+  the caller may read - until that passes 100 000 entries (decided 2026-11-01): the walk then stops,
+  and the copy holds the hubs this device opened in the last thirty days (a hub, or a collection in
+  it, from the device's recents), most recent first, asked for as scopes (§3.1) on every snapshot
+  and pull. A narrowed walk still past the bound holds the first half of those hubs, down to one,
+  which is held whole; the stream's records outside the held hubs are not written to the copy and
+  still make their reads stale. The rest is read online: a hub the copy leaves to the server says
+  *Online only* in the navigation, and its lists are not answered from the copy while the server is
+  away (`sync.needs_connection`). Each start asks the recents again and takes a narrowed copy afresh
+  where they changed (`packages/sync-engine` `ReplicaBound`, `renarrow`). There is no pinned hub
+  yet, so a hub is held for having been opened, and a workspace that shrinks below the bound stays
+  narrowed until the store is deleted.
+* The **shells** hold the same replica in SQLite under the platform keystore, whole at every size;
+  the promise lives there.
 
 **How the browser reads.** From the server while the server answers; the replica answers only a
 read that failed to reach the server (a network failure, not a status), marked as of its last

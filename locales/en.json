@@ -2427,6 +2427,7 @@
   "app.nav.open_branch": "Show what is in {name}",
   "app.nav.close_branch": "Hide what is in {name}",
   "app.nav.hubs": "Hubs",
+  "app.nav.online_only": "Online only",
   "app.nav.private": "Private",
   "app.nav.new_mark": "new",
   "app.nav.today_waiting": "{count} waiting",

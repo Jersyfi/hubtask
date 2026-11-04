@@ -12,13 +12,15 @@
  * back, and a copy taken once is a copy that keeps working after a sign-out.
  * `lib/session.svelte.ts` is what puts a pair there and takes it away again.
  */
-import { FetchTransport, SyncEngine, TransportError, type MutateOptions } from '@hubtask/sync-engine';
+import { FetchTransport, SyncEngine, TransportError, collectionOf, type MutateOptions } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { currentEntry } from '../frame/chunkfailure.ts';
 import { noteServerBuild } from '../frame/release.ts';
 import { Intents } from './intent.ts';
 import { mutationFor, storeFor } from './replica.ts';
+import { offlineHubs } from './offlinehubs.ts';
+import { keyFor, parse } from '../recents.ts';
 
 /** How long the exchange may take. Short: nothing on screen can proceed until it answers. */
 const REFRESH_TIMEOUT_MS = 15_000;
@@ -164,6 +166,22 @@ class IntentEngine extends SyncEngine {
   }
 }
 
+/** Whose copy the engine holds: the hubs it narrows to are that account's recents. */
+let offlineAccount: string | undefined;
+export function holdOfflineAccount(accountId: string | undefined): void {
+  offlineAccount = accountId;
+}
+
+/** The device's recents of one account, read where they are kept (`recents.svelte.ts`). */
+function recentsOf(accountId: string | undefined) {
+  if (!accountId) return [];
+  try {
+    return parse(globalThis.localStorage?.getItem(keyFor(accountId)) ?? null);
+  } catch {
+    return [];
+  }
+}
+
 export const engine = new IntentEngine({
   transport,
   token: () => platform.bearer(),
@@ -172,6 +190,15 @@ export const engine = new IntentEngine({
   // What the replica answers while the server cannot be reached: this application's
   // paths, mapped in `replica.ts` the way `live.ts` maps a record - the engine learns neither.
   storeFor,
+  // A workspace too large for the browser's copy holds the hubs this device opened lately and
+  // reads the rest from the server (offline-sync.md §1); a shell's copy stays whole.
+  ...(platform.replicaEntries === undefined ? {} : {
+    bound: {
+      records: platform.replicaEntries,
+      counts: (record) => collectionOf(record.entity) === 'items' && record.op === 'UPSERT',
+      containers: async () => offlineHubs(recentsOf(offlineAccount), Date.now()),
+    },
+  }),
   // What a write becomes when it has to be queued: the seven mutation kinds, mapped from
   // this application's writes in the same file.
   mutationFor,

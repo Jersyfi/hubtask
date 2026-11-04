@@ -124,6 +124,13 @@ export interface Platform {
   storageFor(accountId: string): Storage | undefined;
 
   /**
+   * How many entries this runtime's copy holds before it holds only the hubs somebody opened
+   * lately (offline-sync.md §1), or nothing where the copy is always whole: the browser's is a
+   * best-effort cache bounded by the tab's memory, a shell's carries the offline promise.
+   */
+  readonly replicaEntries: number | undefined;
+
+  /**
    * Which account the held pair belongs to, remembered once `/accounts/me` has said and gone with
    * the pair. What a tab that reloads while the server cannot be reached opens its replica by.
    */
