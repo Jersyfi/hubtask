@@ -677,6 +677,29 @@ status is still its key where the workflow named it: the portal answers no statu
 * **The default view comes from the template** per collection kind: Kanban opens on the board, a
   classic project on its plan, a desk on its queue, Scrum on the sprint board.
 
+As built: the plan's head says when it ends, how many entries are on the critical chain and how
+many have no dates (*Ends 4 Jan 2027 · 10 on the critical chain · 2 without dates*), and
+*Within tolerance* where a kept tolerance holds; *Keep as baseline* is its one act while it has
+dated entries, and its menu holds *Plan settings* - the time tolerance and the baselines, each
+deleted from there behind *Undo*, the deletion sent once the message leaves without it (the
+dialog closes so the message is reachable; a closed tab keeps the baseline) - and the exports.
+The proposals, conflicts and an exceeded tolerance are banners above the chart. The chart opens on
+the whole plan at the finest scale that holds it, starting on that scale's line, with *Fit plan*
+beside *Today* and the arrows; the title column has a grip with four token steps. A critical bar
+is hatched in the surface's colour (held at 3:1 by the contrast test) and *critical* is in its
+row's name; the row under the pointer or the focus draws and says its dependencies more strongly
+and is described by them. A due date alone is a milestone that a drag moves without inventing a
+start; the entries with no dates are in the tray with *Give it dates*, which opens the entry. A
+plan with nothing in it says so and offers its place's list. A lag error stands at its field.
+The schedule answers `undated` and `due_only` for this, additively. The sprint is a board of
+*Backlog · To do · Done*: a card's estimate is a chip with its label hidden, kept by Enter or by
+leaving it and refused at the chip; a card moves by its arrow, or carried by a mouse onto the
+other lane; the head says the days left and how much of the scope is done beside a small
+burndown, whose table is folded under the board. The backlog lists the collection's top-level
+entries. Not built: *In progress* as its own lane (a sprint entry answers done or not, no status
+category), a finger carrying a card (it scrolls; the arrow is its way), and the milestone sentence
+*All done on … · n open since* (the milestone answers no count of entries added since).
+
 ### 7.6 Time
 
 *My week* first: the days as columns, the running timer in the head, *Record time* as the
