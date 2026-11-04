@@ -7,13 +7,14 @@
  * use - a board's title, a hub's or a collection's name.
  */
 
-export const SEARCH_KINDS = ['all', 'entries', 'pages', 'boards', 'places'] as const;
+export const SEARCH_KINDS = ['all', 'entries', 'pages', 'boards', 'goals', 'assets', 'places'] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
 /** The kinds offered: entries and places always, the others where their module is on. */
 export function kindsOffered(modulesOn: readonly string[] | undefined): SearchKind[] {
   const on = (module: string) => modulesOn?.includes(module) ?? false;
-  return SEARCH_KINDS.filter((kind) => (kind === 'pages' ? on('KNOWLEDGE') : kind === 'boards' ? on('WHITEBOARD') : true));
+  const MODULE_OF: Partial<Record<SearchKind, string>> = { pages: 'KNOWLEDGE', boards: 'WHITEBOARD', goals: 'GOALS', assets: 'ASSETS' };
+  return SEARCH_KINDS.filter((kind) => { const module = MODULE_OF[kind]; return module === undefined || on(module); });
 }
 
 /** Whether a kind's results are drawn under the kind chosen. */

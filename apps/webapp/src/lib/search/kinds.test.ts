@@ -11,6 +11,8 @@ test('the kinds offered follow the modules switched on', () => {
   assert.deepEqual(kindsOffered([]), ['all', 'entries', 'places']);
   assert.deepEqual(kindsOffered(['KNOWLEDGE', 'WHITEBOARD']), ['all', 'entries', 'pages', 'boards', 'places']);
   assert.deepEqual(kindsOffered(undefined), ['all', 'entries', 'places']);
+  // Goals and configuration items were not searched at all: "FortiGate" found nothing.
+  assert.deepEqual(kindsOffered(['GOALS', 'ASSETS']), ['all', 'entries', 'goals', 'assets', 'places']);
 });
 
 test('all shows every kind, a kind only itself', () => {

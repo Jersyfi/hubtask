@@ -5735,6 +5735,8 @@
   "app.search.kind.entries": "Entries",
   "app.search.kind.pages": "Pages",
   "app.search.kind.boards": "Boards",
+  "app.search.kind.goals": "Goals",
+  "app.search.kind.assets": "Assets",
   "app.search.kind.places": "Hubs and collections",
   "app.search.kind_none": "Nothing of this kind matches those words.",
   "app.search.start": "Type to search everything you can see.",

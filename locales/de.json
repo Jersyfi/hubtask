@@ -5735,6 +5735,8 @@
   "app.search.kind.entries": "Einträge",
   "app.search.kind.pages": "Seiten",
   "app.search.kind.boards": "Whiteboards",
+  "app.search.kind.goals": "Ziele",
+  "app.search.kind.assets": "Inventar",
   "app.search.kind.places": "Hubs und Sammlungen",
   "app.search.kind_none": "Nichts dieser Art passt auf diese Wörter.",
   "app.search.start": "Tippe, um alles zu durchsuchen, was du sehen kannst.",

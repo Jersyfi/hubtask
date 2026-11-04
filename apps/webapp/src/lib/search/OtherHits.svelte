@@ -3,17 +3,19 @@
 <script lang="ts">
   // The search's other kinds below its entries (user-experience.md §5.3): pages through the pages'
   // own search over every space the reader may read, boards by their title from each hub's list,
-  // and hubs and collections by name from what the tree holds - each with one `ListRow` anatomy,
+  // goals by their title from the goals the reader may read, configuration items by their name
+  // from each hub's inventory (its first page), and hubs and collections by name from what the tree holds - each with one `ListRow` anatomy,
   // each only where its module is on. Every read is the reader's own, so what they may not read is
   // not found.
   import { untrack } from 'svelte';
   import { Icon, ListRow, Stack } from '@hubtask/design-system/components';
-  import type { PageHitList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { ConfigurationItemList, GoalList, PageHitList, WhiteboardList } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { pages } from '../data/pages.svelte.ts';
   import { boardsPath } from '../data/whiteboards.svelte.ts';
+  import { cisPath, matchingCis } from '../data/cmdb.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { markOf } from '../workspace/look.ts';
   import { nameMatches, shows, type SearchKind } from './kinds.ts';
@@ -72,13 +74,37 @@
     wantsBoards ? Object.values(boardsAt).flat().filter((board) => nameMatches(board.title, asked)).slice(0, SHOWN) : [],
   );
 
+  const wantsGoals = $derived(asked !== '' && shows(kind, 'goals') && isOn('GOALS'));
+  let goals = $state<GoalList['data']>([]);
+  $effect(() => {
+    if (!wantsGoals) return;
+    return untrack(() => engine.subscribe<GoalList>({ path: '/goals' }, (next) => { if (next.status === 'ready') goals = next.data.data; }));
+  });
+  const goalHits = $derived(wantsGoals ? goals.filter((goal) => nameMatches(goal.title, asked)).slice(0, SHOWN) : []);
+
+  const wantsCis = $derived(asked !== '' && shows(kind, 'assets') && isOn('ASSETS'));
+  const ciHubKey = $derived(wantsCis ? containers.hubs.map((hub) => hub.id).join(',') : '');
+  let cisAt = $state<Record<string, ConfigurationItemList['data']>>({});
+  $effect(() => {
+    const ids = ciHubKey === '' ? [] : ciHubKey.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) =>
+        engine.subscribe<ConfigurationItemList>({ path: cisPath(hubId) }, (next) => {
+          if (next.status === 'ready') cisAt = { ...cisAt, [hubId]: next.data.data };
+        }),
+      );
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const ciHits = $derived(wantsCis ? matchingCis(Object.values(cisAt).flat(), asked, SHOWN) : []);
+
   const placeHits = $derived(
     asked !== '' && shows(kind, 'places')
       ? [...containers.hubs, ...containers.loadedCollections].filter((place) => nameMatches(place.name, asked)).slice(0, SHOWN)
       : [],
   );
 
-  $effect(() => oncount(pageHits.length + boardHits.length + placeHits.length));
+  $effect(() => oncount(pageHits.length + boardHits.length + goalHits.length + ciHits.length + placeHits.length));
 
   const hubName = (id: string) => containers.find(id)?.name ?? '';
   const go = (path: string) => onnavigate?.(path);
@@ -112,6 +138,16 @@
 {#if boardHits.length > 0}
   {@render section('search-boards', t('app.search.kind.boards'), boardHits.map((board) => ({
     id: board.id, title: board.title, href: `/whiteboards/${board.id}`, icon: 'layout-template', meta: hubName(board.hub_id),
+  })))}
+{/if}
+{#if goalHits.length > 0}
+  {@render section('search-goals', t('app.search.kind.goals'), goalHits.map((goal) => ({
+    id: goal.id, title: goal.title, href: `/goals/${goal.id}`, icon: 'flag', meta: goal.hub_id ? hubName(goal.hub_id) : '',
+  })))}
+{/if}
+{#if ciHits.length > 0}
+  {@render section('search-assets', t('app.search.kind.assets'), ciHits.map((ci) => ({
+    id: ci.id, title: ci.name, href: `/cis/${ci.id}`, icon: 'shield', meta: hubName(ci.hub_id),
   })))}
 {/if}
 {#if placeHits.length > 0}
