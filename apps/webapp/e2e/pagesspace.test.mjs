@@ -69,6 +69,28 @@ async function opened(browser, rows, width = 1280) {
   return { page, failures, written, close: () => context.close() };
 }
 
+// An empty space also offers to bring a wiki in: the import opens on the sources that land pages,
+// and *Every source* widens them (user-experience.md §7.11).
+test('an empty space offers a wiki import that opens on the wikis and documents', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, []);
+    await page.goto(`${served.origin}/hubs/${HUB.id}/pages`);
+    const start = page.locator('[data-space-start]');
+    await start.getByText("Start this hub's pages").waitFor({ timeout: 15_000 });
+    await start.locator('[data-space-import]').getByRole('button', { name: 'Choose a source' }).click();
+    const panel = page.getByRole('dialog', { name: 'Capture' }).getByRole('tabpanel');
+    await panel.getByText('Wikis and documents').first().waitFor({ timeout: 10_000 });
+    assert.equal(await panel.getByText('Spreadsheets', { exact: true }).count(), 0, 'a source that lands no pages is offered first');
+    await panel.getByRole('button', { name: 'Every source' }).click();
+    await panel.getByText('Spreadsheets', { exact: true }).first().waitFor({ timeout: 5_000 });
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
 test('an empty space offers its templates and starts one in a single press', async () => {
   const browser = await chromium.launch();
   try {

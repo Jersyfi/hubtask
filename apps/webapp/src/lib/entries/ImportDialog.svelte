@@ -21,6 +21,9 @@
   // what the dialog shows; the manifest declares no import capability and nothing is hidden here.
   //
   // **Each step is announced**: the heading changes and the announcer says it.
+  //
+  // **A product's door names where from** (`from`): one source opens on its file, *Back* still
+  // offering every source; a family shows only its sources until *Every source* widens it.
 
   import {
     Button,
@@ -56,6 +59,7 @@
     prefill,
     type CsvField,
     type ImportKind,
+    type SourceFamily,
   } from '../data/imports.ts';
   import { jobs, type Watch } from '../data/jobs.svelte.ts';
   import { isTerminal } from '../data/jobs.ts';
@@ -78,15 +82,19 @@
     collection?: { readonly id: string; readonly name: string };
     /** Where a collection that landed is opened. */
     onnavigate: (path: string) => void;
+    /** The source, or the family of sources, the door that opened the import names. */
+    from?: { readonly source: ImportKind } | { readonly family: SourceFamily };
   }
 
-  let { isEmbedded = false, isOpen = $bindable(false), hubId, collection, onnavigate }: Props = $props();
+  let { isEmbedded = false, isOpen = $bindable(false), hubId, collection, onnavigate, from }: Props = $props();
 
   type Step = 'kind' | 'file' | 'check' | 'run';
   const STEPS: readonly Step[] = ['kind', 'file', 'check', 'run'];
 
   let step = $state<Step>('kind');
   let kind = $state<ImportKind>('CSV');
+  /** The family the door narrowed the sources to, until *Every source* widens them. */
+  let narrowedTo = $state<SourceFamily | undefined>(undefined);
   let chosen = $state<File | undefined>(undefined);
   let columns = $state<readonly string[]>([]);
   let mapping = $state<Record<CsvField, string>>(prefill([]));
@@ -139,7 +147,7 @@
     SOURCE_FAMILIES.map((family) => ({
       family: family.family,
       kinds: family.kinds.filter((each) => kindsFor(collection !== undefined).includes(each)),
-    })).filter((family) => family.kinds.length > 0),
+    })).filter((family) => family.kinds.length > 0 && (narrowedTo === undefined || family.family === narrowedTo)),
   );
 
   const mappingKey = $derived(kind === 'CSV' ? JSON.stringify(mappingFor(mapping) ?? {}) : '');
@@ -185,8 +193,10 @@
   $effect(() => {
     if (!isOpen) return;
     untrack(() => {
-      step = 'kind';
-      kind = 'CSV';
+      const named = from && 'source' in from && kindsFor(collection !== undefined).includes(from.source) ? from.source : undefined;
+      step = named ? 'file' : 'kind';
+      kind = named ?? 'CSV';
+      narrowedTo = from && 'family' in from ? from.family : undefined;
       chosen = undefined;
       columns = [];
       mapping = prefill([]);
@@ -422,6 +432,11 @@
           {/each}
         </TemplateGallery>
       {/each}
+      {#if narrowedTo}
+        <Inline gap="100">
+          <Button tone="subtle" size="sm" onclick={() => (narrowedTo = undefined)}>{t('app.import.every_source')}</Button>
+        </Inline>
+      {/if}
     {:else if step === 'file'}
       <UploadField
         label={t('app.import.file_of', { source: t(`app.import.kind_${kind}`) })}

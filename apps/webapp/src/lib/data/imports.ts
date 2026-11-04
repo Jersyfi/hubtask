@@ -38,6 +38,8 @@ export const SOURCE_FAMILIES = [
   { family: 'documents', kinds: ['CONFLUENCE', 'MARKDOWN', 'HTML', 'DOCX'] },
 ] as const satisfies readonly { family: string; kinds: readonly ImportKind[] }[];
 
+export type SourceFamily = (typeof SOURCE_FAMILIES)[number]['family'];
+
 const MARKS = {
   CSV: 'file-text', XLSX: 'file-text', TRELLO: 'layout-template', GOOGLE_TASKS: 'square-check',
   MICROSOFT_TODO: 'square-check', JIRA: 'flag', CONFLUENCE: 'book-open', MARKDOWN: 'file-text', HTML: 'globe', DOCX: 'file-text',

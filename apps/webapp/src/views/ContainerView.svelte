@@ -1406,6 +1406,14 @@
               </Button>
             {/if}
           {/snippet}
+          {#snippet secondary()}
+            <!-- Or the work brought in from where it is kept (user-experience.md §7.11). -->
+            {#if mayShape}
+              <Button tone="secondary" size="sm" icon="cloud-upload" disabledReason={readOnlyReason} onclick={startImport}>
+                {t('app.import.from_elsewhere')}
+              </Button>
+            {/if}
+          {/snippet}
         </EmptyState>
       {:else}
         <!-- The collections as cards with what counts in each (ux-inventory.md §E4), the way to a

@@ -946,6 +946,7 @@
         isEmbedded
         bind:isOpen={isImportOpen}
         hubId={importHub.id}
+        from={door?.importFrom}
         onnavigate={(path) => {
           capture.close();
           onnavigate?.(path);
@@ -957,6 +958,7 @@
         bind:isOpen={isImportOpen}
         hubId={collection.parent_id}
         collection={{ id: collection.id, name: collection.name }}
+        from={door?.importFrom}
         onnavigate={(path) => {
           capture.close();
           onnavigate?.(path);

@@ -23,6 +23,7 @@
     PageVersionRead,
   } from '@hubtask/sync-engine';
 
+  import { capture } from '../lib/capture/capture.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -113,6 +114,10 @@
 
   const mayWrite = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted' : false,
+  );
+  /** A wiki's or documents' import makes pages in the hub, which takes shaping it, as every import there does. */
+  const mayImport = $derived(
+    hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted' : false,
   );
 
   function toggle(id: string) {
@@ -657,6 +662,13 @@
                 <Button size="sm" tone="secondary" onclick={() => startCreate()}>{t('app.pages.new')}</Button>
               {/snippet}
             </TemplateCard>
+            {#if mayImport}
+              <TemplateCard name={t('app.pages.import')} summary={t('app.pages.import_hint')} mark="cloud-upload" data-space-import>
+                {#snippet action()}
+                  <Button size="sm" tone="secondary" onclick={() => capture.open({ hubId, mode: 'import', importFrom: { family: 'documents' } })}>{t('app.pages.import_open')}</Button>
+                {/snippet}
+              </TemplateCard>
+            {/if}
           </TemplateGallery>
         </div>
       {:else if treeState && rows.length === 0}
