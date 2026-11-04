@@ -132,10 +132,17 @@ type Request struct {
 	DecidedBy shared.ID
 	DecidedAt *time.Time
 	// Code is the refusal's message code when performing it failed.
-	Code      string
-	CreatedAt time.Time
-	Version   int
+	Code string
+	// Performing marks an approved request whose act has not answered yet; one still marked after
+	// RequestPerformWindow was interrupted between the decision and the act.
+	Performing bool
+	CreatedAt  time.Time
+	Version    int
 }
+
+// RequestPerformWindow is how long an approved act may take to answer before its request counts as
+// interrupted - far past any request's deadline, so a slow act is never mistaken for a dead one.
+const RequestPerformWindow = 15 * time.Minute
 
 // Decide answers a pending request.
 func (r Request) Decide(status RequestStatus, by shared.ID, at time.Time) (Request, error) {
@@ -143,5 +150,6 @@ func (r Request) Decide(status RequestStatus, by shared.ID, at time.Time) (Reque
 		return Request{}, shared.ErrConflict.WithDetail("agents.request_decided")
 	}
 	r.Status, r.DecidedBy, r.DecidedAt = status, by, &at
+	r.Performing = status == RequestApproved
 	return r, nil
 }

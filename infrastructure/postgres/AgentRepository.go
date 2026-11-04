@@ -500,7 +500,7 @@ func (AgentRepository) DecideRequest(ctx context.Context, r domain.Request, expe
 	}
 	n, err := queries.DecideAgentRequest(ctx, sqlc.DecideAgentRequestParams{
 		Status: string(r.Status), DecidedBy: keys[1], DecidedAt: optionalTimestamp(r.DecidedAt), Code: r.Code,
-		ID: keys[0], ExpectedVersion: boundedInt32(expected),
+		Performing: r.Performing, ID: keys[0], ExpectedVersion: boundedInt32(expected),
 	})
 	if err != nil {
 		return false, agentError(err, "deciding a held act")
@@ -519,6 +519,35 @@ func (AgentRepository) FailRequest(ctx context.Context, id shared.ID, code strin
 	}
 	_, err = queries.FailAgentRequest(ctx, sqlc.FailAgentRequestParams{Code: code, ID: key})
 	return agentError(err, "failing a held act")
+}
+
+func (AgentRepository) PerformedRequest(ctx context.Context, id shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	_, err = queries.PerformedAgentRequest(ctx, key)
+	return agentError(err, "marking a held act performed")
+}
+
+func (AgentRepository) InterruptRequest(ctx context.Context, id shared.ID, code string) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	n, err := queries.InterruptAgentRequest(ctx, sqlc.InterruptAgentRequestParams{Code: code, ID: key})
+	if err != nil {
+		return false, agentError(err, "interrupting a held act")
+	}
+	return n > 0, nil
 }
 
 func (AgentRepository) ListCases(ctx context.Context, agent shared.ID, limit int) ([]domain.Case, error) {

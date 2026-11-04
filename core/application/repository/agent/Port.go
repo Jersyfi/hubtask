@@ -67,6 +67,11 @@ type Store interface {
 	DecideRequest(ctx context.Context, r domain.Request, expected int) (bool, error)
 	// FailRequest records that an approved request could not be performed, with the refusal's code.
 	FailRequest(ctx context.Context, id shared.ID, code string) error
+	// PerformedRequest clears an approved request's performing mark once its act answered.
+	PerformedRequest(ctx context.Context, id shared.ID) error
+	// InterruptRequest records FAILED with the code an approved request still marked performing;
+	// false where it was not.
+	InterruptRequest(ctx context.Context, id shared.ID, code string) (bool, error)
 
 	ListCases(ctx context.Context, agent shared.ID, limit int) ([]domain.Case, error)
 	InsertCase(ctx context.Context, c domain.Case) error

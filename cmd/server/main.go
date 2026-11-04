@@ -5169,6 +5169,8 @@ func run() error {
 		queueport.KindAgentJob: worker.AgentJob{Runner: agentservice.Runner{
 			Desk: agentDesk, Proposer: suggestionservice.AgentProposals{Produce: produceSuggestion},
 		}},
+		// An approved held act's check after its perform window: one interrupted is recorded FAILED.
+		queueport.KindAgentRequestCheck: worker.AgentRequestCheck{Check: agentservice.RequestCheck{Desk: agentDesk}},
 		// A dashboard's digest by mail, computed as its subscriber (UC-GOL-04).
 		queueport.KindDashboardDigest: worker.DashboardDigest{Digests: goalservice.DashboardDigests{
 			Steward: steward, Accounts: accounts, Preferences: notificationPreferences,

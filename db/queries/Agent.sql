@@ -164,7 +164,7 @@ LIMIT sqlc.arg('max')::int;
 -- name: DecideAgentRequest :execrows
 UPDATE agent_request SET
   status = sqlc.arg('status'), decided_by = sqlc.arg('decided_by'), decided_at = sqlc.arg('decided_at'),
-  code = sqlc.arg('code'), version = version + 1
+  code = sqlc.arg('code'), performing = sqlc.arg('performing'), version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'PENDING'
   AND version = sqlc.arg('expected_version')::int;
 
@@ -214,8 +214,19 @@ LIMIT sqlc.arg('max')::int;
 
 -- name: FailAgentRequest :execrows
 -- An approved act that could not be performed: the refusal's code, for the person to read.
-UPDATE agent_request SET status = 'FAILED', code = sqlc.arg('code'), version = version + 1
+UPDATE agent_request SET status = 'FAILED', code = sqlc.arg('code'), performing = false, version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'APPROVED';
+
+-- name: PerformedAgentRequest :execrows
+-- An approved act that was performed: the mark the interruption check looks for is cleared.
+UPDATE agent_request SET performing = false
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'APPROVED' AND performing;
+
+-- name: InterruptAgentRequest :execrows
+-- An approved act still marked performing after its window: the process died between the decision
+-- and the act's answer, so whether it took effect is unknown - recorded FAILED, never performed again.
+UPDATE agent_request SET status = 'FAILED', code = sqlc.arg('code'), performing = false, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND status = 'APPROVED' AND performing;
 
 -- name: InsertAgentJob :exec
 INSERT INTO agent_job (id, tenant_id, agent_id, target_type, target_id, status, started_by, started_at)

@@ -11926,6 +11926,7 @@
   "agents.purpose_required": "Sag, wofür der Agent da ist.",
   "agents.purpose_too_long": "Der Zweck eines Agenten hat höchstens 2.000 Zeichen.",
   "agents.request_decided": "Über diese Handlung wurde schon entschieden.",
+  "agents.request_interrupted": "Die Handlung wurde unterbrochen, bevor sie antwortete; prüfen Sie, ob sie gewirkt hat, bevor Sie sie erneut anstoßen.",
   "agents.retired": "Dieser Agent ist stillgelegt.",
   "agents.risk_class_invalid": "Wähle die Risikoklasse des Agenten.",
   "agents.rule_invalid": "Wähle, was mit dieser Art von Handlung geschieht.",

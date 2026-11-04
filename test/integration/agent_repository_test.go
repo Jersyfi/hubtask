@@ -176,6 +176,75 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
+	// An approval interrupted before its act answered is healed in its own workspace only.
+	request.Status = agent.RequestPending
+	approved, err := request.Decide(agent.RequestApproved, authorA, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		written, err := store.DecideRequest(ctx, approved, 1)
+		if err == nil && !written {
+			t.Error("the approval was not written")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		healed, err := store.InterruptRequest(ctx, request.ID, "agents.request_interrupted")
+		if err == nil && healed {
+			t.Error("the other workspace interrupted the held act")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		healed, err := store.InterruptRequest(ctx, request.ID, "agents.request_interrupted")
+		if err == nil && !healed {
+			t.Error("the interrupted approval was not healed")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		held, err := store.FindRequest(ctx, request.ID)
+		if err == nil && (held.Status != agent.RequestFailed || held.Code != "agents.request_interrupted") {
+			t.Errorf("healed = %+v", held)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// One whose act answered is cleared and never healed.
+	performed := agent.Request{ID: freshID(t), AgentID: a.ID, UseCase: "UpdateWorkItem", Class: agent.ClassReversible,
+		Input: map[string]any{}, Status: agent.RequestPending, CreatedAt: now}
+	decided, err := performed.Decide(agent.RequestApproved, authorA, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.InsertRequest(ctx, performed); err != nil {
+			return err
+		}
+		if _, err := store.DecideRequest(ctx, decided, 1); err != nil {
+			return err
+		}
+		if err := store.PerformedRequest(ctx, performed.ID); err != nil {
+			return err
+		}
+		healed, err := store.InterruptRequest(ctx, performed.ID, "agents.request_interrupted")
+		if err == nil && healed {
+			t.Error("a performed approval was healed")
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // The walk's registry rows stay in their workspace, a held act and a run with their agent's owner

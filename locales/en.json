@@ -11926,6 +11926,7 @@
   "agents.purpose_required": "Say what the agent is for.",
   "agents.purpose_too_long": "An agent's purpose is at most 2,000 characters.",
   "agents.request_decided": "This act was already decided.",
+  "agents.request_interrupted": "The act was interrupted before it answered; check whether it took effect before asking again.",
   "agents.retired": "This agent is retired.",
   "agents.risk_class_invalid": "Choose the agent's risk class.",
   "agents.rule_invalid": "Choose what happens to this kind of act.",

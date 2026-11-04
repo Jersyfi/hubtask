@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 var (
@@ -221,9 +222,26 @@ func (s *store) DecideRequest(_ context.Context, r domain.Request, expected int)
 }
 func (s *store) FailRequest(_ context.Context, id shared.ID, code string) error {
 	r := s.requests[id]
-	r.Status, r.Code = domain.RequestFailed, code
+	r.Status, r.Code, r.Performing = domain.RequestFailed, code, false
 	s.requests[id] = r
 	return nil
+}
+func (s *store) PerformedRequest(_ context.Context, id shared.ID) error {
+	r := s.requests[id]
+	if r.Status == domain.RequestApproved {
+		r.Performing = false
+		s.requests[id] = r
+	}
+	return nil
+}
+func (s *store) InterruptRequest(_ context.Context, id shared.ID, code string) (bool, error) {
+	r := s.requests[id]
+	if r.Status != domain.RequestApproved || !r.Performing {
+		return false, nil
+	}
+	r.Status, r.Code, r.Performing = domain.RequestFailed, code, false
+	s.requests[id] = r
+	return true, nil
 }
 func (s *store) ListCases(_ context.Context, agent shared.ID, _ int) ([]domain.Case, error) {
 	out := []domain.Case{}
@@ -811,5 +829,74 @@ func TestAnEntrysProvenanceIsReadByItsReaders(t *testing.T) {
 	}
 	if _, err := list.Invoke(ctx, reader, usecase.Input{"item_id": hidden.String()}); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("an entry the reader may not read answered %v", err)
+	}
+}
+
+// dying is a catalogue whose held act never answers: the process dies inside it.
+type dying struct{ *catalogue }
+
+func (d dying) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	if name == "UpdateWorkItem" {
+		panic("the process dies between the decision and the act")
+	}
+	return d.catalogue.Invoke(ctx, name, actor, in)
+}
+
+// An approved act whose process dies before it answers is not left approved and never performed:
+// the check queued with the decision records it FAILED as interrupted; one that answered stays.
+func TestAnApprovalInterruptedBeforeItsActIsHealed(t *testing.T) {
+	f := newFixture()
+	jobs := &queued{}
+	f.desk.Queue = jobs
+	a := f.register(t, usecase.Input{"kind": "EXTERNAL"})
+	hold := func(id shared.ID) {
+		f.store.requests[id] = domain.Request{ID: id, AgentID: a.ID, UseCase: "UpdateWorkItem",
+			Class: domain.ClassReversible, Status: domain.RequestPending, CreatedAt: noon, Version: 1}
+	}
+	approve := func(desk Desk, id shared.ID) error {
+		_, err := (DecideAgentRequest{Desk: desk}).Descriptor().Handler.Invoke(context.Background(), person(ana),
+			usecase.Input{"request_id": id.String(), "approve": true})
+		return err
+	}
+
+	killed := f.desk.IDs.NewID()
+	hold(killed)
+	dead := f.desk
+	dead.Catalogue = dying{f.cat}
+	func() {
+		defer func() { _ = recover() }()
+		_ = approve(dead, killed)
+		t.Fatal("the act answered")
+	}()
+	if r := f.store.requests[killed]; r.Status != domain.RequestApproved || !r.Performing {
+		t.Fatalf("after the kill = %+v", r)
+	}
+	if len(jobs.requests) != 1 || jobs.requests[0].Kind != queue.KindAgentRequestCheck ||
+		jobs.requests[0].Payload["request_id"] != killed.String() ||
+		!jobs.requests[0].RunAt.Equal(noon.Add(domain.RequestPerformWindow)) {
+		t.Fatalf("queued = %+v", jobs.requests)
+	}
+	healed, err := (RequestCheck{Desk: f.desk}).Run(context.Background(), tenantID, killed)
+	if err != nil || !healed {
+		t.Fatalf("check = %v %v", healed, err)
+	}
+	if r := f.store.requests[killed]; r.Status != domain.RequestFailed || r.Code != OutcomeRequestInterrupted || r.Performing {
+		t.Fatalf("after the check = %+v", r)
+	}
+	calls := len(f.cat.calls)
+	if again, _ := (RequestCheck{Desk: f.desk}).Run(context.Background(), tenantID, killed); again || len(f.cat.calls) != calls {
+		t.Fatal("an interrupted act was checked again or performed")
+	}
+
+	answered := f.desk.IDs.NewID()
+	hold(answered)
+	if err := approve(f.desk, answered); err != nil {
+		t.Fatalf("approve: %v", err)
+	}
+	if healed, err := (RequestCheck{Desk: f.desk}).Run(context.Background(), tenantID, answered); err != nil || healed {
+		t.Fatalf("a performed act was marked interrupted: %v %v", healed, err)
+	}
+	if r := f.store.requests[answered]; r.Status != domain.RequestApproved || r.Performing {
+		t.Fatalf("performed = %+v", r)
 	}
 }

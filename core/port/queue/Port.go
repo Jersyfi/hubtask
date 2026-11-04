@@ -531,6 +531,12 @@ const (
 	// identifier; StartAgentJob stores the job and seeds it.
 	KindAgentJob Kind = "agents.job"
 
+	// KindAgentRequestCheck looks at one approved held act once its perform window has passed
+	// (agent.RequestPerformWindow): one still marked performing was interrupted between the
+	// decision and the act, and is recorded FAILED rather than left approved and never performed.
+	// Queued in the decision's transaction, deduplicated by the request.
+	KindAgentRequestCheck Kind = "agents.request_check"
+
 	// KindRequesterReply mails one public reply to the requesters an entry was filed for by mail
 	// (UC-SVC-12), deduplicated by the comment's identifier.
 	KindRequesterReply Kind = "servicedesk.requester_reply"

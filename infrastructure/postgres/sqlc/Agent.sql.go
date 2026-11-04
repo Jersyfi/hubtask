@@ -176,9 +176,9 @@ func (q *Queries) CountExpiredAgentRequests(ctx context.Context, arg CountExpire
 const decideAgentRequest = `-- name: DecideAgentRequest :execrows
 UPDATE agent_request SET
   status = $1, decided_by = $2, decided_at = $3,
-  code = $4, version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = $5::uuid AND status = 'PENDING'
-  AND version = $6::int
+  code = $4, performing = $5, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $6::uuid AND status = 'PENDING'
+  AND version = $7::int
 `
 
 type DecideAgentRequestParams struct {
@@ -186,6 +186,7 @@ type DecideAgentRequestParams struct {
 	DecidedBy       pgtype.UUID
 	DecidedAt       pgtype.Timestamptz
 	Code            string
+	Performing      bool
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -196,6 +197,7 @@ func (q *Queries) DecideAgentRequest(ctx context.Context, arg DecideAgentRequest
 		arg.DecidedBy,
 		arg.DecidedAt,
 		arg.Code,
+		arg.Performing,
 		arg.ID,
 		arg.ExpectedVersion,
 	)
@@ -327,7 +329,7 @@ func (q *Queries) EndAgentJob(ctx context.Context, arg EndAgentJobParams) (int64
 }
 
 const failAgentRequest = `-- name: FailAgentRequest :execrows
-UPDATE agent_request SET status = 'FAILED', code = $1, version = version + 1
+UPDATE agent_request SET status = 'FAILED', code = $1, performing = false, version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = $2::uuid AND status = 'APPROVED'
 `
 
@@ -905,6 +907,26 @@ func (q *Queries) InsertAiProvenance(ctx context.Context, arg InsertAiProvenance
 	return err
 }
 
+const interruptAgentRequest = `-- name: InterruptAgentRequest :execrows
+UPDATE agent_request SET status = 'FAILED', code = $1, performing = false, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $2::uuid AND status = 'APPROVED' AND performing
+`
+
+type InterruptAgentRequestParams struct {
+	Code string
+	ID   pgtype.UUID
+}
+
+// An approved act still marked performing after its window: the process died between the decision
+// and the act's answer, so whether it took effect is unknown - recorded FAILED, never performed again.
+func (q *Queries) InterruptAgentRequest(ctx context.Context, arg InterruptAgentRequestParams) (int64, error) {
+	result, err := q.db.Exec(ctx, interruptAgentRequest, arg.Code, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listAgentActions = `-- name: ListAgentActions :many
 SELECT id, agent_id, use_case, class, decision, code, tokens, request_id, at
 FROM agent_action
@@ -1476,6 +1498,20 @@ func (q *Queries) LockAgent(ctx context.Context, id pgtype.UUID) (LockAgentRow, 
 		&i.Version,
 	)
 	return i, err
+}
+
+const performedAgentRequest = `-- name: PerformedAgentRequest :execrows
+UPDATE agent_request SET performing = false
+WHERE tenant_id = current_tenant_id() AND id = $1::uuid AND status = 'APPROVED' AND performing
+`
+
+// An approved act that was performed: the mark the interruption check looks for is cleared.
+func (q *Queries) PerformedAgentRequest(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, performedAgentRequest, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const putAgentHalt = `-- name: PutAgentHalt :exec

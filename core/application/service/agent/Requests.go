@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -13,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // The use case names.
@@ -154,6 +156,17 @@ func (h DecideAgentRequest) Descriptor() usecase.Descriptor {
 				if err := d.requestChanged(ctx, actor, id); err != nil {
 					return err
 				}
+				if approve && d.Queue != nil {
+					// Committed with the decision, so a process that dies before the act answers
+					// leaves a check behind rather than an approval nobody performs.
+					if _, err := d.Queue.Enqueue(ctx, queue.Request{
+						Kind: queue.KindAgentRequestCheck, TenantID: actor.TenantID, DedupeKey: id.String(),
+						Payload: map[string]any{"request_id": id.String()},
+						RunAt:   d.Clock.Now().Add(domain.RequestPerformWindow),
+					}); err != nil {
+						return err
+					}
+				}
 				return d.record(ctx, actor, action, requestTarget, id, audit.SeverityNotice,
 					open("agent_id", a.ID.String()), open("use_case", r.UseCase), open("class", string(r.Class)))
 			})
@@ -180,10 +193,41 @@ func (h DecideAgentRequest) Descriptor() usecase.Descriptor {
 				}
 				return nil, err
 			}
+			if err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				return d.Store.PerformedRequest(ctx, id)
+			}); err != nil {
+				// The act took effect; the check will record the request interrupted, which says
+				// its outcome is unknown rather than that it never ran.
+				slog.WarnContext(ctx, "an approved agent act ran but its mark was not cleared",
+					slog.String("request_id", id.String()), slog.String("error", shared.AsError(err).Code))
+			}
 			out["result"] = answer
 			return out, nil
 		}),
 	}
+}
+
+// OutcomeRequestInterrupted is the code an approved act gets whose process died before it answered:
+// whether it took effect is unknown, so it is never performed again (message code, rule 8).
+const OutcomeRequestInterrupted = "agents.request_interrupted"
+
+// RequestCheck heals an approved held act whose process died between the decision and the act:
+// still marked performing after its window, it is recorded FAILED with OutcomeRequestInterrupted.
+type RequestCheck struct{ Desk Desk }
+
+// Run checks one request in the tenant's own transaction; true where it was interrupted.
+func (c RequestCheck) Run(ctx context.Context, tenant, id shared.ID) (bool, error) {
+	d := c.Desk
+	actor := appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: tenant}
+	interrupted := false
+	err := d.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		if interrupted, err = d.Store.InterruptRequest(ctx, id, OutcomeRequestInterrupted); err != nil || !interrupted {
+			return err
+		}
+		return d.requestChanged(ctx, actor, id)
+	})
+	return interrupted, err
 }
 
 // ListAgentActions answers an agent's ledger.

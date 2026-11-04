@@ -540,18 +540,19 @@ type AgentModel struct {
 }
 
 type AgentRequest struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	AgentID   pgtype.UUID
-	UseCase   string
-	Class     string
-	Input     []byte
-	Status    string
-	DecidedBy pgtype.UUID
-	DecidedAt pgtype.Timestamptz
-	Code      string
-	CreatedAt pgtype.Timestamptz
-	Version   int32
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	AgentID    pgtype.UUID
+	UseCase    string
+	Class      string
+	Input      []byte
+	Status     string
+	DecidedBy  pgtype.UUID
+	DecidedAt  pgtype.Timestamptz
+	Code       string
+	CreatedAt  pgtype.Timestamptz
+	Version    int32
+	Performing bool
 }
 
 type AiObjectionNotice struct {
