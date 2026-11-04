@@ -23,9 +23,11 @@
     rows: readonly FigureRow[];
     /** Two series or more, aligned by period; drawn in place of `rows` where given. */
     table?: SeriesTable;
+    /** Why there are no rows, by the widget's source (user-experience.md §7.7); a general line without. */
+    empty?: string;
   }
 
-  const { title, chart, rows, table }: Props = $props();
+  const { title, chart, rows, table, empty }: Props = $props();
 
   const W = 400;
   const H = 160;
@@ -48,7 +50,7 @@
 
 {#if multi && table}
   {#if table.labels.length === 0}
-    <p class="quiet">{t('app.dashboards.no_rows')}</p>
+    <p class="quiet" data-widget-empty>{empty ?? t('app.dashboards.no_rows')}</p>
   {:else}
     {@const multiSummary = t('app.dashboards.series_summary', { title, count: String(table.labels.length), series: table.series.map((each) => each.name).join(', ') })}
     <div class="figure" data-chart={chart}>
@@ -80,7 +82,7 @@
     </div>
   {/if}
 {:else if rows.length === 0}
-  <p class="quiet">{t('app.dashboards.no_rows')}</p>
+  <p class="quiet" data-widget-empty>{empty ?? t('app.dashboards.no_rows')}</p>
 {:else}
   <div class="figure" data-chart={chart}>
     {#if chart === 'NUMBER'}

@@ -26,7 +26,7 @@ function goalsBackend({ seed } = {}) {
   const periods = [...(seed?.periods ?? [])];
   const goals = [...(seed?.goals ?? [])];
   const checkIns = [];
-  const dashboards = [];
+  const dashboards = [...(seed?.dashboards ?? [])];
   const page = (data) => ({ data, page: { next_cursor: null, has_more: false } });
   return (method, path, query, body) => {
     if (path === '/goal-periods' && method === 'GET') return { json: page(periods) };
@@ -71,7 +71,9 @@ function goalsBackend({ seed } = {}) {
     const board = /^\/dashboards\/([^/]+)(\/figures|\/digest)?$/.exec(path);
     const dashboard = board && dashboards.find((each) => each.id === board[1]);
     if (dashboard && !board[2] && method === 'GET') return { json: dashboard };
-    if (dashboard && board[2] === '/figures') return { json: { dashboard_id: dashboard.id, computed_at: '2026-11-01T09:00:00Z', widgets: [] } };
+    if (dashboard && board[2] === '/figures') {
+      return { json: { dashboard_id: dashboard.id, computed_at: '2026-11-01T09:00:00Z', widgets: dashboard.widgets.map((each) => ({ id: each.id, data: [], truncated: false, error: null, compare: null, remaining: null })) } };
+    }
     if (dashboard && board[2] === '/digest' && method === 'GET') {
       return { json: { dashboard_id: dashboard.id, cadence: 'NONE', weekday: null, hour: null, time_zone: 'UTC', next_at: null, last_sent_at: null } };
     }
@@ -151,6 +153,9 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await boardDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.waitForURL(/\/dashboards\/[0-9a-f-]+$/, { timeout: 5_000 });
   await page.getByRole('heading', { name: 'Leadership' }).first().waitFor({ timeout: 5_000 });
+  // A dashboard without widgets says so and offers the first one (§5.5).
+  await page.getByText('This dashboard has no widget yet.').waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByRole('button', { name: 'Add widget' }).first().isVisible());
 
   const wrote = walk.written.map((each) => `${each.method} ${each.path}`);
   for (const want of [/^POST \/goal-periods$/, /^POST \/goals$/, /^POST \/goals\/[^/]+\/check-ins$/, /^PUT \/goals\/[^/]+$/, /^POST \/dashboards$/]) {
@@ -198,3 +203,26 @@ for (const width of [1280, 375]) {
     assert.deepEqual(walk.unstubbed(), []);
   });
 }
+
+test('chromium: a widget with nothing to show names why, by its source', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = (n, title, source, extra = {}) => ({
+    id: `01a0e2e0-0000-7000-8000-00000000a30${n}`, title, chart: 'BAR', source, view_id: null, query: null, goal_ids: [], compare: null, cumulative: false, x: (n - 1) * 4, y: 0, w: 4, h: 3, ...extra,
+  });
+  const board = {
+    id: '01a0e2e0-0000-7000-8000-00000000a401', name: 'Delivery', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], version: 1,
+    widgets: [widget(1, 'Our goals', 'GOALS', { chart: 'PROGRESS' }), widget(2, 'Chosen goals', 'GOALS', { chart: 'PROGRESS', goal_ids: ['01a0e2e0-0000-7000-8000-00000000a999'] }), widget(3, 'Open by status', 'QUERY', { query: { aggregate: { count: true } } })],
+  };
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board] } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.getByText('No goal is chosen for this widget yet; change it to choose some.').waitFor({ timeout: 10_000 });
+  await page.getByText('None of its goals is one you may read, or they were deleted.').waitFor({ timeout: 5_000 });
+  await page.getByText('No entry matches what this widget counts yet.').waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('Nothing to count.', { exact: true }).count(), 0);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});

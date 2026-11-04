@@ -37,6 +37,7 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import WidgetChart from '../lib/goals/WidgetChart.svelte';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import WidgetEditor from '../lib/goals/WidgetEditor.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -94,6 +95,13 @@
 
   let isEditing = $state(false);
   let layout = $state<DashboardWidgetWrite[]>([]);
+  /** A widget's empty answer named by its real cause (§7.7), never one sentence for all. */
+  function emptyOf(widget: { source: string; goal_ids?: readonly string[] }): string {
+    if (widget.source === 'GOALS') return t((widget.goal_ids ?? []).length === 0 ? 'app.dashboards.empty_goals_none' : 'app.dashboards.empty_goals_unread');
+    if (widget.source === 'VIEW') return t('app.dashboards.empty_view');
+    return t('app.dashboards.empty_query');
+  }
+
   function startEditing() {
     if (!dashboard) return;
     layout = dashboard.widgets.map(widgetWrite);
@@ -303,7 +311,9 @@
     {#if isEditing}<p class="quiet">{t('app.dashboards.editing_hint')}</p>{/if}
 
     {#if ordered.length === 0}
-      <p class="quiet">{t('app.dashboards.no_widgets')}</p>
+      <ProductEmpty kind={mayEdit ? 'unused' : 'settled'} icon="gauge" title={t('app.dashboards.no_widgets_title')}
+        description={mayEdit ? t('app.dashboards.no_widgets') : undefined}
+        create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
     {:else}
       <div class="grid" class:stacked={viewport.isCompact}>
         {#each ordered as each (each.widget.id ?? `new-${each.index}`)}
@@ -338,7 +348,7 @@
             {:else if figure.error}
               <p class="refused" role="status">{t(figure.error)}</p>
             {:else}
-              <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={rowsOf(each.widget)} table={tableOf(each.widget)} />
+              <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={rowsOf(each.widget)} table={tableOf(each.widget)} empty={emptyOf(each.widget)} />
               {#if figure.compare?.error}<p class="refused" role="status">{t('app.dashboards.series_refused', { title: each.widget.compare?.title ?? '', reason: t(figure.compare.error) })}</p>{/if}
               {#if figure.truncated || figure.compare?.truncated}<p class="quiet">{t('app.dashboards.truncated')}</p>{/if}
             {/if}
