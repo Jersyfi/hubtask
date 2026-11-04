@@ -3921,7 +3921,11 @@ paths:
       description: >
         Oldest first: those whose current level counts the caller or names a role they hold
         there, and those of a person away whose approvals they decide - each with the entry's
-        title and number.
+        title and number. A page holds at most `limit` (50 by default); `page.next_cursor`
+        continues it, null on the last page.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200 } }
       responses:
         "200":
           description: The approvals
@@ -30096,6 +30100,9 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/Approval" } }
+        page:
+          $ref: "#/components/schemas/PageInfo"
+          description: The reader's list only - an entry's approvals come whole.
 
     ApprovalDelegation:
       type: object

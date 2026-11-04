@@ -7016,7 +7016,21 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "approval mine",
         "summary": "The approvals waiting for me",
-        "description": "Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.\n",
+        "description": "Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number. A page holds at most `limit` (50 by default); `page.next_cursor` continues it, null on the last page.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The approvals",
@@ -47377,6 +47391,10 @@
             "items": {
               "$ref": "#/components/schemas/Approval"
             }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo",
+            "description": "The reader's list only - an entry's approvals come whole."
           }
         }
       },

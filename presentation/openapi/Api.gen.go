@@ -12365,6 +12365,9 @@ type ApprovalDelegation struct {
 // ApprovalList defines model for ApprovalList.
 type ApprovalList struct {
 	Data []Approval `json:"data"`
+
+	// Page The reader's list only - an entry's approvals come whole.
+	Page *PageInfo `json:"page,omitempty"`
 }
 
 // Article defines model for Article.
@@ -26207,6 +26210,12 @@ type SetApprovalDelegationJSONBody struct {
 	Until      time.Time          `json:"until"`
 }
 
+// ListMyApprovalsParams defines parameters for ListMyApprovals.
+type ListMyApprovalsParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // DecideApprovalJSONBody defines parameters for DecideApproval.
 type DecideApprovalJSONBody struct {
 	Reason  *string                       `json:"reason,omitempty"`
@@ -30676,7 +30685,7 @@ type ServerInterface interface {
 	SetApprovalDelegation(w http.ResponseWriter, r *http.Request)
 	// ListMyApprovals The approvals waiting for me
 	// (GET /approvals)
-	ListMyApprovals(w http.ResponseWriter, r *http.Request)
+	ListMyApprovals(w http.ResponseWriter, r *http.Request, params ListMyApprovalsParams)
 	// DecideApproval Approve or decline
 	// (POST /approvals/{approvalId}:decide)
 	DecideApproval(w http.ResponseWriter, r *http.Request, approvalId openapi_types.UUID)
@@ -36655,8 +36664,40 @@ func (siw *ServerInterfaceWrapper) SetApprovalDelegation(w http.ResponseWriter, 
 // ListMyApprovals operation middleware
 func (siw *ServerInterfaceWrapper) ListMyApprovals(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMyApprovalsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListMyApprovals(w, r)
+		siw.Handler.ListMyApprovals(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

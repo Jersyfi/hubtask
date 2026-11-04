@@ -73,7 +73,7 @@ func TestARequesterCountedAtALevelDecidesFromThePortal(t *testing.T) {
 	if err := approvals.Open(context.Background(), person(handlerID), items.item, workdomain.Container{}, "purchase", step); err != nil {
 		t.Fatal(err)
 	}
-	waiting, err := ListMyApprovals{Approvals: approvals}.Execute(context.Background(), person(requesterID))
+	waiting, _, err := ListMyApprovals{Approvals: approvals}.Execute(context.Background(), person(requesterID), ApprovalPage{})
 	if err != nil || len(waiting) != 1 || waiting[0]["may_decide"] != true {
 		t.Fatalf("the requester's list: %v %v", waiting, err)
 	}
@@ -113,7 +113,7 @@ func TestAReadersApprovalsAreFoundPastTheWorkspacesOldest(t *testing.T) {
 	newest := open(602, requesterID)
 	store.delegations = []domain.Delegation{{AccountID: away, DelegateID: requesterID, From: monday.Add(-time.Hour), Until: monday.Add(time.Hour)}}
 
-	waiting, err := ListMyApprovals{Approvals: approvals}.Execute(context.Background(), person(requesterID))
+	waiting, _, err := ListMyApprovals{Approvals: approvals}.Execute(context.Background(), person(requesterID), ApprovalPage{})
 	if err != nil || len(waiting) != 2 {
 		t.Fatalf("the reader's list: %d rows, %v", len(waiting), err)
 	}
@@ -124,6 +124,63 @@ func TestAReadersApprovalsAreFoundPastTheWorkspacesOldest(t *testing.T) {
 	if store.pendingReads != 1 || store.delegationReads != 1 || store.decisionReads != 1 {
 		t.Errorf("one list read the pending approvals %d, the delegations %d and the decisions %d times",
 			store.pendingReads, store.delegationReads, store.decisionReads)
+	}
+}
+
+// A large desk answers its reader's list in pages: 250 approvals of the reader among 600 of other
+// people come back as five pages of 50 in order, each after the last row of the one before; the
+// full fifth page answers a cursor and the page after it is empty with none. A limit past the
+// largest page is held to 200.
+func TestAReadersApprovalsArePagedByCursor(t *testing.T) {
+	approvals, store, _, items := approvalFixture(t)
+	step := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{
+		Levels: []workdomain.ApprovalLevel{{People: []string{handlerID.String()}, Rule: workdomain.ApprovalAny}},
+	}}
+	var want []string
+	for n := 1; n <= 850; n++ {
+		counted := handlerID
+		if n > 600 {
+			counted = requesterID
+		}
+		approval, err := domain.NewApproval(shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-%012d", n)), items.item,
+			"purchase", step, [][]shared.ID{{counted}}, handlerID, monday.Add(time.Duration(n)*time.Second))
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.rows[approval.ID] = approval
+		if counted == requesterID {
+			want = append(want, approval.ID.String())
+		}
+	}
+
+	list := ListMyApprovals{Approvals: approvals}
+	var got []string
+	var sizes []int
+	after := shared.ID("")
+	for range 10 {
+		rows, next, err := list.Execute(context.Background(), person(requesterID), ApprovalPage{After: after})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sizes = append(sizes, len(rows))
+		for _, row := range rows {
+			got = append(got, row["id"].(string))
+		}
+		if next.IsZero() {
+			break
+		}
+		after = next
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("the pages hold %d approvals, want the reader's %d in order", len(got), len(want))
+	}
+	if !slices.Equal(sizes, []int{50, 50, 50, 50, 50, 0}) {
+		t.Errorf("page sizes %v", sizes)
+	}
+
+	rows, next, err := list.Execute(context.Background(), person(requesterID), ApprovalPage{Limit: 500})
+	if err != nil || len(rows) != approvalPageMax || next.String() != want[approvalPageMax-1] {
+		t.Errorf("a limit past the largest page: %d rows, next %q, %v", len(rows), next, err)
 	}
 }
 
@@ -157,10 +214,45 @@ func TestAReadersApprovalListIsRecordedInATransaction(t *testing.T) {
 	approvals, _, _, _ := approvalFixture(t)
 	sink := &inTransaction{}
 	approvals.Desk.UnitOfWork, approvals.Desk.Audit = transacted{}, sink
-	if _, err := (ListMyApprovals{Approvals: approvals}).Execute(context.Background(), person(requesterID)); err != nil {
+	if _, _, err := (ListMyApprovals{Approvals: approvals}).Execute(context.Background(), person(requesterID), ApprovalPage{}); err != nil {
 		t.Fatalf("the list: %v", err)
 	}
 	if sink.entries != 1 {
 		t.Fatalf("the read is recorded %d times", sink.entries)
+	}
+}
+
+// The walk is bounded at 5,000 candidates a page: past 5,050 approvals naming a role the reader
+// does not hold, the first page ends empty with a cursor, and the next one finds the reader's.
+func TestAReadersPageEndsShortAtTheWalksBoundAndGoesOn(t *testing.T) {
+	approvals, store, _, items := approvalFixture(t)
+	byRole := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{
+		Levels: []workdomain.ApprovalLevel{{Roles: []string{"buyer"}, Rule: workdomain.ApprovalAny}},
+	}}
+	mine := workdomain.WorkflowStep{Key: "approve", To: "approved", Approval: &workdomain.StepApproval{
+		Levels: []workdomain.ApprovalLevel{{People: []string{requesterID.String()}, Rule: workdomain.ApprovalAny}},
+	}}
+	var last domain.Approval
+	for n := 1; n <= 5051; n++ {
+		step, counted := byRole, handlerID
+		if n == 5051 {
+			step, counted = mine, requesterID
+		}
+		approval, err := domain.NewApproval(shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-%012d", n)), items.item,
+			"purchase", step, [][]shared.ID{{counted}}, handlerID, monday.Add(time.Duration(n)*time.Second))
+		if err != nil {
+			t.Fatal(err)
+		}
+		store.rows[approval.ID] = approval
+		last = approval
+	}
+	list := ListMyApprovals{Approvals: approvals}
+	rows, next, err := list.Execute(context.Background(), person(requesterID), ApprovalPage{})
+	if err != nil || len(rows) != 0 || next.IsZero() {
+		t.Fatalf("the first page: %d rows, next %q, %v", len(rows), next, err)
+	}
+	rows, next, err = list.Execute(context.Background(), person(requesterID), ApprovalPage{After: next})
+	if err != nil || len(rows) != 1 || rows[0]["id"] != last.ID.String() || !next.IsZero() {
+		t.Fatalf("the second page: %v, next %q, %v", rows, next, err)
 	}
 }

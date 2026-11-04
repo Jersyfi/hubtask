@@ -2214,6 +2214,7 @@ class Approval(TypedDict, total=False):
 
 class ApprovalList(TypedDict, total=False):
     data: Required[list["Approval"]]
+    page: "PageInfo"
 
 ApprovalDelegation = TypedDict("ApprovalDelegation", {
     "delegate_id": Required[str],

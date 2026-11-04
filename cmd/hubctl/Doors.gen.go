@@ -525,6 +525,10 @@ var generatedCommands = []door{
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "state", "version"}},
 	{Group: "approval", Verb: "mine", OperationID: "listMyApprovals", Method: "GET", Path: "/approvals", Summary: "The approvals waiting for me",
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
+		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "state", "version"}},
 	{Group: "approval", Verb: "undelegate", OperationID: "endApprovalDelegation", Method: "DELETE", Path: "/approval-delegation", Summary: "Decide my approvals myself again",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},

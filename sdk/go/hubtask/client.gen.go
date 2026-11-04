@@ -12371,6 +12371,9 @@ type ApprovalDelegation struct {
 // ApprovalList defines model for ApprovalList.
 type ApprovalList struct {
 	Data []Approval `json:"data"`
+
+	// Page The reader's list only - an entry's approvals come whole.
+	Page *PageInfo `json:"page,omitempty"`
 }
 
 // Article defines model for Article.
@@ -26213,6 +26216,12 @@ type SetApprovalDelegationJSONBody struct {
 	Until      time.Time          `json:"until"`
 }
 
+// ListMyApprovalsParams defines parameters for ListMyApprovals.
+type ListMyApprovalsParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // DecideApprovalJSONBody defines parameters for DecideApproval.
 type DecideApprovalJSONBody struct {
 	Reason  *string                       `json:"reason,omitempty"`
@@ -32270,10 +32279,10 @@ type ClientInterface interface {
 
 	// ListMyApprovals The approvals waiting for me
 	//
-	// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+	// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number. A page holds at most `limit` (50 by default); `page.next_cursor` continues it, null on the last page.
 	//
 	// Corresponds with GET /approvals (the `ListMyApprovals` operationId).
-	ListMyApprovals(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListMyApprovals(ctx context.Context, params *ListMyApprovalsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DecideApprovalWithBody Approve or decline
 	//
@@ -45141,11 +45150,11 @@ func (c *Client) SetApprovalDelegation(ctx context.Context, body SetApprovalDele
 
 // ListMyApprovals The approvals waiting for me
 //
-// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number. A page holds at most `limit` (50 by default); `page.next_cursor` continues it, null on the last page.
 //
 // Corresponds with GET /approvals (the `ListMyApprovals` operationId).
-func (c *Client) ListMyApprovals(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListMyApprovalsRequest(c.Server)
+func (c *Client) ListMyApprovals(ctx context.Context, params *ListMyApprovalsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyApprovalsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -70276,7 +70285,7 @@ func NewSetApprovalDelegationRequestWithBody(server string, contentType string, 
 }
 
 // NewListMyApprovalsRequest constructs an http.Request for the ListMyApprovals method
-func NewListMyApprovalsRequest(server string) (*http.Request, error) {
+func NewListMyApprovalsRequest(server string, params *ListMyApprovalsParams) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -70292,6 +70301,45 @@ func NewListMyApprovalsRequest(server string) (*http.Request, error) {
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -105733,12 +105781,12 @@ type ClientWithResponsesInterface interface {
 
 	// ListMyApprovalsWithResponse The approvals waiting for me
 	//
-	// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+	// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number. A page holds at most `limit` (50 by default); `page.next_cursor` continues it, null on the last page.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /approvals (the `ListMyApprovals` operationId).
-	ListMyApprovalsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyApprovalsResult, error)
+	ListMyApprovalsWithResponse(ctx context.Context, params *ListMyApprovalsParams, reqEditors ...RequestEditorFn) (*ListMyApprovalsResult, error)
 
 	// DecideApprovalWithBodyWithResponse Approve or decline
 	//
@@ -159145,13 +159193,13 @@ func (c *ClientWithResponses) SetApprovalDelegationWithResponse(ctx context.Cont
 
 // ListMyApprovalsWithResponse The approvals waiting for me
 //
-// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number.
+// Oldest first: those whose current level counts the caller or names a role they hold there, and those of a person away whose approvals they decide - each with the entry's title and number. A page holds at most `limit` (50 by default); `page.next_cursor` continues it, null on the last page.
 //
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /approvals (the `ListMyApprovals` operationId).
-func (c *ClientWithResponses) ListMyApprovalsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyApprovalsResult, error) {
-	rsp, err := c.ListMyApprovals(ctx, reqEditors...)
+func (c *ClientWithResponses) ListMyApprovalsWithResponse(ctx context.Context, params *ListMyApprovalsParams, reqEditors ...RequestEditorFn) (*ListMyApprovalsResult, error) {
+	rsp, err := c.ListMyApprovals(ctx, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

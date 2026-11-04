@@ -2327,7 +2327,9 @@ func (pending) RenderReplyTemplate(w http.ResponseWriter, r *http.Request, _ ope
 func (pending) RateMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
-func (pending) ListMyApprovals(w http.ResponseWriter, r *http.Request)        { notAvailable(w, r) }
+func (pending) ListMyApprovals(w http.ResponseWriter, r *http.Request, _ openapi.ListMyApprovalsParams) {
+	notAvailable(w, r)
+}
 func (pending) ReadApprovalDelegation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) SetApprovalDelegation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
 func (pending) EndApprovalDelegation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }

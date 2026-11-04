@@ -6,7 +6,6 @@ package servicedesk
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -490,10 +489,29 @@ func (h DecideApproval) Descriptor() usecase.Descriptor {
 // whose approvals they decide (UC-SVC-09 check 1, UC-SVC-10 check 2).
 type ListMyApprovals struct{ Approvals Approvals }
 
-// Execute lists them, oldest first.
-func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorContext) ([]usecase.Output, error) {
+// ApprovalPage asks for one page of the reader's list: after the approval After (none: from the
+// oldest), at most Limit rows (0: approvalPageDefault; beyond approvalPageMax: that).
+type ApprovalPage struct {
+	After shared.ID
+	Limit int
+}
+
+const (
+	approvalPageDefault = 50
+	approvalPageMax     = 200
+)
+
+// Execute answers a page, oldest first, and the approval the next page starts after - zero on
+// the last page.
+func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorContext, page ApprovalPage) ([]usecase.Output, shared.ID, error) {
 	a := h.Approvals
+	limit := page.Limit
+	if limit <= 0 {
+		limit = approvalPageDefault
+	}
+	limit = min(limit, approvalPageMax)
 	out := []usecase.Output{}
+	var next shared.ID
 	err := a.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		reader := a.standingOf(actor, a.Desk.Clock.Now())
 		people, err := reader.decidesFor(ctx)
@@ -503,14 +521,30 @@ func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorConte
 		// The selection is the database's: only approvals counting one of these people, or naming
 		// a role, come back - never the workspace's oldest ones with the reader's past them.
 		query := repository.PendingQuery{People: people, Limit: pendingPage}
+		if !page.After.IsZero() {
+			// The cursor is an approval's identifier; its request time is read back rather than
+			// carried, so a client cannot shift the keyset. One decided since still holds its place.
+			after, err := a.Store.Find(ctx, page.After)
+			if err != nil {
+				return err
+			}
+			query.AfterRequestedAt, query.AfterID = after.RequestedAt, after.ID
+		}
 		for range maxPendingPages {
 			pending, err := a.Store.PendingFor(ctx, query)
 			if err != nil {
 				return err
 			}
-			rows, err := h.rows(ctx, reader, pending)
+			rows, taken, err := h.rows(ctx, reader, pending)
 			if err != nil {
 				return err
+			}
+			if len(out)+len(rows) >= limit {
+				cut := limit - len(out)
+				out = append(out, rows[:cut]...)
+				// A full page may be the last one; an empty next page answers that, not a guess.
+				next = taken[cut-1].ID
+				return nil
 			}
 			out = append(out, rows...)
 			if len(pending) < pendingPage {
@@ -519,14 +553,16 @@ func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorConte
 			last := pending[len(pending)-1]
 			query.AfterRequestedAt, query.AfterID = last.RequestedAt, last.ID
 		}
-		slog.WarnContext(ctx, "a reader's approval list stopped at its bound", slog.Int("pages", maxPendingPages))
+		// The walk is bounded (rule 7's spirit); the next page goes on from what was scanned, so a
+		// desk of other people's approvals ends the page short but never the list.
+		next = query.AfterID
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	// The sink writes through the transaction in the context; a read-only one cannot take it.
-	return out, a.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	return out, next, a.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return a.Desk.Audit.Append(ctx, audit.Entry{
 			TenantID: actor.TenantID, OccurredAt: a.Desk.Clock.Now(), Action: ApprovalsReadAction,
 			Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo, ActorKind: actor.Kind, ActorID: actor.AccountID,
@@ -536,8 +572,9 @@ func (h ListMyApprovals) Execute(ctx context.Context, actor appshared.ActorConte
 	})
 }
 
-// rows answers the page's approvals the reader decides, with their decisions read in one query.
-func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []domain.Approval) ([]usecase.Output, error) {
+// rows answers the page's approvals the reader decides, with their decisions read in one query,
+// and those approvals in the same order.
+func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []domain.Approval) ([]usecase.Output, []domain.Approval, error) {
 	type mine struct {
 		approval domain.Approval
 		who      domain.Eligibility
@@ -547,7 +584,7 @@ func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []d
 	for _, approval := range pending {
 		who, err := reader.eligibility(ctx, approval)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if who.Direct || !who.OnBehalfOf.IsZero() {
 			theirs = append(theirs, mine{approval, who})
@@ -555,20 +592,21 @@ func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []d
 		}
 	}
 	if len(theirs) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	decisions, err := h.Approvals.Store.DecisionsOf(ctx, ids)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	items := make([]shared.ID, 0, len(theirs))
 	for _, each := range theirs {
 		items = append(items, each.approval.ItemID)
 	}
 	if err := prefetchItems(ctx, reader, items); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := make([]usecase.Output, 0, len(theirs))
+	taken := make([]domain.Approval, 0, len(theirs))
 	for _, each := range theirs {
 		row := ApprovalOutput(each.approval, decisions[each.approval.ID], true)
 		if item, err := reader.item(ctx, each.approval.ItemID); err == nil {
@@ -577,8 +615,9 @@ func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []d
 		}
 		row["on_behalf_of"] = idOrNil(each.who.OnBehalfOf)
 		out = append(out, row)
+		taken = append(taken, each.approval)
 	}
-	return out, nil
+	return out, taken, nil
 }
 
 // Descriptor is the catalogue entry.
@@ -588,13 +627,21 @@ func (h ListMyApprovals) Descriptor() usecase.Descriptor {
 		Summary: "The approvals waiting for the reader, oldest first: those whose current level counts them or names a " +
 			"role they hold there, and those of a person away whose approvals they decide - each with the entry's title.",
 		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
+		Input: []usecase.Field{
+			{Name: "cursor", Kind: usecase.KindID, Description: "The page's next_cursor of the previous page."},
+			{Name: "limit", Kind: usecase.KindInt, Description: "How many, at most 200; 50 when not given."},
+		},
 		Audit: usecase.AuditDeclaration{Action: ApprovalsReadAction},
-		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
-			rows, err := h.Execute(ctx, actor)
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			after, err := in.ID("cursor")
 			if err != nil {
 				return nil, err
 			}
-			return usecase.Output{"data": rows}, nil
+			rows, next, err := h.Execute(ctx, actor, ApprovalPage{After: after, Limit: in.Int("limit")})
+			if err != nil {
+				return nil, err
+			}
+			return usecase.Output{"data": rows, "page": map[string]any{"next_cursor": idOrNil(next), "has_more": !next.IsZero()}}, nil
 		}),
 	}, approvalTarget)
 	d.Permission = ""

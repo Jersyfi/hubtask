@@ -912,8 +912,8 @@ export class HubtaskClient {
   }
 
   /** The approvals waiting for me */
-  listMyApprovals(options: CallOptions = {}): Promise<operations["listMyApprovals"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/approvals", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  listMyApprovals(options: CallOptions & { readonly query?: NonNullable<operations["listMyApprovals"]['parameters']['query']> } = {}): Promise<operations["listMyApprovals"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/approvals", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Approve or decline */

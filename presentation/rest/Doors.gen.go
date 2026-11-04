@@ -380,7 +380,7 @@ var restDoors = map[string]restDoor{
 	"listMailboxes":                     {UseCase: "ListMailboxes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listMemberships":                   {UseCase: "ListMemberships", Status: 200, Query: []string{"cursor", "scope_id", "scope_type", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listModules":                       {UseCase: "ListModules", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"listMyApprovals":                   {UseCase: "ListMyApprovals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listMyApprovals":                   {UseCase: "ListMyApprovals", Status: 200, Query: []string{"cursor", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listMyOpenEntries":                 {UseCase: "ListMyOpenEntries", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listMyRequests":                    {UseCase: "ListMyRequests", Status: 200, Query: []string{"collection_id", "cursor", "scope", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listNotificationPreferences":       {UseCase: "ListNotificationPreferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3239,9 +3239,9 @@ func (c *RestController) ListModules(w http.ResponseWriter, r *http.Request, par
 }
 
 // ListMyApprovals answers GET /approvals by the generated mapping.
-func (c *RestController) ListMyApprovals(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) ListMyApprovals(w http.ResponseWriter, r *http.Request, params openapi.ListMyApprovalsParams) {
 	var answer openapi.ApprovalList
-	c.door(w, r, restDoors["listMyApprovals"], usecase.Input{}, nil, nil, &answer)
+	c.door(w, r, restDoors["listMyApprovals"], usecase.Input{}, params, nil, &answer)
 }
 
 // ListMyOpenEntries answers GET /glance/open-entries by the generated mapping.

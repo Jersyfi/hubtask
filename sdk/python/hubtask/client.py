@@ -743,9 +743,9 @@ class Client:
         """A canned reply filled for an entry"""
         return self._call("GET", "/items/{itemId}/reply-templates/{templateKey}", {"itemId": item_id, "templateKey": template_key}, None, {}, None, "none", None, "json")
 
-    def list_my_approvals(self) -> "ApprovalList":
+    def list_my_approvals(self, *, query: dict[str, Any] | None = None) -> "ApprovalList":
         """The approvals waiting for me"""
-        return self._call("GET", "/approvals", {}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/approvals", {}, query, {}, None, "none", None, "json")
 
     def decide_approval(self, approval_id: str, body: dict[str, Any]) -> "Approval":
         """Approve or decline"""
