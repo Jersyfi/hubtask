@@ -4,6 +4,7 @@
 package usecase
 
 import (
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -317,6 +318,9 @@ func validate(fields []Field, in Input) error {
 	return nil
 }
 
+// maxExactInteger is the largest integer every JSON client reads and writes exactly (2^53 - 1).
+const maxExactInteger = 1<<53 - 1
+
 func checkField(field Field, value any) (shared.FieldError, bool) {
 	wrongType := shared.FieldError{Path: "/" + field.Name, Code: "usecase.field_type_invalid"}
 
@@ -348,7 +352,9 @@ func checkField(field Field, value any) (shared.FieldError, bool) {
 		switch number := value.(type) {
 		case int, int64:
 		case float64:
-			if number != float64(int(number)) {
+			// Within JSON's exact integers first: past them the conversion below is the
+			// platform's, and 2^63 comes back as either end of int.
+			if math.Abs(number) > maxExactInteger || number != math.Trunc(number) {
 				return wrongType, false
 			}
 		default:
