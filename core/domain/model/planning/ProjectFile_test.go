@@ -87,6 +87,8 @@ func TestAProjectFileThatCannotBeReadIsRefused(t *testing.T) {
 		{"empty", "CSV", "Name\n", "planning.import_empty"},
 		{"an unknown format", "MPP", "x", "planning.import_format_unknown"},
 		{"too many", "CSV", "Name\n" + strings.Repeat("a\n", planning.MaxImportedEntries+1), "planning.import_too_many_entries"},
+		{"a zero byte in a name", "CSV", "Name\nDe\x00sign\n", "planning.import_task_invalid"},
+		{"a control character in a task's name", "MSPROJECT_XML", "<Project><Tasks><Task><UID>1</UID><Name>A&#x85;B</Name><OutlineLevel>1</OutlineLevel></Task></Tasks></Project>", "planning.import_task_invalid"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := planning.ParseProjectFile(planning.FileFormat(tc.format), []byte(tc.content))
@@ -95,5 +97,24 @@ func TestAProjectFileThatCannotBeReadIsRefused(t *testing.T) {
 				t.Fatalf("err %v, want %s", err, tc.code)
 			}
 		})
+	}
+}
+
+// UC-PLN-09: the odd cells a spreadsheet writes come in as a person meant them - a name holding an
+// inch mark, a name broken over lines in its cell, one predecessor written twice - rather than
+// refusing the whole file, or refusing it later without saying where.
+func TestACSVsOddCellsComeInAsMeant(t *testing.T) {
+	csv := "ID,Name,Predecessors\n" +
+		"1,Mount the 27\" screen,\n" +
+		"2,\"Wire the\nsecond\tdesk\",1;1\n"
+	tasks, err := planning.ParseProjectFile(planning.FormatCSV, []byte(csv))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tasks) != 2 || tasks[0].Name != `Mount the 27" screen` || tasks[1].Name != "Wire the second desk" {
+		t.Fatalf("tasks %+v", tasks)
+	}
+	if got := tasks[1].Predecessors; len(got) != 1 || got[0].Key != "1" {
+		t.Errorf("the second task waits on %+v, want the first once", got)
 	}
 }

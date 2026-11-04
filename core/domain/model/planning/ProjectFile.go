@@ -173,8 +173,8 @@ func parseProjectXML(content []byte) ([]FileTask, error) {
 		if t.OutlineLevel < 1 || t.Null == "1" {
 			continue
 		}
-		task := FileTask{Key: strings.TrimSpace(t.UID), Name: strings.TrimSpace(t.Name), Level: t.OutlineLevel, Milestone: t.Milestone == "1"}
-		if task.Key == "" || task.Name == "" || utf8.RuneCountInString(task.Name) > maxImportedTitle {
+		task := FileTask{Key: strings.TrimSpace(t.UID), Name: taskName(t.Name), Level: t.OutlineLevel, Milestone: t.Milestone == "1"}
+		if task.Key == "" || !nameFits(task.Name) {
 			return nil, importInvalid("planning.import_task_invalid", task.Key)
 		}
 		var err error
@@ -193,11 +193,37 @@ func parseProjectXML(content []byte) ([]FileTask, error) {
 			if err != nil {
 				return nil, importInvalid("planning.import_link_invalid", task.Key)
 			}
-			task.Predecessors = append(task.Predecessors, FilePredecessor{Key: strings.TrimSpace(l.PredecessorUID), Timing: timing})
+			task.Predecessors = appendPredecessor(task.Predecessors, FilePredecessor{Key: strings.TrimSpace(l.PredecessorUID), Timing: timing})
 		}
 		tasks = append(tasks, task)
 	}
 	return tasks, nil
+}
+
+// taskName is a task's name on one line: a line break or tab a spreadsheet cell holds is a space,
+// as an entry's title holds none.
+func taskName(raw string) string {
+	return strings.Join(strings.FieldsFunc(raw, func(r rune) bool { return r == ' ' || r == '\t' || r == '\r' || r == '\n' }), " ")
+}
+
+// nameFits reports whether a name can be an entry's title: present, short enough, and free of the
+// control characters a title refuses - refused here, where the file's line can be named.
+func nameFits(name string) bool {
+	if name == "" || utf8.RuneCountInString(name) > maxImportedTitle {
+		return false
+	}
+	return !strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) })
+}
+
+// appendPredecessor adds a predecessor unless the task already waits on that one: a dependency is
+// drawn once, and a file naming it twice means it once.
+func appendPredecessor(list []FilePredecessor, p FilePredecessor) []FilePredecessor {
+	for _, have := range list {
+		if have.Key == p.Key {
+			return list
+		}
+	}
+	return append(list, p)
 }
 
 // xmlLagDays reads a lag in tenths of a minute as working days: elapsed formats count whole days
@@ -244,6 +270,8 @@ func parseProjectCSV(content []byte) ([]FileTask, error) {
 	reader := csv.NewReader(bytes.NewReader(content))
 	reader.FieldsPerRecord = -1
 	reader.TrimLeadingSpace = true
+	// A name such as `27" screen` holds a quote mid-cell; read as written, not refused whole.
+	reader.LazyQuotes = true
 	if first, _, _ := bytes.Cut(content, []byte("\n")); bytes.Count(first, []byte(";")) > bytes.Count(first, []byte(",")) {
 		reader.Comma = ';'
 	}
@@ -281,11 +309,11 @@ func parseProjectCSV(content []byte) ([]FileTask, error) {
 		if strings.TrimSpace(strings.Join(row, "")) == "" {
 			continue
 		}
-		task := FileTask{Key: cell(row, "key"), Name: cell(row, "name"), Level: 1}
+		task := FileTask{Key: cell(row, "key"), Name: taskName(cell(row, "name")), Level: 1}
 		if task.Key == "" {
 			task.Key = strconv.Itoa(len(tasks) + 1)
 		}
-		if task.Name == "" || utf8.RuneCountInString(task.Name) > maxImportedTitle {
+		if !nameFits(task.Name) {
 			return nil, importInvalid("planning.import_task_invalid", where)
 		}
 		if level := cell(row, "level"); level != "" {
@@ -337,7 +365,7 @@ func predecessorsOf(text string) ([]FilePredecessor, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, FilePredecessor{Key: key, Timing: timing})
+		out = appendPredecessor(out, FilePredecessor{Key: key, Timing: timing})
 	}
 	return out, nil
 }
