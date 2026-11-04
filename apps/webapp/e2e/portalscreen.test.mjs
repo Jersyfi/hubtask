@@ -29,7 +29,7 @@ const KINDS = [
 ];
 const ARTICLE = { page_id: '01a0e2e0-0000-7000-8000-0000000041a1', title: 'When the VPN drops', icon: '', excerpt: 'Restart the «VPN» client', content_language: null, updated_at: '2026-11-01T09:00:00Z' };
 
-async function portal(browser, { width, scheme, kinds }) {
+async function portal(browser, { width, scheme, kinds, team = false }) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
   forgetUnstubbed();
   const raised = [];
@@ -37,8 +37,9 @@ async function portal(browser, { width, scheme, kinds }) {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_access: false, portals: [{ collection_id: DESK, name: 'IT help' }] } });
-    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: [] } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: team ? ['READ', 'MANAGE_MEMBERS'] : [] } });
     if (path === '/memberships') return route.fulfill({ json: { ...PAGE, data: [], grantable_roles: [] } });
+    if (path === '/request-catalogue' && team) return route.fulfill({ status: 403, json: { type: 'about:blank', title: 'Forbidden', status: 403, code: 'forbidden' } });
     if (path === '/request-catalogue') return route.fulfill({ json: { desk: { name: 'IT help', description: 'Ask the IT team.', icon: null, color_token: null, logo_media_id: null }, data: kinds } });
     if (path === '/requests' && route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
@@ -103,5 +104,17 @@ test('chromium 375 px, light: a portal that offers nothing says so', async (t) =
   await page.getByText('Nothing can be asked here yet').waitFor({ timeout: 15_000 });
   assert.equal(await page.getByRole('list', { name: 'Kind of request' }).count(), 0);
   await noSidewaysScroll(page, 'portal empty');
+  assert.deepEqual(failures, []);
+});
+
+// UC-SVC-05: the desk's team opening its portal is led to invite its first requester.
+test('chromium: the desk\'s team sees its portal as the team, with the way to invite requesters', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true });
+  t.after(close);
+  await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Invite requesters' }).click();
+  await page.waitForURL('**/administration/people', { timeout: 10_000 });
   assert.deepEqual(failures, []);
 });

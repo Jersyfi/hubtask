@@ -137,7 +137,13 @@
     mark={desk ? deskMark : undefined} />
 
   {#if isTeam}
-    <EmptyState kind="unused" icon="inbox" title={t('app.portal.team_view')} description={t('app.portal.team_view_body')} />
+    <EmptyState kind="unused" icon="inbox" title={t('app.portal.team_view')} description={t('app.portal.team_view_body')}>
+      {#snippet action()}
+        {#if holdsHere('MANAGE_MEMBERS') === true}
+          <Button tone="primary" icon="user-plus" onclick={() => onnavigate?.('/administration/people')}>{t('app.portal.invite_requesters')}</Button>
+        {/if}
+      {/snippet}
+    </EmptyState>
   {:else if failure}
     <ErrorState title={failure.message} reference={failure.reference} referenceLabel={t('app.reference')}
       retryLabel={t('app.retry')} onRetry={() => void catalogue.refresh()} />
