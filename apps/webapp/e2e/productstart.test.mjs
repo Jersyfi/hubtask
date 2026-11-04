@@ -107,3 +107,48 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
   assert.ok(planFor.length > 0 && planFor.every((hub) => hub === NEW_HUB), 'the template\'s plan was not asked for the new hub');
   assert.deepEqual(failures, []);
 });
+
+// UC-SVC-05, §4: a service template taken by the workspace leaves its collections as they were, so
+// the desk has hubs but no desk - and offers the templates that start one, not only *Create hub*.
+test('chromium: the desk without a desk offers its templates though hubs exist', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const HUB = '01a0e2e0-0000-7000-8000-0000000004e1';
+  const COLLECTION = '01a0e2e0-0000-7000-8000-0000000004e2';
+  const hub = { id: HUB, type: 'HUB', parent_id: null, name: 'Team', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const collection = { id: COLLECTION, type: 'COLLECTION', parent_id: HUB, name: 'Backlog', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const ITIL = template('itil_service_desk', ['workflows', 'service_desk', 'knowledge']);
+  const on = ['WORKFLOWS', 'SERVICE_DESK', 'KNOWLEDGE'];
+  const incident = { key: 'incident', level: 'TASK', system: false, position: 1, archived: false, name: 'Incident', icon: 'circle-alert', color_token: 'red', form: { channels: [{ channel: 'PORTAL' }] } };
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: on } });
+    if (path === `/containers/${HUB}/modules` || path === `/containers/${COLLECTION}/modules`) return route.fulfill({ json: { modules_on: on } });
+    if (path === '/sync:snapshot') {
+      const records = [hub, collection].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
+    }
+    if (path === '/containers' && route.request().method() === 'GET') {
+      return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [collection] } });
+    }
+    if (path === '/entry-types') return route.fulfill({ json: { ...PAGE, data: [incident] } });
+    if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [ITIL, SCRUM] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/desk`);
+  await page.getByText('No desk takes requests yet').waitFor({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'ITIL service desk', exact: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Scrum team', exact: true }).count(), 0, 'a template that does not switch the desk on is offered');
+  assert.deepEqual(failures, []);
+});

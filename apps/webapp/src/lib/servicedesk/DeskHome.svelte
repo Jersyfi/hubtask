@@ -30,7 +30,7 @@
     tab?: string;
     /** The act that starts a hub, where the reader may; a desk is a template's collection in one. */
     createHub?: { label: string; onclick: () => void };
-    /** The desk's templates on its first visit (user-experience.md §4), each starting a hub from one. */
+    /** The desk's templates while no desk exists (user-experience.md §4), each starting a hub from one. */
     templates?: readonly { label: string; onclick: () => void }[];
     onnavigate: (path: string) => void;
   }
@@ -119,7 +119,7 @@
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {/if}
   {:else if desks.length === 0}
-    <ProductEmpty kind="unused" icon="inbox" title={t('app.desk_home.no_desk')} description={t('app.desk_queues.none_body')} create={createHub} />
+    <ProductEmpty kind="unused" icon="inbox" title={t('app.desk_home.no_desk')} description={t('app.desk_home.no_desk_body')} create={createHub} {templates} />
   {:else if current === 'desks'}
     <ul class="rows" aria-label={t('app.desk_queues.desks')}>
       {#each desks as { desk, hub } (desk.id)}

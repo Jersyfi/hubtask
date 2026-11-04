@@ -136,7 +136,9 @@
   // The first visit's templates (user-experience.md §4): the catalogue's that switch this product
   // on, read only where the reader may make the hub one starts, and only while there is none.
   let catalogue = $state<readonly ConfigTemplate[]>([]);
-  const isFirstVisit = $derived(mayCreateHub && !isReading && hubsWith.length === 0);
+  // The desk offers them while it has no desk, though hubs exist: a request type of the workspace
+  // makes none (UC-SVC-05), and a service template's hub does.
+  const isFirstVisit = $derived(mayCreateHub && !isReading && (hubsWith.length === 0 || module === 'SERVICE_DESK'));
   $effect(() => {
     if (!isFirstVisit) return;
     return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
