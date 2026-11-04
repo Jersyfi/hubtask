@@ -8,9 +8,10 @@
  * The reads are subscriptions at the call site.
  *
  * **Offline**, the timer is started, stopped and discarded from the queue with the device's moments
- * (`replica.ts`, `timerOf`), and the timer, a person's own week, capacities, the absences and the
- * rates are read from the copy; every other time write goes online, and the engine refuses it made
- * offline (`sync.needs_connection`).
+ * (`replica.ts`, `timerOf`), time is recorded, corrected, changed and deleted from it
+ * (`timeRecordOf`), and the timer, a person's own week, capacities, the absences and the rates are
+ * read from the copy; every other time write goes online, and the engine refuses it made offline
+ * (`sync.needs_connection`).
  */
 
 import type {

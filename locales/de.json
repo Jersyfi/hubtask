@@ -12918,6 +12918,8 @@
   "templates.text.42ce2d73": "- Eine Frage pro Seite, ihr Titel die Frage so, wie eine anfragende Person sie stellt.\n- Zuerst die Antwort, danach die Schritte.\n- Ein Screenshot, wo Worte nicht reichen.",
   "app.sync.what.entity.time_timer.write": "Der Timer wurde geändert",
   "app.sync.what.entity.time_timer.delete": "Der Timer wurde gestoppt",
+  "app.sync.what.entity.time_record.delete": "Zeit gelöscht",
+  "app.sync.what.entity.time_record.write": "Zeit erfasst oder geändert",
   "app.sync.open_as_draft": "Als Entwurf öffnen",
   "app.sync.draft.title": "Eine Änderung, die nicht angenommen wurde",
   "app.sync.draft.intro": "{what} — {where}. Ändere, was du geschrieben hast, und sende es erneut, oder verwirf es. Es bleibt hier, bis du das tust.",

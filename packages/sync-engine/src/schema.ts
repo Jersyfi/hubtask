@@ -64,7 +64,7 @@ export type MutationKind =
  * What an `ENTITY_*` mutation writes, named as the change log names it (§4.4): the vocabulary, and
  * the person's own timer.
  */
-export type VocabularyEntity = 'entry_type' | 'link_type' | 'entry_link' | 'workflow' | 'custom_role' | 'time_timer';
+export type VocabularyEntity = 'entry_type' | 'link_type' | 'entry_link' | 'workflow' | 'custom_role' | 'time_timer' | 'time_record';
 
 /** The four sets an entry carries, as `SET_ADD` and `SET_REMOVE` name them. */
 export type SetName = 'labels' | 'members' | 'watchers' | 'attachments';

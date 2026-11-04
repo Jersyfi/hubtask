@@ -377,6 +377,16 @@ and stopped without the server records the minutes it ran, not the minutes the p
 answer names the caller's account, under which the walk hands the timer out; a stop answers nothing,
 and the record it wrote and the timer's removal arrive with the stream. While a stop waits, the web
 app reads the timer as stopped.
+
+The person's own time records are the second: `time_record` (user-experience.md §5.11). An upsert
+records time through `LogTime` - its key is the identifier the device minted, which the server's
+answer replaces - or, carrying `corrects`, records a correction of that record through
+`CorrectTimeRecord`; a patch changes the record its key names through `UpdateTimeRecord`, a deletion
+deletes it through `DeleteTimeRecord`, each at the version the copy holds as `base_version`. A
+change or a deletion of a record the copy does not hold goes online. A refusal (a locked period, a
+week handed in) is kept and opens as a draft at `/time`. A record recorded and then changed before
+one push still names the minted identifier in its change, which the server does not hold; that
+change is refused and kept as a draft.
 ---
 
 ## 5. Conflicts are visible, not silent

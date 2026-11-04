@@ -24,6 +24,7 @@ export const ENTITY_PLACES: Readonly<Record<VocabularyEntity, EntityPlace>> = {
   custom_role: { collection: 'custom_roles', href: '/administration/people?tab=permissions' },
   entry_link: {},
   time_timer: { href: '/time' },
+  time_record: { href: '/time' },
 };
 
 /** Every queueable entity, for the catalogue's test and nothing else. */
@@ -34,7 +35,7 @@ export function draftFields(local: unknown): Record<string, string> {
   if (!local || typeof local !== 'object' || Array.isArray(local)) return {};
   const fields: Record<string, string> = {};
   for (const [field, value] of Object.entries(local as Record<string, unknown>)) {
-    if (typeof value === 'string' && ['title', 'notes', 'name', 'description', 'body'].includes(field)) fields[field] = value;
+    if (typeof value === 'string' && ['title', 'notes', 'note', 'name', 'description', 'body'].includes(field)) fields[field] = value;
   }
   return fields;
 }

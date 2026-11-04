@@ -12918,6 +12918,8 @@
   "templates.text.42ce2d73": "- One question per page, its title the question as a requester asks it.\n- The answer first, the steps after it.\n- A screenshot where words are not enough.",
   "app.sync.what.entity.time_timer.write": "The timer changed",
   "app.sync.what.entity.time_timer.delete": "The timer stopped",
+  "app.sync.what.entity.time_record.delete": "Time deleted",
+  "app.sync.what.entity.time_record.write": "Time recorded or changed",
   "app.sync.open_as_draft": "Open as draft",
   "app.sync.draft.title": "A change that was not accepted",
   "app.sync.draft.intro": "{what} — {where}. Change what you wrote and send it again, or discard it. It stays here until you do.",

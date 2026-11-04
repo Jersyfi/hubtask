@@ -1148,6 +1148,9 @@ export async function mutationFor(
   if (pathname === '/timer:start' || pathname === '/timer:stop' || pathname === '/timer') {
     return timerOf(method, pathname, fields, helpers);
   }
+  if (pathname === '/time-records' || pathname.startsWith('/time-records/')) {
+    return timeRecordOf(method, pathname, fields, helpers);
+  }
 
   return vocabularyOf(method, pathname, fields, helpers);
 }
@@ -1179,6 +1182,41 @@ async function timerOf(
   }
   if (method === 'DELETE' && pathname === '/timer') {
     return { kind: 'ENTITY_DELETE', entity: 'time_timer', entityKey: 'own', itemId: held.id };
+  }
+  return undefined;
+}
+
+/**
+ * Time recorded, corrected, changed or deleted while the server is away (user-experience.md §5.11):
+ * an `ENTITY_*` mutation of `time_record`. A recording or a correction is keyed by an identifier
+ * minted here, which the server's answer replaces; a change or a deletion names the record the copy
+ * holds at its version, and one the copy does not hold goes online.
+ */
+async function timeRecordOf(
+  method: 'POST' | 'PATCH' | 'PUT' | 'DELETE',
+  pathname: string,
+  fields: Record<string, unknown>,
+  helpers: { readonly storage: Storage; readonly mintId: () => string },
+): Promise<QueuedWrite | undefined> {
+  if (method === 'POST' && pathname === '/time-records') {
+    const id = helpers.mintId();
+    return { kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: id, itemId: id, payload: fields };
+  }
+  const match = /^\/time-records\/([^/:]+)(:correct)?$/.exec(pathname);
+  if (!match?.[1]) return undefined;
+  const recordId = decodeURIComponent(match[1]);
+  if (match[2]) {
+    if (method !== 'POST') return undefined;
+    const id = helpers.mintId();
+    return { kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: id, itemId: id, payload: { ...fields, corrects: recordId } };
+  }
+  const held = await helpers.storage.get<StoredRecord<Document>>('time_records', recordId);
+  if (!held || held.tombstone) return undefined;
+  if (method === 'PATCH') {
+    return { kind: 'ENTITY_PATCH', entity: 'time_record', entityKey: recordId, itemId: recordId, baseVersion: held.version, payload: fields };
+  }
+  if (method === 'DELETE') {
+    return { kind: 'ENTITY_DELETE', entity: 'time_record', entityKey: recordId, itemId: recordId, baseVersion: held.version };
   }
   return undefined;
 }

@@ -614,6 +614,30 @@ test('the timer is started, stopped and discarded from the queue', async () => {
   assert.deepEqual(await storeFor({ path: '/timer' }, storage), { running: false }, 'a stop waiting reads as stopped');
 });
 
+// user-experience.md §5.11: while the server is away time is recorded, corrected, changed and
+// deleted from the queue as `time_record` mutations; a change or a deletion of a record the copy does
+// not hold goes online.
+test('time is recorded, corrected, changed and deleted from the queue', async () => {
+  const minted = '0192f000-0000-7000-8000-00000000f00d';
+  const storage = new MemoryStorage();
+  assert.deepEqual(await mutationFor('POST', '/time-records', { day: '2026-11-03', minutes: 45 }, helpers(storage)), {
+    kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: minted, itemId: minted, payload: { day: '2026-11-03', minutes: 45 },
+  });
+  assert.deepEqual(await mutationFor('POST', '/time-records/r-1:correct', { day: '2026-11-04', minutes: -15 }, helpers(storage)), {
+    kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: minted, itemId: minted, payload: { day: '2026-11-04', minutes: -15, corrects: 'r-1' },
+  });
+  assert.equal(await mutationFor('PATCH', '/time-records/r-1', { minutes: 30 }, helpers(storage)), undefined, 'a record the copy does not hold');
+  assert.equal(await mutationFor('DELETE', '/time-records/r-1', undefined, helpers(storage)), undefined, 'a record the copy does not hold');
+
+  await storage.put('time_records', 'r-1', { ...record({ id: 'r-1', day: '2026-11-03', minutes: 60 }), version: 4 });
+  assert.deepEqual(await mutationFor('PATCH', '/time-records/r-1', { minutes: 30 }, helpers(storage)), {
+    kind: 'ENTITY_PATCH', entity: 'time_record', entityKey: 'r-1', itemId: 'r-1', baseVersion: 4, payload: { minutes: 30 },
+  });
+  assert.deepEqual(await mutationFor('DELETE', '/time-records/r-1', undefined, helpers(storage)), {
+    kind: 'ENTITY_DELETE', entity: 'time_record', entityKey: 'r-1', itemId: 'r-1', baseVersion: 4,
+  });
+});
+
 // UC-GOL-03 offline: the portfolios are answered from the copy by name, each project the copy
 // holds named from its container and none counted; a project whose container the copy does not
 // hold is left out.

@@ -531,7 +531,8 @@ templates*, so *Templates* means one thing. A test pins the section order per le
 ### 5.11 Offline, and a change refused later
 
 * Manual time (`POST`, `PATCH`, `DELETE /time-records`) becomes a replica mutation, as the timer
-  is, so time can be recorded offline.
+  is, so time can be recorded offline. Built: `time_record` entity mutations, corrections included
+  (offline-sync.md §4.4).
 * **A refused change can be opened as a draft**: the sync panel offers *Open as draft* for every
   refused mutation, reopening the capture or entry form prefilled from the record with the
   server's field errors shown, and keeps the record until it is sent again or discarded. The

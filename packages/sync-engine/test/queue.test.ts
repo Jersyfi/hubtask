@@ -42,6 +42,10 @@ const mutationFor = async (method: string, path: string, body: unknown, helpers:
     return { kind: 'ENTITY_PATCH', entity: 'entry_type', entityKey: type[1], itemId: ENTRY_TYPE, baseVersion: 2, payload: body as Record<string, unknown> };
   }
   if (type?.[1] && method === 'DELETE') return { kind: 'ENTITY_DELETE', entity: 'entry_type', entityKey: type[1], itemId: ENTRY_TYPE };
+  if (method === 'POST' && path === '/time-records') {
+    const id = helpers.mintId();
+    return { kind: 'ENTITY_UPSERT', entity: 'time_record', entityKey: id, itemId: id, payload: body as Record<string, unknown> };
+  }
   if (method === 'POST' && path === '/items') {
     return { kind: 'ITEM_CREATE', itemId: helpers.mintId(), payload: body as Record<string, unknown> };
   }
@@ -457,6 +461,33 @@ test('§4.4: a type created offline is predicted under a minted identifier, whic
   await engine.push();
   const rows = (await storage.all<StoredRecord<Record<string, unknown>>>('entry_types')).filter((row) => row.document.key === 'risk');
   assert.deepEqual(rows.map((row) => row.id), [SERVER], 'one record, under the server\'s identifier');
+});
+
+// user-experience.md §5.11: time recorded offline shows in the copy as pending, is sent as a
+// `time_record` mutation on reconnect, and the server's record takes the prediction's place.
+test('a time record made offline is sent on reconnect under the server\'s identifier', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.down = true;
+  await engine.mutate('POST', '/time-records', { day: '2026-11-03', minutes: 45, work_type: 'development' }, { invalidates: ['/timesheets/2026-11-02'] });
+  const predicted = await storage.all<StoredRecord<Record<string, unknown>>>('time_records');
+  assert.equal(predicted.length, 1);
+  assert.ok(predicted[0]?.pending, 'the record is shown pending');
+  assert.equal(predicted[0]?.document.minutes, 45);
+  assert.equal(transport.pushes.length, 0, 'nothing reached the server while it was away');
+
+  const SERVER = '0192f000-0000-7000-8000-0000000000a9';
+  transport.results = (mutation) => ({
+    op_id: mutation.op_id, result: 'APPLIED', entity_id: SERVER,
+    server_state: { id: SERVER, day: '2026-11-03', minutes: 45, work_type: 'development', version: 1 },
+  });
+  transport.down = false;
+  await engine.push();
+  const sent = (transport.pushes[0] as { mutations: SyncMutation[] }).mutations[0];
+  assert.equal(sent?.kind, 'ENTITY_UPSERT');
+  assert.equal(sent?.entity, 'time_record');
+  assert.equal((sent?.payload as Record<string, unknown>).minutes, 45);
+  const rows = await storage.all<StoredRecord<Record<string, unknown>>>('time_records');
+  assert.deepEqual(rows.map((row) => [row.id, Boolean(row.pending)]), [[SERVER, false]], 'one record, under the server\'s identifier');
 });
 
 test('§4.4: a type deleted offline goes from the replica and is pushed as an ENTITY_DELETE', async () => {
