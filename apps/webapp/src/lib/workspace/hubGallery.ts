@@ -67,3 +67,36 @@ export function afterCreating(id: string, template: string | undefined, otherwis
 export function prefilledName(current: string, filled: string, next: string): string {
   return current.trim() === '' || current === filled ? next : current;
 }
+
+/** The parts a template's *Preview* names, in the order a person meets them. */
+export const CREATES = [
+  'types', 'workflows', 'fields', 'roles', 'views', 'rules', 'sla_policies', 'business_calendars', 'reply_templates', 'template_pages', 'samples',
+] as const;
+export type Creates = (typeof CREATES)[number];
+
+type Block = Readonly<Record<string, object | null>> | null | undefined;
+type Document = Readonly<Record<string, Block>> | null | undefined;
+
+/**
+ * What taking a template creates, in words (user-experience.md §5.2, *Preview*): per part, the
+ * names its blocks carry - from the workspace's part, the hub's and the collection's, each key
+ * once - and a part it holds nothing of left out. A block without a name is named by its key.
+ */
+export function createsOf(template: {
+  readonly document?: Document;
+  readonly hub_document?: Document;
+  readonly collection_document?: Document;
+}): { readonly part: Creates; readonly names: readonly string[] }[] {
+  const documents = [template.document, template.hub_document, template.collection_document];
+  return CREATES.map((part) => {
+    const named = new Map<string, string>();
+    for (const document of documents) {
+      for (const [key, block] of Object.entries(document?.[part] ?? {})) {
+        if (block === null || named.has(key)) continue;
+        const { name, title } = block as { readonly name?: unknown; readonly title?: unknown };
+        named.set(key, typeof name === 'string' ? name : typeof title === 'string' ? title : key);
+      }
+    }
+    return { part, names: [...named.values()] };
+  }).filter((each) => each.names.length > 0);
+}

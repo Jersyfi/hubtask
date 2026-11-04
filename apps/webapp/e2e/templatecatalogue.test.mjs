@@ -24,10 +24,19 @@ const template = (key, modules) => ({
   update_available: false, taken_version: null, hub_document: {},
   document: { modules: Object.fromEntries(modules.map((name) => [name, { switch: 'ON' }])) },
 });
+const ITIL = template('itil_service_desk', ['workflows', 'service_desk', 'knowledge']);
+ITIL.document.types = { incident: { name: 'Incident' }, service_request: { name: 'Service request' } };
+ITIL.hub_document = { template_pages: { how_we_work: { title: 'How we work with this desk' } } };
 const CATALOGUE = [
-  template('itil_service_desk', ['workflows', 'service_desk', 'knowledge']),
+  ITIL,
   template('internal_it', ['workflows', 'service_desk']),
   template('household', ['workflows']),
+  // One of every other family, so the filter holds all of them at 375 px.
+  template('scrum_team', ['workflows', 'planning']),
+  template('classic_project', ['workflows', 'planning']),
+  template('okr', ['goals']),
+  template('approvals', ['workflows']),
+  template('risk_register', ['workflows']),
 ];
 
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
@@ -64,6 +73,17 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     assert.match(said, /ITIL 4/u, said);
     assert.match(said, /Service desk/u, `no product chip: ${said}`);
     assert.notEqual(await page.locator('[data-template="internal_it"] .summary').innerText(), await itil.locator('.summary').innerText());
+    // *Preview*: what taking it creates, in words, folded until asked for.
+    assert.equal(await itil.locator('[data-template-preview]').count(), 0);
+    await itil.getByRole('button', { name: /Preview/u }).click();
+    const preview = await itil.locator('[data-template-preview]').innerText();
+    assert.match(preview, /Entry types\s+Incident, Service request/u, preview);
+    assert.match(preview, /Pages\s+How we work with this desk/u, preview);
+    // The family filter stays inside the page's width, at 375 px too.
+    const filter = await page.getByRole('radiogroup', { name: 'Families' }).evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth }));
+    const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    assert.equal(sideways, 0, `the page scrolls sideways by ${sideways} px`);
+    assert.ok(filter.scroll <= filter.client, `the family filter scrolls sideways at ${width} px: ${filter.scroll} > ${filter.client}`);
 
     await page.getByRole('radiogroup', { name: 'Families' }).getByRole('radio', { name: 'Service', exact: true }).click();
     await page.locator('[data-template="household"]').waitFor({ state: 'detached', timeout: 5_000 });

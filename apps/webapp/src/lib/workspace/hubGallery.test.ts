@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afterCreating, familiesOf, familyOf, hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
+import { afterCreating, createsOf, familiesOf, familyOf, hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
 
 const of = (key: string, origin: 'HUBTASK' | 'INSTALLATION' | 'WORKSPACE' | 'OWN' = 'HUBTASK', hub = true) => ({
   key, origin, hub_document: hub ? {} : null,
@@ -59,4 +59,28 @@ test('the catalogue\'s families are the ones its templates fall in, in the galle
   const list = [of('it_asset_register', 'HUBTASK', false), of('itil_service_desk'), of('mine', 'WORKSPACE'), of('household')];
   assert.equal(familyOf(of('vendor_contracts', 'HUBTASK', false)), 'registers');
   assert.deepEqual(familiesOf(list), ['personal', 'service', 'registers', 'workspace']);
+});
+
+// §5.2: a card's *Preview* says what taking it creates, in words - the walk found only a sentence.
+test('a template says what it creates, per part, each block once, from every part it holds', () => {
+  const template = {
+    document: {
+      modules: { planning: { switch: 'ON' } },
+      types: { story: { name: 'Story' }, bug: { name: 'Bug' } },
+      workflows: { story: { name: 'Story' } },
+      roles: { product_owner: { name: 'Product Owner' } },
+      fields: { gone: null },
+    },
+    hub_document: { views: { mine: { name: 'Mine' } }, template_pages: { how: { title: 'How we work' } }, rules: { nudge: {} } },
+    collection_document: { types: { story: { name: 'Story again' } } },
+  };
+  assert.deepEqual(createsOf(template), [
+    { part: 'types', names: ['Story', 'Bug'] },
+    { part: 'workflows', names: ['Story'] },
+    { part: 'roles', names: ['Product Owner'] },
+    { part: 'views', names: ['Mine'] },
+    { part: 'rules', names: ['nudge'] },
+    { part: 'template_pages', names: ['How we work'] },
+  ]);
+  assert.deepEqual(createsOf({}), []);
 });

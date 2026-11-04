@@ -14,6 +14,7 @@
   import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, ViewSwitcher } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
 
+  import TemplatePreview from './TemplatePreview.svelte';
   import { config, needsAcknowledge } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
   import { answersOf, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from '../data/configtemplates.ts';
@@ -285,8 +286,10 @@
                   ? t('app.templates.in_use', { version: template.version })
                   : undefined}
               isNoteNews={offer === 'UPDATE'}
+              {details}
               action={offer === 'IN_USE' ? undefined : takeAct}
             />
+            {#snippet details()}<TemplatePreview {template} />{/snippet}
             {#snippet takeAct()}
               <Button size="sm" tone={offer === 'UPDATE' ? 'primary' : 'secondary'} isBusy={busy === template.key}
                 data-take={template.key} data-update-available={offer === 'UPDATE' ? '' : undefined} onclick={() => open(template)}>

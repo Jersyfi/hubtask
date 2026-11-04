@@ -38,6 +38,7 @@
   import { Button, Dialog, Input, Radio, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList } from '@hubtask/sync-engine';
 
+  import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { config } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
   import { hubFamilies, prefilledName, switchedOn } from './hubGallery.ts';
@@ -271,6 +272,7 @@
                 {@const name = templateName(each)}
                 <TemplateCard {name} summary={summaryOf(each)} products={productsOf(each)} {isChosen} isCompact data-hub-template={each.key}
                   note={each.taken_version == null ? undefined : t('app.workspace.hub_template_in_workspace')}>
+                  {#snippet details()}<TemplatePreview template={each} />{/snippet}
                   {#snippet action()}
                     <Button size="sm" tone={isChosen ? 'primary' : 'secondary'} icon={isChosen ? 'check' : undefined} aria-pressed={isChosen} onclick={() => pickTemplate(each.key)}>
                       {t(isChosen ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${name}`}</VisuallyHidden>
