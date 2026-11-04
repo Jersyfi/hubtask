@@ -700,6 +700,17 @@ entries. Not built: *In progress* as its own lane (a sprint entry answers done o
 category), a finger carrying a card (it scrolls; the arrow is its way), and the milestone sentence
 *All done on … · n open since* (the milestone answers no count of entries added since).
 
+The releases follow the same anatomy: the head says how many are planned, the next one and its day
+(or that it is late) and how many went out, with *Plan a release* its primary and *Release* and
+*Change the release* its acts; the chosen release is a card with its state, its day, its
+description and how much of it is done, then its entries and the entries to add, each empty list
+saying so. A release has no trash, so *Delete* (the menu) asks in a dialog that names it and how
+many entries leave it; a missing name or day is said at its field, a refusal inside its dialog. The
+roadmap opens, as the plan does, on its whole reach at the finest scale that holds it (months at
+the finest) with *Fit roadmap*; its head says the reach, how many projects and how many are at risk
+or off track; its critical bars carry their name; a roadmap without projects says what fills it and
+leads to the portfolio; its table stacks on a phone.
+
 ### 7.6 Time
 
 *My week* first: the days as columns, the running timer in the head, *Record time* as the
