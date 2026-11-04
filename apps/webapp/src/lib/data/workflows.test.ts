@@ -8,7 +8,7 @@ import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
   addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
-  removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub, boardShapeIn,
+  removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub, boardShapeIn, workflowsIn,
 } from './workflows.ts';
 
 const shape: WorkflowShape = {
@@ -162,4 +162,21 @@ test('a board draws the statuses of every workflow its collection runs, each onc
   // The collection's own row for a type wins over its hub's.
   const own = { ...list, scheme: [...list.scheme, { container_id: 'col', entry_type: 'bug', workflow: 'elsewhere' }] } as unknown as WorkflowList;
   assert.deepEqual(boardShapeIn(own, 'col', 'hub')?.statuses.map((each) => each.key), ['backlog', 'x', 'in_progress', 'done']);
+});
+
+// The collection head said *Workflow:* with the task's workflow only, and nothing in a template's
+// collection, which maps its own types (story, bug) and not `task`.
+test('a collection names every workflow its types run there, each once, the collection first', () => {
+  const list = {
+    data: [{ key: 'story' }, { key: 'bug' }, { key: 'own' }],
+    scheme: [
+      { container_id: 'hub', entry_type: 'story', workflow: 'story' },
+      { container_id: 'hub', entry_type: 'bug', workflow: 'bug' },
+      { container_id: 'hub', entry_type: 'epic', workflow: 'story' },
+      { container_id: 'col', entry_type: 'bug', workflow: 'own' },
+    ],
+  } as unknown as WorkflowList;
+  assert.deepEqual(workflowsIn(list, 'col', 'hub').map((each) => each.key), ['own', 'story']);
+  assert.deepEqual(workflowsIn(list, 'other', undefined), []);
+  assert.deepEqual(workflowsIn(undefined, 'col', 'hub'), []);
 });

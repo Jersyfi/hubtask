@@ -99,7 +99,7 @@
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { boardShapeIn, workflowFor, workflows } from '../lib/data/workflows.svelte.ts';
+  import { boardShapeIn, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
   import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -240,8 +240,9 @@
     if (!workflowsOn) return;
     return untrack(() => workflows.open());
   });
-  const workflowHere = $derived(
-    container?.type === 'COLLECTION' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, 'task') : undefined,
+  /** Every workflow a type runs here, named in the head: a template maps its own types, not `task`. */
+  const workflowsHere = $derived(
+    container?.type === 'COLLECTION' ? workflowsIn(workflows.list, container.id, container.parent_id ?? undefined) : [],
   );
   /** The board's status columns: every workflow a type runs here, not only the task's. */
   const boardShape = $derived(
@@ -1123,12 +1124,15 @@
        collection or hub, while the reader celebrates (checks 4 and 7). -->
   {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
-    {#if workflowHere}
-      <p class="workflow-line" data-collection-workflow={workflowHere.key}>
+    {#if workflowsHere.length > 0}
+      <p class="workflow-line" data-collection-workflows={workflowsHere.map((each) => each.key).join(' ')}>
         {t('app.workflows.runs_here')}
-        <a href="/administration/workflows" onclick={(event) => { event.preventDefault(); onnavigate('/administration/workflows'); }}>
-          {workflowHere.name ?? t('workflows.default_name')}
-        </a>
+        {#each workflowsHere as each, index (each.key)}
+          {#if index > 0}<span aria-hidden="true">·</span>{/if}
+          <a href="/administration/workflows" data-collection-workflow={each.key} onclick={(event) => { event.preventDefault(); onnavigate('/administration/workflows'); }}>
+            {each.name ?? t('workflows.default_name')}
+          </a>
+        {/each}
       </p>
     {/if}
 
