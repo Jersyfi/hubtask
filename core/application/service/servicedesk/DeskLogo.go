@@ -21,7 +21,7 @@ import (
 const (
 	SetDeskLogoName    = "SetDeskLogo"
 	RemoveDeskLogoName = "RemoveDeskLogo"
-	GetDeskLogoName   = "GetDeskLogo"
+	GetDeskLogoName    = "GetDeskLogo"
 
 	// The trail names the media object, never anything in it.
 	DeskLogoSetAction     audit.Action = "desk.logo_set"
@@ -200,8 +200,8 @@ func (h GetDeskLogo) Descriptor() usecase.Descriptor {
 		Name: GetDeskLogoName, Permission: service.PermissionRead,
 		Summary:     "Answers the logo a collection's portal shows, or none where it draws the collection's icon and colour.",
 		SideEffects: "None. Reads only.", TokenScope: deskRead, ReadOnly: true,
-		Input:       []usecase.Field{{Name: "container_id", Kind: usecase.KindID, Required: true, Description: "The collection serving as the service."}},
-		Audit:       usecase.AuditDeclaration{Action: DeskLogoReadAction},
+		Input: []usecase.Field{{Name: "container_id", Kind: usecase.KindID, Required: true, Description: "The collection serving as the service."}},
+		Audit: usecase.AuditDeclaration{Action: DeskLogoReadAction},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 			collectionID, err := in.ID("container_id")
 			if err != nil {
