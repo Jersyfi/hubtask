@@ -114,7 +114,10 @@ and its releases as sub-views; *Time* holds actuals and workload; *Goals* holds 
 dashboards; *Desk* lists the hub's desk collections' queue. A collection draws the same strip with
 its own tabs: *Entries* · *Plan* · *Sprints* · *Portal* · *Time*, where *Sprints* appears only
 where the collection runs sprints (its template brought them, or a sprint exists) and *Portal* only
-on a desk.
+on a desk: a collection whose own or hub's `entry_types` name a type open to the portal. A request
+type of the workspace alone makes no collection a desk, so a service template taken by the
+workspace leaves its Scrum and Kanban collections as they were; a service template's hub part
+names its types.
 
 * The strip is a new design-system component, **`PlaceTabs`**: a `nav` landmark of links with
   `aria-current`, because it switches routes (the same reason `BottomBar` is not `Tabs`). One tab
