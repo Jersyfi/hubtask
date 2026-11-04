@@ -237,6 +237,54 @@ func TestACopyOfACompletedEntryIsOpen(t *testing.T) {
 	}
 }
 
+// A copy stands where the workflow in force at its destination puts an open entry: a copy of a
+// done entry is open, so it re-enters at the start rather than sitting in a done column; a status
+// the destination's workflow knows is kept; and where no workflow runs it carries none - a board
+// by status otherwise draws it in the wrong column or in none (UC-FLW-03, UC-FLW-05 check 6).
+func TestACopyStandsWhereTheDestinationsWorkflowPutsAnOpenEntry(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    string
+		completed bool
+		into      shared.ID
+		want      string
+	}{
+		{"a done entry's copy re-enters", "done", true, collectionID, "todo"},
+		{"an open status the workflow knows is kept", "review", false, collectionID, "review"},
+		{"a status the workflow does not know enters", "triage", false, collectionID, "todo"},
+		{"no workflow at the destination, no status", "review", false, farCollectionID, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			h := newDuplicateHarness(t)
+			h.handler.Workflow = WorkflowGate{Workflows: &workflowStore{
+				rows:    []domain.Workflow{reviewWorkflow()},
+				schemes: []domain.WorkflowScheme{{ContainerID: collectionID, WorkflowKey: "review"}},
+			}}
+			original := h.withTask()
+			original.Status = c.status
+			if c.completed {
+				stamp := now
+				original.Completion = domain.Completion{IsCompleted: true, CompletedAt: &stamp, CompletedBy: accountID}
+			}
+			h.items.stored[original.ID] = original
+
+			result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+				ItemID: original.ID, TargetCollectionID: c.into,
+			})
+			if err != nil {
+				t.Fatalf("the copy was refused: %v", err)
+			}
+			if result.Item.Status != c.want {
+				t.Errorf("the copy stands in %q, want %q", result.Item.Status, c.want)
+			}
+			if stored := h.items.stored[result.Item.ID]; stored.Status != c.want {
+				t.Errorf("the stored copy stands in %q, want %q", stored.Status, c.want)
+			}
+		})
+	}
+}
+
 // The sets travel: the labels, the members and the files, each written with a tag of its own so
 // that the addition survives a merge (offline-sync.md §4.2).
 func TestACopyCarriesTheLabelsTheMembersAndTheFiles(t *testing.T) {

@@ -1301,9 +1301,10 @@ func run() error {
 	}
 
 	duplicate := work.DuplicateWorkItem{
-		Gate:  entryGate,
-		Quota: quotaGuard,
-		Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
+		Gate:     entryGate,
+		Quota:    quotaGuard,
+		Workflow: workflowGate,
+		Items:    items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
 		Buckets: buckets, Fields: customFields, Containers: containers,
 		Attachments: mediaObjects, Media: mediaObjects, Profiles: profiles,
 		// The authorisation service under three names: the permission, the question about the

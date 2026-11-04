@@ -73,7 +73,10 @@ type DuplicateWorkItem struct {
 	Profiles    metarepo.CapabilityProfiles
 	// Gate is what the entry's collection offers it: the refusal before a write of what it
 	// hides, and the mark on the answer (domain-model.md §2).
-	Gate       EntryGate
+	Gate EntryGate
+	// Workflow settles each copy where the workflow in force at the destination puts an open entry
+	// of its type (WorkflowGate.openStatus). Unwired, the source's status travels as it is.
+	Workflow   WorkflowGate
 	Authorizer Authorizer
 	// Ownership is the same question the create path asks: does the role the actor holds write only
 	// what is assigned to them. A copy is a create, so it has to ask it too.
@@ -563,6 +566,34 @@ func (h DuplicateWorkItem) canSee(
 	return permitted, nil
 }
 
+// openStatus answers where the copy stands: an open entry of its type in the workflow in force at
+// the destination - the source's status where that workflow knows it as an open one, its entry
+// point otherwise, none where no workflow runs. A copy is open, so a done status would put it in a
+// done column it never reached (UC-FLW-05 check 6's rule, for a new entry).
+func (h DuplicateWorkItem) openStatus(
+	ctx context.Context, destination domain.Container, copied domain.WorkItem, made *copies,
+) (string, error) {
+	if !h.Workflow.Wired() {
+		return copied.Status, nil
+	}
+	key := domain.EntryTypeKeyOf(copied)
+	shape, asked := made.shapes[key]
+	if !asked {
+		workflow, found, err := h.Workflow.InForce(ctx, destination, key)
+		if err != nil {
+			return "", err
+		}
+		if found {
+			shape = &workflow.Published
+		}
+		made.shapes[key] = shape
+	}
+	if shape == nil {
+		return "", nil
+	}
+	return shape.Entering(copied.Status, false), nil
+}
+
 // copies is the state one duplication carries while it writes: what each source entry became, and
 // what the last sibling written under each new parent was ranked.
 type copies struct {
@@ -573,6 +604,9 @@ type copies struct {
 	// zero identifier for the top level of the destination collection.
 	lastRank map[shared.ID]string
 	dropped  []domain.DroppedReference
+	// shapes is the workflow in force at the destination per entry type, nil where none runs:
+	// asked once per type rather than once per copied entry.
+	shapes map[string]*domain.WorkflowShape
 }
 
 // write produces every entry of the copy, and the records each one owes.
@@ -590,6 +624,7 @@ func (h DuplicateWorkItem) write(
 		newIDs:   make(map[shared.ID]domain.WorkItem, len(entries)),
 		lastRank: map[shared.ID]string{},
 		dropped:  []domain.DroppedReference{},
+		shapes:   map[string]*domain.WorkflowShape{},
 	}
 
 	// Where the copy of the entry itself lands: at the end of the level it is asked for, which is
@@ -641,6 +676,11 @@ func (h DuplicateWorkItem) copyOf(
 	// The copy is open. `completed_at` and `completed_by` name a person and a moment, and a copy
 	// carrying them would say that person completed an entry they never touched.
 	copied.Completion = domain.Completion{}
+	status, err := h.openStatus(ctx, plan.destination, copied, made)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	copied.Status = status
 
 	// A copy belongs to no series, whatever the entry it was copied from belongs to: duplicating a
 	// recurring task gives somebody a task like it rather than a second template. The
