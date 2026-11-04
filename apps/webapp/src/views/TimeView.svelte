@@ -1,7 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Time* (M7): the reader's week, the weeks waiting for their decision, and where the time went.
+  // *Time* (M7, user-experience.md §7.6): the reader's week, the weeks waiting for their decision,
+  // and where the time went, under one head - the week's total and state as its figure, the one
+  // timer beside the acts, *Record time* the primary - and one strip of tabs.
   //
   // **My week** (UC-TIM-02 check 8): the week from Monday as a grid of entries by day, the records
   // under it - changed and removed while the week is open and the day unlocked, corrected
@@ -21,8 +23,8 @@
 
   import { untrack } from 'svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Table, Tabs, Textarea,
-    type Column,
+    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
+    type Column, type PlaceTab,
   } from '@hubtask/design-system/components';
   import type { PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -47,6 +49,8 @@
   import { renderProblem } from '../lib/problem.ts';
   import AbsenceCalendar from '../lib/time/AbsenceCalendar.svelte';
   import CapacityEditor from '../lib/time/CapacityEditor.svelte';
+  import RunningTimer from '../lib/time/RunningTimer.svelte';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
 
   interface Props {
     /** The tab the address names (`?tab=`); the week where it names none or an unknown one. */
@@ -66,6 +70,7 @@
     { id: 'capacity', code: 'app.time.tab_capacity' },
   ] as const;
   const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'week');
+  const tabs = $derived<PlaceTab[]>(TABS.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'week' ? '/time' : `/time?tab=${each.id}` })));
   function select(next: string) {
     onnavigate(next === 'week' ? '/time' : `/time?tab=${next}`);
   }
@@ -81,14 +86,19 @@
   const separator = $derived(decimalSeparatorOf(locale, manifest.supportedLocales));
 
   let failure = $state<string | undefined>(undefined);
-  async function act(run: () => Promise<unknown>, done?: string): Promise<boolean> {
+  /** A refusal while a dialog is open, said inside it (§5.10); one dialog is open at a time. */
+  let dialogFailure = $state<string | undefined>(undefined);
+  async function act(run: () => Promise<unknown>, done?: string, inDialog = false): Promise<boolean> {
     failure = undefined;
+    dialogFailure = undefined;
     try {
       await run();
       if (done) toast.show({ text: done, tone: 'success' });
       return true;
     } catch (error) {
-      failure = renderProblem(error as never, messages).message;
+      const message = renderProblem(error as never, messages).message;
+      if (inDialog) dialogFailure = message;
+      else failure = message;
       return false;
     }
   }
@@ -151,6 +161,7 @@
     draft.billable = record?.billable ?? (kinds.find((each) => each.key === draft.kind)?.billable ?? true);
     draft.isBillableTouched = record !== undefined;
     draftError = undefined;
+    dialogFailure = undefined;
     isRecording = true;
   }
   $effect(() => {
@@ -172,6 +183,7 @@
     const ok = await act(
       () => (changing ? time.update(changing, fields, weeks) : time.log(fields, weeks)),
       changing ? t('app.time.changed') : t('app.time.recorded', { minutes: minutesText(minutes) }),
+      true,
     );
     if (ok) isRecording = false;
   }
@@ -187,6 +199,7 @@
     correction.minutes = '';
     correction.note = '';
     correctionError = undefined;
+    dialogFailure = undefined;
     isCorrecting = true;
   }
   async function saveCorrection() {
@@ -197,9 +210,22 @@
       return;
     }
     const weeks = [monday, weekStartOf(correction.day) ?? monday];
-    const ok = await act(() => time.correct(record.id, { minutes, day: correction.day, note: correction.note }, weeks), t('app.time.corrected'));
+    const ok = await act(() => time.correct(record.id, { minutes, day: correction.day, note: correction.note }, weeks), t('app.time.corrected'), true);
     if (ok) isCorrecting = false;
   }
+
+  const weekText = $derived(t('app.time.week_of', { from: formatPlainDay(days[0], locale), to: formatPlainDay(days[6], locale) }));
+  const figureText = $derived(
+    sheet ? `${t('app.time.week_total', { minutes: minutesText(sheet.minutes) })} · ${t(`app.time.state_${sheet.state}`)}` : '',
+  );
+  /** Each day of the week with its minutes, for the strip a day is recorded from. */
+  const strip = $derived(days.map((day) => {
+    const at = sheet?.days.find((each) => each.day === day);
+    return { day, minutes: at?.minutes ?? 0, isLocked: at?.locked === true, isToday: day === today };
+  }));
+  const mayRecord = $derived(isOpen && offeredKinds.length > 0);
+  const longDay = (day: string) => new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`));
+  const recordPrimary = $derived(mayRecord ? { label: t('app.time.add'), icon: 'plus' as const, onclick: () => openRecord(undefined) } : undefined);
 
   function goWeek(by: number) {
     const next = addDays(monday, by * 7);
@@ -255,7 +281,7 @@
   async function reject() {
     const sheetOf = deciding;
     if (!sheetOf || reason.trim() === '') return;
-    const ok = await act(() => time.reject(sheetOf.week_start, sheetOf.account_id, reason.trim(), queue), t('app.time.sent_back', { name: personName(sheetOf.account_id) }));
+    const ok = await act(() => time.reject(sheetOf.week_start, sheetOf.account_id, reason.trim(), queue), t('app.time.sent_back', { name: personName(sheetOf.account_id) }), true);
     if (ok) { isRejecting = false; deciding = undefined; reason = ''; }
   }
 
@@ -283,6 +309,8 @@
       if (next.status === 'failed') reportRefusal = renderProblem(next.error, messages).message;
     }));
   });
+  /** The largest group of the report, for its bars. */
+  const reportPeak = $derived(Math.max(1, ...(answer?.groups ?? []).map((group) => group.minutes)));
   $effect(() => {
     const ids = (answer?.groups ?? []).flatMap((group) => group.keys.filter((key) => key.dimension === 'PERSON').map((key) => key.value));
     if (ids.length > 0) accounts.resolve(ids);
@@ -325,32 +353,37 @@
 <Stack gap="300">
   <PageHeader
     title={t('app.time.title')}
+    subtitle={t('app.modules.hint_time')}
     isTitleInBar={viewport.isCompact}
-    primary={current === 'week' && isOpen && offeredKinds.length > 0 ? { label: t('app.time.add'), icon: 'plus', onclick: () => openRecord(undefined) } : undefined}
-  />
+    primary={current === 'week' ? recordPrimary : undefined}
+    breadcrumb={{
+      trail: [
+        { id: 'products', label: t('app.nav.products') },
+        { id: 'product', label: t('app.nav.time') },
+      ],
+      label: t('app.product_home.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  >
+    {#snippet figure()}{#if current === 'week' && figureText}<span class="figure" data-time-figure>{figureText}</span>{/if}{/snippet}
+    {#snippet aside()}<RunningTimer {onnavigate} />{/snippet}
+  </PageHeader>
 
-  <Tabs label={t('app.time.title')} selected={current} onselect={select} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>
-    {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+  <PlaceTabs label={t('app.time.title')} {tabs} {current} onnavigate={select} />
 
-    {#if current === 'week'}
-      <div class="controls">
+  {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+
+  {#if current === 'week'}
+    <div class="toolbar">
+      <div class="nav">
         <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => goWeek(-1)}>{t('app.time.week_before')}</Button>
-        <span class="heading" aria-live="polite">{t('app.time.week_of', { from: days[0] ?? '', to: days[6] ?? '' })}</span>
+        <h2 class="heading" aria-live="polite">{weekText}</h2>
         <Button size="sm" tone="subtle" icon="chevron-right" onclick={() => goWeek(1)}>{t('app.time.week_after')}</Button>
         {#if monday !== thisWeek}<Button size="sm" tone="subtle" onclick={() => onnavigate('/time')}>{t('app.time.this_week')}</Button>{/if}
-        {#if sheet}<Badge size="sm" tone={stateTone(sheet.state)}>{t(`app.time.state_${sheet.state}`)}</Badge>{/if}
       </div>
-
-      {#if sheetRefusal}
-        <Banner tone="danger">{sheetRefusal}</Banner>
-      {:else if !sheet}
-        <div aria-busy="true"><Skeleton lines={6} /></div>
-      {:else}
-        {#if sheet.state === 'REJECTED' && sheet.reason}
-          <Banner tone="warning" title={t('app.time.sent_back_title')}>{sheet.reason}</Banner>
-        {/if}
-
-        <div class="controls">
+      {#if sheet}
+        <div class="acts">
+          <Badge size="sm" tone={stateTone(sheet.state)}>{t(`app.time.state_${sheet.state}`)}</Badge>
           {#if isOpen}
             <Button size="sm" tone="secondary" icon="copy" onclick={() => void act(async () => {
               const copied = await time.copyPrevious(monday);
@@ -362,12 +395,48 @@
             <Button size="sm" tone="secondary" icon="rotate-ccw" onclick={() => void act(() => time.withdraw(monday), t('app.time.taken_back'))}>{t('app.time.take_back')}</Button>
           {/if}
         </div>
+      {/if}
+    </div>
 
-        <section class="block" aria-labelledby="time-grid">
-          <h2 id="time-grid" class="heading">{t('app.time.grid', { minutes: minutesText(sheet.minutes) })}</h2>
-          <div class="scroll">
+    {#if sheetRefusal}
+      <Banner tone="danger">{sheetRefusal}</Banner>
+    {:else if !sheet}
+      <div aria-busy="true"><Skeleton lines={6} /></div>
+    {:else}
+      {#if sheet.state === 'REJECTED' && sheet.reason}
+        <Banner tone="warning" title={t('app.time.sent_back_title')}>{sheet.reason}</Banner>
+      {/if}
+
+      <ol class="days" aria-label={t('app.time.days', { week: weekText })}>
+        {#each strip as each (each.day)}
+          <li>
+            {#if mayRecord && !each.isLocked}
+              <button type="button" class="day" data-today={each.isToday ? '' : undefined}
+                aria-label={t('app.time.record_on', { day: longDay(each.day), minutes: minutesText(each.minutes) })}
+                onclick={() => openRecord(undefined, each.day)}>
+                <span class="weekday">{dayHeading(each.day, locale)}</span>
+                <span class="sum" data-none={each.minutes === 0 ? '' : undefined}>{minutesText(each.minutes)}</span>
+                <span class="add" aria-hidden="true"><Icon name="plus" size="sm" /></span>
+              </button>
+            {:else}
+              <div class="day" data-today={each.isToday ? '' : undefined} data-locked={each.isLocked ? '' : undefined}>
+                <span class="weekday">{dayHeading(each.day, locale)}</span>
+                <span class="sum" data-none={each.minutes === 0 ? '' : undefined}>{minutesText(each.minutes)}</span>
+                {#if each.isLocked}<span class="note"><Icon name="lock" size="sm" /><span>{t('app.time.locked')}</span></span>{/if}
+              </div>
+            {/if}
+          </li>
+        {/each}
+      </ol>
+
+      {#if sheet.records.length === 0}
+        <ProductEmpty kind={isOpen ? 'unused' : 'settled'} icon="clock" title={t('app.time.week_empty')}
+          description={isOpen ? t('app.time.week_empty_body') : undefined} create={recordPrimary} />
+      {:else}
+        {#if !viewport.isCompact}
+          <section class="block" aria-labelledby="time-grid">
+            <h2 id="time-grid" class="heading">{t('app.time.grid', { minutes: minutesText(sheet.minutes) })}</h2>
             <Table label={t('app.time.grid', { minutes: minutesText(sheet.minutes) })} isLabelHidden columns={gridColumns}>
-              {#snippet empty()}{t('app.time.week_empty')}{/snippet}
               {#each grid as row (row.key)}
                 <tr>
                   <th scope="row">{#if row.entryId}<a href={`/items/${row.entryId}`}>{row.title || t('app.time.entry_unreadable')}</a>{:else}{t('app.time.no_entry')}{/if}</th>
@@ -376,146 +445,142 @@
                   <td class="number strong">{minutesText(row.total)}</td>
                 </tr>
               {/each}
-              {#if grid.length > 0}
-                <tr class="foot">
-                  <th scope="row">{t('app.time.col_total')}</th>
-                  <td></td>
-                  {#each sheet.days as day (day.day)}
-                    <td class="number">{minutesText(day.minutes)}{#if day.locked}<span class="note">{t('app.time.locked')}</span>{/if}</td>
-                  {/each}
-                  <td class="number strong">{minutesText(sheet.minutes)}</td>
-                </tr>
-              {/if}
-            </Table>
-          </div>
-        </section>
-
-        {#if sheet.records.length > 0}
-          <section class="block" aria-labelledby="time-records">
-            <h2 id="time-records" class="heading">{t('app.time.records', { count: String(sheet.records.length) })}</h2>
-            <div class="scroll">
-              <Table label={t('app.time.records', { count: String(sheet.records.length) })} isLabelHidden columns={recordColumns}>
-                {#each [...sheet.records].sort((a, b) => a.day.localeCompare(b.day)) as record (record.id)}
-                  <tr>
-                    <td>{dayHeading(record.day, locale)}</td>
-                    <th scope="row">{#if record.entry_id}<a href={`/items/${record.entry_id}`}>{record.entry_title || t('app.time.entry_unreadable')}</a>{:else}{t('app.time.no_entry')}{/if}</th>
-                    <td>{kindName(record.work_type)}{#if record.billable}<span class="note">{t('app.time.billable_yes')}</span>{/if}</td>
-                    <td class="number">{minutesText(record.minutes)}{#if record.source === 'CORRECTION'}<span class="note">{t('app.time.a_correction')}</span>{/if}</td>
-                    <td class="clip">{record.note}</td>
-                    <td>
-                      <Inline gap="050">
-                        {#if isChangeable(record, sheet)}
-                          <Button size="sm" tone="subtle" icon="pencil" onclick={() => openRecord(record)}>{t('app.time.change')}</Button>
-                          <Button size="sm" tone="subtle" icon="trash" onclick={() => void act(() => time.remove(record, [monday]), t('app.time.removed'))}>{t('app.time.remove')}</Button>
-                        {:else if record.source !== 'CORRECTION' && (sheet.state === 'APPROVED' || sheet.days.some((d) => d.day === record.day && d.locked))}
-                          <Button size="sm" tone="subtle" onclick={() => openCorrection(record)}>{t('app.time.correct')}</Button>
-                        {/if}
-                      </Inline>
-                    </td>
-                  </tr>
+              <tr class="foot">
+                <th scope="row">{t('app.time.col_total')}</th>
+                <td></td>
+                {#each sheet.days as day (day.day)}
+                  <td class="number">{minutesText(day.minutes)}</td>
                 {/each}
-              </Table>
-            </div>
+                <td class="number strong">{minutesText(sheet.minutes)}</td>
+              </tr>
+            </Table>
           </section>
         {/if}
-      {/if}
 
-    {:else if current === 'approvals'}
-      {#if queueRefusal}
-        <Banner tone="danger">{queueRefusal}</Banner>
-      {:else if !waiting}
-        <div aria-busy="true"><Skeleton lines={4} /></div>
-      {:else if waiting.length === 0}
-        <p class="quiet">{t('app.time.queue_empty')}</p>
-      {:else}
-        <Table label={t('app.time.queue')} columns={queueColumns}>
-          {#each waiting as each (`${each.account_id}:${each.week_start}`)}
-            <tr>
-              <th scope="row">{personName(each.account_id)}</th>
-              <td>{t('app.time.week_of', { from: formatPlainDay(each.week_start, messages.locale), to: formatPlainDay(addDays(each.week_start, 6), messages.locale) })}</td>
-              <td class="number">{minutesText(each.submitted_minutes)}</td>
-              <td>
-                <Inline gap="050">
-                  <Button size="sm" tone="secondary" onclick={() => (deciding = each)}>{t('app.time.open_week')}</Button>
-                  <Button size="sm" icon="check" onclick={() => void approve(each)}>{t('app.time.approve')}</Button>
-                </Inline>
-              </td>
-            </tr>
-          {/each}
-        </Table>
-      {/if}
-
-      {#if deciding}
-        <section class="block" aria-labelledby="time-deciding">
-          <Inline justify="between" align="center">
-            <h2 id="time-deciding" class="heading">{t('app.time.week_of_person', { name: personName(deciding.account_id), from: formatPlainDay(deciding.week_start, messages.locale) })}</h2>
-            <Inline gap="050">
-              <Button size="sm" icon="check" onclick={() => deciding && void approve(deciding)}>{t('app.time.approve')}</Button>
-              <Button size="sm" tone="secondary" onclick={() => { reason = ''; isRejecting = true; }}>{t('app.time.send_back')}</Button>
-              <Button size="sm" tone="subtle" icon="x" onclick={() => (deciding = undefined)}>{t('app.time.close_week')}</Button>
-            </Inline>
-          </Inline>
-          {#if !decided}
-            <Skeleton lines={3} />
-          {:else}
-            <div class="scroll">
-              <Table label={t('app.time.grid', { minutes: minutesText(decided.minutes) })} isLabelHidden columns={decidedColumns}>
-                {#each decidedGrid as row (row.key)}
-                  <tr>
-                    <th scope="row">{row.entryId ? row.title || t('app.time.entry_unreadable') : t('app.time.no_entry')}</th>
-                    <td>{kindName(row.workType)}</td>
-                    {#each row.minutes as minutes, i (decidedDays[i])}<td class="number">{minutes === 0 ? '' : minutesText(minutes)}</td>{/each}
-                    <td class="number strong">{minutesText(row.total)}</td>
-                  </tr>
-                {/each}
-              </Table>
-            </div>
-          {/if}
-        </section>
-      {/if}
-
-    {:else if current === 'report'}
-      <div class="controls">
-        <Input label={t('app.time.from')} type="date" size="sm" bind:value={report.from} />
-        <Input label={t('app.time.to')} type="date" size="sm" bind:value={report.to} />
-        <Select label={t('app.time.group_by')} size="sm" bind:value={report.first} options={dimensionOptions} />
-        <Select label={t('app.time.then_by')} size="sm" bind:value={report.second} options={[{ value: '', label: t('app.time.none') }, ...dimensionOptions]} />
-        <Switch label={t('app.time.mine_only')} bind:checked={report.mine} />
-        {#if mayCost}<Switch label={t('app.time.export_with_costs')} bind:checked={report.costs} />{/if}
-        <Button size="sm" tone="secondary" icon="file-text" isBusy={isExporting} busyLabel={t('app.time.export')} onclick={() => void exportRecords()}>{t('app.time.export')}</Button>
-        <Button size="sm" tone="secondary" icon="file-text" isBusy={isExportingSheet} busyLabel={t('app.time.export_spreadsheet')} onclick={() => void exportSpreadsheet()}>{t('app.time.export_spreadsheet')}</Button>
-      </div>
-      {#if reportRefusal}
-        <Banner tone="danger">{reportRefusal}</Banner>
-      {:else if !answer}
-        <div aria-busy="true"><Skeleton lines={4} /></div>
-      {:else}
-        <h2 class="heading">{t('app.time.report_total', { minutes: minutesText(answer.minutes) })}</h2>
-        {#if answer.withheld_groups > 0}
-          <p class="quiet">{t('app.time.withheld', { groups: String(answer.withheld_groups), minutes: minutesText(answer.withheld_minutes) })}</p>
-        {/if}
-        <div class="scroll">
-          <Table label={t('app.time.tab_report')} isLabelHidden columns={reportColumns}>
-            {#snippet empty()}{t('app.time.report_empty')}{/snippet}
-            {#each answer.groups as group, i (i)}
+        <section class="block" aria-labelledby="time-records">
+          <h2 id="time-records" class="heading">{t('app.time.records', { count: String(sheet.records.length) })}</h2>
+          <Table isStacked label={t('app.time.records', { count: String(sheet.records.length) })} isLabelHidden columns={recordColumns}>
+            {#each [...sheet.records].sort((a, b) => a.day.localeCompare(b.day)) as record (record.id)}
               <tr>
-                {#each group.keys as key, k (k)}
-                  {#if k === 0}<th scope="row">{keyLabel(key, names)}</th>{:else}<td>{keyLabel(key, names)}</td>{/if}
-                {/each}
-                <td class="number">{minutesText(group.minutes)}</td>
-                <td class="number">{minutesText(group.billable_minutes)}</td>
-                <td class="number">{group.records}</td>
+                <td class="nowrap">{dayHeading(record.day, locale)}</td>
+                <th scope="row">{#if record.entry_id}<a href={`/items/${record.entry_id}`}>{record.entry_title || t('app.time.entry_unreadable')}</a>{:else}{t('app.time.no_entry')}{/if}</th>
+                <td>{kindName(record.work_type)}{#if record.billable}<span class="note">{t('app.time.billable_yes')}</span>{/if}</td>
+                <td class="number">{minutesText(record.minutes)}{#if record.source === 'CORRECTION'}<span class="note">{t('app.time.a_correction')}</span>{/if}</td>
+                <td class="clip">{record.note}</td>
+                <td>
+                  <Inline gap="050">
+                    {#if isChangeable(record, sheet)}
+                      <IconButton size="sm" icon="pencil" label={t('app.time.change')} onclick={() => openRecord(record)} />
+                      <IconButton size="sm" icon="trash" label={t('app.time.remove')} onclick={() => void act(() => time.remove(record, [monday]), t('app.time.removed'))} />
+                    {:else if record.source !== 'CORRECTION' && (sheet.state === 'APPROVED' || sheet.days.some((d) => d.day === record.day && d.locked))}
+                      <Button size="sm" tone="subtle" onclick={() => openCorrection(record)}>{t('app.time.correct')}</Button>
+                    {/if}
+                  </Inline>
+                </td>
               </tr>
             {/each}
           </Table>
-        </div>
+        </section>
       {/if}
-    {:else if current === 'absences'}
-      <AbsenceCalendar />
-    {:else if current === 'capacity'}
-      <CapacityEditor />
     {/if}
-  </Tabs>
+
+  {:else if current === 'approvals'}
+    {#if queueRefusal}
+      <Banner tone="danger">{queueRefusal}</Banner>
+    {:else if !waiting}
+      <div aria-busy="true"><Skeleton lines={4} /></div>
+    {:else if waiting.length === 0}
+      <ProductEmpty kind="settled" icon="check" title={t('app.time.queue_empty')} description={t('app.time.queue_empty_body')} />
+    {:else}
+      <Table isStacked label={t('app.time.queue')} columns={queueColumns}>
+        {#each waiting as each (`${each.account_id}:${each.week_start}`)}
+          <tr>
+            <th scope="row">{personName(each.account_id)}</th>
+            <td>{t('app.time.week_of', { from: formatPlainDay(each.week_start, messages.locale), to: formatPlainDay(addDays(each.week_start, 6), messages.locale) })}</td>
+            <td class="number">{minutesText(each.submitted_minutes)}</td>
+            <td>
+              <Inline gap="050">
+                <Button size="sm" tone="secondary" onclick={() => (deciding = each)}>{t('app.time.open_week')}</Button>
+                <Button size="sm" icon="check" onclick={() => void approve(each)}>{t('app.time.approve')}</Button>
+              </Inline>
+            </td>
+          </tr>
+        {/each}
+      </Table>
+    {/if}
+
+    {#if deciding}
+      <section class="block" aria-labelledby="time-deciding">
+        <div class="toolbar">
+          <h2 id="time-deciding" class="heading">{t('app.time.week_of_person', { name: personName(deciding.account_id), from: formatPlainDay(deciding.week_start, messages.locale) })}</h2>
+          <div class="acts">
+            <Button size="sm" icon="check" onclick={() => deciding && void approve(deciding)}>{t('app.time.approve')}</Button>
+            <Button size="sm" tone="secondary" onclick={() => { reason = ''; dialogFailure = undefined; isRejecting = true; }}>{t('app.time.send_back')}</Button>
+            <Button size="sm" tone="subtle" icon="x" onclick={() => (deciding = undefined)}>{t('app.time.close_week')}</Button>
+          </div>
+        </div>
+        {#if !decided}
+          <Skeleton lines={3} />
+        {:else}
+          <Table isStacked label={t('app.time.grid', { minutes: minutesText(decided.minutes) })} isLabelHidden columns={decidedColumns}>
+            {#each decidedGrid as row (row.key)}
+              <tr>
+                <th scope="row">{row.entryId ? row.title || t('app.time.entry_unreadable') : t('app.time.no_entry')}</th>
+                <td>{kindName(row.workType)}</td>
+                {#each row.minutes as minutes, i (decidedDays[i])}<td class="number">{minutes === 0 ? '' : minutesText(minutes)}</td>{/each}
+                <td class="number strong">{minutesText(row.total)}</td>
+              </tr>
+            {/each}
+          </Table>
+        {/if}
+      </section>
+    {/if}
+
+  {:else if current === 'report'}
+    <div class="controls">
+      <Input label={t('app.time.from')} type="date" size="sm" bind:value={report.from} />
+      <Input label={t('app.time.to')} type="date" size="sm" bind:value={report.to} />
+      <Select label={t('app.time.group_by')} size="sm" bind:value={report.first} options={dimensionOptions} />
+      <Select label={t('app.time.then_by')} size="sm" bind:value={report.second} options={[{ value: '', label: t('app.time.none') }, ...dimensionOptions]} />
+      <Switch label={t('app.time.mine_only')} bind:checked={report.mine} />
+      {#if mayCost}<Switch label={t('app.time.export_with_costs')} bind:checked={report.costs} />{/if}
+      <Button size="sm" tone="secondary" icon="file-text" isBusy={isExporting} busyLabel={t('app.time.export')} onclick={() => void exportRecords()}>{t('app.time.export')}</Button>
+      <Button size="sm" tone="secondary" icon="file-text" isBusy={isExportingSheet} busyLabel={t('app.time.export_spreadsheet')} onclick={() => void exportSpreadsheet()}>{t('app.time.export_spreadsheet')}</Button>
+    </div>
+    {#if reportRefusal}
+      <Banner tone="danger">{reportRefusal}</Banner>
+    {:else if !answer}
+      <div aria-busy="true"><Skeleton lines={4} /></div>
+    {:else if answer.groups.length === 0}
+      <ProductEmpty kind="settled" icon="clock" title={t('app.time.report_empty')} description={t('app.time.report_empty_body')} />
+    {:else}
+      <h2 class="heading">{t('app.time.report_total', { minutes: minutesText(answer.minutes) })}</h2>
+      {#if answer.withheld_groups > 0}
+        <p class="quiet">{t('app.time.withheld', { groups: String(answer.withheld_groups), minutes: minutesText(answer.withheld_minutes) })}</p>
+      {/if}
+      <Table isStacked label={t('app.time.tab_report')} isLabelHidden columns={reportColumns}>
+        {#each answer.groups as group, i (i)}
+          <tr>
+            {#each group.keys as key, k (k)}
+              {#if k === 0}<th scope="row">{keyLabel(key, names)}</th>{:else}<td>{keyLabel(key, names)}</td>{/if}
+            {/each}
+            <td class="number">
+              <span class="share">
+                <span class="bar" aria-hidden="true" style:inline-size={`${Math.round((group.minutes / reportPeak) * 100)}%`}></span>
+                <span>{minutesText(group.minutes)}</span>
+              </span>
+            </td>
+            <td class="number">{minutesText(group.billable_minutes)}</td>
+            <td class="number">{group.records}</td>
+          </tr>
+        {/each}
+      </Table>
+    {/if}
+  {:else if current === 'absences'}
+    <AbsenceCalendar />
+  {:else if current === 'capacity'}
+    <CapacityEditor />
+  {/if}
 </Stack>
 
 {#if isRecording}
@@ -529,6 +594,7 @@
       <Textarea label={t('app.time.col_note')} bind:value={draft.note} maxlength={2000} />
       <Checkbox label={t('app.time.billable')} checked={draft.billable}
         onchange={(event: Event) => { draft.billable = (event.currentTarget as HTMLInputElement).checked; draft.isBillableTouched = true; }} />
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
       <Inline justify="end"><Button onclick={() => void saveRecord()}>{editing ? t('app.time.save') : t('app.time.record')}</Button></Inline>
     </Stack>
   </Dialog>
@@ -541,6 +607,7 @@
       <Input label={t('app.time.col_day')} type="date" bind:value={correction.day} />
       <Input label={t('app.time.correction_label')} hint={t('app.time.correction_hint')} bind:value={correction.minutes} error={correctionError} />
       <Textarea label={t('app.time.col_note')} bind:value={correction.note} maxlength={2000} />
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
       <Inline justify="end"><Button onclick={() => void saveCorrection()}>{t('app.time.correct')}</Button></Inline>
     </Stack>
   </Dialog>
@@ -550,21 +617,50 @@
   <Dialog bind:isOpen={isRejecting} title={t('app.time.send_back_title', { name: personName(deciding.account_id) })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Textarea label={t('app.time.reason')} hint={t('app.time.reason_hint')} bind:value={reason} maxlength={500} />
+      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
       <Inline justify="end"><Button disabledReason={reason.trim() === '' ? t('app.time.reason_needed') : undefined} onclick={() => void reject()}>{t('app.time.send_back')}</Button></Inline>
     </Stack>
   </Dialog>
 {/if}
 
 <style>
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .nav, .acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
-  .scroll { overflow-x: auto; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
-  .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
+  .note { display: inline-flex; align-items: center; gap: var(--sp-025); margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .strong { font-weight: var(--fw-medium); }
+  .nowrap { white-space: nowrap; }
   .clip { max-inline-size: var(--layout-board-column); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .foot th, .foot td { border-block-start: var(--bw-hairline) solid var(--border-strong); }
+  .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .day {
+    position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-025);
+    inline-size: 100%; min-inline-size: 0; block-size: 100%; padding: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
+    background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: start;
+  }
+  button.day { cursor: pointer; }
+  button.day:hover { border-color: var(--border-strong); }
+  button.day:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-ring); }
+  .day[data-today] { border-color: var(--accent-primary); box-shadow: inset 0 0 0 var(--bw-hairline) var(--accent-primary); }
+  .day[data-locked] { background: var(--bg-surface-sunken); }
+  .weekday { overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; max-inline-size: 100%; }
+  .sum { font-size: var(--fs-200); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+  .sum[data-none] { color: var(--text-subtle); }
+  .add { position: absolute; inset-block-start: var(--sp-050); inset-inline-end: var(--sp-050); color: var(--text-subtle); opacity: 0; }
+  button.day:hover .add, button.day:focus-visible .add { opacity: 1; }
+  .share { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--sp-100); inline-size: 100%; min-inline-size: var(--sp-800); }
+  .bar { display: block; max-inline-size: var(--sp-800); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--accent-primary); }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .day { padding: var(--sp-050); }
+    .sum { font-size: var(--fs-100); }
+    .note span { display: none; }
+  }
 </style>

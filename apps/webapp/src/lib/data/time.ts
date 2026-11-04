@@ -15,6 +15,7 @@
 import type { Absence, BudgetBurn, EstimatesVsActuals, PlacedTimeRecord, TimeExport, TimeReport, Workload } from '@hubtask/sync-engine';
 
 import { parseDuration } from '../i18n/duration.ts';
+import { dateIn, timeIn } from '../i18n/zone.ts';
 
 const DAY = 86_400_000;
 
@@ -103,6 +104,36 @@ export function minutesText(minutes: number): string {
 export function elapsedMinutes(startedAt: string | undefined, now: number): number {
   const at = startedAt ? Date.parse(startedAt) : Number.NaN;
   return Number.isFinite(at) ? Math.max(0, Math.floor((now - at) / 60_000)) : 0;
+}
+
+/** The longest span a timer records (`timers.ran_too_long` past it), as the server holds it. */
+export const TIMER_MAXIMUM = 1440;
+
+/** Whether a timer has run longer than a stop may record. */
+export function ranTooLong(elapsed: number): boolean {
+  return elapsed > TIMER_MAXIMUM;
+}
+
+/**
+ * Where *Record until…* is prefilled for a timer left running (user-experience.md §7.6): its start's
+ * day in the reader's zone, the start plus that weekday's capacity - eight hours on a day without
+ * one -, never past the day's last minute, so the span stays on the start's day.
+ */
+export function usualEnd(
+  startedAt: string,
+  zone: string,
+  capacities: readonly { readonly from: string; readonly week_minutes: readonly number[] }[],
+): { day: string; time: string } | undefined {
+  const day = dateIn(startedAt, zone);
+  const clock = timeIn(startedAt, zone);
+  const at = day ? epochOf(day) : undefined;
+  if (!day || !clock || at === undefined) return undefined;
+  const weekday = (new Date(at).getUTCDay() + 6) % 7;
+  const capacity = [...capacities].filter((each) => each.from <= day).sort((a, b) => (a.from < b.from ? 1 : -1))[0];
+  const hours = capacity?.week_minutes[weekday] || 480;
+  const [hour, minute] = clock.split(':').map(Number);
+  const end = Math.min((hour ?? 0) * 60 + (minute ?? 0) + hours, 23 * 60 + 59);
+  return { day, time: `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}` };
 }
 
 /** Whether a record may still be changed or removed rather than corrected. */

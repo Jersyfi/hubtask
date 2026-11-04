@@ -3,7 +3,10 @@
 
 // Time clicked through as a person and their lead do it (UC-TIM-01, UC-TIM-02, UC-TIM-03): a timer
 // started and stopped on an entry, the week with that record handed in, and a colleague's week
-// approved - with no console error and no refused or failed answer on the way.
+// approved - with no console error and no refused or failed answer on the way. The screen as
+// user-experience.md §7.6 draws it: the week's figure and its days in the head, a timer left running
+// past a day recorded until a time on its start's day, an empty week that says what to do, and a
+// phone that scrolls nothing sideways.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,9 +34,9 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend() {
+function timeBackend({ running } = {}) {
   const id = ids('00000b');
-  let timer = { running: false };
+  let timer = running ?? { running: false };
   const records = [];
   const sheet = (account, week, state) => ({
     account_id: account, week_start: week, state, submitted_minutes: 0, submitted_at: null, decided_at: null, decided_by: null, reason: '', version: 1,
@@ -50,13 +53,15 @@ function timeBackend() {
     }
     if (path === '/time-policy' && method === 'GET') return { json: { locked_through: null, visibility: 'FULL', version: 1 } };
     if (path === '/timer' && method === 'GET') return { json: timer };
+    if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
     if (path === '/timer:start' && method === 'POST') {
       timer = { running: true, entry_id: body.entry_id ?? null, work_type: body.work_type ?? 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
       return { json: timer };
     }
     if (path === '/timer:stop' && method === 'POST') {
       const made = {
-        id: id(), account_id: ACCOUNT.id, entry_id: timer.entry_id, work_type: timer.work_type, day: today, started_at: timer.started_at, minutes: 25,
+        id: id(), account_id: ACCOUNT.id, entry_id: timer.entry_id, work_type: timer.work_type, day: today, started_at: timer.started_at,
+        minutes: body?.stopped_at ? Math.ceil((Date.parse(body.stopped_at) - Date.parse(timer.started_at)) / 60_000) : 25,
         note: '', billable: true, source: 'TIMER', corrects: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1,
         collection_id: COLLECTION.id, hub_id: HUB.id, entry_title: ENTRY.title,
       };
@@ -101,7 +106,8 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   await page.getByRole('button', { name: 'Hand in' }).click();
   await page.getByRole('button', { name: 'Take back' }).waitFor({ timeout: 5_000 });
 
-  await page.getByRole('tab', { name: 'To approve' }).click();
+  await page.getByText(/^0:25 this week · Handed in$/).waitFor({ timeout: 5_000 });
+  await page.getByRole('link', { name: 'Weeks to decide' }).click();
   await page.getByRole('button', { name: 'Approve' }).first().click();
   await page.waitForTimeout(400);
 
@@ -111,6 +117,60 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   }
   const start = walk.written.find((each) => each.path === '/timer:start');
   assert.equal(start.body.entry_id, ENTRY.id);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+test('chromium: time - a timer left running past a day is recorded until a time on its start\'s day', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  // Started two days ago at 09:00 UTC (the walk's zone): a stop now would be refused.
+  const started = `${new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)}T09:00:00.000Z`;
+  const running = { running: true, entry_id: null, work_type: 'work', note: '', billable: true, started_at: started, elapsed_minutes: 2880 };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  await page.getByText(/Timer running since .*, 09:00: more than a day/).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Stop timer' }).count(), 0, 'a stop now is not offered');
+  await page.getByRole('button', { name: 'Record until…' }).click();
+  const until = page.getByLabel('Until', { exact: true });
+  // Eight hours on without a capacity: the usual end of work on the start's day.
+  assert.equal(await until.inputValue(), '17:00');
+  await until.fill('08:30');
+  await page.getByRole('dialog').getByRole('button', { name: 'Record', exact: true }).click();
+  await page.getByText('Choose a time after 09:00.').waitFor({ timeout: 5_000 });
+  await until.fill('16:30');
+  await page.getByRole('dialog').getByRole('button', { name: 'Record', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: '7:30 recorded on' }).first().waitFor({ timeout: 5_000 });
+
+  const stop = walk.written.find((each) => each.path === '/timer:stop');
+  assert.equal(stop.body.stopped_at, `${started.slice(0, 10)}T16:30:00.000Z`);
+  assert.equal(stop.body.zone, 'UTC');
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+test('chromium: time - 375 px, an empty week says what to do and nothing scrolls sideways', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend(), width: 375, height: 812 });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  await page.getByText('No time recorded this week.').waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Start timer' }).count(), 1, 'the timer starts from the head');
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).getByRole('listitem').count(), 7);
+  assert.equal(await page.getByRole('table').count(), 0, 'an empty week draws no empty table');
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
+
+  // A day of the strip records on that day.
+  await page.getByRole('button', { name: /^Record time on / }).first().click();
+  await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByRole('dialog').getByLabel('Day').inputValue(), MONDAY);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });

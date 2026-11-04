@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import type { PlacedTimeRecord } from '@hubtask/sync-engine';
 
 import {
+  ranTooLong, usualEnd,
   absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel,
   minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf,
 } from './time.ts';
@@ -158,4 +159,20 @@ test('money goes in the minor unit and comes back as the reader writes it', () =
   assert.match(moneyText(21000, 'EUR', 'en'), /210\.00/u);
   assert.equal(burnShare({ budget_minutes: 180, minutes: 210, budget_amount_minor: 0, amount_minor: 5 }, 'time'), 117);
   assert.equal(burnShare({ budget_minutes: 180, minutes: 210, budget_amount_minor: 0, amount_minor: 5 }, 'money'), null);
+});
+
+test('a timer left running is offered to stop at its day’s usual end of work', () => {
+  const capacities = [
+    { from: '2026-01-05', week_minutes: [480, 480, 480, 480, 240, 0, 0] },
+    { from: '2026-11-01', week_minutes: [360, 360, 360, 360, 360, 0, 0] },
+  ];
+  // Monday 2 November 2026, 09:00 in Berlin: six hours of that day's capacity on.
+  assert.equal(ranTooLong(1440), false);
+  assert.equal(ranTooLong(1441), true);
+  assert.deepEqual(usualEnd('2026-11-02T08:00:00Z', 'Europe/Berlin', capacities), { day: '2026-11-02', time: '15:00' });
+  // An earlier capacity counts for an earlier day; a Friday has its own hours.
+  assert.deepEqual(usualEnd('2026-10-30T07:00:00Z', 'Europe/Berlin', capacities), { day: '2026-10-30', time: '12:00' });
+  // A day off or no capacity at all: eight hours; never past the day's last minute.
+  assert.deepEqual(usualEnd('2026-11-07T08:00:00Z', 'Europe/Berlin', capacities), { day: '2026-11-07', time: '17:00' });
+  assert.deepEqual(usualEnd('2026-11-02T19:00:00Z', 'Europe/Berlin', []), { day: '2026-11-02', time: '23:59' });
 });

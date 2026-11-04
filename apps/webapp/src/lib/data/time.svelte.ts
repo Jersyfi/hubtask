@@ -102,9 +102,13 @@ class Time {
     return engine.mutate<TimeTimer>('POST', `${TIMER}:start`, fields, { invalidates: [TIMER] });
   }
 
-  /** Stops the timer into the day it started in `zone`; `week` is that day's week. */
-  stopTimer(zone: string, week: string | undefined): Promise<TimeRecord> {
-    return engine.mutate<TimeRecord>('POST', `${TIMER}:stop`, { zone }, { invalidates: week ? [TIMER, weekPath(week)] : [TIMER] });
+  /**
+   * Stops the timer into the day it started in `zone`; `week` is that day's week. `stoppedAt` stops
+   * a timer left running at a moment within a day of its start (*Record until…*).
+   */
+  stopTimer(zone: string, week: string | undefined, stoppedAt?: string): Promise<TimeRecord> {
+    const body = stoppedAt ? { zone, stopped_at: stoppedAt } : { zone };
+    return engine.mutate<TimeRecord>('POST', `${TIMER}:stop`, body, { invalidates: week ? [TIMER, weekPath(week)] : [TIMER] });
   }
 
   async discardTimer(): Promise<void> {
