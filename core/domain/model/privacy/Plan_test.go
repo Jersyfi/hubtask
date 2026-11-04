@@ -239,3 +239,103 @@ func TestAFullDeletionTakesWhatThePersonWroteOutsideEntries(t *testing.T) {
 		})
 	}
 }
+
+// What the erasure's confirmation says, kind by kind (user-experience.md §5.9): every kind the
+// eraser handles has a line, counted where the preview reads the rows, and what a hold keeps is
+// its own line beside what goes.
+func TestEveryKindAnErasureHandlesHasALine(t *testing.T) {
+	count := func(n int) *int { return &n }
+	line := func(kind privacy.LineKind, fate privacy.LineFate, n *int) privacy.Line {
+		return privacy.Line{Kind: kind, Fate: fate, Count: n}
+	}
+	cases := []struct {
+		name  string
+		mode  privacy.ErasureMode
+		holds lifecycle.Holds
+		want  []privacy.Line
+	}{
+		{
+			name: "anonymise, no hold", mode: privacy.ModeAnonymize,
+			want: []privacy.Line{
+				line(privacy.LineAccount, privacy.FateAnonymised, nil),
+				line(privacy.LineCredentials, privacy.FateDeleted, nil),
+				line(privacy.LinePersonalRules, privacy.FateDeleted, nil),
+				line(privacy.LineNotifications, privacy.FateDeleted, nil),
+				line(privacy.LineAiDrafts, privacy.FateDeleted, nil),
+				line(privacy.LineKudos, privacy.FateDeleted, nil),
+				line(privacy.LineArrangements, privacy.FateDeleted, nil),
+				line(privacy.LineMedia, privacy.FateDeleted, nil),
+				line(privacy.LineTime, privacy.FateAnonymised, nil),
+				line(privacy.LineAssignments, privacy.FateReleased, count(2)),
+				line(privacy.LineIntake, privacy.FateAnonymised, nil),
+				line(privacy.LineComments, privacy.FateAnonymised, count(3)),
+				line(privacy.LinePageComments, privacy.FateAnonymised, count(0)),
+				line(privacy.LineWhiteboardComments, privacy.FateAnonymised, count(0)),
+				line(privacy.LineGoalCheckIns, privacy.FateAnonymised, count(0)),
+				line(privacy.LinePortfolioUpdates, privacy.FateAnonymised, count(0)),
+				line(privacy.LinePageDrafts, privacy.FateAnonymised, count(0)),
+				line(privacy.LineEntries, privacy.FateAnonymised, count(1)),
+			},
+		},
+		{
+			name: "full deletion under a hub hold", mode: privacy.ModeFullDelete, holds: lifecycle.Holds{hubHold},
+			want: []privacy.Line{
+				line(privacy.LineAccount, privacy.FateAnonymised, nil),
+				line(privacy.LineCredentials, privacy.FateDeleted, nil),
+				line(privacy.LinePersonalRules, privacy.FateDeleted, nil),
+				line(privacy.LineNotifications, privacy.FateDeleted, nil),
+				line(privacy.LineAiDrafts, privacy.FateDeleted, nil),
+				line(privacy.LineKudos, privacy.FateDeleted, nil),
+				line(privacy.LineArrangements, privacy.FateDeleted, nil),
+				line(privacy.LineMedia, privacy.FateDeleted, nil),
+				line(privacy.LineTime, privacy.FateAnonymised, nil),
+				line(privacy.LineAssignments, privacy.FateReleased, count(1)),
+				line(privacy.LineAssignments, privacy.FateKept, count(1)),
+				line(privacy.LineIntake, privacy.FateDeleted, nil),
+				line(privacy.LineComments, privacy.FateDeleted, count(1)),
+				line(privacy.LineComments, privacy.FateKept, count(2)),
+				line(privacy.LinePageComments, privacy.FateDeleted, count(0)),
+				line(privacy.LineWhiteboardComments, privacy.FateDeleted, count(0)),
+				line(privacy.LineGoalCheckIns, privacy.FateDeleted, count(0)),
+				line(privacy.LinePortfolioUpdates, privacy.FateDeleted, count(0)),
+				line(privacy.LinePageDrafts, privacy.FateDeleted, count(0)),
+				line(privacy.LineEntries, privacy.FateAnonymised, count(1)),
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := privacy.PlanErasure(privacy.PlanInput{Subject: subject, Mode: tc.mode, Holds: tc.holds, Rows: rows()}).Lines
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("lines:\n got %s\nwant %s", describeLines(got), describeLines(tc.want))
+			}
+		})
+	}
+
+	// Under a hold on the workspace the account, the intake and every counted row stay.
+	got := privacy.PlanErasure(privacy.PlanInput{
+		Subject: subject, Mode: privacy.ModeAnonymize, Holds: lifecycle.Holds{tenantHold}, Rows: rows(), Intake: 4,
+	}).Lines
+	for _, want := range []privacy.Line{
+		line(privacy.LineAccount, privacy.FateKept, nil),
+		line(privacy.LineIntake, privacy.FateKept, count(4)),
+		line(privacy.LineComments, privacy.FateKept, count(3)),
+		line(privacy.LineEntries, privacy.FateKept, count(1)),
+	} {
+		if !slices.ContainsFunc(got, func(l privacy.Line) bool { return reflect.DeepEqual(l, want) }) {
+			t.Errorf("workspace hold: %s missing from %s", describeLines([]privacy.Line{want}), describeLines(got))
+		}
+	}
+}
+
+func describeLines(lines []privacy.Line) string {
+	out := ""
+	for _, l := range lines {
+		n := "-"
+		if l.Count != nil {
+			n = string(rune('0' + *l.Count))
+		}
+		out += string(l.Kind) + ":" + string(l.Fate) + ":" + n + " "
+	}
+	return out
+}

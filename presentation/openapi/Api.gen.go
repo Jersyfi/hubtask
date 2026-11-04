@@ -4702,6 +4702,96 @@ func (e ErasureKeptHoldScopeKind) Valid() bool {
 	}
 }
 
+// Defines values for ErasureLineFate.
+const (
+	ErasureLineFateANONYMISED ErasureLineFate = "ANONYMISED"
+	ErasureLineFateDELETED    ErasureLineFate = "DELETED"
+	ErasureLineFateKEPT       ErasureLineFate = "KEPT"
+	ErasureLineFateRELEASED   ErasureLineFate = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ErasureLineFate enum.
+func (e ErasureLineFate) Valid() bool {
+	switch e {
+	case ErasureLineFateANONYMISED:
+		return true
+	case ErasureLineFateDELETED:
+		return true
+	case ErasureLineFateKEPT:
+		return true
+	case ErasureLineFateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ErasureLineKind.
+const (
+	ErasureLineKindACCOUNT            ErasureLineKind = "ACCOUNT"
+	ErasureLineKindAIDRAFTS           ErasureLineKind = "AI_DRAFTS"
+	ErasureLineKindARRANGEMENTS       ErasureLineKind = "ARRANGEMENTS"
+	ErasureLineKindASSIGNMENTS        ErasureLineKind = "ASSIGNMENTS"
+	ErasureLineKindCOMMENTS           ErasureLineKind = "COMMENTS"
+	ErasureLineKindCREDENTIALS        ErasureLineKind = "CREDENTIALS"
+	ErasureLineKindENTRIES            ErasureLineKind = "ENTRIES"
+	ErasureLineKindGOALCHECKINS       ErasureLineKind = "GOAL_CHECK_INS"
+	ErasureLineKindINTAKE             ErasureLineKind = "INTAKE"
+	ErasureLineKindKUDOS              ErasureLineKind = "KUDOS"
+	ErasureLineKindMEDIA              ErasureLineKind = "MEDIA"
+	ErasureLineKindNOTIFICATIONS      ErasureLineKind = "NOTIFICATIONS"
+	ErasureLineKindPAGECOMMENTS       ErasureLineKind = "PAGE_COMMENTS"
+	ErasureLineKindPAGEDRAFTS         ErasureLineKind = "PAGE_DRAFTS"
+	ErasureLineKindPERSONALRULES      ErasureLineKind = "PERSONAL_RULES"
+	ErasureLineKindPORTFOLIOUPDATES   ErasureLineKind = "PORTFOLIO_UPDATES"
+	ErasureLineKindTIME               ErasureLineKind = "TIME"
+	ErasureLineKindWHITEBOARDCOMMENTS ErasureLineKind = "WHITEBOARD_COMMENTS"
+)
+
+// Valid indicates whether the value is a known member of the ErasureLineKind enum.
+func (e ErasureLineKind) Valid() bool {
+	switch e {
+	case ErasureLineKindACCOUNT:
+		return true
+	case ErasureLineKindAIDRAFTS:
+		return true
+	case ErasureLineKindARRANGEMENTS:
+		return true
+	case ErasureLineKindASSIGNMENTS:
+		return true
+	case ErasureLineKindCOMMENTS:
+		return true
+	case ErasureLineKindCREDENTIALS:
+		return true
+	case ErasureLineKindENTRIES:
+		return true
+	case ErasureLineKindGOALCHECKINS:
+		return true
+	case ErasureLineKindINTAKE:
+		return true
+	case ErasureLineKindKUDOS:
+		return true
+	case ErasureLineKindMEDIA:
+		return true
+	case ErasureLineKindNOTIFICATIONS:
+		return true
+	case ErasureLineKindPAGECOMMENTS:
+		return true
+	case ErasureLineKindPAGEDRAFTS:
+		return true
+	case ErasureLineKindPERSONALRULES:
+		return true
+	case ErasureLineKindPORTFOLIOUPDATES:
+		return true
+	case ErasureLineKindTIME:
+		return true
+	case ErasureLineKindWHITEBOARDCOMMENTS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureMode.
 const (
 	ErasureModeANONYMIZE  ErasureMode = "ANONYMIZE"
@@ -16692,6 +16782,22 @@ type ErasureKept struct {
 // ErasureKeptHoldScopeKind defines model for ErasureKept.HoldScope.Kind.
 type ErasureKeptHoldScopeKind string
 
+// ErasureLine defines model for ErasureLine.
+type ErasureLine struct {
+	// Count How many, where the preview counts them; null where only the erasure does.
+	Count *int `json:"count"`
+
+	// Fate DELETED goes; ANONYMISED stays without the person's name (time records for the sums, entries and comments as the former user's); KEPT stays as it is, under a hold; RELEASED is the person taken off it (an assignment).
+	Fate ErasureLineFate `json:"fate"`
+	Kind ErasureLineKind `json:"kind"`
+}
+
+// ErasureLineFate DELETED goes; ANONYMISED stays without the person's name (time records for the sums, entries and comments as the former user's); KEPT stays as it is, under a hold; RELEASED is the person taken off it (an assignment).
+type ErasureLineFate string
+
+// ErasureLineKind defines model for ErasureLine.Kind.
+type ErasureLineKind string
+
 // ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 // `FULL_DELETE` takes the person's own contributions too. The choice rests with the
 // controller, because tenant data touches third parties' rights.
@@ -16707,6 +16813,9 @@ type ErasureMode string
 type ErasurePreview struct {
 	// Kept What each hold in force would keep; empty when no hold reaches this person.
 	Kept []ErasureKept `json:"kept"`
+
+	// Lines One line per kind of data the erasure handles, in a fixed order: what goes, what stays without the person's name, what a hold keeps, what is released. Empty for a case by address.
+	Lines []ErasureLine `json:"lines"`
 
 	// Mode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
 	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the

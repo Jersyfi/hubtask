@@ -83,6 +83,8 @@ type Plan struct {
 	KeepIntake bool
 	// Kept is what each hold keeps, in the order the holds were placed; empty when nothing is.
 	Kept []Kept
+	// Lines say, kind by kind, what the erasure does: what its confirmation reads.
+	Lines []Line
 }
 
 // PlanInput is everything the decision needs.
@@ -143,12 +145,25 @@ func PlanErasure(in PlanInput) Plan {
 	}
 
 	keptLocated := false
+	tally := map[RowKind]*rowTally{}
+	count := func(kind RowKind, kept bool) {
+		if tally[kind] == nil {
+			tally[kind] = &rowTally{}
+		}
+		if kept {
+			tally[kind].kept++
+		} else {
+			tally[kind].fate++
+		}
+	}
 	for _, row := range in.Rows {
 		hold, covered := in.Holds.Blocking(targetOf(row, in.Subject))
 		switch {
 		case row.Kind.Writing():
+			held := covered && (in.Mode == ModeFullDelete || plan.Account == AccountKept)
+			count(row.Kind, held)
 			switch {
-			case covered && (in.Mode == ModeFullDelete || plan.Account == AccountKept):
+			case held:
 				part(hold).Comments++
 				keptLocated = true
 			case !covered && in.Mode == ModeFullDelete:
@@ -158,14 +173,17 @@ func PlanErasure(in PlanInput) Plan {
 				plan.DeleteWritings[row.Kind] = append(plan.DeleteWritings[row.Kind], row.ID)
 			}
 		case row.Kind == RowComment:
+			held := covered && (in.Mode == ModeFullDelete || plan.Account == AccountKept)
+			count(row.Kind, held)
 			switch {
-			case covered && (in.Mode == ModeFullDelete || plan.Account == AccountKept):
+			case held:
 				part(hold).Comments++
 				keptLocated = true
 			case !covered && in.Mode == ModeFullDelete:
 				plan.DeleteComments = append(plan.DeleteComments, row.ID)
 			}
 		case row.Kind == RowAssignment:
+			count(row.Kind, covered)
 			if covered {
 				part(hold).Assignments++
 				keptLocated = true
@@ -173,6 +191,7 @@ func PlanErasure(in PlanInput) Plan {
 				plan.ReleaseOn = append(plan.ReleaseOn, row.ItemID)
 			}
 		case row.Kind == RowEntry:
+			count(row.Kind, covered && plan.Account == AccountKept)
 			if covered && plan.Account == AccountKept {
 				part(hold).Entries++
 			}
@@ -189,6 +208,7 @@ func PlanErasure(in PlanInput) Plan {
 	for _, id := range order {
 		plan.Kept = append(plan.Kept, *parts[id])
 	}
+	plan.Lines = lines(plan, in, tally)
 	return plan
 }
 

@@ -5,6 +5,7 @@ package privacy
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -149,5 +150,48 @@ func TestThePreviewOfAnAddressCaseNamesTheWorkspaceHold(t *testing.T) {
 	out, err = rig.preview(addressCase(domain.ModeFullDelete), nil)
 	if parts, _ := out["kept"].([]map[string]any); err != nil || len(parts) != 0 {
 		t.Errorf("a container hold kept %+v (%v)", parts, err)
+	}
+}
+
+// Every kind the eraser handles has a line in the preview (user-experience.md §5.9): a field added
+// to Erased without a line here fails, so the confirmation never says less than the erasure does.
+func TestEveryKindTheEraserHandlesHasALineInThePreview(t *testing.T) {
+	linesOf := map[string][]string{
+		"Credentials": {"CREDENTIALS"}, "Notifications": {"NOTIFICATIONS"}, "AiDrafts": {"AI_DRAFTS"},
+		"Kudos": {"KUDOS"}, "Arrangements": {"ARRANGEMENTS"}, "Time": {"TIME"},
+		"Assignments": {"ASSIGNMENTS"}, "Comments": {"COMMENTS"}, "Intake": {"INTAKE"}, "Media": {"MEDIA"},
+		"Writings":       {"PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS"},
+		"AccountRemoved": {"ACCOUNT"}, "AccountAnonymised": {"ACCOUNT"}, "AccountKept": {"ACCOUNT"},
+		// Not kinds: the mode the erasure ran in, and what the holds kept, which `kept` answers.
+		"Mode": nil, "Kept": nil,
+	}
+	rig := newPreviewRig(t)
+	request := erasureCase("")
+	request.Status = domain.StatusReceived
+	out, err := rig.preview(request, usecase.Input{"mode": "FULL_DELETE"})
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	lines, _ := out["lines"].([]map[string]any)
+	has := map[string]bool{}
+	for _, line := range lines {
+		kind, _ := line["kind"].(string)
+		has[kind] = true
+		if line["fate"] == "" {
+			t.Errorf("the line of %s says no fate", kind)
+		}
+	}
+	erased := reflect.TypeOf(Erased{})
+	for i := range erased.NumField() {
+		field := erased.Field(i).Name
+		kinds, known := linesOf[field]
+		if !known {
+			t.Errorf("the eraser handles %s, which has no line in the preview", field)
+		}
+		for _, kind := range kinds {
+			if !has[kind] {
+				t.Errorf("%s has no %s line in the preview: %v", field, kind, lines)
+			}
+		}
 	}
 }

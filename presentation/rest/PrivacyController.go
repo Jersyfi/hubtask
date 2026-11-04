@@ -72,7 +72,20 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 // erasurePreviewResponse maps what an erasure in a mode would keep.
 func erasurePreviewResponse(out usecase.Output) openapi.ErasurePreview {
 	parts, _ := out["kept"].([]map[string]any)
-	return openapi.ErasurePreview{Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts)}
+	answered, _ := out["lines"].([]map[string]any)
+	lines := make([]openapi.ErasureLine, 0, len(answered))
+	for _, line := range answered {
+		kind, _ := line["kind"].(string)
+		fate, _ := line["fate"].(string)
+		mapped := openapi.ErasureLine{Kind: openapi.ErasureLineKind(kind), Fate: openapi.ErasureLineFate(fate)}
+		if count, ok := line["count"].(int); ok {
+			mapped.Count = &count
+		}
+		lines = append(lines, mapped)
+	}
+	return openapi.ErasurePreview{
+		Mode: openapi.ErasureMode(out.String("mode")), Kept: erasureKeptResponse(parts), Lines: lines,
+	}
 }
 
 // erasureKeptResponse maps what each hold kept onto the contract's schema.

@@ -61723,7 +61723,8 @@
         "type": "object",
         "required": [
           "mode",
-          "kept"
+          "kept",
+          "lines"
         ],
         "properties": {
           "mode": {
@@ -61735,6 +61736,63 @@
             "items": {
               "$ref": "#/components/schemas/ErasureKept"
             }
+          },
+          "lines": {
+            "type": "array",
+            "description": "One line per kind of data the erasure handles, in a fixed order: what goes, what stays without the person's name, what a hold keeps, what is released. Empty for a case by address.\n",
+            "items": {
+              "$ref": "#/components/schemas/ErasureLine"
+            }
+          }
+        }
+      },
+      "ErasureLine": {
+        "type": "object",
+        "required": [
+          "kind",
+          "fate",
+          "count"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ACCOUNT",
+              "CREDENTIALS",
+              "PERSONAL_RULES",
+              "NOTIFICATIONS",
+              "AI_DRAFTS",
+              "KUDOS",
+              "ARRANGEMENTS",
+              "TIME",
+              "ASSIGNMENTS",
+              "INTAKE",
+              "COMMENTS",
+              "PAGE_COMMENTS",
+              "WHITEBOARD_COMMENTS",
+              "GOAL_CHECK_INS",
+              "PORTFOLIO_UPDATES",
+              "PAGE_DRAFTS",
+              "ENTRIES",
+              "MEDIA"
+            ]
+          },
+          "fate": {
+            "type": "string",
+            "enum": [
+              "DELETED",
+              "ANONYMISED",
+              "KEPT",
+              "RELEASED"
+            ],
+            "description": "DELETED goes; ANONYMISED stays without the person's name (time records for the sums, entries and comments as the former user's); KEPT stays as it is, under a hold; RELEASED is the person taken off it (an assignment).\n"
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "How many, where the preview counts them; null where only the erasure does."
           }
         }
       },
