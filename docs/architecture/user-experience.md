@@ -720,6 +720,23 @@ with the start's day at the person's usual end of work, recording the bounded sp
 day; *Discard* stays the secondary choice. The absence calendar's heading and days are localised
 (§5.10). *Weeks to decide* and *Report* are tabs.
 
+As built: the head carries the trail, the week's total and state as its figure (*29:10 this week ·
+Open*), *Record time* as the primary and the one timer beside it — *Start timer* while idle (on no
+entry, the first kind of work), its ticking minutes with *Stop* and *Discard* while it runs, and,
+once it has run past a day, *Timer running since …: more than a day* with *Record until…* in its
+place. *Record until…* asks for a time on the start's day, prefilled with the start plus that
+weekday's capacity (eight hours without one, never past the day's last minute), refuses a time
+before the start at its field, and stops the timer at that moment; the server records the span,
+bounded to a day by the stop itself. The tabs are a `PlaceTabs` strip (*My week · Weeks to decide ·
+Report · Absences · My capacity*). Under the week's navigation the seven days are a strip of cards,
+each with its total, today marked, a locked day marked in words; pressing a day records on it. The
+grid of entries by day is drawn from `medium` up; the records are a table that stacks on a phone,
+changed and removed by icon buttons. An empty week, an empty queue and an empty report are §5.5's
+empty states; a refusal in the record, correction or send-back dialog is a `Banner` inside it. The
+report draws a bar beside each group's total. The absence calendar names its month (*November
+2026*) and every day column (*Mon 2*). Not built: the timer's entry by name in the head (the
+timer answers its entry's identifier only).
+
 ### 7.7 Goals and dashboards
 
 Goals of the current period first, each with its key results as progress bars with their numbers,
@@ -727,6 +744,21 @@ the next check-in in the head. The current quarter is there as the default perio
 *Portfolios* and *Dashboards* tabs carry their own heading (*Dashboards*, never *Goals of …*).
 **A dashboard from a template carries charts**, not a single number in a table; a widget's empty
 state names its real cause (*No capacities or hour estimates yet*, with a link).
+
+As built: the head names the tab it is on (*Goals*, *Portfolios*, *Dashboards*, or *… of <hub>*)
+and, on the goals, the period's figure (*8 goals · 3 need a look · until Dec 31, 2026*); there is no
+check-in rhythm to name a next check-in by, so the head says the period's end instead. Each goal is
+a card under the goal it serves — its title, status, place, owner, confidence, the goals below, its
+progress, and each key result as a bar with its numbers (*82 % of 90 %*, *3 tickets of 1*,
+*Reached*). A workspace without a period offers *Start 2026 Q4* — the current calendar quarter,
+created in one press by whoever holds `STRUCTURE` — with *Another period…* beside it; anybody else
+is told who starts one. Dashboards are cards (name, place, who sees it, widgets). A dashboard
+without widgets offers *Add widget*; a widget without rows says why by its source: no goal chosen,
+none of its goals readable, or nothing matching its view or its question yet. A portfolio names its
+projects' days in the reader's words, stacks its tables on a phone, has *Roadmap* beside *Write an
+update* in its head, and offers its first project when empty. Not built: dashboards from a template
+— the template catalogue carries no dashboards, so none arrive with charts; a widget's empty state
+links nowhere yet.
 
 ### 7.8 Agents
 
