@@ -201,8 +201,9 @@ func TestARestrictedPageIsReadOnlyByThePeopleItNames(t *testing.T) {
 	}
 }
 
-// A restriction whose people are all shut out is lifted by somebody managing the hub's members -
-// never narrowed by them, and never read without being lifted.
+// UC-DOC-07 check 4: a restriction whose people are all shut out is lifted by somebody managing
+// the hub's members - never narrowed by them, and never read without being lifted; lifted, the hub
+// decides again.
 func TestALockedOutRestrictionIsLiftedNotRead(t *testing.T) {
 	f := newFixture()
 	ctx := context.Background()
@@ -213,8 +214,14 @@ func TestALockedOutRestrictionIsLiftedNotRead(t *testing.T) {
 	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(bert), RestrictPageCommand{PageID: page.ID, AccountIDs: []shared.ID{bert}}); code(err) != "pages.not_found" {
 		t.Errorf("a person kept out restricted it again: %v", err)
 	}
+	if _, err := (ReadPage{Space: f.space}).Execute(ctx, as(bert), page.ID); code(err) != "pages.not_found" {
+		t.Errorf("a manager of the hub read the restricted page: %v", err)
+	}
 	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(bert), RestrictPageCommand{PageID: page.ID, Lift: true}); err != nil {
 		t.Errorf("a manager of the hub could not lift it: %v", err)
+	}
+	if _, err := (ReadPage{Space: f.space}).Execute(ctx, as(bert), page.ID); err != nil {
+		t.Errorf("the lifted page is not the hub's to decide again: %v", err)
 	}
 }
 
