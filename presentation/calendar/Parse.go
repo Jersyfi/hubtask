@@ -204,9 +204,26 @@ func parseDateTime(value string, params map[string]string) (time.Time, bool, err
 		return time.Time{}, false, err
 	}
 	if zone := params["TZID"]; zone != "" {
-		if loaded, err := time.LoadLocation(zone); err == nil {
-			return time.Date(at.Year(), at.Month(), at.Day(), at.Hour(), at.Minute(), at.Second(), 0, loaded), false, nil
+		loaded, err := zoneNamed(zone)
+		if err != nil {
+			return time.Time{}, false, err
 		}
+		return time.Date(at.Year(), at.Month(), at.Day(), at.Hour(), at.Minute(), at.Second(), 0, loaded), false, nil
 	}
 	return at, false, nil
+}
+
+// zoneNamed reads a TZID: a zone of the database, or a path whose last two parts are one - the
+// shape an older Thunderbird writes. Any other name is refused rather than read as UTC, which would
+// move the time by the zone's offset without a word.
+func zoneNamed(name string) (*time.Location, error) {
+	if loaded, err := time.LoadLocation(name); err == nil {
+		return loaded, nil
+	}
+	if parts := strings.Split(strings.Trim(name, "/"), "/"); len(parts) > 2 {
+		if loaded, err := time.LoadLocation(strings.Join(parts[len(parts)-2:], "/")); err == nil {
+			return loaded, nil
+		}
+	}
+	return nil, errors.New("calendar: a time zone this server does not know")
 }

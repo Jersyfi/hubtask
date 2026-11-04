@@ -389,3 +389,19 @@ func TestParseTodoReadsTheDialect(t *testing.T) {
 		t.Error("a document without a VTODO is refused")
 	}
 }
+
+// A DATE-TIME's zone is read, never guessed: a zone named by a path whose end is a zone of the
+// database (an older Thunderbird's /mozilla.org/.../Europe/Berlin) is that zone, and one this
+// server does not know is refused rather than read as UTC - the due would land hours off.
+func TestADueInAZoneThisServerDoesNotKnowIsRefused(t *testing.T) {
+	todo := func(tzid string) []byte {
+		return []byte("BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:x\r\nSUMMARY:Call\r\nDUE;TZID=" + tzid + ":20260921T110000\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+	}
+	parsed, err := ParseTodo(todo("/mozilla.org/20070129_1/Europe/Berlin"))
+	if err != nil || !parsed.Due.Equal(time.Date(2026, 9, 21, 9, 0, 0, 0, time.UTC)) {
+		t.Errorf("a path ending in a zone: %v %v", parsed.Due, err)
+	}
+	if parsed, err := ParseTodo(todo(`"Customized Time Zone"`)); err == nil {
+		t.Errorf("an unknown zone was read as %v", parsed.Due.UTC())
+	}
+}
