@@ -55,6 +55,9 @@ func CheckPortfolio(p Portfolio, normalizer text.Normalizer) (Portfolio, error) 
 	if utf8.RuneCountInString(p.Description) > MaxDescriptionLength {
 		return Portfolio{}, invalid("/description", "portfolios.description_too_long")
 	}
+	if strings.ContainsRune(p.Description, 0) {
+		return Portfolio{}, invalid("/description", "portfolios.description_malformed")
+	}
 	if p.Status == "" {
 		p.Status = StatusNone
 	}
@@ -123,6 +126,9 @@ func CheckStatusUpdate(u StatusUpdate, normalizer text.Normalizer) (StatusUpdate
 	}
 	if utf8.RuneCountInString(u.Summary) > MaxSummaryLength {
 		return StatusUpdate{}, invalid("/summary", "portfolio_updates.summary_too_long")
+	}
+	if strings.ContainsRune(u.Summary, 0) {
+		return StatusUpdate{}, invalid("/summary", "portfolio_updates.summary_malformed")
 	}
 	return u, nil
 }

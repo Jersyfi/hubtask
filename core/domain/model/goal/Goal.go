@@ -155,6 +155,9 @@ func CheckKeyResult(r KeyResult, at string, normalizer text.Normalizer) (KeyResu
 	if utf8.RuneCountInString(r.Unit) > MaxUnitLength {
 		return KeyResult{}, invalid(at+"/unit", "key_results.unit_too_long")
 	}
+	if !oneLine(r.Unit) {
+		return KeyResult{}, invalid(at+"/unit", "key_results.unit_invalid")
+	}
 	if r.Source == "" {
 		r.Source = SourceManual
 	}
@@ -253,6 +256,9 @@ func CheckGoal(f GoalFields, normalizer text.Normalizer) (GoalFields, error) {
 	}
 	if utf8.RuneCountInString(f.Description) > MaxDescriptionLength {
 		return GoalFields{}, invalid("/description", "goals.description_too_long")
+	}
+	if strings.ContainsRune(f.Description, 0) {
+		return GoalFields{}, invalid("/description", "goals.description_malformed")
 	}
 	if f.PeriodID.IsZero() {
 		return GoalFields{}, invalid("/period_id", "goals.period_required")
@@ -366,6 +372,9 @@ func CheckCheckIn(c CheckIn, g Goal, normalizer text.Normalizer) (CheckIn, error
 	if utf8.RuneCountInString(c.Note) > MaxNoteLength {
 		return CheckIn{}, invalid("/note", "check_ins.note_too_long")
 	}
+	if strings.ContainsRune(c.Note, 0) {
+		return CheckIn{}, invalid("/note", "check_ins.note_malformed")
+	}
 	if g.Grade != nil {
 		return CheckIn{}, shared.ErrConflict.WithDetail("goals.graded")
 	}
@@ -459,10 +468,16 @@ func title(raw string, normalizer text.Normalizer, path, family string) (string,
 	switch {
 	case name == "":
 		return "", invalid(path, family+"_required")
-	case utf8.RuneCountInString(name) > MaxTitleLength || strings.ContainsAny(name, "\r\n"):
+	case utf8.RuneCountInString(name) > MaxTitleLength || !oneLine(name):
 		return "", invalid(path, family+"_invalid")
 	}
 	return name, nil
+}
+
+// oneLine reports whether a name holds no control character - no line break, tab or zero byte,
+// which the database refuses to store.
+func oneLine(name string) bool {
+	return !strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 || (r >= 0x7f && r <= 0x9f) })
 }
 
 func invalid(path, code string) error {
