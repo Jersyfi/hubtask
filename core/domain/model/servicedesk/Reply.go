@@ -69,6 +69,8 @@ func NewReplyTemplate(in NewReplyTemplateInput) (ReplyTemplate, error) {
 		return ReplyTemplate{}, invalid("/body", "reply_templates.body_required")
 	case utf8.RuneCountInString(body) > MaxReplyBodyLength:
 		return ReplyTemplate{}, invalid("/body", "reply_templates.body_too_long")
+	case strings.ContainsRune(body, 0):
+		return ReplyTemplate{}, invalid("/body", "reply_templates.body_malformed")
 	}
 	for _, match := range placeholder.FindAllStringSubmatch(body, -1) {
 		if !slices.Contains(ReplyVariables, match[1]) {

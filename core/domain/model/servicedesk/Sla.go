@@ -239,7 +239,7 @@ func checkGoal(goal SLAGoal, at string) (SLAGoal, error) {
 	byPriority := make(map[string]int, len(goal.ByPriority))
 	for _, priority := range slices.Sorted(maps.Keys(goal.ByPriority)) {
 		minutes := goal.ByPriority[priority]
-		if strings.TrimSpace(priority) == "" || len(priority) > MaxNameLength {
+		if strings.TrimSpace(priority) == "" || len(priority) > MaxNameLength || strings.ContainsRune(priority, 0) {
 			return SLAGoal{}, invalid(at+"/by_priority", "sla_policies.priority_malformed")
 		}
 		if minutes <= 0 || minutes > MaxTargetMinutes {

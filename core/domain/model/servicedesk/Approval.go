@@ -151,6 +151,9 @@ func Decide(
 	if utf8.RuneCountInString(reason) > MaxApprovalReason {
 		return Approval{}, Decision{}, invalid("/reason", "approvals.reason_too_long")
 	}
+	if strings.ContainsRune(reason, 0) {
+		return Approval{}, Decision{}, invalid("/reason", "approvals.reason_malformed")
+	}
 	decision := Decision{
 		ID: id, TenantID: a.TenantID, ApprovalID: a.ID, Level: a.Current, ApproverID: approver, OnBehalfOf: who.OnBehalfOf,
 		Verdict: verdict, Reason: reason, ItemVersion: itemVersion, DecidedAt: now,

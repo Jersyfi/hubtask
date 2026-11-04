@@ -108,7 +108,7 @@ func checkName(raw string, normalizer text.Normalizer, area string) (string, err
 	switch {
 	case name == "":
 		return "", invalid("/name", area+".name_required")
-	case utf8.RuneCountInString(name) > MaxNameLength || strings.ContainsAny(name, "\r\n"):
+	case utf8.RuneCountInString(name) > MaxNameLength || strings.ContainsAny(name, "\r\n\x00"):
 		return "", invalid("/name", area+".name_invalid")
 	}
 	return name, nil
