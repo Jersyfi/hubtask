@@ -152,19 +152,29 @@ JOIN container h ON h.id = col.parent_id
 WHERE w.id = ANY(sqlc.arg('ids')::uuid[]);
 
 -- name: HoldsAnyMembership :one
--- Whether the account holds a role anywhere in the tenant, directly or through a group.
-SELECT EXISTS (
+-- Whether the account holds a role anywhere in the tenant, directly or through a group: a
+-- built-in one, or one of the workspace's own that carries READ. A role carrying REQUEST without
+-- READ is a requester's, whose place is the portal (UC-SVC-05), so it is not counted here.
+SELECT (EXISTS (
   SELECT 1 FROM membership m
   WHERE m.account_id = sqlc.arg('account_id')::uuid
      OR m.group_id IN (
        SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid
      )
-) AS held;
+) OR EXISTS (
+  SELECT 1 FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'READ' = ANY(r.permissions)
+    AND (c.account_id = sqlc.arg('account_id')::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid))
+))::boolean AS held;
 
 -- name: ListRequesterPortals :many
 -- The collections where the account is a requester through a role of the workspace's own that
--- carries REQUEST, held directly or through a group, at the collection or at its hub: the portals
--- a requester is sent to. Live collections only, by name; at most 50.
+-- carries REQUEST, held directly or through a group, at the collection, at its hub, or at the
+-- workspace - which reaches every collection outside a private hub, as a workspace grant does
+-- (ADR-0073 §1): the portals a requester is sent to. Live collections only, by name; at most 50.
 WITH grants AS (
   SELECT c.scope_type, c.scope_id
   FROM custom_role_grant c
@@ -178,7 +188,9 @@ SELECT k.id, k.name
 FROM container k
 WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
   AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
-       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB'))
+       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB')
+       OR (EXISTS (SELECT 1 FROM grants WHERE scope_type = 'TENANT')
+           AND EXISTS (SELECT 1 FROM container h WHERE h.id = k.parent_id AND NOT h.private)))
 ORDER BY k.name COLLATE hubtask_name, k.id
 LIMIT 50;
 

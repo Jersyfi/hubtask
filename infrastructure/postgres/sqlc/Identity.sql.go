@@ -897,16 +897,25 @@ func (q *Queries) HasManagedAccounts(ctx context.Context) (bool, error) {
 }
 
 const holdsAnyMembership = `-- name: HoldsAnyMembership :one
-SELECT EXISTS (
+SELECT (EXISTS (
   SELECT 1 FROM membership m
   WHERE m.account_id = $1::uuid
      OR m.group_id IN (
        SELECT group_id FROM account_group_member WHERE account_id = $1::uuid
      )
-) AS held
+) OR EXISTS (
+  SELECT 1 FROM custom_role_grant c
+  JOIN custom_role r ON r.id = c.role_id
+  WHERE 'READ' = ANY(r.permissions)
+    AND (c.account_id = $1::uuid
+         OR c.group_id IN (
+           SELECT group_id FROM account_group_member WHERE account_id = $1::uuid))
+))::boolean AS held
 `
 
-// Whether the account holds a role anywhere in the tenant, directly or through a group.
+// Whether the account holds a role anywhere in the tenant, directly or through a group: a
+// built-in one, or one of the workspace's own that carries READ. A role carrying REQUEST without
+// READ is a requester's, whose place is the portal (UC-SVC-05), so it is not counted here.
 func (q *Queries) HoldsAnyMembership(ctx context.Context, accountID pgtype.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsAnyMembership, accountID)
 	var held bool
@@ -1254,7 +1263,9 @@ SELECT k.id, k.name
 FROM container k
 WHERE k.type = 'COLLECTION' AND k.deleted_at IS NULL AND k.archived_at IS NULL
   AND (k.id IN (SELECT scope_id FROM grants WHERE scope_type = 'COLLECTION')
-       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB'))
+       OR k.parent_id IN (SELECT scope_id FROM grants WHERE scope_type = 'HUB')
+       OR (EXISTS (SELECT 1 FROM grants WHERE scope_type = 'TENANT')
+           AND EXISTS (SELECT 1 FROM container h WHERE h.id = k.parent_id AND NOT h.private)))
 ORDER BY k.name COLLATE hubtask_name, k.id
 LIMIT 50
 `
@@ -1265,8 +1276,9 @@ type ListRequesterPortalsRow struct {
 }
 
 // The collections where the account is a requester through a role of the workspace's own that
-// carries REQUEST, held directly or through a group, at the collection or at its hub: the portals
-// a requester is sent to. Live collections only, by name; at most 50.
+// carries REQUEST, held directly or through a group, at the collection, at its hub, or at the
+// workspace - which reaches every collection outside a private hub, as a workspace grant does
+// (ADR-0073 §1): the portals a requester is sent to. Live collections only, by name; at most 50.
 func (q *Queries) ListRequesterPortals(ctx context.Context, accountID pgtype.UUID) ([]ListRequesterPortalsRow, error) {
 	rows, err := q.db.Query(ctx, listRequesterPortals, accountID)
 	if err != nil {
