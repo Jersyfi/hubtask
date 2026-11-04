@@ -1191,6 +1191,10 @@
       {:else}
         {#snippet generalTab()}
           <LazyView load={settingsParts.ContainerEditDialog} props={{ isEmbedded: true, isOpen: true, container }} />
+          {#if container.type === 'HUB'}
+            <!-- Whether the hub's pages wait in drafts (user-experience.md §7.1: off the tree). -->
+            <LazyView load={settingsParts.PageDraftsSwitch} props={{ hubId: container.id }} />
+          {/if}
           {#if container.type === 'COLLECTION'}
             <!-- The word its entries' keys start with (user-experience.md §5.6). -->
             <section class="mail-settings" aria-labelledby="key-settings-head" data-key-settings>
