@@ -7808,4 +7808,30 @@ ALTER TABLE identity_provider ADD COLUMN saml_expiry_told_for timestamptz,
   ADD COLUMN saml_certificates_end timestamptz;
 ALTER TABLE durable_timer ADD COLUMN fire_attempts integer NOT NULL DEFAULT 0;
 
+-- Migrations 0355-0361: a custom field's name; a collection's key prefix (its functions and trigger
+-- are the migration's); an import's dry run; the addresses mail no longer reaches; an agent
+-- request being performed.
+ALTER TABLE custom_field_definition ADD COLUMN name text NULL,
+  ADD CONSTRAINT cfd_name_length CHECK (char_length(name) BETWEEN 1 AND 100);
+ALTER TABLE container ADD COLUMN key_prefix text,
+  ADD CONSTRAINT container_key_prefix_check
+    CHECK (key_prefix IS NULL OR (type = 'COLLECTION' AND key_prefix ~ '^[A-Z][A-Z0-9]{1,4}$'));
+CREATE UNIQUE INDEX container_key_prefix_uq ON container (tenant_id, key_prefix) WHERE key_prefix IS NOT NULL;
+ALTER TABLE import_run ADD COLUMN dry_run boolean NOT NULL DEFAULT false;
+CREATE TABLE mail_undeliverable (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  address    text NOT NULL CHECK (char_length(address) <= 320),
+  since      timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT mail_undeliverable_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE mail_undeliverable ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mail_undeliverable FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON mail_undeliverable
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON mail_undeliverable TO hubtask_app;
+ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
+
 COMMIT;
