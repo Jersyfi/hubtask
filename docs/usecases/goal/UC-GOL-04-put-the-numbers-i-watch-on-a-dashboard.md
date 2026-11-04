@@ -5,7 +5,7 @@ context: goal
 actors: [PE-planner, PE-member, PE-admin, PE-integrator, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, infrastructure/mail/SMTP_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs]
 ---

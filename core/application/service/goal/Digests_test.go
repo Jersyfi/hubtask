@@ -216,7 +216,8 @@ func TestADigestMailsTheSubscribersOwnTotals(t *testing.T) {
 	if strings.Contains(m.Body, "Split") {
 		t.Fatalf("a chart that is not a number reached the mail: %q", m.Body)
 	}
-	// UC-GOL-04 check 13: each TABLE widget travels as a CSV file of the subscriber's rows.
+	// UC-GOL-04 check 17: each TABLE widget travels as a CSV file of the subscriber's rows, and
+	// none where no title may travel.
 	if len(m.Attachments) != 1 || m.Attachments[0].Name != "table-1.csv" || m.Attachments[0].ContentType != "text/csv" ||
 		!strings.HasPrefix(string(m.Attachments[0].Content), "group,period,value\r\n") {
 		t.Fatalf("attachments = %+v", m.Attachments)
@@ -266,7 +267,7 @@ func TestADigestTotalReadsInTheSubscribersLocale(t *testing.T) {
 	}
 }
 
-// UC-GOL-04 check 13: a group a spreadsheet would read as a formula is quoted, a negative figure is
+// UC-GOL-04 check 17: a group a spreadsheet would read as a formula is quoted, a negative figure is
 // not, and a widget the subscriber cannot compute has no file.
 func TestADigestTableIsANeutralCsv(t *testing.T) {
 	first, second := shared.MustParseID("018f0000-0000-7000-8000-0000000000e1"), shared.MustParseID("018f0000-0000-7000-8000-0000000000e2")
