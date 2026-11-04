@@ -134,6 +134,32 @@ type Item struct {
 	Attributes map[string]any
 }
 
+// HoldsZeroByte reports whether an item carries a zero byte anywhere - a source's or a file's
+// stray byte that no text column stores. Such an item is refused alone; it reaching the database
+// would fail its whole page, and a connector would fail on that page at every run.
+func (item Item) HoldsZeroByte() bool {
+	if strings.Contains(item.Ref+item.Class+item.Name+item.NativeKey, "\x00") {
+		return true
+	}
+	return holdsZeroByte(item.Attributes)
+}
+
+func holdsZeroByte(v any) bool {
+	switch x := v.(type) {
+	case string:
+		return strings.Contains(x, "\x00")
+	case []any:
+		return slices.ContainsFunc(x, holdsZeroByte)
+	case map[string]any:
+		for k, e := range x {
+			if strings.Contains(k, "\x00") || holdsZeroByte(e) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // RelationItem is a relation as a source reports it, between two of its items (by Ref) or
 // existing CIs (by identifier).
 type RelationItem struct {

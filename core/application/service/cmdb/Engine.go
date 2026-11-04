@@ -288,6 +288,14 @@ func (s Inventory) reconcile(ctx context.Context, actor appshared.ActorContext, 
 		return domain.Run{}, err
 	}
 	for i, item := range payload.Items {
+		if item.HoldsZeroByte() {
+			// Refused under a reference of its own: the run keeps its decisions, and the item's
+			// own reference may be what holds the byte.
+			d := domain.Decision{Ref: "item-" + itoa(i+1), Outcome: domain.OutcomeRefused, Reason: "cmdb.item_zero_byte"}
+			p.run.Counts.Count(d)
+			p.run.Decisions = append(p.run.Decisions, d)
+			continue
+		}
 		if item.Ref == "" {
 			item.Ref = "item-" + itoa(i+1)
 		}

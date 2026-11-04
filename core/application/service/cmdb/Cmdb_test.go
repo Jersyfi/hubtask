@@ -528,3 +528,20 @@ func TestImpactProtectionAndHealth(t *testing.T) {
 		t.Fatal("a VM is no offering of an application")
 	}
 }
+
+// A stray zero byte from a source or a file refuses its item alone; it reaching the database
+// would fail the whole page, and a connector would fail on that page at every run.
+func TestAnItemHoldingAZeroByteIsRefusedAloneAndNamesNoValue(t *testing.T) {
+	f := newFixture()
+	out, err := call(t, ReconcileCis{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "source": "netbox", "items": items(
+		map[string]any{"ref": "a\x00", "class": "server", "name": "web\x001", "native_key": "7"},
+		map[string]any{"ref": "b", "class": "server", "name": "web2", "native_key": "8"},
+	)})
+	if err != nil || !slices.Equal(outcomes(out), []string{"REFUSED", "CREATE"}) || len(f.m.cis) != 1 {
+		t.Fatalf("only the clean item is written: %v %v, %d CIs", outcomes(out), err, len(f.m.cis))
+	}
+	d := out["decisions"].([]usecase.Output)[0]
+	if d["reason"] != "cmdb.item_zero_byte" || d["ref"] != "item-1" || len(f.m.holds) != 0 {
+		t.Fatalf("refused by its code under a reference the run can keep: %v", d)
+	}
+}

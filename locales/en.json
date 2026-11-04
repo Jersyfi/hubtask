@@ -69,6 +69,7 @@
   "cmdb.hub_full": "A hub holds at most 20,000 configuration items.",
   "cmdb.hub_not_found": "The hub for this inventory was not found.",
   "cmdb.impact_unknown": "The impact is NONE, SOURCE, TARGET or BOTH.",
+  "cmdb.item_zero_byte": "An item holds a zero byte, which cannot be stored; it was left out.",
   "cmdb.location_invalid": "The location is a configuration item of a location class in the same hub.",
   "cmdb.mapping_name_column_required": "The mapping names the column that holds the name.",
   "cmdb.mapping_required": "A CSV or JSON file needs a mapping.",

@@ -69,6 +69,7 @@
   "cmdb.hub_full": "Ein Hub enthält höchstens 20.000 Konfigurationselemente.",
   "cmdb.hub_not_found": "Der Hub dieses Inventars wurde nicht gefunden.",
   "cmdb.impact_unknown": "Die Auswirkung ist NONE, SOURCE, TARGET oder BOTH.",
+  "cmdb.item_zero_byte": "Ein Element enthält ein Nullbyte, das sich nicht speichern lässt; es wurde ausgelassen.",
   "cmdb.location_invalid": "Der Standort ist ein Konfigurationselement einer Standortklasse im selben Hub.",
   "cmdb.mapping_name_column_required": "Die Zuordnung nennt die Spalte mit dem Namen.",
   "cmdb.mapping_required": "Eine CSV- oder JSON-Datei braucht eine Zuordnung.",

@@ -224,3 +224,26 @@ func TestAVirtualMachineIsHostedOnAVirtualisationCluster(t *testing.T) {
 		t.Fatal("the cluster is a shipped class")
 	}
 }
+
+func TestAnItemHoldingAZeroByteIsKnown(t *testing.T) {
+	cases := []struct {
+		name string
+		item Item
+		want bool
+	}{
+		{"clean", Item{Ref: "r", Class: "server", Name: "web01", NativeKey: "1", Attributes: map[string]any{"hostname": "web01", "n": 2.0}}, false},
+		{"in the name", Item{Name: "web\x0001"}, true},
+		{"in the reference", Item{Ref: "r\x00"}, true},
+		{"in the class", Item{Class: "server\x00"}, true},
+		{"in the native key", Item{NativeKey: "\x001"}, true},
+		{"in an attribute's value", Item{Attributes: map[string]any{"hostname": "a\x00"}}, true},
+		{"in an attribute's key", Item{Attributes: map[string]any{"host\x00": "a"}}, true},
+		{"in a list", Item{Attributes: map[string]any{"tags": []any{"a", "b\x00"}}}, true},
+		{"in a nested object", Item{Attributes: map[string]any{"o": map[string]any{"k": "v\x00"}}}, true},
+	}
+	for _, c := range cases {
+		if got := c.item.HoldsZeroByte(); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+}
