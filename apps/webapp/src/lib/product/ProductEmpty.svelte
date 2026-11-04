@@ -8,6 +8,8 @@
 
   import { Button, EmptyState, type IconName } from '@hubtask/design-system/components';
 
+  import { viewport } from '../frame/viewport.svelte.ts';
+
   /** One act on the empty screen: resolved label, what pressing it does. */
   interface Act {
     label: string;
@@ -27,11 +29,16 @@
     templates?: readonly Act[];
     /** Who may create, said where the reader may not (`create` absent). */
     whoCan?: string;
+    /**
+     * Whether `create` is the page head's primary too: on a phone the head pins it where the thumb
+     * is, so the empty state draws no second one beside it (user-experience.md §5.2).
+     */
+    isInHead?: boolean;
   }
 
-  const { kind, title, description, icon, create, clear, templates = [], whoCan }: Props = $props();
+  const { kind, title, description, icon, create, clear, templates = [], whoCan, isInHead = false }: Props = $props();
 
-  const act = $derived(kind === 'filtered' ? clear : create);
+  const act = $derived(kind === 'filtered' ? clear : isInHead && viewport.isCompact ? undefined : create);
   const offersTemplates = $derived(kind === 'unused' && create !== undefined && templates.length > 0);
   const saysWhoCan = $derived(kind === 'unused' && create === undefined && whoCan !== undefined);
 </script>

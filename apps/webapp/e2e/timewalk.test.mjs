@@ -169,6 +169,17 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   await page.goto(`${served.origin}/time`);
   await page.getByText('No time recorded this week.').waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'Start timer' }).count(), 1, 'the timer starts from the head');
+  // The head pins *Record time* where the thumb is; the empty week draws no second one under it.
+  assert.equal(await page.getByRole('button', { name: 'Record time', exact: true }).count(), 1, 'one Record time on a phone');
+  const covered = await page.evaluate(() => {
+    const thumb = [...document.querySelectorAll('[data-folded] .primary')].find((each) => getComputedStyle(each).position === 'fixed');
+    const at = thumb?.getBoundingClientRect();
+    if (!at) return ['no pinned primary'];
+    return [...document.querySelectorAll('main button, main a')].filter((each) => !thumb.contains(each)).map((each) => ({ each, r: each.getBoundingClientRect() }))
+      .filter(({ r }) => r.width > 0 && r.left < at.right && r.right > at.left && r.top < at.bottom && r.bottom > at.top)
+      .map(({ each }) => each.textContent.trim());
+  });
+  assert.deepEqual(covered, [], 'the pinned primary covers a control');
   assert.equal(await page.getByRole('list', { name: /^The days of / }).getByRole('listitem').count(), 7);
   assert.equal(await page.getByRole('table').count(), 0, 'an empty week draws no empty table');
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
