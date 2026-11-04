@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
-import { PLAN_CSV_HEADS, dependencyDrawn, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFormatOf, proposedMoves } from './planning.ts';
+import { PLAN_CSV_HEADS, dependencyDrawn, fitWindow, ganttRows, inTreeOrder, lagOf, planCsvRows, planRolePath, planXlsxOf, projectFormatOf, proposedMoves } from './planning.ts';
 
 const entry = (id: string, more: Partial<PlanScheduleEntry> = {}): PlanScheduleEntry => ({
   item_id: id, title: id, parent_id: null, collection_id: 'c', start: '2026-11-02', finish: '2026-11-04',
@@ -131,4 +131,23 @@ test('planRolePath names the hub for a hub and waits for a place not read', () =
   assert.equal(planRolePath('h', undefined), undefined);
   assert.deepEqual(planRolePath('h', { type: 'HUB', parent_id: null }), { hubId: 'h' });
   assert.deepEqual(planRolePath('c', { type: 'COLLECTION', parent_id: 'h' }), { hubId: 'h', collectionId: 'c' });
+});
+
+// user-experience.md §7.5: an entry with only a due date is placed as a milestone, a point rather
+// than a one-day bar it never had.
+test('an entry with only a due date is drawn as a milestone', () => {
+  const rows = ganttRows(schedule([entry('due', { start: '2026-11-04', finish: '2026-11-04', due_only: true }), entry('span')]), undefined, (instant) => instant.slice(0, 10));
+  assert.equal(rows[0]?.kind, 'milestone');
+  assert.equal(rows[1]?.kind, undefined);
+});
+
+// user-experience.md §7.5: the chart opens on the plan's whole range, at the finest scale that
+// holds it, a little room on each side; a plan without dates has no range to fit.
+test('the window fits the plan, the scale chosen by its length', () => {
+  assert.equal(fitWindow([]), undefined);
+  assert.deepEqual(fitWindow([{ start: '2026-11-02', due: '2026-11-20' }]), { scale: 'day', from: '2026-11-01', to: '2026-11-21' });
+  const quarter = fitWindow([{ start: '2026-01-05', due: '2026-03-01' }, { start: '2026-02-01', due: '2026-04-30' }]);
+  assert.equal(quarter?.scale, 'month');
+  assert.ok(quarter && quarter.from < '2026-01-05' && quarter.to > '2026-04-30');
+  assert.equal(fitWindow([{ start: '2026-01-01', due: '2028-12-31' }])?.scale, 'year');
 });

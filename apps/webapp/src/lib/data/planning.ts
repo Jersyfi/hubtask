@@ -16,6 +16,7 @@
 import type { BaselineComparison, PlanSchedule, PlanScheduleEntry } from '@hubtask/sync-engine';
 
 import type { Path } from './people.ts';
+import type { Scale } from './schedule.ts';
 import { xlsxOf } from './xlsx.ts';
 
 /**
@@ -93,7 +94,7 @@ export function ganttRows(
       title: entry.title,
       start: entry.start,
       due: entry.finish,
-      kind: entry.milestone ? 'milestone' : entry.summary ? 'summary' : undefined,
+      kind: entry.milestone || entry.due_only === true ? 'milestone' : entry.summary ? 'summary' : undefined,
       isCritical: entry.critical,
       depth,
       baseline: baseline && (baseline.start || baseline.due) ? baseline : undefined,
@@ -101,6 +102,32 @@ export function ganttRows(
     };
   });
 }
+
+/**
+ * How many days each scale draws in the chart's usual width, at its column of the space scale:
+ * a day column is three steps, a week's day one, a month's half, a quarter's a quarter.
+ */
+const FITS: readonly (readonly [Scale, number])[] = [['day', 35], ['week', 110], ['month', 220], ['quarter', 440]];
+
+/**
+ * The window that shows the whole plan (user-experience.md §7.5): from its first date to its last,
+ * a day or a twentieth of its length to spare on each side, at the finest scale that holds it.
+ * Undefined for a plan with no dates, which keeps the window where the reader is.
+ */
+export function fitWindow(spans: readonly { readonly start?: string; readonly due?: string }[]): { from: string; to: string; scale: Scale } | undefined {
+  const days = spans.flatMap((span) => [span.start, span.due]).filter((day): day is string => typeof day === 'string' && day !== '').sort();
+  const first = days[0];
+  const last = days.at(-1);
+  if (first === undefined || last === undefined) return undefined;
+  const length = Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / DAY) + 1;
+  const room = Math.max(1, Math.ceil(length / 20));
+  const shown = length + 2 * room;
+  const scale = FITS.find(([, holds]) => shown <= holds)?.[0] ?? 'year';
+  return { scale, from: addDays(first, -room), to: addDays(last, room) };
+}
+
+const DAY = 86_400_000;
+const addDays = (day: string, count: number) => new Date(Date.parse(`${day}T00:00:00Z`) + count * DAY).toISOString().slice(0, 10);
 
 /** The entries the plan proposes to move that a planner may accept: inside the plan, not done. */
 export function proposedMoves(schedule: PlanSchedule): string[] {

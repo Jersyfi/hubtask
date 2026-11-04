@@ -415,6 +415,7 @@ async function planFromCopy(storage: Storage, planId: string, zone: string): Pro
   const parents = new Set(items.map((item) => item.parent_id).filter((id): id is string => typeof id === 'string'));
   const entries: Document[] = [];
   const unscheduled: string[] = [];
+  const undated: Document[] = [];
   let finish: string | undefined;
   for (const item of items) {
     const id = String(item.id);
@@ -423,6 +424,7 @@ async function planFromCopy(storage: Storage, planId: string, zone: string): Pro
     const start = dayIn(item.start_at, zone) ?? due;
     if (!due || !start) {
       unscheduled.push(id);
+      undated.push({ item_id: id, title: item.title ?? '' });
       continue;
     }
     if (!finish || due > finish) finish = due;
@@ -432,7 +434,7 @@ async function planFromCopy(storage: Storage, planId: string, zone: string): Pro
       collection_id: item.collection_id, start, finish: due, duration_days: workdaysBetween(start, due), moved: false,
       total_float_days: 0, free_float_days: 0, critical: false, summary: parents.has(id), external: false,
       mode: scheduling?.mode === 'AUTOMATIC' ? 'AUTOMATIC' : 'MANUAL', milestone: scheduling?.milestone === true,
-      done: item.is_completed === true,
+      done: item.is_completed === true, due_only: dayIn(item.start_at, zone) === undefined,
     });
   }
   const waits = await waitingTypes(storage);
@@ -448,7 +450,7 @@ async function planFromCopy(storage: Storage, planId: string, zone: string): Pro
       dependency_kind: link.dependency_kind ?? 'FS', lag_days: Number(link.lag_days ?? 0),
     });
   }
-  return { zone, finish: finish ?? null, entries, dependencies, conflicts: [], unscheduled, critical_path: [] };
+  return { zone, finish: finish ?? null, entries, dependencies, conflicts: [], unscheduled, undated, critical_path: [] };
 }
 
 export async function storeFor(request: ResourceRequest, storage: Storage): Promise<unknown> {

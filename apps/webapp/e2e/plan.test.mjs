@@ -28,6 +28,7 @@ const dayIn = (iso, zone) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, 
 const [FIRST, SECOND, THIRD] = ITEMS;
 const LINK = '01a0e2e0-0000-7000-8000-0000000f1a01';
 const DRAWN = '01a0e2e0-0000-7000-8000-0000000f1a02';
+const UNDATED = '01a0e2e0-0000-7000-8000-0000000f1a03';
 
 /** One entry of the schedule, as `GET /plans/{id}/schedule` answers it. */
 const entry = (item, start, finish, extra = {}) => ({
@@ -47,9 +48,12 @@ const SCHEDULE = {
   ],
   dependencies: [{ link_id: LINK, type: 'depends_on', predecessor_id: FIRST.id, successor_id: SECOND.id, dependency_kind: 'FS', lag_days: 1 }],
   conflicts: [],
-  unscheduled: [],
+  unscheduled: [UNDATED],
+  undated: [{ item_id: UNDATED, title: 'Write the brief' }],
   critical_path: [FIRST.id, SECOND.id],
 };
+
+const BASELINE = { id: '01a0e2e0-0000-7000-8000-0000000f1b01', plan_id: COLLECTION.id, name: 'Agreed 1 Oct', taken_at: '2026-10-01T09:00:00Z', taken_by: null, entry_count: 3 };
 
 /** The collection's plan, with every write recorded and answered with what it makes. */
 async function plan(browser) {
@@ -63,7 +67,8 @@ async function plan(browser) {
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
     if (path === `/plans/${COLLECTION.id}/schedule`) return route.fulfill({ json: SCHEDULE });
-    if (path === `/plans/${COLLECTION.id}/baselines`) return route.fulfill({ json: { data: [] } });
+    if (path === `/plans/${COLLECTION.id}/baselines`) return route.fulfill({ json: { data: [BASELINE] } });
+    if (path === `/baselines/${BASELINE.id}` && method === 'DELETE') return route.fulfill({ status: 204 });
     if (path === `/plans/${COLLECTION.id}/tolerance`) {
       return route.fulfill({ json: { time_tolerance_days: null, source: 'DEFAULT', locked_by: null, baseline_id: null, exception: null } });
     }
@@ -257,6 +262,48 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   await page.waitForTimeout(300);
   assert.ok(written.some((each) => each.method === 'DELETE' && each.path === `/links/${LINK}`), 'the dependency was not removed');
   await page.getByRole('status').filter({ hasText: `${SECOND.title} no longer waits for ${FIRST.title}.` }).first().waitFor({ timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+// user-experience.md §7.5: the chart opens on the whole plan, a critical bar is named as such, an
+// entry without dates waits in the tray with *Give it dates*, and a baseline is deleted behind
+// *Undo* - nothing is sent until the message leaves without it.
+test('chromium: 1280 px — the plan fits, names its critical chain, trays the undated and deletes a baseline softly', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, written, close, unstubbed } = await plan(browser);
+  t.after(close);
+
+  // The name is the title and the word, however the engine joins a hidden span.
+  await page.getByRole('button', { name: new RegExp(`^${FIRST.title}\\s*,\\s*critical$`) }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByRole('button', { name: new RegExp(`^${THIRD.title}\\s*,\\s*critical$`) }).count(), 0);
+  await page.getByRole('button', { name: 'Give Write the brief dates' }).click();
+  await page.waitForURL(`**/items/${UNDATED}`, { timeout: 5_000 });
+  await page.goBack();
+  await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
+
+  await page.getByRole('button', { name: 'More for the plan' }).click();
+  await page.getByRole('menuitem', { name: 'Plan settings' }).click();
+  await page.getByRole('button', { name: 'Delete the baseline “Agreed 1 Oct”' }).click();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.waitForTimeout(300);
+  assert.equal(written.some((each) => each.method === 'DELETE'), false, 'Undo sent the deletion');
+  const settings = async () => {
+    await page.getByRole('button', { name: 'More for the plan' }).click();
+    await page.getByRole('menuitem', { name: 'Plan settings' }).click();
+  };
+  await settings();
+  await page.getByRole('button', { name: 'Delete the baseline “Agreed 1 Oct”' }).waitFor({ timeout: 5_000 });
+  await page.getByRole('button', { name: 'Delete the baseline “Agreed 1 Oct”' }).click();
+  await settings();
+  assert.equal(await page.getByRole('button', { name: 'Delete the baseline “Agreed 1 Oct”' }).count(), 0, 'the baseline stayed on the screen');
+  await page.keyboard.press('Escape');
+  assert.equal(written.some((each) => each.method === 'DELETE'), false, 'deleted before the message left');
+  await page.getByRole('button', { name: 'Dismiss' }).last().click();
+  await page.waitForTimeout(300);
+  assert.ok(written.some((each) => each.method === 'DELETE' && each.path === `/baselines/${BASELINE.id}`), 'the deletion was never sent');
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);

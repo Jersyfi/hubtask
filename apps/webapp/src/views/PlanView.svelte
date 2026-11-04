@@ -2,7 +2,9 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Plan* of a hub or a collection (M2, UC-PLN-02 … 05): the schedule as a Gantt chart and as a
-  // table, side by side in one screen.
+  // table, in one screen. The chart comes first and full width, its window fitting the plan; the
+  // tolerance and the baselines are the plan's settings, behind *Plan settings* in the head
+  // (user-experience.md §7.5).
   //
   // **The server schedules; this screen draws and writes.** Every date is the one
   // `GET /plans/{id}/schedule` answered; a drag, a mode, a milestone, a dependency's timing or an
@@ -19,10 +21,13 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the plan the
   // chart's bars are locked and the table shows values, not controls.
+  //
+  // **A baseline is deleted behind *Undo*** (§5.9): it leaves the screen at once and the deletion
+  // is sent when its message leaves; *Undo* sends nothing, and a closed tab keeps the baseline.
 
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Checkbox, Dialog, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
+    Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
     type Column, type TimelineCarry, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
@@ -34,16 +39,17 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, ganttRows, lagOf, planCsvRows, planRolePath, planXlsxOf, planning, proposedMoves, schedulePath, tolerancePath,
+    PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, fitWindow, ganttRows, lagOf, planCsvRows, planRolePath, planXlsxOf, planning, proposedMoves, schedulePath, tolerancePath,
   } from '../lib/data/planning.svelte.ts';
-  import { anchorOf, draggedTo, gridOf, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
+  import { anchorOf, draggedTo, gridOf, lineAtOrBefore, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { formatPlainDay } from '../lib/i18n/datetime.ts';
+  import { formatDay, formatPlainDay } from '../lib/i18n/datetime.ts';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { firstWeekdayOf } from '../lib/i18n/week.ts';
   import { dateIn, instantOf, todayIn } from '../lib/i18n/zone.ts';
@@ -84,6 +90,9 @@
   let fromCopy = $state(false);
   let refusal = $state<string | undefined>(undefined);
   let baselines = $state<PlanBaselineList['data']>([]);
+  /** The baselines deleted behind an *Undo* not yet run out: off the screen, still on the server. */
+  let leaving = $state<string[]>([]);
+  const kept = $derived(baselines.filter((each) => !leaving.includes(each.id)));
   $effect(() => {
     const path = schedulePath(planId, zone);
     const listed = baselinesPath(planId);
@@ -146,11 +155,15 @@
   let accepted = $state<string[]>([]);
   const broken = $derived(new Set((schedule?.conflicts ?? []).map((each) => `${each.predecessor_id}>${each.successor_id}`)));
 
-  const timelineRows = $derived(
-    rows.map((row) => ({
+  // A due date alone is drawn as a point, so a bar carried moves the due and invents no start.
+  // The entries with no dates follow, which the chart trays with *Give it dates*.
+  const undated = $derived(schedule?.undated ?? []);
+  const undatedIds = $derived(new Set(undated.map((each) => each.item_id)));
+  const timelineRows = $derived([
+    ...rows.map((row) => ({
       id: row.id,
       title: row.title,
-      start: row.start,
+      start: row.entry.due_only ? undefined : row.start,
       due: row.due,
       kind: row.kind,
       isCritical: row.isCritical,
@@ -158,7 +171,9 @@
       baseline: row.baseline,
       isLocked: !mayWrite || row.entry.external || row.entry.summary || row.entry.done,
     })),
-  );
+    ...undated.map((each) => ({ id: each.item_id, title: each.title, isLocked: true })),
+  ]);
+  const criticalCount = $derived(rows.filter((row) => row.isCritical).length);
 
   const dependencies = $derived<TimelineDependency[]>(
     (schedule?.dependencies ?? []).map((each) => {
@@ -174,15 +189,26 @@
     }),
   );
 
-  // The window, as the timeline's: it opens where the work is, and the reader moves it.
+  // The window opens on the whole plan at the finest scale that holds it (§7.5), and the reader
+  // moves it; *Fit plan* brings it back. A plan without dates opens where the work would be.
   const weekStart = $derived(firstWeekdayOf(actor.weekStart, messages.locale, manifest.supportedLocales, workspace.weekStartAbove));
   let scale = $state<Scale>('week');
   let shown = $state<Window | undefined>(undefined);
   let anchor = $state<string | undefined>(undefined);
+  function fit() {
+    const fitted = fitWindow(rows.map((row) => ({ start: row.start, due: row.due })));
+    if (!fitted) {
+      anchor = anchorOf([], today, scale, weekStart);
+      shown = undefined;
+      return;
+    }
+    scale = fitted.scale;
+    anchor = lineAtOrBefore(fitted.from, fitted.scale, weekStart);
+    shown = { from: anchor, to: fitted.to };
+  }
   $effect(() => {
     if (anchor !== undefined || !schedule) return;
-    const dated = untrack(() => rows.flatMap((row) => [row.start, row.due]));
-    anchor = anchorOf(dated, today, untrack(() => scale), weekStart);
+    untrack(fit);
   });
   const current = $derived(shown ?? windowOf(anchor ?? today, scale, weekStart));
 
@@ -221,8 +247,9 @@
   function carried(carry: TimelineCarry) {
     const row = byId.get(carry.id);
     if (!row || !mayWrite || carry.grab === 'place') return;
-    const next = draggedTo({ start: row.start, due: row.due }, carry.grab, carry.to - carry.from);
-    const start = next.start !== row.start && next.start ? (instantOf(next.start, undefined, zone) ?? undefined) : undefined;
+    const was = row.entry.due_only ? undefined : row.start;
+    const next = draggedTo({ start: was, due: row.due }, carry.grab, carry.to - carry.from);
+    const start = next.start !== was && next.start ? (instantOf(next.start, undefined, zone) ?? undefined) : undefined;
     const due = next.due !== row.due && next.due ? dueInputFor({ date: next.due }, zone) : undefined;
     if (start === undefined && due === undefined) return;
     void act(() => planning.moveEntry(planId, zone, row.id, start, due), t('app.timeline.placed_announced', { title: row.title }));
@@ -259,13 +286,16 @@
       });
     }
   });
+  /** A lag the field cannot send, said at the field it was typed in (§5.10), by link. */
+  const lagErrors = $state<Record<string, string | undefined>>({});
   function saveTiming(linkId: string) {
     const draft = timing[linkId];
     const lag = draft ? lagOf(draft.lag) : undefined;
     if (!draft || lag === undefined) {
-      failure = t('planning.lag_out_of_range', { maximum: '999' });
+      lagErrors[linkId] = t('planning.lag_out_of_range', { maximum: '999' });
       return;
     }
+    lagErrors[linkId] = undefined;
     void act(() => planning.setTiming(planId, zone, linkId, draft.kind as 'FS' | 'SS' | 'FF' | 'SF', lag), t('app.planning.timing_saved'));
   }
 
@@ -275,6 +305,7 @@
   let newWaited = $state('');
   let newKind = $state<string>('FS');
   let newLag = $state('0');
+  let newLagError = $state<string | undefined>(undefined);
   function addDependency() {
     const waiting = newWaiting;
     const waited = newWaited;
@@ -285,9 +316,10 @@
       return;
     }
     if (lag === undefined) {
-      failure = t('planning.lag_out_of_range', { maximum: '999' });
+      newLagError = t('planning.lag_out_of_range', { maximum: '999' });
       return;
     }
+    newLagError = undefined;
     const kind = newKind as 'FS' | 'SS' | 'FF' | 'SF';
     void act(async () => {
       const made = await planning.link(planId, zone, drawn.sourceId, drawn.targetId, drawn.type);
@@ -308,6 +340,23 @@
 
   let isTaking = $state(false);
   let isImporting = $state(false);
+  let isSetting = $state(false);
+
+  /** A baseline deleted softly: gone from the screen now, from the server when *Undo* has run out. */
+  function deleteBaseline(id: string, name: string) {
+    leaving = [...leaving, id];
+    if (baselineId === id) baselineId = '';
+    // The dialog closes, so its message - and *Undo* - are not behind a modal.
+    isSetting = false;
+    const back = () => {
+      leaving = leaving.filter((each) => each !== id);
+    };
+    toast.show({
+      text: t('app.planning.baseline_deleted_named', { name }),
+      undo: back,
+      onleave: () => void act(() => planning.deleteBaseline(planId, id)).then(back),
+    });
+  }
 
   /**
    * The plan saved as the reader sees it (UC-PLN-09 check 6): a CSV the import reads back, the same
@@ -315,6 +364,10 @@
    * of the chart, or the chart printed - which the browser saves as PDF.
    */
   async function exportAs(id: string) {
+    if (id === 'settings') {
+      isSetting = true;
+      return;
+    }
     if (id === 'import') {
       isImporting = true;
       return;
@@ -371,13 +424,27 @@
     { id: 'save', label: t('app.planning.col_save'), isLabelHidden: true },
     ...(mayWrite ? [{ id: 'remove', label: t('app.planning.col_remove'), isLabelHidden: true }] : []),
   ]);
+  const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
+  // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
+  // dates; the standing against the tolerance where it is kept and not exceeded.
+  const figure = $derived.by(() => {
+    if (!schedule || (rows.length === 0 && undated.length === 0)) return undefined;
+    const parts = [
+      schedule.finish ? t('app.planning.figure_ends', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates'),
+      criticalCount > 0 ? t('app.planning.figure_critical', { count: String(criticalCount) }) : undefined,
+      undated.length > 0 ? t('app.planning.figure_undated', { count: String(undated.length) }) : undefined,
+      tolerance?.exception && !tolerance.exception.exceeded ? t('app.planning.figure_within') : undefined,
+    ];
+    return parts.filter((part) => part !== undefined).join(' · ');
+  });
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
 </script>
 
-<Stack gap="300">
+<Stack gap="200">
   <PageHeader
     title={t('app.planning.title')}
     isTitleInBar={viewport.isCompact}
+    subtitle={figure}
     breadcrumb={place
       ? {
           trail: [{ id: 'place', label: place.name, href: placePath }, { id: 'plan', label: t('app.planning.title') }],
@@ -386,11 +453,12 @@
           onnavigate: () => onnavigate(placePath),
         }
       : undefined}
-    secondary={mayWrite ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : []}
+    secondary={mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : []}
     menu={{
       label: t('app.planning.more'),
       items: [
-        { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' },
+        { id: 'settings', label: t('app.planning.settings'), icon: 'settings' },
+        { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text', hasSeparatorBefore: true },
         { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' },
         { id: 'png', label: t('app.planning.export_png'), icon: 'image' },
         { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' },
@@ -405,36 +473,20 @@
     <Banner tone="danger">{refusal}</Banner>
   {:else if !schedule}
     <div aria-busy="true"><Skeleton lines={6} /></div>
+  {:else if rows.length === 0 && undated.length === 0}
+    <ProductEmpty
+      kind="unused"
+      title={t('app.planning.none')}
+      description={t('app.planning.none_hint')}
+      create={place ? { label: t('app.planning.none_open', { place: place.name }), onclick: () => onnavigate(placePath) } : undefined}
+    />
   {:else}
     {#if fromCopy}<Banner tone="info">{t('app.planning.from_copy')}</Banner>{/if}
-    <p class="quiet">
-      {schedule.finish ? t('app.planning.ends_on', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates')}
-    </p>
 
     {#if tolerance?.exception?.exceeded}
       <Banner tone="danger" title={t('app.planning.tolerance')}>
         {t('app.planning.exception', { slip: String(tolerance.exception.slip_days), agreed: dayLabel(tolerance.exception.agreed_finish), tolerance: String(tolerance.exception.tolerance_days) })}
       </Banner>
-    {:else if tolerance?.exception}
-      <p class="quiet">{t('app.planning.within_tolerance', { forecast: dayLabel(tolerance.exception.forecast_finish), agreed: dayLabel(tolerance.exception.agreed_finish) })}</p>
-    {/if}
-    {#if tolerance}
-      <section class="tolerance" aria-label={t('app.planning.tolerance')}>
-        <p class="quiet">
-          {t('app.planning.tolerance')}:
-          {tolerance.time_tolerance_days === null ? t('app.planning.tolerance_none') : t('app.planning.tolerance_days', { days: String(tolerance.time_tolerance_days) })}
-          {#if tolerance.time_tolerance_days !== null} · {t('app.planning.tolerance_from', { level: t(`app.planning.tolerance_level_${tolerance.source}`) })}{/if}
-          {#if tolerance.locked_by} · {t('app.planning.tolerance_locked', { level: t(`app.planning.tolerance_level_${tolerance.locked_by}`) })}{/if}
-        </p>
-        {#if mayShape && !lockedAbove}
-          <Inline gap="100" align="end">
-            <Input label={t('app.planning.tolerance')} size="sm" type="number" min="0" max="365" bind:value={toleranceDraft} />
-            {#if place?.type === 'HUB'}<Checkbox label={t('app.planning.tolerance_lock')} bind:checked={toleranceLock} />{/if}
-            <Button size="sm" onclick={() => void saveTolerance(false)}>{t('app.planning.tolerance_set')}</Button>
-            <Button size="sm" tone="subtle" onclick={() => void saveTolerance(true)}>{t('app.planning.tolerance_inherit')}</Button>
-          </Inline>
-        {/if}
-      </section>
     {/if}
 
     {#if proposed.length > 0}
@@ -449,8 +501,7 @@
     {/if}
 
     {#if schedule.conflicts.length > 0}
-      <section aria-labelledby="plan-conflicts">
-        <h2 id="plan-conflicts" class="heading">{t('app.planning.conflicts')}</h2>
+      <Banner tone="warning" title={t('app.planning.conflicts')}>
         <ul class="plain">
           {#each schedule.conflicts as conflict (`${conflict.predecessor_id}>${conflict.successor_id}`)}
             <li>
@@ -462,37 +513,44 @@
             </li>
           {/each}
         </ul>
-      </section>
+      </Banner>
     {/if}
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     <div class="controls" role="group" aria-label={t('app.planning.chart')}>
-      <Button size="sm" tone="secondary" icon="chevron-left" onclick={() => move(-1)}>{t('app.timeline.previous')}</Button>
-      <Button size="sm" tone="secondary" onclick={() => { anchor = today; shown = undefined; }}>{t('app.timeline.today')}</Button>
-      <Button size="sm" tone="secondary" icon="chevron-right" onclick={() => move(1)}>{t('app.timeline.next')}</Button>
+      <Inline gap="050">
+        <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
+        <Button size="sm" tone="secondary" onclick={() => { anchor = today; shown = undefined; }}>{t('app.timeline.today')}</Button>
+        <IconButton size="sm" icon="chevron-right" label={t('app.timeline.next')} onclick={() => move(1)} />
+        <Button size="sm" tone="secondary" icon="maximize-2" data-fit onclick={fit}>{t('app.planning.fit')}</Button>
+      </Inline>
       <Select
         label={t('app.planning.zoom')}
         size="sm"
         value={scale}
         options={scales}
-        onchange={(event: Event) => { scale = scaleOf((event.currentTarget as HTMLSelectElement).value); shown = undefined; }}
+        onchange={(event: Event) => { scale = scaleOf((event.currentTarget as HTMLSelectElement).value); anchor = current.from; shown = undefined; }}
       />
-      <Select
-        label={t('app.planning.baseline')}
-        size="sm"
-        value={baselineId}
-        options={[{ value: '', label: t('app.planning.baseline_none') }, ...baselines.map((each) => ({ value: each.id, label: each.name }))]}
-        onchange={(event: Event) => (baselineId = (event.currentTarget as HTMLSelectElement).value)}
-      />
-      {#if baselineId && mayWrite}
-        <Button size="sm" tone="subtle" icon="trash" onclick={() => { const gone = baselineId; baselineId = ''; void act(() => planning.deleteBaseline(planId, gone), t('app.planning.baseline_deleted')); }}>
-          {t('app.planning.baseline_delete')}
-        </Button>
+      {#if kept.length > 0}
+        <Select
+          label={t('app.planning.baseline')}
+          size="sm"
+          value={baselineId}
+          options={[{ value: '', label: t('app.planning.baseline_none') }, ...kept.map((each) => ({ value: each.id, label: each.name }))]}
+          onchange={(event: Event) => (baselineId = (event.currentTarget as HTMLSelectElement).value)}
+        />
       {/if}
-      <span class="quiet">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
+      <span class="quiet window-said">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
     </div>
 
+    {#snippet giveDates(id: string)}
+      {#if undatedIds.has(id) && mayWrite}
+        <Button size="sm" tone="subtle" aria-label={t('app.planning.give_dates_of', { title: titleOfUndated(id) })} onclick={() => onnavigate(`/items/${id}`)}>
+          {t('app.planning.give_dates')}
+        </Button>
+      {/if}
+    {/snippet}
     <div class="window">
       <Timeline
         label={t('app.planning.chart')}
@@ -513,6 +571,9 @@
         dependenciesLabel={t('app.timeline.dependencies')}
         onLink={mayWrite ? linked : undefined}
         linkHandleLabel={t('app.planning.draw_dependency')}
+        criticalLabel={t('app.planning.critical_named')}
+        resizeLabel={t('app.planning.resize_titles')}
+        rowAction={undated.length > 0 ? giveDates : undefined}
       />
     </div>
 
@@ -549,6 +610,7 @@
                 <Inline gap="050" align="end">
                   <Select
                     label={t('app.planning.mode_of', { title: row.title })}
+                    isLabelHidden
                     size="sm"
                     value={chosenMode}
                     options={modes}
@@ -614,8 +676,8 @@
                 <th scope="row">{titleOf(each.successor_id)}</th>
                 <td>{titleOf(each.predecessor_id)}</td>
                 {#if mayWrite && draft}
-                  <td><Select label={t('app.planning.kind_of', { title: titleOf(each.successor_id) })} size="sm" bind:value={draft.kind} options={kinds} /></td>
-                  <td><Input label={t('app.planning.lag_of', { title: titleOf(each.successor_id) })} size="sm" bind:value={draft.lag} inputmode="numeric" /></td>
+                  <td><Select label={t('app.planning.kind_of', { title: titleOf(each.successor_id) })} isLabelHidden size="sm" bind:value={draft.kind} options={kinds} /></td>
+                  <td><Input label={t('app.planning.lag_of', { title: titleOf(each.successor_id) })} isLabelHidden size="sm" bind:value={draft.lag} inputmode="numeric" error={lagErrors[each.link_id]} /></td>
                   <td><Button size="sm" tone="secondary" onclick={() => saveTiming(each.link_id)}>{t('app.planning.save_timing')}</Button></td>
                 {:else}
                   <td>{t(`app.planning.kind_${each.dependency_kind}`)}</td>
@@ -642,15 +704,11 @@
             <Select label={t('app.planning.new_waiting')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
             <Select label={t('app.planning.new_waited')} size="sm" placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
             <Select label={t('app.planning.col_kind')} size="sm" bind:value={newKind} options={kinds} />
-            <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" />
+            <Input label={t('app.planning.col_lag')} size="sm" bind:value={newLag} inputmode="numeric" error={newLagError} />
             <Button size="sm" tone="secondary" icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button>
           </div>
         {/if}
       </section>
-    {/if}
-
-    {#if schedule.unscheduled.length > 0}
-      <p class="quiet">{t('app.planning.unscheduled', { count: String(schedule.unscheduled.length) })}</p>
     {/if}
   {/if}
 </Stack>
@@ -671,12 +729,64 @@
   </Dialog>
 {/if}
 
+{#if isSetting}
+  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')}>
+    <Stack gap="300">
+      <section class="block" aria-labelledby="plan-tolerance" data-plan-tolerance>
+        <h2 id="plan-tolerance" class="heading">{t('app.planning.tolerance')}</h2>
+        {#if tolerance}
+          <p class="quiet">
+            {tolerance.time_tolerance_days === null ? t('app.planning.tolerance_none') : t('app.planning.tolerance_days', { days: String(tolerance.time_tolerance_days) })}
+            {#if tolerance.time_tolerance_days !== null} · {t('app.planning.tolerance_from', { level: t(`app.planning.tolerance_level_${tolerance.source}`) })}{/if}
+            {#if tolerance.locked_by} · {t('app.planning.tolerance_locked', { level: t(`app.planning.tolerance_level_${tolerance.locked_by}`) })}{/if}
+          </p>
+          {#if tolerance.exception && !tolerance.exception.exceeded}
+            <p class="quiet">{t('app.planning.within_tolerance', { forecast: dayLabel(tolerance.exception.forecast_finish), agreed: dayLabel(tolerance.exception.agreed_finish) })}</p>
+          {/if}
+          {#if mayShape && !lockedAbove}
+            <Inline gap="100" align="end">
+              <Input label={t('app.planning.tolerance_in_days')} size="sm" type="number" min="0" max="365" bind:value={toleranceDraft} />
+              {#if place?.type === 'HUB'}<Checkbox label={t('app.planning.tolerance_lock')} bind:checked={toleranceLock} />{/if}
+              <Button size="sm" onclick={() => void saveTolerance(false)}>{t('app.planning.tolerance_set')}</Button>
+              <Button size="sm" tone="subtle" onclick={() => void saveTolerance(true)}>{t('app.planning.tolerance_inherit')}</Button>
+            </Inline>
+          {/if}
+        {:else}
+          <Skeleton lines={2} />
+        {/if}
+      </section>
+      <section class="block" aria-labelledby="plan-baselines" data-plan-baselines>
+        <h2 id="plan-baselines" class="heading">{t('app.planning.baselines')}</h2>
+        {#if kept.length === 0}
+          <p class="quiet">{t('app.planning.baselines_none')}</p>
+        {:else}
+          <ul class="plain">
+            {#each kept as each (each.id)}
+              <li class="baseline" data-baseline={each.id}>
+                <span class="grow">
+                  <span>{each.name}</span>
+                  <span class="quiet">{t('app.planning.baseline_kept_on', { date: formatDay(each.taken_at, messages.locale), count: String(each.entry_count) })}</span>
+                </span>
+                {#if mayWrite}
+                  <IconButton size="sm" icon="trash" label={t('app.planning.delete_baseline_of', { name: each.name })} onclick={() => deleteBaseline(each.id, each.name)} />
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    </Stack>
+  </Dialog>
+{/if}
+
 <style>
-  .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
+  .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100) var(--sp-200); }
+  .window-said { align-self: center; }
+  .baseline { display: flex; align-items: center; gap: var(--sp-100); }
+  .grow { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; }
   .window { min-width: 0; }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
-  .tolerance { display: flex; flex-direction: column; gap: var(--sp-050); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-050); }

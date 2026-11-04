@@ -119,6 +119,12 @@ export function gridOf(window: Window, scale: Scale, weekStart: number): readonl
   return days;
 }
 
+/** The scale's last line on or before a day: where a window that should begin on a line begins. */
+export function lineAtOrBefore(day: string, scale: Scale, weekStart: number): string {
+  const lines = gridOf({ from: addDays(day, -366), to: day }, scale, weekStart);
+  return lines[lines.length - 1] ?? day;
+}
+
 /**
  * How many days a pointer travelled sideways, at a column width. Zero where nothing is known.
  *

@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { anchorOf, daysMoved, draggedTo, gridOf, placedBetween, scaleOf, windowOf } from './schedule.ts';
+import { anchorOf, daysMoved, draggedTo, gridOf, lineAtOrBefore, placedBetween, scaleOf, windowOf } from './schedule.ts';
 
 /** Monday, as `firstWeekday` answers for an account that says nothing. */
 const MONDAY = 1;
@@ -126,4 +126,14 @@ test('a drag across the axis gives an undated entry both dates, either way round
   assert.deepEqual(placedBetween('2026-09-20', '2026-09-25'), { start: '2026-09-20', due: '2026-09-25' });
   assert.deepEqual(placedBetween('2026-09-25', '2026-09-20'), { start: '2026-09-20', due: '2026-09-25' });
   assert.deepEqual(placedBetween('2026-09-20', '2026-09-20'), { start: '2026-09-20', due: '2026-09-20' });
+});
+
+// user-experience.md §7.5: a fitted window starts on its scale's own line, so the first mark is
+// not drawn over the next one.
+test('the line at or before a day is the start of its week, month, quarter or year', () => {
+  assert.equal(lineAtOrBefore('2026-11-04', 'day', MONDAY), '2026-11-04');
+  assert.equal(lineAtOrBefore('2026-11-04', 'week', MONDAY), '2026-11-02');
+  assert.equal(lineAtOrBefore('2026-11-04', 'month', MONDAY), '2026-11-01');
+  assert.equal(lineAtOrBefore('2026-11-04', 'quarter', MONDAY), '2026-10-01');
+  assert.equal(lineAtOrBefore('2026-11-04', 'year', MONDAY), '2026-01-01');
 });

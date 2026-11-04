@@ -775,6 +775,9 @@ test('a plan is answered from the copy without the server\'s proposals', async (
   assert.equal(byId.get('build')?.moved, false);
   assert.equal(byId.get('launch')?.milestone, true);
   assert.deepEqual(plan.unscheduled, ['someday']);
+  // The chart trays the undated by title and draws a due date alone as a point, as the server's.
+  assert.deepEqual((plan as unknown as { undated: unknown[] }).undated, [{ item_id: 'someday', title: 'someday' }]);
+  assert.deepEqual([byId.get('launch')?.due_only, byId.get('design')?.due_only], [true, false]);
   assert.equal(plan.finish, '2026-11-20');
   assert.deepEqual(plan.dependencies.map((each) => [each.predecessor_id, each.successor_id, each.dependency_kind, each.lag_days]), [
     ['design', 'build', 'SS', 2], ['build', 'launch', 'FS', 0],
