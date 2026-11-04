@@ -986,6 +986,40 @@ single on/off switch saves at once, any other change saves through the save bar.
 person leaves to the workspace names the workspace's value in the choice itself (*Use the
 workspace's — English*), so leaving it says what it means.
 
+### 8.9 The column, backup and the installation, as built
+
+* **The column's *More*** (§8.2): link types, rule runs, limits, machines and apps, voice and
+  webhooks are advanced rows. They fold under their group's *More* only while the workspace is
+  known to hold one person — the server answers whether there are several (`several_people`), not
+  how many, so "more than five" is read as "more than one", and nothing folds while that answer is
+  still being read. A row already used here stays out (webhooks, where one exists); a group folds
+  two rows or none, since a *More* over one row hides as much as it shows; a reader standing on a
+  folded row finds its *More* open. *Templates* is not folded: it is where a newcomer starts. The
+  palette lists every row, folded or not.
+* **Backup's guided start** (§8.3): the empty screen's one act adds a target in the installation's
+  backup volume (`LOCAL`, path `workspaces`, encrypted) and a schedule on it as
+  `backup-restore.md` §4's example — incremental every night at 3:00 in the browser's zone, full on
+  Sundays with the trial restore, the server's default retention, told of a failure and of the
+  first success after one. The first run is full, since an incremental schedule promotes its first.
+  Where every target lies on this machine, a marked suggestion asks for a second one elsewhere.
+  The whole-workspace download moves under the schedules.
+* **The installation's health** (§8.4): each degraded feature by its name (*Search by meaning*,
+  *Files and images*, *Mail and notifications*, …), the reason code's message and *since*, with a
+  way to the installation's screen where one changes it (the AI models); mail, storage, the bus and
+  the database are set where the process runs and carry none. The *Upgrade* row shows the version
+  and the schema state from `migration.status`; whether instances run different versions is not in
+  the report and is not drawn. The backlogs are tiles; only two take the warning tone, because only
+  two alerts can be read from one count: a failed job waiting (A-07) and the outbox past a minute
+  (A-05). A-06 and A-09 fire on a trend over a window, so their tiles claim no threshold. The
+  workspace's overview and the frame's notice name features the same way.
+* **Workspaces with their use** (§8.4): a row near or at a limit carries *Near a limit* or *At a
+  limit* from `/admin/quotas`, which names every workspace at 90% or more; the limits dialog shows
+  *In use now* beside a quota the answer carries and warns, before saving, where a ceiling is typed
+  below it. *Usage* (`/instance/usage`, an installation of many) lists each workspace's people,
+  entries and stored bytes on the latest of the last thirty days; while metering is off it says the
+  operator switches it on with `hubctl admin settings set metering on` or the instance file, since
+  *Defaults* has no metering switch.
+
 ---
 
 ## 9. What this changes elsewhere
