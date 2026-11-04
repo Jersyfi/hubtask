@@ -682,3 +682,19 @@ func TestASecondDailyNoteOfADayIsTaken(t *testing.T) {
 		t.Fatalf("the second note answered %v", err)
 	}
 }
+
+// A page written again under an identifier already taken - an offline create replayed, a client's
+// id reused - is refused as taken, a conflict to look up rather than a failure to retry.
+func TestAPageUnderATakenIdentifierIsRefusedAsTaken(t *testing.T) {
+	ctx := context.Background()
+	hub, root, _ := seedSpace(ctx, t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)
+	err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, knowledge.Page{ID: root, HubID: hub, Title: "Again", OrderKey: "z0",
+			CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1})
+	})
+	if problem := shared.AsError(err); problem == nil || problem.DetailCode != "pages.id_taken" {
+		t.Fatalf("the second page answered %v", err)
+	}
+}

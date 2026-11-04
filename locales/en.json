@@ -9281,6 +9281,7 @@
   "pages.comment_too_long": "A comment may hold at most {maximum} bytes.",
   "pages.comment_version_conflict": "Someone changed this comment in the meantime. Load it again and retry.",
   "pages.icon_malformed": "An icon is one short symbol.",
+  "pages.id_taken": "A page with that identifier already exists.",
   "pages.identity_incomplete": "This installation is misconfigured and could not write that page.",
   "pages.language_malformed": "That is not a language tag such as de or en-GB.",
   "pages.not_found": "There is no such page.",

@@ -53,18 +53,23 @@ func (PageRepository) Insert(ctx context.Context, page knowledge.Page) error {
 		CreatedBy: ids[2], At: timestampOf(page.CreatedAt), DailyFor: pageDay(page.DailyFor),
 	}); err != nil {
 		// Another open of the same day wrote its note first; the use case reads that one.
-		if dailyNoteTaken(err) {
+		if pageIndexRefused(err, "page_daily_note_idx") {
 			return shared.ErrConflict.WithDetail("pages.daily_note_taken")
+		}
+		// A replayed offline create or a reused client id: a page to look up, not a failure to retry.
+		if pageIndexRefused(err, "page_pkey") {
+			return shared.ErrConflict.WithDetail("pages.id_taken").
+				WithFields(shared.FieldError{Path: "/id", Code: "pages.id_taken"})
 		}
 		return pageFailed("writing the page", err)
 	}
 	return nil
 }
 
-// dailyNoteTaken reports the day's index refusing a second daily note (migration 0261).
-func dailyNoteTaken(err error) bool {
+// pageIndexRefused reports a unique index of the page table refusing a duplicate.
+func pageIndexRefused(err error, index string) bool {
 	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == "page_daily_note_idx"
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == index
 }
 
 // Find answers a page, trashed ones included.

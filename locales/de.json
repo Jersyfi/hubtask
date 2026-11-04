@@ -9281,6 +9281,7 @@
   "pages.comment_too_long": "Ein Kommentar darf höchstens {maximum} Bytes enthalten.",
   "pages.comment_version_conflict": "Jemand hat diesen Kommentar inzwischen geändert. Lade ihn neu und versuche es noch einmal.",
   "pages.icon_malformed": "Ein Symbol ist ein kurzes Zeichen.",
+  "pages.id_taken": "Eine Seite mit dieser Kennung gibt es schon.",
   "pages.identity_incomplete": "Diese Installation ist falsch eingerichtet und konnte die Seite nicht schreiben.",
   "pages.language_malformed": "Das ist kein Sprachkürzel wie de oder en-GB.",
   "pages.not_found": "Diese Seite gibt es nicht.",
