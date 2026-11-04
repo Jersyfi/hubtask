@@ -23342,7 +23342,9 @@ type StarterSet struct {
 	// Collections The hub's collections, in their order.
 	Collections *[]StarterCollection `json:"collections,omitempty"`
 	HubName     string               `json:"hub_name"`
-	HubPreset   StarterSetHubPreset  `json:"hub_preset"`
+
+	// HubPreset The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.
+	HubPreset *StarterSetHubPreset `json:"hub_preset,omitempty"`
 
 	// Samples True takes the template's sample entries into the hub, marked and removable at once.
 	Samples *bool `json:"samples,omitempty"`
@@ -23351,7 +23353,7 @@ type StarterSet struct {
 	Template *string `json:"template,omitempty"`
 }
 
-// StarterSetHubPreset defines model for StarterSet.HubPreset.
+// StarterSetHubPreset The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.
 type StarterSetHubPreset string
 
 // StepUpGrant defines model for StepUpGrant.

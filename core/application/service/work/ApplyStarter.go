@@ -153,7 +153,8 @@ func validStarterSet(cmd ApplyStarterCommand, templates StarterTemplates) error 
 	if cmd.Template.Key != "" && templates == nil {
 		return invalidStarterField("/template", "usecase.field_not_in_enum")
 	}
-	if !cmd.Hub.Preset.BuiltIn() {
+	// With a template the hub may start from the workspace's default: its hub part shapes it.
+	if !cmd.Hub.Preset.BuiltIn() && (cmd.Template.Key == "" || cmd.Hub.Preset != "") {
 		return invalidStarterField("/hub_preset", "usecase.field_not_in_enum")
 	}
 	if len(cmd.Collections) > maxStarterCollections {
@@ -231,12 +232,13 @@ func (h ApplyStarter) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "hub_name", Kind: usecase.KindString, Required: true, Description: "Up to 200 characters, on one line."},
 			{
-				Name: "hub_preset", Kind: usecase.KindString, Required: true,
+				Name: "hub_preset", Kind: usecase.KindString,
 				Enum: []string{
 					string(domain.PresetList), string(domain.PresetTasks),
 					string(domain.PresetProject), string(domain.PresetFlow),
 				},
-				Description: "The preset the hub starts from.",
+				Description: "The preset the hub starts from; required without a template, which " +
+					"otherwise starts the hub from the workspace's default.",
 			},
 			{
 				Name: "collections", Kind: usecase.KindList,

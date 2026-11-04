@@ -54349,8 +54349,7 @@
       "StarterSet": {
         "type": "object",
         "required": [
-          "hub_name",
-          "hub_preset"
+          "hub_name"
         ],
         "properties": {
           "hub_name": {
@@ -54365,7 +54364,8 @@
               "TASKS",
               "PROJECT",
               "FLOW"
-            ]
+            ],
+            "description": "The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.\n"
           },
           "collections": {
             "type": "array",

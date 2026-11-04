@@ -3508,7 +3508,7 @@ class ContainerCreate(TypedDict, total=False):
 
 class StarterSet(TypedDict, total=False):
     hub_name: Required[str]
-    hub_preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"]]
+    hub_preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
     collections: list["StarterCollection"]
     template: str
     answers: dict[str, Any]

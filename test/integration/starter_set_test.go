@@ -190,6 +190,8 @@ func TestAStarterSetOnATemplateLandsWholeOrNotAtAll(t *testing.T) {
 	apply := starterSetDesk(t)
 	tenant, owner := freshWorkspace(ctx, t, "OWNER")
 	cmd := teamSet("Queue")
+	// No preset of its own: the hub starts from the workspace's default and the template shapes it.
+	cmd.Hub.Preset = ""
 	cmd.Template = work.StarterTemplate{Key: "itil_service_desk", Samples: true}
 
 	refusing := &templateTaker{refuseOnHub: true}
@@ -230,5 +232,17 @@ func TestAStarterSetNamingATemplateNeedsATaker(t *testing.T) {
 	}
 	if n := containersOf(ctx, t, tenant); n != 0 {
 		t.Errorf("the refused set left %d containers", n)
+	}
+}
+
+// Without a template the hub's preset is the set's own choice, and a set naming none is refused.
+func TestAStarterSetWithoutTemplateNeedsItsPreset(t *testing.T) {
+	ctx := context.Background()
+	apply := starterSetDesk(t)
+	_, owner := freshWorkspace(ctx, t, "OWNER")
+	cmd := teamSet()
+	cmd.Hub.Preset = ""
+	if _, _, err := apply.Execute(ctx, owner, cmd); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a set without preset or template answered %v, want a validation refusal", err)
 	}
 }

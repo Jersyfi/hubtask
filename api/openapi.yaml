@@ -33230,12 +33230,15 @@ components:
 
     StarterSet:
       type: object
-      required: [hub_name, hub_preset]
+      required: [hub_name]
       properties:
         hub_name: { type: string, minLength: 1, maxLength: 200 }
         hub_preset:
           type: string
           enum: [LIST, TASKS, PROJECT, FLOW]
+          description: >
+            The preset the hub starts from; required without `template`. With one and none given,
+            the hub starts from the workspace's default and takes the template's hub part.
         collections:
           type: array
           maxItems: 10
