@@ -57,7 +57,11 @@ installation nobody can run any more gets one back on the machine:
 ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)); a workspace
 suspended or set for deletion with every operator inside it comes back with
 `hubtask workspace cancel-deletion --workspace <short name>` and
-`hubtask workspace resume --workspace <short name>`. Installation
+`hubtask workspace resume --workspace <short name>`. A person who forgot their password where no
+mail goes out gets the reset link printed on the machine:
+`hubtask account reset-link --workspace <short name> --email <address>` - the reset mail's own
+one-time link (only its hash stored, thirty minutes, a newer one replaces it), journalled as the
+machine's (`instance.reset_link_issued`). Installation
 settings can be seeded or enforced from a file (`HUBTASK_INSTANCE_FILE`, §6.1).
 
 The application connects as `hubtask_app` — created by the migration without `SUPERUSER` or

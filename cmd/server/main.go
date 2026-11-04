@@ -190,6 +190,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "workspace" {
 		os.Exit(runWorkspaceCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// A person's way back where no mail goes out: the reset link, printed on the machine.
+	if len(os.Args) > 1 && os.Args[1] == "account" {
+		os.Exit(runAccountCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).

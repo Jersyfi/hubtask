@@ -220,7 +220,7 @@ this list with its row.
 | Fifth answers | The owner's workspace download with an optional passphrase (Argon2id) | open: build it (accepted.md, "The owner's fifth answers", item 1) |
 | Fifth answers | The browser replica bounded above 100 000 entries, with the offline hubs shown | open: build it (accepted.md, "The owner's fifth answers", item 2) |
 | Fifth answers | A figure under steady writes shows the last kept count, marked with its time | open: build it (accepted.md, "The owner's fifth answers", item 3) |
-| Fifth answers | hubtask account reset-link for a self-hoster without mail | open: build it (accepted.md, "The owner's fifth answers", item 5) |
+| Fifth answers | hubtask account reset-link for a self-hoster without mail | closed by the commit `feat(cmd): hubtask account reset-link prints a reset link where no mail goes out` (cmd/server/Account.go, admin.IssueResetLink; deployment.md, identity.md) |
 | Fifth answers | An administrator resets a person's second factor, audited and with step-up | open: build it (accepted.md, "The owner's fifth answers", item 6) |
 
 ## State
