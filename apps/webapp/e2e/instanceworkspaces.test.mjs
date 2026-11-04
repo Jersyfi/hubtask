@@ -399,4 +399,15 @@ test('chromium: a workspace near or at a limit is marked, and its limits say wha
   await use.getByText(/Below what is in use/).waitFor();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
+  await dialog.getByRole('button', { name: 'Cancel' }).first().click();
+
+  // The *Limits* filter keeps those near or at one, or only those at one (§8.4).
+  const limits = page.getByLabel('Limits', { exact: true });
+  await limits.selectOption('at');
+  await acme.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.getByRole('row').filter({ hasText: 'Beta' }).waitFor();
+  assert.equal(await calm.count(), 0, 'a workspace at no limit is kept');
+  await limits.selectOption('near');
+  await acme.waitFor();
+  assert.equal(await calm.count(), 0, 'a workspace at no limit is kept');
 });

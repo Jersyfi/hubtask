@@ -27,7 +27,7 @@
   // is the installation: no *New workspace*, *Suspend* or *Delete*, which the server refuses there.
   // *Cancel deletion* stands on a row pending deletion until the removal has begun.
 
-  import { isBelowUse, limitStanding, useOf } from '../lib/instance/quotause.ts';
+  import { countByLimit, isBelowUse, limitStanding, narrowedByLimit, useOf, type LimitFilter } from '../lib/instance/quotause.ts';
   import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Dialog, IconButton, Input, Menu, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
@@ -119,7 +119,9 @@
     const narrowing = filter;
     return untrack(() => instance.openWorkspacePage(narrowing));
   });
-  const isNarrowed = $derived(Boolean(filter.slug?.trim() || filter.status || filter.plan));
+  /** Near or at a limit: narrowed on the rows read, since the list's own read has no such filter. */
+  let findLimit = $state<LimitFilter>('');
+  const isNarrowed = $derived(Boolean(filter.slug?.trim() || filter.status || filter.plan || findLimit));
   let loadingMore = $state(false);
   async function more(): Promise<void> {
     loadingMore = true;
@@ -187,6 +189,10 @@
 
   /** Each workspace near or at a limit, by its id: `/admin/quotas` names every one of them. */
   const nearById = $derived(new Map(instance.nearQuota.map((entry) => [entry.tenant_id, entry])));
+
+  const shownWorkspaces = $derived(narrowedByLimit(workspaces, nearById, findLimit));
+  /** How many the limits filter keeps across the installation, which `/admin/quotas` answers whole. */
+  const limitedInAll = $derived(findLimit ? countByLimit(instance.nearQuota, findLimit) : 0);
 
   /** The columns, in the order the rows render their cells. */
   const columns = $derived([
@@ -402,13 +408,29 @@
               ]}
             />
           {/if}
+          <Select
+            label={t('app.instance.find_limit')}
+            bind:value={() => findLimit, (value) => (findLimit = value as LimitFilter)}
+            options={[
+              { value: '', label: t('app.instance.find_any') },
+              { value: 'near', label: t('app.instance.find_limit_near') },
+              { value: 'at', label: t('app.instance.limit_at') },
+            ]}
+          />
         </div>
+        {#if findLimit && instance.hasMoreWorkspaces && shownWorkspaces.length < limitedInAll}
+          <p class="quiet-line" data-limit-more>{t('app.instance.find_limit_more', { shown: String(shownWorkspaces.length), count: String(limitedInAll) })}</p>
+        {/if}
 
-        {#if workspaces.length === 0}
+        {#if shownWorkspaces.length === 0}
           <Banner tone="info">{t(isNarrowed ? 'app.instance.workspaces_none_found' : 'app.instance.workspaces_none')}</Banner>
+          {#if findLimit && instance.hasMoreWorkspaces}
+            <!-- The rows read so far hold none; the ones not read yet may. -->
+            <div><Button onclick={more} isBusy={loadingMore}>{t('app.instance.workspaces_more')}</Button></div>
+          {/if}
         {:else}
           <Table isStacked label={t('app.instance.workspaces')} isLabelHidden columns={columns}>
-            {#each workspaces as workspace (workspace.id)}
+            {#each shownWorkspaces as workspace (workspace.id)}
               {@const standing = limitStanding(nearById.get(workspace.id))}
               <tr>
                 <td>
@@ -792,6 +814,7 @@
   .use { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .below { display: block; color: var(--text-warning); }
   .prose { margin: 0; max-inline-size: 60ch; }
+  .quiet-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .filters { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: end; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); }

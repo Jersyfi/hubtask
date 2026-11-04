@@ -29,3 +29,21 @@ export function useOf(entry: WorkspaceNearQuota | undefined, quota: string): num
  */
 export const isBelowUse = (typed: number | undefined, used: number | undefined): boolean =>
   typed !== undefined && used !== undefined && typed < used;
+
+/** The workspaces' *Limits* filter: none, near or at one (`near` takes in `at`), or at one only. */
+export type LimitFilter = '' | 'near' | 'at';
+
+const keeps = (standing: LimitStanding | undefined, filter: LimitFilter): boolean =>
+  filter === '' || (filter === 'near' ? standing !== undefined : standing === 'at');
+
+/** The rows read so far that the filter keeps. */
+export function narrowedByLimit<T extends { readonly id: string }>(
+  rows: readonly T[], byId: ReadonlyMap<string, WorkspaceNearQuota>, filter: LimitFilter,
+): T[] {
+  return rows.filter((row) => keeps(limitStanding(byId.get(row.id)), filter));
+}
+
+/** How many workspaces of the whole installation the filter keeps: the answer names every one. */
+export function countByLimit(entries: readonly WorkspaceNearQuota[], filter: LimitFilter): number {
+  return entries.filter((entry) => keeps(limitStanding(entry), filter)).length;
+}
