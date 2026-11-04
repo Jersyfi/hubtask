@@ -50,6 +50,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
 | `account.read` | GetAccount | `account` | INFO | When refused |
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
+| `account.read` | ReadInvitationDeliveries | `account` | INFO | When refused |
 | `account.read` | ReadOwnSettings | `account` | INFO | When refused |
 | `account.read` | ResolveAccounts | `account` | INFO | When refused |
 | `account.renamed` | UpdateOwnAccount | `account` | INFO | Every time |

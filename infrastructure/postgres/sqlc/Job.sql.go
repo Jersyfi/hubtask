@@ -680,6 +680,60 @@ func (q *Queries) JobQueueDepth(ctx context.Context, now pgtype.Timestamptz) ([]
 	return items, nil
 }
 
+const latestInvitationDeliveries = `-- name: LatestInvitationDeliveries :many
+SELECT DISTINCT ON (dedupe_key)
+       dedupe_key::text AS account_id, state, last_error, last_error_params, created_at, finished_at
+FROM job
+WHERE tenant_id = $1
+  AND kind = 'notification.invitation'
+  AND dedupe_key = ANY($2::text[])
+ORDER BY dedupe_key, created_at DESC, id DESC
+`
+
+type LatestInvitationDeliveriesParams struct {
+	TenantID   pgtype.UUID
+	AccountIds []string
+}
+
+type LatestInvitationDeliveriesRow struct {
+	AccountID       string
+	State           string
+	LastError       *string
+	LastErrorParams []byte
+	CreatedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+}
+
+// How the last invitation mail to each of these accounts went (0362): the newest job of the
+// invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
+// statement here. No payload is read: it holds identifiers only, and the answer needs none.
+func (q *Queries) LatestInvitationDeliveries(ctx context.Context, arg LatestInvitationDeliveriesParams) ([]LatestInvitationDeliveriesRow, error) {
+	rows, err := q.db.Query(ctx, latestInvitationDeliveries, arg.TenantID, arg.AccountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestInvitationDeliveriesRow{}
+	for rows.Next() {
+		var i LatestInvitationDeliveriesRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.State,
+			&i.LastError,
+			&i.LastErrorParams,
+			&i.CreatedAt,
+			&i.FinishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const oldestTransactionSeconds = `-- name: OldestTransactionSeconds :one
 SELECT oldest_transaction_seconds()::float8 AS seconds
 `

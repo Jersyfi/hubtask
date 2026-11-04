@@ -4931,6 +4931,13 @@ class ErasureKept(TypedDict, total=False):
     erased_at: str
     blocked: dict[str, Any]
 
+class InvitationDelivery(TypedDict, total=False):
+    account_id: Required[str]
+    state: Required[Literal["QUEUED", "SENDING", "SENT", "FAILED", "CANCELLED"]]
+    at: Required[str]
+    code: Required[str | None]
+    params: dict[str, Any]
+
 class ErasurePreview(TypedDict, total=False):
     mode: Required["ErasureMode"]
     kept: Required[list["ErasureKept"]]

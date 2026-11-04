@@ -3101,6 +3101,9 @@ CREATE TABLE job (
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
   WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING');
+-- The last invitation mail per account, for the people list (migration 0362).
+CREATE INDEX job_invitation_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
+  WHERE kind = 'notification.invitation';
 
 -- What a subscriber has already seen. The outbox delivers at-least-once, so a consumer asks here
 -- before it reacts; the insert is the question (ADR-0007, db/migrations/0003).

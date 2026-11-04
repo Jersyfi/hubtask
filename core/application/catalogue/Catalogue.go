@@ -619,6 +619,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.ReadOwnSettings{}.Descriptor(),
 		identity.GetAccount{}.Descriptor(),
 		identity.ResolveAccounts{}.Descriptor(),
+		identity.ReadInvitationDeliveries{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.UpdateOwnAccount{}.Descriptor(),
 		identity.SetOwnAvatar{}.Descriptor(),

@@ -519,6 +519,7 @@ var restDoors = map[string]restDoor{
 	"readIdentityProvider":              {UseCase: "ReadIdentityProvider", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readInstanceOverview":              {UseCase: "ReadInstanceOverview", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readInstanceSettings":              {UseCase: "ReadInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readInvitationDeliveries":          {UseCase: "ReadInvitationDeliveries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readKudos":                         {UseCase: "ReadKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readMyRequest":                     {UseCase: "ReadMyRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readOauthClient":                   {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4121,6 +4122,12 @@ func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Req
 // ReadInstanceSettings answers GET /admin/settings by the generated mapping.
 func (c *RestController) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["readInstanceSettings"], usecase.Input{}, nil, nil, answerBy(instanceSettingsResponse))
+}
+
+// ReadInvitationDeliveries answers POST /accounts:invitation-deliveries by the generated mapping.
+func (c *RestController) ReadInvitationDeliveries(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ReadInvitationDeliveriesJSONRequestBody
+	c.door(w, r, restDoors["readInvitationDeliveries"], usecase.Input{}, nil, &body, answerData(invitationDeliveryResponse))
 }
 
 // ReadKudos answers GET /items/{itemId}/kudos by the generated mapping.

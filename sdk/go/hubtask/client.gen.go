@@ -5677,6 +5677,33 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 	}
 }
 
+// Defines values for InvitationDeliveryState.
+const (
+	InvitationDeliveryStateCANCELLED InvitationDeliveryState = "CANCELLED"
+	InvitationDeliveryStateFAILED    InvitationDeliveryState = "FAILED"
+	InvitationDeliveryStateQUEUED    InvitationDeliveryState = "QUEUED"
+	InvitationDeliveryStateSENDING   InvitationDeliveryState = "SENDING"
+	InvitationDeliveryStateSENT      InvitationDeliveryState = "SENT"
+)
+
+// Valid indicates whether the value is a known member of the InvitationDeliveryState enum.
+func (e InvitationDeliveryState) Valid() bool {
+	switch e {
+	case InvitationDeliveryStateCANCELLED:
+		return true
+	case InvitationDeliveryStateFAILED:
+		return true
+	case InvitationDeliveryStateQUEUED:
+		return true
+	case InvitationDeliveryStateSENDING:
+		return true
+	case InvitationDeliveryStateSENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -17839,6 +17866,26 @@ type InstanceSettingsPlan struct {
 // InstanceSettingsPlanAppliedThrough `API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does.
 type InstanceSettingsPlanAppliedThrough string
 
+// InvitationDelivery defines model for InvitationDelivery.
+type InvitationDelivery struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// At When it ended, or - while queued or being sent - when it was queued.
+	At time.Time `json:"at"`
+
+	// Code The message code of the last failure, where an attempt failed.
+	Code *string `json:"code"`
+
+	// Params The failure's parameters, beside its code.
+	Params *map[string]string `json:"params,omitempty"`
+
+	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+	State InvitationDeliveryState `json:"state"`
+}
+
+// InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+type InvitationDeliveryState string
+
 // InvitationInspection defines model for InvitationInspection.
 type InvitationInspection struct {
 	// Token The redemption token from the invitation. Read, not spent.
@@ -26096,6 +26143,11 @@ type CreateManagedAccountParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ReadInvitationDeliveriesJSONBody defines parameters for ReadInvitationDeliveries.
+type ReadInvitationDeliveriesJSONBody struct {
+	Ids []openapi_types.UUID `json:"ids"`
+}
+
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -28944,6 +28996,9 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // CreateManagedAccountJSONRequestBody defines body for CreateManagedAccount for application/json ContentType.
 type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
 
+// ReadInvitationDeliveriesJSONRequestBody defines body for ReadInvitationDeliveries for application/json ContentType.
+type ReadInvitationDeliveriesJSONRequestBody ReadInvitationDeliveriesJSONBody
+
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
@@ -31172,6 +31227,32 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
 	CreateManagedAccount(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadInvitationDeliveriesWithBody How the last invitation mail to each of many accounts went
+	//
+	// For the people list's rows: for up to 200 accounts, the last invitation mail this
+	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+	// and when. An account with no invitation mail on record (none queued, an installation that
+	// hands invitations over as links, or one finished long enough ago to be cleared from the
+	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+	ReadInvitationDeliveriesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadInvitationDeliveries How the last invitation mail to each of many accounts went
+	//
+	// For the people list's rows: for up to 200 accounts, the last invitation mail this
+	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+	// and when. An account with no invitation mail on record (none queued, an installation that
+	// hands invitations over as links, or one finished long enough ago to be cleared from the
+	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+	ReadInvitationDeliveries(ctx context.Context, body ReadInvitationDeliveriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// InviteAccountWithBody Invite a person into this workspace
 	//
@@ -42571,6 +42652,52 @@ func (c *Client) CreateManagedAccountWithBody(ctx context.Context, params *Creat
 // Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
 func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateManagedAccountRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadInvitationDeliveriesWithBody How the last invitation mail to each of many accounts went
+//
+// For the people list's rows: for up to 200 accounts, the last invitation mail this
+// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+// and when. An account with no invitation mail on record (none queued, an installation that
+// hands invitations over as links, or one finished long enough ago to be cleared from the
+// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+func (c *Client) ReadInvitationDeliveriesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadInvitationDeliveriesRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadInvitationDeliveries How the last invitation mail to each of many accounts went
+//
+// For the people list's rows: for up to 200 accounts, the last invitation mail this
+// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+// and when. An account with no invitation mail on record (none queued, an installation that
+// hands invitations over as links, or one finished long enough ago to be cleared from the
+// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+func (c *Client) ReadInvitationDeliveries(ctx context.Context, body ReadInvitationDeliveriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadInvitationDeliveriesRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -65938,6 +66065,46 @@ func NewCreateManagedAccountRequestWithBody(server string, params *CreateManaged
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewReadInvitationDeliveriesRequest calls the generic ReadInvitationDeliveries builder with application/json body
+func NewReadInvitationDeliveriesRequest(server string, body ReadInvitationDeliveriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReadInvitationDeliveriesRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewReadInvitationDeliveriesRequestWithBody constructs an http.Request for the ReadInvitationDeliveries method, with any body, and a specified content type
+func NewReadInvitationDeliveriesRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts:invitation-deliveries")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -104635,6 +104802,32 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
 	CreateManagedAccountWithResponse(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateManagedAccountResult, error)
 
+	// ReadInvitationDeliveriesWithBodyWithResponse How the last invitation mail to each of many accounts went
+	//
+	// For the people list's rows: for up to 200 accounts, the last invitation mail this
+	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+	// and when. An account with no invitation mail on record (none queued, an installation that
+	// hands invitations over as links, or one finished long enough ago to be cleared from the
+	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+	ReadInvitationDeliveriesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadInvitationDeliveriesResult, error)
+
+	// ReadInvitationDeliveriesWithResponse How the last invitation mail to each of many accounts went
+	//
+	// For the people list's rows: for up to 200 accounts, the last invitation mail this
+	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+	// and when. An account with no invitation mail on record (none queued, an installation that
+	// hands invitations over as links, or one finished long enough ago to be cleared from the
+	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+	ReadInvitationDeliveriesWithResponse(ctx context.Context, body ReadInvitationDeliveriesJSONRequestBody, reqEditors ...RequestEditorFn) (*ReadInvitationDeliveriesResult, error)
+
 	// InviteAccountWithBodyWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
@@ -117228,6 +117421,58 @@ func (r CreateManagedAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreateManagedAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadInvitationDeliveriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []InvitationDelivery `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadInvitationDeliveriesResult) GetJSON200() *struct {
+	Data []InvitationDelivery `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadInvitationDeliveriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadInvitationDeliveriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadInvitationDeliveriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadInvitationDeliveriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadInvitationDeliveriesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -157222,6 +157467,44 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 	return ParseCreateManagedAccountResult(rsp)
 }
 
+// ReadInvitationDeliveriesWithBodyWithResponse How the last invitation mail to each of many accounts went
+//
+// For the people list's rows: for up to 200 accounts, the last invitation mail this
+// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+// and when. An account with no invitation mail on record (none queued, an installation that
+// hands invitations over as links, or one finished long enough ago to be cleared from the
+// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+func (c *ClientWithResponses) ReadInvitationDeliveriesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadInvitationDeliveriesResult, error) {
+	rsp, err := c.ReadInvitationDeliveriesWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadInvitationDeliveriesResult(rsp)
+}
+
+// ReadInvitationDeliveriesWithResponse How the last invitation mail to each of many accounts went
+//
+// For the people list's rows: for up to 200 accounts, the last invitation mail this
+// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+// and when. An account with no invitation mail on record (none queued, an installation that
+// hands invitations over as links, or one finished long enough ago to be cleared from the
+// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
+func (c *ClientWithResponses) ReadInvitationDeliveriesWithResponse(ctx context.Context, body ReadInvitationDeliveriesJSONRequestBody, reqEditors ...RequestEditorFn) (*ReadInvitationDeliveriesResult, error) {
+	rsp, err := c.ReadInvitationDeliveries(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadInvitationDeliveriesResult(rsp)
+}
+
 // InviteAccountWithBodyWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
@@ -176530,6 +176813,41 @@ func ParseCreateManagedAccountResult(rsp *http.Response) (*CreateManagedAccountR
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadInvitationDeliveriesResult parses an HTTP response from a ReadInvitationDeliveriesWithResponse call
+func ParseReadInvitationDeliveriesResult(rsp *http.Response) (*ReadInvitationDeliveriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadInvitationDeliveriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []InvitationDelivery `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -1623,6 +1623,10 @@ class Client:
         """The names behind many account identifiers at once"""
         return self._call("POST", "/accounts:resolve", {}, None, {}, body, "json", "application/json", "json")
 
+    def read_invitation_deliveries(self, body: dict[str, Any]) -> dict[str, Any]:
+        """How the last invitation mail to each of many accounts went"""
+        return self._call("POST", "/accounts:invitation-deliveries", {}, None, {}, body, "json", "application/json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")

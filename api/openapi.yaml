@@ -10297,6 +10297,49 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts:invitation-deliveries:
+    post:
+      tags: [identity]
+      operationId: readInvitationDeliveries
+      x-hubtask-rest: generated
+      x-hubtask-rest-list: data
+      x-hubtask-rest-answer: invitationDeliveryResponse
+      summary: How the last invitation mail to each of many accounts went
+      description: |
+        For the people list's rows: for up to 200 accounts, the last invitation mail this
+        workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
+        and when. An account with no invitation mail on record (none queued, an installation that
+        hands invitations over as links, or one finished long enough ago to be cleared from the
+        queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The deliveries on record
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/InvitationDelivery" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -37746,6 +37789,30 @@ components:
             params:
               type: object
               additionalProperties: { type: string }
+
+    InvitationDelivery:
+      type: object
+      required: [account_id, state, at, code]
+      properties:
+        account_id: { type: string, format: uuid }
+        state:
+          type: string
+          enum: [QUEUED, SENDING, SENT, FAILED, CANCELLED]
+          description: >
+            QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is
+            being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was
+            withdrawn.
+        at:
+          type: string
+          format: date-time
+          description: When it ended, or - while queued or being sent - when it was queued.
+        code:
+          type: [string, "null"]
+          description: The message code of the last failure, where an attempt failed.
+        params:
+          type: object
+          additionalProperties: { type: string }
+          description: The failure's parameters, beside its code.
 
     ErasurePreview:
       type: object

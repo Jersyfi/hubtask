@@ -5671,6 +5671,33 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 	}
 }
 
+// Defines values for InvitationDeliveryState.
+const (
+	InvitationDeliveryStateCANCELLED InvitationDeliveryState = "CANCELLED"
+	InvitationDeliveryStateFAILED    InvitationDeliveryState = "FAILED"
+	InvitationDeliveryStateQUEUED    InvitationDeliveryState = "QUEUED"
+	InvitationDeliveryStateSENDING   InvitationDeliveryState = "SENDING"
+	InvitationDeliveryStateSENT      InvitationDeliveryState = "SENT"
+)
+
+// Valid indicates whether the value is a known member of the InvitationDeliveryState enum.
+func (e InvitationDeliveryState) Valid() bool {
+	switch e {
+	case InvitationDeliveryStateCANCELLED:
+		return true
+	case InvitationDeliveryStateFAILED:
+		return true
+	case InvitationDeliveryStateQUEUED:
+		return true
+	case InvitationDeliveryStateSENDING:
+		return true
+	case InvitationDeliveryStateSENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitedAccountKind.
 const (
 	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
@@ -17833,6 +17860,26 @@ type InstanceSettingsPlan struct {
 // InstanceSettingsPlanAppliedThrough `API` where `PUT /admin/settings` applies it; `FILE` where a file enforces the level and only the file does.
 type InstanceSettingsPlanAppliedThrough string
 
+// InvitationDelivery defines model for InvitationDelivery.
+type InvitationDelivery struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// At When it ended, or - while queued or being sent - when it was queued.
+	At time.Time `json:"at"`
+
+	// Code The message code of the last failure, where an attempt failed.
+	Code *string `json:"code"`
+
+	// Params The failure's parameters, beside its code.
+	Params *map[string]string `json:"params,omitempty"`
+
+	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+	State InvitationDeliveryState `json:"state"`
+}
+
+// InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being sent; SENT went to the mail server; FAILED was given up on; CANCELLED was withdrawn.
+type InvitationDeliveryState string
+
 // InvitationInspection defines model for InvitationInspection.
 type InvitationInspection struct {
 	// Token The redemption token from the invitation. Read, not spent.
@@ -26090,6 +26137,11 @@ type CreateManagedAccountParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ReadInvitationDeliveriesJSONBody defines parameters for ReadInvitationDeliveries.
+type ReadInvitationDeliveriesJSONBody struct {
+	Ids []openapi_types.UUID `json:"ids"`
+}
+
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -28938,6 +28990,9 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // CreateManagedAccountJSONRequestBody defines body for CreateManagedAccount for application/json ContentType.
 type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
 
+// ReadInvitationDeliveriesJSONRequestBody defines body for ReadInvitationDeliveries for application/json ContentType.
+type ReadInvitationDeliveriesJSONRequestBody ReadInvitationDeliveriesJSONBody
+
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
@@ -30545,6 +30600,9 @@ type ServerInterface interface {
 	// CreateManagedAccount Give somebody an account without a mail address
 	// (POST /accounts:create-managed)
 	CreateManagedAccount(w http.ResponseWriter, r *http.Request, params CreateManagedAccountParams)
+	// ReadInvitationDeliveries How the last invitation mail to each of many accounts went
+	// (POST /accounts:invitation-deliveries)
+	ReadInvitationDeliveries(w http.ResponseWriter, r *http.Request)
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
@@ -33736,6 +33794,20 @@ func (siw *ServerInterfaceWrapper) CreateManagedAccount(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateManagedAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadInvitationDeliveries operation middleware
+func (siw *ServerInterfaceWrapper) ReadInvitationDeliveries(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadInvitationDeliveries(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -61219,6 +61291,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/avatar", wrapper.RemoveOwnAvatar)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/me/avatar", wrapper.SetOwnAvatar)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:resolve", wrapper.ResolveAccounts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invitation-deliveries", wrapper.ReadInvitationDeliveries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:reset-second-factor", wrapper.ResetSecondFactor)

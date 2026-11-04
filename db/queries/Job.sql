@@ -451,3 +451,15 @@ SELECT EXISTS (SELECT 1 FROM job WHERE id = sqlc.arg('id') AND state = 'DEAD_LET
 -- makes PostgreSQL refuse writes (migration 0353).
 -- name: DatabaseHorizon :one
 SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age;
+
+-- How the last invitation mail to each of these accounts went (0362): the newest job of the
+-- invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
+-- statement here. No payload is read: it holds identifiers only, and the answer needs none.
+-- name: LatestInvitationDeliveries :many
+SELECT DISTINCT ON (dedupe_key)
+       dedupe_key::text AS account_id, state, last_error, last_error_params, created_at, finished_at
+FROM job
+WHERE tenant_id = sqlc.arg('tenant_id')
+  AND kind = 'notification.invitation'
+  AND dedupe_key = ANY(sqlc.arg('account_ids')::text[])
+ORDER BY dedupe_key, created_at DESC, id DESC;

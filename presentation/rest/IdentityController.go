@@ -108,6 +108,24 @@ func versionFromIfMatch(header *string) (int, bool) {
 	return version, true
 }
 
+// invitationDeliveryResponse maps how the last invitation mail to one account went.
+func invitationDeliveryResponse(out usecase.Output) openapi.InvitationDelivery {
+	delivery := openapi.InvitationDelivery{
+		AccountId: uuidValue(out.String("account_id")),
+		State:     openapi.InvitationDeliveryState(out.String("state")),
+	}
+	if at, ok := out["at"].(time.Time); ok {
+		delivery.At = at
+	}
+	if code := out.String("code"); code != "" {
+		delivery.Code = &code
+	}
+	if params, ok := out["params"].(map[string]string); ok && len(params) > 0 {
+		delivery.Params = &params
+	}
+	return delivery
+}
+
 // accountSummaryResponse maps the narrower projection. Built from its own four fields rather than
 // from `accountResponse` with members cleared: a mapping that starts from everything and removes
 // what must not travel leaks the next field somebody adds to the wider one.
