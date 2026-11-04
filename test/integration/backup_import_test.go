@@ -1146,3 +1146,69 @@ func TestASignInNameIsUniqueAndNeverAnAddress(t *testing.T) {
 		t.Error("a sign-in name of two characters was stored")
 	}
 }
+
+// A hub's logo, a person's picture and a mail's intended place come back from an archive: the
+// export writes the whole row, and an import whose column list lacks one drops it without a word
+// (the unit gate TestARestoreWritesBackEveryColumnTheSchemaHolds holds the list; this proves the
+// statements write what they name).
+func TestALogoAPictureAndAMailsPlaceSurviveTheRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, _ := hubWithCollection(ctx, t, tenantA, authorA)
+	media, jumble := freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		  VALUES ($1::uuid, $2, 'logo/' || $1::text, 'image/png', 10, 'DESK_LOGO', 'READY')`,
+			[]any{media.String(), tenantA.String()}},
+		{`UPDATE container SET logo_media_id = $1 WHERE tenant_id = $2 AND id = $3`,
+			[]any{media.String(), tenantA.String(), hub.String()}},
+		{`UPDATE account SET avatar_media_id = $1, external_id = 'dir-7', celebrations = false
+		  WHERE tenant_id = $2 AND id = $3`,
+			[]any{media.String(), tenantA.String(), authorA.String()}},
+		{`INSERT INTO jumble_entry (id, tenant_id, channel, meant_for_kind, meant_for_id, intake_reason)
+		  VALUES ($1, $2, 'EMAIL', 'HUB', $3, 'handle_unknown')`,
+			[]any{jumble.String(), tenantA.String(), hub.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+
+	for _, row := range []struct {
+		table   string
+		id      shared.ID
+		columns []string
+	}{
+		{"container", hub, []string{"logo_media_id"}},
+		{"account", authorA, []string{"avatar_media_id", "external_id", "celebrations"}},
+		{"jumble_entry", jumble, []string{"meant_for_kind", "meant_for_id", "intake_reason"}},
+	} {
+		exportedRow := exportedRowOf(ctx, t, tenantA, row.table, row.id)
+		for _, column := range row.columns {
+			if exportedRow[column] == nil {
+				t.Fatalf("the export carries no %s.%s, so this test proves nothing", row.table, column)
+			}
+			if _, err := admin.Exec(ctx,
+				`UPDATE `+row.table+` SET `+column+` = NULL WHERE tenant_id = $1 AND id = $2`,
+				tenantA.String(), row.id.String()); err != nil {
+				t.Fatalf("clearing %s.%s: %v", row.table, column, err)
+			}
+		}
+		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := importRepo().Write(ctx, row.table, exportedRow, true)
+			return err
+		}); err != nil {
+			t.Fatalf("importing the %s back: %v", row.table, err)
+		}
+		restored := exportedRowOf(ctx, t, tenantA, row.table, row.id)
+		for _, column := range row.columns {
+			if !sameJSON(exportedRow[column], restored[column]) {
+				t.Errorf("%s.%s came back as %#v, want %#v", row.table, column, restored[column], exportedRow[column])
+			}
+		}
+	}
+}

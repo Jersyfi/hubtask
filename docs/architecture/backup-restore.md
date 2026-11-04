@@ -346,6 +346,13 @@ still asked because the archive is read through the caller's own workspace's tar
    the transaction recording its success, so devices resynchronise
    ([offline-sync.md](./offline-sync.md) §3.1); a dry run and a `NEW_TENANT` restore advance nothing.
 
+**Every column comes back or is left out by name.** The export writes the whole row; each import
+statement names the columns it writes (`db/queries/BackupImport.sql`), and a column it does not
+name would be dropped without a word. `TestARestoreWritesBackEveryColumnTheSchemaHolds` compares
+every restored table's columns in `db/schema.sql` with its import statement; a column left out is
+listed there with its reason - the installation's own state of the workspace (deletion clock,
+`sync_epoch`, plan, an operator's password opening), and values a trigger or a recount rebuilds.
+
 **A destructive restore ends sign-ins.** The archive carries no session or token tables (§8.4), so
 the credential that started a `REPLACE_TENANT` is refused part-way through following its own job;
 read `restore_run` for the result instead.

@@ -23,6 +23,8 @@
 -- name: ImportTenant :execrows
 INSERT INTO tenant (
   id,
+  status_before_deletion,
+  starter_answered_at,
   slug,
   display_name,
   status,
@@ -36,6 +38,8 @@ INSERT INTO tenant (
 )
 SELECT
   r.id,
+  r.status_before_deletion,
+  r.starter_answered_at,
   r.slug,
   r.display_name,
   r.status,
@@ -51,6 +55,8 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  status_before_deletion = EXCLUDED.status_before_deletion,
+  starter_answered_at = EXCLUDED.starter_answered_at,
   slug = EXCLUDED.slug,
   display_name = EXCLUDED.display_name,
   status = EXCLUDED.status,
@@ -71,6 +77,13 @@ SELECT EXISTS (SELECT 1 FROM tenant WHERE id = (sqlc.arg('payload')::jsonb->>'id
 -- carries it, jsonb_populate_record accepts the key, and the column keeps what it holds.
 INSERT INTO account (
   id,
+  celebrations,
+  onboarding_completed_at,
+  redemption_token_hash,
+  redemption_expires_at,
+  password_set_at,
+  avatar_media_id,
+  external_id,
   tenant_id,
   kind,
   email,
@@ -93,6 +106,13 @@ INSERT INTO account (
 )
 SELECT
   r.id,
+  r.celebrations,
+  r.onboarding_completed_at,
+  r.redemption_token_hash,
+  r.redemption_expires_at,
+  r.password_set_at,
+  r.avatar_media_id,
+  r.external_id,
   r.tenant_id,
   r.kind,
   r.email,
@@ -117,6 +137,13 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  celebrations = EXCLUDED.celebrations,
+  onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+  redemption_token_hash = EXCLUDED.redemption_token_hash,
+  redemption_expires_at = EXCLUDED.redemption_expires_at,
+  password_set_at = EXCLUDED.password_set_at,
+  avatar_media_id = EXCLUDED.avatar_media_id,
+  external_id = EXCLUDED.external_id,
   tenant_id = EXCLUDED.tenant_id,
   kind = EXCLUDED.kind,
   email = EXCLUDED.email,
@@ -162,6 +189,7 @@ DELETE FROM account a WHERE a.status <> 'RESTRICTED'
 -- name: ImportAccountGroup :execrows
 INSERT INTO account_group (
   id,
+  external_id,
   tenant_id,
   name,
   description,
@@ -170,6 +198,7 @@ INSERT INTO account_group (
 )
 SELECT
   r.id,
+  r.external_id,
   r.tenant_id,
   r.name,
   r.description,
@@ -180,6 +209,7 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  external_id = EXCLUDED.external_id,
   tenant_id = EXCLUDED.tenant_id,
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -275,6 +305,7 @@ DELETE FROM membership;
 -- name: ImportContainer :execrows
 INSERT INTO container (
   id,
+  logo_media_id,
   tenant_id,
   type,
   parent_id,
@@ -300,6 +331,7 @@ INSERT INTO container (
 )
 SELECT
   r.id,
+  r.logo_media_id,
   r.tenant_id,
   r.type,
   r.parent_id,
@@ -332,6 +364,7 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  logo_media_id = EXCLUDED.logo_media_id,
   tenant_id = EXCLUDED.tenant_id,
   type = EXCLUDED.type,
   parent_id = EXCLUDED.parent_id,
@@ -523,6 +556,8 @@ DELETE FROM custom_field_definition;
 -- what the column held, and PostgreSQL refuses an insert into one.
 INSERT INTO work_item (
   id,
+  deleted_by_type,
+  deleted_by_id,
   tenant_id,
   collection_id,
   type,
@@ -575,6 +610,8 @@ INSERT INTO work_item (
 )
 SELECT
   r.id,
+  r.deleted_by_type,
+  r.deleted_by_id,
   r.tenant_id,
   r.collection_id,
   r.type,
@@ -634,6 +671,8 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  deleted_by_type = EXCLUDED.deleted_by_type,
+  deleted_by_id = EXCLUDED.deleted_by_id,
   tenant_id = EXCLUDED.tenant_id,
   collection_id = EXCLUDED.collection_id,
   type = EXCLUDED.type,
@@ -1148,6 +1187,9 @@ DELETE FROM template;
 -- name: ImportJumbleEntry :execrows
 INSERT INTO jumble_entry (
   id,
+  meant_for_kind,
+  meant_for_id,
+  intake_reason,
   tenant_id,
   channel,
   sender,
@@ -1163,6 +1205,9 @@ INSERT INTO jumble_entry (
 )
 SELECT
   r.id,
+  r.meant_for_kind,
+  r.meant_for_id,
+  r.intake_reason,
   r.tenant_id,
   r.channel,
   r.sender,
@@ -1180,6 +1225,9 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  meant_for_kind = EXCLUDED.meant_for_kind,
+  meant_for_id = EXCLUDED.meant_for_id,
+  intake_reason = EXCLUDED.intake_reason,
   tenant_id = EXCLUDED.tenant_id,
   channel = EXCLUDED.channel,
   sender = EXCLUDED.sender,
@@ -1246,6 +1294,11 @@ DELETE FROM auto_assign_policy;
 -- name: ImportAutomationRule :execrows
 INSERT INTO automation_rule (
   id,
+  inbound_token_hash,
+  inbound_rotated_at,
+  findings,
+  checked_at,
+  paused_for_deletion,
   tenant_id,
   scope_type,
   scope_id,
@@ -1271,6 +1324,11 @@ INSERT INTO automation_rule (
 )
 SELECT
   r.id,
+  r.inbound_token_hash,
+  r.inbound_rotated_at,
+  coalesce(r.findings, '[]'::jsonb),
+  r.checked_at,
+  coalesce(r.paused_for_deletion, false),
   r.tenant_id,
   r.scope_type,
   r.scope_id,
@@ -1296,6 +1354,11 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  inbound_token_hash = EXCLUDED.inbound_token_hash,
+  inbound_rotated_at = EXCLUDED.inbound_rotated_at,
+  findings = EXCLUDED.findings,
+  checked_at = EXCLUDED.checked_at,
+  paused_for_deletion = EXCLUDED.paused_for_deletion,
   tenant_id = EXCLUDED.tenant_id,
   scope_type = EXCLUDED.scope_type,
   scope_id = EXCLUDED.scope_id,
@@ -1326,6 +1389,15 @@ DELETE FROM automation_rule;
 -- name: ImportWebhookSubscription :execrows
 INSERT INTO webhook_subscription (
   id,
+  format,
+  chat_room,
+  chat_locale,
+  secret_key_id,
+  previous_secret_enc,
+  previous_secret_key_id,
+  previous_secret_until,
+  last_error,
+  disabled_at,
   tenant_id,
   target_url,
   event_types,
@@ -1341,6 +1413,15 @@ INSERT INTO webhook_subscription (
 )
 SELECT
   r.id,
+  coalesce(r.format, 'CLOUDEVENTS'),
+  r.chat_room,
+  r.chat_locale,
+  r.secret_key_id,
+  r.previous_secret_enc,
+  r.previous_secret_key_id,
+  r.previous_secret_until,
+  r.last_error,
+  r.disabled_at,
   r.tenant_id,
   r.target_url,
   r.event_types,
@@ -1358,6 +1439,15 @@ FROM jsonb_populate_record(
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
+  format = EXCLUDED.format,
+  chat_room = EXCLUDED.chat_room,
+  chat_locale = EXCLUDED.chat_locale,
+  secret_key_id = EXCLUDED.secret_key_id,
+  previous_secret_enc = EXCLUDED.previous_secret_enc,
+  previous_secret_key_id = EXCLUDED.previous_secret_key_id,
+  previous_secret_until = EXCLUDED.previous_secret_until,
+  last_error = EXCLUDED.last_error,
+  disabled_at = EXCLUDED.disabled_at,
   tenant_id = EXCLUDED.tenant_id,
   target_url = EXCLUDED.target_url,
   event_types = EXCLUDED.event_types,
