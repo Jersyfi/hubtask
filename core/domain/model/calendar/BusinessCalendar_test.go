@@ -115,6 +115,7 @@ func TestNewRefusesACalendarThatCannotCount(t *testing.T) {
 	}{
 		{"unknown zone", Spec{Zone: "Mars/Olympus", Week: Week{1: good}}, "calendar.zone_unknown"},
 		{"no zone", Spec{Week: Week{1: good}}, "calendar.zone_unknown"},
+		{"the server's own zone", Spec{Zone: "Local", Week: Week{1: good}}, "calendar.zone_unknown"},
 		{"no working time", Spec{Zone: "UTC"}, "calendar.no_working_time"},
 		{"empty span", Spec{Zone: "UTC", Week: Week{1: {{From: 600, To: 600}}}}, "calendar.span_invalid"},
 		{"past midnight", Spec{Zone: "UTC", Week: Week{1: {{From: 600, To: 1441}}}}, "calendar.span_invalid"},

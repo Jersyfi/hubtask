@@ -20,6 +20,7 @@ func TestADigestIsCheckedByItsCadence(t *testing.T) {
 		{"an hour past the day", Digest{Cadence: CadenceDaily, Hour: 24}, "dashboards.digest_hour_invalid"},
 		{"no cadence", Digest{Hour: 8}, "dashboards.digest_cadence_invalid"},
 		{"an unknown zone", Digest{Cadence: CadenceDaily, TimeZone: "Mars/Olympus"}, "dashboards.digest_zone_invalid"},
+		{"the server's own zone", Digest{Cadence: CadenceDaily, TimeZone: "Local"}, "dashboards.digest_zone_invalid"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

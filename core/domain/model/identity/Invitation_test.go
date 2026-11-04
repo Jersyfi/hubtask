@@ -180,6 +180,7 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 		{"a sentence is not a locale", Preferences{Locale: "German please"}, "accounts.locale_invalid"},
 		{"an empty subtag", Preferences{Locale: "de-"}, "accounts.locale_invalid"},
 		{"a zone nobody has", Preferences{TimeZone: "Europe/Atlantis"}, "accounts.time_zone_invalid"},
+		{"the server's own zone, which no browser knows", Preferences{TimeZone: "Local"}, "accounts.time_zone_invalid"},
 		{"an offset cannot represent daylight saving", Preferences{TimeZone: "+02:00"}, "accounts.time_zone_invalid"},
 		{"a day the calendar does not start on", Preferences{WeekStart: "WEDNESDAY"}, "accounts.week_start_invalid"},
 		{"celebrations off", Preferences{Celebrations: "false"}, ""},

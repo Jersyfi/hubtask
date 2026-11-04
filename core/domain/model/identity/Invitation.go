@@ -323,7 +323,7 @@ func timeZone(raw string) (string, error) {
 	if zone == "" {
 		return "", nil
 	}
-	if _, err := time.LoadLocation(zone); err != nil {
+	if _, known := shared.LoadZone(zone); !known {
 		return "", shared.ErrValidation.
 			WithDetail("accounts.time_zone_invalid").
 			WithParams(map[string]string{"value": zone})

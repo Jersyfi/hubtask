@@ -58,7 +58,7 @@ func CheckDigest(d Digest) (Digest, error) {
 	if d.TimeZone == "" {
 		d.TimeZone = "UTC"
 	}
-	if _, err := time.LoadLocation(d.TimeZone); err != nil {
+	if _, known := shared.LoadZone(d.TimeZone); !known {
 		return Digest{}, invalid("/time_zone", "dashboards.digest_zone_invalid")
 	}
 	return d, nil

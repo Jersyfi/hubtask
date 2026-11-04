@@ -17,6 +17,7 @@ import (
 
 	"github.com/teambition/rrule-go"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/recurrence"
 )
 
@@ -49,8 +50,12 @@ var _ port.Expander = Expander{}
 func (e Expander) Occurrences(
 	rule port.Rule, after, before time.Time, limit int,
 ) ([]time.Time, error) {
-	location, err := time.LoadLocation(strings.TrimSpace(rule.TimeZone))
-	if err != nil {
+	// No zone is UTC, as it always was here; the server's own zone is no zone.
+	location, known := time.UTC, true
+	if strings.TrimSpace(rule.TimeZone) != "" {
+		location, known = shared.LoadZone(rule.TimeZone)
+	}
+	if !known {
 		return nil, fmt.Errorf("%w: %s", port.ErrZoneUnknown, rule.TimeZone)
 	}
 

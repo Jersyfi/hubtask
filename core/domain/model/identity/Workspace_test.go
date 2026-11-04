@@ -134,6 +134,8 @@ func TestWithRefusesWhatTheWorkspaceCannotHold(t *testing.T) {
 			"admin.locale_invalid", "/default_locale"},
 		{"a zone nothing can load", identity.WorkspaceChange{DefaultTimeZone: setting("Mars/Olympus")},
 			"admin.time_zone_invalid", "/default_time_zone"},
+		{"the server's own zone, which no browser knows", identity.WorkspaceChange{DefaultTimeZone: setting("Local")},
+			"admin.time_zone_invalid", "/default_time_zone"},
 		{"an empty zone, which has no default here", identity.WorkspaceChange{DefaultTimeZone: setting("")},
 			"admin.time_zone_invalid", "/default_time_zone"},
 	}

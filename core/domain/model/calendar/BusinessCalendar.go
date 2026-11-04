@@ -55,8 +55,8 @@ type BusinessCalendar struct {
 // New checks a calendar: a known zone, ordered and disjoint spans inside the day, at least one
 // working minute a week, and at most MaxHolidays holidays.
 func New(spec Spec) (BusinessCalendar, error) {
-	location, err := time.LoadLocation(spec.Zone)
-	if err != nil || spec.Zone == "" {
+	location, known := shared.LoadZone(spec.Zone)
+	if !known {
 		return BusinessCalendar{}, shared.ErrValidation.WithDetail("calendar.zone_unknown")
 	}
 	working := false
