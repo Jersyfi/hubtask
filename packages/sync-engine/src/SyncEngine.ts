@@ -20,7 +20,7 @@ import type { ChangeRecord } from './schema.ts';
 import { META, Replica, collectionOf } from './replica.ts';
 import { boundedIdentity, mintUuidV7, type DeviceIdentity } from './device.ts';
 import { HybridClock, formatHlc } from './hlc.ts';
-import { Queue, entityOf, mutationOf } from './queue.ts';
+import { Queue, entityOf, mutationOf, rewriteOf } from './queue.ts';
 import type { QueueState, QueuedWrite, SyncMutationResult } from './schema.ts';
 
 /** How long a read may take before it is abandoned. A number, because "no deadline" is not one. */
@@ -771,6 +771,27 @@ export class SyncEngine {
   async dismissRejected(id: string): Promise<void> {
     await this.#queue?.dismiss(id);
     await this.#publishQueue();
+  }
+
+  /**
+   * Sends a refused change again as its draft says (user-experience.md §5.11): the same write with
+   * the values the person changed, a new operation queued and predicted as any write is, and the
+   * refusal taken off the list only once the new one is queued. False where the record holds no
+   * mutation to send.
+   */
+  async resendRejected(id: string, values: Readonly<Record<string, unknown>>): Promise<boolean> {
+    const queue = this.#queue;
+    if (!queue) return false;
+    const rejected = (await queue.rejected()).find((each) => each.id === id);
+    const write = rejected ? rewriteOf(rejected, values) : undefined;
+    if (!write) return false;
+    const mutation = mutationOf(write, mintUuidV7(this.#clock), () => this.#stampNow());
+    await queue.enqueue(write, mutation, this.#clock.now());
+    await queue.dismiss(id);
+    await this.#publishQueue();
+    this.#invalidate(write.invalidates);
+    if (this.#reachable) void this.push();
+    return true;
   }
 
   /** Takes a conflict off the list: the person has seen both values. */

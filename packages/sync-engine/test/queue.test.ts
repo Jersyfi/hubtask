@@ -221,6 +221,29 @@ test('§9.5: a REJECTED result is kept with its code and removed only by dismiss
   assert.equal((await storage.all(REJECTED)).length, 0);
 });
 
+test('user-experience.md §5.11: a refused change opened as a draft is sent again with what the person changed', async () => {
+  const { transport, engine, storage } = await synced();
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'REJECTED', entity_id: mutation.item_id, error: { code: 'invalid', message_code: 'items.title_too_long' } });
+  transport.down = true;
+  await engine.mutate('PATCH', `/items/${ITEM}`, { title: 'far too long' });
+  transport.down = false;
+  await engine.push();
+  const refused = engine.queueState.rejected[0];
+  assert.ok(refused?.mutation, 'the refusal keeps the mutation it was');
+
+  transport.results = (mutation) => ({ op_id: mutation.op_id, result: 'APPLIED', entity_id: mutation.item_id });
+  transport.down = true;
+  assert.equal(await engine.resendRejected(refused?.id ?? '', { title: 'short' }), true);
+  assert.equal(engine.queueState.rejected.length, 0, 'the refusal leaves the list once the new write is queued');
+  assert.equal(engine.queueState.count, 1, 'the draft is queued as a new write');
+  const [queued] = await storage.all<{ id: string; mutation: { fields?: Record<string, { value: unknown }> } }>('queue');
+  assert.notEqual(queued?.id, refused?.id, 'under a new operation');
+  assert.equal(queued?.mutation.fields?.title?.value, 'short');
+  assert.equal((await item(storage))?.document.title, 'short', 'and predicted in the copy');
+
+  assert.equal(await engine.resendRejected('no-such-refusal', {}), false);
+});
+
 test('§9.3, §7: a sync.gone is discarded, the copy goes, and the local text is offered back', async () => {
   const { transport, engine, storage } = await synced();
   // The shape the server answers: the category as `code`, the message code beside it.

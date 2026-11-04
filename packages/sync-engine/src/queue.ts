@@ -232,6 +232,8 @@ export class Queue {
           ...(messageCode ? { messageCode } : {}),
           local: localOf(pending.mutation),
           at,
+          mutation: pending.mutation,
+          ...(pending.invalidates ? { invalidates: pending.invalidates } : {}),
         });
         // The server answers the category as `code` (`gone`) and the message code beside it
         // (`sync.gone`); either names §7's purge.
@@ -304,6 +306,27 @@ export class Queue {
 /** A change record shaped for the replica's apply: what the server would have sent. */
 function record(op: 'UPSERT' | 'DELETE', entity: string, id: string, payload?: Record<string, unknown>): ChangeRecord {
   return { op, entity, entity_id: id, container_id: null, ...(payload ? { payload } : {}) } as ChangeRecord;
+}
+
+/**
+ * The write a refused mutation was, with the values a person changed in its draft: what
+ * `mutationOf` makes a new mutation of. Undefined for a record kept without its mutation.
+ */
+export function rewriteOf(rejected: RejectedMutation, values: Readonly<Record<string, unknown>>): QueuedWrite | undefined {
+  const sent = rejected.mutation;
+  if (!sent) return undefined;
+  const write: Record<string, unknown> = { kind: rejected.kind, itemId: rejected.itemId };
+  if (sent.entity) write.entity = sent.entity;
+  if (sent.entity_key) write.entityKey = sent.entity_key;
+  if (sent.base_version !== undefined) write.baseVersion = sent.base_version;
+  if (sent.fields) write.fields = { ...(localOf(sent) as Record<string, unknown>), ...values };
+  else if (sent.payload) write.payload = { ...sent.payload, ...values };
+  if (sent.set) {
+    write.set = sent.set;
+    write.element = sent.element;
+  }
+  if (rejected.invalidates) write.invalidates = rejected.invalidates;
+  return write as unknown as QueuedWrite;
 }
 
 /** What a mutation carried, for a rejected one to offer back: its fields or its payload. */

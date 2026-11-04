@@ -143,6 +143,12 @@ export interface RejectedMutation {
   readonly messageCode?: string;
   readonly local: unknown;
   readonly at: number;
+  /**
+   * The mutation as it was sent, so the change can be opened as a draft and sent again
+   * (`SyncEngine.resendRejected`). Absent on a record kept before it was stored.
+   */
+  readonly mutation?: SyncMutation;
+  readonly invalidates?: readonly string[];
 }
 
 /**
