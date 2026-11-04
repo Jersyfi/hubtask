@@ -29,6 +29,7 @@
   import { EmptyState, Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
+  import ErasureLines from '../lib/workspace/ErasureLines.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import type { ErasureKept, ErasureLine } from '@hubtask/sync-engine';
@@ -39,7 +40,6 @@
     canExtend,
     canStart,
     confirmsStart,
-    erasureLinePhrase,
     keptPartPhrase,
     keptPhrase,
     deadlineOfDay,
@@ -439,6 +439,7 @@
                   <p class="quiet small">
                     {t(`app.privacy.mode_${(request.erasure_mode ?? 'ANONYMIZE').toLowerCase()}_note`)}
                   </p>
+                  <ErasureLines requestId={request.id} mode={request.erasure_mode ?? 'ANONYMIZE'} />
                 </Stack>
               {/if}
 
@@ -810,21 +811,11 @@
         <p class="small">{t(line.code, line.params)}</p>
       {/each}
     {/if}
-    {#if lines.length > 0}
-      <p class="small">{t('app.privacy.lines_intro')}</p>
-      <ul class="small erasure-lines" data-erasure-lines>
-        {#each lines as line, index (index)}
-          {@const phrase = erasureLinePhrase(line)}
-          <li>{t(phrase.code, phrase.params)}</li>
-        {/each}
-      </ul>
-    {/if}
+    <ErasureLines {lines} />
   </Stack>
 </Dialog>
 
 <style>
-  .erasure-lines { margin: 0; padding-inline-start: var(--sp-300); display: grid; gap: var(--sp-050); }
-
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure
