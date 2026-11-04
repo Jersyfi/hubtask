@@ -19268,6 +19268,17 @@ type MoveResult struct {
 	Item              WorkItem           `json:"item"`
 }
 
+// MySprintList defines model for MySprintList.
+type MySprintList struct {
+	Data []struct {
+		HubId openapi_types.UUID `json:"hub_id"`
+
+		// MyEntries How many of the caller's entries the sprint holds.
+		MyEntries int    `json:"my_entries"`
+		Sprint    Sprint `json:"sprint"`
+	} `json:"data"`
+}
+
 // NotificationPreference defines model for NotificationPreference.
 type NotificationPreference struct {
 	Category string `json:"category"`
@@ -40080,6 +40091,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
 	RemoveSoftwareAlias(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMyRunningSprints The running sprints I am in
+	//
+	// The running sprints anywhere in the workspace that hold an entry assigned to the caller, the soonest to end first, at most 20, each with its hub and how many of the caller's entries it holds. A sprint is listed only where the caller may read one of their entries in it.
+	//
+	// Corresponds with GET /sprints (the `ListMyRunningSprints` operationId).
+	ListMyRunningSprints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteSprint Delete a planned sprint
 	//
@@ -61772,6 +61790,23 @@ func (c *Client) DefineSoftwareAlias(ctx context.Context, params *DefineSoftware
 // Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
 func (c *Client) RemoveSoftwareAlias(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRemoveSoftwareAliasRequest(c.Server, aliasId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMyRunningSprints The running sprints I am in
+//
+// The running sprints anywhere in the workspace that hold an entry assigned to the caller, the soonest to end first, at most 20, each with its hub and how many of the caller's entries it holds. A sprint is listed only where the caller may read one of their entries in it.
+//
+// Corresponds with GET /sprints (the `ListMyRunningSprints` operationId).
+func (c *Client) ListMyRunningSprints(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMyRunningSprintsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -98869,6 +98904,33 @@ func NewRemoveSoftwareAliasRequest(server string, aliasId openapi_types.UUID) (*
 	return req, nil
 }
 
+// NewListMyRunningSprintsRequest constructs an http.Request for the ListMyRunningSprints method
+func NewListMyRunningSprintsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/sprints")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeleteSprintRequest constructs an http.Request for the DeleteSprint method
 func NewDeleteSprintRequest(server string, sprintId SprintId) (*http.Request, error) {
 	var err error
@@ -114337,6 +114399,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with DELETE /software-aliases/{aliasId} (the `RemoveSoftwareAlias` operationId).
 	RemoveSoftwareAliasWithResponse(ctx context.Context, aliasId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveSoftwareAliasResult, error)
+
+	// ListMyRunningSprintsWithResponse The running sprints I am in
+	//
+	// The running sprints anywhere in the workspace that hold an entry assigned to the caller, the soonest to end first, at most 20, each with its hub and how many of the caller's entries it holds. A sprint is listed only where the caller may read one of their entries in it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /sprints (the `ListMyRunningSprints` operationId).
+	ListMyRunningSprintsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyRunningSprintsResult, error)
 
 	// DeleteSprintWithResponse Delete a planned sprint
 	//
@@ -151187,6 +151258,54 @@ func (r RemoveSoftwareAliasResult) ContentType() string {
 	return ""
 }
 
+type ListMyRunningSprintsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MySprintList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMyRunningSprintsResult) GetJSON200() *MySprintList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListMyRunningSprintsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMyRunningSprintsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMyRunningSprintsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMyRunningSprintsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMyRunningSprintsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DeleteSprintResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -173046,6 +173165,21 @@ func (c *ClientWithResponses) RemoveSoftwareAliasWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseRemoveSoftwareAliasResult(rsp)
+}
+
+// ListMyRunningSprintsWithResponse The running sprints I am in
+//
+// The running sprints anywhere in the workspace that hold an entry assigned to the caller, the soonest to end first, at most 20, each with its hub and how many of the caller's entries it holds. A sprint is listed only where the caller may read one of their entries in it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /sprints (the `ListMyRunningSprints` operationId).
+func (c *ClientWithResponses) ListMyRunningSprintsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMyRunningSprintsResult, error) {
+	rsp, err := c.ListMyRunningSprints(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMyRunningSprintsResult(rsp)
 }
 
 // DeleteSprintWithResponse Delete a planned sprint
@@ -200406,6 +200540,39 @@ func ParseRemoveSoftwareAliasResult(rsp *http.Response) (*RemoveSoftwareAliasRes
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest SoftwareAliasRemoved
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMyRunningSprintsResult parses an HTTP response from a ListMyRunningSprintsWithResponse call
+func ParseListMyRunningSprintsResult(rsp *http.Response) (*ListMyRunningSprintsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMyRunningSprintsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MySprintList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

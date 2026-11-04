@@ -383,6 +383,7 @@ var restDoors = map[string]restDoor{
 	"listMyApprovals":                   {UseCase: "ListMyApprovals", Status: 200, Query: []string{"cursor", "limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listMyOpenEntries":                 {UseCase: "ListMyOpenEntries", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listMyRequests":                    {UseCase: "ListMyRequests", Status: 200, Query: []string{"collection_id", "cursor", "scope", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"listMyRunningSprints":              {UseCase: "ListMyRunningSprints", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listNotificationPreferences":       {UseCase: "ListNotificationPreferences", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listOauthClients":                  {UseCase: "ListOauthClients", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listOauthGrants":                   {UseCase: "ListOauthGrants", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3254,6 +3255,12 @@ func (c *RestController) ListMyOpenEntries(w http.ResponseWriter, r *http.Reques
 func (c *RestController) ListMyRequests(w http.ResponseWriter, r *http.Request, params openapi.ListMyRequestsParams) {
 	var answer openapi.PortalRequestPage
 	c.door(w, r, restDoors["listMyRequests"], usecase.Input{}, params, nil, &answer)
+}
+
+// ListMyRunningSprints answers GET /sprints by the generated mapping.
+func (c *RestController) ListMyRunningSprints(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.MySprintList
+	c.door(w, r, restDoors["listMyRunningSprints"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListNotificationPreferences answers GET /accounts/{accountId}/notification-preferences by the generated mapping.

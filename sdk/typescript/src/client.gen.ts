@@ -236,6 +236,11 @@ export class HubtaskClient {
     return this.call("GET", "/collections/{collectionId}/velocity", { "collectionId": collectionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The running sprints I am in */
+  listMyRunningSprints(options: CallOptions = {}): Promise<operations["listMyRunningSprints"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/sprints", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A sprint with its entries and burndown */
   readSprint(sprintId: string, options: CallOptions & { readonly query?: NonNullable<operations["readSprint"]['parameters']['query']> } = {}): Promise<operations["readSprint"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/sprints/{sprintId}", { "sprintId": sprintId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

@@ -222,3 +222,81 @@ func TestTheSprintWalkStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the workspace next door walked: sprint %v, membership %v, estimate %v", s, m, e)
 	}
 }
+
+// UC-WRK-34 check 8: the running sprints a person is in are those holding an entry assigned to
+// them, with the hub and how many they hold; a planned sprint, another person's or a removed
+// entry does not count, and another workspace reads none of them.
+func TestTheRunningSprintsOfAPersonStayInTheirWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	sprints := postgres.NewPlanningRepository().Sprints()
+	hub, collection, tasks := seedPlan(ctx, t, tenantA)
+	_, other, more := seedPlan(ctx, t, tenantA)
+	admin := adminPool(ctx, t)
+	for _, task := range []shared.ID{tasks[0], tasks[1], more[0]} {
+		if _, err := admin.Exec(ctx, `UPDATE work_item SET assignee_id = $1 WHERE id = $2`, authorA.String(), task.String()); err != nil {
+			t.Fatalf("assigning: %v", err)
+		}
+	}
+	now := time.Date(2026, 11, 1, 8, 0, 0, 0, time.UTC)
+	start := planning.DayFrom(2026, time.November, 2)
+	newSprint := func(in shared.ID, name string, days int) planning.Sprint {
+		s, err := planning.NewSprint(planning.NewSprintInput{
+			ID: freshID(t), TenantID: tenantA, CollectionID: in, CreatedBy: authorA, Now: now,
+			Fields: planning.SprintFields{Name: name, StartOn: start, EndOn: start + planning.Day(days)},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	running, planned := newSprint(collection, "Running", 13), newSprint(other, "Planned", 13)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, s := range []planning.Sprint{running, planned} {
+			if err := sprints.Insert(ctx, s); err != nil {
+				return err
+			}
+		}
+		for _, task := range tasks {
+			if err := sprints.Add(ctx, running.ID, task, now, false); err != nil {
+				return err
+			}
+		}
+		if err := sprints.Add(ctx, planned.ID, more[0], now, false); err != nil {
+			return err
+		}
+		if _, err := sprints.Remove(ctx, running.ID, tasks[1], now); err != nil {
+			return err
+		}
+		started := running
+		started.State, started.StartedAt = planning.SprintActive, &now
+		return sprints.Update(ctx, started, running.Version)
+	}); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		mine, err := sprints.Mine(ctx, authorA, 20)
+		if err != nil {
+			return err
+		}
+		if len(mine) != 1 || mine[0].Sprint.ID != running.ID || mine[0].HubID != hub || mine[0].EntryID != tasks[0] || mine[0].Entries != 1 {
+			t.Errorf("mine = %+v, want the running sprint with one entry", mine)
+		}
+		nobody, err := sprints.Mine(ctx, freshID(t), 20)
+		if err == nil && len(nobody) != 0 {
+			t.Errorf("a person without entries is in %+v", nobody)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		mine, err := sprints.Mine(ctx, authorA, 20)
+		if err == nil && len(mine) != 0 {
+			t.Errorf("the other workspace reads the sprints: %+v", mine)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

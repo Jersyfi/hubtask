@@ -193,6 +193,46 @@ func (PlanningSprints) List(ctx context.Context, collectionID shared.ID, state p
 	return out, nil
 }
 
+// Mine returns the running sprints holding an entry assigned to the account.
+func (PlanningSprints) Mine(ctx context.Context, accountID shared.ID, limit int) ([]repository.MySprint, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	//nolint:gosec // G115: a bound the use case sets
+	rows, err := queries.ListMyRunningSprints(ctx, sqlc.ListMyRunningSprintsParams{AccountID: key, Max: int32(limit)})
+	if err != nil {
+		return nil, planningError(err, "listing the running sprints of an account")
+	}
+	out := make([]repository.MySprint, 0, len(rows))
+	for _, row := range rows {
+		s, err := sprintFrom(sqlc.FindSprintRow{
+			ID: row.ID, CollectionID: row.CollectionID, Name: row.Name, Goal: row.Goal, StartOn: row.StartOn,
+			EndOn: row.EndOn, State: row.State, Unit: row.Unit, CommittedValue: row.CommittedValue,
+			CommittedCount: row.CommittedCount, CompletedValue: row.CompletedValue, CompletedCount: row.CompletedCount,
+			StartedAt: row.StartedAt, ClosedAt: row.ClosedAt, CreatedAt: row.CreatedAt, CreatedBy: row.CreatedBy,
+			UpdatedAt: row.UpdatedAt, Version: row.Version,
+		})
+		if err != nil {
+			return nil, err
+		}
+		hub, err := optionalID(row.HubID)
+		if err != nil {
+			return nil, err
+		}
+		entry, err := idFrom(row.EntryID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, repository.MySprint{Sprint: s, HubID: hub, EntryID: entry, Entries: int(row.Mine)})
+	}
+	return out, nil
+}
+
 // Delete removes a sprint and its memberships.
 func (PlanningSprints) Delete(ctx context.Context, id shared.ID) error {
 	queries, err := queriesFrom(ctx)

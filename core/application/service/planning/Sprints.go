@@ -22,17 +22,18 @@ import (
 )
 
 const (
-	CreateSprintName        = "CreateSprint"
-	UpdateSprintName        = "UpdateSprint"
-	ListSprintsName         = "ListSprints"
-	ReadSprintName          = "ReadSprint"
-	DeleteSprintName        = "DeleteSprint"
-	AddSprintEntriesName    = "AddSprintEntries"
-	RemoveSprintEntriesName = "RemoveSprintEntries"
-	StartSprintName         = "StartSprint"
-	CloseSprintName         = "CloseSprint"
-	ReadSprintBacklogName   = "ReadSprintBacklog"
-	ReadVelocityName        = "ReadVelocity"
+	CreateSprintName         = "CreateSprint"
+	UpdateSprintName         = "UpdateSprint"
+	ListSprintsName          = "ListSprints"
+	ReadSprintName           = "ReadSprint"
+	DeleteSprintName         = "DeleteSprint"
+	AddSprintEntriesName     = "AddSprintEntries"
+	RemoveSprintEntriesName  = "RemoveSprintEntries"
+	StartSprintName          = "StartSprint"
+	CloseSprintName          = "CloseSprint"
+	ReadSprintBacklogName    = "ReadSprintBacklog"
+	ReadVelocityName         = "ReadVelocity"
+	ListMyRunningSprintsName = "ListMyRunningSprints"
 )
 
 const sprintTarget = "sprint"
@@ -51,6 +52,8 @@ const (
 	VelocityReadAction         audit.Action = "sprint.velocity_read"
 	maxSprintsListed                        = 200
 	maxBacklog                              = 500
+	// maxMySprints bounds *Today*'s Sprint band: a person is in few sprints at once.
+	maxMySprints = 20
 )
 
 // SprintOutput is a sprint as every door returns it (schema Sprint).
@@ -602,6 +605,61 @@ func (h ReadSprint) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return view.Output(), nil
+		}),
+	}, sprintTarget)
+}
+
+// ListMyRunningSprints reads the running sprints anywhere in the workspace that hold an entry
+// assigned to the reader, the soonest to end first (UC-WRK-34 check 8). A sprint is judged on one
+// of the reader's entries in it, so a collection the reader no longer reads stays out.
+type ListMyRunningSprints struct{ Planner Planner }
+
+// Execute lists them.
+func (h ListMyRunningSprints) Execute(ctx context.Context, actor appshared.ActorContext) ([]planrepo.MySprint, error) {
+	var mine []planrepo.MySprint
+	if err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		mine, err = h.Planner.Sprints.Mine(ctx, actor.AccountID, maxMySprints)
+		return err
+	}); err != nil {
+		return nil, err
+	}
+	paths := make([][]identity.Scope, 0, len(mine))
+	for _, m := range mine {
+		paths = append(paths, entryPath(m.HubID, m.Sprint.CollectionID, m.EntryID))
+	}
+	visible, err := h.Planner.permitted(ctx, actor, paths)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]planrepo.MySprint, 0, len(mine))
+	for i, m := range mine {
+		if visible[i] {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h ListMyRunningSprints) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ListMyRunningSprintsName,
+		Summary: "Lists the running sprints anywhere in the workspace that hold an entry assigned to the caller, the " +
+			"soonest to end first, at most 20, each with its hub and how many of the caller's entries it holds.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  itemsRead, ReadOnly: true,
+		Audit: usecase.AuditDeclaration{Action: SprintReadAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
+			mine, err := h.Execute(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			data := make([]usecase.Output, 0, len(mine))
+			for _, m := range mine {
+				data = append(data, usecase.Output{"sprint": SprintOutput(m.Sprint), "hub_id": m.HubID.String(), "my_entries": m.Entries})
+			}
+			return usecase.Output{"data": data}, nil
 		}),
 	}, sprintTarget)
 }

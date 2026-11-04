@@ -19262,6 +19262,17 @@ type MoveResult struct {
 	Item              WorkItem           `json:"item"`
 }
 
+// MySprintList defines model for MySprintList.
+type MySprintList struct {
+	Data []struct {
+		HubId openapi_types.UUID `json:"hub_id"`
+
+		// MyEntries How many of the caller's entries the sprint holds.
+		MyEntries int    `json:"my_entries"`
+		Sprint    Sprint `json:"sprint"`
+	} `json:"data"`
+}
+
 // NotificationPreference defines model for NotificationPreference.
 type NotificationPreference struct {
 	Category string `json:"category"`
@@ -32515,6 +32526,9 @@ type ServerInterface interface {
 	// RemoveSoftwareAlias Remove a software alias
 	// (DELETE /software-aliases/{aliasId})
 	RemoveSoftwareAlias(w http.ResponseWriter, r *http.Request, aliasId openapi_types.UUID)
+	// ListMyRunningSprints The running sprints I am in
+	// (GET /sprints)
+	ListMyRunningSprints(w http.ResponseWriter, r *http.Request)
 	// DeleteSprint Delete a planned sprint
 	// (DELETE /sprints/{sprintId})
 	DeleteSprint(w http.ResponseWriter, r *http.Request, sprintId SprintId)
@@ -57204,6 +57218,20 @@ func (siw *ServerInterfaceWrapper) RemoveSoftwareAlias(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ListMyRunningSprints operation middleware
+func (siw *ServerInterfaceWrapper) ListMyRunningSprints(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMyRunningSprints(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteSprint operation middleware
 func (siw *ServerInterfaceWrapper) DeleteSprint(w http.ResponseWriter, r *http.Request) {
 
@@ -60696,6 +60724,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/collections/{collectionId}/sprints", wrapper.CreateSprint)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/sprint-backlog", wrapper.ReadSprintBacklog)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/collections/{collectionId}/velocity", wrapper.ReadVelocity)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sprints", wrapper.ListMyRunningSprints)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sprints/{sprintId}", wrapper.DeleteSprint)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sprints/{sprintId}", wrapper.ReadSprint)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/sprints/{sprintId}", wrapper.UpdateSprint)

@@ -203,6 +203,10 @@ class Client:
         """How much a team gets done"""
         return self._call("GET", "/collections/{collectionId}/velocity", {"collectionId": collection_id}, None, {}, None, "none", None, "json")
 
+    def list_my_running_sprints(self) -> "MySprintList":
+        """The running sprints I am in"""
+        return self._call("GET", "/sprints", {}, None, {}, None, "none", None, "json")
+
     def read_sprint(self, sprint_id: str, *, query: dict[str, Any] | None = None) -> "SprintDetail":
         """A sprint with its entries and burndown"""
         return self._call("GET", "/sprints/{sprintId}", {"sprintId": sprint_id}, query, {}, None, "none", None, "json")

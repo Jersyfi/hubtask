@@ -123,3 +123,24 @@ DELETE FROM entry_estimate WHERE tenant_id = current_tenant_id() AND entry_id = 
 SELECT entry_id, unit, value, size, updated_at, updated_by, version
 FROM entry_estimate
 WHERE tenant_id = current_tenant_id() AND entry_id = ANY(sqlc.arg('entry_ids')::uuid[]);
+
+-- name: ListMyRunningSprints :many
+-- The running sprints holding an entry assigned to the account, the soonest to end first, each
+-- with its hub, the first of the account's entries in it - the one its reading is judged on - and
+-- how many it holds; a trashed entry or collection is left out.
+SELECT s.id, s.collection_id, s.name, s.goal, s.start_on, s.end_on, s.state, s.unit,
+  s.committed_value, s.committed_count, s.completed_value, s.completed_count, s.started_at,
+  s.closed_at, s.created_at, s.created_by, s.updated_at, s.version,
+  c.parent_id AS hub_id, (array_agg(se.entry_id ORDER BY se.entry_id))[1]::uuid AS entry_id,
+  count(*)::int AS mine
+FROM sprint s
+JOIN container c ON c.tenant_id = s.tenant_id AND c.id = s.collection_id
+JOIN sprint_entry se ON se.tenant_id = s.tenant_id AND se.sprint_id = s.id
+  AND se.removed_at IS NULL AND se.outcome IS NULL
+JOIN work_item wi ON wi.tenant_id = se.tenant_id AND wi.id = se.entry_id
+WHERE s.tenant_id = current_tenant_id() AND s.state = 'ACTIVE'
+  AND wi.assignee_id = sqlc.arg('account_id')::uuid AND wi.deleted_at IS NULL
+  AND c.deleted_at IS NULL
+GROUP BY s.id, c.parent_id
+ORDER BY s.end_on, s.id
+LIMIT sqlc.arg('max')::int;

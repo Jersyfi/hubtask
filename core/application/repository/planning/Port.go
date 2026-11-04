@@ -83,6 +83,15 @@ type SprintMember struct {
 	HubID        shared.ID
 }
 
+// MySprint is a running sprint holding entries assigned to one person: its hub, the first of
+// those entries - the one the person's reading is judged on - and how many it holds.
+type MySprint struct {
+	Sprint  planning.Sprint
+	HubID   shared.ID
+	EntryID shared.ID
+	Entries int
+}
+
 // Sprints stores sprints, their entries and estimates (PLN-06, PLN-07).
 type Sprints interface {
 	// Insert writes a planned sprint.
@@ -100,6 +109,9 @@ type Sprints interface {
 	ReturnOpen(ctx context.Context, sprintID shared.ID) error
 	// List returns a collection's sprints, the latest first, of one state or all, at most max.
 	List(ctx context.Context, collectionID shared.ID, state planning.SprintState, limit int) ([]planning.Sprint, error)
+	// Mine returns the running sprints holding an entry assigned to the account, the soonest to
+	// end first, at most limit.
+	Mine(ctx context.Context, accountID shared.ID, limit int) ([]MySprint, error)
 	// Delete removes a sprint and its memberships, or reports ErrNotFound.
 	Delete(ctx context.Context, id shared.ID) error
 	// Entries returns a sprint's memberships, open and past, at most max.

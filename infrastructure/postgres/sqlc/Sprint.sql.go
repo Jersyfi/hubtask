@@ -222,6 +222,99 @@ func (q *Queries) ListEntryEstimates(ctx context.Context, entryIds []pgtype.UUID
 	return items, nil
 }
 
+const listMyRunningSprints = `-- name: ListMyRunningSprints :many
+SELECT s.id, s.collection_id, s.name, s.goal, s.start_on, s.end_on, s.state, s.unit,
+  s.committed_value, s.committed_count, s.completed_value, s.completed_count, s.started_at,
+  s.closed_at, s.created_at, s.created_by, s.updated_at, s.version,
+  c.parent_id AS hub_id, (array_agg(se.entry_id ORDER BY se.entry_id))[1]::uuid AS entry_id,
+  count(*)::int AS mine
+FROM sprint s
+JOIN container c ON c.tenant_id = s.tenant_id AND c.id = s.collection_id
+JOIN sprint_entry se ON se.tenant_id = s.tenant_id AND se.sprint_id = s.id
+  AND se.removed_at IS NULL AND se.outcome IS NULL
+JOIN work_item wi ON wi.tenant_id = se.tenant_id AND wi.id = se.entry_id
+WHERE s.tenant_id = current_tenant_id() AND s.state = 'ACTIVE'
+  AND wi.assignee_id = $1::uuid AND wi.deleted_at IS NULL
+  AND c.deleted_at IS NULL
+GROUP BY s.id, c.parent_id
+ORDER BY s.end_on, s.id
+LIMIT $2::int
+`
+
+type ListMyRunningSprintsParams struct {
+	AccountID pgtype.UUID
+	Max       int32
+}
+
+type ListMyRunningSprintsRow struct {
+	ID             pgtype.UUID
+	CollectionID   pgtype.UUID
+	Name           string
+	Goal           string
+	StartOn        pgtype.Date
+	EndOn          pgtype.Date
+	State          string
+	Unit           string
+	CommittedValue float64
+	CommittedCount int32
+	CompletedValue float64
+	CompletedCount int32
+	StartedAt      pgtype.Timestamptz
+	ClosedAt       pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+	HubID          pgtype.UUID
+	EntryID        pgtype.UUID
+	Mine           int32
+}
+
+// The running sprints holding an entry assigned to the account, the soonest to end first, each
+// with its hub, the first of the account's entries in it - the one its reading is judged on - and
+// how many it holds; a trashed entry or collection is left out.
+func (q *Queries) ListMyRunningSprints(ctx context.Context, arg ListMyRunningSprintsParams) ([]ListMyRunningSprintsRow, error) {
+	rows, err := q.db.Query(ctx, listMyRunningSprints, arg.AccountID, arg.Max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMyRunningSprintsRow{}
+	for rows.Next() {
+		var i ListMyRunningSprintsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CollectionID,
+			&i.Name,
+			&i.Goal,
+			&i.StartOn,
+			&i.EndOn,
+			&i.State,
+			&i.Unit,
+			&i.CommittedValue,
+			&i.CommittedCount,
+			&i.CompletedValue,
+			&i.CompletedCount,
+			&i.StartedAt,
+			&i.ClosedAt,
+			&i.CreatedAt,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.HubID,
+			&i.EntryID,
+			&i.Mine,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOpenSprintMemberships = `-- name: ListOpenSprintMemberships :many
 SELECT entry_id, sprint_id
 FROM sprint_entry

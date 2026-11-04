@@ -1440,6 +1440,9 @@ class SprintList(TypedDict, total=False):
     data: Required[list["Sprint"]]
     runs_sprints: Required[bool]
 
+class MySprintList(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+
 class Estimate(TypedDict, total=False):
     unit: Required[Literal["POINTS", "HOURS", "SIZE"]]
     value: Required[float]

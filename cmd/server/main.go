@@ -2460,6 +2460,7 @@ func run() error {
 		planningservice.CloseSprint{Planner: planner}.Descriptor(),
 		planningservice.ReadSprintBacklog{Planner: planner}.Descriptor(),
 		planningservice.ReadVelocity{Planner: planner}.Descriptor(),
+		planningservice.ListMyRunningSprints{Planner: planner}.Descriptor(),
 		planningservice.SetEntryEstimate{Planner: planner}.Descriptor(),
 		planningservice.ClearEntryEstimate{Planner: planner}.Descriptor(),
 		timeservice.LogTime{Keeper: keeper}.Descriptor(),

@@ -31,6 +31,9 @@ type sprintStore struct {
 	stale map[shared.ID]domain.Sprint
 	// trashed entries are left out of a sprint's entries, as the store's read leaves them out.
 	trashed map[shared.ID]bool
+	// mine is what Mine answers, by the account asked for.
+	mine    map[shared.ID][]planrepo.MySprint
+	mineMax int
 }
 
 func newSprintStore() *sprintStore {
@@ -99,6 +102,11 @@ func (s *sprintStore) List(_ context.Context, c shared.ID, state domain.SprintSt
 	}
 	slices.SortFunc(out, func(a, b domain.Sprint) int { return int(b.StartOn - a.StartOn) })
 	return out, nil
+}
+
+func (s *sprintStore) Mine(_ context.Context, account shared.ID, limit int) ([]planrepo.MySprint, error) {
+	s.mineMax = limit
+	return s.mine[account], nil
 }
 
 func (s *sprintStore) Delete(_ context.Context, id shared.ID) error {
@@ -603,5 +611,43 @@ func TestASprintSaysWhichOfItsEntriesAreStarted(t *testing.T) {
 		if e.EntryID == build && e.Started {
 			t.Error("without the workspace's workflows a status only another workflow names counted as begun")
 		}
+	}
+}
+
+// UC-WRK-34 check 8: *Today*'s Sprint band lists the running sprints holding the reader's entries,
+// and only where the reader may read the entry the sprint is judged on.
+func TestTheRunningSprintsIAmInAreThoseICanRead(t *testing.T) {
+	f, store := sprintFixture()
+	ctx := context.Background()
+	running := domain.Sprint{ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000000201"), CollectionID: collection,
+		Name: "Sprint 7", State: domain.SprintActive, StartOn: 1, EndOn: 12, CommittedCount: 5, CompletedCount: 2}
+	unseen := domain.Sprint{ID: shared.MustParseID("01936f2a-7c1e-7000-8000-000000000202"), CollectionID: collection,
+		Name: "Theirs", State: domain.SprintActive, StartOn: 1, EndOn: 14}
+	store.mine = map[shared.ID][]planrepo.MySprint{accountID: {
+		{Sprint: running, HubID: hubID, EntryID: design, Entries: 2},
+		{Sprint: unseen, HubID: hubID, EntryID: secret, Entries: 1},
+	}}
+	out, err := ListMyRunningSprints{Planner: f.planner}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := out["data"].([]usecase.Output)
+	if len(rows) != 1 {
+		t.Fatalf("rows = %+v, want the one sprint whose entry the reader may read", rows)
+	}
+	sprint, _ := rows[0]["sprint"].(usecase.Output)
+	if sprint["id"] != running.ID.String() || rows[0]["hub_id"] != hubID.String() || rows[0]["my_entries"] != 2 {
+		t.Errorf("row = %+v", rows[0])
+	}
+	if store.mineMax != maxMySprints {
+		t.Errorf("asked for %d, want the bound %d", store.mineMax, maxMySprints)
+	}
+	store.mine = nil
+	out, err = ListMyRunningSprints{Planner: f.planner}.Descriptor().Handler.Invoke(ctx, actor(), usecase.Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := out["data"].([]usecase.Output); rows == nil || len(rows) != 0 {
+		t.Errorf("no sprint answered %+v, want an empty list", out["data"])
 	}
 }

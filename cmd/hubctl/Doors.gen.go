@@ -2713,6 +2713,8 @@ var generatedCommands = []door{
 			{Name: "state", Kind: "string", Help: "Only sprints in this state", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "state", "version"}},
+	{Group: "sprint", Verb: "mine", OperationID: "listMyRunningSprints", Method: "GET", Path: "/sprints", Summary: "The running sprints I am in",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"hub_id", "my_entries"}},
 	{Group: "sprint", Verb: "remove", OperationID: "removeSprintEntries", Method: "POST", Path: "/sprints/{sprintId}/entries:remove", Summary: "Take entries out of a sprint",
 		PathParams: []doorParam{
 			{Name: "sprintId", Kind: "uuid", Help: "", Required: true},

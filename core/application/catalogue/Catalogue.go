@@ -242,6 +242,7 @@ func Descriptors() []usecase.Descriptor {
 		planningservice.CloseSprint{}.Descriptor(),
 		planningservice.ReadSprintBacklog{}.Descriptor(),
 		planningservice.ReadVelocity{}.Descriptor(),
+		planningservice.ListMyRunningSprints{}.Descriptor(),
 		planningservice.SetEntryEstimate{}.Descriptor(),
 		planningservice.ClearEntryEstimate{}.Descriptor(),
 		timeservice.LogTime{}.Descriptor(),

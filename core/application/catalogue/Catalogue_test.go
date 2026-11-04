@@ -419,8 +419,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // quota is. Locating a connector's
 // provider return is anonymous, as locating a sign-in's is. Resolving many names at once is
 // GetAccount's batch and, like it, open to every member. Clearing one's own undeliverable mark is
-// one's own, as renaming oneself is.
-const undeclaredPermissionsAtMost = 204
+// one's own, as renaming oneself is. The running sprints a person is in are judged per sprint on one
+// of their own entries in it (UC-WRK-34).
+const undeclaredPermissionsAtMost = 205
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

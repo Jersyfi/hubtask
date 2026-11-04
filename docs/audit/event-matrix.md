@@ -1057,6 +1057,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `sprint.deleted` | DeleteSprint | `sprint` | INFO | Every time |
 | `sprint.entries_added` | AddSprintEntries | `sprint` | INFO | Every time |
 | `sprint.entries_removed` | RemoveSprintEntries | `sprint` | INFO | Every time |
+| `sprint.read` | ListMyRunningSprints | `sprint` | INFO | When refused |
 | `sprint.read` | ListSprints | `sprint` | INFO | When refused |
 | `sprint.read` | ReadSprint | `sprint` | INFO | When refused |
 | `sprint.read` | ReadSprintBacklog | `sprint` | INFO | When refused |

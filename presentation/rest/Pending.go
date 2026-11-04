@@ -2377,6 +2377,9 @@ func (pending) ReadSprintBacklog(w http.ResponseWriter, r *http.Request, _ opena
 func (pending) ReadVelocity(w http.ResponseWriter, r *http.Request, _ openapi.SprintCollectionId) {
 	notAvailable(w, r)
 }
+func (pending) ListMyRunningSprints(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
 func (pending) ReadSprint(w http.ResponseWriter, r *http.Request, _ openapi.SprintId, _ openapi.ReadSprintParams) {
 	notAvailable(w, r)
 }

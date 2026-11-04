@@ -1330,6 +1330,33 @@
         }
       }
     },
+    "/sprints": {
+      "get": {
+        "tags": [
+          "planning"
+        ],
+        "operationId": "listMyRunningSprints",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "sprint mine",
+        "summary": "The running sprints I am in",
+        "description": "The running sprints anywhere in the workspace that hold an entry assigned to the caller, the soonest to end first, at most 20, each with its hub and how many of the caller's entries it holds. A sprint is listed only where the caller may read one of their entries in it.\n",
+        "responses": {
+          "200": {
+            "description": "The sprints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MySprintList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/sprints/{sprintId}": {
       "parameters": [
         {
@@ -42345,6 +42372,38 @@
           "runs_sprints": {
             "type": "boolean",
             "description": "Whether the collection runs sprints: a sprint was planned here, in any state and whatever the state filter, or the collection or its hub took a template that works in sprints (Scrum team). A client shows its sprints only where this holds.\n"
+          }
+        }
+      },
+      "MySprintList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "sprint",
+                "hub_id",
+                "my_entries"
+              ],
+              "properties": {
+                "sprint": {
+                  "$ref": "#/components/schemas/Sprint"
+                },
+                "hub_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "my_entries": {
+                  "type": "integer",
+                  "description": "How many of the caller's entries the sprint holds."
+                }
+              }
+            }
           }
         }
       },
