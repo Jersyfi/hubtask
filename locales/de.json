@@ -9091,6 +9091,7 @@
   "config.answer_group_unknown": "Keine für dich sichtbare Gruppe des Arbeitsbereichs hat diese Kennung.",
   "config.answer_not_an_option": "Antworte mit einer der Optionen der Frage.",
   "config.answer_too_long": "Eine Antwort ist eine Zeile mit höchstens 200 Zeichen.",
+  "config.answer_malformed": "Eine Antwort ist eine Zeile, ohne Steuerzeichen.",
   "config.answer_unknown": "Die Vorlage stellt keine Frage mit diesem Schlüssel.",
   "config.answer_not_text": "Eine Antwort ist ein Text.",
   "config.question_key_invalid": "Eine Frage der Vorlage braucht einen eigenen Schlüssel: Kleinbuchstaben, Ziffern und Unterstriche.",

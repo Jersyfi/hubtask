@@ -6,7 +6,6 @@ package config
 import (
 	"context"
 	"slices"
-	"strings"
 
 	configrepo "github.com/Jersyfi/hubtask/core/application/repository/config"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -216,7 +215,7 @@ func templatePageRefusals(pages domain.Section) []shared.FieldError {
 		if block == nil {
 			continue
 		}
-		if title := text(block["title"]); title == "" || len([]rune(title)) > 200 || strings.ContainsAny(title, "\r\n") {
+		if title := text(block["title"]); title == "" || len([]rune(title)) > 200 || !domain.OneLine(title) {
 			out = append(out, domain.Refusal("config.template_page_title_invalid", path+".title", nil))
 		}
 		for attribute := range block {

@@ -9091,6 +9091,7 @@
   "config.answer_group_unknown": "No group of the workspace you can see has this identifier.",
   "config.answer_not_an_option": "Answer with one of the question's options.",
   "config.answer_too_long": "An answer is one line of at most 200 characters.",
+  "config.answer_malformed": "An answer is one line, without control characters.",
   "config.answer_unknown": "The template asks no question by this key.",
   "config.answer_not_text": "An answer is a text.",
   "config.question_key_invalid": "A template's question needs a key of its own: lower-case letters, digits and underscores.",

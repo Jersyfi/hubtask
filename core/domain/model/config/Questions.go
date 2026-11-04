@@ -6,6 +6,7 @@ package config
 import (
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -69,6 +70,10 @@ func ValidQuestions(questions []Question) error {
 	return nil
 }
 
+// OneLine reports whether a label a template carries - its name, an answer, a page's or a sample's
+// title - is one line without a control character: what every list shows and the database stores.
+func OneLine(value string) bool { return !strings.ContainsFunc(value, unicode.IsControl) }
+
 // answer reads one answer to the question, or the code that refuses it.
 func (q Question) answer(raw string) (string, string) {
 	value := strings.TrimSpace(raw)
@@ -87,8 +92,11 @@ func (q Question) answer(raw string) (string, string) {
 			return "", "config.answer_not_an_option"
 		}
 	default:
-		if utf8.RuneCountInString(value) > MaxAnswerLength || strings.ContainsAny(value, "\r\n") {
+		if utf8.RuneCountInString(value) > MaxAnswerLength {
 			return "", "config.answer_too_long"
+		}
+		if !OneLine(value) {
+			return "", "config.answer_malformed"
 		}
 	}
 	return value, ""

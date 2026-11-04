@@ -250,7 +250,7 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 	if reservedKey(key) {
 		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/key", Code: "config.template_key_shipped"}})
 	}
-	if name == "" || len([]rune(name)) > 120 || strings.ContainsAny(name, "\n\r") {
+	if name == "" || len([]rune(name)) > 120 || !domain.OneLine(name) {
 		return nil, domain.ErrRefused([]shared.FieldError{{Path: "/name", Code: "config.name_invalid"}})
 	}
 	var out usecase.Output

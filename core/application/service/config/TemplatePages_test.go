@@ -150,4 +150,27 @@ func TestATemplatesPagesComeWithTheFirstTakeAlone(t *testing.T) {
 	if !codes["config.template_page_title_invalid"] || !codes["config.attribute_unknown"] {
 		t.Errorf("a page block of no page's shape was published: %v %v", err, refusalsIn(err))
 	}
+
+	// A title, a sample's and the template's own name are one line without a character the
+	// database cannot store: refused at publishing, not as the service being away at the apply.
+	_, err = PublishConfigTemplate{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{
+		"key": "zero", "name": "Zero", "document": map[string]any{},
+		"hub_document": map[string]any{
+			"template_pages": map[string]any{"guide": map[string]any{"title": "Guide\x00"}},
+			"samples":        map[string]any{"first": map[string]any{"title": "First\tsample"}},
+		},
+	})
+	codes = map[string]bool{}
+	for _, r := range refusalsIn(err) {
+		codes[r.Code] = true
+	}
+	if !codes["config.template_page_title_invalid"] || !codes["config.sample_title_invalid"] {
+		t.Errorf("a title with a control character was published: %v %v", err, refusalsIn(err))
+	}
+	_, err = PublishConfigTemplate{f.desk}.Descriptor().Handler.Invoke(t.Context(), person, usecase.Input{
+		"key": "named", "name": "Desk\x00", "document": map[string]any{},
+	})
+	if codes := refusalsIn(err); len(codes) != 1 || codes[0].Code != "config.name_invalid" {
+		t.Errorf("a template name with a zero byte was published: %v %v", err, codes)
+	}
 }

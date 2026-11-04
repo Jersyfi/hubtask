@@ -74,6 +74,9 @@ func TestAWrongAnswerIsRefusedByName(t *testing.T) {
 		"a group that is no identifier":        {map[string]string{"tone": "formal", "first_group": "Second line"}, "/answers/first_group", "config.answer_not_a_group"},
 		"a choice not offered":                 {map[string]string{"tone": "loud"}, "/answers/tone", "config.answer_not_an_option"},
 		"an empty text":                        {map[string]string{"tone": "formal", "greeting": "  "}, "/answers/greeting", "config.answer_required"},
+		"a text on two lines":                  {map[string]string{"tone": "formal", "greeting": "Hello\nthere"}, "/answers/greeting", "config.answer_malformed"},
+		"a text with a zero byte":              {map[string]string{"tone": "formal", "greeting": "Hello\x00"}, "/answers/greeting", "config.answer_malformed"},
+		"a text with a tab":                    {map[string]string{"tone": "formal", "greeting": "Hello\tthere"}, "/answers/greeting", "config.answer_malformed"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
-	"strings"
 
 	configrepo "github.com/Jersyfi/hubtask/core/application/repository/config"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -291,7 +290,7 @@ func sampleRefusals(samples domain.Section) []shared.FieldError {
 		if block == nil {
 			continue
 		}
-		if title := text(block["title"]); title == "" || len(title) > 500 || strings.ContainsAny(title, "\r\n") {
+		if title := text(block["title"]); title == "" || len(title) > 500 || !domain.OneLine(title) {
 			out = append(out, domain.Refusal("config.sample_title_invalid", path+".title", nil))
 		}
 		for attribute := range block {
