@@ -34168,7 +34168,7 @@ type ClientInterface interface {
 
 	// ReadSprintBacklog The backlog to plan a sprint from
 	//
-	// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+	// The collection's open entries the caller may see that no planned or running sprint holds, at its top level - a work package travels with its parent -, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
 	//
 	// Corresponds with GET /collections/{collectionId}/sprint-backlog (the `ReadSprintBacklog` operationId).
 	ReadSprintBacklog(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -48973,7 +48973,7 @@ func (c *Client) CreatePublicForm(ctx context.Context, collectionId PublicFormCo
 
 // ReadSprintBacklog The backlog to plan a sprint from
 //
-// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+// The collection's open entries the caller may see that no planned or running sprint holds, at its top level - a work package travels with its parent -, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
 //
 // Corresponds with GET /collections/{collectionId}/sprint-backlog (the `ReadSprintBacklog` operationId).
 func (c *Client) ReadSprintBacklog(ctx context.Context, collectionId SprintCollectionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -107543,7 +107543,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadSprintBacklogWithResponse The backlog to plan a sprint from
 	//
-	// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+	// The collection's open entries the caller may see that no planned or running sprint holds, at its top level - a work package travels with its parent -, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -161965,7 +161965,7 @@ func (c *ClientWithResponses) CreatePublicFormWithResponse(ctx context.Context, 
 
 // ReadSprintBacklogWithResponse The backlog to plan a sprint from
 //
-// The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
+// The collection's open entries the caller may see that no planned or running sprint holds, at its top level - a work package travels with its parent -, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //

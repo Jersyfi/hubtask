@@ -1058,8 +1058,8 @@ type BacklogEntry struct {
 }
 
 // ReadSprintBacklog reads a collection's backlog for planning a sprint: its open entries the
-// reader may see that no open sprint holds, in the collection's order, with their estimates
-// (PLN-06, PLN-07).
+// reader may see that no open sprint holds and no entry of the collection is the parent of, in the
+// collection's order, with their estimates (PLN-06, PLN-07).
 type ReadSprintBacklog struct{ Planner Planner }
 
 // Execute reads the backlog.
@@ -1083,10 +1083,15 @@ func (h ReadSprintBacklog) Execute(ctx context.Context, actor appshared.ActorCon
 	if err != nil {
 		return nil, err
 	}
+	// A work package travels with its parent: the backlog offers the top level of the collection.
+	inCollection := make(map[shared.ID]bool, len(entries))
+	for _, e := range entries {
+		inCollection[e.ID] = true
+	}
 	open := make([]planrepo.PlanEntry, 0, len(entries))
 	ids := make([]shared.ID, 0, len(entries))
 	for i, e := range entries {
-		if visible[i] && !e.Done {
+		if visible[i] && !e.Done && !inCollection[e.ParentID] {
 			open = append(open, e)
 			ids = append(ids, e.ID)
 		}
@@ -1127,7 +1132,7 @@ func (h ReadSprintBacklog) Execute(ctx context.Context, actor appshared.ActorCon
 func (h ReadSprintBacklog) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadSprintBacklogName, Permission: service.PermissionRead,
-		Summary: "Reads a collection's backlog for planning a sprint: its open entries the caller may see that no " +
+		Summary: "Reads a collection's backlog for planning a sprint: its open top-level entries the caller may see that no " +
 			"planned or running sprint holds, in the collection's order, at most 500, each with its estimate.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  itemsRead, ReadOnly: true,

@@ -1280,7 +1280,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "sprint backlog",
         "summary": "The backlog to plan a sprint from",
-        "description": "The collection's open entries the caller may see that no planned or running sprint holds, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.\n",
+        "description": "The collection's open entries the caller may see that no planned or running sprint holds, at its top level - a work package travels with its parent -, in the collection's order, at most 500, each with its estimate. Needs READ at the collection.\n",
         "responses": {
           "200": {
             "description": "The backlog",

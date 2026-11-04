@@ -350,3 +350,22 @@ type fixedClock struct{ at time.Time }
 func (c fixedClock) Now() time.Time { return c.at }
 
 func fixedAt(at time.Time) fixedClock { return fixedClock{at: at} }
+
+// UC-PLN-06: the backlog a sprint is planned from lists the collection's top-level entries; a
+// work package under one of them travels with its parent and is not offered on its own.
+func TestTheBacklogListsTopLevelEntries(t *testing.T) {
+	f, _ := sprintFixture()
+	child := shared.MustParseID("01936f2a-7c1e-7000-8000-000000000107")
+	f.plans.entries = append(f.plans.entries, planrepo.PlanEntry{ID: child, ParentID: build, CollectionID: collection, HubID: hubID, Title: "Build the header"})
+	backlog, err := ReadSprintBacklog{Planner: f.planner}.Execute(context.Background(), actor(), collection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []shared.ID
+	for _, b := range backlog {
+		ids = append(ids, b.ID)
+	}
+	if slices.Contains(ids, child) || !slices.Contains(ids, build) {
+		t.Errorf("backlog = %v, want the build without its work package", ids)
+	}
+}
