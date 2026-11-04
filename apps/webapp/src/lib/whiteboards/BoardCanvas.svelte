@@ -118,6 +118,8 @@
   let entryKind = $state<string>('');
   let isLinking = $state(false);
   let linkDraft = $state('');
+  // An address typed in the side panel the server would refuse is kept off the board and said so.
+  let isLinkEditRefused = $state(false);
   let linkAt = $state<Point | undefined>(undefined);
   let isGridOn = $state(false);
   // On a phone the map would cover a third of the board; it is there to be switched on.
@@ -131,6 +133,10 @@
   const shown = $derived(culled(elements, view, 200));
   const frames = $derived(elements.filter((e) => e.kind === 'FRAME'));
   const chosen = $derived(selected.length === 1 ? byId.get(selected[0] ?? '') : undefined);
+  $effect(() => {
+    void chosen?.id;
+    untrack(() => (isLinkEditRefused = false));
+  });
   const viewBox = $derived(`${view.x} ${view.y} ${view.width / view.zoom} ${view.height / view.zoom}`);
 
   // A board opens showing all it holds, never larger than its own size, once the stage has been
@@ -1530,7 +1536,7 @@
                     <Textarea label={t('app.whiteboards.frame_title')} rows={1} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
                   {/if}
                   {#if chosen.kind === 'LINK'}
-                    <Input size="sm" label={t('app.whiteboards.link_address')} value={chosen.url ?? ''} onchange={(event: Event) => { const url = (event.currentTarget as HTMLInputElement).value.trim(); if (url) model.update(chosen.id, { url }); }} />
+                    <Input size="sm" label={t('app.whiteboards.link_address')} value={chosen.url ?? ''} error={isLinkEditRefused ? t('whiteboards.link_url_invalid') : undefined} onchange={(event: Event) => { const url = linkAddress((event.currentTarget as HTMLInputElement).value); isLinkEditRefused = !url; if (url) model.update(chosen.id, { url }); }} />
                   {/if}
                   {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || (chosen.kind === 'FRAME' && notesToTurn.length > 0)}
                     <Button size="sm" tone="secondary" icon="square-check" onclick={() => { isMakingEntry = !isMakingEntry; entryCollection = collections[0]?.id ?? ''; entryKind = ''; }}>
