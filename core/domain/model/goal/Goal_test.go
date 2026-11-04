@@ -231,6 +231,8 @@ func TestADashboardsWidgetsFitTheGrid(t *testing.T) {
 		{"a query without one", widget(Widget{Chart: ChartBar, Source: WidgetQuery}), "dashboards.query_required"},
 		{"progress of a query", widget(Widget{Chart: ChartProgress, Source: WidgetQuery, Query: map[string]any{"a": 1}}), "dashboards.chart_invalid"},
 		{"past the grid", widget(Widget{Chart: ChartBar, Source: WidgetView, ViewID: entry, X: 8, W: 6}), "dashboards.widget_outside_grid"},
+		{"a column whose width wraps around", widget(Widget{Chart: ChartBar, Source: WidgetView, ViewID: entry, X: math.MaxInt - 2, W: 6}), "dashboards.widget_outside_grid"},
+		{"a width wider than the grid", widget(Widget{Chart: ChartBar, Source: WidgetView, ViewID: entry, X: 0, W: math.MaxInt}), "dashboards.widget_outside_grid"},
 		{"an unknown sharing", Dashboard{Name: "x", Sharing: "GROUP"}, "dashboards.sharing_invalid"},
 		{"groups without one", Dashboard{Name: "x", Sharing: SharingGroups}, "dashboards.groups_required"},
 		{"a group", Dashboard{Name: "x", Sharing: SharingGroups, GroupIDs: []shared.ID{goalA}}, ""},

@@ -214,7 +214,8 @@ func checkWidget(w Widget, at string, normalizer text.Normalizer) (Widget, error
 	if w.H <= 0 {
 		w.H = 2
 	}
-	if w.X < 0 || w.Y < 0 || w.X+w.W > DashboardColumns || w.H > MaxWidgetRows {
+	// Each bound on its own first, so that a sum of two huge numbers cannot wrap into the grid.
+	if w.X < 0 || w.Y < 0 || w.X >= DashboardColumns || w.W > DashboardColumns || w.X+w.W > DashboardColumns || w.H > MaxWidgetRows {
 		return Widget{}, invalid(at+"/w", "dashboards.widget_outside_grid")
 	}
 	return w, nil
