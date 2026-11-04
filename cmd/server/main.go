@@ -349,7 +349,7 @@ func run() error {
 
 	// The change stream's process-local bookkeeping. Built before the chain, because the
 	// shutdown path needs it as much as the handler does: a stream has no natural end, so nothing
-	// but CloseAll tells it there is one.
+	// but CloseInWaves tells it there is one.
 	streams := stream.NewRegistry(stream.Limits{
 		PerCredential: cfg.LoadShed.StreamsPerCredential,
 		PerTenant:     cfg.LoadShed.StreamsPerTenant,
@@ -5558,14 +5558,14 @@ func run() error {
 	slog.Info("shutdown: deregistered, still serving while the load balancer lets go",
 		slog.Int("seconds", cfg.ShutdownDeregisterSeconds))
 
-	// The streams are asked to end at the same moment, and before the deregistration wait rather
-	// than after it. A stream has no natural end, so Shutdown would otherwise sit out the whole
-	// grace period on connections that are working exactly as designed - and the clients get the
-	// length of that wait to notice, reconnect elsewhere and resume from their cursors
-	// (observability-reliability.md §9).
-	streams.CloseAll()
-
-	time.Sleep(time.Duration(cfg.ShutdownDeregisterSeconds) * time.Second)
+	// The streams are asked to end during the deregistration wait rather than after it, in waves
+	// spread over it. A stream has no natural end, so Shutdown would otherwise sit out the whole
+	// grace period on connections that are working exactly as designed; in waves, so the clients
+	// reconnect elsewhere and resume from their cursors without all arriving at once (deployment.md §5).
+	deregister := time.Duration(cfg.ShutdownDeregisterSeconds) * time.Second
+	deregistered := time.Now().Add(deregister)
+	streams.CloseInWaves(deregister)
+	time.Sleep(time.Until(deregistered))
 
 	grace := time.Duration(cfg.ShutdownGraceSeconds) * time.Second
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), grace)

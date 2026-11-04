@@ -5,8 +5,10 @@ package stream
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
@@ -290,5 +292,81 @@ func TestACapacityRefusalWarns(t *testing.T) {
 	warnings := r.Warnings(context.Background())
 	if len(warnings) != 1 || warnings[0].Code != "stream.capacity_reached" || warnings[0].Params["per_tenant"] != "2" {
 		t.Errorf("the warning %+v", warnings)
+	}
+}
+
+// A pod's streams end in waves over the window rather than all at once, so its clients do not
+// reconnect to the remaining pods in the same second (deployment.md §5): every stream is asked
+// exactly once, no wave holds more than a tenth plus one, the waves come in order and the last
+// lands inside the window.
+func TestTheDrainClosesInWavesOverTheWindow(t *testing.T) {
+	r := registry(Limits{PerCredential: 100, PerTenant: 100, PerProcess: 100})
+	var slots []Slot
+	for i := range 95 {
+		slots = append(slots, admit(t, r, "client-"+strconv.Itoa(i), "workspace"))
+	}
+	closed := func() int {
+		n := 0
+		for _, s := range slots {
+			select {
+			case <-s.Closing:
+				n++
+			default:
+			}
+		}
+		return n
+	}
+
+	const window = 10 * time.Second
+	var now time.Duration
+	var waves []int
+	before := 0
+	// The jitter takes the largest value it may, the worst case for the window's end.
+	r.closeInWaves(window, func(step time.Duration) time.Duration { return step - 1 }, func(d time.Duration) {
+		if d <= 0 {
+			t.Fatalf("slept %v", d)
+		}
+		if c := closed(); c > before {
+			waves = append(waves, c-before)
+			before = c
+		}
+		now += d
+	})
+	waves = append(waves, closed()-before)
+
+	if closed() != len(slots) {
+		t.Fatalf("%d of %d streams asked to close", closed(), len(slots))
+	}
+	if len(waves) != drainWaves {
+		t.Errorf("%d waves %v, want %d", len(waves), waves, drainWaves)
+	}
+	for _, w := range waves {
+		if w > len(slots)/drainWaves+1 {
+			t.Errorf("a wave closed %d streams at once, waves %v", w, waves)
+		}
+	}
+	if now >= window {
+		t.Errorf("the last wave fell at %v, past the %v window", now, window)
+	}
+	if now < window-window/drainWaves {
+		t.Errorf("the last wave fell at %v, the waves are not spread over the %v window", now, window)
+	}
+	if _, refusal := r.Admit("late", "workspace"); refusal != RefusedDraining {
+		t.Errorf("a stream opened during the drain, refused with %q", refusal)
+	}
+}
+
+// Without a window (nothing routes the traffic) or with one stream there is nothing to spread.
+func TestTheDrainWithoutAWindowIsOneWave(t *testing.T) {
+	held := []*openStream{{}, {}, {}}
+	never := func(time.Duration) time.Duration { t.Fatal("jitter drawn"); return 0 }
+	if got := drainSchedule(held, 0, never); len(got) != 1 || len(got[0].streams) != 3 || got[0].at != 0 {
+		t.Errorf("no window: %+v", got)
+	}
+	if got := drainSchedule(held[:1], time.Minute, never); len(got) != 1 || got[0].at != 0 {
+		t.Errorf("one stream: %+v", got)
+	}
+	if got := drainSchedule(nil, time.Minute, never); got != nil {
+		t.Errorf("nothing open: %+v", got)
 	}
 }

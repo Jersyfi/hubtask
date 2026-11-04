@@ -13,6 +13,7 @@ package stream
 
 import (
 	"context"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"sync"
@@ -56,8 +57,8 @@ const capacityWarningWindow = 10 * time.Minute
 type Registry struct {
 	limits Limits
 
-	// mu guards everything below. Admit and the release run on request goroutines, CloseAll on
-	// the shutdown path.
+	// mu guards everything below. Admit and the release run on request goroutines, CloseInWaves
+	// on the shutdown path.
 	mu            sync.Mutex
 	perCredential map[string]int
 	perTenant     map[string]int
@@ -261,26 +262,80 @@ func (r *Registry) Open() int {
 	return len(r.open)
 }
 
-// CloseAll asks every open stream to end, and refuses new ones from now on.
+// CloseAll asks every open stream to end at once, and refuses new ones from now on. It is
+// CloseInWaves with no window.
+func (r *Registry) CloseAll() { r.CloseInWaves(0) }
+
+// drainWaves is how many waves CloseInWaves splits the open streams into.
+const drainWaves = 10
+
+// CloseInWaves refuses new streams from now on and asks the open ones to end in waves spread over
+// window, each wave at a random moment within its share of it. It returns after the last wave.
 //
 // Called on `SIGTERM`, before the HTTP server is asked to shut down. Without it `Shutdown` would
 // wait out the whole grace period on connections that are working exactly as designed - a stream
-// has no natural end, so nothing but this tells it there is one (observability-reliability.md §9).
+// has no natural end, so nothing but this tells it there is one (deployment.md §5). In waves, not
+// at once: every client of a pod reconnecting to the remaining pods in the same second is the
+// thundering herd a rolling update would otherwise cause on each pod it replaces.
 //
-// It does not wait. The handlers return on their own and the server's own drain is what waits for
-// them, which is the one place that already knows how long it may.
-func (r *Registry) CloseAll() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// It does not wait for the handlers. They return on their own and the server's own drain is what
+// waits for them, which is the one place that already knows how long it may.
+func (r *Registry) CloseInWaves(window time.Duration) {
+	r.closeInWaves(window, func(n time.Duration) time.Duration { return rand.N(n) }, time.Sleep)
+}
 
+func (r *Registry) closeInWaves(window time.Duration, jitter func(time.Duration) time.Duration, sleep func(time.Duration)) {
+	r.mu.Lock()
 	r.draining = true
-	for _, held := range r.open {
-		held.close()
+	held := make([]*openStream, 0, len(r.open))
+	for _, s := range r.open {
+		held = append(held, s)
 	}
-	// The map is not emptied here, and that is the point: a stream stays counted until its handler
-	// has actually returned and released its slot. A gauge that dropped to zero the moment the
-	// signal arrived would say the drain was over while the connections were still finishing,
-	// which is precisely the number an operator watches during a rollout.
+	r.mu.Unlock()
+	// The map is not emptied, and that is the point: a stream stays counted until its handler has
+	// actually returned and released its slot. A gauge that dropped to zero on the signal would say
+	// the drain was over while the connections were still finishing, which is precisely the number
+	// an operator watches during a rollout.
+
+	elapsed := time.Duration(0)
+	for _, wave := range drainSchedule(held, window, jitter) {
+		if wave.at > elapsed {
+			sleep(wave.at - elapsed)
+			elapsed = wave.at
+		}
+		for _, s := range wave.streams {
+			s.close()
+		}
+	}
+}
+
+type drainWave struct {
+	at      time.Duration
+	streams []*openStream
+}
+
+// drainSchedule cuts the streams into at most drainWaves waves of near-equal size. Wave i falls at
+// i·step plus a jitter below step, where step is window/waves, so every wave lands inside the
+// window and in order. No window, or one stream, is a single wave now.
+func drainSchedule(held []*openStream, window time.Duration, jitter func(time.Duration) time.Duration) []drainWave {
+	if len(held) == 0 {
+		return nil
+	}
+	waves := min(drainWaves, len(held))
+	if window <= 0 || waves == 1 {
+		return []drainWave{{streams: held}}
+	}
+	step := window / time.Duration(waves)
+	out := make([]drainWave, 0, waves)
+	for i := range waves {
+		from, to := i*len(held)/waves, (i+1)*len(held)/waves
+		at := time.Duration(i) * step
+		if step > 0 {
+			at += jitter(step)
+		}
+		out = append(out, drainWave{at: at, streams: held[from:to]})
+	}
+	return out
 }
 
 // Recheck rings the streams of the workspace's account, or every stream of the workspace when the
