@@ -263,6 +263,7 @@ func TestAssigningAsksWhetherTheAccountCanSeeTheEntry(t *testing.T) {
 // rather than stored, and refused the same way whether the account has no membership, belongs to
 // another tenant, or does not exist at all - anything else is an oracle for which identifiers exist
 // (T-04).
+// UC-WRK-10 check 3: the refusal's sentence says to give them access first.
 func TestAssigningAnAccountWithoutAccessIsRefused(t *testing.T) {
 	h := newAssignmentHarness(t)
 	h.withItem(domain.ItemTask)
@@ -309,6 +310,7 @@ func TestAnUnknownAndACrossTenantAccountAreRefusedAlike(t *testing.T) {
 
 // Handing an entry on is one call: one version, one event, one step of the history. Two calls would
 // leave a moment in which the work belongs to nobody.
+// UC-WRK-10 check 4: one item.assigned step with both sides.
 func TestHandingAnEntryOnIsOneStep(t *testing.T) {
 	h := newAssignmentHarness(t)
 	h.withItem(domain.ItemTask)
@@ -402,6 +404,10 @@ func TestUnassigningClearsTheRowAndAnnouncesWhoItWas(t *testing.T) {
 	change := h.changes.recorded[1]
 	if value, named := change.Payload[domain.FieldAssigneeID]; !named || value != "" {
 		t.Errorf("the change does not clear the field: %+v", change.Payload)
+	}
+	// UC-WRK-10 check 4: clearing writes its own step.
+	if len(h.history.entries) != 2 || h.history.entries[1].Verb != activity.ItemUnassigned {
+		t.Errorf("the history is %+v, want item.unassigned after item.assigned", h.history.entries)
 	}
 }
 

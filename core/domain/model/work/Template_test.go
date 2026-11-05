@@ -186,6 +186,7 @@ func TestATemplateIsStoredInNormalFormC(t *testing.T) {
 	}
 }
 
+// UC-WRK-16 check 2: a tree of more than 500 steps is refused.
 func TestATemplateStaysInsideItsNodeCap(t *testing.T) {
 	spec := moveTemplate(t)
 	for i := 0; i < work.MaxTemplateNodes; i++ {

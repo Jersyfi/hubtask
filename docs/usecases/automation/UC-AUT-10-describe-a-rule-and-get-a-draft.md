@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6]
 serves: [P-11, P-14]
 state: built
 tasks: [UX-23]
-checked_by: [core/application/service/suggestion/RuleDraft_test.go, core/application/service/suggestion/DescribeRule_test.go, core/application/service/suggestion/RuleAcceptance_test.go, test/integration/ai_rule_draft_test.go, test/architecture/conditionsentences_test.go, apps/webapp/e2e/ruledraft.test.mjs]
+checked_by: [core/application/service/suggestion/RuleDraft_test.go, core/application/service/suggestion/DescribeRule_test.go, core/application/service/suggestion/RuleAcceptance_test.go, test/integration/ai_rule_draft_test.go, test/architecture/conditionsentences_test.go, apps/webapp/e2e/ruledraft.test.mjs, apps/webapp/src/lib/automation/model.test.ts]
 ---
 
 # Describe a rule and get a draft

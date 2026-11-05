@@ -416,6 +416,7 @@ func TestTheDueDateChannelsReachTheSameCommand(t *testing.T) {
 		t.Errorf("the output carries %v, want %v", out["due_at"], berlinFriday)
 	}
 
+	// UC-WRK-13 check 8: a malformed date through the API.
 	t.Run("an unparseable instant is refused by name", func(t *testing.T) {
 		_, err := h.set.Descriptor().Handler.Invoke(context.Background(), actor(), usecase.Input{
 			"item_id": dueItem.String(), "due_at": "tomorrow",

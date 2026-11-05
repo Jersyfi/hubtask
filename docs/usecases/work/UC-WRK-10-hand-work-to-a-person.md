@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [C-01, F3-07, F10-13]
-checked_by: [test/integration/assignment_test.go, core/application/service/work/AssignWorkItem_test.go, core/application/service/work/AddMember_test.go, core/application/service/work/CreateWorkItemAssignment_test.go, apps/webapp/e2e/entry.test.mjs]
+checked_by: [test/integration/assignment_test.go, core/application/service/work/AssignWorkItem_test.go, core/application/service/work/AddMember_test.go, core/application/service/work/CreateWorkItemAssignment_test.go, apps/webapp/e2e/entry.test.mjs, core/application/service/work/CreateWorkItemOwnership_test.go]
 ---
 
 # Hand work to a person

@@ -173,6 +173,7 @@ test('chromium: 1280 px — a point dragged moves the one date it has, and inven
   assert.deepEqual(unstubbed(), []);
 });
 
+// UC-WRK-13 check 7: a bar moves both dates, an end one.
 test('chromium: 1280 px — a bar moves both dates and an end moves one', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -266,6 +267,7 @@ test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends
   }
 });
 
+// UC-WRK-13 check 7: an undated entry dragged out of the tray gets its first dates.
 test('chromium: 1280 px — a tray entry carried across the axis is given its first dates', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

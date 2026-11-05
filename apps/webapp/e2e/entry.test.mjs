@@ -308,6 +308,7 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   assert.deepEqual(unstubbed(), []);
 });
 
+// UC-WRK-10 check 1: Responsible and Also on it, two questions; an activity has the first alone.
 test('chromium: 1280 px — assignment is two named questions, and the policy is offered only where there is one', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
