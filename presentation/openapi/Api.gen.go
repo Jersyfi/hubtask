@@ -15023,7 +15023,10 @@ type ConfigReach struct {
 	// Intake A type's form that now always requires a value, without a default, which a door nobody fills the form at does not send: per such door - a rule's action, an import's row, a mail - the fields it lacks. Every creation of the type through it is refused until the door sends them or the form presets them for it; a mail goes to the jumble instead. A field required only under a condition is not judged.
 	Intake *[]struct {
 		Channel ConfigReachIntakeChannel `json:"channel"`
-		Fields  []string                 `json:"fields"`
+
+		// Doors How many standing doors of the channel create the type now: for RULE the switched-on rules of the document the plan sets whose step names the type (a step whose type a run fills in is not counted), for MAIL the switched-on mailboxes where the type is the task level's own - mail creates no other type. Absent for IMPORT, which has no standing door, and where the reader may not list the mailboxes.
+		Doors  *int     `json:"doors,omitempty"`
+		Fields []string `json:"fields"`
 	} `json:"intake,omitempty"`
 	Lost *[]string `json:"lost,omitempty"`
 

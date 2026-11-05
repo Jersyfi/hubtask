@@ -31545,6 +31545,15 @@ components:
               fields:
                 type: array
                 items: { type: string }
+              doors:
+                type: integer
+                description: >
+                  How many standing doors of the channel create the type now: for RULE the
+                  switched-on rules of the document the plan sets whose step names the type (a
+                  step whose type a run fills in is not counted), for MAIL the switched-on
+                  mailboxes where the type is the task level's own - mail creates no other type.
+                  Absent for IMPORT, which has no standing door, and where the reader may not
+                  list the mailboxes.
         withheld:
           type: boolean
           description: >
