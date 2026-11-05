@@ -867,7 +867,11 @@ func TestAnEditWithAStaleVersionIsAConflict(t *testing.T) {
 	_, err = UpdateRule{Writer: h.writer}.Execute(context.Background(), writerActor(),
 		UpdateRuleCommand{ID: rule.ID, Name: &renamed, ExpectedVersion: 99})
 	if !errors.Is(err, shared.ErrConflict) {
-		t.Errorf("error %v, want ErrConflict", err)
+		t.Fatalf("error %v, want ErrConflict", err)
+	}
+	// UC-AUT-01 check 7.
+	if code := detailOf(t, err); code != "automation.version_conflict" {
+		t.Errorf("the refusal is %q, want automation.version_conflict", code)
 	}
 }
 
@@ -1086,6 +1090,10 @@ func TestAConditionNamingAnUndeclaredVariableIsRefused(t *testing.T) {
 	_, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), cmd)
 	if code := fieldCodes(t, err)["/conditions/0/expr"]; code != "expression.unknown_name" {
 		t.Errorf("the refusal says %q, want expression.unknown_name", code)
+	}
+	// UC-AUT-01 check 5: the refusal as a whole is the condition's, pointing at it.
+	if code := detailOf(t, err); code != "automation.condition_invalid" {
+		t.Errorf("the refusal is %q, want automation.condition_invalid", code)
 	}
 }
 

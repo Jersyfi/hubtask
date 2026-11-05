@@ -190,6 +190,10 @@ func TestAStaleVersionCannotOverwriteARule(t *testing.T) {
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("error %v, want ErrConflict", err)
 	}
+	// UC-AUT-01 check 7: the code the server sends for it.
+	if code := shared.AsError(err).DetailCode; code != "automation.version_conflict" {
+		t.Errorf("the refusal is %q, want automation.version_conflict", code)
+	}
 }
 
 // A guarded update matches nothing when the version moved *or* when the row is gone, and the two
