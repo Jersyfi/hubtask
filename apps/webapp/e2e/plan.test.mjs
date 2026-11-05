@@ -279,6 +279,15 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
   // The name is the title and the word, however the engine joins a hidden span.
   await page.getByRole('button', { name: new RegExp(`^${FIRST.title}\\s*,\\s*critical$`) }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('button', { name: new RegExp(`^${THIRD.title}\\s*,\\s*critical$`) }).count(), 0);
+  // The titles take the room the chart leaves: where the chart is narrower than the screen, the
+  // title column opens wider than its narrow default, and the chart still does not scroll.
+  await page.getByRole('button', { name: 'Fit' }).click();
+  await page.waitForTimeout(200);
+  const room = await page.locator('.timeline').evaluate((node) => {
+    const scroller = node.querySelector('.scroller');
+    return { step: Number(node.dataset.title), scrolls: scroller.scrollWidth > scroller.clientWidth + 1 };
+  });
+  assert.ok(room.step >= 2 && !room.scrolls, `the title column stays narrow beside an empty chart: ${JSON.stringify(room)}`);
   await page.getByRole('button', { name: 'Give Write the brief dates' }).click();
   await page.waitForURL(`**/items/${UNDATED}`, { timeout: 5_000 });
   await page.goBack();

@@ -48,7 +48,7 @@
   // drawn by dragging from the knob after a bar's end onto the waiting row; the keyboard path to
   // the same link is the caller's table, as the row is for the dates.
 
-  import { tick, type Snippet } from 'svelte';
+  import { tick, untrack, type Snippet } from 'svelte';
 
   import { HOLD_MS, columnAt, hasLeftTheHandle } from './reorder.ts';
   import VisuallyHidden from './VisuallyHidden.svelte';
@@ -195,6 +195,8 @@
   /** The steps the title column takes, as `data-title` values the stylesheet maps to tokens. */
   const TITLE_STEPS = 4;
   let titleStep = $state(1);
+  /** Whether the reader set the title column's width; until then it takes the room the chart leaves. */
+  let isTitleSet = false;
   let section = $state<HTMLElement | null>(null);
   /** The row under the pointer or the focus: its dependencies are drawn and said more strongly. */
   let lit = $state<string | undefined>(undefined);
@@ -447,8 +449,32 @@
     undefined;
 
   function stepBy(delta: number) {
+    isTitleSet = true;
     titleStep = Math.min(TITLE_STEPS - 1, Math.max(0, titleStep + delta));
   }
+
+  /*
+   * The titles take the room the chart leaves: the widest step at which the chart still does not
+   * scroll, never narrower than the default, until the reader sets the column. Measured by drawing
+   * each step, as the grip does, because only the layout knows the steps' pixels.
+   */
+  $effect(() => {
+    void [placed.length, undated.length, from, to, scale];
+    const root = section;
+    if (!root || isTitleSet) return;
+    const scroller = root.querySelector<HTMLElement>('.scroller');
+    if (!scroller) return;
+    let fitting = 1;
+    for (let step = TITLE_STEPS - 1; step > 1; step -= 1) {
+      root.dataset.title = String(step);
+      if (scroller.scrollWidth <= scroller.clientWidth) {
+        fitting = step;
+        break;
+      }
+    }
+    root.dataset.title = String(untrack(() => titleStep));
+    titleStep = fitting;
+  });
 
   function onResizeKey(event: KeyboardEvent) {
     const isRtl = section !== null && getComputedStyle(section).direction === 'rtl';
@@ -456,8 +482,8 @@
     const narrower = isRtl ? 'ArrowRight' : 'ArrowLeft';
     if (event.key === wider || event.key === 'ArrowUp') stepBy(1);
     else if (event.key === narrower || event.key === 'ArrowDown') stepBy(-1);
-    else if (event.key === 'Home') titleStep = 0;
-    else if (event.key === 'End') titleStep = TITLE_STEPS - 1;
+    else if (event.key === 'Home') { isTitleSet = true; titleStep = 0; }
+    else if (event.key === 'End') { isTitleSet = true; titleStep = TITLE_STEPS - 1; }
     else return;
     event.preventDefault();
   }
@@ -486,6 +512,7 @@
       for (let step = 1; step < TITLE_STEPS; step += 1) {
         if (Math.abs((edges[step] ?? 0) - move.clientX) < Math.abs((edges[nearest] ?? 0) - move.clientX)) nearest = step;
       }
+      isTitleSet = true;
       titleStep = nearest;
     };
     const finish = () => {
