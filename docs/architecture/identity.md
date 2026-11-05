@@ -282,8 +282,8 @@ factor and back whatever second factor the account holds.
 * Somebody with neither the app, a code, a password nor a provider is not let through
   (`NG-weaker-recovery`, §17.4).
 * **A lost app with lost codes is reset by an administrator** (`POST
-  /accounts/{accountId}:reset-second-factor`, *Reset second factor* in People; the owner's fifth
-  answers 6): `MANAGE_MEMBERS`, the administrator's own step-up, the role ceiling of §13 - so an
+  /accounts/{accountId}:reset-second-factor`, *Reset second factor* in People on the rows whose
+  person holds an app, `POST /accounts:sign-in-details`; the owner's fifth answers 6): `MANAGE_MEMBERS`, the administrator's own step-up, the role ceiling of §13 - so an
   owner's factor is reset only by another owner - never one's own (`accounts.factor_reset_own`)
   and never by a rule's run. The app's enrolment and every code go (also codes a passkey would
   back: they are what was lost), every session and unfinished sign-in of the account ends, the

@@ -88,6 +88,7 @@ var privateHubExemptions = map[string]string{
 	"GetAccount":                   noHub,
 	"ResolveAccounts":              noHub,
 	"ReadInvitationDeliveries":     noHub,
+	"ReadSignInDetails":            noHub,
 	"GetGroup":                     noHub,
 	"GetOwnAccount":                noHub,
 	"ReadOwnSettings":              noHub + " - a person's own settings and the workspace's defaults",
