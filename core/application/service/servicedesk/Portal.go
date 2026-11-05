@@ -79,8 +79,12 @@ type Portal struct {
 	// follows no merge.
 	Links MergeLinks
 	// Permits asks, without recording a refusal, whether the reader may raise requests where the
-	// surviving request lies; nil reads it only in the merged request's own collection.
+	// surviving request lies, and whether the desk's team reads its own catalogue; nil reads a
+	// merged request only in its own collection and the catalogue only with REQUEST.
 	Permits Permitter
+	// Forms answers whether a collection has a public form, for the catalogue of whoever manages
+	// its members; nil says nothing about it.
+	Forms repository.PublicForms
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
@@ -283,11 +287,15 @@ type RequestCatalogueView struct {
 	// Logo is the desk's own logo, zero for none (check 9).
 	Logo    shared.ID
 	Entries []domain.CatalogueEntry
+	// MayRaise is whether the reader holds REQUEST there; false for the desk's team.
+	MayRaise bool
+	// HasPublicForm is nil unless the reader manages the collection's members.
+	HasPublicForm *bool
 }
 
 // Execute answers the catalogue, named and described in the reader's language (check 7).
 func (h ListRequestCatalogue) Execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID) (RequestCatalogueView, error) {
-	collection, err := h.Portal.collectionOf(ctx, actor, collectionID, CatalogueReadAction)
+	collection, mayRaise, err := h.Portal.catalogueReader(ctx, actor, collectionID)
 	if err != nil {
 		return RequestCatalogueView{}, err
 	}
@@ -295,14 +303,79 @@ func (h ListRequestCatalogue) Execute(ctx context.Context, actor appshared.Actor
 	if err != nil {
 		return RequestCatalogueView{}, err
 	}
-	view := RequestCatalogueView{Desk: collection, Entries: entries}
+	view := RequestCatalogueView{Desk: collection, Entries: entries, MayRaise: mayRaise}
 	if h.Portal.Logos != nil {
 		err = h.Portal.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 			view.Logo, err = h.Portal.Logos.Find(ctx, collectionID)
 			return err
 		})
+		if err != nil {
+			return RequestCatalogueView{}, err
+		}
 	}
+	view.HasPublicForm, err = h.Portal.publicFormOf(ctx, actor, collection)
 	return view, err
+}
+
+// catalogueReader admits the reader of a catalogue: a requester by REQUEST, or the desk's team by
+// READ, which may raise nothing there. Asked without recording first, so the team's read leaves
+// no refusal; whoever holds neither is refused and recorded as asking for REQUEST.
+func (p Portal) catalogueReader(
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID,
+) (workdomain.Container, bool, error) {
+	if p.Permits == nil || collectionID.IsZero() {
+		collection, err := p.collectionOf(ctx, actor, collectionID, CatalogueReadAction)
+		return collection, err == nil, err
+	}
+	var collection workdomain.Container
+	err := p.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := p.Containers.Find(ctx, collectionID)
+		collection = found
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) || (err == nil && collection.Type != workdomain.ContainerCollection) {
+		return workdomain.Container{}, false, appshared.ContainerNotFound(collectionID)
+	}
+	if err != nil {
+		return workdomain.Container{}, false, err
+	}
+	for _, permission := range []service.Permission{service.PermissionRequest, service.PermissionRead} {
+		held, err := p.Permits.Permits(ctx, actor, p.catalogueRequest(collection, permission))
+		if err != nil {
+			return workdomain.Container{}, false, err
+		}
+		if held {
+			return collection, permission == service.PermissionRequest, nil
+		}
+	}
+	return workdomain.Container{}, false, p.Desk.Authorizer.Authorize(ctx, actor, p.catalogueRequest(collection, service.PermissionRequest))
+}
+
+func (p Portal) catalogueRequest(collection workdomain.Container, permission service.Permission) access.Request {
+	return access.Request{
+		Permission: permission, Path: service.ContainerScopes(collection),
+		Action: CatalogueReadAction, TokenScope: deskRead, TargetType: requestTarget, TargetID: collection.ID,
+	}
+}
+
+// publicFormOf says whether the collection has a public form, to whoever manages its members only.
+func (p Portal) publicFormOf(ctx context.Context, actor appshared.ActorContext, collection workdomain.Container) (*bool, error) {
+	if p.Forms == nil || p.Permits == nil {
+		return nil, nil
+	}
+	manages, err := p.Permits.Permits(ctx, actor, p.catalogueRequest(collection, service.PermissionManageMembers))
+	if err != nil || !manages {
+		return nil, err
+	}
+	var found bool
+	err = p.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		_, found, err = p.Forms.Find(ctx, collection.ID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &found, nil
 }
 
 // CatalogueEntryOutput is one kind of request as the contract names it (schema RequestCatalogue),
@@ -352,7 +425,11 @@ func (h ListRequestCatalogue) Descriptor() usecase.Descriptor {
 				"icon": catalogue.Desk.Icon, "color_token": catalogue.Desk.ColorToken,
 				"logo_media_id": idText(catalogue.Logo),
 			}
-			return usecase.Output{"desk": desk, "data": data}, nil
+			out := usecase.Output{"desk": desk, "data": data, "may_raise": catalogue.MayRaise}
+			if catalogue.HasPublicForm != nil {
+				out["has_public_form"] = *catalogue.HasPublicForm
+			}
+			return out, nil
 		}),
 	}, requestTarget)
 }

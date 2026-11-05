@@ -913,7 +913,8 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   `BillableValueMinor` is a record's minutes at it - nothing where the record is not billable.
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
-  leaves it open (opt-in per type); a request is an entry raised through `CreateWorkItem` on the
+  leaves it open (opt-in per type), which the desk's team reads by `READ` and is told `may_raise`
+  false; a request is an entry raised through `CreateWorkItem` on the
   `PORTAL` door, which asks `REQUEST` there instead of `WRITE_ITEMS`, and answered through
   `AddComment` on the same door - public only, only on the requester's own entry. The portal's
   reads answer the requester's own entries without the team's fields, internal notes or system

@@ -21965,6 +21965,12 @@ type PublicFormView struct {
 		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
 		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
+
+	// HasPublicForm Whether the collection has a public form (`GET /collections/{collectionId}/public-form`). Given only to whoever holds MANAGE_MEMBERS at the collection; absent otherwise and on a public form.
+	HasPublicForm *bool `json:"has_public_form,omitempty"`
+
+	// MayRaise Whether the reader holds REQUEST at the collection, so raising requests and listing their own (`GET /requests`) are open to them. False for the desk's team, which reads the catalogue by READ. Absent on a public form.
+	MayRaise *bool `json:"may_raise,omitempty"`
 }
 
 // PublicLinksPolicy defines model for PublicLinksPolicy.
@@ -22334,6 +22340,12 @@ type RequestCatalogue struct {
 		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
 		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
+
+	// HasPublicForm Whether the collection has a public form (`GET /collections/{collectionId}/public-form`). Given only to whoever holds MANAGE_MEMBERS at the collection; absent otherwise and on a public form.
+	HasPublicForm *bool `json:"has_public_form,omitempty"`
+
+	// MayRaise Whether the reader holds REQUEST at the collection, so raising requests and listing their own (`GET /requests`) are open to them. False for the desk's team, which reads the catalogue by READ. Absent on a public form.
+	MayRaise *bool `json:"may_raise,omitempty"`
 }
 
 // RequestSatisfaction defines model for RequestSatisfaction.

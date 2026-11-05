@@ -2238,6 +2238,8 @@ ApprovalDelegation = TypedDict("ApprovalDelegation", {
 
 class RequestCatalogue(TypedDict, total=False):
     desk: dict[str, Any]
+    may_raise: bool
+    has_public_form: bool
     data: Required[list[dict[str, Any]]]
 
 class PublicForm(TypedDict, total=False):
@@ -2255,6 +2257,8 @@ class PublicFormMinted(TypedDict, total=False):
 class PublicFormView(TypedDict, total=False):
     """What a public form shows, and the challenge a submission answers."""
     desk: dict[str, Any]
+    may_raise: bool
+    has_public_form: bool
     data: Required[list[dict[str, Any]]]
     challenge: Required[dict[str, Any]]
 

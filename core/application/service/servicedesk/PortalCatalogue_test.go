@@ -8,9 +8,13 @@ import (
 	"testing"
 
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
 type brandedDesk struct{ workrepo.Containers }
@@ -74,5 +78,59 @@ func TestTheCatalogueNamesTheDesksLogo(t *testing.T) {
 		if desk["logo_media_id"] != idText(logo) {
 			t.Errorf("the desk's logo reads %v, want %v", desk["logo_media_id"], idText(logo))
 		}
+	}
+}
+
+// held answers Permits by the permissions it lists, as the roles along the path would.
+type held map[service.Permission]bool
+
+func (h held) Permits(_ context.Context, _ appshared.ActorContext, request access.Request) (bool, error) {
+	return h[request.Permission], nil
+}
+
+// The desk's team reads its own portal's catalogue by READ and is told it raises nothing there;
+// a requester may raise; whoever holds neither is refused for REQUEST. Only who manages the
+// collection's members is told whether it has a public form.
+func TestTheCatalogueSaysWhetherTheReaderMayRaiseAndWhetherAFormExists(t *testing.T) {
+	links := &formLinks{rows: map[shared.ID]domain.PublicForm{collection: {CollectionID: collection}}, keys: map[string]shared.ID{}}
+	cases := []struct {
+		name     string
+		holds    held
+		mayRaise any
+		form     any
+	}{
+		{"requester", held{service.PermissionRequest: true}, true, nil},
+		{"team", held{service.PermissionRead: true}, false, nil},
+		{"team that manages members", held{service.PermissionRead: true, service.PermissionManageMembers: true}, false, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			portal := Portal{
+				Containers: brandedDesk{}, EntryTypes: translatedTypes{}, Permits: tc.holds, Forms: links,
+				Desk: Desk{Authorizer: &gate{allow: false}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{}},
+			}
+			out, err := ListRequestCatalogue{Portal: portal}.Descriptor().Handler.Invoke(context.Background(), reader(),
+				usecase.Input{"collection_id": collection.String()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out["may_raise"] != tc.mayRaise || out["has_public_form"] != tc.form {
+				t.Errorf("may_raise %v, has_public_form %v; want %v, %v", out["may_raise"], out["has_public_form"], tc.mayRaise, tc.form)
+			}
+		})
+	}
+
+	refused := &gate{allow: false}
+	portal := Portal{
+		Containers: brandedDesk{}, EntryTypes: translatedTypes{}, Permits: held{}, Forms: links,
+		Desk: Desk{Authorizer: refused, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday), IDs: &seqIDs{}},
+	}
+	_, err := ListRequestCatalogue{Portal: portal}.Descriptor().Handler.Invoke(context.Background(), reader(),
+		usecase.Input{"collection_id": collection.String()})
+	if err == nil {
+		t.Fatal("somebody holding neither REQUEST nor READ read the catalogue")
+	}
+	if len(refused.asked) != 1 || refused.asked[0].Permission != service.PermissionRequest {
+		t.Errorf("the refusal asked %+v, want REQUEST", refused.asked)
 	}
 }

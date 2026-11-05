@@ -21971,6 +21971,12 @@ type PublicFormView struct {
 		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
 		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
+
+	// HasPublicForm Whether the collection has a public form (`GET /collections/{collectionId}/public-form`). Given only to whoever holds MANAGE_MEMBERS at the collection; absent otherwise and on a public form.
+	HasPublicForm *bool `json:"has_public_form,omitempty"`
+
+	// MayRaise Whether the reader holds REQUEST at the collection, so raising requests and listing their own (`GET /requests`) are open to them. False for the desk's team, which reads the catalogue by READ. Absent on a public form.
+	MayRaise *bool `json:"may_raise,omitempty"`
 }
 
 // PublicLinksPolicy defines model for PublicLinksPolicy.
@@ -22340,6 +22346,12 @@ type RequestCatalogue struct {
 		LogoMediaId *openapi_types.UUID `json:"logo_media_id"`
 		Name        string              `json:"name"`
 	} `json:"desk,omitempty"`
+
+	// HasPublicForm Whether the collection has a public form (`GET /collections/{collectionId}/public-form`). Given only to whoever holds MANAGE_MEMBERS at the collection; absent otherwise and on a public form.
+	HasPublicForm *bool `json:"has_public_form,omitempty"`
+
+	// MayRaise Whether the reader holds REQUEST at the collection, so raising requests and listing their own (`GET /requests`) are open to them. False for the desk's team, which reads the catalogue by READ. Absent on a public form.
+	MayRaise *bool `json:"may_raise,omitempty"`
 }
 
 // RequestSatisfaction defines model for RequestSatisfaction.
@@ -39973,7 +39985,7 @@ type ClientInterface interface {
 
 	// ListRequestCatalogue The kinds of request a service offers
 	//
-	// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+	// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection, or READ there: the desk's team reads its own portal's catalogue, answered with `may_raise` false.
 	//
 	// Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
 	ListRequestCatalogue(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -61136,7 +61148,7 @@ func (c *Client) DefineReplyTemplate(ctx context.Context, templateKey string, pa
 
 // ListRequestCatalogue The kinds of request a service offers
 //
-// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection, or READ there: the desk's team reads its own portal's catalogue, answered with `may_raise` false.
 //
 // Corresponds with GET /request-catalogue (the `ListRequestCatalogue` operationId).
 func (c *Client) ListRequestCatalogue(ctx context.Context, params *ListRequestCatalogueParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -114883,7 +114895,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListRequestCatalogueWithResponse The kinds of request a service offers
 	//
-	// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+	// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection, or READ there: the desk's team reads its own portal's catalogue, answered with `may_raise` false.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -173700,7 +173712,7 @@ func (c *ClientWithResponses) DefineReplyTemplateWithResponse(ctx context.Contex
 
 // ListRequestCatalogueWithResponse The kinds of request a service offers
 //
-// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.
+// The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection, or READ there: the desk's team reads its own portal's catalogue, answered with `may_raise` false.
 //
 // Returns a wrapper object for the known response body format(s).
 //

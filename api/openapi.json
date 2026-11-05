@@ -7303,7 +7303,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "request catalogue",
         "summary": "The kinds of request a service offers",
-        "description": "The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection.\n",
+        "description": "The portal's catalogue of a collection: each type whose form names the PORTAL channel and leaves it open, with its form as the portal shows it - the fields the portal hides taken out. Needs REQUEST at the collection, or READ there: the desk's team reads its own portal's catalogue, answered with `may_raise` false.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/CollectionId"
@@ -47945,6 +47945,14 @@
                 "description": "The desk's own logo, a picture every requester of the service may read (`GET /media/{mediaId}`); null draws the icon and the colour.\n"
               }
             }
+          },
+          "may_raise": {
+            "type": "boolean",
+            "description": "Whether the reader holds REQUEST at the collection, so raising requests and listing their own (`GET /requests`) are open to them. False for the desk's team, which reads the catalogue by READ. Absent on a public form.\n"
+          },
+          "has_public_form": {
+            "type": "boolean",
+            "description": "Whether the collection has a public form (`GET /collections/{collectionId}/public-form`). Given only to whoever holds MANAGE_MEMBERS at the collection; absent otherwise and on a public form.\n"
           },
           "data": {
             "type": "array",
