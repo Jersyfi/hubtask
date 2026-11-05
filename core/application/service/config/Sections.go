@@ -79,8 +79,9 @@ type section struct {
 	listFor    func(collection string) usecase.Input
 	rowsFor    func(answer map[string]any, collection string) []any
 	// releases marks a change that gives up what another block of the section may claim in the
-	// same apply - an organisation's mail domain: it runs first in its section, a removal too.
-	releases func(change domain.BlockChange) bool
+	// same apply - an organisation's mail domain another one claims: it runs first in its section,
+	// a removal too.
+	releases func(change domain.BlockChange, target map[string]domain.Block) bool
 }
 
 const (
@@ -223,28 +224,38 @@ func sections() []section {
 	}, furnitureSections("")...)
 }
 
-// releasesDomain reports whether an organisation's change gives up a mail domain, so that a
-// domain moved to another organisation in one apply is free before it is claimed there.
-func releasesDomain(change domain.BlockChange) bool {
-	if change.Op == domain.OpRemove {
-		return true
-	}
-	if change.Op != domain.OpChange {
+// releasesDomain reports whether an organisation's change gives up a mail domain another
+// organisation of the target claims, so that a domain moved in one apply is free before it is
+// claimed there. Any other removal runs with the removals, after the policies naming it.
+func releasesDomain(change domain.BlockChange, target map[string]domain.Block) bool {
+	if change.Op != domain.OpRemove && change.Op != domain.OpChange {
 		return false
 	}
 	kept := map[string]bool{}
 	after, _ := change.After["domains"].([]any)
 	for _, d := range after {
-		kept[strings.ToLower(strings.TrimSpace(text(d)))] = true
+		kept[normalDomain(d)] = true
+	}
+	claimed := map[string]bool{}
+	for key, block := range target {
+		if key == change.Key {
+			continue
+		}
+		others, _ := block["domains"].([]any)
+		for _, d := range others {
+			claimed[normalDomain(d)] = true
+		}
 	}
 	before, _ := change.Before["domains"].([]any)
 	for _, d := range before {
-		if !kept[strings.ToLower(strings.TrimSpace(text(d)))] {
+		if given := normalDomain(d); !kept[given] && claimed[given] {
 			return true
 		}
 	}
 	return false
 }
+
+func normalDomain(d any) string { return strings.ToLower(strings.TrimSpace(text(d))) }
 
 // workflowOps writes a workflow: a new one is created with its shape; a changed shape is saved
 // as the draft and published, so that the publish's own checks - a status in use removed without

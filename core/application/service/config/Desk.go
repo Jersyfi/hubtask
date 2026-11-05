@@ -482,7 +482,7 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 				}
 			}
 			switch {
-			case s.releases != nil && s.releases(change):
+			case s.releases != nil && s.releases(change, p.Target[s.name]):
 				p.Ops = append(p.Ops[:early], append(ops, p.Ops[early:]...)...)
 				early += len(ops)
 			case change.Op == domain.OpRemove:

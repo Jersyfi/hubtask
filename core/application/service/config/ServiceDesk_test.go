@@ -154,3 +154,29 @@ func TestAnOrganisationIsDefinedBeforeThePolicyNamingIt(t *testing.T) {
 		t.Errorf("the apply runs %s before %s", p.Ops[0].UseCase, p.Ops[1].UseCase)
 	}
 }
+
+// An organisation removed with the policy naming it is deleted after the policy: deleting it
+// first is refused as organisations.in_use. Only a removal whose domain another organisation of
+// the same apply claims runs early.
+func TestAnOrganisationIsRemovedAfterThePolicyNamingIt(t *testing.T) {
+	now := current{
+		Document: domain.Document{
+			sectionOrganisations: {"acme": {"name": "Acme", "domains": []any{"acme.example"}, "shares_requests": false}},
+			sectionPolicies:      {"gold": {"name": "Gold", "organisations": []any{"acme"}}},
+		},
+		Rows: map[string]map[string]map[string]any{
+			sectionOrganisations: {"acme": {"key": "acme"}},
+			sectionPolicies:      {"gold": {"key": "gold"}},
+		},
+	}
+	p := Desk{Catalogue: &scoped{}}.planOf(now, domain.Document{
+		sectionOrganisations: {"acme": nil}, sectionPolicies: {"gold": nil},
+	}, domain.ModeMerge)
+	var order []string
+	for _, op := range p.Ops {
+		order = append(order, op.UseCase)
+	}
+	if !slices.Equal(order, []string{"DeleteSlaPolicy", "DeleteRequesterOrganisation"}) {
+		t.Fatalf("the removals run as %v", order)
+	}
+}
