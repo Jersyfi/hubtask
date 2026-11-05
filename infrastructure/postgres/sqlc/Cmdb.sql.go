@@ -443,19 +443,33 @@ func (q *Queries) FindCmdbHold(ctx context.Context, id pgtype.UUID) (FindCmdbHol
 }
 
 const findCmdbIdentifiers = `-- name: FindCmdbIdentifiers :many
-SELECT i.ci_id, c.class_key, i.name, i.value
-FROM cmdb_ci_identifier i
-JOIN cmdb_ci c ON c.tenant_id = i.tenant_id AND c.id = i.ci_id
-WHERE i.tenant_id = current_tenant_id() AND i.hub_id = $1 AND c.merged_into IS NULL
-  AND (i.name, i.value) IN (
-    SELECT unnest($2::text[]), unnest($3::text[]))
-LIMIT 5000
+WITH pair AS (
+  SELECT unnest($2::int[]) AS lookup, unnest($3::text[]) AS name,
+    unnest($4::text[]) AS value
+), size AS (
+  SELECT lookup, count(*) AS n FROM pair GROUP BY lookup
+), hit AS (
+  SELECT p.lookup, i.ci_id
+  FROM pair p
+  JOIN cmdb_ci_identifier i ON i.tenant_id = current_tenant_id() AND i.hub_id = $5
+    AND i.name = p.name AND i.value = p.value
+  GROUP BY p.lookup, i.ci_id
+  HAVING count(*) = (SELECT s.n FROM size s WHERE s.lookup = p.lookup)
+)
+SELECT DISTINCT h.ci_id, c.class_key, p.name::text AS name, p.value::text AS value
+FROM hit h
+JOIN pair p ON p.lookup = h.lookup
+JOIN cmdb_ci c ON c.tenant_id = current_tenant_id() AND c.id = h.ci_id
+WHERE c.merged_into IS NULL
+LIMIT $1
 `
 
 type FindCmdbIdentifiersParams struct {
-	HubID            pgtype.UUID
+	RowBound         int32
+	Lookups          []int32
 	Names            []string
 	IdentifierValues []string
+	HubID            pgtype.UUID
 }
 
 type FindCmdbIdentifiersRow struct {
@@ -465,9 +479,17 @@ type FindCmdbIdentifiersRow struct {
 	Value    string
 }
 
-// The index rows of a hub's CIs that carry any of the pairs; merged CIs are left out.
+// The index rows of a hub's unmerged CIs that carry every pair of a lookup, for each lookup; a
+// value many CIs share narrows nothing alone, so no bound may cut a CI's other rows (the caller
+// refuses an answer at row_bound rather than read a part of it).
 func (q *Queries) FindCmdbIdentifiers(ctx context.Context, arg FindCmdbIdentifiersParams) ([]FindCmdbIdentifiersRow, error) {
-	rows, err := q.db.Query(ctx, findCmdbIdentifiers, arg.HubID, arg.Names, arg.IdentifierValues)
+	rows, err := q.db.Query(ctx, findCmdbIdentifiers,
+		arg.RowBound,
+		arg.Lookups,
+		arg.Names,
+		arg.IdentifierValues,
+		arg.HubID,
+	)
 	if err != nil {
 		return nil, err
 	}

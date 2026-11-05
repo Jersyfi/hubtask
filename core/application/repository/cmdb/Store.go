@@ -43,8 +43,9 @@ type Store interface {
 
 	// PutIdentifiers replaces a CI's identifiers; a source's own key, once set, stays.
 	PutIdentifiers(ctx context.Context, ci cmdb.CI, identifiers map[string]string) error
-	// FindIdentifiers answers the index rows of a hub's unmerged CIs carrying any of the pairs.
-	FindIdentifiers(ctx context.Context, hubID shared.ID, identifiers map[string]string) ([]cmdb.IdentifierRow, error)
+	// FindIdentifiers answers, for each lookup, the index rows of a hub's unmerged CIs carrying
+	// every pair of it; cmdb.ErrLookupTooWide past cmdb.MaxLookupRows rather than a part.
+	FindIdentifiers(ctx context.Context, hubID shared.ID, lookups []cmdb.Lookup) ([]cmdb.IdentifierRow, error)
 	// MergeInto moves a duplicate's source keys and relations to the survivor and drops what is
 	// left of them on the duplicate.
 	MergeInto(ctx context.Context, survivor, duplicate shared.ID) error

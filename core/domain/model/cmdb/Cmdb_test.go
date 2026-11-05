@@ -98,6 +98,30 @@ func TestIdentifyTriesTheNativeKeyThenTheRulesInOrder(t *testing.T) {
 	}
 }
 
+// The index is asked per lookup: the native key alone, and every rule the item carries whole, so
+// a shared value of one rule never stands for the item on its own.
+func TestLookupsAreTheNativeKeyAndTheWholeRules(t *testing.T) {
+	server := NewClasses(nil).Resolve("server")
+	cases := []struct {
+		name   string
+		item   Item
+		native []Lookup
+		rules  []Lookup
+	}{
+		{"native key and a whole rule", Item{Name: "x", NativeKey: "42", Attributes: map[string]any{"mac_address": "AA-BB", "hostname": "web1"}},
+			[]Lookup{{NativeKey("netbox"): "42"}}, []Lookup{{"mac_address": "aa:bb"}}},
+		{"a shared value only with its partner", Item{Name: "x", Attributes: map[string]any{"manufacturer": "Acme", "serial_number": "S-1"}},
+			nil, []Lookup{{"serial_number": "s-1", "manufacturer": "acme"}}},
+		{"half a rule asks nothing", Item{Name: "x", Attributes: map[string]any{"manufacturer": "Acme"}}, nil, nil},
+	}
+	for _, c := range cases {
+		native, rules := Lookups(server, ItemIdentifiers(c.item, server, "netbox"), "netbox")
+		if !reflect.DeepEqual(native, c.native) || !reflect.DeepEqual(rules, c.rules) {
+			t.Errorf("%s: native %v, rules %v", c.name, native, rules)
+		}
+	}
+}
+
 func TestALowerSourceDoesNotOverwriteWhatAHigherOneWrote(t *testing.T) {
 	server := NewClasses(nil).Resolve("server")
 	p := Precedence{ManualSource: 10, "netbox": 50, "scan": 100}

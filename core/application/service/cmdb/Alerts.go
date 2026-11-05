@@ -267,7 +267,7 @@ func (s Connectors) receive(ctx context.Context, actor appshared.ActorContext, c
 func (s Connectors) affected(ctx context.Context, hubID shared.ID, sig domain.AlertSignal) (shared.ID, error) {
 	for _, pairs := range domain.AlertLookups(sig) {
 		for name, value := range pairs {
-			rows, err := s.Inventory.Store.FindIdentifiers(ctx, hubID, map[string]string{name: value})
+			rows, err := s.Inventory.Store.FindIdentifiers(ctx, hubID, []domain.Lookup{{name: value}})
 			if err != nil {
 				return "", err
 			}

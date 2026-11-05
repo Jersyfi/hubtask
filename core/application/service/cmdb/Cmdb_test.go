@@ -94,6 +94,8 @@ type memory struct {
 	runs      []domain.Run
 	holds     []domain.Hold
 	dups      []domain.Duplicate
+	// wide is a value whose lookup the index refuses as too wide.
+	wide string
 }
 
 func newMemory() *memory {
@@ -167,16 +169,32 @@ func (m *memory) PutIdentifiers(_ context.Context, ci domain.CI, ids map[string]
 	m.ids[ci.ID] = next
 	return nil
 }
-func (m *memory) FindIdentifiers(_ context.Context, h shared.ID, want map[string]string) ([]domain.IdentifierRow, error) {
+func (m *memory) FindIdentifiers(_ context.Context, h shared.ID, lookups []domain.Lookup) ([]domain.IdentifierRow, error) {
+	for _, lookup := range lookups {
+		for _, v := range lookup {
+			if m.wide != "" && v == m.wide {
+				return nil, domain.ErrLookupTooWide
+			}
+		}
+	}
+	seen := map[domain.IdentifierRow]bool{}
 	var out []domain.IdentifierRow
 	for id, ids := range m.ids {
 		ci := m.cis[id]
 		if ci.HubID != h || !ci.MergedInto.IsZero() {
 			continue
 		}
-		for k, v := range ids {
-			if want[k] == v {
-				out = append(out, domain.IdentifierRow{CI: id, Class: ci.Class, Name: k, Value: v})
+		for _, lookup := range lookups {
+			carries := true
+			for k, v := range lookup {
+				carries = carries && ids[k] == v
+			}
+			for k, v := range lookup {
+				row := domain.IdentifierRow{CI: id, Class: ci.Class, Name: k, Value: v}
+				if carries && !seen[row] {
+					seen[row] = true
+					out = append(out, row)
+				}
 			}
 		}
 	}
@@ -591,6 +609,23 @@ func TestAnItemHoldingAZeroByteIsRefusedAloneAndNamesNoValue(t *testing.T) {
 	d := out["decisions"].([]usecase.Output)[0]
 	if d["reason"] != "cmdb.item_zero_byte" || d["ref"] != "item-1" || len(f.m.holds) != 0 {
 		t.Fatalf("refused by its code under a reference the run can keep: %v", d)
+	}
+}
+
+// An item whose lookup is wider than the index answers is refused alone, never created: a cut
+// answer could miss the CI it is.
+func TestAnItemWhoseLookupIsTooWideIsRefusedNotCreated(t *testing.T) {
+	f := newFixture()
+	f.m.wide = "acme"
+	out, err := call(t, ReconcileCis{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "source": "netbox", "items": items(
+		map[string]any{"ref": "a", "class": "server", "name": "web1", "attributes": map[string]any{"manufacturer": "Acme", "serial_number": "S-1"}},
+		map[string]any{"ref": "b", "class": "server", "name": "web2", "native_key": "8"},
+	)})
+	if err != nil || !slices.Equal(outcomes(out), []string{"REFUSED", "CREATE"}) || len(f.m.cis) != 1 {
+		t.Fatalf("only the narrow item is written: %v %v, %d CIs", outcomes(out), err, len(f.m.cis))
+	}
+	if d := out["decisions"].([]usecase.Output)[0]; d["reason"] != "cmdb.lookup_too_wide" {
+		t.Fatalf("refused by its code: %v", d)
 	}
 }
 

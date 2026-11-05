@@ -242,6 +242,41 @@ func ItemIdentifiers(item Item, class Resolved, source string) map[string]string
 	return out
 }
 
+// Lookup is a set of identifier pairs a CI must carry every one of: an item's native key, or one
+// of its class's rules. The index is asked per lookup, so a value many CIs share (a manufacturer)
+// never crowds out the rows of the CI an item is.
+type Lookup map[string]string
+
+// MaxLookupRows bounds the index rows one item's lookups answer; a wider answer is refused rather
+// than cut, since a cut answer could miss the item's CI and create it again.
+const MaxLookupRows = MaxCIsPerHub
+
+// ErrLookupTooWide refuses an item whose lookups match more index rows than MaxLookupRows.
+var ErrLookupTooWide = shared.ErrValidation.WithDetail("cmdb.lookup_too_wide")
+
+// Lookups answers what Identify needs of the index for an item: its native key alone, and each of
+// the class's rules whose every attribute the item carries, in the rules' order.
+func Lookups(class Resolved, ids map[string]string, source string) (native []Lookup, rules []Lookup) {
+	if key, ok := ids[NativeKey(source)]; ok {
+		native = []Lookup{{NativeKey(source): key}}
+	}
+	for _, rule := range class.Rules {
+		lookup := Lookup{}
+		for _, key := range rule.Attributes {
+			value, ok := ids[key]
+			if !ok {
+				lookup = nil
+				break
+			}
+			lookup[key] = value
+		}
+		if len(lookup) > 0 {
+			rules = append(rules, lookup)
+		}
+	}
+	return native, rules
+}
+
 // Identify matches an item against the index rows found for its identifiers: its native key
 // first, then the class's rules in order, each among the CIs of the class that declared it and
 // that class's descendants (R3, R4).

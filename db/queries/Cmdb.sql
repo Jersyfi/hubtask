@@ -132,14 +132,28 @@ SELECT current_tenant_id(), sqlc.arg('ci_id'), sqlc.arg('hub_id'),
 ON CONFLICT (tenant_id, ci_id, name) DO UPDATE SET value = excluded.value;
 
 -- name: FindCmdbIdentifiers :many
--- The index rows of a hub's CIs that carry any of the pairs; merged CIs are left out.
-SELECT i.ci_id, c.class_key, i.name, i.value
-FROM cmdb_ci_identifier i
-JOIN cmdb_ci c ON c.tenant_id = i.tenant_id AND c.id = i.ci_id
-WHERE i.tenant_id = current_tenant_id() AND i.hub_id = sqlc.arg('hub_id') AND c.merged_into IS NULL
-  AND (i.name, i.value) IN (
-    SELECT unnest(sqlc.arg('names')::text[]), unnest(sqlc.arg('identifier_values')::text[]))
-LIMIT 5000;
+-- The index rows of a hub's unmerged CIs that carry every pair of a lookup, for each lookup; a
+-- value many CIs share narrows nothing alone, so no bound may cut a CI's other rows (the caller
+-- refuses an answer at row_bound rather than read a part of it).
+WITH pair AS (
+  SELECT unnest(sqlc.arg('lookups')::int[]) AS lookup, unnest(sqlc.arg('names')::text[]) AS name,
+    unnest(sqlc.arg('identifier_values')::text[]) AS value
+), size AS (
+  SELECT lookup, count(*) AS n FROM pair GROUP BY lookup
+), hit AS (
+  SELECT p.lookup, i.ci_id
+  FROM pair p
+  JOIN cmdb_ci_identifier i ON i.tenant_id = current_tenant_id() AND i.hub_id = sqlc.arg('hub_id')
+    AND i.name = p.name AND i.value = p.value
+  GROUP BY p.lookup, i.ci_id
+  HAVING count(*) = (SELECT s.n FROM size s WHERE s.lookup = p.lookup)
+)
+SELECT DISTINCT h.ci_id, c.class_key, p.name::text AS name, p.value::text AS value
+FROM hit h
+JOIN pair p ON p.lookup = h.lookup
+JOIN cmdb_ci c ON c.tenant_id = current_tenant_id() AND c.id = h.ci_id
+WHERE c.merged_into IS NULL
+LIMIT sqlc.arg('row_bound');
 
 -- name: MoveCmdbNativeKeys :exec
 -- A merged duplicate's own keys of its sources go to the survivor, so a rerun finds it.

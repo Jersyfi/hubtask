@@ -75,6 +75,10 @@ func (p *pass) item(ctx context.Context, item domain.Item) (domain.Decision, err
 		return p.hold(item, d, domain.HoldClassForbidden), nil
 	}
 	resolved, ident, err := p.identify(ctx, item)
+	if errors.Is(err, domain.ErrLookupTooWide) {
+		d.Outcome, d.Reason = domain.OutcomeRefused, "cmdb.lookup_too_wide"
+		return d, nil
+	}
 	if err != nil {
 		return d, err
 	}
@@ -111,15 +115,24 @@ func (p *pass) item(ctx context.Context, item domain.Item) (domain.Decision, err
 	return p.create(ctx, item, resolved, d)
 }
 
-// identify looks an item up in the hub's identifier index.
+// identify looks an item up in the hub's identifier index: its native key first, which finds
+// every item a source sent before, and the class's rules only when that finds nothing.
 func (p *pass) identify(ctx context.Context, item domain.Item) (domain.Resolved, domain.Identification, error) {
 	resolved := p.reg.classes.Resolve(item.Class)
 	ids := domain.ItemIdentifiers(item, resolved, p.source.Key)
-	rows, err := p.s.Store.FindIdentifiers(ctx, p.hubID, ids)
+	native, rules := domain.Lookups(resolved, ids, p.source.Key)
+	rows, err := p.s.Store.FindIdentifiers(ctx, p.hubID, native)
 	if err != nil {
 		return resolved, domain.Identification{}, err
 	}
-	return resolved, domain.Identify(resolved, ids, p.source.Key, rows, p.reg.classes), nil
+	if ident := domain.Identify(resolved, ids, p.source.Key, rows, p.reg.classes); len(ident.Matches) > 0 || len(rules) == 0 {
+		return resolved, ident, nil
+	}
+	more, err := p.s.Store.FindIdentifiers(ctx, p.hubID, rules)
+	if err != nil {
+		return resolved, domain.Identification{}, err
+	}
+	return resolved, domain.Identify(resolved, ids, p.source.Key, append(rows, more...), p.reg.classes), nil
 }
 
 func (p *pass) hold(item domain.Item, d domain.Decision, reason string) domain.Decision {

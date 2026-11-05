@@ -71,6 +71,7 @@
   "cmdb.impact_unknown": "The impact is NONE, SOURCE, TARGET or BOTH.",
   "cmdb.item_zero_byte": "An item holds a zero byte, which cannot be stored; it was left out.",
   "cmdb.location_invalid": "The location is a configuration item of a location class in the same hub.",
+  "cmdb.lookup_too_wide": "An item shares its identifiers with too many configuration items to be matched safely; it was left out.",
   "cmdb.mapping_name_column_required": "The mapping names the column that holds the name.",
   "cmdb.mapping_required": "A CSV or JSON file needs a mapping.",
   "cmdb.payload_too_large": "One run takes at most {maximum} entries.",

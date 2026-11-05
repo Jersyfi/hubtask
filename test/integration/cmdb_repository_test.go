@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -60,7 +61,7 @@ func TestACIIsFoundByItsIdentifiersAndItsImpact(t *testing.T) {
 		if err != nil || read.Compliance.Protection.A != cmdb.LevelHigh || read.Class != "application_service" {
 			t.Errorf("CI %+v, %v", read, err)
 		}
-		rows, err := repo.FindIdentifiers(ctx, hub, map[string]string{"hostname": "web1"})
+		rows, err := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"hostname": "web1"}})
 		if err != nil || len(rows) != 1 || rows[0].CI != vm || rows[0].Class != "virtual_machine" {
 			t.Errorf("identifiers %+v, %v", rows, err)
 		}
@@ -71,6 +72,53 @@ func TestACIIsFoundByItsIdentifiersAndItsImpact(t *testing.T) {
 		up, err := repo.Walk(ctx, app, false, []string{cmdb.RelRunsOn}, nil, 5)
 		if err != nil || len(up) != 1 || up[0].CI != vm {
 			t.Errorf("upstream %+v, %v", up, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A value thousands of CIs share narrows nothing: the item's own native key and its rule's pairs
+// are found beside it, and a lookup wider than the bound is refused, never answered in part.
+// UC-AST-02 check 1: no second CI where a hub holds many CIs of one value.
+func TestALookupIsNotCrowdedOutByASharedValue(t *testing.T) {
+	ctx := context.Background()
+	hub, _, vm := seedCIs(ctx, t)
+	const sharing = cmdb.MaxLookupRows
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		WITH c AS (
+		  INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, created_by, created_at, updated_by, updated_at)
+		  SELECT gen_random_uuid(), $1, $2, 'server', 'host-' || g, 'IN_USE', 'OK', $3, now(), $3, now()
+		  FROM generate_series(1, $4::int) g RETURNING id, name)
+		INSERT INTO cmdb_ci_identifier (tenant_id, ci_id, hub_id, name, value)
+		SELECT $1, id, $2, n.name, CASE n.name WHEN 'manufacturer' THEN 'acme' ELSE c.name END
+		FROM c, (VALUES ('manufacturer'), ('serial_number')) n(name)`,
+		tenantA.String(), hub.String(), authorA.String(), sharing); err != nil {
+		t.Fatalf("seeding the CIs: %v", err)
+	}
+	repo := postgres.NewCmdbRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := repo.PutIdentifiers(ctx, cmdb.CI{ID: vm, HubID: hub},
+			map[string]string{"hostname": "web1", "source:netbox": "7", "manufacturer": "acme", "serial_number": "s-7"}); err != nil {
+			return err
+		}
+		rows, err := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"source:netbox": "7"}, {"serial_number": "s-7", "manufacturer": "acme"}})
+		if err != nil {
+			return err
+		}
+		found := map[string]bool{}
+		for _, r := range rows {
+			if r.CI != vm {
+				t.Errorf("another CI answered: %+v", r)
+			}
+			found[r.Name] = true
+		}
+		if !found["source:netbox"] || !found["serial_number"] || !found["manufacturer"] || len(rows) != 3 {
+			t.Errorf("the item's rows %+v", rows)
+		}
+		if _, err := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"manufacturer": "acme"}}); !errors.Is(err, cmdb.ErrLookupTooWide) {
+			t.Errorf("a lookup of %d CIs past the bound of %d answered %v", sharing+1, cmdb.MaxLookupRows, err)
 		}
 		return nil
 	}); err != nil {
@@ -96,7 +144,7 @@ func TestACIIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		if list, _ := repo.ListCIs(ctx, hub, nil, "", 10); len(list) != 0 {
 			t.Error("the workspace next door listed the CIs")
 		}
-		if rows, _ := repo.FindIdentifiers(ctx, hub, map[string]string{"hostname": "web1"}); len(rows) != 0 {
+		if rows, _ := repo.FindIdentifiers(ctx, hub, []cmdb.Lookup{{"hostname": "web1"}}); len(rows) != 0 {
 			t.Error("the workspace next door read the identifiers")
 		}
 		if rels, _ := repo.RelationsOf(ctx, vm); len(rels) != 0 {

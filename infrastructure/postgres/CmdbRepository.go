@@ -658,9 +658,18 @@ func (CmdbRepository) PutIdentifiers(ctx context.Context, ci cmdb.CI, identifier
 	return nil
 }
 
-// FindIdentifiers looks the pairs up in a hub's index.
-func (CmdbRepository) FindIdentifiers(ctx context.Context, hubID shared.ID, identifiers map[string]string) ([]cmdb.IdentifierRow, error) {
-	if len(identifiers) == 0 {
+// FindIdentifiers looks each lookup up in a hub's index, every pair of it at once.
+func (CmdbRepository) FindIdentifiers(ctx context.Context, hubID shared.ID, lookups []cmdb.Lookup) ([]cmdb.IdentifierRow, error) {
+	var groups []int32
+	var names, values []string
+	for i, lookup := range lookups {
+		n, v := cmdbPairs(lookup)
+		for range n {
+			groups = append(groups, int32(i))
+		}
+		names, values = append(names, n...), append(values, v...)
+	}
+	if len(names) == 0 {
 		return nil, nil
 	}
 	q, err := queriesFrom(ctx)
@@ -671,10 +680,13 @@ func (CmdbRepository) FindIdentifiers(ctx context.Context, hubID shared.ID, iden
 	if err != nil {
 		return nil, err
 	}
-	names, values := cmdbPairs(identifiers)
-	rows, err := q.FindCmdbIdentifiers(ctx, sqlc.FindCmdbIdentifiersParams{HubID: hub, Names: names, IdentifierValues: values})
+	rows, err := q.FindCmdbIdentifiers(ctx, sqlc.FindCmdbIdentifiersParams{HubID: hub, Lookups: groups, Names: names,
+		IdentifierValues: values, RowBound: cmdb.MaxLookupRows + 1})
 	if err != nil {
 		return nil, cmdbFailed("looking identifiers up", err)
+	}
+	if len(rows) > cmdb.MaxLookupRows {
+		return nil, cmdb.ErrLookupTooWide
 	}
 	out := make([]cmdb.IdentifierRow, 0, len(rows))
 	for _, r := range rows {
