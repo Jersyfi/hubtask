@@ -4203,6 +4203,10 @@ func run() error {
 			// `admin:tenants` loses it when the register does not name its holder, so a token
 			// minted last month by somebody since removed stops reaching the control plane.
 			Operators: postgres.NewOperatorRepository(),
+			// A running view ends once its viewer may no longer start it (UC-ID-29 check 3).
+			ViewRights: identity.ViewAsRights{
+				Held: postgres.NewMembershipRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+			},
 		}
 		// In multi mode a host that names another workspace than the credential is refused
 		// (multi-tenancy.md §3); single mode reads no host.

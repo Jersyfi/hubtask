@@ -170,6 +170,53 @@ func TestAViewLapsesToTheSessionsOwnPerson(t *testing.T) {
 	}
 }
 
+// UC-ID-29 check 3: the view also ends at authentication once its viewer no longer may start it -
+// MANAGE_MEMBERS lost, or the person now holding a role above the viewer's - for good; a failure
+// to ask answers the viewer for that request and leaves the view standing.
+func TestAViewEndsWhenItsViewerLosesTheRight(t *testing.T) {
+	cases := []struct {
+		name           string
+		alter          func(*viewAsFixture)
+		viewing, ended bool
+	}{
+		{"while the viewer may still", func(*viewAsFixture) {}, true, false},
+		{"once MANAGE_MEMBERS is gone", func(f *viewAsFixture) {
+			f.authorizer.refuse = shared.ErrForbidden.WithDetail("access.permission_missing")
+		}, false, true},
+		{"once the person holds a role above the viewer's", func(f *viewAsFixture) {
+			f.held[lenaID] = []domain.Role{domain.RoleOwner}
+		}, false, true},
+		{"when the question cannot be answered", func(f *viewAsFixture) { f.authorizer.refuse = shared.ErrUnavailable }, false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newViewAsFixture(t)
+			if _, err := f.registry.Invoke(t.Context(), StartViewAsName, viewer(), usecase.Input{"account_id": lenaID.String()}); err != nil {
+				t.Fatalf("starting: %v", err)
+			}
+			c.alter(f)
+			signer := validatingSigner{token: viewAsToken, claims: cryptoport.SessionClaims{
+				TenantID: tenant, SessionID: sessionRowID, AccountID: account, ExpiresAt: now.Add(10 * time.Minute),
+			}}
+			authenticate := sessionAuthenticator(f.sessions, signer, now.Add(time.Minute))
+			authenticate.ViewRights = ViewAsRights{Held: f.held, Authorizer: f.authorizer, UnitOfWork: &unitOfWork{}}
+			actor, err := authenticate.Execute(t.Context(), AuthenticateTokenCommand{Credential: viewAsToken})
+			if err != nil {
+				t.Fatalf("authenticating: %v", err)
+			}
+			if c.viewing != (actor.AccountID == lenaID && actor.IsViewingAs()) {
+				t.Errorf("actor %+v, want viewing %v", actor, c.viewing)
+			}
+			if !c.viewing && (actor.AccountID != account || actor.IsViewingAs()) {
+				t.Errorf("actor %+v, want Bert's own session", actor)
+			}
+			if ended := f.sessions.sessions[sessionRowID].Session.ViewingAsUntil.IsZero(); ended != c.ended {
+				t.Errorf("the view ended: %v, want %v", ended, c.ended)
+			}
+		})
+	}
+}
+
 // UC-ID-29 check 5: who may not be viewed, and who may not view - refused before anything is
 // written.
 func TestAViewIsRefusedBeforeAnythingIsWritten(t *testing.T) {

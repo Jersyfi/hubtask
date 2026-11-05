@@ -63,6 +63,11 @@ type AuthenticateToken struct {
 	Hosts repository.TenantDirectory
 	// InstallationHost is the installation's own host, where the header and not the host speaks.
 	InstallationHost string
+	// ViewRights asks, on every request of a running view, whether the viewer still may view the
+	// person (UC-ID-29 check 3). Nil is a build wired before it, where the view runs its half hour.
+	ViewRights interface {
+		Hold(ctx context.Context, viewer appshared.ActorContext, viewed shared.ID) error
+	}
 }
 
 // AuthenticateTokenCommand carries the presented credential and the preferences resolved from the
@@ -217,7 +222,7 @@ func (a AuthenticateToken) executeSession(
 		return appshared.ActorContext{}, err
 	}
 
-	var actor appshared.ActorContext
+	var actor, own appshared.ActorContext
 	scope := persistence.Scope{TenantID: claims.TenantID}
 
 	// Read-write for AuthenticateToken's reason: the last-seen write rides along.
@@ -295,13 +300,38 @@ func (a AuthenticateToken) executeSession(
 				credential.Account.TimeZone, credential.TenantTimeZone, cmd.FallbackTimeZone),
 		}
 		actor.WeekStart = a.weekStart(credential.Account.WeekStart, credential.WeekStartAbove, actor.Locale)
+		own = actor
 		actor = a.viewedAs(actor, credential, now)
 		return nil
 	})
 	if err != nil {
 		return appshared.ActorContext{}, err
 	}
-	return actor, nil
+	return a.viewStillAllowed(ctx, own, actor), nil
+}
+
+// viewStillAllowed ends a running view whose viewer no longer may hold it - MANAGE_MEMBERS lost, or
+// the person now holding a role above the viewer's - and answers the viewer's own actor. A refusal
+// ends it for good; any other failure answers the viewer for this request and asks again on the
+// next: failing towards the session's holder, as viewedAs does.
+func (a AuthenticateToken) viewStillAllowed(ctx context.Context, own, actor appshared.ActorContext) appshared.ActorContext {
+	if !actor.IsViewingAs() || a.ViewRights == nil {
+		return actor
+	}
+	err := a.ViewRights.Hold(ctx, own, actor.AccountID)
+	if err == nil {
+		return actor
+	}
+	if errors.Is(err, shared.ErrForbidden) {
+		if endErr := a.UnitOfWork.Within(ctx, own.PersistenceScope(), func(ctx context.Context) error {
+			_, err := a.Sessions.EndViewingAs(ctx, own.TokenID, own.AccountID)
+			return err
+		}); endErr != nil {
+			slog.WarnContext(ctx, "ending a view its viewer may no longer hold failed",
+				slog.String("error", endErr.Error()))
+		}
+	}
+	return own
 }
 
 // elevatedScopes is the other half of ADR-0070 §4: for the hour a raised session lasts, and only

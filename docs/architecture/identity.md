@@ -1128,6 +1128,7 @@ groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../us
 | What the request is | Authentication turns the session's actor into the person: their identifier, day and week, the viewer's language, only the `:read` scopes, `Present` false (no emergency access counts), `ViewedBy` the viewer. A write is refused for the scope it lacks. |
 | Online only | The sync service refuses the snapshot, the pull and the stream with `access.view_as_online_only`; the web app opens no replica while a view runs. |
 | Lapse | A view run out, a person deleted, switched off, or now in a private hub lapses: the session is its holder's own again - failing towards the holder, never towards the person viewed. |
+| Rights | On every request of a running view, after its transaction, authentication asks the start's question again (`ViewAsRights`): `MANAGE_MEMBERS` at the workspace, then the ceiling over what the person holds. A refusal - recorded by the authoriser - ends the view for good and the request is the viewer's own; a question that cannot be answered answers the viewer for that request and asks again on the next. |
 | Trail | `account.viewed_as` (warning) at each start, `account.view_as_ended` when the viewer ends it. |
 
 ---

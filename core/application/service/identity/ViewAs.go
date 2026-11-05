@@ -296,3 +296,38 @@ func viewAsOutput(view ViewAs) usecase.Output {
 	}
 	return out
 }
+
+// ViewAsRights asks again, while a view runs, what starting it asked: MANAGE_MEMBERS at the
+// workspace, and nobody viewed holding a role above the viewer's (UC-ID-29 check 3). Authentication
+// asks it after its own transaction, since a refusal writes its trail entry.
+type ViewAsRights struct {
+	Held       repository.HeldRoles
+	Authorizer Authorizer
+	UnitOfWork persistence.UnitOfWork
+}
+
+// Hold answers nil while the viewer may still view the person; the authoriser's refusal otherwise.
+func (r ViewAsRights) Hold(ctx context.Context, viewer appshared.ActorContext, viewed shared.ID) error {
+	request := access.Request{
+		Permission: service.PermissionManageMembers,
+		Path:       []domain.Scope{domain.TenantScope()},
+		Action:     ViewedAsAction,
+		TokenScope: membersWrite,
+		TargetType: accountTarget,
+		TargetID:   viewed,
+	}
+	if err := r.Authorizer.Authorize(ctx, viewer, request); err != nil {
+		return err
+	}
+	ceiling := wayInCeiling{Held: r.Held, Authorizer: r.Authorizer}
+	var held []domain.Role
+	err := r.UnitOfWork.WithinReadOnly(ctx, viewer.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		held, err = ceiling.heldBy(ctx, viewed)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return ceiling.hold(ctx, viewer, request, held)
+}

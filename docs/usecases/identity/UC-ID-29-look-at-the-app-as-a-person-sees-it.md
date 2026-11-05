@@ -37,8 +37,10 @@ app as Lena, when, and until when.
    where its scope only reads -, the view reads only what both the person and the administrator may
    read, and a device's copy - the snapshot, a pull, the stream - is refused with
    `access.view_as_online_only`; the web app keeps no replica.
-3. A view ends after half an hour, when the person is switched off or deleted, and when they join a
-   private hub; the session is then the administrator's own again.
+3. A view ends after half an hour, when the person is switched off or deleted, when they join a
+   private hub, and when the administrator no longer holds `MANAGE_MEMBERS` or the person now
+   holds a role above the administrator's; the session is then the administrator's own again
+   (decision: the owner's sixth answers 9).
 4. *End view* ends it; the trail records `account.view_as_ended`.
 5. Starting is refused for a person holding a role above the administrator's
    (`access.role_above_own`), a member of a private hub directly or through a group
