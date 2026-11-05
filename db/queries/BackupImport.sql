@@ -3485,14 +3485,16 @@ SELECT EXISTS (SELECT 1 FROM agent_halt) AS held;
 DELETE FROM agent_halt;
 
 -- name: ImportAgentRequest :execrows
-INSERT INTO agent_request (id, tenant_id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at, version)
-SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code, r.created_at, r.version
+INSERT INTO agent_request (id, tenant_id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at, version, performing)
+SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code, r.created_at, r.version,
+  -- An archive written before migration 0361 holds no mark: nothing it holds was being performed.
+  coalesce(r.performing, false)
 FROM jsonb_populate_record(
   NULL::agent_request,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (id) DO UPDATE SET
-  agent_id = EXCLUDED.agent_id, use_case = EXCLUDED.use_case, class = EXCLUDED.class, input = EXCLUDED.input, status = EXCLUDED.status, decided_by = EXCLUDED.decided_by, decided_at = EXCLUDED.decided_at, code = EXCLUDED.code, created_at = EXCLUDED.created_at, version = EXCLUDED.version
+  agent_id = EXCLUDED.agent_id, use_case = EXCLUDED.use_case, class = EXCLUDED.class, input = EXCLUDED.input, status = EXCLUDED.status, decided_by = EXCLUDED.decided_by, decided_at = EXCLUDED.decided_at, code = EXCLUDED.code, created_at = EXCLUDED.created_at, version = EXCLUDED.version, performing = EXCLUDED.performing
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsAgentRequest :one
