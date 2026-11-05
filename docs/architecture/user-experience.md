@@ -229,8 +229,10 @@ open (`core/application/service/config/Starter.go`). The dialog's families are t
 (`hubGallery.ts`), *Simple* first with the four purposes; the plan shown in words before *Set up* is
 the workspace part's, since the hub part can only be planned once the hub exists. The coordinator
 (`apps/webapp/src/lib/onboarding/`) holds the base tour back while the starter is offered or open.
-Not built yet: *Choose what you use Hubtask for* on Today after a skip, which needs the closed
-question to take a template-led set once more.
+After a skip, `GET /tenant` answers `starter_skipped` while the workspace holds nothing somebody
+made; Today's first steps then carry *Choose what you use Hubtask for*, which opens the same
+dialog, and `starter:apply` takes the set once more under the tenant row's lock (dismissing it
+again sends nothing).
 
 ### 3.3 Today, the place the app opens on
 

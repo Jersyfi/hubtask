@@ -37,9 +37,14 @@
   interface Props {
     /** Ran after the set was made, with where to open: the template's main product, else the hub. */
     onstarted?: (path: string) => void;
+    /**
+     * Set to open the dialog once more after a skip (Today's *Choose what you use Hubtask for*,
+     * user-experience.md §3.3); the dialog sets it back when it closes.
+     */
+    isChoosing?: boolean;
   }
 
-  let { onstarted }: Props = $props();
+  let { onstarted, isChoosing = $bindable(false) }: Props = $props();
 
   $effect(() => untrack(() => workspace.open()));
 
@@ -54,6 +59,21 @@
   // Opened once, when the workspace says the question is offered; the tour waits while it is.
   $effect(() => {
     if (workspace.workspace?.starter_offered === true && !isAnswered) isOpen = true;
+  });
+  // Opened again from Today after a skip: the question is closed already, so a dismiss sends nothing.
+  let isReopened = false;
+  $effect(() => {
+    if (!isChoosing) return;
+    untrack(() => {
+      isReopened = true;
+      isClosing = false;
+      isAnswered = false;
+      failure = undefined;
+      isOpen = true;
+    });
+  });
+  $effect(() => {
+    if (!isOpen && isChoosing) untrack(() => (isChoosing = false));
   });
   $effect(() => {
     onboarding.starterOpen(isOpen);
@@ -158,6 +178,7 @@
     isClosing = true;
     isAnswered = true;
     isOpen = false;
+    if (isReopened) return;
     try {
       await workspace.closeStarter();
     } catch {

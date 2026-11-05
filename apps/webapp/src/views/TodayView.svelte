@@ -79,6 +79,7 @@
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import StarterDialog from '../lib/workspace/StarterDialog.svelte';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import EntryPlace from '../lib/workspace/EntryPlace.svelte';
 
   interface Props {
@@ -321,6 +322,8 @@
   const inUse = $derived(looksNew && isWorkspaceUsed);
   const inUseProducts = $derived(products({ modulesOn: manifest.value?.modules_on }));
   const mayInvite = $derived(holdsHere('MANAGE_MEMBERS') === true);
+  /** Today's *Choose what you use Hubtask for* opens the starter's dialog again (§3.3). */
+  let isChoosing = $state(false);
 
   /**
    * *More in Hubtask* (user-experience.md §3.3): the products that are off, for whoever may switch
@@ -621,6 +624,13 @@
           {:else if isNewWorkspace}
             <!-- The first steps, each ticked where it is already done, each with its act. -->
             <ul class="steps">
+              {#if workspace.workspace?.starter_skipped === true}
+                <!-- The first start was skipped and nothing made since: the same dialog, once more (§3.3). -->
+                <li data-step-choose>
+                  <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_choose')}</span>
+                  <Button size="sm" tone="secondary" onclick={() => (isChoosing = true)}>{t('app.today.step_choose_act')}</Button>
+                </li>
+              {/if}
               <li data-done=""><span class="step-mark" aria-hidden="true"><Icon name="check" size="sm" /></span><span class="step-word">{t('app.today.step_hub')}</span></li>
               <li>
                 <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_capture')}</span>
@@ -942,7 +952,7 @@
 
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
-<StarterDialog onstarted={(path) => onnavigate?.(path)} />
+<StarterDialog bind:isChoosing onstarted={(path) => onnavigate?.(path)} />
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={tryingWith}
   oncreated={(id, template) => { tryingWith = undefined; onnavigate?.(afterCreating(id, template, `/hubs/${id}`)); }} />
 

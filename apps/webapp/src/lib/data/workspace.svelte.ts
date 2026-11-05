@@ -72,6 +72,8 @@ export interface Workspace {
   readonly structure?: WorkspaceStructure;
   /** Whether to ask this reader, once, what the workspace is used for (UC-WRK-30 check 5). */
   readonly starter_offered?: boolean;
+  /** Whether the first start was skipped while nothing was made since: Today offers it again (§3.3). */
+  readonly starter_skipped?: boolean;
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */

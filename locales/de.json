@@ -8742,6 +8742,8 @@
   "app.today.mine_hidden": "{count, plural, one {# weiterer} other {# weitere}}",
   "app.today.first_steps": "Erste Schritte",
   "app.today.step_hub": "Einen Hub anlegen",
+  "app.today.step_choose": "Wähle, wofür du Hubtask nutzt",
+  "app.today.step_choose_act": "Wählen",
   "app.today.step_capture": "Etwas erfassen",
   "app.today.step_invite": "Jemanden einladen",
   "app.today.step_invite_act": "Einladen",

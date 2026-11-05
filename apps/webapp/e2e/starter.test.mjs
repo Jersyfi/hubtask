@@ -41,7 +41,7 @@ const PLAN = {
   from_version: null, upgrade: [], document: DESK.document, mode: 'MERGE',
 };
 
-async function as(browser, offered, { failFirstApply = false } = {}) {
+async function as(browser, offered, { failFirstApply = false, skipped = false } = {}) {
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   const sent = [];
   let closed = false;
@@ -51,7 +51,7 @@ async function as(browser, offered, { failFirstApply = false } = {}) {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/tenant' && request.method() === 'GET') {
-      return route.fulfill({ json: { ...WORKSPACE, starter_offered: offered && !closed } });
+      return route.fulfill({ json: { ...WORKSPACE, starter_offered: offered && !closed, starter_skipped: skipped && applies === 0 } });
     }
     if (path === '/tenant/starter:close' && request.method() === 'POST') {
       sent.push({ path });
@@ -203,5 +203,42 @@ test('chromium: the first start on a template - its family, its plan in words, t
   assert.equal(sent[0].body.samples, true);
   assert.equal(sent[0].body.hub_preset, undefined, 'a template set chose a preset of its own');
   assert.ok(sent[0].body.hub_name.length > 0);
+  assert.deepEqual(failures, []);
+});
+
+// After a skip, Today's first steps carry *Choose what you use Hubtask for* (user-experience.md
+// §3.3), which opens the same dialog; dismissing it sends nothing, choosing makes the one set.
+test('chromium: a skipped first start is offered on Today and opens the same dialog', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, sent } = await as(browser, false, { skipped: true });
+  t.after(() => context.close());
+  await context.route('**/api/v1/items:query', async (route) => {
+    const body = route.request().postDataJSON();
+    if (body?.scope?.container_id === HUB.id && body.page?.size === 1) return route.fulfill({ json: { data: [], groups: [], page: { next_cursor: null, has_more: false } } });
+    return route.fallback();
+  });
+
+  await page.goto(`${served.origin}/`);
+  const steps = page.getByRole('region', { name: 'First steps' });
+  await steps.waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(800);
+  assert.equal(await dialogOf(page).isVisible(), false, 'a skipped first start opened by itself');
+  const choose = steps.locator('[data-step-choose]');
+  assert.match((await choose.textContent()) ?? '', /Choose what you use Hubtask for/u);
+
+  await choose.getByRole('button', { name: 'Choose' }).click();
+  const dialog = dialogOf(page);
+  await dialog.waitFor({ timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+  assert.deepEqual(sent, [], 'dismissing the dialog again sent something');
+
+  await choose.getByRole('button', { name: 'Choose' }).click();
+  await dialog.waitFor({ timeout: 10_000 });
+  await dialog.locator('[data-starter-family="simple"] button').click();
+  await dialog.locator('[data-starter-purpose="HOUSEHOLD"] button').click();
+  await page.waitForURL(`**/hubs/${STARTED_HUB}`, { timeout: 10_000 });
+  assert.deepEqual(sent.map((write) => write.path), ['/tenant/starter:apply']);
   assert.deepEqual(failures, []);
 });
