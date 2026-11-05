@@ -4005,7 +4005,8 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/sample-entries:remove", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** A hub's trashed pages */
+  /** A hub's trashed pages
+   * @deprecated */
   listTrashedPages(hubId: string, options: CallOptions = {}): Promise<operations["listTrashedPages"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/trashed-pages", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }

@@ -414,13 +414,16 @@ operation checks cannot exist; `GET /meta/capabilities` and the contract list th
 | Error codes | Stable; removing one is a breaking change |
 | Deprecation | The `Deprecation` (RFC 9745) and `Sunset` (RFC 8594) headers plus an entry in `/meta/capabilities` and the changelog |
 
-**How a request field is deprecated:** in `openapi.yaml`, `deprecated: true` with
-`x-deprecated-since` (the day), `x-removed-in` (the major), `x-replaced-by` (an `operationId` or
-header, not prose) and, once a day is set, `x-sunset`. `make generate` reads them into the REST
-adapter's table (`tools/deprecations`); the manifest lists `deprecations`, and only a request that
-sends such a field is answered with `Deprecation` (and `Sunset` where a day is set). The generator
-fails on a mark missing its day, version or replacement, and on a mark nothing can announce: only a
-top-level property of a schema a JSON request body references can be deprecated.
+**How a request field, a query parameter or an operation is deprecated:** in `openapi.yaml`,
+`deprecated: true` with `x-deprecated-since` (the day), `x-removed-in` (the major),
+`x-replaced-by` (an `operationId` or header, not prose) and, once a day is set, `x-sunset`.
+`make generate` reads them into the REST adapter's table (`tools/deprecations`); the manifest lists
+`deprecations`, each with `in` (`body`, `query` or `operation`), and only a request that sends such
+a field, names such a parameter or asks such an operation is answered with `Deprecation` (and
+`Sunset` where a day is set). The generator fails on a mark missing its day, version or
+replacement, and on a mark nothing can announce: only an operation, a query parameter written in
+the operation itself and a top-level property of a schema a JSON request body references can be
+deprecated.
 
 **Two releases at once.** During a rolling update a client of one release can reach a server of
 the other. Every answer names the server's build in `X-Hubtask-Build` - the bundle's entry script,

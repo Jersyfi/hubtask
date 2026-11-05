@@ -43,6 +43,9 @@ func TestARequestThatSendsADeprecatedFieldIsTold(t *testing.T) {
 	}
 
 	for _, row := range deprecatedFields {
+		if row.In != "body" {
+			continue // TestADeprecatedOperationOrQueryParameterIsTold
+		}
 		template := row.Method + " " + APIBasePath + row.Path
 		since, err := time.Parse(time.DateOnly, row.Since)
 		if err != nil {
@@ -91,5 +94,40 @@ func TestASetDayIsSentAsSunset(t *testing.T) {
 	announceDeprecation(response, request, "POST /x")
 	if got := response.Header().Get("Sunset"); got != "Thu, 01 Apr 2027 00:00:00 GMT" {
 		t.Errorf("Sunset is %q", got)
+	}
+}
+
+// An operation is told on every request to it, a query parameter when the request names it, and
+// the manifest says which each is (versioning-release.md §5).
+func TestADeprecatedOperationOrQueryParameterIsTold(t *testing.T) {
+	ask := func(t *testing.T, template, target string) string {
+		t.Helper()
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+		response := httptest.NewRecorder()
+		announceDeprecation(response, request, template)
+		return response.Header().Get("Deprecation")
+	}
+	want := "@" + strconv.FormatInt(time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC).Unix(), 10)
+
+	pages := "GET " + APIBasePath + "/hubs/{hubId}/trashed-pages"
+	if got := ask(t, pages, "/hubs/x/trashed-pages"); got != want {
+		t.Errorf("the per-hub page trash answered Deprecation %q, want %q", got, want)
+	}
+	boards := "GET " + APIBasePath + "/hubs/{hubId}/whiteboards"
+	if got := ask(t, boards, "/hubs/x/whiteboards?trashed=true"); got != want {
+		t.Errorf("the boards' trashed listing answered Deprecation %q, want %q", got, want)
+	}
+	if got := ask(t, boards, "/hubs/x/whiteboards"); got != "" {
+		t.Errorf("the boards' listing without trashed answered Deprecation %q", got)
+	}
+
+	kinds := map[string]string{}
+	for _, entry := range *deprecationManifest() {
+		if entry.In != nil {
+			kinds[entry.OperationId+" "+entry.Field] = string(*entry.In)
+		}
+	}
+	if kinds["listTrashedPages "] != "operation" || kinds["listWhiteboards trashed"] != "query" || kinds["disableTotp password"] != "body" {
+		t.Errorf("the manifest says %v", kinds)
 	}
 }

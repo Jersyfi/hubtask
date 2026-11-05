@@ -3184,7 +3184,7 @@ class Client:
         return self._call("POST", "/hubs/{hubId}/sample-entries:remove", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def list_trashed_pages(self, hub_id: str) -> "PageList":
-        """A hub's trashed pages"""
+        """A hub's trashed pages (deprecated)"""
         return self._call("GET", "/hubs/{hubId}/trashed-pages", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def read_page(self, page_id: str) -> "PageRead":

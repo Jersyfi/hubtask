@@ -3092,7 +3092,7 @@ var generatedCommands = []door{
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
-			{Name: "trashed", Kind: "boolean", Help: "", Required: false},
+			{Name: "trashed", Kind: "boolean", Help: "Deprecated: `GET /trash?kind=WHITEBOARD` lists the boards in the trash across the workspace's hubs; …", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},
 	{Group: "whiteboard", Verb: "place-file", OperationID: "attachWhiteboardMedia", Method: "POST", Path: "/whiteboards/{whiteboardId}/media", Summary: "Place an uploaded file on a whiteboard",

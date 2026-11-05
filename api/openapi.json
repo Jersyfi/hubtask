@@ -32488,7 +32488,13 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "page trash",
         "summary": "A hub's trashed pages",
-        "description": "The space's trash, the latest first, without the bodies. Needs READ on the hub.",
+        "description": "The space's trash, the latest first, without the bodies. Needs READ on the hub. Deprecated: `GET /trash?kind=PAGE` lists the same pages across the workspace's hubs; this goes with the next major version.\n",
+        "deprecated": true,
+        "x-deprecated-since": "2026-11-05",
+        "x-removed-in": "v2",
+        "x-replaced-by": [
+          "listTrash"
+        ],
         "responses": {
           "200": {
             "description": "The trash",
@@ -34349,9 +34355,16 @@
           {
             "name": "trashed",
             "in": "query",
+            "description": "Deprecated: `GET /trash?kind=WHITEBOARD` lists the boards in the trash across the workspace's hubs; this goes with the next major version.\n",
             "schema": {
               "type": "boolean"
-            }
+            },
+            "deprecated": true,
+            "x-deprecated-since": "2026-11-05",
+            "x-removed-in": "v2",
+            "x-replaced-by": [
+              "listTrash"
+            ]
           },
           {
             "$ref": "#/components/parameters/Cursor"
@@ -65564,13 +65577,13 @@
             "items": {
               "$ref": "#/components/schemas/DeprecatedField"
             },
-            "description": "Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with. Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.\n"
+            "description": "Every request field, query parameter and operation this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with. Read from the contract itself, so the list and the specification cannot disagree. A request that sends such a field or parameter, or asks such an operation, is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.\n"
           }
         }
       },
       "DeprecatedField": {
         "type": "object",
-        "description": "One deprecated request field, and when it goes. Identifiers only: what replaces it is named, and the field's description in the specification says the rest.\n",
+        "description": "One deprecated request field, query parameter or operation, and when it goes. Identifiers only: what replaces it is named, and its description in the specification says the rest.\n",
         "required": [
           "operation_id",
           "method",
@@ -65591,9 +65604,18 @@
             "type": "string",
             "description": "The operation's path as the specification writes it."
           },
+          "in": {
+            "type": "string",
+            "enum": [
+              "body",
+              "query",
+              "operation"
+            ],
+            "description": "What is deprecated: a field of the JSON request body, a query parameter, or the whole operation. Absent from a server that deprecates request fields only, which means `body`.\n"
+          },
           "field": {
             "type": "string",
-            "description": "The field in the request body."
+            "description": "The field in the request body or the query parameter; empty where the whole operation is deprecated.\n"
           },
           "since": {
             "type": "string",

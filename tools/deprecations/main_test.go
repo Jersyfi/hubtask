@@ -44,9 +44,36 @@ func TestAMarkedRequestFieldIsInTheTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}
-	if len(entries) != 1 || entries[0].OperationID != "createThing" || entries[0].Field != "old" ||
+	if len(entries) != 1 || entries[0].OperationID != "createThing" || entries[0].Field != "old" || entries[0].In != inBody ||
 		entries[0].Method != "POST" || entries[0].ReplacedBy[0] != "renameThing" {
 		t.Fatalf("the table is %+v", entries)
+	}
+}
+
+const markOf = `
+      deprecated: true
+      x-deprecated-since: "2026-11-05"
+      x-removed-in: v2
+      x-replaced-by: [listThings]`
+
+// A whole operation and a query parameter written in it are announced too: the first on every
+// request to it, the second when a request names it.
+func TestAMarkedOperationAndQueryParameterAreInTheTable(t *testing.T) {
+	raw := strings.Replace(string(spec("", "")), "operationId: createThing", "operationId: createThing"+markOf+`
+      parameters:
+        - name: trashed
+          in: query
+          schema: { type: boolean }`+strings.ReplaceAll(markOf, "\n      ", "\n          "), 1)
+	entries, err := table([]byte(raw))
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if len(entries) != 2 || entries[0].In != inOperation || entries[0].Field != "" ||
+		entries[1].In != inQuery || entries[1].Field != "trashed" || entries[1].ReplacedBy[0] != "listThings" {
+		t.Fatalf("the table is %+v", entries)
+	}
+	if _, err := table([]byte(strings.Replace(raw, `x-removed-in: v2`, `x-removed-in: later`, 1))); err == nil {
+		t.Error("an operation's incomplete mark was accepted")
 	}
 }
 
@@ -64,8 +91,10 @@ func TestAMarkNothingCanAnnounceIsRefused(t *testing.T) {
           properties:
             deep: { type: string, deprecated: true }
 `, ""),
-		"a deprecated operation": []byte(strings.Replace(string(spec("", "")),
-			"operationId: createThing", "operationId: createThing\n      deprecated: true", 1)),
+		"a path parameter": []byte(strings.Replace(string(spec("", "")),
+			"operationId: createThing", "operationId: createThing\n      parameters:\n        - { name: id, in: path, deprecated: true }", 1)),
+		"a shared parameter": []byte(strings.Replace(string(spec("", "")),
+			"    parameters: []", "    parameters:\n      - { name: old, in: query, deprecated: true }", 1)),
 	}
 	for name, raw := range cases {
 		if _, err := table(raw); err == nil || !strings.Contains(err.Error(), "nothing can announce it") {

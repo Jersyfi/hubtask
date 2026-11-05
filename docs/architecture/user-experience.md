@@ -522,7 +522,8 @@ component (`ErasureLines`). `/trash` lists containers, entries, pages and whiteb
 once at its root, keyed on that page, a restricted page only to whom it admits, and emptying the
 trash takes pages and boards too. `TestEveryKindWithARestoreIsInTheOneTrash` holds every
 `:restore` to a listed kind (a label's and a page version's restore take nothing out of a trash).
-The hubs' own page and whiteboard trash lists still exist beside it; they are not yet links into
+The hubs' own page and whiteboard trash lists still exist beside it, their endpoints deprecated
+for `/trash?kind=…` since 2026-11-05 and removed with the next major; they are not yet links into
 `/trash` narrowed to their kind. Who trashed a page or a board is recorded since migration 0371, so
 its row names the person as an entry's does; one trashed before names nobody.
 

@@ -4294,6 +4294,27 @@ func (e DependencyHealthCircuitState) Valid() bool {
 	}
 }
 
+// Defines values for DeprecatedFieldIn.
+const (
+	Body      DeprecatedFieldIn = "body"
+	Operation DeprecatedFieldIn = "operation"
+	Query     DeprecatedFieldIn = "query"
+)
+
+// Valid indicates whether the value is a known member of the DeprecatedFieldIn enum.
+func (e DeprecatedFieldIn) Valid() bool {
+	switch e {
+	case Body:
+		return true
+	case Operation:
+		return true
+	case Query:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DroppedReferenceKind.
 const (
 	DroppedReferenceKindASSIGNEE    DroppedReferenceKind = "ASSIGNEE"
@@ -13507,7 +13528,7 @@ type Capabilities struct {
 	// CompletionPolicies The values a collection's `completion_policy` may take, in the domain's order. A policies form is built from this list rather than from a copy of the enum: the schema says which values exist, this says which this installation serves.
 	CompletionPolicies *[]CompletionPolicy `json:"completion_policies,omitempty"`
 
-	// Deprecations Every request field this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with. Read from the contract itself, so the list and the specification cannot disagree. A request that sends one of them is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
+	// Deprecations Every request field, query parameter and operation this contract has marked `deprecated`, with the operations that take it, since when, and the major version it goes away with. Read from the contract itself, so the list and the specification cannot disagree. A request that sends such a field or parameter, or asks such an operation, is answered with the `Deprecation` header (RFC 9745) - and with `Sunset` (RFC 8594) once a date is set.
 	Deprecations *[]DeprecatedField `json:"deprecations,omitempty"`
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
@@ -16183,12 +16204,15 @@ type DependencyHealth struct {
 // DependencyHealthCircuitState defines model for DependencyHealth.CircuitState.
 type DependencyHealthCircuitState string
 
-// DeprecatedField One deprecated request field, and when it goes. Identifiers only: what replaces it is named, and the field's description in the specification says the rest.
+// DeprecatedField One deprecated request field, query parameter or operation, and when it goes. Identifiers only: what replaces it is named, and its description in the specification says the rest.
 type DeprecatedField struct {
-	// Field The field in the request body.
-	Field       string `json:"field"`
-	Method      string `json:"method"`
-	OperationId string `json:"operation_id"`
+	// Field The field in the request body or the query parameter; empty where the whole operation is deprecated.
+	Field string `json:"field"`
+
+	// In What is deprecated: a field of the JSON request body, a query parameter, or the whole operation. Absent from a server that deprecates request fields only, which means `body`.
+	In          *DeprecatedFieldIn `json:"in,omitempty"`
+	Method      string             `json:"method"`
+	OperationId string             `json:"operation_id"`
 
 	// Path The operation's path as the specification writes it.
 	Path string `json:"path"`
@@ -16205,6 +16229,9 @@ type DeprecatedField struct {
 	// Sunset The day it stops being accepted, once one is set. Null until then.
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
 }
+
+// DeprecatedFieldIn What is deprecated: a field of the JSON request body, a query parameter, or the whole operation. Absent from a server that deprecates request fields only, which means `body`.
+type DeprecatedFieldIn string
 
 // DeskLogo defines model for DeskLogo.
 type DeskLogo struct {
@@ -27454,6 +27481,8 @@ type AddHubTemplatePageJSONBody struct {
 
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
 type ListWhiteboardsParams struct {
+	// Trashed Deprecated: `GET /trash?kind=WHITEBOARD` lists the boards in the trash across the workspace's hubs; this goes with the next major version.
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
 	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
@@ -31832,6 +31861,8 @@ type ServerInterface interface {
 	AddHubTemplatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListTrashedPages A hub's trashed pages
 	// (GET /hubs/{hubId}/trashed-pages)
+	//
+	// Deprecated: this operation has been marked as deprecated upstream, but no `x-deprecated-reason` was set
 	ListTrashedPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListWhiteboards A hub's whiteboards
 	// (GET /hubs/{hubId}/whiteboards)
