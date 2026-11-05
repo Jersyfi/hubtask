@@ -759,7 +759,7 @@ OWNER: ["Remove the per-hub trash endpoints GET /hubs/{hubId}/trashed-pages and 
 Not done:
 (1) Load runs L2, L3, L4 and F1 are not built.
 (2) The 10^7 capacity run, now including the board path, needs the owner's host. Not run.
-(3) 644 checks of built use cases are still cited by no test. To list them, temporarily print from checkBuiltCitations in tools/checkdocs/usecases.go.
+(3) 644 checks of built use cases are still cited by no test. To list them, temporarily print from checkBuiltCitations in tools/checkdocs/usecases.go. (Down to 542 on 2026-11-05, `ca69346d0` … `ace8b19a2`: the work, backup, notification, media, sync, automation and integration areas were walked, each check cited only where a test asserts it whole. Open: the remaining checks of those areas, and the jumble, assets, documents, privacy, import, identity, AI, installation, audit, configuration, conversation, service-desk, agent and flow areas.)
 (4) The stored_bytes and object-count quotas, not built. I judged them bigger than one step again: new quota names, the contract enum, the settings catalogue, admin screens, a counter migration with backfill, and counts in each repository. Live document updates should stay out of a per-workspace day counter.
 (5) Not checked: whether erasing an account clears its mail_undeliverable row, which holds the address. Today it is deleted only when the account row itself is deleted or the person clears the mark. The table also has no row in docs/privacy/data-catalog.md.
 (6) Known side effect of the bounded count: when a count is left out, the board's WIP-limit warning reads the missing count as 0.
