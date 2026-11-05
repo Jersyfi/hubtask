@@ -109,6 +109,20 @@ export function createAt(module: string, placeId: string): string | undefined {
   return screen ? `${screen}?${CREATE_ASKED}=1` : undefined;
 }
 
+/**
+ * The places a home's create act offers, the one holding most of the product first (§5.2): the
+ * primary creates where the product is used, not in whichever hub sorts first - an empty first hub
+ * beside one holding the inventory would open on nothing. Ties, and places not counted yet, keep
+ * their order.
+ */
+export function placesByUse<P extends { readonly id: string }>(places: readonly P[], counts: Readonly<Record<string, number>> | undefined): P[] {
+  if (!counts) return [...places];
+  return places
+    .map((place, at) => ({ place, at, n: counts[place.id] ?? 0 }))
+    .sort((a, b) => b.n - a.n || a.at - b.at)
+    .map(({ place }) => place);
+}
+
 /** The screen a create act at a collection leads to: the product's screen there. */
 export function collectionScreenOf(module: string, collectionId: string): string | undefined {
   return module === 'PLANNING' ? `/collections/${encodeURIComponent(collectionId)}/sprints` : undefined;

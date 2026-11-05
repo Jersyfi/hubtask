@@ -21,7 +21,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createAt, createOf, homeTabs, isUnused, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
@@ -168,7 +168,7 @@
   })) : []);
   const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
   // The home's create act (UX-2): the product's own words, opening the create dialog on the place's
-  // screen of it - the first place's, the others in its menu. Without a hub the empty state's *Create hub* is it.
+  // screen of it - the place holding most of the product, the others in its menu. Without a hub the empty state's *Create hub* is it.
   const createAct = $derived(createOf(module));
   // A create act at a collection reads the collections of the hubs where the product is on.
   const collectionHubs = $derived(createAct?.level === 'COLLECTION' ? hubsWith.map((hub) => hub.id).join(',') : '');
@@ -182,7 +182,7 @@
   const createPlaces = $derived(
     createAct?.level === 'COLLECTION'
       ? hubsWith.flatMap((hub) => containers.collectionsOf(hub.id).map((collection) => ({ id: collection.id, label: `${hub.name} › ${collection.name}` })))
-      : hubsWith.map((hub) => ({ id: hub.id, label: hub.name })),
+      : placesByUse(hubsWith.map((hub) => ({ id: hub.id, label: hub.name })), objectCounts),
   );
   const primary = $derived.by(() => {
     if (!createAct || isReading || currentTab !== tabs[0]?.id) return undefined;

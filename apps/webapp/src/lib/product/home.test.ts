@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -170,4 +170,11 @@ test('a product is unused until one of its hubs holds something of it', () => {
   assert.equal(isUnused({ a: 0 }, ['a', 'b']), undefined, 'a hub still being read decides nothing yet');
   assert.equal(isUnused({ a: 0, b: 0 }, ['a', 'b']), true);
   assert.equal(isUnused({ a: 0, b: 2 }, ['a', 'b']), false);
+});
+
+test('a home\'s create act offers the place holding most of the product first, ties in their order', () => {
+  const places = [{ id: 'general' }, { id: 'it' }, { id: 'hr' }];
+  assert.deepEqual(placesByUse(places, { general: 0, it: 12, hr: 3 }).map((p) => p.id), ['it', 'hr', 'general']);
+  assert.deepEqual(placesByUse(places, { general: 0, hr: 0 }).map((p) => p.id), ['general', 'it', 'hr']);
+  assert.deepEqual(placesByUse(places, undefined).map((p) => p.id), ['general', 'it', 'hr']);
 });
