@@ -153,3 +153,31 @@ func TestTheWorkTemplatesCountSomethingOnTheirCollections(t *testing.T) {
 		}
 	}
 }
+
+// The starter's Kanban team offers sample entries, on by default (user-experience.md §3.2): its
+// hub part carries cards of its own type, which a hub made from it holds in its first collection.
+func TestTheKanbanTemplateBringsSampleCards(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, template := range templates {
+		if template.Key != "kanban_team" {
+			continue
+		}
+		samples := template.Hub[sectionSamples]
+		if len(samples) == 0 {
+			t.Fatal("kanban_team brings no sample entry")
+		}
+		for key, block := range samples {
+			if text(block["entry_type"]) != "card" || text(block["title"]) == "" {
+				t.Errorf("sample %s is %v, want a titled card", key, block)
+			}
+		}
+		if refusals := sampleRefusals(samples); len(refusals) > 0 {
+			t.Errorf("its samples are refused: %v", refusals)
+		}
+		return
+	}
+	t.Fatal("kanban_team is not shipped")
+}

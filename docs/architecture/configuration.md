@@ -173,9 +173,10 @@ a role that already exists (`itil_service_desk@14`, the six other service templa
 The team, project and desk templates name what counts in their hub's structure, which its
 collections inherit - `kanban_team@3` flow, `scrum_team@3` open entries, `classic_project@5`
 progress, `itil_service_desk@15` open entries - so their cards and rows carry a figure (UC-WRK-29).
-A hub made from a template - by *Create hub* or by the
-first start naming no collection - starts with one collection named as the hub, where its sample
-entries land: a hub without one refused them (`config.collection_unknown`) and with them the whole.
+`kanban_team@4` brings three sample cards. A hub made from a template - by *Create hub* or by
+the first start naming no collection - starts with one collection named as the hub, where its
+sample entries land: a hub without one refused them (`config.collection_unknown`) and with them
+the whole.
 
 **Roles mapped to groups** are the document's `role_groups` section: a block per custom role, its
 `groups` the groups holding it at the whole workspace. Applying adds a `GrantRole` for each group
