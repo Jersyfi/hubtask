@@ -170,8 +170,10 @@ Details in [multi-tenancy.md](./multi-tenancy.md). The security core:
   raise A-23 (`hubtask_media_scan_held_workspaces`), and `/meta/health` warns
   `media.uploads_held` (workspaces, the oldest hold's age) for an installation without Prometheus;
   with no daemon named any more, the warning is `media.uploads_held_without_scanner`, critical,
-  and said at start. Whether held files may ever be released unscanned is not decided: until it is,
-  they stay held. Without a daemon nothing is scanned. A file
+  and said at start. A held file is never released unscanned, by any switch or command: only a
+  scan settles it (`Object.Scanned`, `TestAHeldObjectJoinsButIsSettledOnlyByAScan`). The operator
+  names a scanner again, or an administrator trashes the file; the critical warning stays while
+  any is held. Without a daemon nothing is scanned. A file
   the daemon refuses for its size is not "cannot answer": a confirmation refuses it with
   `media.too_large_to_scan`, and a held one is settled `UNSCANNABLE` (never downloaded) so the
   pass goes on to the next. A daemon that answers an error for one file holds that file and the
