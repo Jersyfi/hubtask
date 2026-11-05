@@ -164,8 +164,8 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.deepEqual(written.filter((w) => w.method === 'GET' && w.path.endsWith('/recurrence')), [], 'the series was read for an entry whose row says it has none');
 
   // The subtree: a task holding work packages and an activity of its own is headed by neither
-  // name alone, and its count is every direct child of either kind; every level, and a count on a
-  // branch.
+  // name alone, and its count is every direct child of either kind - completed out of how many
+  // (UC-WRK-03 check 5); every level, and a count on a branch.
   const heading = page.getByRole('heading', { level: 2, name: /Under this entry/ });
   assert.ok((await heading.textContent()).replace(/\s+/g, ' ').includes('1/3'), 'the section head does not count every kind');
   const rows = page.locator('.level .row [data-row], .level [data-row]');
