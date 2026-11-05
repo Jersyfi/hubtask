@@ -343,7 +343,7 @@ func Judge(cis []CI, relations []Relation, classes Classes, types RelationTypes,
 			c.Duplicates++
 			h.Duplicates++
 		}
-		if ci.Compliance.ReviewDue != nil && now.After(ci.Compliance.ReviewDue.Add(24*time.Hour)) {
+		if ci.Compliance.ReviewDue != nil && Today(now).After(*ci.Compliance.ReviewDue) {
 			problem.Kinds = append(problem.Kinds, ProblemReviewOverdue)
 			h.ReviewOverdue++
 		}

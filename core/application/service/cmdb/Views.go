@@ -133,7 +133,7 @@ func (h ReadCmdbHealth) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				health = domain.Judge(cis, relations, reg.classes, reg.types, dups, runs, h.Inventory.Clock.Now())
+				health = domain.Judge(cis, relations, reg.classes, reg.types, dups, runs, h.Inventory.Clock.Now().In(zoneOf(actor)))
 				return nil
 			})
 			if err != nil {

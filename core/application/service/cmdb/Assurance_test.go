@@ -12,6 +12,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/cmdb"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -283,6 +284,36 @@ func TestAnEntrysAffectedCIsShowTheirImpactAndCollisions(t *testing.T) {
 	}
 	if _, err := call(t, UnaffectEntryCi{Affecting: aff}.Descriptor(), as(anna), usecase.Input{"item_id": later.String(), "ci_id": booking.String()}); err != nil || len(a.affected) != 3 {
 		t.Errorf("removing: %v", err)
+	}
+}
+
+// UC-AST-10 checks 3 and 4: the review days are the answering person's: at 09:00 UTC it is still
+// the day before in Honolulu, so a disputed CI falls due that day and a confirmed one a year on.
+func TestACampaignsReviewDaysAreTheAnswerersDays(t *testing.T) {
+	f, _ := assuredFixture()
+	out, err := call(t, StartCiCampaign{Inventory: f.inv}.Descriptor(), as(anna), usecase.Input{
+		"hub_id": hub.String(), "name": "Annual review", "classes": []any{"server", "virtual_machine"}, "due_on": "2026-11-30",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := func(account shared.ID) (actor appshared.ActorContext) {
+		actor = as(account)
+		actor.TimeZone = "Pacific/Honolulu"
+		return
+	}
+	attest := AttestCi{Inventory: f.inv}.Descriptor()
+	if _, err := call(t, attest, in(bert), usecase.Input{"campaign_id": out["id"], "ci_id": host.String(), "verdict": "CONFIRMED"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := call(t, attest, in(anna), usecase.Input{"campaign_id": out["id"], "ci_id": vm1.String(), "verdict": "DISPUTED"}); err != nil {
+		t.Fatal(err)
+	}
+	if due := f.m.cis[host].Compliance.ReviewDue; due == nil || due.Format(time.DateOnly) != "2027-10-28" {
+		t.Errorf("host1's next review: %v, want 2027-10-28", due)
+	}
+	if due := f.m.cis[vm1].Compliance.ReviewDue; due == nil || due.Format(time.DateOnly) != "2026-10-28" {
+		t.Errorf("vm1's review: %v, want 2026-10-28", due)
 	}
 }
 

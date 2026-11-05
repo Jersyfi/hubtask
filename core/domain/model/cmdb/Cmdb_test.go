@@ -247,3 +247,31 @@ func TestAnItemHoldingAZeroByteIsKnown(t *testing.T) {
 		}
 	}
 }
+
+// A review is due by a day of the workspace's zone, the one now is read in: in Berlin a review
+// due 5 November is overdue from 00:00 on the 6th there - an hour before UTC's day turns - and a
+// review asked for at 00:30 on 30 October there is next due on 30 October a year on.
+func TestAReviewFallsDueByTheDayOfTheZoneNowIsIn(t *testing.T) {
+	berlin, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Skip("no zone database")
+	}
+	due := time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)
+	ci := []CI{{ID: id("01"), Class: "server", Stage: StageInUse, Compliance: Compliance{ReviewDue: &due, OwnerGroup: id("99")}}}
+	overdue := func(at time.Time) bool {
+		return Judge(ci, nil, NewClasses(nil), NewRelationTypes(nil), nil, nil, at).ReviewOverdue == 1
+	}
+	if overdue(time.Date(2026, 11, 5, 23, 30, 0, 0, berlin)) {
+		t.Error("overdue on its own day in Berlin")
+	}
+	if !overdue(time.Date(2026, 11, 6, 0, 30, 0, 0, berlin)) {
+		t.Error("not overdue on the next day in Berlin")
+	}
+	asked := time.Date(2026, 10, 30, 0, 30, 0, 0, berlin)
+	if next := (Campaign{ReviewMonths: 12}).NextReview(asked).Format(time.DateOnly); next != "2027-10-30" {
+		t.Errorf("next review %s, want 2027-10-30", next)
+	}
+	if today := Today(asked).Format(time.DateOnly); today != "2026-10-30" {
+		t.Errorf("today %s, want 2026-10-30", today)
+	}
+}

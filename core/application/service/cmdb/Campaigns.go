@@ -362,10 +362,11 @@ func (h AttestCi) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				next := c.NextReview(now)
+				// Review days are the workspace's, as the reader's zone resolves to it.
+				local := now.In(zoneOf(actor))
+				next := c.NextReview(local)
 				if a.Verdict == domain.VerdictDisputed {
-					y, m, d := now.UTC().Date()
-					next = time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+					next = domain.Today(local)
 				}
 				updated := ci
 				updated.Compliance.ReviewDue = &next
@@ -442,4 +443,16 @@ func (h CloseCiCampaign) Descriptor() usecase.Descriptor {
 			return out, err
 		}),
 	})
+}
+
+// zoneOf is the zone the actor's days are counted in - the account's, else the workspace's -,
+// UTC where it names none the server knows.
+func zoneOf(actor appshared.ActorContext) *time.Location {
+	if actor.TimeZone == "" {
+		return time.UTC
+	}
+	if zone, err := time.LoadLocation(actor.TimeZone); err == nil {
+		return zone
+	}
+	return time.UTC
 }

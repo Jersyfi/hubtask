@@ -129,13 +129,20 @@ func (c Campaign) Answer(a Attestation, v Verdict, by shared.ID, now time.Time) 
 	return a, nil
 }
 
-// NextReview is the day a confirmed CI is reviewed again.
+// NextReview is the day a confirmed CI is reviewed again, from the day now falls on in its zone.
 func (c Campaign) NextReview(now time.Time) time.Time {
-	y, m, d := now.UTC().Date()
+	y, m, d := now.Date()
 	// The day is held to the target month's last: 31 January and a month is 28 February, not
 	// 3 March.
 	last := time.Date(y, m+time.Month(c.ReviewMonths)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 	return time.Date(y, m+time.Month(c.ReviewMonths), min(d, last), 0, 0, 0, 0, time.UTC)
+}
+
+// Today is the day now falls on in the zone it is read in - the workspace's -, as a review day
+// is held: midnight UTC of that date.
+func Today(now time.Time) time.Time {
+	y, m, d := now.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 // Score is a campaign's standing: how many were asked, answered each way, and the share answered.
