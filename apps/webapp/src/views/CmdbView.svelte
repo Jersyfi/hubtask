@@ -15,6 +15,7 @@
     type SelectOption,
   } from '@hubtask/design-system/components';
   import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import { classesBelow, shownClasses } from '../lib/assets/classTree.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type {
     CiAttribute, CiClass, CiClassList, CiRelationType, CiRelationTypeList, CiSource, CiSourceDefine, CiSourceList, SoftwareAlias, SoftwareAliasList,
@@ -124,6 +125,16 @@
   const kinds: readonly CiAttribute['kind'][] = ['TEXT', 'NUMBER', 'BOOLEAN', 'DATE', 'CHOICE', 'URL', 'GROUP', 'ACCOUNT'];
   const kindOptions = $derived<SelectOption[]>(kinds.map((each) => ({ value: each, label: t(`app.cmdb_admin.kind.${each}`) })));
   const needOptions = $derived<SelectOption[]>((['OPTIONAL', 'RECOMMENDED', 'REQUIRED'] as const).map((each) => ({ value: each, label: t(`app.cmdb_admin.need.${each}`) })));
+  // The families open, each deeper branch folded until opened (§5.4): the shipped hierarchy alone
+  // is a few dozen classes.
+  let opened = $state<ReadonlySet<string>>(new Set());
+  const below = $derived(classesBelow(tree));
+  const shownTree = $derived(shownClasses(tree, opened));
+  function toggle(key: string) {
+    const next = new Set(opened);
+    if (!next.delete(key)) next.add(key);
+    opened = next;
+  }
   const classOptions = $derived<SelectOption[]>(tree.map((each) => ({ value: each.key, label: nameOf(each.key) })));
 
   // --- A class ---------------------------------------------------------------------------------
@@ -271,10 +282,18 @@
           <p class="meta">{t('app.cmdb_admin.classes_hint')}</p>
           {#if mayShape}<div><Button data-list-add icon="plus" onclick={() => openClass()}>{t('app.cmdb_admin.new_class')}</Button></div>{/if}
           <ul class="rows">
-            {#each tree as each (each.key)}
-              <li class="row" style:--depth={depthOf(each)}>
+            {#each shownTree as each (each.key)}
+              {@const holds = depthOf(each) > 0 ? (below.get(each.key) ?? 0) : 0}
+              <li class="row" style:--depth={depthOf(each)} data-class-row={each.key}>
                 <span class="what">
-                  <strong class="indent">{nameOf(each.key)}</strong>
+                  <span class="indent named">
+                    {#if holds > 0}
+                      <IconButton icon={opened.has(each.key) ? 'chevron-down' : 'chevron-right'} size="sm" tone="subtle"
+                        label={t(opened.has(each.key) ? 'app.cmdb_admin.fold_named' : 'app.cmdb_admin.open_named', { name: nameOf(each.key), count: holds })}
+                        aria-expanded={opened.has(each.key)} data-class-toggle onclick={() => toggle(each.key)} />
+                    {/if}
+                    <strong>{nameOf(each.key)}</strong>
+                  </span>
                   <!-- One joined line: a separator inside an {#if} loses its leading space. -->
                   <span class="meta" data-class-meta>{[
                     each.abstract ? t('app.cmdb_admin.abstract') : '',
@@ -282,6 +301,7 @@
                     each.archived ? t('app.cmdb_admin.archived') : '',
                     t('app.cmdb_admin.attribute_count', { count: each.all_attributes.length }),
                     t('app.cmdb_admin.staleness', { days: each.staleness_days }),
+                    holds > 0 ? t('app.cmdb_admin.classes_below', { count: holds }) : '',
                   ].filter((part) => part !== '').join(' · ')}</span>
                 </span>
                 {#if mayShape && !each.system}
@@ -492,6 +512,7 @@
   }
   .what { display: grid; gap: var(--sp-025); }
   .indent { padding-inline-start: calc(var(--depth, 0) * var(--sp-150)); }
+  .named { display: inline-flex; align-items: center; gap: var(--sp-050); }
   .group { display: grid; gap: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); margin: 0; }
   .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }

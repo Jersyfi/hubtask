@@ -447,6 +447,7 @@ Every product home and every hub tab has one anatomy (mockup: `shell.html`, *Pro
   `ModuleSwitches` documents. A test over the administration routes asserts each uses the shell.
   The desk's, the time's and the assets' settings, each its home's last tab, stand on it too - one
   section at a time, never a second row of tabs - and the home's head keeps its create act there.
+  The assets' class tree shows its families, each deeper branch folded until opened.
 * **Pickers, never keys.** A setting that names a type, a status, a group, a priority or a field
   is a picker fed by the workspace's own values, validated before saving; a duration is a
   `DurationInput` in minutes, hours or business days, converted on the client; a recurrence is a

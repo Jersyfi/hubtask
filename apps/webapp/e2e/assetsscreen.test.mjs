@@ -65,7 +65,7 @@ const ASSET = {
   assigned_to: null, request_id: null, state: 'IN_STOCK', disposal: null, updated_at: '2026-10-01T08:00:00Z', version: 1,
 };
 
-async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light' }) {
+async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light', classes = [SERVER_CLASS], modulesOn }) {
   const { page, context, failures } = await signedIn(browser, width, height);
   await page.emulateMedia({ colorScheme: scheme });
   await context.unroute('**/api/v1/**');
@@ -81,7 +81,9 @@ async function open(browser, { width = 1280, height = 900, path, full = true, ro
         return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
       }
     }
-    if (at === '/cmdb/classes') return route.fulfill({ json: { data: [SERVER_CLASS] } });
+    if (modulesOn && at === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: modulesOn } });
+    if (modulesOn && /^\/containers\/[^/]+\/modules$/.test(at)) return route.fulfill({ json: { modules_on: modulesOn } });
+    if (at === '/cmdb/classes') return route.fulfill({ json: { data: classes } });
     if (at === '/cmdb/sources') return route.fulfill({ json: { data: [{ key: 'netbox', kind: 'CONNECTOR', priority: 50 }] } });
     if (at === `/hubs/${HUB.id}/cis`) return route.fulfill({ json: { data: full ? MANY : [], next: null } });
     if (at === `/hubs/${HUB.id}/cmdb-health`) return route.fulfill({ json: full ? health(MANY.length, 6) : health(0, 0) });
@@ -249,3 +251,29 @@ for (const width of [1280, 375]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// One settings anatomy (user-experience.md §5.4): the assets' settings keep the home's create act in
+// the head, and the class tree shows its families with each deeper branch folded until opened.
+test('chromium: the assets settings keep the head\'s create act and fold the class tree', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const shipped = (key, name, lineage) => ({ ...SERVER_CLASS, key, name, parent: lineage[1] ?? '', system: true, lineage });
+  const classes = [
+    shipped('ci', 'Configuration item', ['ci']),
+    shipped('hardware', 'Hardware', ['hardware', 'ci']),
+    shipped('server', 'Server', ['server', 'hardware', 'ci']),
+    shipped('virtual', 'Virtual machine', ['virtual', 'server', 'hardware', 'ci']),
+    shipped('software', 'Software', ['software', 'ci']),
+  ];
+  const { page, context, failures } = await open(browser, { path: '/assets/settings', classes, modulesOn: ['ASSETS'] });
+  t.after(() => context.close());
+
+  await page.locator('[data-class-row="hardware"]').waitFor({ timeout: 20_000 });
+  const rows = async () => page.locator('[data-class-row]').evaluateAll((all) => all.map((row) => row.getAttribute('data-class-row')));
+  assert.deepEqual(await rows(), ['ci', 'hardware', 'software'], 'the deeper classes are not folded');
+  await page.locator('[data-class-row="hardware"] [data-class-toggle]').click();
+  assert.deepEqual(await rows(), ['ci', 'hardware', 'server', 'software']);
+  assert.equal(await page.locator('[data-class-row="hardware"] [data-class-toggle]').getAttribute('aria-expanded'), 'true');
+  await page.locator('header').getByRole('button', { name: 'New configuration item' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
