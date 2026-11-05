@@ -8705,6 +8705,7 @@
   "app.capture.submit": "Capture",
   "app.capture.submitting": "Capturing…",
   "app.capture.added": "{count, plural, one {Added to {place}} other {# entries added to {place}}}",
+  "app.capture.added_title": "“{title}” added to {place}",
   "app.capture.jumbled": "Put in the inbox",
   "app.capture.dismissed": "Dismissed. It stays under Dismissed in the inbox until it ages out.",
   "app.capture.open": "Open",

@@ -96,7 +96,8 @@
       const answer = await suggestions.take(proposal, keys);
       const created = answer.created_ids ?? [];
       if (created.length > 0) {
-        offerUndo({ kind: 'captured', itemIds: created, place: collection.name }, undefined, {
+        const title = created.length === 1 && keys?.length === 1 ? entries.find((entry) => entry.key === keys[0])?.title : undefined;
+        offerUndo({ kind: 'captured', itemIds: created, place: collection.name, title }, undefined, {
           label: t('app.capture.open'),
           href: created.length === 1 ? `/items/${created[0]}` : `/collections/${collection.id}`,
         });

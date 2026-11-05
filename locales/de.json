@@ -8705,6 +8705,7 @@
   "app.capture.submit": "Erfassen",
   "app.capture.submitting": "Wird erfasst …",
   "app.capture.added": "{count, plural, one {In {place} angelegt} other {# Einträge in {place} angelegt}}",
+  "app.capture.added_title": "„{title}“ in {place} angelegt",
   "app.capture.jumbled": "Im Eingang abgelegt",
   "app.capture.dismissed": "Verworfen. Es bleibt unter „Verworfen“ im Eingang, bis es abläuft.",
   "app.capture.open": "Öffnen",

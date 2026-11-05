@@ -142,7 +142,7 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
 
         // Check 3: one entry taken, the rest still proposed, and the way back offered.
         await proposal.getByRole('button', { name: 'Take “Eggs”' }).click();
-        await page.locator('.stack').getByText('Added to Groceries').waitFor({ timeout: 5_000 });
+        await page.locator('.stack').getByText('“Eggs” added to Groceries').waitFor({ timeout: 5_000 });
         assert.deepEqual(callsOf(writes, `POST /suggestions/${PROPOSAL}:accept`)[0].body, { take: ['2'] });
         await proposal.getByText('Eggs', { exact: true }).waitFor({ state: 'detached', timeout: 5_000 });
         await proposal.getByText('Flour', { exact: true }).waitFor({ timeout: 5_000 });

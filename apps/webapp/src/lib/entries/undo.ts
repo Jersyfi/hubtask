@@ -22,7 +22,7 @@ export type Act =
   | { readonly kind: 'label-deleted'; readonly collectionId: string; readonly labelId: string; readonly name: string }
   | { readonly kind: 'bulk-trash'; readonly itemIds: readonly string[] }
   | { readonly kind: 'bulk-label-removed'; readonly itemIds: readonly string[]; readonly labelId: string }
-  | { readonly kind: 'captured'; readonly itemIds: readonly string[]; readonly place: string }
+  | { readonly kind: 'captured'; readonly itemIds: readonly string[]; readonly place: string; readonly title?: string }
   | { readonly kind: 'jumbled'; readonly entryId: string }
   | { readonly kind: 'place-archived'; readonly containerId: string; readonly name: string };
 
@@ -42,7 +42,10 @@ export function sentenceOf(act: Act): { readonly code: string; readonly params: 
     case 'bulk-label-removed':
       return { code: 'app.undo.bulk_label_removed', params: { count: act.itemIds.length } };
     case 'captured':
-      return { code: 'app.capture.added', params: { count: String(act.itemIds.length), place: act.place } };
+      // One entry is said by its title, several by the place they went to (UC-WRK-02 check 1).
+      return act.itemIds.length === 1 && act.title
+        ? { code: 'app.capture.added_title', params: { title: act.title, place: act.place } }
+        : { code: 'app.capture.added', params: { count: String(act.itemIds.length), place: act.place } };
     case 'jumbled':
       return { code: 'app.capture.jumbled', params: {} };
     case 'place-archived':

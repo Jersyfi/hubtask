@@ -170,7 +170,8 @@ test('chromium: the story — chips, the entry in the right place on the person�
   assert.equal(create.body.due_at, '2026-10-21T21:00:00.000Z');
 
   await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
-  const message = page.locator('.stack').getByText('Added to Kitchen');
+  // UC-WRK-02 check 1: one entry is said by its title, in the live region of the message stack.
+  const message = page.locator('.stack').getByText('“Call the electrician” added to Kitchen');
   await message.waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('link', { name: 'Open' }).getAttribute('href'), `/items/${CREATED_ID}`);
   await page.getByRole('button', { name: 'Undo' }).click();

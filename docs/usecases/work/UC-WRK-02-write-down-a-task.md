@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-10, P-12, P-13]
 state: built
 tasks: [B-03, B-04, B-05, F2-09, F10-12, F10-17, M-07]
-checked_by: [test/integration/create_work_item_test.go, test/integration/work_item_test.go, test/integration/update_test.go, apps/webapp/e2e/entry.test.mjs, core/domain/model/work/Item_test.go, core/application/service/work/UpdateWorkItem_test.go, apps/webapp/e2e/explain.test.mjs]
+checked_by: [test/integration/create_work_item_test.go, test/integration/work_item_test.go, test/integration/update_test.go, apps/webapp/e2e/entry.test.mjs, core/domain/model/work/Item_test.go, core/application/service/work/UpdateWorkItem_test.go, apps/webapp/e2e/explain.test.mjs, apps/webapp/e2e/capture.test.mjs, apps/webapp/src/lib/entries/undo.test.ts]
 ---
 
 # Write down a task
@@ -27,7 +27,8 @@ same on their phone in the groceries list; an agent does it through MCP; a scrip
 ## How to check
 
 1. In a collection, *Add* opens an inline line with the title; Enter creates the task after the
-   last one in the list, and a screen reader announces it by its title.
+   last one in the list, and a screen reader announces it by its title; several entries made at
+   once are announced by the place they went to ("3 entries added to Groceries").
 2. An empty title is refused with `items.title_empty`; a title longer than 500 characters —
    counted in characters, not bytes — with `items.title_too_long`; a title with a line break with
    `items.title_malformed`, which says longer text belongs in the notes.

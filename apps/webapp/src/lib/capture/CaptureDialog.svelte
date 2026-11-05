@@ -457,7 +457,7 @@
       if (outcome.created.length === 0) return;
       const only = outcome.created.length === 1 ? outcome.created[0] : undefined;
       offerUndo(
-        { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name },
+        { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name, title: only?.title },
         undefined,
         { label: t('app.capture.open'), href: only ? `/items/${only.id}` : `/collections/${place.id}` },
       );
