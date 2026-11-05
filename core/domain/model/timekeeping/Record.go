@@ -149,6 +149,24 @@ func Span(start, end time.Time) (int, error) {
 	return minutes, nil
 }
 
+// The days a record may lie on (timekeeping.md, records): wide enough for any working life the
+// product keeps, narrow enough that a mistyped year is refused rather than stretching a report or
+// a budget's burn chart over thousands of weeks.
+var (
+	FirstRecordDay = planning.DayFrom(2000, time.January, 1)
+	LastRecordDay  = planning.DayFrom(2099, time.December, 31)
+)
+
+// CheckRecordDay holds a record's day to FirstRecordDay..LastRecordDay.
+func CheckRecordDay(d Day) error {
+	if d < FirstRecordDay || d > LastRecordDay {
+		return shared.ErrValidation.WithDetail("time.day_out_of_range").
+			WithParams(map[string]string{"first": "2000-01-01", "last": "2099-12-31"}).
+			WithFields(shared.FieldError{Path: "/day", Code: "time.day_out_of_range"})
+	}
+	return nil
+}
+
 // ParseDay reads a day written YYYY-MM-DD.
 func ParseDay(text string) (Day, bool) {
 	at, err := time.Parse(time.DateOnly, text)

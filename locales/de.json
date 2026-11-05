@@ -11759,6 +11759,7 @@
   "time.correction_of_correction": "Eine Korrektur wird nicht erneut korrigiert. Korrigiere den ursprünglichen Eintrag.",
   "time.correction_target_required": "Eine Korrektur nennt den Eintrag, den sie korrigiert.",
   "time.day_invalid": "Ein Tag ist ein Datum wie 2026-11-02.",
+  "time.day_out_of_range": "Ein Tag liegt zwischen {first} und {last}.",
   "time.day_required": "Gib den Tag an.",
   "time.dimension_twice": "Jede Gruppierung wird nur einmal gewählt.",
   "time.dimension_unknown": "Ein Bericht gruppiert nach Person, Eintrag, Sammlung, Hub, Tätigkeit, Tag, Woche, Monat oder abrechenbar.",

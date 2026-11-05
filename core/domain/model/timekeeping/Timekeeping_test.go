@@ -272,3 +272,20 @@ func TestActualsRollUpThePlan(t *testing.T) {
 	}
 	_ = third
 }
+
+// A record's day lies in 2000-2099: a typed year 2206 or 0202 is refused rather than stretching a
+// budget's burn chart over thousands of weeks.
+func TestARecordsDayLiesInTheRange(t *testing.T) {
+	for text, want := range map[string]string{
+		"2026-11-05": "", "2000-01-01": "", "2099-12-31": "",
+		"1999-12-31": "time.day_out_of_range", "2100-01-01": "time.day_out_of_range", "0202-11-05": "time.day_out_of_range",
+	} {
+		d, ok := ParseDay(text)
+		if !ok {
+			t.Fatalf("%s did not parse", text)
+		}
+		if got := code(CheckRecordDay(d)); got != want {
+			t.Errorf("%s: %q, want %q", text, got, want)
+		}
+	}
+}

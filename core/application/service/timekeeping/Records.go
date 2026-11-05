@@ -64,7 +64,7 @@ func (k Keeper) fill(ctx context.Context, r *domain.Record, f RecordFields, zone
 	if r.Day == 0 {
 		return invalid("/day", "time.day_required")
 	}
-	return nil
+	return domain.CheckRecordDay(r.Day)
 }
 
 // LogTime records time a person spent, on an entry they may see or on none (UC-TIM-01).

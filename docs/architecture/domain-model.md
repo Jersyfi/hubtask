@@ -875,7 +875,8 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   planned release or out; `Notes` writes the description and the done entries under their type's
   name as mentions, the Markdown of the page the release then names.
 * **Time** (`core/domain/model/timekeeping`, M7, UC-TIM-01 … 05): a **`Record`** (`time_record`) is
-  one person's minutes on one day - 1 to 1440 - on an entry or on none, of a **`WorkType`**
+  one person's minutes on one day - 1 to 1440, the day between 2000-01-01 and 2099-12-31, so a
+  mistyped year is refused (`time.day_out_of_range`) - on an entry or on none, of a **`WorkType`**
   (`time_work_type`, by key, archived rather than removed), billable or not, with a note that never
   reaches the audit trail (rule 10). It names its entry without a foreign key: approved time is
   accounting's and outlives a purged entry. A **`Timer`** (`time_timer`) is one per person and stops

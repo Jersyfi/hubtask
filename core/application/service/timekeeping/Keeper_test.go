@@ -741,3 +741,19 @@ func TestEveryTimeUseCaseIsInTheTimeModule(t *testing.T) {
 		}
 	}
 }
+
+// A mistyped year is refused at the record, whether the day was written or follows from a start.
+func TestARecordOnAMistypedYearIsRefused(t *testing.T) {
+	f := newFixture()
+	if _, err := (LogTime{Keeper: f.keeper}).Execute(context.Background(), as(ana), RecordFields{
+		WorkType: "meeting", Day: day(t, "2206-11-02"), Minutes: 30,
+	}, time.UTC); detail(err) != "time.day_out_of_range" {
+		t.Fatalf("a written day: %v", err)
+	}
+	start := time.Date(1926, 11, 2, 9, 0, 0, 0, time.UTC)
+	if _, err := (LogTime{Keeper: f.keeper}).Execute(context.Background(), as(ana), RecordFields{
+		WorkType: "meeting", StartedAt: &start, EndedAt: ptr(start.Add(time.Hour)),
+	}, time.UTC); detail(err) != "time.day_out_of_range" {
+		t.Fatalf("a day from a start: %v", err)
+	}
+}

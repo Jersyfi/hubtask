@@ -11759,6 +11759,7 @@
   "time.correction_of_correction": "A correction is not corrected again. Correct the original record.",
   "time.correction_target_required": "A correction names the record it corrects.",
   "time.day_invalid": "A day is a date such as 2026-11-02.",
+  "time.day_out_of_range": "A day lies between {first} and {last}.",
   "time.day_required": "Say which day.",
   "time.dimension_twice": "Each grouping is chosen once.",
   "time.dimension_unknown": "A report groups by person, entry, collection, hub, kind of work, day, week, month or billable.",
