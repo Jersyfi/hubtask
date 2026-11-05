@@ -95,3 +95,28 @@ func TestAFirstStartWithoutATemplateLeavesAVersionToRollBackTo(t *testing.T) {
 		t.Error("the screen's change was not rolled back to the start")
 	}
 }
+
+// §3.2: a new workspace starts with no module on, and the starter switches on what the template
+// needs - its workspace part, which names the module beside its workflows, is taken whole.
+func TestAStarterSwitchesOnTheModulesItsTemplateNeeds(t *testing.T) {
+	f := newFixture()
+	f.world.workflowsOff = true
+	invoke(t, PublishConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{
+		"key": "board", "name": "Board",
+		"document": workflowsOn(map[string]any{"card": map[string]any{"name": "Card", "shape": map[string]any{
+			"initial": "todo",
+			"statuses": []any{
+				map[string]any{"key": "todo", "name": "To do", "category": "TODO"},
+				map[string]any{"key": "done", "name": "Done", "category": "DONE"},
+			},
+			"steps": []any{map[string]any{"key": "finish", "name": "Finish", "from": []any{"todo"}, "to": "done"}},
+		}}}),
+	})
+	take := work.StarterTemplate{Key: "board", Acknowledge: true}
+	if err := (StarterTemplates{Desk: f.desk}).TakeForWorkspace(t.Context(), person, take); err != nil {
+		t.Fatalf("the workspace part: %v", err)
+	}
+	if f.world.workflowsOff || f.world.workflows["card"] == nil {
+		t.Errorf("the module is off %v, the workflows %v", f.world.workflowsOff, f.world.workflows)
+	}
+}

@@ -49,7 +49,10 @@ type world struct {
 	// workflows, nil withholding the section, preview what PreviewWorkflowPublish answers and
 	// grants the role grants ListRoles answers.
 	workflows map[string]map[string]any
-	preview   usecase.Output
+	// workflowsOff answers WORKFLOWS as switched off at the workspace, until SetModule switches it
+	// on, which makes the section readable.
+	workflowsOff bool
+	preview      usecase.Output
 	// previewWithheld makes the previews refuse the reader, as a token without their scope is.
 	previewWithheld bool
 	grants          []any
@@ -80,7 +83,7 @@ type world struct {
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
-		workspace: w.workspace, ai: w.ai, timePolicy: w.timePolicy, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants, mailboxes: w.mailboxes,
+		workspace: w.workspace, ai: w.ai, timePolicy: w.timePolicy, inputs: maps.Clone(w.inputs), workflows: w.workflows, workflowsOff: w.workflowsOff, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants, mailboxes: w.mailboxes,
 		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach, containers: w.containers,
 		calendars: w.calendars, policies: w.policies, offered: w.offered}
 	if w.views != nil {
@@ -225,7 +228,12 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		w.inputs[name] = append(w.inputs[name], in)
 		return w.preview, nil
 	case "ListModules":
-		return usecase.Output{"modules": []any{map[string]any{"module": "WORKFLOWS", "on": true, "source": "WORKSPACE"}}}, nil
+		return usecase.Output{"modules": []any{map[string]any{"module": "WORKFLOWS", "on": !w.workflowsOff, "source": "WORKSPACE"}}}, nil
+	case "CreateWorkflow":
+		if w.workflows == nil {
+			return nil, module.Set{}.Require(module.Workflows)
+		}
+		w.workflows[in.String("key")] = map[string]any{"key": in["key"], "name": in["name"], "published": in["shape"]}
 	case "CreateEntryType":
 		row := map[string]any{"system": false}
 		maps.Copy(row, in)
@@ -333,6 +341,10 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 		}
 		return nil, shared.ErrNotFound.WithDetail("groups.not_found")
 	case "SetModule":
+		if in.String("module") == string(module.Workflows) && in.String("switch") == "ON" && w.workflowsOff {
+			w.workflowsOff = false
+			w.workflows = map[string]map[string]any{}
+		}
 	default:
 		// Every other section is withheld, as a module switched off withholds it.
 		return nil, shared.ErrValidation.WithDetail("module.off")

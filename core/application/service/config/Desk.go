@@ -382,6 +382,20 @@ type plan struct {
 	ownRules map[string]bool
 }
 
+// switchedOnBy names the withheld sections whose module the desired document switches on: they
+// are planned as new, after the switch the section order runs first, rather than refused - a
+// template's part names its modules beside the blocks they carry (user-experience.md §3.2). A block
+// the module kept while it was off makes its create refuse the apply, never a second copy.
+func switchedOnBy(now current, desired domain.Document) map[string]bool {
+	switching := map[string]bool{}
+	for name, off := range now.WithheldModules {
+		if text(desired[sectionModules][strings.ToLower(off)][switchAttribute]) == "ON" {
+			switching[name] = true
+		}
+	}
+	return switching
+}
+
 // hiddenField is one field a plan removes or hides from readers.
 type hiddenField struct{ Path, ID string }
 
@@ -401,12 +415,13 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 	for _, s := range now.sections() {
 		known[s.name] = s
 	}
+	switching := switchedOnBy(now, desired)
 	for _, name := range desired.Sections() {
 		if _, held := known[name]; !held && (name != sectionSettings || !now.Hub.IsZero()) {
 			p.Refusals = append(p.Refusals, domain.Refusal("config.section_unknown", name, nil))
 		}
 		for _, w := range now.Withheld {
-			if w != name {
+			if w != name || switching[name] {
 				continue
 			}
 			if off, isOff := now.WithheldModules[name]; isOff {
@@ -443,7 +458,9 @@ func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) pla
 	p.Target = domain.Resolve(now.Document, desired, mode)
 	for _, w := range now.Withheld {
 		// A section nobody read is not compared: it is neither in force nor removed.
-		delete(p.Target, w)
+		if !switching[w] {
+			delete(p.Target, w)
+		}
 	}
 	for key := range p.Target[sectionSettings] {
 		for _, prefix := range now.WithheldSettings {

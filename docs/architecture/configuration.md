@@ -74,6 +74,12 @@ defines and removes before any calendar), unless the installation offers its key
 says `shadows_offered`). A rule of another scope, a hub's own version of a calendar and a rule's
 trigger counting on one are found at the apply, which refuses whole.
 
+**A section whose module is off** is withheld from the export and refused in a plan (`module.off`
+with the module), unless the same document switches that module on: then the section is planned as
+new and applied after the switch, so a template's part that names its modules beside its types and
+workflows is taken in one apply into a workspace that has them off (user-experience.md §3.2). A
+block the module kept while it was off makes its create refuse the apply whole.
+
 **Apply is all or nothing,** carries the version it was planned against (`If-Match`; a configuration
 somebody changed since is refused with `version_conflict`), writes one configuration version and
 one trail entry naming the actor (`actor.type = AI_AGENT` for an agent) and the counts — never
