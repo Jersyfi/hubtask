@@ -11,7 +11,7 @@
 
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Dialog, Disclosure, EmptyState, Input, PageHeader, Skeleton, Spinner, Stack, UploadField,
+    Banner, Button, Dialog, Disclosure, EmptyState, Input, LoadMore, PageHeader, Skeleton, Spinner, Stack, UploadField,
   } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardList, WhiteboardRead } from '@hubtask/sync-engine';
   import { elementId } from '@hubtask/whiteboard';
@@ -22,7 +22,8 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
-  import { boardPath, boardsPath, placeCarried, readNative, trashedBoardsPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
+  import { columnCards } from '../lib/data/paging.ts';
+  import { boardPath, boardsPath, placeCarried, readNative, trashedBoardsPath, trashPagePath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -55,6 +56,13 @@
 
   let list = $state<readonly Whiteboard[] | undefined>(undefined);
   let trash = $state<readonly Whiteboard[]>([]);
+  // The trash's later pages, read on *Show more*; a fresh first page starts the walk again.
+  let trashLater = $state<readonly Whiteboard[]>([]);
+  let trashCursor = $state<string | undefined>(undefined);
+  let trashBusy = $state(false);
+  let trashArrived = $state<string | undefined>(undefined);
+  let trashFailed = $state<string | undefined>(undefined);
+  const trashShown = $derived(columnCards(trash, trashLater));
   let listRefusal = $state<string | undefined>(undefined);
   $effect(() => {
     const at = hubId;
@@ -66,7 +74,10 @@
           if (next.status === 'failed') listRefusal = renderProblem(next.error, messages).message;
         }),
         engine.subscribe<WhiteboardList>({ path: trashedBoardsPath(at) }, (next) => {
-          if (next.status === 'ready') trash = next.data.data;
+          if (next.status !== 'ready') return;
+          trash = next.data.data;
+          trashLater = [];
+          trashCursor = next.data.page?.next_cursor ?? undefined;
         }),
       ];
       people.open({ hubId: at });
@@ -105,6 +116,26 @@
     titleDraft = suggested(choice);
     lastSuggested = titleDraft;
     isCreating = true;
+  }
+
+  async function moreTrash() {
+    const cursor = trashCursor;
+    if (!cursor || !hubId) return;
+    const before = trashShown.length;
+    trashBusy = true;
+    trashFailed = undefined;
+    try {
+      const next = await engine.refresh<WhiteboardList>({ path: trashPagePath(hubId, cursor) });
+      if (next.status === 'failed') throw next.error;
+      if (next.status !== 'ready') return;
+      trashLater = [...trashLater, ...next.data.data];
+      trashCursor = next.data.page?.next_cursor ?? undefined;
+      trashArrived = t('app.whiteboards.trash_arrived', { count: trashShown.length - before });
+    } catch (error) {
+      trashFailed = renderProblem(error as never, messages).message;
+    } finally {
+      trashBusy = false;
+    }
   }
 
   async function act<T>(run: () => Promise<T>, done?: string): Promise<T | undefined> {
@@ -266,7 +297,7 @@
       <section class="trash" aria-labelledby="boards-trash">
         <h2 class="heading" id="boards-trash">{t('app.whiteboards.trash_list')}</h2>
         <ul class="rows">
-          {#each trash as board (board.id)}
+          {#each trashShown as board (board.id)}
             <li class="row">
               <span>{board.title}</span>
               <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void act(() => whiteboards.restore(board), t('app.whiteboards.restored', { title: board.title }))}>{t('app.whiteboards.restore')}</Button>
@@ -275,6 +306,17 @@
             <li class="meta">{t('app.whiteboards.trash_empty')}</li>
           {/each}
         </ul>
+        {#if trashCursor || trashArrived || trashFailed}
+          <LoadMore
+            label={t('app.whiteboards.trash_more')}
+            busyLabel={t('app.whiteboards.trash_loading_more')}
+            hasMore={Boolean(trashCursor)}
+            isBusy={trashBusy}
+            arrivedLabel={trashArrived}
+            failedLabel={trashFailed}
+            onLoadMore={() => void moreTrash()}
+          />
+        {/if}
       </section>
     {/if}
   </Stack>
