@@ -2,8 +2,8 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The service desk's home (user-experience.md §5.1, §7.4): the trail, the title with its figure
-  // (*12 open · 2 about to breach · 3 unassigned*), *New request* as the primary - into the desk's
-  // list, where an entry is captured - then *Queues · Desks · Settings*. The queues span every desk
+  // (*12 open · 2 about to breach · 3 unassigned*), *New request* as the primary - capture opened on
+  // the desk's collection - then *Queues · Desks · Settings*. The queues span every desk
   // collection of the hubs where the desk is on; the desks are listed with their hub; the settings
   // are the workspace's calendars, policies, replies and organisations, read by every member and
   // changed by whoever shapes the workspace (ServiceDeskView).
@@ -11,6 +11,7 @@
   import { untrack } from 'svelte';
   import { Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
 
+  import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { entryTypes } from '../data/entrytypes.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
@@ -77,12 +78,13 @@
     return {
       label: t('app.desk_home.new_request'),
       icon: 'plus' as const,
-      onclick: () => onnavigate(`/collections/${first.desk.id}`),
+      // A request is an entry of the desk, added by capture there (§5.2: the act creates).
+      onclick: () => capture.open({ collectionId: first.desk.id }),
       menu: desks.length > 1
         ? {
             label: t('app.desk_home.new_request_in'),
             items: desks.map(({ desk }) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })),
-            onselect: (id: string) => onnavigate(`/collections/${id}`),
+            onselect: (id: string) => capture.open({ collectionId: id }),
           }
         : undefined,
     };
