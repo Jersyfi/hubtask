@@ -85,7 +85,7 @@ func (hubs) Find(_ context.Context, id shared.ID) (work.Container, error) {
 type memory struct {
 	repository.Store
 	// listed counts the inventory pages read.
-	listed int
+	listed    int
 	classes   []domain.Class
 	sources   []domain.Source
 	cis       map[shared.ID]domain.CI
