@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import {
   backlinkHref, linkAddress, placeCarried, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
-  threadsOf, trashPagePath, voterKey,
+  threadsOf, voterKey,
 } from './whiteboards.ts';
 
 test('a board lives at its own live document', () => {
@@ -142,6 +142,3 @@ test('a web link is kept as an address the server takes: a space in it encoded, 
   assert.equal(linkAddress(`https://example.com/${'a'.repeat(2048)}`), undefined);
 });
 
-test('a trash beyond its first page is read on from the cursor the last page handed', () => {
-  assert.equal(trashPagePath('h 1', 'c/2'), '/hubs/h%201/whiteboards?trashed=true&cursor=c%2F2');
-});

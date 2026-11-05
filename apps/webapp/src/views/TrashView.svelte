@@ -67,8 +67,20 @@
 
   // `untrack` for the reason every store here records: the load writes the store and writing it
   // reads it, so an effect that tracks that read re-runs on its own first answer.
+  interface Props {
+    /** The kind the address narrows the list to (`/trash?kind=PAGE`); none, or one it does not know, is every kind. */
+    kind?: string;
+    /** Writes the chosen kind into the address, so a hub's *Trash* link and a reload land on the same list. */
+    onnavigate?: (path: string) => void;
+  }
+  const { kind: asked, onnavigate }: Props = $props();
+
+  const knownKind = (value: string | undefined): TrashKind | undefined =>
+    value !== undefined && (TRASH_KINDS as readonly string[]).includes(value) ? (value as TrashKind) : undefined;
+  /** The kind chosen on this screen without an address to write it into; `null` until one is. */
+  let chosenHere = $state<TrashKind | undefined | null>(null);
   /** The kind the list is narrowed to; none is every kind. */
-  let kind = $state<TrashKind | undefined>(undefined);
+  const kind = $derived(chosenHere !== null ? chosenHere : knownKind(asked));
 
   $effect(() => {
     const shown = kind;
@@ -236,8 +248,9 @@
         ...TRASH_KINDS.map((each) => ({ value: each, label: t(`app.trash.kind_${each.toLowerCase()}`) })),
       ]}
       onchange={(event) => {
-        const chosen = (event.currentTarget as HTMLSelectElement).value;
-        kind = chosen === '' ? undefined : (chosen as TrashKind);
+        const chosen = knownKind((event.currentTarget as HTMLSelectElement).value);
+        if (onnavigate) onnavigate(chosen ? `/trash?kind=${chosen}` : '/trash');
+        else chosenHere = chosen;
       }}
     />
   </div>

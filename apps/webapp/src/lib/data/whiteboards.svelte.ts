@@ -21,11 +21,10 @@ import { liveBoardPath } from './whiteboards.ts';
 export * from './whiteboards.ts';
 
 export const boardsPath = (hubId: string) => `/hubs/${hubId}/whiteboards`;
-export const trashedBoardsPath = (hubId: string) => `/hubs/${hubId}/whiteboards?trashed=true`;
 export const boardPath = (boardId: string) => `/whiteboards/${boardId}`;
 export const boardCommentsPath = (boardId: string) => `/whiteboards/${boardId}/comments`;
 
-const touched = (hubId: string, boardId: string) => [boardPath(boardId), boardsPath(hubId), trashedBoardsPath(hubId)];
+const touched = (hubId: string, boardId: string) => [boardPath(boardId), boardsPath(hubId)];
 
 class Whiteboards {
   create(hubId: string, body: WhiteboardCreate): Promise<WhiteboardRead> {

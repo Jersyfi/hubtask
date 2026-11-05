@@ -11,7 +11,7 @@
 
   import { untrack } from 'svelte';
   import {
-    Banner, Button, Dialog, Disclosure, EmptyState, Input, LoadMore, PageHeader, Skeleton, Spinner, Stack, UploadField,
+    Banner, Button, Dialog, Disclosure, EmptyState, Input, PageHeader, Skeleton, Spinner, Stack, UploadField,
   } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardList, WhiteboardRead } from '@hubtask/sync-engine';
   import { elementId } from '@hubtask/whiteboard';
@@ -22,8 +22,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
-  import { columnCards } from '../lib/data/paging.ts';
-  import { boardPath, boardsPath, placeCarried, readNative, trashedBoardsPath, trashPagePath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
+  import { boardPath, boardsPath, placeCarried, readNative, whiteboards } from '../lib/data/whiteboards.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -55,33 +54,17 @@
   $effect(() => (boardId ? frame.fill() : undefined));
 
   let list = $state<readonly Whiteboard[] | undefined>(undefined);
-  let trash = $state<readonly Whiteboard[]>([]);
-  // The trash's later pages, read on *Show more*; a fresh first page starts the walk again.
-  let trashLater = $state<readonly Whiteboard[]>([]);
-  let trashCursor = $state<string | undefined>(undefined);
-  let trashBusy = $state(false);
-  let trashArrived = $state<string | undefined>(undefined);
-  let trashFailed = $state<string | undefined>(undefined);
-  const trashShown = $derived(columnCards(trash, trashLater));
   let listRefusal = $state<string | undefined>(undefined);
   $effect(() => {
     const at = hubId;
     if (!at || boardId) return;
     return untrack(() => {
-      const stops = [
-        engine.subscribe<WhiteboardList>({ path: boardsPath(at) }, (next) => {
-          if (next.status === 'ready') list = next.data.data;
-          if (next.status === 'failed') listRefusal = renderProblem(next.error, messages).message;
-        }),
-        engine.subscribe<WhiteboardList>({ path: trashedBoardsPath(at) }, (next) => {
-          if (next.status !== 'ready') return;
-          trash = next.data.data;
-          trashLater = [];
-          trashCursor = next.data.page?.next_cursor ?? undefined;
-        }),
-      ];
+      const stop = engine.subscribe<WhiteboardList>({ path: boardsPath(at) }, (next) => {
+        if (next.status === 'ready') list = next.data.data;
+        if (next.status === 'failed') listRefusal = renderProblem(next.error, messages).message;
+      });
       people.open({ hubId: at });
-      return () => stops.forEach((stop) => stop());
+      return stop;
     });
   });
   /** Recent first, whatever order the list arrived in (§2.2). */
@@ -98,7 +81,6 @@
   let imported = $state<ReturnType<typeof readNative>>(undefined);
   let isImportOpen = $state(false);
   let renaming = $state(false);
-  let showsTrash = $state(false);
 
   /** The name a template suggests, kept only while the person has not typed one of their own. */
   const suggested = (choice: BoardStart) => (choice === 'BLANK' ? '' : t(`app.whiteboards.start_${choice.toLowerCase()}`));
@@ -116,26 +98,6 @@
     titleDraft = suggested(choice);
     lastSuggested = titleDraft;
     isCreating = true;
-  }
-
-  async function moreTrash() {
-    const cursor = trashCursor;
-    if (!cursor || !hubId) return;
-    const before = trashShown.length;
-    trashBusy = true;
-    trashFailed = undefined;
-    try {
-      const next = await engine.refresh<WhiteboardList>({ path: trashPagePath(hubId, cursor) });
-      if (next.status === 'failed') throw next.error;
-      if (next.status !== 'ready') return;
-      trashLater = [...trashLater, ...next.data.data];
-      trashCursor = next.data.page?.next_cursor ?? undefined;
-      trashArrived = t('app.whiteboards.trash_arrived', { count: trashShown.length - before });
-    } catch (error) {
-      trashFailed = renderProblem(error as never, messages).message;
-    } finally {
-      trashBusy = false;
-    }
   }
 
   async function act<T>(run: () => Promise<T>, done?: string): Promise<T | undefined> {
@@ -260,8 +222,9 @@
       menu={mayWrite
         ? {
             label: t('app.whiteboards.list_menu'),
-            items: [{ id: 'trash', label: showsTrash ? t('app.whiteboards.trash_hide') : t('app.whiteboards.trash_list'), icon: 'trash' }],
-            onselect: () => (showsTrash = !showsTrash),
+            // The one trash, narrowed to boards (user-experience.md §5.9): a hub keeps no list of its own.
+            items: [{ id: 'trash', label: t('app.whiteboards.trash_list'), icon: 'trash' }],
+            onselect: () => onnavigate('/trash?kind=WHITEBOARD'),
           }
         : undefined}
     />
@@ -293,32 +256,6 @@
       </ul>
     {/if}
 
-    {#if mayWrite && showsTrash}
-      <section class="trash" aria-labelledby="boards-trash">
-        <h2 class="heading" id="boards-trash">{t('app.whiteboards.trash_list')}</h2>
-        <ul class="rows">
-          {#each trashShown as board (board.id)}
-            <li class="row">
-              <span>{board.title}</span>
-              <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void act(() => whiteboards.restore(board), t('app.whiteboards.restored', { title: board.title }))}>{t('app.whiteboards.restore')}</Button>
-            </li>
-          {:else}
-            <li class="meta">{t('app.whiteboards.trash_empty')}</li>
-          {/each}
-        </ul>
-        {#if trashCursor || trashArrived || trashFailed}
-          <LoadMore
-            label={t('app.whiteboards.trash_more')}
-            busyLabel={t('app.whiteboards.trash_loading_more')}
-            hasMore={Boolean(trashCursor)}
-            isBusy={trashBusy}
-            arrivedLabel={trashArrived}
-            failedLabel={trashFailed}
-            onLoadMore={() => void moreTrash()}
-          />
-        {/if}
-      </section>
-    {/if}
   </Stack>
 {/if}
 
@@ -375,13 +312,5 @@
   }
   .start { display: grid; gap: var(--sp-200); }
   .boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
-  .trash { display: grid; gap: var(--sp-100); }
-  .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-  .row {
-    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100);
-    padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md);
-    background: var(--bg-surface);
-  }
   .meta { color: var(--text-secondary); font-size: var(--fs-075); margin: 0; }
 </style>

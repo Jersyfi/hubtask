@@ -31,7 +31,7 @@
   import { engine } from '../lib/data/engine.ts';
   import {
     CHANGED_WITHIN, EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, shippedSpace, VERIFY_DAYS, ancestorsOf, changedFrom, spaceLabelsPath, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pageTree, pages,
-    pagesPath, shippedTemplate, subtreeOf, templatesPath, trashedPagesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
+    pagesPath, shippedTemplate, subtreeOf, templatesPath, verifiedUntil, versionPath, versionsPath, visibleRows,
     type ChangedWithin, type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -70,7 +70,6 @@
 
   let treeState = $state<PageList | undefined>(undefined);
   let templateRows = $state<readonly Page[]>([]);
-  let trashRows = $state<readonly Page[]>([]);
   let treeRefusal = $state<string | undefined>(undefined);
   $effect(() => {
     const at = hubId;
@@ -212,11 +211,6 @@
     if (!current) return;
     const made = await act(() => pages.copy(current), t('app.pages.copied'));
     if (made) onnavigate(`/pages/${made.id}`);
-  }
-
-  async function restore(id: string) {
-    const answer = await act(() => pages.restore(hubId, id), t('app.pages.restored'));
-    if (answer) onnavigate(`/pages/${id}`);
   }
 
   // Moving: under another page of the space, or to its top; never under itself or its own.
@@ -504,16 +498,6 @@
     if (refusal === undefined) discarded = { body: published };
   }
 
-  let showsTrash = $state(false);
-  $effect(() => {
-    if (!showsTrash || !hubId) return;
-    const at = hubId;
-    return untrack(() =>
-      engine.subscribe<PageList>({ path: trashedPagesPath(at) }, (next) => {
-        if (next.status === 'ready') trashRows = next.data.data;
-      }),
-    );
-  });
 </script>
 
 {#if hubId}<PlaceStrip placeId={hubId} current="pages" {onnavigate} />{/if}
@@ -613,19 +597,8 @@
       {/if}
 
       {#if mayWrite && rows.length > 0}
-        <Button size="sm" tone="subtle" icon="trash" aria-expanded={showsTrash} onclick={() => (showsTrash = !showsTrash)}>{t('app.pages.trash')}</Button>
-        {#if showsTrash}
-          <ul class="hits" aria-label={t('app.pages.trash')}>
-            {#each trashRows as row (row.id)}
-              <li>
-                <span>{row.title}</span>
-                <Button size="sm" tone="subtle" onclick={() => restore(row.id)}>{t('app.pages.restore')}</Button>
-              </li>
-            {:else}
-              <li class="quiet">{t('app.pages.trash_empty')}</li>
-            {/each}
-          </ul>
-        {/if}
+        <!-- The one trash, narrowed to pages (user-experience.md §5.9): a hub keeps no list of its own. -->
+        <Button size="sm" tone="subtle" icon="trash" onclick={() => onnavigate('/trash?kind=PAGE')}>{t('app.pages.trash')}</Button>
       {/if}
       {/if}
     </Stack>

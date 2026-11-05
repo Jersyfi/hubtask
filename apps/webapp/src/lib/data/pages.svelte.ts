@@ -22,7 +22,6 @@ export * from './pages.ts';
 
 export const pagesPath = (hubId: string) => `/hubs/${hubId}/pages`;
 export const templatesPath = (hubId: string) => `/hubs/${hubId}/pages?templates=true`;
-export const trashedPagesPath = (hubId: string) => `/hubs/${hubId}/trashed-pages`;
 export const pagePath = (pageId: string) => `/pages/${pageId}`;
 export const versionsPath = (pageId: string) => `/pages/${pageId}/versions`;
 export const versionPath = (pageId: string, seq: number) => `/pages/${pageId}/versions/${seq}`;
@@ -38,7 +37,7 @@ export const personalSpacePath = '/pages:personal';
 export const publicLinksPolicyPath = '/pages:public-links';
 
 /** What a write to one page makes stale: the page, its space, and its history. */
-const touched = (hubId: string, pageId: string) => [pagePath(pageId), `/hubs/${hubId}/pages`, `/hubs/${hubId}/trashed-pages`, versionsPath(pageId)];
+const touched = (hubId: string, pageId: string) => [pagePath(pageId), `/hubs/${hubId}/pages`, versionsPath(pageId)];
 
 /** What narrows a page search besides its words. */
 export type SearchNarrowing = Pick<PageSearch, 'label' | 'author_id' | 'updated_from' | 'updated_to'>;

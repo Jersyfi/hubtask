@@ -517,7 +517,7 @@
   {:else if route.name === 'jumble'}
     <LazyView load={views.JumbleView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'trash'}
-    <LazyView load={views.TrashView} />
+    <LazyView load={views.TrashView} props={{ kind: route.query['kind'], onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'archive'}
     <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}

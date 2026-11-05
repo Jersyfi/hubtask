@@ -11,10 +11,6 @@
 import { values } from '@hubtask/design-system';
 import { box, withinFrame, type Colours, type Element } from '@hubtask/whiteboard';
 
-/** The trash's page after the one that handed `cursor`; the first page is the subscribed read. */
-export const trashPagePath = (hubId: string, cursor: string) =>
-  `/hubs/${encodeURIComponent(hubId)}/whiteboards?trashed=true&cursor=${encodeURIComponent(cursor)}`;
-
 export const liveBoardPath = (boardId: string) => `/realtime/documents/whiteboard/${encodeURIComponent(boardId)}`;
 
 /** The ten label colours a sticky note or shape may take, in the design system's order. */

@@ -132,3 +132,42 @@ test('chromium: a deletion a restriction keeps says so, and counts no days', asy
   assert.equal(await page.getByText('Kept by a legal hold.').count(), 1, 'the hold lost its own sentence');
   assert.equal(await page.getByText(/Days left/).count(), 0, 'a kept deletion counts down to a day it will not go');
 });
+
+// One trash (user-experience.md §5.9): a hub's *Trash* is a link into /trash narrowed to its kind,
+// so the address carries the kind, the list is asked for it, and the filter says it.
+test('chromium: /trash?kind=PAGE asks for pages only and the filter says so', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+
+  const asked = [];
+  const trashed = {
+    kind: 'PAGE', id: '01a0e2e0-0000-7000-8000-0000000009c1', trash_batch_id: '01a0e2e0-0000-7000-8000-0000000009c1',
+    deleted_at: new Date(Date.now() - DAY).toISOString(), purge_after: new Date(Date.now() + 29 * DAY).toISOString(),
+    deleted_by: { type: 'USER', id: ACCOUNT.id }, title: 'Old onboarding notes', subtype: null,
+    hub_id: HUB.id, collection_id: null, parent_id: null, version: 1, held: false,
+  };
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/trash' && route.request().method() === 'GET') {
+      asked.push(url.searchParams.get('kind'));
+      return route.fulfill({ json: { data: url.searchParams.get('kind') === 'PAGE' ? [trashed] : [], page: { next_cursor: null, has_more: false } } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/trash?kind=PAGE`);
+  await page.getByText(trashed.title).waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByLabel('Show', { exact: true }).inputValue(), 'PAGE');
+  assert.deepEqual([...new Set(asked)], ['PAGE']);
+
+  await page.getByLabel('Show', { exact: true }).selectOption('');
+  await page.waitForURL((address) => address.pathname === '/trash' && !address.searchParams.has('kind'), { timeout: 5_000 });
+  await page.waitForFunction(() => !document.body.innerText.includes('Old onboarding notes'), undefined, { timeout: 5_000 });
+});
