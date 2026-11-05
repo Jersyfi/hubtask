@@ -117,3 +117,27 @@ SELECT address, since FROM mail_undeliverable WHERE account_id = sqlc.arg('accou
 
 -- name: ClearMailUndeliverable :exec
 DELETE FROM mail_undeliverable WHERE account_id = sqlc.arg('account_id')::uuid;
+
+-- name: LatestMailPerRecipient :many
+-- The newest notification of each account, whatever its category, for the people list's rows
+-- (user-experience.md §8.3), with its delivery job's end and last failure: what the mail did, and
+-- when it failed. The job table has no row level security, so its join names the tenant itself.
+SELECT a.account_id::uuid AS account_id, n.category, n.state, n.reason, n.created_at, n.sent_at,
+       d.finished_at AS delivery_finished_at, d.last_error AS delivery_error,
+       d.last_error_params AS delivery_error_params
+FROM unnest(sqlc.arg('account_ids')::uuid[]) AS a(account_id)
+CROSS JOIN LATERAL (
+  SELECT nn.id, nn.category, nn.state, nn.reason, nn.created_at, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = current_tenant_id() AND nn.recipient_id = a.account_id
+  ORDER BY nn.created_at DESC, nn.id DESC
+  LIMIT 1
+) n
+LEFT JOIN LATERAL (
+  SELECT j.finished_at, j.last_error, j.last_error_params
+  FROM job j
+  WHERE j.tenant_id = current_tenant_id() AND j.kind = 'notification.deliver'
+    AND j.dedupe_key = n.id::text
+  ORDER BY j.created_at DESC, j.id DESC
+  LIMIT 1
+) d ON true;

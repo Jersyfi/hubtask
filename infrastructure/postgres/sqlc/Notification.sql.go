@@ -250,6 +250,73 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 	return result.RowsAffected(), nil
 }
 
+const latestMailPerRecipient = `-- name: LatestMailPerRecipient :many
+SELECT a.account_id::uuid AS account_id, n.category, n.state, n.reason, n.created_at, n.sent_at,
+       d.finished_at AS delivery_finished_at, d.last_error AS delivery_error,
+       d.last_error_params AS delivery_error_params
+FROM unnest($1::uuid[]) AS a(account_id)
+CROSS JOIN LATERAL (
+  SELECT nn.id, nn.category, nn.state, nn.reason, nn.created_at, nn.sent_at
+  FROM notification nn
+  WHERE nn.tenant_id = current_tenant_id() AND nn.recipient_id = a.account_id
+  ORDER BY nn.created_at DESC, nn.id DESC
+  LIMIT 1
+) n
+LEFT JOIN LATERAL (
+  SELECT j.finished_at, j.last_error, j.last_error_params
+  FROM job j
+  WHERE j.tenant_id = current_tenant_id() AND j.kind = 'notification.deliver'
+    AND j.dedupe_key = n.id::text
+  ORDER BY j.created_at DESC, j.id DESC
+  LIMIT 1
+) d ON true
+`
+
+type LatestMailPerRecipientRow struct {
+	AccountID           pgtype.UUID
+	Category            string
+	State               string
+	Reason              *string
+	CreatedAt           pgtype.Timestamptz
+	SentAt              pgtype.Timestamptz
+	DeliveryFinishedAt  pgtype.Timestamptz
+	DeliveryError       *string
+	DeliveryErrorParams []byte
+}
+
+// The newest notification of each account, whatever its category, for the people list's rows
+// (user-experience.md §8.3), with its delivery job's end and last failure: what the mail did, and
+// when it failed. The job table has no row level security, so its join names the tenant itself.
+func (q *Queries) LatestMailPerRecipient(ctx context.Context, accountIds []pgtype.UUID) ([]LatestMailPerRecipientRow, error) {
+	rows, err := q.db.Query(ctx, latestMailPerRecipient, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LatestMailPerRecipientRow{}
+	for rows.Next() {
+		var i LatestMailPerRecipientRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.Category,
+			&i.State,
+			&i.Reason,
+			&i.CreatedAt,
+			&i.SentAt,
+			&i.DeliveryFinishedAt,
+			&i.DeliveryError,
+			&i.DeliveryErrorParams,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNotificationPreferences = `-- name: ListNotificationPreferences :many
 SELECT tenant_id, account_id, category, channel, enabled, include_title, updated_at
 FROM notification_preference

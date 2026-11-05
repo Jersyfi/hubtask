@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -72,6 +74,56 @@ func (r InvitationJobRepository) Latest(
 			}
 		}
 		out = append(out, job)
+	}
+	return out, nil
+}
+
+// LatestMail answers the newest notification of each account that has one, whatever its category.
+func (r InvitationJobRepository) LatestMail(
+	ctx context.Context, accountIDs []shared.ID,
+) ([]repository.LastMail, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]pgtype.UUID, 0, len(accountIDs))
+	for _, id := range accountIDs {
+		key, err := uuidOf(id)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	rows, err := queries.LatestMailPerRecipient(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the last mail per account: %w", err))
+	}
+	out := make([]repository.LastMail, 0, len(rows))
+	for _, row := range rows {
+		account, err := idFrom(row.AccountID)
+		if err != nil {
+			continue
+		}
+		mail := repository.LastMail{AccountID: account, Category: row.Category, State: row.State, RecordedAt: row.CreatedAt.Time}
+		if row.Reason != nil {
+			mail.Reason = *row.Reason
+		}
+		if row.SentAt.Valid {
+			mail.SentAt = row.SentAt.Time
+		}
+		if row.DeliveryFinishedAt.Valid {
+			mail.DeliveryEnded = row.DeliveryFinishedAt.Time
+		}
+		if row.DeliveryError != nil {
+			mail.DeliveryError = *row.DeliveryError
+		}
+		if len(row.DeliveryErrorParams) > 0 {
+			if err := json.Unmarshal(row.DeliveryErrorParams, &mail.DeliveryParams); err != nil {
+				mail.DeliveryParams = nil
+			}
+		}
+		out = append(out, mail)
 	}
 	return out, nil
 }

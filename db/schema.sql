@@ -2991,6 +2991,8 @@ CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
 -- The last invitation notification per account, for the people list (migration 0363).
 CREATE INDEX notification_invitation_idx ON notification (tenant_id, recipient_id, created_at DESC)
   WHERE category = 'INVITATION';
+-- The last notification of any kind per account, for the people list (migration 0375).
+CREATE INDEX notification_recipient_idx ON notification (tenant_id, recipient_id, created_at DESC);
 -- A purged entry's notifications, which its cascade takes (0335).
 CREATE INDEX notification_item_idx ON notification (tenant_id, item_id) WHERE item_id IS NOT NULL;
 -- What a revocation's cascade finds its records by.
@@ -3113,6 +3115,9 @@ CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
 -- The last invitation mail per account, for the people list (migration 0362).
 CREATE INDEX job_invitation_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
   WHERE kind = 'notification.invitation';
+-- A notification's delivery job, for the people list's last mail (migration 0375).
+CREATE INDEX job_notification_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
+  WHERE kind = 'notification.deliver';
 
 -- What a subscriber has already seen. The outbox delivers at-least-once, so a consumer asks here
 -- before it reacts; the insert is the question (ADR-0007, db/migrations/0003).
