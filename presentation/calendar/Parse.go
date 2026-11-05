@@ -110,7 +110,9 @@ func ParseTodo(raw []byte) (ParsedTodo, error) {
 	depth := 0
 	found := 0
 	inTodo := false
-	for _, line := range unfold(string(raw)) {
+	lines := unfold(string(raw))
+	zones := definedZones(lines)
+	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -141,13 +143,13 @@ func ParseTodo(raw []byte) (ParsedTodo, error) {
 		case "SUMMARY":
 			todo.Summary = unescapeText(value)
 		case "DUE":
-			at, isDate, err := parseDateTime(value, params)
+			at, isDate, err := parseDateTime(value, params, zones)
 			if err != nil {
 				return todo, err
 			}
 			todo.Due, todo.DueDate, todo.DueZone = at, isDate, params["TZID"]
 		case "DTSTART":
-			at, _, err := parseDateTime(value, params)
+			at, _, err := parseDateTime(value, params, zones)
 			if err != nil {
 				return todo, err
 			}
@@ -185,8 +187,9 @@ func ParseTodo(raw []byte) (ParsedTodo, error) {
 }
 
 // parseDateTime reads a DATE or a DATE-TIME value. A floating DATE-TIME (no Z, no TZID) is read
-// in UTC, which is the reading RFC 5545 gives it on a server with no local time of its own.
-func parseDateTime(value string, params map[string]string) (time.Time, bool, error) {
+// in UTC, which is the reading RFC 5545 gives it on a server with no local time of its own. A TZID
+// the time zone database does not know is read by the VTIMEZONE the document defines it with.
+func parseDateTime(value string, params map[string]string, zones map[string]definedZone) (time.Time, bool, error) {
 	value = strings.TrimSpace(value)
 	if strings.EqualFold(params["VALUE"], "DATE") || len(value) == 8 {
 		at, err := time.Parse("20060102", value)
@@ -206,7 +209,11 @@ func parseDateTime(value string, params map[string]string) (time.Time, bool, err
 	if zone := params["TZID"]; zone != "" {
 		loaded, err := zoneNamed(zone)
 		if err != nil {
-			return time.Time{}, false, err
+			offset, defined := zones[zone].offsetAt(at)
+			if !defined {
+				return time.Time{}, false, err
+			}
+			loaded = time.FixedZone(zone, offset)
 		}
 		return time.Date(at.Year(), at.Month(), at.Day(), at.Hour(), at.Minute(), at.Second(), 0, loaded), false, nil
 	}
