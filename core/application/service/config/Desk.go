@@ -375,6 +375,9 @@ type plan struct {
 	// hiddenFields are the fields the plan removes or hides from readers, by the change's path,
 	// with the identifier their reach is counted by.
 	hiddenFields []hiddenField
+	// ownRules are the identifiers of the rules the document holds, which the plan's target
+	// counts as it sets them.
+	ownRules map[string]bool
 }
 
 // hiddenField is one field a plan removes or hides from readers.
@@ -384,7 +387,14 @@ type hiddenField struct{ Path, ID string }
 // against its section's declaration and the input its use case declares - refusals only, nothing
 // run.
 func (d Desk) planOf(now current, desired domain.Document, mode domain.Mode) plan {
-	p := plan{Base: now.hash(), Hub: now.Hub}
+	p := plan{Base: now.hash(), Hub: now.Hub, ownRules: map[string]bool{}}
+	for _, name := range []string{sectionRules, sectionCollectionRules} {
+		for _, row := range now.Rows[name] {
+			if id := text(row["id"]); id != "" {
+				p.ownRules[id] = true
+			}
+		}
+	}
 	known := map[string]section{}
 	for _, s := range now.sections() {
 		known[s.name] = s

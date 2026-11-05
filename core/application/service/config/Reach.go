@@ -39,7 +39,7 @@ type reach struct {
 	Switches      bool
 	// Intake is a form's change: per unattended door, the fields it now requires that the door
 	// does not send - every creation of the type through it is refused until it does.
-	Intake []work.IntakeGap
+	Intake []intakeDoor
 	// Withheld says the reach was not counted: the preview it comes from refused this reader (a
 	// token without the preview's scope, a module off). The plan holds; what it touches is
 	// unknown to this reader, and the plan says so rather than nothing.
@@ -50,6 +50,7 @@ const (
 	previewWorkflowPublish  = "PreviewWorkflowPublish"
 	listRoles               = "ListRoles"
 	listBusinessCalendars   = "ListBusinessCalendars"
+	listMailboxes           = "ListMailboxes"
 	previewCustomFieldReach = "PreviewCustomFieldReach"
 	// The structure previews: a hub's, and the workspace's over every hub that follows it.
 	previewContainerStructure = "PreviewContainerStructure"
@@ -68,6 +69,7 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 	reset := []any{}
 	var shadows map[string]bool
 	shadowsRead := false
+	doors := &doorReads{}
 	for _, change := range p.Changes {
 		switch {
 		case change.Section == sectionModules && slices.Contains([]string{"OFF", "INHERIT"}, text(change.After[switchAttribute])):
@@ -164,7 +166,15 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 				continue
 			}
 			if gaps := work.IntakeGaps(before, after); len(gaps) > 0 {
-				p.Reach = append(p.Reach, reach{Path: change.Path(), Intake: gaps})
+				level := text(change.After["level"])
+				if level == "" {
+					level = text(change.Before["level"])
+				}
+				counted, err := d.intakeDoors(ctx, actor, p, doors, work.ItemType(level), change.Key, gaps)
+				if err != nil {
+					return err
+				}
+				p.Reach = append(p.Reach, reach{Path: change.Path(), Intake: counted})
 			}
 		case change.Section == sectionCalendars && change.Op == domain.OpRemove && p.Hub.IsZero():
 			// DeleteBusinessCalendar refuses a calendar a policy names, unless the installation offers
@@ -264,6 +274,115 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 
 // shadowedCalendars are the workspace's calendar keys the installation also offers; nil where the
 // reader may not list the calendars.
+// intakeDoor is a door a form's change leaves refusing, with how many standing doors of its
+// channel create the type now; Doors is nil where that is not counted.
+type intakeDoor struct {
+	work.IntakeGap
+	Doors *int
+}
+
+// doorReads are the listings a plan's intake counts read, each at most once per plan.
+type doorReads struct {
+	rulesRead, rulesWithheld bool
+	// rules are the switched-on and switched-off rules the reader sees outside the document's
+	// own, whose rules are counted in the plan's target instead.
+	rules                            domain.Section
+	mailboxesRead, mailboxesWithheld bool
+	mailboxes                        int
+}
+
+// intakeDoors counts, per door a form's change leaves refusing, its standing doors that create
+// the type (configuration.md §2): the switched-on rules whose step names it - the document's as
+// the plan sets them, every other scope's the reader sees as they are - and, for MAIL, the
+// switched-on mailboxes where the type is the task level's own, the only one mail creates. An
+// import has no standing door; a listing the reader may not read leaves its count out.
+func (d Desk) intakeDoors(
+	ctx context.Context, actor appshared.ActorContext, p *plan, reads *doorReads,
+	level work.ItemType, key string, gaps []work.IntakeGap,
+) ([]intakeDoor, error) {
+	levelsOwn := key == work.SystemEntryTypeKey(level)
+	out := make([]intakeDoor, 0, len(gaps))
+	for _, gap := range gaps {
+		door := intakeDoor{IntakeGap: gap}
+		switch gap.Channel {
+		case work.ChannelRule:
+			if err := d.readRules(ctx, actor, p, reads); err != nil {
+				return nil, err
+			}
+			if !reads.rulesWithheld {
+				count := domain.RulesCreatingType(reads.rules, string(level), key, levelsOwn) +
+					domain.RulesCreatingType(p.Target[sectionRules], string(level), key, levelsOwn) +
+					domain.RulesCreatingType(p.Target[sectionCollectionRules], string(level), key, levelsOwn)
+				door.Doors = &count
+			}
+		case work.ChannelMail:
+			if level != work.ItemTask || !levelsOwn {
+				none := 0
+				door.Doors = &none
+				break
+			}
+			if err := d.readMailboxes(ctx, actor, reads); err != nil {
+				return nil, err
+			}
+			if !reads.mailboxesWithheld {
+				count := reads.mailboxes
+				door.Doors = &count
+			}
+		}
+		out = append(out, door)
+	}
+	return out, nil
+}
+
+// readRules lists the rules the reader sees, leaving out the document's own.
+func (d Desk) readRules(ctx context.Context, actor appshared.ActorContext, p *plan, reads *doorReads) error {
+	if reads.rulesRead {
+		return nil
+	}
+	reads.rulesRead = true
+	reads.rules = domain.Section{}
+	err := d.eachPage(ctx, actor, "ListRules", usecase.Input{}, func(row map[string]any) {
+		if id := text(row["id"]); id != "" && !p.ownRules[id] {
+			reads.rules[id] = domain.Block(row)
+		}
+	})
+	if err != nil {
+		if !withheld(err) {
+			return err
+		}
+		reads.rulesWithheld = true
+	}
+	return nil
+}
+
+// readMailboxes counts the workspace's switched-on mailboxes.
+func (d Desk) readMailboxes(ctx context.Context, actor appshared.ActorContext, reads *doorReads) error {
+	if reads.mailboxesRead {
+		return nil
+	}
+	reads.mailboxesRead = true
+	answer, err := d.preview(ctx, listMailboxes, actor, usecase.Input{})
+	if err != nil {
+		if !withheld(err) {
+			return err
+		}
+		reads.mailboxesWithheld = true
+		return nil
+	}
+	normal, err := normalise(map[string]any(answer))
+	if err != nil {
+		return err
+	}
+	rows, _ := normal.(map[string]any)["mailboxes"].([]any)
+	for _, raw := range rows {
+		row, _ := raw.(map[string]any)
+		if enabled, _ := row["enabled"].(bool); enabled {
+			reads.mailboxes++
+		}
+	}
+	return nil
+}
+
 func (d Desk) shadowedCalendars(ctx context.Context, actor appshared.ActorContext) (map[string]bool, error) {
 	out := map[string]bool{}
 	answer, err := d.preview(ctx, listBusinessCalendars, actor, usecase.Input{"include_offered": true})
@@ -394,7 +513,11 @@ func ReachOutput(rows []reach) []usecase.Output {
 		if len(r.Intake) > 0 {
 			doors := make([]usecase.Output, 0, len(r.Intake))
 			for _, gap := range r.Intake {
-				doors = append(doors, usecase.Output{"channel": string(gap.Channel), "fields": gap.Fields})
+				door := usecase.Output{"channel": string(gap.Channel), "fields": gap.Fields}
+				if gap.Doors != nil {
+					door["doors"] = *gap.Doors
+				}
+				doors = append(doors, door)
 			}
 			row["intake"] = doors
 		}

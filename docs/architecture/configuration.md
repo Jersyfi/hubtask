@@ -56,7 +56,11 @@ key, before → after), what it reaches (entries moving status, entries whose fi
 people who gain or lose a permission, people a module switched off (or left to a level above that has it off) leaves without it, rules
 paused - among them the switched-on rules such a module quiets, which stay on -, forms changed, and
 per door nobody fills a form at - a rule's action, an import's row, a mail - the fields a form now
-always requires that the door does not send, so every creation through it would be refused), what is refused and why (a
+always requires that the door does not send, so every creation through it would be refused, with
+how many standing doors create the type now: the switched-on rules whose step names it - the
+document's as the plan sets them, every other scope's the reader sees -, and for the task level's
+own type, the only one mail creates, the switched-on mailboxes; an import has no standing door, a
+public form or the portal is filled by a person who sees the field), what is refused and why (a
 message code, the key path and, where it exists, the allowed values — machine-readable, so an agent
 can correct itself), and what is irreversible (none, by design: narrowing hides, a deletion of a
 block in use is refused: a custom role still granted or addressed by a rule (`roles.in_use`), a

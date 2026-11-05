@@ -74,11 +74,13 @@ type world struct {
 	// policies by key; offered the installation's calendar keys.
 	calendars, policies map[string]map[string]any
 	offered             []string
+	// mailboxes, nil withholding them, are what ListMailboxes answers.
+	mailboxes []any
 }
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
-		workspace: w.workspace, ai: w.ai, timePolicy: w.timePolicy, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
+		workspace: w.workspace, ai: w.ai, timePolicy: w.timePolicy, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants, mailboxes: w.mailboxes,
 		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach, containers: w.containers,
 		calendars: w.calendars, policies: w.policies, offered: w.offered}
 	if w.views != nil {
@@ -319,6 +321,12 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 			}
 		}
 		return usecase.Output{"data": rows}, nil
+	case "ListMailboxes":
+		w.inputs[name] = append(w.inputs[name], in)
+		if w.mailboxes == nil {
+			return nil, shared.ErrForbidden.WithDetail("auth.permission_denied")
+		}
+		return usecase.Output{"mailboxes": w.mailboxes}, nil
 	case "GetGroup":
 		if in["group_id"] == knownGroup {
 			return usecase.Output{"id": knownGroup}, nil

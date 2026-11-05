@@ -287,6 +287,86 @@ func TestAPlanNamesTheDoorsANewlyRequiredFieldCloses(t *testing.T) {
 	}
 }
 
+// configuration.md §2: each door a form change leaves refusing says how many standing doors of
+// its channel create the type now - the switched-on rules naming it, the document's as the plan
+// sets them and every other scope's as they are, and for the task level's own type the
+// switched-on mailboxes; mail creates no other type, and an import has no standing door.
+func TestAPlanCountsTheDoorsANewlyRequiredFieldCloses(t *testing.T) {
+	f := newFixture()
+	f.world.fields = map[string]map[string]any{"severity": {
+		"id": "0190a8f0-0000-7000-8000-0000000000c1", "key": "severity", "kind": "TEXT", "options": []any{},
+		"applies_to": []any{"TASK"},
+	}}
+	empty := map[string]any{"sections": []any{}, "fields": []any{}, "validations": []any{}, "channels": []any{}}
+	f.world.types["task"]["form"] = empty
+	f.world.types["incident"] = map[string]any{"key": "incident", "level": "TASK", "name": "Incident", "form": empty}
+	creates := func(id, key string, scope map[string]any, enabled bool, params map[string]any) map[string]any {
+		return map[string]any{"id": id, "key": key, "scope": scope, "name": key, "enabled": enabled,
+			"run_as": "0190a8f0-0000-7000-8000-00000000cccc", "trigger": map[string]any{"kind": "MANUAL"},
+			"conditions": []any{}, "throttle": map[string]any{}, "on_error": "STOP",
+			"actions": []any{map[string]any{"kind": "CREATE_WORK_ITEM", "params": params}}}
+	}
+	f.world.rules = map[string]map[string]any{
+		"own":      creates("0190a8f0-0000-7000-8000-0000000000f1", "own", map[string]any{"type": "TENANT"}, true, map[string]any{"type": "TASK"}),
+		"hubs":     creates("0190a8f0-0000-7000-8000-0000000000f2", "hubs", map[string]any{"type": "HUB", "id": deskHub}, true, map[string]any{"type": "TASK"}),
+		"off":      creates("0190a8f0-0000-7000-8000-0000000000f3", "off", map[string]any{"type": "TENANT"}, false, map[string]any{"type": "TASK"}),
+		"incident": creates("0190a8f0-0000-7000-8000-0000000000f4", "incident", map[string]any{"type": "HUB", "id": deskHub}, true, map[string]any{"type": "TASK", "entry_type": "incident"}),
+	}
+	f.world.mailboxes = []any{map[string]any{"enabled": true}, map[string]any{"enabled": true}, map[string]any{"enabled": false}}
+	required := map[string]any{"sections": []any{}, "validations": []any{}, "channels": []any{},
+		"fields": []any{map[string]any{"key": "custom_fields.severity", "required": true}}}
+	doorsOf := func(plan usecase.Output, path string) map[string]any {
+		t.Helper()
+		out := map[string]any{}
+		for _, row := range plan["reach"].([]usecase.Output) {
+			if row["path"] != path {
+				continue
+			}
+			for _, door := range row["intake"].([]usecase.Output) {
+				out[door["channel"].(string)] = door["doors"]
+			}
+		}
+		return out
+	}
+
+	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{
+		"types": map[string]any{"task": map[string]any{"form": required}},
+	}})
+	if got := doorsOf(plan, "types.task"); got["RULE"] != 2 || got["MAIL"] != 2 || got["IMPORT"] != nil {
+		t.Fatalf("doors %v, want 2 rules, 2 mailboxes and no count for the import (refusals %v)", got, plan["refusals"])
+	}
+
+	// The plan switches its own rule off: it no longer counts, the hub's still does.
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{
+		"types": map[string]any{"task": map[string]any{"form": required}},
+		"rules": map[string]any{"own": map[string]any{"enabled": false}},
+	}})
+	if got := doorsOf(plan, "types.task"); got["RULE"] != 1 {
+		t.Errorf("doors %v, want the hub's rule alone", got)
+	}
+
+	// Another type: the rule naming it; mail never creates it, and the mailboxes are not read.
+	f.world.inputs["ListMailboxes"] = nil
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{
+		"types": map[string]any{"incident": map[string]any{"form": required}},
+	}})
+	if got := doorsOf(plan, "types.incident"); got["RULE"] != 1 || got["MAIL"] != 0 {
+		t.Errorf("doors %v, want the one rule and no mailbox", got)
+	}
+	if asked := f.world.inputs["ListMailboxes"]; len(asked) != 0 {
+		t.Errorf("the mailboxes were read for a type mail does not create")
+	}
+
+	// A reader who may not list the rules or the mailboxes is told no count.
+	f.world.rules, f.world.mailboxes = nil, nil
+	plan = invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": map[string]any{
+		"types": map[string]any{"task": map[string]any{"form": required}},
+	}})
+	if got := doorsOf(plan, "types.task"); got["RULE"] != nil || got["MAIL"] != nil {
+		t.Errorf("doors %v counted for a reader who may not list them", got)
+	}
+}
+
 // A template a workspace cannot take because a module is off says which module, so the person
 // is told the switch to turn rather than that a section is withheld (UC-CFG-01).
 func TestAPlanNamesTheModuleThatIsOff(t *testing.T) {

@@ -34,3 +34,33 @@ func TestRulesAddressingARoleAreThoseSwitchedOnThatNotifyIt(t *testing.T) {
 		t.Errorf("counted %d rules in no section", got)
 	}
 }
+
+func createEntry(params map[string]any) any {
+	return map[string]any{"kind": "CREATE_WORK_ITEM", "params": params}
+}
+
+// configuration.md §2: a form change that leaves a rule's door refusing names how many
+// switched-on rules of the document create the type - by its key, or for the level's own type
+// by its level without one.
+func TestRulesCreatingATypeAreThoseSwitchedOnThatCreateIt(t *testing.T) {
+	rules := Section{
+		"by_key": {"enabled": true, "actions": []any{createEntry(map[string]any{"type": "TASK", "entry_type": "incident"})}},
+		"branched": {"enabled": true, "actions": []any{map[string]any{"kind": "BRANCH", "params": map[string]any{
+			"condition": "true", "then": []any{createEntry(map[string]any{"type": "TASK", "entry_type": "incident"})},
+		}}}},
+		"own_type": {"enabled": true, "actions": []any{createEntry(map[string]any{"type": "TASK"})}},
+		"other":    {"enabled": true, "actions": []any{createEntry(map[string]any{"type": "TASK", "entry_type": "change"})}},
+		"off":      {"enabled": false, "actions": []any{createEntry(map[string]any{"type": "TASK", "entry_type": "incident"})}},
+		"notifies": {"enabled": true, "actions": []any{notifyRole("incident")}},
+		"removed":  nil,
+	}
+	if got := RulesCreatingType(rules, "TASK", "incident", false); got != 2 {
+		t.Errorf("counted %d rules for a type by key, want 2", got)
+	}
+	if got := RulesCreatingType(rules, "TASK", "task", true); got != 1 {
+		t.Errorf("counted %d rules for the level's own type, want 1", got)
+	}
+	if got := RulesCreatingType(rules, "ACTIVITY", "activity", true); got != 0 {
+		t.Errorf("counted %d rules for a level no rule creates", got)
+	}
+}

@@ -13,7 +13,29 @@ const maxBranchNesting = 8
 func RulesAddressingRole(rules Section, role string) int {
 	count := 0
 	for _, rule := range rules {
-		if enabled, _ := rule["enabled"].(bool); enabled && notifiesRole(listOf(rule["actions"]), role, 0) {
+		if enabled, _ := rule["enabled"].(bool); enabled && takesStep(listOf(rule["actions"]), 0, func(kind string, params map[string]any) bool {
+			return kind == "NOTIFY_ROLE" && stringOf(params["role"]) == role
+		}) {
+			count++
+		}
+	}
+	return count
+}
+
+// RulesCreatingType counts a rules section's switched-on rules with a CREATE_WORK_ITEM step, in a
+// branch or not, that creates an entry of the type: one naming its key as `entry_type`, or - for
+// the level's own type (levelsOwn) - one of its level naming none, which CreateWorkItem gives the
+// level's own. A step whose type a run fills in is not counted: what it creates is not known here.
+func RulesCreatingType(rules Section, level, key string, levelsOwn bool) int {
+	count := 0
+	for _, rule := range rules {
+		if enabled, _ := rule["enabled"].(bool); enabled && takesStep(listOf(rule["actions"]), 0, func(kind string, params map[string]any) bool {
+			if kind != "CREATE_WORK_ITEM" {
+				return false
+			}
+			named := stringOf(params["entry_type"])
+			return named == key || (levelsOwn && named == "" && stringOf(params["type"]) == level)
+		}) {
 			count++
 		}
 	}
@@ -32,22 +54,23 @@ func PoliciesNamingCalendar(policies Section, calendar string) int {
 	return count
 }
 
-func notifiesRole(actions []any, role string, depth int) bool {
+// takesStep says a step of the actions, in a branch or not, is one the predicate holds for.
+func takesStep(actions []any, depth int, holds func(kind string, params map[string]any) bool) bool {
 	if depth > maxBranchNesting {
 		return false
 	}
 	for _, raw := range actions {
 		action := mapOf(raw)
 		params := mapOf(action["params"])
-		switch stringOf(action["kind"]) {
-		case "BRANCH":
-			if notifiesRole(listOf(params["then"]), role, depth+1) || notifiesRole(listOf(params["else"]), role, depth+1) {
+		kind := stringOf(action["kind"])
+		if kind == "BRANCH" {
+			if takesStep(listOf(params["then"]), depth+1, holds) || takesStep(listOf(params["else"]), depth+1, holds) {
 				return true
 			}
-		case "NOTIFY_ROLE":
-			if stringOf(params["role"]) == role {
-				return true
-			}
+			continue
+		}
+		if holds(kind, params) {
+			return true
 		}
 	}
 	return false
