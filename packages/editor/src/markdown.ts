@@ -16,7 +16,8 @@
  * `success`, `error`) and a toggle `:::details <summary>` hold blocks up to a line of as many
  * colons - an outer container takes one more colon than the deepest inside it; `::toc`,
  * `::children` and `::embed <https address>` stand on a line of their own; a date `:date[2026-10-31]`
- * and a status `:status[In progress]{info}` stand inside a line.
+ * and a status `:status[In progress]{info}` stand inside a line. A formula is `$$` on a line of its
+ * own, its TeX, and `$$` again; a diagram is a fenced block of language `mermaid`.
  *
  * Pure and headless - it works on the editor's JSON, never on a DOM - so the projection has tests
  * without a browser. What it does not know (a table, an image from outside) is written as its text.
@@ -103,6 +104,10 @@ function block(node: DocNode, indent: string): string {
     }
     case 'table':
       return table(node, indent);
+    case 'mathBlock': {
+      const tex = texOf(node.attrs?.['latex']);
+      return tex === '' ? '' : [`${indent}$$`, ...tex.split('\n').map((line) => indent + line), `${indent}$$`].join('\n');
+    }
     case 'horizontalRule':
       return `${indent}---`;
     case 'referenceBlock':
@@ -156,6 +161,14 @@ function containerDepth(nodes: readonly DocNode[]): number {
 
 function toneOf<T extends string>(value: unknown, tones: readonly T[], fallback: T): T {
   return tones.includes(value as T) ? (value as T) : fallback;
+}
+
+/**
+ * A formula's TeX as a body can hold it: a line of `$$` alone would close the block early, and TeX
+ * has no use for one inside display math, so it is written as `$ $`.
+ */
+export function texOf(value: unknown): string {
+  return String(value ?? '').replace(/\r\n?/gu, '\n').split('\n').map((line) => (line.trim() === '$$' ? '$ $' : line)).join('\n').trim();
 }
 
 function summaryOf(node: DocNode): string {
@@ -233,7 +246,7 @@ function codeSpan(text: string): string {
 function escape(text: string): string {
   return text
     .replace(/([\\`*_~[\]])/gu, '\\$1')
-    .replace(/^(#{1,6} |[-+] |\d+\. |> |:{2,})/u, '\\$1');
+    .replace(/^(#{1,6} |[-+] |\d+\. |> |:{2,}|\$\$)/u, '\\$1');
 }
 
 function referenceOf(node: DocNode): ReferenceAttrs {
@@ -266,6 +279,8 @@ const BLOCK_REFERENCE = /^!\[[^\]]*\]\((hubtask:[^)\s]+)\)\s*$/u;
 const CONTAINER = /^(:{3,})(info|warning|success|error|details)(?:\s+(.*))?\s*$/u;
 const LEAF = /^::(toc|children|embed)(?:\s+(\S+))?\s*$/u;
 const DAY = /^\d{4}-\d{2}-\d{2}$/u;
+const MATH = /^\$\$\s*$/u;
+const MATH_LINE = /^\$\$(.+)\$\$\s*$/u;
 
 function parseBlocks(lines: readonly string[]): DocNode[] {
   const out: DocNode[] = [];
@@ -288,6 +303,24 @@ function parseBlocks(lines: readonly string[]): DocNode[] {
         attrs: { language: fence[2] || null },
         ...(text === '' ? {} : { content: [{ type: 'text', text }] }),
       });
+      continue;
+    }
+    if (MATH.test(line)) {
+      const tex: string[] = [];
+      let at = i + 1;
+      while (at < lines.length && !MATH.test(lines[at] ?? '')) tex.push(lines[at++] ?? '');
+      // An opening `$$` that never closes is text, not a formula swallowing the rest of the page.
+      if (at < lines.length) {
+        const latex = texOf(tex.join('\n'));
+        if (latex !== '') out.push({ type: 'mathBlock', attrs: { latex } });
+        i = at + 1;
+        continue;
+      }
+    }
+    const oneLine = MATH_LINE.exec(line);
+    if (oneLine && texOf(oneLine[1]) !== '') {
+      out.push({ type: 'mathBlock', attrs: { latex: texOf(oneLine[1]) } });
+      i++;
       continue;
     }
     const heading = HEADING.exec(line);
@@ -398,7 +431,7 @@ function tableOf(rows: readonly (readonly string[])[]): DocNode {
 
 function startsBlock(line: string): boolean {
   return HEADING.test(line) || FENCE.test(line) || RULE.test(line) || line.startsWith('>') || BULLET.test(line) || ORDERED.test(line) ||
-    CONTAINER.test(line) || LEAF.test(line);
+    CONTAINER.test(line) || LEAF.test(line) || MATH.test(line) || MATH_LINE.test(line);
 }
 
 /** Reads one list starting at `start`, with its nested lists, and answers the line after it. */

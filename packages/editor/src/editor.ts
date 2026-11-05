@@ -21,8 +21,10 @@ import StarterKit from '@tiptap/starter-kit';
 import type * as Y from 'yjs';
 
 import type { LiveDocument } from './live.ts';
-import { CALLOUT_TONES, STATUS_TONES, embeddable, fromMarkdown, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
+import { CALLOUT_TONES, STATUS_TONES, embeddable, fromMarkdown, texOf, toMarkdown, type DocNode, type ReferenceAttrs } from './markdown.ts';
+import { CodeBlocks, type DiagramColours } from './code.ts';
 import { EmojiShortcodes } from './emoji.ts';
+import { MathBlock } from './math.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
@@ -45,7 +47,9 @@ export interface ReferenceDrawing {
   /** A day (`2026-10-31`) in the reader's words; the day as written where it is absent. */
   day?(iso: string): string;
   /** The words of the blocks that have no content of their own to show. */
-  words?(key: 'toc_empty' | 'children' | 'embed' | 'details'): string;
+  words?(key: 'toc_empty' | 'children' | 'embed' | 'details' | 'math' | 'math_error' | 'diagram' | 'diagram_error'): string;
+  /** The colours a diagram is drawn in: a picture's, the same in either theme. */
+  diagramColours?(): DiagramColours;
   /** The https origins the interface's policy frames (HUBTASK_UI_FRAME_SOURCES); none frames nothing. */
   frames?(): readonly string[];
 }
@@ -343,7 +347,7 @@ export const StatusChip = Node.create({
 
 const BLOCK_TYPES = [
   'paragraph', 'heading', 'blockquote', 'codeBlock', 'bulletList', 'orderedList', 'taskList', 'referenceBlock',
-  'callout', 'details', 'tableOfContents', 'childPages', 'embed', 'table',
+  'callout', 'details', 'tableOfContents', 'childPages', 'embed', 'table', 'mathBlock',
 ];
 
 /** The table block: TipTap's own, without resizing - a width dragged would not survive Markdown. */
@@ -449,6 +453,12 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     Embed.configure({ drawing: options.drawing }),
     DateChip.configure({ drawing: options.drawing }),
     StatusChip,
+    MathBlock.configure({ drawing: options.drawing }),
+    // Colours for a fenced block's language and the diagram of a `mermaid` one, both loaded lazily.
+    CodeBlocks.configure({
+      ...(options.drawing?.diagramColours ? { diagramColours: () => options.drawing!.diagramColours!() } : {}),
+      ...(options.drawing?.words ? { words: (key: 'diagram' | 'diagram_error') => options.drawing!.words!(key) } : {}),
+    }),
     EmojiShortcodes,
     BlockIds,
     CommentPassages,
@@ -534,6 +544,9 @@ export type WikiBlock =
   | { kind: 'toc' }
   | { kind: 'children' }
   | { kind: 'embed'; src: string }
+  | { kind: 'math'; latex: string }
+  | { kind: 'diagram'; source: string }
+  | { kind: 'emoji'; emoji: string }
   | { kind: 'date'; date: string }
   | { kind: 'status'; label: string; tone: (typeof STATUS_TONES)[number] };
 
@@ -560,6 +573,20 @@ export function insertWikiBlock(editor: Editor, block: WikiBlock): boolean {
       node = { type: 'embed', attrs: { src } };
       break;
     }
+    case 'math': {
+      const latex = texOf(block.latex);
+      if (latex === '') return false;
+      node = { type: 'mathBlock', attrs: { latex } };
+      break;
+    }
+    case 'diagram':
+      if (block.source.trim() === '') return false;
+      node = { type: 'codeBlock', attrs: { language: 'mermaid' }, content: [{ type: 'text', text: block.source }] };
+      break;
+    case 'emoji':
+      // One emoji, as its characters: a picker hands over nothing else.
+      if (block.emoji === '' || block.emoji.length > 32 || /[\p{L}\s<>&]/u.test(block.emoji)) return false;
+      return editor.chain().focus().insertContent(block.emoji).run();
     case 'date':
       if (!/^\d{4}-\d{2}-\d{2}$/u.test(block.date)) return false;
       node = { type: 'date', attrs: { date: block.date } };

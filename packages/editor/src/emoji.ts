@@ -5,8 +5,8 @@
  * `:shortcode:` typed in a page becomes its emoji. The page keeps the Unicode character, so the
  * Markdown, search and every other reader see the emoji itself, not a code only this editor knows.
  *
- * The table is kept by hand, the codes the common chat tools share: a full emoji data set is a new
- * dependency, and an unknown code simply stays the text that was typed.
+ * The table is kept by hand, the codes the common chat tools share, so typing one needs no data
+ * loaded; the full set is the application's emoji picker's. An unknown code stays the text typed.
  */
 
 import { Extension, InputRule } from '@tiptap/core';

@@ -7,7 +7,7 @@
  * references; this package knows no address, no token and no screen.
  */
 
-export { CALLOUT_TONES, STATUS_TONES, addressOf, embeddable, fromMarkdown, parseAddress, parseInline, textOf, toMarkdown } from './markdown.ts';
+export { CALLOUT_TONES, STATUS_TONES, addressOf, embeddable, fromMarkdown, parseAddress, parseInline, texOf, textOf, toMarkdown } from './markdown.ts';
 export type { DocNode, ReferenceAttrs } from './markdown.ts';
 export { CLOSE_ACCESS_ENDED, LiveDocument } from './live.ts';
 export type { LiveDocumentOptions, LiveSocket, LiveStatus, UpdateKeeper } from './live.ts';
@@ -21,6 +21,9 @@ export { linkLine, mirrorTicks, taskLineAt, taskLines, tickedEntries } from './t
 export type { TaskLine } from './tasks.ts';
 export type { Editor, PageEditorOptions, ReferenceDrawing, SelectedBlock, WikiBlock } from './editor.ts';
 export { EMOJI_SHORTCODES, EmojiShortcodes, emojiOf, shortcodeAt } from './emoji.ts';
+export { CodeBlocks, diagramSource, highlight, runsOf } from './code.ts';
+export type { CodeDrawing, CodeRun, DiagramColours } from './code.ts';
+export { MathBlock, loadKatex, mathMarkup } from './math.ts';
 export { findPassage, selectedWords } from './passages.ts';
 export type { Passage, PassageRange } from './passages.ts';
 export { Doc } from 'yjs';
