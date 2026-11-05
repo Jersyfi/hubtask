@@ -612,9 +612,6 @@ Not triggers: **randomness** (arbitrary, invites toggling tasks to roll the dice
 
 ## 8. The onboarding tour
 
-**Changing:** [`user-experience.md`](../architecture/user-experience.md) §3.1 and §3.4 order the
-starter before the tour and add product tours; this section changes with that build step.
-
 On first start a **guided click-through on the real interface** — coach marks, a spotlight on actual
 elements — gives one short, plain piece of information per feature. Never a slide show of
 screenshots.
@@ -635,7 +632,12 @@ screenshots.
   and interaction (next, back, skip, keyboard, visible focus). The steps are the client's, in
   `apps/webapp/src/lib/tour.ts`, anchored by `data-tour` attributes. Where a product is on, the
   second step, *Your products live here*, points at the products band's first row (user-experience.md
-  §3.4); the starter before the tour and the product tours are not built yet.
+  §3.4). The starter comes before the tour (user-experience.md §3.1).
+* **A product's tour** is three steps on the same pattern - where to create, where to find it,
+  where to configure it -, in `apps/webapp/src/lib/product/producttour.ts`. The first visit of a
+  product's home opens it at its first step, once per person: the products seen are the account's
+  `products_seen`, written when the tour ends, walked or skipped. *Help* and the product's first
+  empty state offer it again (user-experience.md §3.4).
 
 ---
 

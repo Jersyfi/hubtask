@@ -267,6 +267,17 @@ product they cannot switch on. The strip can be dismissed for good.
   `CoachMark`. On a product home's first visit, one `CoachMark` points at its create action, once
   per person (kept beside `onboarding_completed_at`, as a list of products seen).
 
+**As built.** `Account.products_seen` (migration 0376) holds the products whose mark was seen,
+written as the whole list through `PATCH /accounts/{id}/preferences` (a null clears it). The first
+visit of a product's home, once the starter and the base tour are behind the person, opens that
+product's tour at its first step, the create act: the page head's primary, or the empty home's
+where the head leaves it to the empty state. Its next steps are the product's row in the column
+and its switch on *Modules*, which links the product's own settings. Ending it, walked or with
+*Got it*, writes the product (`apps/webapp/src/lib/product/producttour*.ts`,
+`ProductTourGuide.svelte`). *Help* offers *Show me around <product>* on a product's home, and so
+does the product's first empty state above phone width (on a phone the head's pinned primary sits
+over its footnote). A write that does not land shows the mark once more at the next visit.
+
 ### 3.5 A requester who signs in
 
 A person who holds only `REQUEST` somewhere is sent to their portal (`/portal/:id`), or to *Your
