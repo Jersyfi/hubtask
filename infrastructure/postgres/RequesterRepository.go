@@ -5,11 +5,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
@@ -188,12 +190,15 @@ func (RequesterRepository) IntakeLinesFrom(
 	if err != nil {
 		return nil, err
 	}
-	// '' sorts before both kinds and the nil id before every id: the zero cursor is the start.
+	// '' sorts before every kind and the nil id before every id: the zero cursor is the start.
 	params := sqlc.ListIntakeLinesFromParams{Addresses: addresses, PageSize: int32(min(limit, math.MaxInt32))}
 	if after.Started {
 		params.AfterKind = "ITEM"
-		if after.Comment {
+		switch {
+		case after.Comment:
 			params.AfterKind = "COMMENT"
+		case after.Page:
+			params.AfterKind = "PAGE"
 		}
 		if params.AfterID, err = uuidOf(after.ID); err != nil {
 			return nil, err
@@ -220,7 +225,8 @@ func (RequesterRepository) IntakeLinesFrom(
 			return nil, err
 		}
 		lines = append(lines, privacyrepo.IntakeLine{
-			Comment: row.Kind == "COMMENT", ID: id, ItemID: itemID, WrittenBy: writtenBy, Text: row.Text,
+			Comment: row.Kind == "COMMENT", Page: row.Kind == "PAGE", ID: id, ItemID: itemID,
+			WrittenBy: writtenBy, Text: row.Text,
 		})
 	}
 	return lines, nil
@@ -305,4 +311,78 @@ func cutRunes(value string, limit int) string {
 		return value
 	}
 	return string(runes[:limit])
+}
+
+// IntakePageRepository reads and rewrites a page's texts for the removal of an intake line
+// (db/queries/Requester.sql).
+type IntakePageRepository struct{}
+
+var _ privacyrepo.IntakePages = IntakePageRepository{}
+
+// PageTexts answers the page's body, draft and the versions that open with the intake's prefix.
+func (IntakePageRepository) PageTexts(ctx context.Context, pageID shared.ID) (privacyrepo.IntakePageTexts, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return privacyrepo.IntakePageTexts{}, false, err
+	}
+	id, err := uuidOf(pageID)
+	if err != nil {
+		return privacyrepo.IntakePageTexts{}, false, err
+	}
+	body, err := queries.IntakePageBody(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return privacyrepo.IntakePageTexts{}, false, nil
+	}
+	if err != nil {
+		return privacyrepo.IntakePageTexts{}, false, requesterFailed("reading a page's body", err)
+	}
+	texts := privacyrepo.IntakePageTexts{Body: body, Versions: map[int]string{}}
+	drafts, err := queries.IntakePageDraftBody(ctx, id)
+	if err != nil {
+		return privacyrepo.IntakePageTexts{}, false, requesterFailed("reading a page's draft", err)
+	}
+	if len(drafts) > 0 {
+		texts.Draft = &drafts[0]
+	}
+	versions, err := queries.IntakePageVersions(ctx, id)
+	if err != nil {
+		return privacyrepo.IntakePageTexts{}, false, requesterFailed("reading a page's versions", err)
+	}
+	for _, version := range versions {
+		texts.Versions[int(version.Seq)] = version.Body
+	}
+	return texts, true, nil
+}
+
+// WritePageTexts writes the body as the page's next version, the draft where given, and each
+// version given. A page another workspace holds is not found.
+func (IntakePageRepository) WritePageTexts(ctx context.Context, pageID shared.ID, texts privacyrepo.IntakePageTexts) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(pageID)
+	if err != nil {
+		return err
+	}
+	rows, err := queries.WriteIntakePageBody(ctx, sqlc.WriteIntakePageBodyParams{Body: texts.Body, PageID: id})
+	if err != nil {
+		return requesterFailed("writing a page's body", err)
+	}
+	if rows == 0 {
+		return shared.ErrNotFound.WithDetail("pages.not_found")
+	}
+	if texts.Draft != nil {
+		if _, err := queries.WriteIntakePageDraftBody(ctx, sqlc.WriteIntakePageDraftBodyParams{Body: texts.Draft, PageID: id}); err != nil {
+			return requesterFailed("writing a page's draft", err)
+		}
+	}
+	for seq, body := range texts.Versions {
+		if _, err := queries.WriteIntakePageVersion(ctx, sqlc.WriteIntakePageVersionParams{
+			Body: body, PageID: id, Seq: int32(min(seq, math.MaxInt32)), //nolint:gosec // a version's number
+		}); err != nil {
+			return requesterFailed("writing a page's version", err)
+		}
+	}
+	return nil
 }

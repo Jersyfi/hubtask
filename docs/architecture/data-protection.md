@@ -122,8 +122,14 @@ practice. Rules:
   person are the team's and stay, without the `From:` line the intake wrote above their notes and
   comments: it is removed through the ordinary edit and comment use cases, as the account that
   filed it (or, refused, the owner running the erasure), so the history, the devices and the trail
-  follow; a comment holding nothing else is deleted. `REQUESTER` expiry removes the line the same
-  way, and a line nobody may edit any more is logged and left. A hold on the workspace keeps it
+  follow; a comment holding nothing else is deleted. A page carrying the line - a copy of an
+  entry's notes, say - loses it from its body, its draft and every version that opens with it,
+  written directly since a version is history no use case edits; the body becomes the page's next
+  version, so an editor holding the old one is refused, and its live document is erased so that
+  the editor builds it again from the stripped body. Not closed: an editor open at that moment still
+  holds the old document and can write it back, since nothing tells it the document was erased. A trashed page is stripped too; the Art. 15 copy carries no page, since only the
+  line is the person's. `REQUESTER` expiry removes the line the same way, and a line nobody may
+  edit any more is logged and left. A hold on the workspace keeps it
   all, recorded as kept, and the remainder erases it when the hold is released; no
   narrower hold reaches what an address sent. The same person's Art. 15 copy carries, beside
   the record and their jumble entries, the entries and comments whose `From:` line names the

@@ -11,9 +11,12 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
+	realtimerepo "github.com/Jersyfi/hubtask/core/application/repository/realtime"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/realtime"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -32,11 +35,17 @@ type Invoker interface {
 	Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error)
 }
 
-// StripIntakeLines removes the mail intake's "From: name <address>" line from the entries and
-// comments an account filed on a requester's behalf, when the requester is erased or expires.
+// StripIntakeLines removes the mail intake's "From: name <address>" line from the entries,
+// comments and pages an account filed on a requester's behalf, when the requester is erased or
+// expires.
 type StripIntakeLines struct {
 	Lines   repository.IntakeLines
 	Entries Invoker
+	// Pages and Documents remove a page's line from its body, its draft and every version, and
+	// erase its live document so that the editor builds it again from the stripped body (sixth
+	// answers 11). Without them a page's line is passed over and stays.
+	Pages     repository.IntakePages
+	Documents realtimerepo.Documents
 }
 
 // IntakeLinePage is how many lines one read answers. A requester who wrote for years has more
@@ -93,6 +102,16 @@ func (s StripIntakeLines) StripPage(
 	step.More = len(lines) == IntakeLinePage
 	for _, line := range lines {
 		step.Next = line.After()
+		if line.Page {
+			stripped, err := s.stripPage(ctx, line.ID, addresses)
+			if err != nil {
+				return step, err
+			}
+			if stripped {
+				step.Changed++
+			}
+			continue
+		}
 		text, stripped := stripAny(line.Text, addresses)
 		if !stripped {
 			continue
@@ -116,6 +135,40 @@ func (s StripIntakeLines) StripPage(
 		step.Changed++
 	}
 	return step, nil
+}
+
+// stripPage removes the line from every text of the page that opens with it, and erases the page's
+// live document. A page gone meanwhile has nothing left to strip.
+func (s StripIntakeLines) stripPage(ctx context.Context, pageID shared.ID, addresses []string) (bool, error) {
+	if s.Pages == nil || s.Documents == nil {
+		return false, nil
+	}
+	texts, found, err := s.Pages.PageTexts(ctx, pageID)
+	if err != nil || !found {
+		return false, err
+	}
+	out := repository.IntakePageTexts{Body: texts.Body, Versions: map[int]string{}}
+	changed := false
+	if body, stripped := stripAny(texts.Body, addresses); stripped {
+		out.Body, changed = body, true
+	}
+	if texts.Draft != nil {
+		if draft, stripped := stripAny(*texts.Draft, addresses); stripped {
+			out.Draft, changed = &draft, true
+		}
+	}
+	for seq, text := range texts.Versions {
+		if version, stripped := stripAny(text, addresses); stripped {
+			out.Versions[seq], changed = version, true
+		}
+	}
+	if !changed {
+		return false, nil
+	}
+	if err := s.Pages.WritePageTexts(ctx, pageID, out); err != nil {
+		return false, err
+	}
+	return true, s.Documents.Erase(ctx, realtime.Ref{Kind: knowledge.DocumentKind, ID: pageID})
 }
 
 // AllIntakeLines answers every line whose first line names one of the addresses, read page by page.

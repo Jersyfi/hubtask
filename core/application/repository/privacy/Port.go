@@ -377,27 +377,49 @@ type Pseudonyms interface {
 	For(ctx context.Context, actorIDs []shared.ID) (map[shared.ID]string, error)
 }
 
-// IntakeLine is an entry's notes or a comment whose first line may be the mail intake's "From:"
-// line for a requester; WrittenBy is the account that filed it on their behalf.
+// IntakeLine is an entry's notes, a comment or a page whose first line may be the mail intake's
+// "From:" line for a requester; WrittenBy is the account that filed it on their behalf. A page's
+// Text is the first of its body, its draft and its versions, newest first, that may hold the line;
+// ID and ItemID are then the page's.
 type IntakeLine struct {
 	Comment   bool
+	Page      bool
 	ID        shared.ID
 	ItemID    shared.ID
 	WrittenBy shared.ID
 	Text      string
 }
 
-// IntakeCursor is where a page of intake lines ends: comments come before entries, each by id. The
-// zero cursor is before the first line.
+// IntakeCursor is where a page of intake lines ends: comments come before entries and entries
+// before pages, each by id. The zero cursor is before the first line.
 type IntakeCursor struct {
 	Started bool
 	Comment bool
+	Page    bool
 	ID      shared.ID
 }
 
 // After is the cursor just past the line.
 func (l IntakeLine) After() IntakeCursor {
-	return IntakeCursor{Started: true, Comment: l.Comment, ID: l.ID}
+	return IntakeCursor{Started: true, Comment: l.Comment, Page: l.Page, ID: l.ID}
+}
+
+// IntakePageTexts are the texts of one page an intake line may stand in: the body, the draft's
+// body where a draft holds one, and the versions whose body opens with the intake's prefix.
+type IntakePageTexts struct {
+	Body     string
+	Draft    *string
+	Versions map[int]string
+}
+
+// IntakePages reads and rewrites a page's texts for the removal of an intake line (sixth answers
+// 11): written directly, since a version is history no use case edits.
+type IntakePages interface {
+	// PageTexts answers the page's texts, locked for the transaction; found false for no page.
+	PageTexts(ctx context.Context, pageID shared.ID) (IntakePageTexts, bool, error)
+	// WritePageTexts writes the texts back: the body as the page's next version, the draft where
+	// one is given, and each version given by its number.
+	WritePageTexts(ctx context.Context, pageID shared.ID, texts IntakePageTexts) error
 }
 
 // IntakeLines finds the intake's lines naming a requester's address (third answers 2).

@@ -1948,6 +1948,8 @@ func run() error {
 		// And the intake's "From:" line on what was filed for them (third answers 2).
 		IntakeLines: privacyservice.StripIntakeLines{
 			Lines: postgres.RequesterRepository{IDs: ids}, Entries: ruleCatalogue,
+			// A page's line too, from its draft and versions, its live document rebuilt (sixth answers 11).
+			Pages: postgres.IntakePageRepository{}, Documents: postgres.NewRealtimeRepository(),
 		},
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
@@ -4859,6 +4861,7 @@ func run() error {
 			// Their intake's "From:" line goes with them (third answers 2).
 			RequesterLines: privacyservice.StripIntakeLines{
 				Lines: postgres.RequesterRepository{IDs: ids}, Entries: ruleCatalogue,
+				Pages: postgres.IntakePageRepository{}, Documents: postgres.NewRealtimeRepository(),
 			},
 			// Pages and boards trashed on their own, after the trash's period, page versions
 			// thinned after ninety days (accepted.md B), and a board's history only under the

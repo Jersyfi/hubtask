@@ -12,10 +12,12 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
+	realtimerepo "github.com/Jersyfi/hubtask/core/application/repository/realtime"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	lifecycle "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/realtime"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -59,11 +61,17 @@ func (s *lineStore) IntakeLinesFrom(
 }
 
 func compareLine(a, b repository.IntakeCursor) int {
-	if a.Comment != b.Comment {
-		if a.Comment {
-			return -1
+	rank := func(c repository.IntakeCursor) int {
+		switch {
+		case c.Comment:
+			return 0
+		case c.Page:
+			return 2
 		}
 		return 1
+	}
+	if rank(a) != rank(b) {
+		return rank(a) - rank(b)
 	}
 	return strings.Compare(a.ID.String(), b.ID.String())
 }
@@ -314,5 +322,87 @@ func TestAnErasureStaysOpenWhileALineStillNamesTheAddress(t *testing.T) {
 	_, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize))
 	if shared.AsError(err).DetailCode != domain.CodeIntakeLinesRemain {
 		t.Fatalf("erasing answered %v, want the case kept open", err)
+	}
+}
+
+// pageTexts is one page's texts as the store holds them; erased records the live documents erased.
+type pageTexts struct {
+	texts   map[shared.ID]repository.IntakePageTexts
+	written int
+	erased  []realtime.Ref
+	lines   *lineStore
+	realtimerepo.Documents
+}
+
+func (p *pageTexts) PageTexts(_ context.Context, id shared.ID) (repository.IntakePageTexts, bool, error) {
+	texts, found := p.texts[id]
+	return texts, found, nil
+}
+
+func (p *pageTexts) WritePageTexts(_ context.Context, id shared.ID, texts repository.IntakePageTexts) error {
+	current := p.texts[id]
+	current.Body = texts.Body
+	if texts.Draft != nil {
+		current.Draft = texts.Draft
+	}
+	for seq, body := range texts.Versions {
+		current.Versions[seq] = body
+	}
+	p.texts[id] = current
+	p.written++
+	p.lines.edited(id.String())
+	return nil
+}
+
+func (p *pageTexts) Erase(_ context.Context, ref realtime.Ref) error {
+	p.erased = append(p.erased, ref)
+	return nil
+}
+
+// Sixth answers 11 (UC-PRV-01 check 13): a page's line goes from its body, its draft and every
+// version that opens with it - the rest of each text stays - and its live document is erased, so
+// the editor builds it again from the stripped body; a workspace hold keeps it all.
+func TestAnErasureRemovesTheIntakeLineFromAPage(t *testing.T) {
+	pageID := shared.MustParseID("0192f000-0000-7000-8000-0000000000a6")
+	setUp := func() (*lineStore, *pageTexts) {
+		draft := "From: kunde@shop.test\n\nDraft words"
+		lines := &lineStore{lines: []repository.IntakeLine{
+			{Page: true, ID: pageID, ItemID: pageID, WrittenBy: filerID, Text: "From: Erika Muster <kunde@shop.test>\n\nHow to reset"},
+		}}
+		pages := &pageTexts{lines: lines, texts: map[shared.ID]repository.IntakePageTexts{pageID: {
+			Body: "From: Erika Muster <kunde@shop.test>\n\nHow to reset", Draft: &draft,
+			Versions: map[int]string{1: "From: kunde@shop.test\n\nFirst", 2: "From: someone@else.test\n\nTheirs"},
+		}}}
+		return lines, pages
+	}
+
+	h := newErasureHarness()
+	lines, pages := setUp()
+	eraser := h.eraser()
+	eraser.Addresses = &addressStore{held: 1}
+	eraser.IntakeLines = StripIntakeLines{Lines: lines, Entries: &entryCatalogue{store: lines}, Pages: pages, Documents: pages}
+	if _, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize)); err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	got := pages.texts[pageID]
+	if got.Body != "How to reset" || *got.Draft != "Draft words" || got.Versions[1] != "First" ||
+		got.Versions[2] != "From: someone@else.test\n\nTheirs" {
+		t.Errorf("the page's texts are %q, draft %q, versions %v", got.Body, *got.Draft, got.Versions)
+	}
+	if len(pages.erased) != 1 || pages.erased[0].ID != pageID || pages.erased[0].Kind != "page" {
+		t.Errorf("the live documents erased are %v, want the page's", pages.erased)
+	}
+
+	h = newErasureHarness()
+	h.holds.holds = lifecycle.Holds{{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f1"), Scope: lifecycle.HoldTenant, Reason: "Litigation"}}
+	lines, pages = setUp()
+	eraser = h.eraser()
+	eraser.Addresses = &addressStore{held: 1}
+	eraser.IntakeLines = StripIntakeLines{Lines: lines, Entries: &entryCatalogue{store: lines}, Pages: pages, Documents: pages}
+	if _, err := eraser.Erase(context.Background(), actor(), addressCase(domain.ModeAnonymize)); err != nil {
+		t.Fatalf("erasing under a hold: %v", err)
+	}
+	if pages.written != 0 || len(pages.erased) != 0 {
+		t.Errorf("a workspace hold let the page be written %d times, %d documents erased", pages.written, len(pages.erased))
 	}
 }

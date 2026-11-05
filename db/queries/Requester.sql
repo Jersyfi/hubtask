@@ -96,6 +96,10 @@ LIMIT 20;
 -- of these addresses (third answers 2): what an account filed on a requester's behalf. The prefix
 -- test is the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine). Keyed
 -- by (kind, id) after the cursor, so a caller pages through every line, however many there are.
+--
+-- A page is one row however many of its texts hold the line (sixth answers 11): its body, its
+-- draft or a version, the first of them in that order, newest version first. Trashed pages too:
+-- their texts are rewritten directly, and a trashed page is still kept for a while.
 SELECT l.kind, l.id, l.item_id, l.written_by, l.text FROM (
   SELECT 'ITEM'::text AS kind, w.id, w.id AS item_id, w.created_by AS written_by, coalesce(w.notes, '') AS text
   FROM work_item w
@@ -112,6 +116,28 @@ SELECT l.kind, l.id, l.item_id, l.written_by, l.text FROM (
       SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
       WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
     )
+  UNION ALL
+  SELECT 'PAGE'::text, p.id, p.id, p.created_by, t.text
+  FROM page p
+  CROSS JOIN LATERAL (
+    SELECT s.text FROM (
+      SELECT 0 AS place, 0 AS seq, p.body AS text
+      UNION ALL
+      SELECT 1, 0, d.body FROM page_draft d
+      WHERE d.tenant_id = p.tenant_id AND d.page_id = p.id AND d.body IS NOT NULL
+      UNION ALL
+      SELECT 2, v.seq, v.body FROM page_version v
+      WHERE v.tenant_id = p.tenant_id AND v.page_id = p.id
+    ) AS s
+    WHERE s.text LIKE 'From: %'
+      AND EXISTS (
+        SELECT 1 FROM unnest(sqlc.arg('addresses')::text[]) AS a(address)
+        WHERE position(lower(a.address) IN lower(split_part(s.text, E'\n', 1))) > 0
+      )
+    ORDER BY s.place, s.seq DESC
+    LIMIT 1
+  ) AS t
+  WHERE p.tenant_id = current_tenant_id()
 ) AS l
 WHERE (l.kind, l.id) > (sqlc.arg('after_kind')::text, sqlc.arg('after_id')::uuid)
 ORDER BY l.kind, l.id
@@ -150,3 +176,33 @@ WHERE token_hash = sqlc.arg('token_hash') AND used_at IS NULL AND expires_at > s
 SELECT count(*) FROM requester_contact c
 JOIN requester r ON r.tenant_id = c.tenant_id AND r.id = c.requester_id
 WHERE r.address = lower(sqlc.arg('address')::text) AND c.at >= sqlc.arg('since');
+
+-- name: IntakePageBody :one
+-- A page's body for the removal of an intake line, locked for the transaction.
+SELECT body FROM page
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('page_id')
+FOR UPDATE;
+
+-- name: IntakePageDraftBody :many
+-- The page's draft body, where a draft holds one.
+SELECT body::text AS body FROM page_draft
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND body IS NOT NULL;
+
+-- name: IntakePageVersions :many
+-- The page's versions that open with the intake's prefix; the others hold no line.
+SELECT seq, body FROM page_version
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND body LIKE 'From: %'
+ORDER BY seq;
+
+-- name: WriteIntakePageBody :execrows
+-- The stripped body as the page's next version, so an editor holding the old one is refused.
+UPDATE page SET body = sqlc.arg('body'), version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('page_id');
+
+-- name: WriteIntakePageDraftBody :execrows
+UPDATE page_draft SET body = sqlc.arg('body')
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND body IS NOT NULL;
+
+-- name: WriteIntakePageVersion :execrows
+UPDATE page_version SET body = sqlc.arg('body')
+WHERE tenant_id = current_tenant_id() AND page_id = sqlc.arg('page_id') AND seq = sqlc.arg('seq');

@@ -177,6 +177,78 @@ func (q *Queries) FindSatisfactionLinkByHash(ctx context.Context, tokenHash []by
 	return i, err
 }
 
+const intakePageBody = `-- name: IntakePageBody :one
+SELECT body FROM page
+WHERE tenant_id = current_tenant_id() AND id = $1
+FOR UPDATE
+`
+
+// A page's body for the removal of an intake line, locked for the transaction.
+func (q *Queries) IntakePageBody(ctx context.Context, pageID pgtype.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, intakePageBody, pageID)
+	var body string
+	err := row.Scan(&body)
+	return body, err
+}
+
+const intakePageDraftBody = `-- name: IntakePageDraftBody :many
+SELECT body::text AS body FROM page_draft
+WHERE tenant_id = current_tenant_id() AND page_id = $1 AND body IS NOT NULL
+`
+
+// The page's draft body, where a draft holds one.
+func (q *Queries) IntakePageDraftBody(ctx context.Context, pageID pgtype.UUID) ([]string, error) {
+	rows, err := q.db.Query(ctx, intakePageDraftBody, pageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var body string
+		if err := rows.Scan(&body); err != nil {
+			return nil, err
+		}
+		items = append(items, body)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const intakePageVersions = `-- name: IntakePageVersions :many
+SELECT seq, body FROM page_version
+WHERE tenant_id = current_tenant_id() AND page_id = $1 AND body LIKE 'From: %'
+ORDER BY seq
+`
+
+type IntakePageVersionsRow struct {
+	Seq  int32
+	Body string
+}
+
+// The page's versions that open with the intake's prefix; the others hold no line.
+func (q *Queries) IntakePageVersions(ctx context.Context, pageID pgtype.UUID) ([]IntakePageVersionsRow, error) {
+	rows, err := q.db.Query(ctx, intakePageVersions, pageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IntakePageVersionsRow{}
+	for rows.Next() {
+		var i IntakePageVersionsRow
+		if err := rows.Scan(&i.Seq, &i.Body); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExpiredRequesterAddresses = `-- name: ListExpiredRequesterAddresses :many
 SELECT due.address FROM requester AS due
 WHERE due.last_contact_at < $1
@@ -230,6 +302,28 @@ SELECT l.kind, l.id, l.item_id, l.written_by, l.text FROM (
       SELECT 1 FROM unnest($1::text[]) AS a(address)
       WHERE position(lower(a.address) IN lower(split_part(c.body, E'\n', 1))) > 0
     )
+  UNION ALL
+  SELECT 'PAGE'::text, p.id, p.id, p.created_by, t.text
+  FROM page p
+  CROSS JOIN LATERAL (
+    SELECT s.text FROM (
+      SELECT 0 AS place, 0 AS seq, p.body AS text
+      UNION ALL
+      SELECT 1, 0, d.body FROM page_draft d
+      WHERE d.tenant_id = p.tenant_id AND d.page_id = p.id AND d.body IS NOT NULL
+      UNION ALL
+      SELECT 2, v.seq, v.body FROM page_version v
+      WHERE v.tenant_id = p.tenant_id AND v.page_id = p.id
+    ) AS s
+    WHERE s.text LIKE 'From: %'
+      AND EXISTS (
+        SELECT 1 FROM unnest($1::text[]) AS a(address)
+        WHERE position(lower(a.address) IN lower(split_part(s.text, E'\n', 1))) > 0
+      )
+    ORDER BY s.place, s.seq DESC
+    LIMIT 1
+  ) AS t
+  WHERE p.tenant_id = current_tenant_id()
 ) AS l
 WHERE (l.kind, l.id) > ($2::text, $3::uuid)
 ORDER BY l.kind, l.id
@@ -255,6 +349,10 @@ type ListIntakeLinesFromRow struct {
 // of these addresses (third answers 2): what an account filed on a requester's behalf. The prefix
 // test is the cheap filter; the caller decides on the exact line (privacy.StripIntakeLine). Keyed
 // by (kind, id) after the cursor, so a caller pages through every line, however many there are.
+//
+// A page is one row however many of its texts hold the line (sixth answers 11): its body, its
+// draft or a version, the first of them in that order, newest version first. Trashed pages too:
+// their texts are rewritten directly, and a trashed page is still kept for a while.
 func (q *Queries) ListIntakeLinesFrom(ctx context.Context, arg ListIntakeLinesFromParams) ([]ListIntakeLinesFromRow, error) {
 	rows, err := q.db.Query(ctx, listIntakeLinesFrom,
 		arg.Addresses,
@@ -511,6 +609,62 @@ type UseSatisfactionLinkParams struct {
 // Answers the link once: of two answers at the same moment, one finds it unused.
 func (q *Queries) UseSatisfactionLink(ctx context.Context, arg UseSatisfactionLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, useSatisfactionLink, arg.At, arg.TokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const writeIntakePageBody = `-- name: WriteIntakePageBody :execrows
+UPDATE page SET body = $1, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $2
+`
+
+type WriteIntakePageBodyParams struct {
+	Body   string
+	PageID pgtype.UUID
+}
+
+// The stripped body as the page's next version, so an editor holding the old one is refused.
+func (q *Queries) WriteIntakePageBody(ctx context.Context, arg WriteIntakePageBodyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, writeIntakePageBody, arg.Body, arg.PageID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const writeIntakePageDraftBody = `-- name: WriteIntakePageDraftBody :execrows
+UPDATE page_draft SET body = $1
+WHERE tenant_id = current_tenant_id() AND page_id = $2 AND body IS NOT NULL
+`
+
+type WriteIntakePageDraftBodyParams struct {
+	Body   *string
+	PageID pgtype.UUID
+}
+
+func (q *Queries) WriteIntakePageDraftBody(ctx context.Context, arg WriteIntakePageDraftBodyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, writeIntakePageDraftBody, arg.Body, arg.PageID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const writeIntakePageVersion = `-- name: WriteIntakePageVersion :execrows
+UPDATE page_version SET body = $1
+WHERE tenant_id = current_tenant_id() AND page_id = $2 AND seq = $3
+`
+
+type WriteIntakePageVersionParams struct {
+	Body   string
+	PageID pgtype.UUID
+	Seq    int32
+}
+
+func (q *Queries) WriteIntakePageVersion(ctx context.Context, arg WriteIntakePageVersionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, writeIntakePageVersion, arg.Body, arg.PageID, arg.Seq)
 	if err != nil {
 		return 0, err
 	}

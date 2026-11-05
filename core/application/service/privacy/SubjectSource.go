@@ -295,6 +295,11 @@ type subjectSource struct {
 func intakeRecords(lines []repository.IntakeLine, address string) map[string]map[string]bool {
 	out := map[string]map[string]bool{}
 	for _, line := range lines {
+		// A page is the workspace's knowledge, not what the requester's mail became: only its line
+		// is theirs, and that is removed rather than handed out.
+		if line.Page {
+			continue
+		}
 		if _, named := stripAny(line.Text, []string{address}); !named {
 			continue
 		}
