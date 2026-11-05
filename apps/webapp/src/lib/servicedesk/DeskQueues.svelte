@@ -172,6 +172,11 @@
      fit at a desktop's width rather than behind the edge fade. */
   .title { display: block; max-inline-size: min(48ch, 30cqi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
   .title:hover { text-decoration: underline; }
+  /* A phone's stacked card has the title's whole line to itself: it wraps there, uncut. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), the stacked table's own query; a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .title { max-inline-size: none; white-space: normal; }
+  }
   .quiet { color: var(--text-secondary); }
   .who { white-space: nowrap; }
   .hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }

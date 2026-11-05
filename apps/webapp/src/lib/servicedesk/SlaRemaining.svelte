@@ -36,7 +36,7 @@
 
 <style>
   .sla { display: inline-flex; align-items: center; gap: var(--sp-050); padding: var(--sp-025) var(--sp-100); border-radius: var(--r-full); white-space: nowrap; color: var(--text-secondary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
-  .bar { flex: none; inline-size: var(--sp-500); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--bg-surface-sunken); overflow: hidden; }
+  .bar { flex: none; inline-size: var(--sp-500); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--border-subtle); overflow: hidden; }
   .used { display: block; block-size: 100%; inline-size: 0; border-radius: inherit; background: var(--accent-primary); }
   /* Width by tenths through an attribute: an inline style is refused by the CSP (ADR-0028). */
   .used[data-used='10'] { inline-size: 10%; }
