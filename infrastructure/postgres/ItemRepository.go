@@ -40,10 +40,22 @@ const workItemCalendarUIDIndex = "wi_calendar_uid_uq"
 // in test/integration are what prove this file correct, not a unit test with a fake.
 type ItemRepository struct {
 	cursors security.CursorCodec
+	// countBudget bounds an exact count; past it the rows are answered uncounted.
+	countBudget time.Duration
 }
 
+// countBudget is what an exact count may take: well inside the request's own statement timeout,
+// so a collection too large to count in time still answers its rows (degraded, not failed).
+const countBudget = 2 * time.Second
+
 func NewItemRepository(cursors security.CursorCodec) ItemRepository {
-	return ItemRepository{cursors: cursors}
+	return ItemRepository{cursors: cursors, countBudget: countBudget}
+}
+
+// WithCountBudget is the repository with another bound on an exact count.
+func (r ItemRepository) WithCountBudget(budget time.Duration) ItemRepository {
+	r.countBudget = budget
+	return r
 }
 
 var _ repository.Items = ItemRepository{}

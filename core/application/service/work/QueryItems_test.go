@@ -344,6 +344,30 @@ func TestQueryItemsAnswersBothShapes(t *testing.T) {
 			t.Errorf("the column size arrived as %d", got)
 		}
 	})
+
+	// A count past its budget answers the columns with null counts rather than zeros a client
+	// would draw as empty.
+	t.Run("grouped, count past its budget", func(t *testing.T) {
+		store, containerStore, uow := queryFixture()
+		store.result = repository.ItemQueryResult{
+			Uncounted: true,
+			Groups:    []repository.ItemGroup{{Absent: true, Items: []domain.WorkItem{itemFixture(readItemID, readCollectionID, "Buy milk")}}},
+		}
+
+		out, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(
+			t.Context(), actorFixture(), usecase.Input{
+				"scope_container_id": readCollectionID.String(),
+				"group_by":           map[string]any{"field": "bucket_id"},
+				"count":              "exact",
+			})
+		if err != nil {
+			t.Fatalf("querying: %v", err)
+		}
+		groups, _ := out["groups"].([]usecase.Output)
+		if len(groups) != 1 || groups[0]["count"] != nil || out["total"] != nil {
+			t.Errorf("groups %v, total %v; want the column with a null count and a null total", groups, out["total"])
+		}
+	})
 }
 
 // The declaration is what MCP and the automation engine build their surface from, so the fields a

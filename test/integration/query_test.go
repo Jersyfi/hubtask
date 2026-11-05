@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // The query language against a real database.
@@ -1059,4 +1060,71 @@ func TestAListOperatorTakesItsWholeArrayAsOneParameter(t *testing.T) {
 	if len(result.Items) != 2 {
 		t.Errorf("the query answered %v, want the two entries on the board", titlesOf(result.Items))
 	}
+}
+
+// A count that outlasts its budget leaves the board standing: the columns are answered without
+// their counts, the transaction goes on, and its own statement timeout is what it was before.
+// Without the budget a collection too large to count in time failed the whole read.
+func TestABoardWhoseCountOutlastsItsBudgetIsAnsweredWithoutIt(t *testing.T) {
+	ctx := context.Background()
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	const entries = 60_000
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key,
+		                       content_language, created_by)
+		SELECT id, $1, $2, 'TASK', '/' || id || '/', 0, 'Entry ' || g, 'a' || lpad(g::text, 6, '0'),
+		       'en', $3
+		FROM (SELECT gen_random_uuid() AS id, g FROM generate_series(1, $4::int) g) s`,
+		tenantA.String(), collection.String(), authorA.String(), entries); err != nil {
+		t.Fatalf("seeding the entries: %v", err)
+	}
+	group, err := view.ParseGroupBy(map[string]any{"field": view.FieldBucketID}, "/group_by")
+	if err != nil {
+		t.Fatal(err)
+	}
+	search := searchIn(t, collection, nil, view.Spec{GroupBy: group, Count: view.CountExact, IncludeArchived: true})
+	search.Anchor.IncludeDescendants = false
+
+	counting := func(items postgres.ItemRepository) (repository.ItemQueryResult, string, string) {
+		var result repository.ItemQueryResult
+		var before, after string
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			tx, err := postgres.FromContext(ctx)
+			if err != nil {
+				return err
+			}
+			if err := tx.QueryRow(ctx, `SELECT current_setting('statement_timeout')`).Scan(&before); err != nil {
+				return err
+			}
+			if result, err = items.Query(ctx, search); err != nil {
+				return err
+			}
+			return tx.QueryRow(ctx, `SELECT current_setting('statement_timeout')`).Scan(&after)
+		}); err != nil {
+			t.Fatalf("querying: %v", err)
+		}
+		return result, before, after
+	}
+
+	t.Run("within its budget", func(t *testing.T) {
+		result, before, after := counting(itemRepo())
+		if result.Uncounted || result.Total != entries || len(result.Groups) != 1 || result.Groups[0].Total != entries {
+			t.Fatalf("uncounted %v, total %d, groups %+v; want %d counted", result.Uncounted, result.Total, len(result.Groups), entries)
+		}
+		if before != after {
+			t.Errorf("statement_timeout %q before the count, %q after it", before, after)
+		}
+	})
+	t.Run("past its budget", func(t *testing.T) {
+		result, before, after := counting(itemRepo().WithCountBudget(time.Millisecond))
+		if !result.Uncounted {
+			t.Fatalf("counted %d within a millisecond; the seed is too small to outlast the budget", result.Total)
+		}
+		if len(result.Groups) != 1 || len(result.Groups[0].Items) == 0 {
+			t.Fatalf("groups %+v, want the one column with its first cards", result.Groups)
+		}
+		if before != after {
+			t.Errorf("statement_timeout %q before the count, %q after it", before, after)
+		}
+	})
 }

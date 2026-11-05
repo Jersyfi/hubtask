@@ -305,8 +305,10 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
   export (§5).
 * Where a read answers only what the caller may see (`/search` without a container), a page can
   be shorter than the size asked for. A client reads on until `has_more` is false.
-* A total is given only with `count: "exact"`, as `total`, because it costs a second pass.
-  `count: "estimated"` is refused as `query.count_not_supported` rather than answered with a null
+* A total is given only with `count: "exact"`, as `total`, because it costs a second pass. That
+  pass is bounded to two seconds: a count that takes longer is left out (`total` and each group's
+  `count` null) and the rows are answered, so a collection too large to count in time degrades its
+  numbers instead of failing its read. `count: "estimated"` is refused as `query.count_not_supported` rather than answered with a null
   total.
 
 ---

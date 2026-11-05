@@ -427,6 +427,9 @@ type ItemQueryResult struct {
 	// Total is the size of the whole result, and is meaningful only when the query asked for an
 	// exact count.
 	Total int
+	// Uncounted says an exact count was asked for and not answered, because counting took longer
+	// than its budget; the rows are answered all the same, and no Total is meaningful.
+	Uncounted bool
 }
 
 // Items stores work items: tasks, work packages, and activities.

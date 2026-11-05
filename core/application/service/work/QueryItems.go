@@ -572,7 +572,7 @@ func queryOutput(
 	out := pageOutput(rowsOf(result.Items, carried, marks), result.Info)
 	out["groups"] = groupsOf(result, spec, carried, marks)
 	out["total"] = nil
-	if spec.Count == view.CountExact {
+	if spec.Count == view.CountExact && !result.Uncounted {
 		out["total"] = result.Total
 	}
 	return out
@@ -591,7 +591,7 @@ func groupsOf(
 			out["key"] = group.Key
 		}
 		out["count"] = nil
-		if spec.Count == view.CountExact {
+		if spec.Count == view.CountExact && !result.Uncounted {
 			out["count"] = group.Total
 		}
 		groups = append(groups, out)

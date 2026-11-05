@@ -36868,7 +36868,8 @@ components:
           default: none
           description: >
             `exact` counts the whole result with a second query and answers `total`; it is opt-in
-            because it costs a second pass. `estimated` is not served and is refused by name rather
+            because it costs a second pass, and bounded: a count that takes longer than two seconds
+            is left out (`total` and each group's `count` null) and the rows are answered. `estimated` is not served and is refused by name rather
             than answered with a null total.
 
     ItemExport:
@@ -36970,7 +36971,9 @@ components:
           description: The grouping value, null for the entries that have none.
         count:
           type: [integer, "null"]
-          description: How many entries the group holds in total, with `count=exact`.
+          description: >
+            How many entries the group holds in total, with `count=exact`; null otherwise, and null
+            when counting took longer than its bound.
         data:
           type: array
           items: { $ref: "#/components/schemas/WorkItem" }
@@ -36997,7 +37000,10 @@ components:
         page: { $ref: "#/components/schemas/PageInfo" }
         total:
           type: [integer, "null"]
-          description: The size of the whole result with `count=exact`, null otherwise.
+          description: >
+            The size of the whole result with `count=exact`, null otherwise. Also null when counting
+            took longer than its bound (two seconds): the rows are answered without it rather than the
+            read failing.
 
     BulkOperation:
       type: object

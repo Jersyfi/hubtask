@@ -5,11 +5,13 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -142,6 +144,40 @@ func (r ItemRepository) counted(
 		return repository.ItemQueryResult{}, err
 	}
 
+	// A savepoint holds the count's own statement timeout and is always rolled back: the count only
+	// reads, and rolling back is what returns the transaction's timeout to what it was, whether the
+	// count finished or was cancelled. The budget never raises a shorter timeout already in force.
+	bounded, err := tx.Begin(ctx)
+	if err != nil {
+		return repository.ItemQueryResult{}, queryFailed("bounding the count", err)
+	}
+	defer func() { _ = bounded.Rollback(ctx) }()
+	if _, err := bounded.Exec(ctx, `SELECT set_config('statement_timeout',
+		CASE WHEN current_setting('statement_timeout')::interval = interval '0'
+		       OR current_setting('statement_timeout')::interval > $1::bigint * interval '1 millisecond'
+		     THEN $1::text ELSE current_setting('statement_timeout') END, true)`,
+		strconv.FormatInt(r.countBudget.Milliseconds(), 10)); err != nil {
+		return repository.ItemQueryResult{}, queryFailed("bounding the count", err)
+	}
+
+	counted, err := r.count(ctx, bounded, statement, search, result)
+	if err != nil && ctx.Err() == nil && outlastedItsBudget(err) {
+		result.Uncounted = true
+		return result, nil
+	}
+	return counted, err
+}
+
+// outlastedItsBudget is a statement cancelled by its own timeout, as opposed to the caller leaving.
+func outlastedItsBudget(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "57014"
+}
+
+func (r ItemRepository) count(
+	ctx context.Context, tx pgx.Tx, statement query.Statement, search repository.ItemSearch,
+	result repository.ItemQueryResult,
+) (repository.ItemQueryResult, error) {
 	rows, err := tx.Query(ctx, statement.SQL, statement.Args...)
 	if err != nil {
 		return repository.ItemQueryResult{}, queryFailed("counting the query's rows", err)

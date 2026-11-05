@@ -18198,7 +18198,7 @@ type ItemMembers struct {
 
 // ItemQuery defines model for ItemQuery.
 type ItemQuery struct {
-	// Count `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
+	// Count `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass, and bounded: a count that takes longer than two seconds is left out (`total` and each group's `count` null) and the rows are answered. `estimated` is not served and is refused by name rather than answered with a null total.
 	Count *ItemQueryCount `json:"count,omitempty"`
 
 	// Expand Relations to include, as on `GET /items`. `labels` and `counts` are served (`counts` here only: what each entry holds, counted for the whole page in one query); anything else is `items.expand_not_supported`.
@@ -18243,12 +18243,12 @@ type ItemQuery struct {
 	Sort *[]SortTerm `json:"sort,omitempty"`
 }
 
-// ItemQueryCount `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
+// ItemQueryCount `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass, and bounded: a count that takes longer than two seconds is left out (`total` and each group's `count` null) and the rows are answered. `estimated` is not served and is refused by name rather than answered with a null total.
 type ItemQueryCount string
 
 // ItemQueryGroup One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor.
 type ItemQueryGroup struct {
-	// Count How many entries the group holds in total, with `count=exact`.
+	// Count How many entries the group holds in total, with `count=exact`; null otherwise, and null when counting took longer than its bound.
 	Count *int       `json:"count"`
 	Data  []WorkItem `json:"data"`
 
@@ -18265,7 +18265,7 @@ type ItemQueryResult struct {
 	Groups []ItemQueryGroup `json:"groups"`
 	Page   PageInfo         `json:"page"`
 
-	// Total The size of the whole result with `count=exact`, null otherwise.
+	// Total The size of the whole result with `count=exact`, null otherwise. Also null when counting took longer than its bound (two seconds): the rows are answered without it rather than the read failing.
 	Total *int `json:"total"`
 }
 
