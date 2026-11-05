@@ -298,16 +298,25 @@ workbench:
 	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
 	$(PNPM) --filter @hubtask/design-system workbench
 
-## demo: Make a demo workspace with content in every product (DEMO_SLUG=demo, DEMO_API=...)
-# A walk's data, through the product's REST operations (scripts/seed-demo.sh says what it needs:
-# HUBTASK_ADMIN_TOKEN, HUBTASK_DEMO_PASSWORD, a multi-workspace installation). It provisions a new
-# workspace, so a second run takes another DEMO_SLUG; DEMO_EMPTY=1 makes an empty one instead.
+## demo: Make a demo workspace with content in every product (DEMO_SLUG=demo, DEMO_API=..., or DEMO_WORKSPACE=<short>)
+# A walk's data, through the product's REST operations. With DEMO_WORKSPACE it fills that existing
+# workspace with the showcase as hubctl's signed-in person (`hubctl workspace demo`), every object
+# marked as sample content, again without doubling and removable in one act
+# (DEMO_REMOVE=1). Without it, scripts/seed-demo.sh provisions a new workspace with its people
+# (HUBTASK_ADMIN_TOKEN, HUBTASK_DEMO_PASSWORD, a multi-workspace installation), so a second run
+# takes another DEMO_SLUG; DEMO_EMPTY=1 makes an empty one instead.
 DEMO_SLUG ?= demo
 DEMO_API ?= http://localhost:8080
 DEMO_EMPTY ?=
+DEMO_WORKSPACE ?=
+DEMO_REMOVE ?=
 .PHONY: demo
 demo:
+ifneq ($(DEMO_WORKSPACE),)
+	go run ./cmd/hubctl workspace demo --workspace $(DEMO_WORKSPACE) $(if $(DEMO_REMOVE),--remove)
+else
 	scripts/seed-demo.sh --api $(DEMO_API) --slug $(DEMO_SLUG) $(if $(DEMO_EMPTY),--empty)
+endif
 
 ## workbench-build: Build the workbench into packages/design-system/dist/workbench
 # What workbench.hubtask.eu serves (ADR-0038). Still not part of `pnpm -r build`: a surface that

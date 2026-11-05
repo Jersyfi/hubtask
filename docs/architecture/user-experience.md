@@ -297,11 +297,22 @@ marks everything as sample, and removes it in one act. It is how the owner sees 
 what the UI/UX run walks "with very much content"; the R3 walk of `test/load/PLAN.md` extends to
 every product home.
 
-Today: `make demo` runs `scripts/seed-demo.sh`, which provisions a *new* workspace and fills it
-through REST in every product; it is not idempotent and marks nothing beyond a template's sample
-entries. `hubctl workspace demo` on an existing workspace, a sample mark on pages, whiteboards,
-CIs, goals and time records, and removing the whole showcase in one act are not built — the mark
-outside entries needs the domain and the contract first.
+Today: `hubctl workspace demo --workspace <short>` fills the credential's workspace (the short
+name is a guard against filling another) with the content of `scripts/seed-demo.py`, written by
+the one signed-in person: the four templates with the desk's samples, the Scrum, Kanban, project
+and desk hubs with their entries, sprints, releases, plan, risks, portal requests and CIs, pages
+with an image and versions, three whiteboards, two weeks of the person's own time, goals with key
+results and check-ins, two portfolios and two dashboards. Every object it makes is marked under
+a key (`POST /tenant/samples`, migration 0377); a second run makes only what no mark holds, and
+what belongs to an object (its steps, comments, links) is written once, with it. `--remove`
+(`POST /tenant/samples:remove`) removes it all in one act: hubs, collections, entries, pages and
+whiteboards into the trash, goals, portfolios, dashboards and time records deleted only at the
+version they were made at, anything changed since kept and named. People are assigned only where
+the workspace has seed-demo.sh's people by name. `make demo DEMO_WORKSPACE=<short>` runs it;
+`make demo` without it still runs `scripts/seed-demo.sh`, which provisions a new workspace with
+its people and writes the same content as those people, unmarked. Not marked: the goal period (a
+frame, found by name), CIs, sprints and releases (they leave with their hub), and the workspace's
+kinds of work, rates and absences.
 
 ---
 
