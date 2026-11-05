@@ -132,6 +132,11 @@ const (
 	// FieldSatisfaction is the requester's score of the resolved entry, 1 to 5, absent while none
 	// was given (UC-SVC-07). A queue keeps the unhappy ones with LTE 2.
 	FieldSatisfaction = "satisfaction"
+	// FieldGroupQueueOf is a group's queue (user-experience.md §3.3): whether the entry's
+	// collection has an auto-assign policy naming a group the given account belongs to. Only the
+	// asker's own queue may be asked - a value other than the actor is refused at Resolve, because
+	// the answer would say which groups somebody else is in.
+	FieldGroupQueueOf = "group_queue_of"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -339,6 +344,10 @@ var catalogue = []Field{
 		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn, OpIsNull},
 		Values:    SLAStandings(),
 		Nullable:  true,
+	},
+	{
+		Name: FieldGroupQueueOf, Kind: KindID,
+		Operators: []Operator{OpEq},
 	},
 	{
 		Name: FieldSatisfaction, Kind: KindInt,

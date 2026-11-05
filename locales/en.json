@@ -1971,6 +1971,7 @@
   "query.placeholder_not_applicable": "{placeholder} cannot be compared against a {kind}.",
   "query.placeholder_offset_not_allowed": "{placeholder} cannot be shifted by a duration.",
   "query.placeholder_needs_actor": "{placeholder} only means something when a person is asking.",
+  "query.group_queue_not_yours": "A group's queue can only be read for yourself: ask with @me.",
   "query.offset_malformed": "That is not a duration. Use the form P3D, P1W or PT2H.",
   "query.sort_malformed": "The ordering has to be a list of fields.",
   "query.sort_too_long": "Results can be ordered by at most {maximum} fields.",

@@ -1002,6 +1002,7 @@
   "query.placeholder_not_applicable": "{placeholder} lässt sich nicht mit einem Wert der Art {kind} vergleichen.",
   "query.placeholder_offset_not_allowed": "{placeholder} lässt sich nicht um eine Dauer verschieben.",
   "query.placeholder_needs_actor": "{placeholder} bedeutet nur etwas, wenn eine Person fragt.",
+  "query.group_queue_not_yours": "Die Warteschlange einer Gruppe lässt sich nur für dich selbst lesen: frag mit @me.",
   "query.offset_malformed": "Das ist keine Dauer. Verwende die Form P3D, P1W oder PT2H.",
   "query.sort_malformed": "Die Sortierung muss eine Liste von Feldern sein.",
   "query.sort_too_long": "Ergebnisse lassen sich nach höchstens {maximum} Feldern ordnen.",

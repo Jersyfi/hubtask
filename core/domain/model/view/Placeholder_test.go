@@ -227,6 +227,40 @@ func TestAMomentOnASetOfIdentifiersIsRefused(t *testing.T) {
 	}
 }
 
+// A group's queue is the asker's own (user-experience.md §3.3): `@me` and the actor's own
+// identifier resolve, anybody else's is refused, since the answer would say whose groups they are.
+func TestAGroupQueueIsOnlyTheAskersOwn(t *testing.T) {
+	at := Resolution{Now: time.Now(), ActorID: actor}
+	other := "0190a4c2-7b1e-7000-8000-0000000000ff"
+	tests := []struct {
+		name  string
+		value string
+		code  string
+	}{
+		{"by @me", "@me", ""},
+		{"by the actor's own identifier", actor.String(), ""},
+		{"by somebody else's", other, "query.group_queue_not_yours"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			node, err := ParseFilter(leaf(FieldGroupQueueOf, "EQ", test.value), filterPath)
+			if err != nil {
+				t.Fatalf("refused at parse: %v", err)
+			}
+			resolved, err := node.Resolve(at, filterPath)
+			if test.code == "" {
+				if err != nil || resolved.Values[0].ID != actor {
+					t.Fatalf("resolved to %+v, %v", resolved, err)
+				}
+				return
+			}
+			if detail := detailOf(t, err); detail != test.code {
+				t.Errorf("detail %q, want %q", detail, test.code)
+			}
+		})
+	}
+}
+
 // Without a zone the server has to pick one, and it must not be the machine's: two replicas of one
 // deployment would otherwise disagree about when today began.
 func TestResolveFallsBackToUTC(t *testing.T) {

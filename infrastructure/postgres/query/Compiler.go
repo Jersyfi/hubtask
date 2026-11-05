@@ -899,6 +899,9 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldLinkedTo:
 		b.linkedTo(node)
 		return
+	case view.FieldGroupQueueOf:
+		b.groupQueue(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
@@ -1012,6 +1015,19 @@ func (b *builder) linkedTo(node view.Node) {
 	b.write(`)) OR (ln.target_id = wi.id AND ln.source_id = ANY(`)
 	b.array(node.Field, node.Values)
 	b.write(`))))`)
+}
+
+// groupQueue writes whether the entry's collection has an auto-assign policy naming, as a GROUP
+// candidate, a group the account belongs to. Uncorrelated, so the collections are found once per
+// statement; the account is a parameter (ADR-0026) and row level security keeps both tables to
+// the tenant.
+func (b *builder) groupQueue(node view.Node) {
+	b.write(`wi.collection_id IN (SELECT ap.scope_id FROM auto_assign_policy ap`)
+	b.write(` WHERE ap.scope_type = 'COLLECTION' AND EXISTS (SELECT 1 FROM account_group_member gm`)
+	b.write(` WHERE gm.account_id = `)
+	b.value(node.Field, node.Values[0])
+	b.write(` AND gm.tenant_id = ap.tenant_id`)
+	b.write(` AND ap.candidates @> jsonb_build_array(jsonb_build_object('kind', 'GROUP', 'id', gm.group_id::text))))`)
 }
 
 // customField writes a comparison against one key of the entry's custom field document.

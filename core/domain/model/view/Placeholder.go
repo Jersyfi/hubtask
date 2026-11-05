@@ -386,6 +386,9 @@ func (n Node) Resolve(at Resolution, path string) (Node, error) {
 			}
 			value = computed
 		}
+		if n.Field.Name == FieldGroupQueueOf && value.ID != at.ActorID {
+			return Node{}, fieldError(path+"/value", "query.group_queue_not_yours", nil)
+		}
 		resolved.Values = append(resolved.Values, value)
 	}
 	return resolved, nil

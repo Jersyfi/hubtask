@@ -921,6 +921,25 @@ func TestLinkedToReadsEitherEnd(t *testing.T) {
 	}
 }
 
+// `group_queue_of` reads the collections whose auto-assign policy names a group of the account,
+// the account bound (user-experience.md §3.3).
+func TestAGroupQueueReadsThePoliciesNamingTheAccountsGroups(t *testing.T) {
+	id := "0190a4c2-7b1e-7000-8000-000000000001"
+	got := compile(t, map[string]any{"field": "group_queue_of", "op": "EQ", "value": id}, view.Spec{})
+	for _, want := range []string{
+		"wi.collection_id IN (SELECT ap.scope_id FROM auto_assign_policy ap WHERE ap.scope_type = 'COLLECTION'",
+		"gm.account_id = $",
+		"ap.candidates @> jsonb_build_array(jsonb_build_object('kind', 'GROUP', 'id', gm.group_id::text))",
+	} {
+		if !strings.Contains(got.SQL, want) {
+			t.Errorf("compiled to\n  %s\nand should contain\n  %s", got.SQL, want)
+		}
+	}
+	if strings.Contains(got.SQL, id) {
+		t.Fatalf("the identifier reached the text:\n  %s", got.SQL)
+	}
+}
+
 // `blocking` traverses the same links the other way (F-9): this entry is the one waited for, and
 // the open entry across the link is the one waiting.
 func TestBlockingTraversesTheLinksTheOtherWay(t *testing.T) {
