@@ -501,6 +501,8 @@ var generatedCommands = []door{
 			{Name: "source", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "name", "version"}},
+	{Group: "ai", Verb: "config-remove", OperationID: "removeAiProvider", Method: "DELETE", Path: "/ai-provider", Summary: "Remove the workspace's AI provider",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "approval", Verb: "decide", OperationID: "decideApproval", Method: "POST", Path: "/approvals/{approvalId}:decide", Summary: "Approve or decline",
 		PathParams: []doorParam{
 			{Name: "approvalId", Kind: "uuid", Help: "", Required: true},

@@ -40,7 +40,8 @@ func TestTheProviderShowsItsDecisionAndNeverItsKey(t *testing.T) {
 	}
 }
 
-// The key comes from the environment and never from a flag: a flag lands in the shell's history,
+// UC-AI-02 check 1, the hubctl part: the provider is set here. The key comes from the environment
+// and never from a flag: a flag lands in the shell's history,
 // in `ps`, and in whatever captures a terminal.
 func TestTheProviderKeyIsTakenFromTheEnvironmentAndNotEchoed(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, configuredProvider)
@@ -105,5 +106,23 @@ func TestConfiguringNeedsTheKindAndTheJurisdiction(t *testing.T) {
 	}
 	if !strings.Contains(errOut, "--jurisdiction") {
 		t.Errorf("the message %q does not name what is missing", errOut)
+	}
+}
+
+// UC-AI-02 check 1, the hubctl part: the provider is removed as it is set, and the removal is the
+// contract's DELETE of the same address.
+func TestTheProviderIsRemovedThroughTheSameAddress(t *testing.T) {
+	var method, path string
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "ai", "config-remove")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if method != http.MethodDelete || !strings.HasSuffix(path, aiProviderPath) {
+		t.Errorf("removing asked %s %s, want DELETE %s", method, path, aiProviderPath)
 	}
 }

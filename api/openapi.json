@@ -22742,6 +22742,7 @@
         ],
         "operationId": "removeAiProvider",
         "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ai config-remove",
         "summary": "Remove the workspace's AI provider",
         "description": "The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.\n",
         "responses": {

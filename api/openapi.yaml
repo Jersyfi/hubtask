@@ -15440,6 +15440,7 @@ paths:
       tags: [ai]
       operationId: removeAiProvider
       x-hubtask-rest: generated
+      x-hubtask-cli: "ai config-remove"
       summary: Remove the workspace's AI provider
       description: >
         The configuration and its sealed key go, and the workspace is back to the installation's
