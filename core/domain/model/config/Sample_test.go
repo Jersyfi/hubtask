@@ -46,3 +46,16 @@ func TestRemovalOrderPutsTheUntrashedFirstAndTheContainersBeforeTheirContent(t *
 		}
 	}
 }
+
+// A child goal keyed under its parent goes before it: deleting the parent first would move the
+// child's version and keep it.
+func TestRemovalOrderPutsAChildBeforeItsParent(t *testing.T) {
+	got := RemovalOrder([]SampleMark{{Key: "goal.company", Kind: SampleGoal}, {Key: "goal.company.desk", Kind: SampleGoal},
+		{Key: "goal.build", Kind: SampleGoal}, {Key: "hub.a", Kind: SampleContainer}, {Key: "hub.a.b", Kind: SampleContainer}})
+	want := []string{"goal.company.desk", "goal.build", "goal.company", "hub.a", "hub.a.b"}
+	for i, key := range want {
+		if got[i].Key != key {
+			t.Errorf("%d: %s, want %s", i, got[i].Key, key)
+		}
+	}
+}

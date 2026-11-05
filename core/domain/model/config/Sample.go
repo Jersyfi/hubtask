@@ -59,7 +59,9 @@ type SampleMark struct {
 }
 
 // RemovalOrder sorts marks into the order one act removes them in, by key within a kind. A mark
-// of a kind nobody knows is left out: it names nothing removing could reach.
+// of a kind nobody knows is left out: it names nothing removing could reach. Of a kind deleted at
+// its version, a deeper key goes first: a child goal keyed under its parent ("goal.a.b") goes
+// before the parent, whose deletion would otherwise move the child's version.
 func RemovalOrder(marks []SampleMark) []SampleMark {
 	out := make([]SampleMark, 0, len(marks))
 	for _, kind := range removalOrder {
@@ -69,7 +71,14 @@ func RemovalOrder(marks []SampleMark) []SampleMark {
 				out = append(out, m)
 			}
 		}
-		slices.SortFunc(out[start:], func(a, b SampleMark) int { return strings.Compare(a.Key, b.Key) })
+		slices.SortFunc(out[start:], func(a, b SampleMark) int {
+			if !kind.Trashed() {
+				if depth := strings.Count(b.Key, ".") - strings.Count(a.Key, "."); depth != 0 {
+					return depth
+				}
+			}
+			return strings.Compare(a.Key, b.Key)
+		})
 	}
 	return out
 }
