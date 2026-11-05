@@ -62,6 +62,12 @@ type StarterTemplates interface {
 	TakeForHub(ctx context.Context, actor appshared.ActorContext, take StarterTemplate, hub shared.ID) error
 }
 
+// StarterBaseline records the configuration as the first start leaves it - the workspace's, and the
+// hub's it made - as a version (configuration.md §5), inside the transaction it is called in.
+type StarterBaseline interface {
+	Baseline(ctx context.Context, actor appshared.ActorContext, hub shared.ID) error
+}
+
 // ApplyStarter answers the first start with its set (UC-WRK-30 check 5). The hub, the collections
 // and the close are one transaction: a failure part way leaves nothing behind and the question
 // still open, and a set that landed closes it, so a second attempt - another key, another tab -
@@ -124,6 +130,11 @@ func (h ApplyStarter) Execute(
 		}
 		if cmd.Template.Key != "" {
 			if err := h.Templates.TakeForHub(ctx, actor, cmd.Template, hub.ID); err != nil {
+				return err
+			}
+		}
+		if s.Baseline != nil {
+			if err := s.Baseline.Baseline(ctx, actor, hub.ID); err != nil {
 				return err
 			}
 		}
@@ -227,7 +238,8 @@ func (h ApplyStarter) Descriptor() usecase.Descriptor {
 			"the workspace holds anything somebody made. Needs the right to change the workspace's shape.",
 		SideEffects: "Writes the hub and each collection as CreateContainer does - events, changes, " +
 			"columns and audit entries - the moment the first start was closed, and its audit entry; " +
-			"with a template, the configuration versions and audit entries ApplyConfig writes.",
+			"with a template, the configuration versions and audit entries ApplyConfig writes; and the " +
+			"workspace's and the hub's configuration as the start left them as a version where it moved.",
 		TokenScope: workspaceManageScope,
 		Input: []usecase.Field{
 			{Name: "hub_name", Kind: usecase.KindString, Required: true, Description: "Up to 200 characters, on one line."},

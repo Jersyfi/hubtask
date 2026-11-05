@@ -19,7 +19,35 @@ import (
 // starter's transaction, so a refused part leaves no hub and the question open.
 type StarterTemplates struct{ Desk Desk }
 
-var _ work.StarterTemplates = StarterTemplates{}
+var (
+	_ work.StarterTemplates = StarterTemplates{}
+	_ work.StarterBaseline  = StarterTemplates{}
+)
+
+// Baseline records the workspace, and the hub the first start made if any, as the start left them,
+// as a version of its own where it has none or moved since (drifted): a start that took no
+// template, or was skipped, otherwise has no version to compare a screen's change with or to roll
+// back to. Called inside the starter's transaction, which authorised the actor.
+func (s StarterTemplates) Baseline(ctx context.Context, actor appshared.ActorContext, hub shared.ID) error {
+	d := s.Desk
+	if err := d.Store.Hold(ctx); err != nil {
+		return err
+	}
+	scopes := []shared.ID{""}
+	if !hub.IsZero() {
+		scopes = append(scopes, hub)
+	}
+	for _, scope := range scopes {
+		now, err := d.export(ctx, actor, scope)
+		if err != nil {
+			return err
+		}
+		if err := d.drifted(ctx, actor, now, d.Clock.Now()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // TakeForWorkspace applies the template's workspace part.
 func (s StarterTemplates) TakeForWorkspace(ctx context.Context, actor appshared.ActorContext, take work.StarterTemplate) error {

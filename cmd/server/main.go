@@ -1984,6 +1984,9 @@ func run() error {
 		// A Hubtask template's names in the applying person's language (user-experience.md §4).
 		Words: renderer,
 	}
+	// The first start keeps the configuration as it left it as a version (configuration.md §5).
+	starterKept := starter
+	starterKept.Baseline = configservice.StarterTemplates{Desk: configDesk}
 	// The workspace's type registry (UC-FLW-01), shared by its four use cases.
 	entryTypeRegistry := workflowservice.Registry{
 		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
@@ -3260,9 +3263,9 @@ func run() error {
 		work.SavePreset{Desk: presetDesk}.Descriptor(),
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),
 		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),
-		work.CloseStarter{Starter: starter}.Descriptor(),
+		work.CloseStarter{Starter: starterKept}.Descriptor(),
 		work.ApplyStarter{
-			Starter: starter, Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
+			Starter: starterKept, Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
 		}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,

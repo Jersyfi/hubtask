@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -67,5 +68,30 @@ func TestAStarterOnAnUnknownOrWorkspaceOnlyTemplate(t *testing.T) {
 	}
 	if len(f.store.uses) != 0 {
 		t.Errorf("a template without a hub part recorded %+v", f.store.uses)
+	}
+}
+
+// A first start that took no template, or was skipped, still leaves a version of the workspace as
+// it started: a change made on a screen later is compared with it and can be rolled back to it,
+// although nothing was ever applied (configuration.md §5).
+func TestAFirstStartWithoutATemplateLeavesAVersionToRollBackTo(t *testing.T) {
+	f := newFixture()
+	starter := StarterTemplates{Desk: f.desk}
+	if err := starter.Baseline(t.Context(), person, ""); err != nil {
+		t.Fatalf("the baseline: %v", err)
+	}
+	if len(f.store.revisions) != 1 || f.store.revisions[0].Version != 1 || f.store.revisions[0].ActorKind != domain.ActorDirect {
+		t.Fatalf("versions %+v, want the workspace as it started", f.store.revisions)
+	}
+	if err := starter.Baseline(t.Context(), person, ""); err != nil || len(f.store.revisions) != 1 {
+		t.Errorf("a second baseline over an unchanged workspace: %v, %d versions", err, len(f.store.revisions))
+	}
+
+	// On a screen: a type made directly, then the person goes back to the start.
+	f.world.types["problem"] = map[string]any{"key": "problem", "level": "TASK", "name": "Problem", "system": false}
+	back := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"to_version": 1})
+	invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{"to_version": 1, "plan_hash": back["plan_hash"], "acknowledge": true})
+	if f.world.types["problem"] != nil {
+		t.Error("the screen's change was not rolled back to the start")
 	}
 }

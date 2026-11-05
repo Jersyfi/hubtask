@@ -33,6 +33,8 @@ type Starter struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Baseline keeps the configuration as the start left it. Optional.
+	Baseline StarterBaseline
 }
 
 // structureAtWorkspace is the right the question needs: to change the workspace's shape.
@@ -89,6 +91,11 @@ func (h CloseStarter) Execute(ctx context.Context, actor appshared.ActorContext)
 		if !pending {
 			return nil
 		}
+		if s.Baseline != nil {
+			if err := s.Baseline.Baseline(ctx, actor, ""); err != nil {
+				return err
+			}
+		}
 		return s.Audit.Append(ctx, audit.Entry{
 			TenantID:   actor.TenantID,
 			OccurredAt: now,
@@ -113,8 +120,9 @@ func (h CloseStarter) Descriptor() usecase.Descriptor {
 		Summary: "Records that the workspace's first start - what it is used for, and a starter set " +
 			"of hubs and collections on matching presets - was answered or skipped, so nobody is " +
 			"asked again. Needs the right to change the workspace's shape. Closing it again changes nothing.",
-		SideEffects: "Writes the moment it was closed and, the first time, an audit entry.",
-		TokenScope:  workspaceManageScope,
+		SideEffects: "Writes the moment it was closed and, the first time, an audit entry and the " +
+			"workspace's configuration as a version where it has none or moved.",
+		TokenScope: workspaceManageScope,
 		Audit: usecase.AuditDeclaration{
 			Action: StarterClosedAction, TargetType: workspaceStructureTarget,
 			Severity: audit.SeverityInfo, Required: true,
