@@ -2573,6 +2573,8 @@
   "app.changes.reach_intake_rule": "{path}: Eine Regel, die diesen Typ ohne {fields} anlegt, wird ab jetzt abgewiesen",
   "app.changes.reach_intake_import": "{path}: Eine Importzeile dieses Typs ohne {fields} wird ab jetzt abgewiesen",
   "app.changes.reach_intake_mail": "{path}: Einer Mail, die diesen Typ anlegen würde, fehlt {fields}; sie landet stattdessen im Eingang",
+  "app.changes.reach_intake_rule_counted": "{path}: {count, plural, =0 {Keine eingeschaltete Regel legt diesen Typ derzeit an; eine ohne {fields} würde abgewiesen} one {# eingeschaltete Regel legt diesen Typ ohne {fields} an und wird ab jetzt abgewiesen} other {# eingeschaltete Regeln legen diesen Typ ohne {fields} an und werden ab jetzt abgewiesen}}",
+  "app.changes.reach_intake_mail_counted": "{path}: {count, plural, =0 {Kein eingeschaltetes Postfach legt diesen Typ an; eine Mail ohne {fields} käme in den Eingang} one {Mails aus # eingeschaltetem Postfach fehlt {fields}; sie landen stattdessen im Eingang} other {Mails aus # eingeschalteten Postfächern fehlt {fields}; sie landen stattdessen im Eingang}}",
   "app.changes.preview": "Plan zeigen",
   "app.changes.preview_title": "Was der Vorschlag ändern würde",
   "app.changes.preview_refused": "Gegen die geltende Konfiguration geplant, wird der Vorschlag abgelehnt",

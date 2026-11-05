@@ -45,10 +45,13 @@ export function reachLines(reach: readonly ConfigReach[] | null | undefined): Re
       lines.push({ code: 'app.changes.reach_rules', params: { path, count: each.rules } });
     }
     for (const door of each.intake ?? []) {
-      lines.push({
-        code: `app.changes.reach_intake_${door.channel.toLowerCase()}`,
-        params: { path, fields: door.fields.join(', ') },
-      });
+      const fields = door.fields.join(', ');
+      const channel = door.channel.toLowerCase();
+      lines.push(
+        door.doors === undefined
+          ? { code: `app.changes.reach_intake_${channel}`, params: { path, fields } }
+          : { code: `app.changes.reach_intake_${channel}_counted`, params: { path, fields, count: door.doors } },
+      );
     }
   }
   return lines;

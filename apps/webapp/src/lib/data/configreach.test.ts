@@ -45,6 +45,17 @@ test('a form that closes an unattended door says which door and which fields', (
   ]);
 });
 
+test('a door the server counted says how many rules or mailboxes it is', () => {
+  const lines = reachLines([
+    { path: 'types.task', intake: [{ channel: 'RULE', fields: ['due_date'], doors: 3 }, { channel: 'MAIL', fields: ['due_date'], doors: 0 }, { channel: 'IMPORT', fields: ['due_date'] }] },
+  ]);
+  assert.deepEqual(lines, [
+    { code: 'app.changes.reach_intake_rule_counted', params: { path: 'types.task', fields: 'due_date', count: 3 } },
+    { code: 'app.changes.reach_intake_mail_counted', params: { path: 'types.task', fields: 'due_date', count: 0 } },
+    { code: 'app.changes.reach_intake_import', params: { path: 'types.task', fields: 'due_date' } },
+  ]);
+});
+
 test('a reach withheld from the reader is said once and counts nothing', () => {
   const lines = reachLines([{ path: 'workflows.service.shape', withheld: true, entries: 4 }]);
   assert.deepEqual(lines, [{ code: 'app.changes.reach_withheld', params: { path: 'workflows.service.shape' } }]);
