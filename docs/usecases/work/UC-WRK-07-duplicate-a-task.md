@@ -31,8 +31,8 @@ exist or do not apply in the destination are listed by kind.
    subtree — and opens the same dialog wherever it is chosen.
 2. The dialog offers a new title (the original's by default), *with everything under it*, and a
    destination among the collections of the same hub.
-3. The copy is a new entry with its own history starting at `item.created`; the original is
-   unchanged.
+3. The copy is a new entry with its own history starting at `item.duplicated`; the original
+   is unchanged.
 4. With *everything under it*, the whole subtree is copied in the same order; without it, only the
    entry.
 5. In another collection, every label, column, custom field value, member and assignee that cannot
