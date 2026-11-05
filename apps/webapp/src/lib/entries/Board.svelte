@@ -53,6 +53,7 @@
   import { supports } from '../data/capability.svelte.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { isSwipe, swipeThreshold } from './swipe.ts';
+  import { goesOverLimit } from './wip.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -424,7 +425,7 @@
     const target = columns.find((column) => column.id === bucketId);
     // A limit is advice: the move goes ahead, and is announced as going over it (UC-WRK-31 check 3).
     const isOverLimit =
-      target?.wip_limit != null && item.bucket_id !== bucketId && (countOf(bucketId) ?? 0) + 1 > target.wip_limit;
+      item.bucket_id !== bucketId && goesOverLimit(target?.wip_limit, countOf(bucketId), cardsOf(bucketId).length);
     try {
       let moved = await items.setBucket(item.id, bucketId, item.version);
 
