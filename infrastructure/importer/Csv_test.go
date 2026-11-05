@@ -35,6 +35,8 @@ Draw the diagram,,2026-09-21 14:30,yes,docs,Done,Write the reference
 Ship it,,,,,Done,2
 `
 
+// UC-IMP-01 checks 1 and 3: one collection named after the file, an entry per row; each bucket a
+// board column, each label a label, a parent by title or by row number.
 func TestACsvBecomesOneCollectionWithItsTree(t *testing.T) {
 	result, err := CSV{}.Convert(context.Background(), source(t, sample, nil))
 	if err != nil {
@@ -125,8 +127,10 @@ func TestIdentitiesAreDerivedSoTheSameFileLandsTwiceAsOnce(t *testing.T) {
 	}
 }
 
+// UC-IMP-01 check 4: no title, an invalid date and an unknown parent are each left out with their
+// row and reason, and the other rows land.
 func TestRowsAreRefusedByNumberAndTheRestLands(t *testing.T) {
-	csv := "title;due\nGood;2026-09-20\n;2026-09-20\nBad date;yesterday\nOrphan;\n"
+	csv := "title;due;parent\nGood;2026-09-20;\n;2026-09-20;\nBad date;yesterday;\nOrphan;;Nobody\nFine;;Good\n"
 	result, err := CSV{}.Convert(context.Background(), source(t, csv, nil))
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +138,9 @@ func TestRowsAreRefusedByNumberAndTheRestLands(t *testing.T) {
 	if len(result.Records["work_items"]) != 2 {
 		t.Errorf("two rows land, got %d", len(result.Records["work_items"]))
 	}
-	if len(result.Refused) != 2 || result.Refused[0].Row != 3 || result.Refused[0].Code != domain.CodeRowTitleMissing || result.Refused[1].Row != 4 || result.Refused[1].Code != domain.CodeRowDateInvalid {
+	if len(result.Refused) != 3 || result.Refused[0].Row != 3 || result.Refused[0].Code != domain.CodeRowTitleMissing ||
+		result.Refused[1].Row != 4 || result.Refused[1].Code != domain.CodeRowDateInvalid ||
+		result.Refused[2].Row != 5 || result.Refused[2].Code != domain.CodeRowParentUnknown {
 		t.Errorf("refused = %+v", result.Refused)
 	}
 }
@@ -148,8 +154,9 @@ func TestTheMappingAndTheHeaderAndTheRefusals(t *testing.T) {
 	if len(result.Records["work_items"]) != 1 || result.Records["work_items"][0].Data["due_date_only"] != true {
 		t.Errorf("mapped = %+v", result.Records["work_items"])
 	}
-	if _, err := (CSV{}).Convert(context.Background(), source(t, csv, map[string]string{"title": "Nope"})); err == nil {
-		t.Error("a mapping naming a column the file lacks is refused")
+	_, err = (CSV{}).Convert(context.Background(), source(t, csv, map[string]string{"title": "Nope"}))
+	if shared.AsError(err).DetailCode != domain.CodeMappingUnknown {
+		t.Errorf("a mapping naming a column the file lacks came back as %v", err)
 	}
 	if _, err := (CSV{}).Convert(context.Background(), source(t, csv, map[string]string{"colour": "Aufgabe"})); err == nil {
 		t.Error("a mapping naming a field that does not exist is refused")
@@ -232,5 +239,46 @@ func TestATitleIsOneLineAndNoTextKeepsAZeroByte(t *testing.T) {
 				t.Errorf("%s keeps a zero byte: %v", entity, record.Data)
 			}
 		}
+	}
+}
+
+// UC-IMP-01 check 1: a `collection` column makes one collection per value, each entry in its own.
+func TestACollectionColumnMakesOneCollectionPerValue(t *testing.T) {
+	csv := "title,collection\nBuy bread,Home\nFile taxes,Office\nWater plants,Home\n"
+	result, err := CSV{}.Convert(context.Background(), source(t, csv, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]string{}
+	for _, record := range result.Records["containers"] {
+		byName[record.Data["name"].(string)] = record.ID
+	}
+	if len(byName) != 2 || byName["Home"] == "" || byName["Office"] == "" {
+		t.Fatalf("the collections are %v", byName)
+	}
+	want := map[string]string{"Buy bread": byName["Home"], "File taxes": byName["Office"], "Water plants": byName["Home"]}
+	for _, item := range result.Records["work_items"] {
+		if got := item.Data["collection_id"]; got != want[item.Data["title"].(string)] {
+			t.Errorf("%v landed in %v", item.Data["title"], got)
+		}
+	}
+}
+
+// UC-IMP-01 check 2: a column is recognised by its usual name as well as by the field's own.
+func TestAColumnIsRecognisedByItsUsualName(t *testing.T) {
+	csv := "Title,Description,Deadline,Tags,List\nWrite it,The long version,2026-09-20,docs,Doing\n"
+	result, err := CSV{}.Convert(context.Background(), source(t, csv, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := result.Records["work_items"][0].Data
+	if item["notes"] != "The long version" || item["due_date_only"] != true {
+		t.Errorf("the entry is %v", item)
+	}
+	if len(result.Records["labels"]) != 1 || result.Records["labels"][0].Data["name"] != "docs" {
+		t.Errorf("the labels are %v", result.Records["labels"])
+	}
+	if len(result.Records["buckets"]) != 1 || result.Records["buckets"][0].Data["name"] != "Doing" {
+		t.Errorf("the buckets are %v", result.Records["buckets"])
 	}
 }

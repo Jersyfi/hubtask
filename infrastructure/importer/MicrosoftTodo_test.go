@@ -13,6 +13,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// UC-IMP-02 check 6: one collection per list with its tasks and their children, a reminder as a
+// reminder.
 func TestGraphListsBecomeCollectionsWithTheirTasksRemindersAndChecklists(t *testing.T) {
 	result, err := MicrosoftTodo{}.Convert(context.Background(), fixtureSource(t, "microsoft-todo.json"))
 	if err != nil {
@@ -93,6 +95,7 @@ func TestTheWrongFileForMicrosoftTodoIsRefusedByName(t *testing.T) {
 	}
 }
 
+// UC-IMP-02 check 6: Windows time zone names are translated to the standard ones.
 func TestZoneNamedReadsWindowsAndIanaNames(t *testing.T) {
 	for name, want := range map[string]string{
 		"Pacific Standard Time": "America/Los_Angeles", "W. Europe Standard Time": "Europe/Berlin", "UTC": "UTC",

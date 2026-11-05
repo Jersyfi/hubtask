@@ -28,6 +28,7 @@ func fixtureSource(t *testing.T, name string) repository.Source {
 	}
 }
 
+// UC-IMP-02 check 6: one collection per list, titles, notes, due dates, completion, children.
 func TestTakeoutBecomesOneCollectionPerListWithItsNesting(t *testing.T) {
 	result, err := GoogleTasks{}.Convert(context.Background(), fixtureSource(t, "google-tasks.json"))
 	if err != nil {

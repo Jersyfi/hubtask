@@ -38,6 +38,9 @@ func titled(records []archive.Record, title string) map[string]any {
 	return nil
 }
 
+// UC-IMP-02 checks 1-5: lists as columns, cards as tasks with notes, due date, whether it was met
+// and labels on the colours; checklists as the work under a card; a closed card archived; comments
+// by the importing person naming the author; members counted, not carried, attachments not fetched.
 func TestABoardBecomesACollectionWithItsListsCardsLabelsChecklistsAndComments(t *testing.T) {
 	result, err := Trello{}.Convert(context.Background(), boardSource(t))
 	if err != nil {
@@ -168,6 +171,7 @@ func TestABoardBecomesACollectionWithItsListsCardsLabelsChecklistsAndComments(t 
 	}
 }
 
+// UC-IMP-02 check 8: the same export twice is the same identities, so nothing is created again.
 func TestTheSameBoardTwiceIsTheSameIdentities(t *testing.T) {
 	first, err := Trello{}.Convert(context.Background(), boardSource(t))
 	if err != nil {
@@ -188,6 +192,7 @@ func TestTheSameBoardTwiceIsTheSameIdentities(t *testing.T) {
 	}
 }
 
+// UC-IMP-02 check 7.
 func TestAFileThatIsNotABoardIsRefused(t *testing.T) {
 	for name, content := range map[string]string{
 		"csv":        "title,notes\nA,b\n",
@@ -199,7 +204,7 @@ func TestAFileThatIsNotABoardIsRefused(t *testing.T) {
 			src := boardSource(t)
 			src.Content = strings.NewReader(content)
 			_, err := Trello{}.Convert(context.Background(), src)
-			if !errors.Is(err, shared.ErrValidation) {
+			if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != domain.CodeFileNotKind {
 				t.Errorf("err = %v", err)
 			}
 		})
