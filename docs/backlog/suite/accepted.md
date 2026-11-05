@@ -310,3 +310,6 @@ repeated. The owner asked the orchestrating session for sensible proposals and a
 The owner accepted test/load/PLAN.md "The second round" as planned: S1 to S7 at 10⁶ and S1, S2,
 S3 and S7 at 10⁷ on the workstation, about 1 h 50 min of load in two invocations, after its six
 harness pieces are built. Every collected error is fixed afterwards, as the plan says.
+
+On the evening of 2026-11-05 the owner said to start the round once it is ready, without asking
+again ("run the performance test when you are ready; you need not ask me about it any more").
