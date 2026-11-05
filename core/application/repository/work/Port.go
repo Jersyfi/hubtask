@@ -1488,6 +1488,13 @@ type Starter interface {
 	// Close records that the question was answered or skipped; closing it again changes nothing.
 	// It reports whether this call closed it - false where it was closed already.
 	Close(ctx context.Context, at time.Time) (bool, error)
+
+	// Skipped reports whether the question was skipped while nobody has made a hub, collection or
+	// entry beyond what the workspace was created with: the set may still be taken.
+	Skipped(ctx context.Context) (bool, error)
+
+	// Hold locks the workspace's row for the transaction, so a second set waits for the first.
+	Hold(ctx context.Context) error
 }
 
 // Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its

@@ -19,8 +19,8 @@ import (
 
 const ApplyStarterName = "ApplyStarter"
 
-// CodeStarterClosed refuses a starter set where the first start was answered or skipped already,
-// or the workspace holds something somebody made.
+// CodeStarterClosed refuses a starter set where the first start was answered already, or the
+// workspace holds something somebody made.
 const CodeStarterClosed = "workspace.starter_closed"
 
 // CodeStarterCollectionsTooMany refuses a set of more collections than maxStarterCollections.
@@ -71,7 +71,8 @@ type StarterBaseline interface {
 // ApplyStarter answers the first start with its set (UC-WRK-30 check 5). The hub, the collections
 // and the close are one transaction: a failure part way leaves nothing behind and the question
 // still open, and a set that landed closes it, so a second attempt - another key, another tab -
-// is refused rather than making a second set. A repeat of the same request under its
+// is refused rather than making a second set. A question skipped while nothing was made takes
+// the set too: Today offers it again (user-experience.md §3.3). A repeat of the same request under its
 // Idempotency-Key replays the hub (api-guidelines.md §5).
 type ApplyStarter struct {
 	Starter    Starter
@@ -94,22 +95,28 @@ func (h ApplyStarter) Execute(
 	var hub domain.Container
 	var structure *domain.EffectiveStructure
 	err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		pending, err := s.Starts.Pending(ctx)
+		// The row lock first: a second set arriving at once waits for this one, and then finds
+		// the hub it made - whether the question was open or skipped before.
+		if err := s.Starts.Hold(ctx); err != nil {
+			return err
+		}
+		open, err := s.Starts.Pending(ctx)
 		if err != nil {
 			return err
 		}
-		if !pending {
+		if !open {
+			// A skip made nothing: the set may still be taken while nothing else was made
+			// (user-experience.md §3.2). An answer made a hub, so it never reads as skipped.
+			if open, err = s.Starts.Skipped(ctx); err != nil {
+				return err
+			}
+		}
+		if !open {
 			return shared.ErrConflict.WithDetail(CodeStarterClosed)
 		}
 		now := s.Clock.Now()
-		// Closed first inside the transaction: the row lock makes a second set arriving at once
-		// wait for this one, and then find the question closed.
-		closed, err := s.Starts.Close(ctx, now)
-		if err != nil {
+		if _, err := s.Starts.Close(ctx, now); err != nil {
 			return err
-		}
-		if !closed {
-			return shared.ErrConflict.WithDetail(CodeStarterClosed)
 		}
 		if cmd.Template.Key != "" {
 			if err := h.Templates.TakeForWorkspace(ctx, actor, cmd.Template); err != nil {
@@ -234,8 +241,8 @@ func (h ApplyStarter) Descriptor() usecase.Descriptor {
 		Summary: "Answers the workspace's first start with its starter set: creates a hub and its " +
 			"collections, each on its preset - with a template, its workspace and hub parts as " +
 			"ApplyConfig would apply them - and closes the first start, all in one transaction. " +
-			"Refused with " + CodeStarterClosed + " once the first start was answered or skipped, or " +
-			"the workspace holds anything somebody made. Needs the right to change the workspace's shape.",
+			"Refused with " + CodeStarterClosed + " once the first start was answered, or the workspace " +
+			"holds anything somebody made; a skipped first start still takes the set. Needs the right to change the workspace's shape.",
 		SideEffects: "Writes the hub and each collection as CreateContainer does - events, changes, " +
 			"columns and audit entries - the moment the first start was closed, and its audit entry; " +
 			"with a template, the configuration versions and audit entries ApplyConfig writes; and the " +

@@ -70,6 +70,25 @@ func (s Starter) StarterOffered(ctx context.Context, actor appshared.ActorContex
 	return pending, err
 }
 
+// StarterSkipped reports whether the reader is offered the first start again after a skip: the
+// question was skipped, nothing was made since, and the reader may change the workspace's shape.
+func (s Starter) StarterSkipped(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if s.Starts == nil || s.Permits == nil {
+		return false, nil
+	}
+	may, err := s.Permits.Permits(ctx, actor, structureAtWorkspace(StarterClosedAction, actor))
+	if err != nil || !may {
+		return false, err
+	}
+	var skipped bool
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		skipped, err = s.Starts.Skipped(ctx)
+		return err
+	})
+	return skipped, err
+}
+
 // CloseStarter answers the first start's question for good: a skip. An answer is ApplyStarter.
 type CloseStarter struct{ Starter Starter }
 
