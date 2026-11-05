@@ -253,6 +253,11 @@ each only where its module is on and fed by the product's own reads, each with i
 
 Then today's bands (*On you*, *Lists*, *Projects*, *Inbox*, *Recently opened*).
 
+A group's queue is no model of its own: the open desk entries nobody holds yet in the collections
+whose auto-assign policy names a group the reader belongs to, read through the query field
+`group_queue_of` with `@me` (api-guidelines.md §3); *Needs your answer* asks each hub for what the
+reader holds or what waits in such a queue, in one query.
+
 **First steps** for a workspace with nothing for the reader yet and no entry in any hub they can
 see (one in use, where nothing is on the reader, shows *In use here* instead: its hubs and its
 products, each leading there): *Choose what you use Hubtask for*

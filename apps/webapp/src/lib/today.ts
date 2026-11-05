@@ -129,9 +129,10 @@ export function productBandsOf(modulesOn: readonly string[] | undefined): Produc
 }
 
 /**
- * *Needs your answer* at one hub (§3.3): the open entries on the reader whose SLA target runs -
- * `sla_due` is absent where none runs -, the one about to breach first. A hub at a time, because
- * the query needs a scope (api-guidelines.md, "Scope").
+ * *Needs your answer* at one hub (§3.3): the open entries on the reader, or on nobody yet in a
+ * collection whose auto-assign policy names a group of the reader's (their groups' queue), whose
+ * SLA target runs - `sla_due` is absent where none runs -, the one about to breach first. A hub at
+ * a time, because the query needs a scope (api-guidelines.md, "Scope").
  */
 export function deskAnswerQuery(hubId: string, size: number): Record<string, unknown> {
   return {
@@ -141,7 +142,13 @@ export function deskAnswerQuery(hubId: string, size: number): Record<string, unk
       nodes: [
         { op: 'EQ', field: 'is_completed', value: false },
         // `@me` is resolved on the server: the client never names who is signed in.
-        { op: 'EQ', field: 'assignee_id', value: '@me' },
+        {
+          op: 'OR',
+          nodes: [
+            { op: 'EQ', field: 'assignee_id', value: '@me' },
+            { op: 'AND', nodes: [{ op: 'IS_NULL', field: 'assignee_id' }, { op: 'EQ', field: 'group_queue_of', value: '@me' }] },
+          ],
+        },
         { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'sla_due' }] },
       ],
     },

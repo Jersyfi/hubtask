@@ -100,14 +100,20 @@ test('a product band stands only where its module is on, and none before the mod
   assert.deepEqual(productBandsOf(['AGENTS']), ['agent_acts']);
 });
 
-test('Needs your answer asks a hub for the open entries on the reader with an SLA running, the nearest first', () => {
+test('Needs your answer asks a hub for the open entries on the reader or their groups\' queue with an SLA running, the nearest first', () => {
   assert.deepEqual(deskAnswerQuery('h-1', 5), {
     scope: { container_id: 'h-1', include_descendants: true },
     filter: {
       op: 'AND',
       nodes: [
         { op: 'EQ', field: 'is_completed', value: false },
-        { op: 'EQ', field: 'assignee_id', value: '@me' },
+        {
+          op: 'OR',
+          nodes: [
+            { op: 'EQ', field: 'assignee_id', value: '@me' },
+            { op: 'AND', nodes: [{ op: 'IS_NULL', field: 'assignee_id' }, { op: 'EQ', field: 'group_queue_of', value: '@me' }] },
+          ],
+        },
         { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'sla_due' }] },
       ],
     },

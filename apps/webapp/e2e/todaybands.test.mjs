@@ -65,6 +65,9 @@ function stubFor({ modulesOn, asked, decided, twoHubs = false }) {
     const path = url.pathname;
     if (path.endsWith('/api/v1/items:query') && JSON.stringify(request.postDataJSON()?.filter ?? {}).includes('sla_due')) {
       asked.push('desk');
+      // UC-WRK-34 check 8: what the reader holds, or what nobody holds yet in their groups' queue.
+      const filter = JSON.stringify(request.postDataJSON().filter);
+      if (!filter.includes('{"op":"EQ","field":"assignee_id","value":"@me"}') || !filter.includes('{"op":"EQ","field":"group_queue_of","value":"@me"}')) asked.push('desk without the group queue');
       const rows = request.postDataJSON()?.scope?.container_id === HUB_2.id ? [SOONER] : [DESK_ENTRY];
       return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false } } });
     }
@@ -262,6 +265,7 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
     assert.ok(inside, 'a burndown line touches the edge of its frame');
 
     for (const read of ['desk', 'pages', 'sprints']) assert.ok(asked.includes(read), `${read} was not read`);
+    assert.ok(!asked.includes('desk without the group queue'), 'Needs your answer did not ask for the groups\' queue');
     const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
     assert.equal(scroll.width, scroll.viewport, `the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
     assert.deepEqual(failures, []);
