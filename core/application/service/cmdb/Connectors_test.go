@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	connectorport "github.com/Jersyfi/hubtask/core/port/connector"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -628,5 +629,54 @@ func TestADeliveryOfTooManyAlertsTakesTheFirstAndCountsTheRest(t *testing.T) {
 	receipt, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, signals(many...))
 	if err != nil || receipt.Received != domain.MaxAlertsPerDelivery || receipt.Truncated != 3 {
 		t.Fatalf("a crowded delivery: %+v, %v", receipt, err)
+	}
+}
+
+// turns is a unit of work that says whether its transaction is open, with savepoints in it.
+type turns struct{ open bool }
+
+func (u *turns) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	was := u.open
+	u.open = true
+	defer func() { u.open = was }()
+	return fn(ctx)
+}
+
+func (u *turns) WithinReadOnly(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	return u.Within(ctx, scope, fn)
+}
+
+func (u *turns) WithinSavepoint(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+// heldEntries records whether each entry was opened while the delivery held the connector.
+type heldEntries struct {
+	entries
+	uow  *turns
+	held []bool
+}
+
+func (e *heldEntries) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	e.held = append(e.held, e.uow.open)
+	return e.entries.Invoke(ctx, name, actor, in)
+}
+
+// UC-AST-08 check 5: two repeated firings at once of an alert whose entry could not be opened
+// both found it without one and opened two. The entry is opened while the delivery holds the
+// connector, so the second finds the first's.
+func TestAnAlertsMissingEntryIsOpenedWhileTheDeliveryHoldsTheIntake(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	uow := &turns{}
+	f.c.Inventory.UnitOfWork = uow
+	held := &heldEntries{uow: uow}
+	f.c.Entries = held
+	fire := signals(domain.AlertSignal{Key: "fp2", Status: domain.AlertFiring, Title: "disk full"})
+	if _, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil {
+		t.Fatal(err)
+	}
+	if len(held.held) != 1 || !held.held[0] || f.store.alerts[id.String()+"fp2"].Entry.IsZero() {
+		t.Fatalf("opened while held: %v, alert %+v", held.held, f.store.alerts[id.String()+"fp2"])
 	}
 }

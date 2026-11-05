@@ -19,6 +19,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 // SignatureWindow is how far a signed delivery's moment may be from the server's: older ones are
@@ -201,6 +202,7 @@ func (s Connectors) receive(ctx context.Context, actor appshared.ActorContext, c
 	r.Received++
 	var alert domain.Alert
 	var change domain.AlertChange
+	opening := false
 	err := s.Inventory.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		// Deliveries of one intake take turns: two posts of the same new problem at once would
 		// both find no alert and open two entries. The alert row cannot be locked before it exists.
@@ -223,7 +225,24 @@ func (s Connectors) receive(ctx context.Context, actor appshared.ActorContext, c
 				return err
 			}
 		}
-		return s.Store.PutAlert(ctx, alert)
+		if err := s.Store.PutAlert(ctx, alert); err != nil {
+			return err
+		}
+		// Opened while the intake is held, so a second delivery of the same firing finds this
+		// one's entry; under a savepoint, so a refused entry leaves the alert kept.
+		if held, ok := s.Inventory.UnitOfWork.(persistence.Savepoint); ok && s.opensEntry(c, alert, change) {
+			opening = true
+			if err := held.WithinSavepoint(ctx, func(ctx context.Context) error {
+				opened, err := s.openEntry(ctx, actor, c, alert)
+				if err == nil {
+					alert = opened
+				}
+				return err
+			}); err != nil {
+				r.EntriesFailed++
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return err
@@ -236,6 +255,9 @@ func (s Connectors) receive(ctx context.Context, actor appshared.ActorContext, c
 		r.Opened++
 	case domain.AlertClosed:
 		r.Resolved++
+	}
+	if opening {
+		return nil
 	}
 	return s.entry(ctx, actor, c, alert, change, r)
 }
@@ -272,29 +294,8 @@ func (s Connectors) entry(ctx context.Context, actor appshared.ActorContext, c d
 	}
 	var err error
 	switch {
-	// A firing alert without its entry - the first write of it failed - opens it at its next
-	// firing too.
-	case a.Entry.IsZero() && (change == domain.AlertOpened || change == domain.AlertReopened || change == domain.AlertRepeated):
-		title := a.Title
-		if title == "" {
-			title = a.Key
-		}
-		in := usecase.Input{"type": "TASK", "title": title, "collection_id": c.Collection.String()}
-		if !a.CI.IsZero() {
-			in["notes"] = "![](hubtask:ci/" + a.CI.String() + ")"
-		}
-		var out usecase.Output
-		if out, err = s.Entries.Invoke(ctx, createEntryUseCase, actor, in); err == nil {
-			if id, perr := shared.ParseID(out.String("id")); perr == nil {
-				a.Entry = id
-				err = s.Inventory.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-					return s.Store.PutAlert(ctx, a)
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
+	case s.opensEntry(c, a, change):
+		_, err = s.openEntry(ctx, actor, c, a)
 	case !a.Entry.IsZero() && change == domain.AlertClosed:
 		_, err = s.Entries.Invoke(ctx, completeEntryUseCase, actor, usecase.Input{"item_id": a.Entry.String()})
 	case !a.Entry.IsZero() && change == domain.AlertReopened:
@@ -305,4 +306,35 @@ func (s Connectors) entry(ctx context.Context, actor appshared.ActorContext, c d
 		r.EntriesFailed++
 	}
 	return nil
+}
+
+// opensEntry is a firing alert without its entry - new, or the first write of it failed, which
+// its next firing opens too.
+func (s Connectors) opensEntry(c domain.Connector, a domain.Alert, change domain.AlertChange) bool {
+	return s.Entries != nil && !c.Collection.IsZero() && a.Entry.IsZero() &&
+		(change == domain.AlertOpened || change == domain.AlertReopened || change == domain.AlertRepeated)
+}
+
+// openEntry opens the alert's entry through the registry and keeps it on the alert.
+func (s Connectors) openEntry(ctx context.Context, actor appshared.ActorContext, c domain.Connector, a domain.Alert) (domain.Alert, error) {
+	title := a.Title
+	if title == "" {
+		title = a.Key
+	}
+	in := usecase.Input{"type": "TASK", "title": title, "collection_id": c.Collection.String()}
+	if !a.CI.IsZero() {
+		in["notes"] = "![](hubtask:ci/" + a.CI.String() + ")"
+	}
+	out, err := s.Entries.Invoke(ctx, createEntryUseCase, actor, in)
+	if err != nil {
+		return a, err
+	}
+	id, err := shared.ParseID(out.String("id"))
+	if err != nil {
+		return a, nil
+	}
+	a.Entry = id
+	return a, s.Inventory.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return s.Store.PutAlert(ctx, a)
+	})
 }
