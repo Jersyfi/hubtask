@@ -87,3 +87,24 @@ test('every section a template may bring has its word in the catalogue', async (
   const catalogue = JSON.parse(readFileSync(new URL('../../../../../locales/en.json', import.meta.url), 'utf8'));
   for (const section of [...SECTIONS, 'other']) assert.ok(catalogue[`app.templates.section_${section}`], `no word for ${section}`);
 });
+
+test('a plan is said in words, refusals first, without its path or its JSON', async () => {
+  const { planLines } = await import('./configtemplates.ts');
+  const said = (code: string, params: Readonly<Record<string, string | number>> = {}) =>
+    `${code}(${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')})`;
+  const lines = planLines(
+    {
+      refusals: [{ path: '/roles/auditor', code: 'config.role_in_use', params: { holders: '2' } }],
+      changes: [
+        { section: 'types', key: 'incident', op: 'ADD', after: { name: 'Incident' } },
+        { section: 'modules', key: 'PAGES', op: 'CHANGE', after: { switch: 'ON' } },
+        { section: 'roles', key: 'auditor', op: 'REMOVE', before: { name: 'Auditor' } },
+      ],
+    },
+    said,
+  );
+  assert.deepEqual(lines.map((line) => line.tone), ['refuse', 'add', 'change', 'remove']);
+  assert.match(lines[1]!.text, /Incident/);
+  assert.match(lines[2]!.text, /app\.modules\.name_pages/);
+  for (const line of lines) assert.doesNotMatch(line.text, /\/roles\/|[{}"]/);
+});

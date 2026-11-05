@@ -11,13 +11,14 @@
   // not drawn** (P-05): without STRUCTURE the page lists and offers no control.
 
   import { untrack } from 'svelte';
-  import { EmptyState, Banner, Button, Checkbox, CodeBlock, Dialog, Disclosure, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
-  import type { ConfigDraftList, ConfigExport, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
+  import { EmptyState, Banner, Button, Checkbox, CodeBlock, Dialog, Disclosure, PageHeader, PlanSummary, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import type { ConfigDraftList, ConfigExport, ConfigTemplateList, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { config, needsAcknowledge } from '../lib/data/config.svelte.ts';
   import { compareDocuments, differenceWords, type BlockDifference } from '../lib/data/configdiff.ts';
   import { draftRows, draftWords } from '../lib/data/configdrafts.ts';
+  import { planLines } from '../lib/data/configtemplates.ts';
   import { versionByCode } from '../lib/data/configversion.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workflows } from '../lib/data/workflows.svelte.ts';
@@ -39,6 +40,17 @@
   $effect(() => untrack(() => config.document((next) => (current = next))));
 
   const mayChange = $derived(holdsHere('STRUCTURE') === true);
+
+  // A version or proposal names the template it came from by its name, never as `key@version` (§8.6).
+  let catalogue = $state<ResourceState<ConfigTemplateList>>();
+  $effect(() => untrack(() => config.templates((next) => (catalogue = next))));
+  function templateName(provenance: string): string {
+    const key = provenance.split('@')[0] ?? provenance;
+    const known = catalogue?.status === 'ready' ? catalogue.data.data.find((each) => each.provenance === provenance || each.key === key) : undefined;
+    const preset = `app.structure.preset.${key.toUpperCase()}`;
+    if (known?.origin === 'HUBTASK' || (!known && messages.has(preset))) return messages.has(preset) ? t(preset) : (known?.name ?? key);
+    return known?.name ?? key;
+  }
 
   // *Drafts* (configuration/ui.md A4): the blocks edited and not yet published - a workflow's own
   // draft and the drafts of types, SLA policies and roles - each opening where it is published.
@@ -263,7 +275,7 @@
             <div class="identity">
               <span class="name">{t('app.changes.proposal', { at: at(proposal.created_at) })}</span>
               <span class="note">{counts(proposal)}</span>
-              {#if proposal.template}<code class="note">{proposal.template}</code>{/if}
+              {#if proposal.template}<span class="note">{t('app.changes.from_template', { name: templateName(proposal.template) })}</span>{/if}
               {#if proposal.hides_data}<span class="flag">{t('app.changes.hides_data')}</span>{/if}
               {#if proposal.changes_permissions}<span class="flag">{t('app.changes.changes_permissions')}</span>{/if}
             </div>
@@ -333,7 +345,7 @@
               <span class="note">{t(versionByCode(version))}</span>
               {#if version.proposed_by}<span class="note">{t('app.changes.was_proposed')}</span>{/if}
               <span class="note">{counts(version)}</span>
-              {#if version.template}<code class="note">{version.template}</code>{/if}
+              {#if version.template}<span class="note">{t('app.changes.from_template', { name: templateName(version.template) })}</span>{/if}
               {#if version.rolled_back_to}<span class="note">{t('app.changes.rollback_of', { version: version.rolled_back_to })}</span>{/if}
             </div>
             {#if mayChange && index > 0}
@@ -414,16 +426,14 @@
     {:else}
       <p class="note">{t('app.changes.sandbox_state', { writes: sandbox.data.writes ?? 0, at: at(sandbox.data.updated_at ?? '') })}</p>
       {#if promotion && promotion.refusals.length > 0}
-        <Banner tone="danger" title={t('app.changes.sandbox_refused')} />
+        <Banner tone="danger" title={t('app.changes.sandbox_refused')}>
+          <PlanSummary label={t('app.changes.plan_label')} lines={planLines(promotion, t)} emptyLabel={t('app.changes.plan_empty')} />
+        </Banner>
       {:else if promotion && promotion.changes.length === 0}
         <p class="quiet">{t('app.changes.sandbox_same')}</p>
       {:else if promotion}
         <p class="quiet">{counts(promotion.counts)}</p>
-        <ul class="changes">
-          {#each promotion.changes as change (change.path)}
-            <li><code>{change.op}</code> {change.path}</li>
-          {/each}
-        </ul>
+        <PlanSummary label={t('app.changes.plan_label')} lines={planLines(promotion, t)} emptyLabel={t('app.changes.plan_empty')} />
         <PlanReach reach={promotion.reach} />
         {#if mayChange && needsAcknowledge(promotion.flags)}
           <Checkbox label={t('app.changes.acknowledge')} checked={acknowledgePromotion}
@@ -466,19 +476,11 @@
     <Stack gap="150">
       {#if previewed.refusals.length > 0}
         <Banner tone="danger" title={t('app.changes.preview_refused')}>
-          <ul class="changes">
-            {#each previewed.refusals as refused (refused.path + refused.code)}
-              <li><code>{refused.path}</code> {refused.code}</li>
-            {/each}
-          </ul>
+          <PlanSummary label={t('app.changes.plan_label')} lines={planLines({ changes: [], refusals: previewed.refusals }, t)} emptyLabel={t('app.changes.plan_empty')} />
         </Banner>
       {:else}
         <p class="quiet">{counts(previewed.counts)}</p>
-        <ul class="changes">
-          {#each previewed.changes as change (change.path)}
-            <li><code>{change.op}</code> {change.path}</li>
-          {/each}
-        </ul>
+        <PlanSummary label={t('app.changes.plan_label')} lines={planLines(previewed, t)} emptyLabel={t('app.changes.plan_empty')} />
         <PlanReach reach={previewed.reach} />
       {/if}
     </Stack>
@@ -489,14 +491,12 @@
   <Dialog bind:isOpen={isRollbackOpen} title={t('app.changes.rollback_title', { version: rollingBack })} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
       {#if plan.refusals.length > 0}
-        <Banner tone="danger" title={t('app.changes.rollback_refused')} />
+        <Banner tone="danger" title={t('app.changes.rollback_refused')}>
+          <PlanSummary label={t('app.changes.plan_label')} lines={planLines({ changes: [], refusals: plan.refusals }, t)} emptyLabel={t('app.changes.plan_empty')} />
+        </Banner>
       {:else}
         <p class="quiet">{counts(plan.counts)}</p>
-        <ul class="changes">
-          {#each plan.changes as change (change.path)}
-            <li><code>{change.op}</code> {change.path}</li>
-          {/each}
-        </ul>
+        <PlanSummary label={t('app.changes.plan_label')} lines={planLines(plan, t)} emptyLabel={t('app.changes.plan_empty')} />
         <PlanReach reach={plan.reach} />
         {#if needsAcknowledge(plan.flags)}
           <Checkbox label={t('app.changes.acknowledge')} checked={acknowledgeRollback}
@@ -530,7 +530,7 @@
     background: var(--bg-surface);
   }
 
-  .rows, .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
 
   .row {
     display: flex;

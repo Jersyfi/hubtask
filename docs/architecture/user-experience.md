@@ -1045,6 +1045,12 @@ and folds (UX-4).
 * Every settings page keeps *View as file*, its own part of the same document (A10); the page
   names nothing the file cannot hold.
 
+As built: a proposal's preview, the sandbox's promotion and a rollback say their plan through
+`PlanSummary` (`planLines`: each refusal, then each change, as the block's word and name), and a
+plan's reach names the block (*workflow "service"*, a module by its product) instead of its key
+path; a version or proposal names its template by name, not as `key@version`. Only the folded
+comparison and the configuration file in force show the document's text.
+
 ### 8.7 Roles and view as
 
 Mockup: `administration.html`, *Roles*. Roles are *People*'s third tab, *Who may do what* its

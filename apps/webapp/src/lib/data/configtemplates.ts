@@ -129,3 +129,26 @@ export function refusalWords(refused: Refused): { section: string; code: string;
   }
   return { section, code: refused.code };
 }
+
+type Translate = (code: string, params?: Readonly<Record<string, string | number>>) => string;
+
+/**
+ * A plan as `PlanSummary`'s lines (user-experience.md §5.4): each refusal first, then each change,
+ * a sentence with the block's name - never the document's path or its JSON.
+ */
+export function planLines(
+  plan: { readonly changes: readonly Changed[]; readonly refusals: readonly Refused[] },
+  t: Translate,
+): { text: string; tone: 'add' | 'change' | 'remove' | 'refuse' }[] {
+  const refused = plan.refusals.map((each) => {
+    const words = refusalWords(each);
+    const reason = words.module ? t(words.code, { module: t(words.module) }) : t(words.code, each.params ?? {});
+    return { text: t('app.templates.refused_item', { section: t(words.section), reason }), tone: 'refuse' as const };
+  });
+  const changed = plan.changes.map((each) => {
+    const words = changeWords(each);
+    const tone = each.op === 'ADD' ? ('add' as const) : each.op === 'REMOVE' ? ('remove' as const) : ('change' as const);
+    return { text: t(words.code, { section: t(words.section), key: words.module ? t(words.module) : words.key }), tone };
+  });
+  return [...refused, ...changed];
+}

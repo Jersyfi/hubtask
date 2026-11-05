@@ -7,6 +7,8 @@
 
 import type { ConfigPlan } from '@hubtask/sync-engine';
 
+import { sectionWord } from './configtemplates.ts';
+
 export type ConfigReach = NonNullable<ConfigPlan['reach']>[number];
 
 /** One line of a plan's reach: a message code and its parameters. */
@@ -55,4 +57,15 @@ export function reachLines(reach: readonly ConfigReach[] | null | undefined): Re
     }
   }
   return lines;
+}
+
+/**
+ * The block a reach is about, for its sentence instead of the key path: the section's word and the
+ * block's key, or the product's word for a module (user-experience.md §5.4). A path of the section
+ * alone names the section.
+ */
+export function reachPlace(path: string): { section: string; key?: string; module?: string } {
+  const [section = '', key] = path.split(/[./]/).filter(Boolean);
+  if (section === 'modules' && key) return { section: sectionWord(section), module: `app.modules.name_${key.toLowerCase()}` };
+  return key ? { section: sectionWord(section), key } : { section: sectionWord(section) };
 }

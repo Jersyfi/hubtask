@@ -61,3 +61,11 @@ test('a reach withheld from the reader is said once and counts nothing', () => {
   assert.deepEqual(lines, [{ code: 'app.changes.reach_withheld', params: { path: 'workflows.service.shape' } }]);
   assert.deepEqual(reachLines(undefined), []);
 });
+
+test('a reach names its block by the section and key, a module by its product', async () => {
+  const { reachPlace } = await import('./configreach.ts');
+  assert.deepEqual(reachPlace('workflows.service.shape'), { section: 'app.templates.section_workflows', key: 'service' });
+  assert.deepEqual(reachPlace('modules.TIME'), { section: 'app.templates.section_modules', module: 'app.modules.name_time' });
+  assert.deepEqual(reachPlace('roles'), { section: 'app.templates.section_roles' });
+  assert.deepEqual(reachPlace('/fields/cost'), { section: 'app.templates.section_fields', key: 'cost' });
+});

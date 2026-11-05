@@ -84,13 +84,16 @@ test('chromium: a proposal is previewed with its reach and applied only once ack
 
   // The sandbox's promotion says what it reaches before anybody promotes it.
   const sandbox = page.locator('[data-sandbox]');
-  await sandbox.getByText('workflows.service.shape: 4 entries move to another status').waitFor({ timeout: 10_000 });
+  await sandbox.getByText('workflow “service”: 4 entries move to another status').waitFor({ timeout: 10_000 });
 
   // The proposal's preview: planned afresh with its own document, writing nothing.
   await row.locator(`[data-preview="${PROPOSAL.id}"]`).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByText('fields.cost: 7 entries show fewer values - nothing is deleted').waitFor({ timeout: 10_000 });
-  assert.match((await dialog.textContent()) ?? '', /modules\.time: 12 people are left without the module/);
+  await dialog.getByText('field “cost”: 7 entries show fewer values - nothing is deleted').waitFor({ timeout: 10_000 });
+  assert.match((await dialog.textContent()) ?? '', /Time: 12 people are left without the module/);
+  // The plan in words: the block by its name, never the document's path (user-experience.md §5.4).
+  await dialog.getByText('Removes the field “cost”').waitFor({ timeout: 10_000 });
+  assert.doesNotMatch((await dialog.textContent()) ?? '', /fields\.cost|modules\.time/);
   assert.deepEqual(planned.at(-1), { document: PROPOSAL.document, mode: 'MERGE' });
   assert.deepEqual(applied, [], 'the preview applied something');
   await page.keyboard.press('Escape');
