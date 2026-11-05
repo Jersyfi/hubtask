@@ -9309,6 +9309,8 @@
   "fields.restricted": "Only people whose role carries the field's permission may change {key}.",
   "app.people.tab_roles": "Roles",
   "app.people.view_as": "View as",
+  "app.people.more": "More",
+  "app.people.more_for": "More for {name}",
   "app.view_as.banner": "You are looking at Hubtask as {name}, read only, until {until}.",
   "app.view_as.end": "End view",
   "app.view_as.ending": "Ending…",

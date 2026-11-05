@@ -120,3 +120,27 @@ test('taking somebody out of a group that holds Owner asks for the proof and sen
   assert.equal(sent.patches[1].body.members.length, 1, 'the retried change is the same list');
   assert.deepEqual(failures, [], 'the screen failed while drawing');
 });
+
+// UX-4: a person's row shows what is needed now - *View as* and *Revoke* - and folds the rarer
+// acts, their screens and a second factor's reset, under the row's *More*.
+test('a person\'s row folds the rarer acts under More', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/people`);
+  const other = rowOf(page, OTHER.display_name);
+  await other.getByRole('button', { name: 'Revoke' }).waitFor({ timeout: 15_000 });
+  for (const folded of ['See their screens', 'Reset second factor']) {
+    assert.equal(await other.getByRole('button', { name: folded, exact: true }).count(), 0, `${folded} stands in the row`);
+  }
+  await other.getByRole('button', { name: `More for ${OTHER.display_name}` }).click();
+  const offered = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((each) => each.trim());
+  assert.ok(offered.includes('Reset second factor'), JSON.stringify(offered));
+  // On a phone the standing reads as a word, not as a bar the width of the row.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.keyboard.press('Escape');
+  const chip = await other.locator('td').nth(1).locator('.badge, [class*="badge"]').first().evaluate((node) => [node.getBoundingClientRect().width, node.closest('td').getBoundingClientRect().width]);
+  assert.ok(chip[0] < chip[1] / 2, `the standing stretches across the row: ${chip}`);
+});

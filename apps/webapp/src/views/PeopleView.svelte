@@ -26,6 +26,7 @@
     Banner,
     Button,
     Input,
+    Menu,
     OneTimeSecret,
     PageHeader,
     RoleBadge,
@@ -749,6 +750,14 @@
         onSort={(next) => order.by(next)}
       >
         {#each order.rows as holder (holder.membershipId)}
+          {@const rare = [
+            ...(holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && statusOf(holder.accountId) === 'ACTIVE'
+              ? [{ id: 'screens', label: viewingScreens === holder.accountId ? t('app.people.working') : t('app.view_as.start'), icon: 'eye' as const }]
+              : []),
+            ...(mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT))
+              ? [{ id: 'factor', label: t('app.people.factor_reset'), icon: 'key' as const }]
+              : []),
+          ]}
           <tr>
             <th scope="row" class="who">
               <!-- A membership granted to a group reaches the people in it. The group's own
@@ -763,13 +772,15 @@
               />
             </td>
             <td>
-              {#if statusOf(holder.accountId) === 'INVITED'}
-                <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
-                <Badge tone="info">{t('app.people.invited')}</Badge>
-              {:else if statusOf(holder.accountId)}
-                <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
-              {/if}
-              {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
+              <div class="standing">
+                {#if statusOf(holder.accountId) === 'INVITED'}
+                  <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
+                  <Badge tone="info">{t('app.people.invited')}</Badge>
+                {:else if statusOf(holder.accountId)}
+                  <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
+                {/if}
+                {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
+              </div>
             </td>
             <td>
               <div class="actions">
@@ -778,18 +789,6 @@
                        place, what they may do, and whether and why for a chosen permission. -->
                   <Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/administration/people?tab=permissions&person=${holder.accountId}`)}>
                     {t('app.people.view_as')}
-                  </Button>
-                {/if}
-                {#if holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && statusOf(holder.accountId) === 'ACTIVE'}
-                  <!-- Their screens (UC-ID-29): the app as they see it, read only, for half an hour. -->
-                  <Button
-                    size="sm"
-                    tone="subtle"
-                    isBusy={viewingScreens === holder.accountId}
-                    busyLabel={t('app.people.working')}
-                    onclick={() => void viewScreens(holder.accountId as string)}
-                  >
-                    {t('app.view_as.start')}
                   </Button>
                 {/if}
                 {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}
@@ -832,10 +831,22 @@
                     </Button>
                   {/if}
                 {/if}
-                {#if mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT))}
-                  <Button size="sm" tone="secondary" onclick={() => (resettingFactor = holder)}>
-                    {t('app.people.factor_reset')}
-                  </Button>
+                <!-- The rarer acts fold under the row's More (UX-4): their screens, and a second
+                     factor's reset, which is for the day somebody lost theirs. -->
+                {#if rare.length > 0}
+                  <Menu
+                    label={t('app.people.more_for', { name: nameOf(holder) })}
+                    items={rare}
+                    placement={{ side: 'block-end', align: 'end' }}
+                    onselect={(id) => {
+                      if (id === 'screens') void viewScreens(holder.accountId as string);
+                      else if (id === 'factor') resettingFactor = holder;
+                    }}
+                  >
+                    {#snippet trigger(props)}
+                      <Button size="sm" tone="subtle" icon="ellipsis" aria-label={t('app.people.more_for', { name: nameOf(holder) })} {...props}>{t('app.people.more')}</Button>
+                    {/snippet}
+                  </Menu>
                 {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. Absent for a role above the reader's own: taking it away
@@ -928,6 +939,8 @@
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
 
   /* A row still invited carries two actions; they wrap rather than widen the table on a phone. */
+  /* In a phone's stacked row the standing is a word, not a bar across the row's width. */
+  .standing { justify-self: start; }
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; white-space: nowrap; }
 
   /* Focused when drawn, so that a renewal pressed in the table reaches the reader here; the ring

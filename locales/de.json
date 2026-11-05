@@ -9309,6 +9309,8 @@
   "fields.restricted": "Nur wer eine Rolle mit der Berechtigung des Felds hat, darf {key} ändern.",
   "app.people.tab_roles": "Rollen",
   "app.people.view_as": "Ansehen als",
+  "app.people.more": "Mehr",
+  "app.people.more_for": "Mehr zu {name}",
   "app.view_as.banner": "Du siehst Hubtask als {name}, nur lesend, bis {until}.",
   "app.view_as.end": "Ansicht beenden",
   "app.view_as.ending": "Wird beendet…",
