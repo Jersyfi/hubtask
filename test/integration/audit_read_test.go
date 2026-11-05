@@ -932,7 +932,7 @@ func TestAnAuditorReadsTheConfigurationAndChangesNoneOfIt(t *testing.T) {
 
 // Somebody who is an auditor *and* a member holds both, which is what a union over the memberships
 // buys and what "the highest role wins" could not express: one of the two would have taken the
-// other away.
+// other away (UC-AUD-05 check 6).
 func TestAnAuditorWhoIsAlsoAMemberKeepsBoth(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)

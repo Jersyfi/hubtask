@@ -52,6 +52,7 @@ func exportCommand(change func(*ExportCommand)) ExportCommand {
 	return cmd
 }
 
+// UC-AUD-04 check 6: every export writes one `audit.exported` entry in the same workspace.
 func TestAnExportIsQueuedAndRecordsItself(t *testing.T) {
 	export, jobs, sink, authorizer := newExportHarness()
 
@@ -83,7 +84,7 @@ func TestAnExportIsQueuedAndRecordsItself(t *testing.T) {
 	if entry.Action != ExportedAction || entry.Severity != port.SeverityWarning {
 		t.Errorf("the export was recorded as %s / %s", entry.Action, entry.Severity)
 	}
-	if entry.TargetID != accepted.ExportID {
+	if entry.TargetID != accepted.ExportID || entry.TenantID != tenantID {
 		t.Errorf("the entry names the target %s", entry.TargetID)
 	}
 	// The period is in the entry, because "who took a copy of the trail, and of which period" is
@@ -98,7 +99,9 @@ func TestAnExportIsQueuedAndRecordsItself(t *testing.T) {
 	}
 }
 
-// An export is evidence about an interval. There is no export of one's own events - somebody who
+// UC-AUD-04 check 3: without the right to read the whole trail, no export (the token's
+// `audit:export` scope is what TestAnExportIsQueuedAndRecordsItself sees asked). An export is evidence about an interval. There is no export of one's own
+// events - somebody who
 // may read only those reads them through the list.
 func TestAnExportNeedsTheWholeTrail(t *testing.T) {
 	export, jobs, sink, authorizer := newExportHarness()
@@ -116,23 +119,28 @@ func TestAnExportNeedsTheWholeTrail(t *testing.T) {
 	}
 }
 
+// UC-AUD-04 check 2: each refusal by its own code.
 func TestAnExportRefusesWhatItCannotWrite(t *testing.T) {
-	cases := map[string]func(*ExportCommand){
-		"no target": func(c *ExportCommand) { c.TargetID = "" },
-		"no period": func(c *ExportCommand) { c.Period = repository.Period{} },
-		"no end":    func(c *ExportCommand) { c.Period.To = time.Time{} },
-		"an end before a start": func(c *ExportCommand) {
+	cases := map[string]struct {
+		change func(*ExportCommand)
+		code   string
+	}{
+		"no target": {func(c *ExportCommand) { c.TargetID = "" }, "audit.export_target_required"},
+		"no period": {func(c *ExportCommand) { c.Period = repository.Period{} }, "audit.period_required"},
+		"no end":    {func(c *ExportCommand) { c.Period.To = time.Time{} }, "audit.period_required"},
+		"an end before a start": {func(c *ExportCommand) {
 			c.Period = repository.Period{From: now, To: now.Add(-time.Hour)}
-		},
-		"a format nobody writes": func(c *ExportCommand) { c.Format = "PARQUET" },
+		}, "audit.period_invalid"},
+		"a format nobody writes": {func(c *ExportCommand) { c.Format = "PARQUET" }, "audit.format_invalid"},
 	}
 
-	for name, change := range cases {
+	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			export, jobs, sink, _ := newExportHarness()
 
-			if _, err := export.Execute(context.Background(), actor(), exportCommand(change)); err == nil {
-				t.Fatal("the export was accepted")
+			_, err := export.Execute(context.Background(), actor(), exportCommand(c.change))
+			if shared.AsError(err).DetailCode != c.code {
+				t.Fatalf("the export came back as %v, want %s", err, c.code)
 			}
 			if len(jobs.requests) != 0 || len(sink.entries) != 0 {
 				t.Error("a refused export left something behind")
@@ -201,6 +209,7 @@ func TestAPayloadThatCannotBeReadFailsTheJobRatherThanExportingSomethingElse(t *
 	}
 }
 
+// UC-AUD-04 check 1: the descriptor the API and MCP invoke, in JSON Lines or CSV.
 func TestTheExportDescriptorTakesWhatTheControllerSends(t *testing.T) {
 	descriptor := ExportAuditTrail{}.Descriptor()
 

@@ -150,12 +150,26 @@ func threeRecords() []repository.Record {
 	}
 }
 
+// UC-AUD-04 check 4: the entries of the period walked, a manifest naming the period, the count,
+// the first and last sequence number and no encryption, and a checksum list (the seal:
+// TestAnInstallationWithAKeySignsTheManifest).
 func TestAnExportWritesItsEntriesItsManifestAndItsChecksums(t *testing.T) {
 	store := newTargetStore()
-	written, err := newArchivist(threeRecords(), store, keyless{}).
-		Write(context.Background(), archiveRequest(FormatJSONL))
+	archivist := newArchivist(threeRecords(), store, keyless{})
+	request := archiveRequest(FormatJSONL)
+	written, err := archivist.Write(context.Background(), request)
 	if err != nil {
 		t.Fatalf("writing: %v", err)
+	}
+	if walked := archivist.Trail.(*trailStore).walked; len(walked) != 1 || walked[0] != request.Period {
+		t.Errorf("the trail was walked over %v, want %v", walked, request.Period)
+	}
+	var manifest ExportManifest
+	if err := json.Unmarshal(store.member(t, archive.ManifestName), &manifest); err != nil {
+		t.Fatalf("the manifest is unreadable: %v", err)
+	}
+	if !manifest.From.Equal(request.Period.From) || !manifest.To.Equal(request.Period.To) || manifest.Entries != 3 {
+		t.Errorf("the manifest names %s..%s with %d entries", manifest.From, manifest.To, manifest.Entries)
 	}
 
 	if len(store.order) != 3 {
@@ -323,5 +337,23 @@ func TestAnEmptyPeriodStillWritesAnArchive(t *testing.T) {
 	}
 	if len(store.order) != 3 {
 		t.Errorf("an empty export wrote %v", store.order)
+	}
+}
+
+// UC-AUD-04 check 5: an erased actor's entries carry the pseudonym in the export too.
+func TestAnExportCarriesTheErasedActorsPseudonym(t *testing.T) {
+	store := newTargetStore()
+	archivist := newArchivist(threeRecords(), store, keyless{})
+	archivist.Pseudonyms = pseudonymStore{names: map[shared.ID]string{accountID: "former-user-0a2"}}
+	if _, err := archivist.Write(context.Background(), archiveRequest(FormatJSONL)); err != nil {
+		t.Fatalf("writing: %v", err)
+	}
+	entries := string(store.member(t, "entries.jsonl"))
+	if !strings.Contains(entries, "former-user-0a2") {
+		t.Errorf("the export carries no pseudonym: %s", entries)
+	}
+	label := threeRecords()[0].Entry.ActorLabel
+	if label == "" || strings.Contains(entries, label) {
+		t.Errorf("the export carries the stored label %q", label)
 	}
 }

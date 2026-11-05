@@ -111,6 +111,7 @@ func TestABrokenChainFailsTheCommand(t *testing.T) {
 	}
 }
 
+// UC-AUD-04 check 1: `hubctl audit export`.
 func TestExportingTheTrailSendsThePeriodAndTheTarget(t *testing.T) {
 	stub := serveJSON(t, http.StatusAccepted,
 		`{"job_id":"`+jobID+`","status":"QUEUED","result_url":null}`)

@@ -253,6 +253,7 @@ func TestABreakIsAnsweredWithItsSequenceNumber(t *testing.T) {
 
 // The export over REST: a 202 with the job to poll, and no result URL - the archive lands at the
 // backup target the caller named rather than at a URL this server can hand back.
+// UC-AUD-04 check 1: the API starts an export.
 func TestAnExportIsAcceptedAsAJob(t *testing.T) {
 	registry := &catalogue{out: usecase.Output{
 		"job_id":    "0192f000-0000-7000-8000-0000000000c1",
