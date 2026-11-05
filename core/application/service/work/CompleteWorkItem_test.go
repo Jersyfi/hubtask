@@ -118,6 +118,7 @@ func (h *completionHarness) touched() []shared.ID {
 
 // The acceptance criterion, first direction: completing the last activity completes the work package when
 // the policy says so, and leaves it open when it does not.
+// UC-WRK-04 check 4.
 func TestCompletingTheLastChildRollsUpOnlyUnderTheRollupPolicy(t *testing.T) {
 	for _, policy := range []domain.CompletionPolicy{domain.CompletionRollup, domain.CompletionManual} {
 		t.Run(string(policy), func(t *testing.T) {
@@ -203,6 +204,7 @@ func TestTheRollUpStopsAtTheFirstItemThatDoesNotMove(t *testing.T) {
 }
 
 // The acceptance criterion, second direction: reopening a child reopens the parent per policy.
+// UC-WRK-04 check 4.
 func TestReopeningAChildReopensTheParentPerPolicy(t *testing.T) {
 	for _, policy := range []domain.CompletionPolicy{domain.CompletionRollup, domain.CompletionManual} {
 		t.Run(string(policy), func(t *testing.T) {
@@ -311,6 +313,7 @@ func TestEveryItemTheRollUpChangesIsRecorded(t *testing.T) {
 
 // Idempotence at the use case, not only in the domain: completing an item that is already done writes
 // nothing, spends no version and announces nothing.
+// UC-WRK-04 check 5.
 func TestCompletingAnAlreadyCompletedItemChangesNothing(t *testing.T) {
 	h := newCompletionHarness(domain.CompletionRollup)
 	h.alreadyDone(activityID)
@@ -332,6 +335,7 @@ func TestCompletingAnAlreadyCompletedItemChangesNothing(t *testing.T) {
 	}
 }
 
+// UC-WRK-04 check 5.
 func TestReopeningAnOpenItemChangesNothing(t *testing.T) {
 	h := newCompletionHarness(domain.CompletionRollup)
 

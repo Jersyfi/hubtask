@@ -344,6 +344,7 @@ func TestACollectionContradictingTheParentIsRefused(t *testing.T) {
 
 // The move announces where the item came from, which is what lets a client rewrite its own subtree from one
 // event rather than one per descendant.
+// UC-WRK-06 check 7.
 func TestTheMoveAnnouncesWhereItCameFrom(t *testing.T) {
 	h := newPlacementHarness()
 	h.items.previousKey = "a0"
@@ -643,6 +644,7 @@ func TestAMoveThatDropsNothingReportsAnEmptyList(t *testing.T) {
 // Only what moved. A reorder that stayed put in every other respect records its rank and nothing
 // else - a history of an entry somebody drags around a board should not read as four identical
 // steps naming the same parent each time.
+// UC-WRK-06 check 7.
 func TestAReorderRecordsTheRankAloneInTheHistory(t *testing.T) {
 	h := newPlacementHarness()
 	h.items.previousKey, h.items.nextKey = "a0", "a1"
@@ -688,6 +690,7 @@ func TestReorderingAnActivityRecordsACompactStep(t *testing.T) {
 // The verb is the use case's rather than a reading of what changed: somebody asked to move this,
 // and a history that called it a reorder because the parent happened to stay would be telling them
 // something other than what they did.
+// UC-WRK-06 check 7.
 func TestAMoveRecordsWhatChangedUnderTheMoveVerb(t *testing.T) {
 	h := newPlacementHarness()
 	h.items.previousKey = "a0"

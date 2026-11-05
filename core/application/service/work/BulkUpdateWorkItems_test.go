@@ -84,6 +84,7 @@ func operations(count int) []BulkOperation {
 
 // An operation is the single-entry operation, run through the catalogue: the same use case, with
 // the entry and the body the operation carried.
+// UC-WRK-08 check 3.
 func TestABulkRunsEachOperationThroughTheUseCaseThatOwnsIt(t *testing.T) {
 	h := newBulkHarness()
 
@@ -139,6 +140,7 @@ func TestABulkRestoresThroughTheSingleRestore(t *testing.T) {
 }
 
 // The acceptance criterion: a bulk with one invalid operation applies the rest and reports the one.
+// UC-WRK-08 check 4.
 func TestABulkAppliesWhatItCanAndReportsTheRest(t *testing.T) {
 	h := newBulkHarness()
 	h.catalogue.refuseAt = 1
@@ -251,6 +253,7 @@ func TestAnUnknownOperationFailsOnlyItself(t *testing.T) {
 }
 
 // The cap is about the request rather than about any operation in it, so it refuses the bulk.
+// UC-WRK-08 check 5.
 func TestABulkOverTheCapIsRefusedWhole(t *testing.T) {
 	h := newBulkHarness()
 
@@ -335,6 +338,7 @@ func TestTheOperationsAreReadFromTheChannelsInput(t *testing.T) {
 // A refusal travels as data rather than as an error value: the call succeeded, and this is what
 // happened inside it. The fields are the error model's own, so that a channel can rebuild the
 // answer it would have given for the same refusal outside a bulk.
+// UC-WRK-08 check 4.
 func TestARefusalTravelsAsTheErrorModelsOwnFields(t *testing.T) {
 	h := newBulkHarness()
 	h.catalogue.refuseAt = 0

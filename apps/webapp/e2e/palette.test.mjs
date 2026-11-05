@@ -3,14 +3,14 @@
 
 // One palette for everything (UC-WRK-27), walked against the shared fixture:
 //
-// * check 1 - `⌘K`, `Ctrl K` and the bar's field open it on every framed page; on a phone the
+// * UC-WRK-27 check 1 - `⌘K`, `Ctrl K` and the bar's field open it on every framed page; on a phone the
 //   shortcut and a tap on the bottom bar's *Search* open it in a dialog;
 // * check 2 - an action the role refuses is absent: a viewer is offered no *Add an entry*, no
 //   *Select entries* and no *New task in Kitchen*, a member is offered all three; a member is
 //   offered no *Create collection* and no shared hub, an owner both; the frame's ways of making
 //   something and the settings rows - each landing on its row - are found by keyboard alone in
 //   English and German, and an empty palette offers the common actions and the places opened last;
-// * check 3 - a listed action shows its key, and `?` opens the list of every shortcut;
+// * UC-WRK-27 check 3 - a listed action shows its key, and `?` opens the list of every shortcut;
 // * check 5 - by keyboard alone: arrows and Enter perform the highlighted row, Escape closes and
 //   returns focus where it was; an action that opens a dialog hands focus into it and back.
 //

@@ -220,6 +220,7 @@ func TestACopyWritesTheRowTheEventTheChangeAndTheHistory(t *testing.T) {
 
 // The completion is the one piece of state a copy deliberately does not take over: it names a
 // person and a moment, and the copy was never completed by anybody.
+// UC-WRK-07 check 6.
 func TestACopyOfACompletedEntryIsOpen(t *testing.T) {
 	h := newDuplicateHarness(t)
 	original := h.withTask()
@@ -343,6 +344,7 @@ func TestACopyCarriesTheLabelsTheMembersAndTheFiles(t *testing.T) {
 
 // The acceptance criterion: a subtree of depth 3 produces a subtree of depth 3, with new
 // identifiers and fresh ranks.
+// UC-WRK-07 check 4.
 func TestACopyOfASubtreeKeepsItsShapeAndTakesNewIdentifiers(t *testing.T) {
 	h := newDuplicateHarness(t)
 	original := h.withTask()
@@ -395,6 +397,7 @@ func TestACopyOfASubtreeKeepsItsShapeAndTakesNewIdentifiers(t *testing.T) {
 }
 
 // Without the subtree the entry is copied alone, and its children stay where they are.
+// UC-WRK-07 check 4.
 func TestACopyWithoutTheSubtreeCopiesTheEntryAlone(t *testing.T) {
 	h := newDuplicateHarness(t)
 	original := h.withTask()

@@ -102,6 +102,7 @@ func dueCmd(t *testing.T) DueDateCommand {
 }
 
 // One change owes four things, and this is the test that says so.
+// UC-WRK-13 check 6.
 func TestSettingADueDateWritesTheRowTheEventTheChangesAndTheEntry(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())
 	h.withItem(domain.ItemTask)
@@ -229,6 +230,7 @@ func TestMovingTheDateAloneRecordsTheDateAlone(t *testing.T) {
 
 // Clearing takes the trio off together, and every record says so: the event names the date that
 // was there, the change log clears each stored field by name, and the history reads "removed".
+// UC-WRK-13 check 6.
 func TestClearingWritesTheTrioWholeAndAnnouncesTheDateThatWas(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())
 	item := h.withItem(domain.ItemTask)

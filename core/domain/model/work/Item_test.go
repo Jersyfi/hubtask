@@ -172,6 +172,7 @@ func TestANoteOnATypeWithoutNotesIsRefused(t *testing.T) {
 	}
 }
 
+// UC-WRK-02 check 2.
 func TestTheTitleIsCheckedAtItsBoundaries(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -212,6 +213,7 @@ func TestTheTitleIsCheckedAtItsBoundaries(t *testing.T) {
 
 // A title is measured in code points, not bytes: a limit in bytes would accept a name in one
 // script and refuse the same length in another, which is not a distinction a user can see (I-W7).
+// UC-WRK-02 check 2.
 func TestTheTitleLimitCountsCodePointsRatherThanBytes(t *testing.T) {
 	in := taskInput()
 	in.Title = strings.Repeat("日", MaxItemTitleLength)

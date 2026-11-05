@@ -960,6 +960,7 @@ func TestARefusedRequestWritesNothing(t *testing.T) {
 
 // The acceptance criterion read backwards: every forbidden combination is refused with its own
 // reason, and none of them is silently ignored.
+// UC-WRK-03 check 2.
 func TestEveryForbiddenCombinationIsRefusedWithItsReason(t *testing.T) {
 	cases := []struct {
 		name       string

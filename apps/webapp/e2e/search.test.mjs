@@ -127,6 +127,7 @@ async function waitForAsked(count) {
   assert.fail(`only ${asked.length} searches were asked, wanted ${count}`);
 }
 
+// UC-WRK-18 check 4.
 test('chromium: the bar leads to the search, and the words are not in the address', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -158,6 +159,7 @@ test('chromium: the bar leads to the search, and the words are not in the addres
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-18 check 4.
 test('chromium: a reload keeps the words, and the address never held them', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -193,6 +195,7 @@ test('chromium: a reload keeps the words, and the address never held them', asyn
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-18 check 4.
 test('chromium: a link carries the narrowing and none of the words', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

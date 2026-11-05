@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
 state: built
 tasks: [B-07, F2-09, F6-13]
-checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go]
+checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go]
 ---
 
 # Tick work off, and take it back
