@@ -648,13 +648,13 @@ func repositoryRoot() string {
 	}
 }
 
-// residentBytes is what the process is costing right now. Read from /proc, which means the memory
-// half of RT-6 is asserted where the nightly runs it and reported as unknown elsewhere - a number
-// this cannot read is better said than guessed.
-func residentBytes(pid int) (int64, bool) {
+// residentBytes is what the process is costing right now: from /proc where there is one, else
+// from ps, and reported as unknown where neither answers - a number this cannot read is better
+// said than guessed.
+func residentBytes(ctx context.Context, pid int) (int64, bool) {
 	status, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "status"))
 	if err != nil {
-		return 0, false
+		return residentBytesByPs(ctx, pid)
 	}
 	for _, line := range strings.Split(string(status), "\n") {
 		if !strings.HasPrefix(line, "VmRSS:") {
@@ -671,6 +671,21 @@ func residentBytes(pid int) (int64, bool) {
 		return kilobytes * 1024, true
 	}
 	return 0, false
+}
+
+// residentBytesByPs asks ps for the resident set, in kilobytes on every platform that has it.
+func residentBytesByPs(ctx context.Context, pid int) (int64, bool) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "ps", "-o", "rss=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return 0, false
+	}
+	kilobytes, err := strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return kilobytes * 1024, true
 }
 
 // envEvidence is where a run leaves its numbers. The nightly points it at a directory it uploads

@@ -1042,14 +1042,16 @@ gate-load:
 #
 # F-10's run, not a nightly: it seeds ITEMS entries into its own container, starts the real binary
 # and holds each read path that grows with a workspace for the largest, a middle and the smallest
-# credentialled tenant, writing capacity-<ITEMS>.json into HUBTASK_LOAD_EVIDENCE_DIR. The 10^7 run
+# credentialled tenant, writing capacity-<ITEMS>.json into HUBTASK_LOAD_EVIDENCE_DIR, then fills the
+# largest tenant's hub to the CI ceiling and holds the CMDB views that read it whole
+# (cmdb-ceiling.json). The 10^7 run
 # is `make capacity ITEMS=10000000 TENANTS=2000` on named hardware (test/load/README.md).
 ITEMS ?= 1000000
 TENANTS ?= 200
 .PHONY: capacity
 capacity:
 	HUBTASK_LOAD_CAPACITY=1 HUBTASK_LOAD_ITEMS=$(ITEMS) HUBTASK_LOAD_TENANTS=$(TENANTS) \
-		$(GO) test -tags=load -run '^TestCapacityAtScale$$' -timeout=6h -v ./test/load/
+		$(GO) test -tags=load -run '^(TestCapacityAtScale|TestCmdbViewsAtTheHubCeiling)$$' -timeout=6h -v ./test/load/
 
 ## release-tag: Create and push a signed release tag
 .PHONY: release-tag

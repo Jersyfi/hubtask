@@ -300,7 +300,7 @@ func watchMemory(ctx context.Context, pid int) *memoryWatch {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				resident, ok := residentBytes(pid)
+				resident, ok := residentBytes(ctx, pid)
 				if !ok {
 					continue
 				}
