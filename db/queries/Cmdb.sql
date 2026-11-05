@@ -132,21 +132,35 @@ SELECT current_tenant_id(), sqlc.arg('ci_id'), sqlc.arg('hub_id'),
 ON CONFLICT (tenant_id, ci_id, name) DO UPDATE SET value = excluded.value;
 
 -- name: FindCmdbIdentifiers :many
--- The index rows of a hub's unmerged CIs that carry every pair of a lookup, for each lookup; a
--- value many CIs share narrows nothing alone, so no bound may cut a CI's other rows (the caller
--- refuses an answer at row_bound rather than read a part of it).
+-- The index rows of a hub's unmerged CIs that carry every pair of a lookup, for each lookup. A
+-- lookup is walked from its narrowest pair (counted up to 64) and its other pairs are checked per
+-- CI, so a value thousands of CIs share is never scanned beside a rare one; no bound cuts a CI's
+-- rows short (the caller refuses an answer at row_bound rather than read a part of it).
 WITH pair AS (
   SELECT unnest(sqlc.arg('lookups')::int[]) AS lookup, unnest(sqlc.arg('names')::text[]) AS name,
     unnest(sqlc.arg('identifier_values')::text[]) AS value
-), size AS (
-  SELECT lookup, count(*) AS n FROM pair GROUP BY lookup
-), hit AS (
-  SELECT p.lookup, i.ci_id
+), width AS (
+  SELECT p.lookup, p.name, p.value,
+    (SELECT count(*) FROM (
+       SELECT 1 FROM cmdb_ci_identifier x
+       WHERE x.tenant_id = current_tenant_id() AND x.hub_id = sqlc.arg('hub_id') AND x.name = p.name AND x.value = p.value
+       LIMIT 64) s) AS n
   FROM pair p
-  JOIN cmdb_ci_identifier i ON i.tenant_id = current_tenant_id() AND i.hub_id = sqlc.arg('hub_id')
-    AND i.name = p.name AND i.value = p.value
-  GROUP BY p.lookup, i.ci_id
-  HAVING count(*) = (SELECT s.n FROM size s WHERE s.lookup = p.lookup)
+), lead AS (
+  SELECT DISTINCT ON (w.lookup) w.lookup, w.name, w.value FROM width w ORDER BY w.lookup, w.n, w.name
+), hit AS (
+  SELECT l.lookup, i.ci_id
+  FROM lead l
+  CROSS JOIN LATERAL (
+    SELECT x.ci_id FROM cmdb_ci_identifier x
+    WHERE x.tenant_id = current_tenant_id() AND x.hub_id = sqlc.arg('hub_id') AND x.name = l.name AND x.value = l.value
+    OFFSET 0
+  ) i
+  WHERE NOT EXISTS (
+    SELECT 1 FROM pair p
+    WHERE p.lookup = l.lookup AND NOT EXISTS (
+      SELECT 1 FROM cmdb_ci_identifier y
+      WHERE y.tenant_id = current_tenant_id() AND y.ci_id = i.ci_id AND y.name = p.name AND y.value = p.value))
 )
 SELECT DISTINCT h.ci_id, c.class_key, p.name::text AS name, p.value::text AS value
 FROM hit h
