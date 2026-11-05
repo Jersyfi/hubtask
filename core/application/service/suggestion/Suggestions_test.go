@@ -23,7 +23,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// The claim this whole package exists to make: accepting is an ordinary write. What the test can
+// UC-AI-04 check 2. The claim this whole package exists to make: accepting is an ordinary write. What the test can
 // see is that the acceptance names the use case a person would name, hands it the accepting person
 // as the actor, and adds nothing of its own.
 func TestAcceptingPerformsTheOrdinaryUseCaseAsTheAcceptingPerson(t *testing.T) {
@@ -82,48 +82,38 @@ func TestThePayloadCannotRedirectTheChangeToAnotherEntry(t *testing.T) {
 	}
 }
 
-// A proposal about an entry that has been rewritten no longer fits it. Refused rather than applied,
-// because applying it would produce a task nobody recognises - and refused for a dismissal too, so
-// that somebody who meant to accept is told why.
-func TestAStaleSuggestionIsRefusedForBothAnswers(t *testing.T) {
-	for _, testCase := range []struct {
-		name   string
-		answer func(Cases) error
-	}{
-		{"accepting", func(c Cases) error {
-			_, err := AcceptSuggestion{Cases: c}.
-				Execute(context.Background(), person(), proposalID, nil)
-			return err
-		}},
-		{"dismissing", func(c Cases) error {
-			_, err := DismissSuggestion{Cases: c}.Execute(context.Background(), person(), proposalID)
-			return err
-		}},
-	} {
-		t.Run(testCase.name, func(t *testing.T) {
-			cases, world := newWorld()
-			world.store.proposals[proposalID] = proposal()
-			world.title = "somebody rewrote this"
+// UC-AI-04 check 3: a proposal about an entry that has been rewritten no longer fits it. Accepting it
+// is refused as stale, because applying it would produce a task nobody recognises; dismissing it
+// still clears it.
+func TestAStaleSuggestionIsRefusedForAcceptingAndStillDismissed(t *testing.T) {
+	cases, world := newWorld()
+	world.store.proposals[proposalID] = proposal()
+	world.title = "somebody rewrote this"
 
-			err := testCase.answer(cases)
-			if !errors.Is(err, shared.ErrConflict) {
-				t.Fatalf("the answer was %v, want a conflict", err)
-			}
-			if got := shared.AsError(err).DetailCode; got != "suggestions.stale" {
-				t.Errorf("detail code %q, want suggestions.stale", got)
-			}
-			if len(world.performed) != 1 {
-				// Only the read that computed the digest.
-				t.Errorf("a stale suggestion performed %d calls", len(world.performed))
-			}
-			if world.store.proposals[proposalID].Status != domain.StatusProposed {
-				t.Error("a stale suggestion was decided anyway")
-			}
-		})
+	_, err := AcceptSuggestion{Cases: cases}.Execute(context.Background(), person(), proposalID, nil)
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "suggestions.stale" {
+		t.Fatalf("accepting a stale suggestion answered %v, want suggestions.stale", err)
+	}
+	for _, call := range world.performed {
+		if call.name != "GetWorkItem" {
+			t.Errorf("a stale acceptance performed %q", call.name)
+		}
+	}
+	if world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Fatal("a refused acceptance decided the suggestion")
+	}
+
+	dismissed, err := DismissSuggestion{Cases: cases}.Execute(context.Background(), person(), proposalID)
+	if err != nil {
+		t.Fatalf("dismissing a stale suggestion: %v", err)
+	}
+	if dismissed.Status != domain.StatusDismissed || world.store.proposals[proposalID].Status != domain.StatusDismissed {
+		t.Errorf("the stale suggestion stands as %v", world.store.proposals[proposalID].Status)
 	}
 }
 
-// The change happens or the record does; never one without the other.
+// The change happens or the record does; never one without the other - and a change the person
+// may not make is not made by accepting (UC-AI-04 check 2).
 func TestARefusedChangeLeavesTheSuggestionStanding(t *testing.T) {
 	cases, world := newWorld()
 	world.store.proposals[proposalID] = proposal()
@@ -157,7 +147,8 @@ func TestTheSecondAnswerToOneProposalIsRefused(t *testing.T) {
 	}
 }
 
-// Dismissing changes nothing but the record. It is the whole difference between the two answers.
+// UC-AI-04 check 1: dismissing changes nothing but the record. It is the whole difference between
+// the two answers.
 func TestDismissingPerformsNoChange(t *testing.T) {
 	cases, world := newWorld()
 	world.store.proposals[proposalID] = proposal()
@@ -200,6 +191,8 @@ func TestAnAcceptanceThisBuildDoesNotServeSaysSo(t *testing.T) {
 
 // The audit entry carries the provenance - "who decided this" is half an answer without "and on
 // whose suggestion" - and never the payload, which is somebody's content.
+// UC-AI-04 check 5: the trail records the acceptance as the person's, AI-assisted - the model and
+// the prompt that proposed it - and never what was proposed.
 func TestTheDecisionIsAuditedWithProvenanceAndWithoutContent(t *testing.T) {
 	cases, world := newWorld()
 	world.store.proposals[proposalID] = proposal()
@@ -215,6 +208,9 @@ func TestTheDecisionIsAuditedWithProvenanceAndWithoutContent(t *testing.T) {
 	entry := world.entries[0]
 	if entry.Action != SuggestionAcceptedAction {
 		t.Errorf("action %q", entry.Action)
+	}
+	if entry.ActorID != person().AccountID {
+		t.Errorf("the acceptance is recorded as %v's, want the accepting person's", entry.ActorID)
 	}
 	recorded := map[string]string{}
 	for field, masked := range entry.Changes {

@@ -22657,7 +22657,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "suggestionResponse",
         "summary": "Dismiss a suggestion",
-        "description": "A state, not a deletion: the record stays readable, so \"what was proposed and turned down\" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated.\n",
+        "description": "A state, not a deletion: the record stays readable, so \"what was proposed and turned down\" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated. A stale suggestion, which accepting refuses, is still dismissed.\n",
         "responses": {
           "200": {
             "description": "Dismissed; the suggestion as it now stands",

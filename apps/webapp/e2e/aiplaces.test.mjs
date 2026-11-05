@@ -317,3 +317,26 @@ test('chromium: while an entry is being created, what already looks like it is n
     await browser.close();
   }
 });
+
+// UC-AI-04 check 3: a proposal made before the entry last changed says it is stale, offers asking
+// again and the dismissal - never the apply - and is dismissed.
+test('chromium: a stale proposal says so and can still be dismissed', { timeout: 90_000 }, async (t) => {
+  ENTRY.updated_at = '2030-06-01T00:00:00Z';
+  t.after(() => { delete ENTRY.updated_at; });
+  const browser = await chromium.launch();
+  const { page, failures, close } = await openEntry(browser, { standing: [STANDING[0]] });
+  try {
+    const card = page.locator('section[data-ai]').filter({ hasText: 'Book the tiler for Thursday' });
+    await card.waitFor({ timeout: 10_000 });
+    assert.match(await card.textContent() ?? '', /This entry changed since — ask again/);
+    assert.equal(await card.getByRole('button', { name: 'Ask again', exact: true }).count(), 1);
+    assert.equal(await card.getByRole('button').count(), 2, 'a stale proposal offers more than asking again and dismissing');
+    const dismissed = page.waitForRequest((request) => request.method() === 'POST' && request.url().includes(`/suggestions/${STANDING[0].id}:dismiss`));
+    await card.getByRole('button', { name: 'Dismiss', exact: true }).click();
+    await dismissed;
+    assert.deepEqual(failures, []);
+  } finally {
+    await close();
+    await browser.close();
+  }
+});

@@ -476,7 +476,7 @@ func (c Cases) decideAs(
 				return err
 			}
 		}
-		if !proposal.Fresh(digest) {
+		if status == domain.StatusAccepted && !proposal.Fresh(digest) {
 			return domain.ErrStale
 		}
 		return nil
@@ -501,10 +501,9 @@ func (c Cases) decideAs(
 		if err != nil {
 			return err
 		}
-		// Staleness is checked for both answers and not only for acceptance. Dismissing a stale
-		// proposal is harmless, but telling somebody it was stale is what stops them wondering
-		// why the one they meant to accept was refused.
-		if !proposal.Fresh(digest) {
+		// A stale proposal is refused for acceptance and still dismissed (UC-AI-04 check 3): it no
+		// longer fits the entry, and clearing it is the one answer left that changes nothing.
+		if status == domain.StatusAccepted && !proposal.Fresh(digest) {
 			return domain.ErrStale
 		}
 
