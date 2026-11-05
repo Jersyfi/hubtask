@@ -21,7 +21,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, hubsWithAssetsFirst, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -32,11 +32,11 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
-  import { healthPath } from '../lib/data/cmdb.svelte.ts';
+  import { classesPath, classWord, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
   import CmdbView from './CmdbView.svelte';
   import DeskHome from '../lib/servicedesk/DeskHome.svelte';
@@ -150,6 +150,20 @@
   eachHub<CmdbHealth>('ASSETS', healthPath, (hubId, data) => (healthAt = { ...healthAt, [hubId]: data }));
   const assetHubs = $derived(module === 'ASSETS' ? hubsWith.map((hub) => hub.id) : []);
   const inventory = $derived(inventorySummary(healthAt, assetHubs));
+  // The inventory itself across hubs, by class: a shipped class's word is the catalogue's, an own
+  // class's its name, so the classes are read where the home lists them.
+  const byClass = $derived(inventoryByClass(healthAt, assetHubs));
+  let ownClasses = $state<CiClassList['data']>([]);
+  const readsClasses = $derived(module === 'ASSETS' && assetHubs.length > 0);
+  $effect(() => {
+    if (!readsClasses) return;
+    return untrack(() => engine.subscribe<CiClassList>({ path: classesPath }, (next) => {
+      if (next.status === 'ready') ownClasses = next.data.data;
+    }));
+  });
+  const classOf = (key: string) => classWord(key, ownClasses, (code) => (messages.has(code) ? t(code) : undefined));
+  const heldIn = (held: (typeof byClass)[number]) =>
+    held.hubs.map((each) => t('app.product_home.held_in', { count: String(each.total), hub: hubName(each.hubId) })).join(' · ');
   /** The hubs the home lists: on the assets' home those that hold an inventory (§2.2). */
   const hubsListed = $derived(module === 'ASSETS' ? hubsWithAssetsFirst(hubsWith, healthAt) : hubsWith);
   /** What a hub's row says of it beside its name (§2.2): the plan's next release, the hub's inventory. */
@@ -307,6 +321,25 @@
           {#if inventory.wanting > 0}<p class="why">{t('app.assets.attention_why')}</p>{/if}
         </Stack>
       </section>
+      {#if byClass.length > 0}
+        <section aria-labelledby="product-classes">
+          <Stack gap="100">
+            <h2 class="heading" id="product-classes">{t('app.product_home.inventory_by_class')}</h2>
+            <ul class="hubs">
+              {#each byClass as held (held.class)}
+                {@const at = `/hubs/${held.hubs[0]?.hubId ?? ''}/assets`}
+                <li data-class-held={held.class}>
+                  <ListRow href={at} onactivate={() => onnavigate(at)} label={classOf(held.class)}>
+                    {#snippet leading()}<Icon name="shield" size="sm" />{/snippet}
+                    <span class="name" title={classOf(held.class)}>{classOf(held.class)} · {held.total}</span>
+                    <span class="purpose">{heldIn(held)}</span>
+                  </ListRow>
+                </li>
+              {/each}
+            </ul>
+          </Stack>
+        </section>
+      {/if}
     {/if}
     {#if running.length > 0}
       <section aria-labelledby="product-sprints">

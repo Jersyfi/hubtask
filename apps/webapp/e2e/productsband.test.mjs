@@ -36,7 +36,7 @@ const PAGES = [
   pageOf('03', 'Meeting notes template', '2026-11-01T09:00:00Z', { template: true }),
   pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true }),
 ];
-const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
+const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [{ class: 'laptop', total: 12, completeness: 1, stale: 0, orphans: 0, duplicates: 0 }, { class: 'server', total: 30, completeness: 0.9, stale: 2, orphans: 1, duplicates: 0 }], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
 const DESK = { id: '01a0e2e0-0000-7000-8000-000000000501', type: 'COLLECTION', parent_id: HUB.id, name: 'IT help desk for every office and every remote worker', handle: 'it', key_prefix: 'INC', order_key: 'a0', version: 1, structure: { settings: { entry_types: { TASK: ['incident'] } } } };
 const SCRUM = { id: '01a0e2e0-0000-7000-8000-000000000502', type: 'COLLECTION', parent_id: HUB.id, name: 'Sprint work', order_key: 'a1', version: 1, structure: { settings: { entry_types: { TASK: ['story'] } } } };
 const TYPES = [
@@ -324,6 +324,12 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     await inventory.waitFor({ timeout: 10_000 });
     const figures = await inventory.locator('dl > div').evaluateAll((rows) => rows.map((row) => `${row.querySelector('dt')?.textContent}=${row.querySelector('dd')?.textContent}`));
     assert.deepEqual(figures, ['Configuration items=42', 'Need attention=2', 'Review overdue=4']);
+    // The inventory itself across hubs, by class, the most held first, each saying where (§2.2).
+    const byClass = page.getByRole('region', { name: 'By class' });
+    await byClass.waitFor({ timeout: 5_000 });
+    assert.deepEqual(await byClass.locator('.name').allTextContents(), ['Server · 30', 'Laptop · 12']);
+    assert.equal(await byClass.locator('.purpose').first().innerText(), `30 in ${HUB.name}`);
+    assert.equal(await byClass.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}/assets`);
     // What makes one need attention is said beside the figure, not left to guess.
     await inventory.getByText('A configuration item needs attention when it is incomplete').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `assets ${width} ${scheme}`);

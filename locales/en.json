@@ -6374,6 +6374,8 @@
   "app.product_home.pages_review": "Waiting for your review",
   "app.product_home.pages_recent": "Recently changed pages",
   "app.product_home.inventory": "Inventory across your hubs",
+  "app.product_home.held_in": "{count} in {hub}",
+  "app.product_home.inventory_by_class": "By class",
   "app.product_home.releases_due": "Releases to come",
   "app.product_home.sprints_running": "Sprints running",
   "app.nav.you": "You",

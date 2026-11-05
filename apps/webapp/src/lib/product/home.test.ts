@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, sprintsRunning } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -229,4 +229,16 @@ test('the plans home lists the sprints running in the hubs\' collections, the so
   assert.deepEqual(sprintsRunning(lists, ['c1', 'c2'], 5).map((each) => each.id), ['s3', 's1']);
   assert.deepEqual(sprintsRunning(lists, ['c1', 'c2', 'c3'], 1).map((each) => each.id), ['s5']);
   assert.deepEqual(sprintsRunning(lists, ['gone'], 5), []);
+});
+
+test('the assets home counts the inventory by class across hubs, the most held first (§2.2)', () => {
+  const healths = {
+    h1: { classes: [{ class: 'server', total: 3 }, { class: 'laptop', total: 0 }] },
+    h2: { classes: [{ class: 'server', total: 5 }, { class: 'firewall', total: 2 }] },
+  };
+  assert.deepEqual(inventoryByClass(healths, ['h1', 'h2']), [
+    { class: 'server', total: 8, hubs: [{ hubId: 'h2', total: 5 }, { hubId: 'h1', total: 3 }] },
+    { class: 'firewall', total: 2, hubs: [{ hubId: 'h2', total: 2 }] },
+  ]);
+  assert.deepEqual(inventoryByClass(healths, ['h3']), []);
 });

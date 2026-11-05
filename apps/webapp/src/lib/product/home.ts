@@ -237,6 +237,33 @@ export function inventorySummary(
   return { total, wanting, reviewOverdue, isWhole: hubIds.every((hubId) => healths[hubId] !== undefined) };
 }
 
+/** One class of the inventory across hubs: how many CIs of it, and in which hubs, most first. */
+export interface ClassHeld {
+  readonly class: string;
+  readonly total: number;
+  readonly hubs: readonly { readonly hubId: string; readonly total: number }[];
+}
+
+/**
+ * The inventory across hubs by class (§2.2): each class some hub holds, its CIs counted over the
+ * hubs, the most held first; a class no hub holds a CI of is left out.
+ */
+export function inventoryByClass(
+  healths: Readonly<Record<string, { readonly classes: readonly { readonly class: string; readonly total: number }[] }>>,
+  hubIds: readonly string[],
+): ClassHeld[] {
+  const byClass = new Map<string, { hubId: string; total: number }[]>();
+  for (const hubId of hubIds) {
+    for (const each of healths[hubId]?.classes ?? []) {
+      if (each.total <= 0) continue;
+      byClass.set(each.class, [...(byClass.get(each.class) ?? []), { hubId, total: each.total }]);
+    }
+  }
+  return [...byClass.entries()]
+    .map(([key, hubs]) => ({ class: key, total: hubs.reduce((sum, each) => sum + each.total, 0), hubs: [...hubs].sort((a, b) => b.total - a.total) }))
+    .sort((a, b) => b.total - a.total || (a.class < b.class ? -1 : 1));
+}
+
 /**
  * The releases still to go out across the hubs where planning is on (§2.2), the soonest first,
  * at most `limit`. A day is compared as text: `release_on` is a calendar date, not an instant.
