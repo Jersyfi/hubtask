@@ -232,6 +232,13 @@ func (h PollTriggerEvents) resume(
 	if err != nil {
 		return outbox.Position{}, err
 	}
+	if from.OccurredAt.After(now) {
+		// No poll hands out a position past its own present: a cursor ahead of it - a clock set
+		// back, or a forged one - would answer nothing until that moment.
+		return outbox.Position{}, shared.ErrValidation.
+			WithDetail("triggers.cursor_invalid").
+			WithFields(shared.FieldError{Path: "/since", Code: "triggers.cursor_invalid"})
+	}
 	if from.OccurredAt.Before(cutoff) {
 		// The only honest answer. The outbox keeps the retention period and no longer, so the
 		// events between this cursor and the cutoff are gone; answering from the cutoff would

@@ -577,3 +577,19 @@ func TestThePollOutputCarriesTheCursorAndThePage(t *testing.T) {
 		t.Errorf("has_more is %v, want false", page["has_more"])
 	}
 }
+
+// A cursor dated after the present - an installation clock set back, or a forged one - would
+// leave the poller seeing nothing until that moment; it is refused, so the poller starts again.
+func TestACursorDatedAfterThePresentIsRefused(t *testing.T) {
+	h := newPollHarness()
+	ahead := outbox.Position{OccurredAt: now.Add(48 * time.Hour), ID: shared.ID("01936f2a-0000-7000-8000-000000000001")}
+	_, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated), Cursor: plainCursors{}.Encode(ahead)})
+	var coded *shared.Error
+	if !errors.As(err, &coded) || coded.DetailCode != "triggers.cursor_invalid" || !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("error %v, want triggers.cursor_invalid", err)
+	}
+	if len(h.log.asked) != 0 {
+		t.Error("the log was read with a cursor from the future")
+	}
+}
