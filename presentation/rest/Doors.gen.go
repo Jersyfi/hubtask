@@ -442,11 +442,13 @@ var restDoors = map[string]restDoor{
 	"listWorkItems":                     {UseCase: "ListWorkItems", Status: 200, Query: []string{"collection_id", "cursor", "expand", "include_archived", "parent_id", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Expand: map[string]string{"labels": "expand_labels"}},
 	"listWorkTypes":                     {UseCase: "ListWorkTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkflows":                     {UseCase: "ListWorkflows", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listWorkspaceSamples":              {UseCase: "ListWorkspaceSamples", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWorkspacesNearQuota":           {UseCase: "ListWorkspacesNearQuota", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"locateConnectorReturn":             {UseCase: "LocateConnectorReturn", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"locateOidcFlow":                    {UseCase: "LocateOidcFlow", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"logTime":                           {UseCase: "LogTime", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
 	"makeEntries":                       {UseCase: "MakeEntries", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"markWorkspaceSample":               {UseCase: "MarkWorkspaceSample", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
 	"mergeWorkItems":                    {UseCase: "MergeWorkItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveCiAsset":                       {UseCase: "MoveCiAsset", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"moveContainer":                     {UseCase: "MoveContainer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -599,6 +601,7 @@ var restDoors = map[string]restDoor{
 	"removeSampleEntries":               {UseCase: "RemoveSampleEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSoftwareAlias":               {UseCase: "RemoveSoftwareAlias", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeSprintEntries":               {UseCase: "RemoveSprintEntries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"removeWorkspaceSamples":            {UseCase: "RemoveWorkspaceSamples", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renameContainer":                   {UseCase: "RenameContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: true, Integers: []string(nil)},
 	"renameOwnPasskey":                  {UseCase: "RenameOwnPasskey", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"renderReplyTemplate":               {UseCase: "RenderReplyTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3622,6 +3625,12 @@ func (c *RestController) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listWorkflows"], usecase.Input{}, nil, nil, &answer)
 }
 
+// ListWorkspaceSamples answers GET /tenant/samples by the generated mapping.
+func (c *RestController) ListWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.WorkspaceSampleList
+	c.door(w, r, restDoors["listWorkspaceSamples"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ListWorkspacesNearQuota answers GET /admin/quotas by the generated mapping.
 func (c *RestController) ListWorkspacesNearQuota(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listWorkspacesNearQuota"], usecase.Input{}, nil, nil, answerData(workspaceNearQuotaResponse))
@@ -3652,6 +3661,13 @@ func (c *RestController) LogTime(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) MakeEntries(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, params openapi.MakeEntriesParams) {
 	var body openapi.MakeEntriesJSONRequestBody
 	c.door(w, r, restDoors["makeEntries"], usecase.Input{"collection_id": containerId.String()}, params, &body, answerBy(acceptedAsk))
+}
+
+// MarkWorkspaceSample answers POST /tenant/samples by the generated mapping.
+func (c *RestController) MarkWorkspaceSample(w http.ResponseWriter, r *http.Request) {
+	var body openapi.MarkWorkspaceSampleJSONRequestBody
+	var answer openapi.WorkspaceSample
+	c.door(w, r, restDoors["markWorkspaceSample"], usecase.Input{}, nil, &body, &answer)
 }
 
 // MergeWorkItems answers POST /items/{itemId}:merge by the generated mapping.
@@ -4604,6 +4620,11 @@ func (c *RestController) RemoveSprintEntries(w http.ResponseWriter, r *http.Requ
 	var body openapi.RemoveSprintEntriesJSONRequestBody
 	var answer openapi.Sprint
 	c.door(w, r, restDoors["removeSprintEntries"], usecase.Input{"sprint_id": sprintId.String()}, nil, &body, &answer)
+}
+
+// RemoveWorkspaceSamples answers POST /tenant/samples:remove by the generated mapping.
+func (c *RestController) RemoveWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+	c.door(w, r, restDoors["removeWorkspaceSamples"], usecase.Input{}, nil, nil, nil)
 }
 
 // RenameContainer answers PATCH /containers/{containerId} by the generated mapping.

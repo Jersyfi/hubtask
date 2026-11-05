@@ -2499,6 +2499,18 @@ class Client:
         """Answers the first start's question with its starter set"""
         return self._call("POST", "/tenant/starter:apply", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def list_workspace_samples(self) -> "WorkspaceSampleList":
+        """The workspace's sample content"""
+        return self._call("GET", "/tenant/samples", {}, None, {}, None, "none", None, "json")
+
+    def mark_workspace_sample(self, body: dict[str, Any]) -> "WorkspaceSample":
+        """Mark an object as sample content"""
+        return self._call("POST", "/tenant/samples", {}, None, {}, body, "json", "application/json", "json")
+
+    def remove_workspace_samples(self) -> dict[str, Any]:
+        """Remove the workspace's sample content"""
+        return self._call("POST", "/tenant/samples:remove", {}, None, {}, None, "none", None, "json")
+
     def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

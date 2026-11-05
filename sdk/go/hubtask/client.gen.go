@@ -10663,6 +10663,42 @@ func (e WorkspaceHostState) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceSampleKind.
+const (
+	WorkspaceSampleKindCONTAINER  WorkspaceSampleKind = "CONTAINER"
+	WorkspaceSampleKindDASHBOARD  WorkspaceSampleKind = "DASHBOARD"
+	WorkspaceSampleKindENTRY      WorkspaceSampleKind = "ENTRY"
+	WorkspaceSampleKindGOAL       WorkspaceSampleKind = "GOAL"
+	WorkspaceSampleKindPAGE       WorkspaceSampleKind = "PAGE"
+	WorkspaceSampleKindPORTFOLIO  WorkspaceSampleKind = "PORTFOLIO"
+	WorkspaceSampleKindTIMERECORD WorkspaceSampleKind = "TIME_RECORD"
+	WorkspaceSampleKindWHITEBOARD WorkspaceSampleKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceSampleKind enum.
+func (e WorkspaceSampleKind) Valid() bool {
+	switch e {
+	case WorkspaceSampleKindCONTAINER:
+		return true
+	case WorkspaceSampleKindDASHBOARD:
+		return true
+	case WorkspaceSampleKindENTRY:
+		return true
+	case WorkspaceSampleKindGOAL:
+		return true
+	case WorkspaceSampleKindPAGE:
+		return true
+	case WorkspaceSampleKindPORTFOLIO:
+		return true
+	case WorkspaceSampleKindTIMERECORD:
+		return true
+	case WorkspaceSampleKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceStructureDefaultPreset.
 const (
 	WorkspaceStructureDefaultPresetFLOW        WorkspaceStructureDefaultPreset = "FLOW"
@@ -25962,6 +25998,26 @@ type WorkspaceQuestion struct {
 	Question string `json:"question"`
 }
 
+// WorkspaceSample defines model for WorkspaceSample.
+type WorkspaceSample struct {
+	Key string `json:"key"`
+
+	// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+	Kind     WorkspaceSampleKind `json:"kind"`
+	ObjectId openapi_types.UUID  `json:"object_id"`
+
+	// Version The version it was marked with; null without one.
+	Version *int `json:"version"`
+}
+
+// WorkspaceSampleKind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+type WorkspaceSampleKind string
+
+// WorkspaceSampleList defines model for WorkspaceSampleList.
+type WorkspaceSampleList struct {
+	Samples []WorkspaceSample `json:"samples"`
+}
+
 // WorkspaceStructure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
 type WorkspaceStructure struct {
 	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
@@ -28797,6 +28853,18 @@ type PreviewModuleReachParams struct {
 // PreviewModuleReachParamsSwitch defines parameters for PreviewModuleReach.
 type PreviewModuleReachParamsSwitch string
 
+// MarkWorkspaceSampleJSONBody defines parameters for MarkWorkspaceSample.
+type MarkWorkspaceSampleJSONBody struct {
+	Key string `json:"key"`
+
+	// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+	Kind     WorkspaceSampleKind `json:"kind"`
+	ObjectId openapi_types.UUID  `json:"object_id"`
+
+	// Version The object's version as it was made.
+	Version *int `json:"version,omitempty"`
+}
+
 // ApplyStarterParams defines parameters for ApplyStarter.
 type ApplyStarterParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -30197,6 +30265,9 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
 type SetModuleJSONRequestBody = ModuleSwitch
+
+// MarkWorkspaceSampleJSONRequestBody defines body for MarkWorkspaceSample for application/json ContentType.
+type MarkWorkspaceSampleJSONRequestBody MarkWorkspaceSampleJSONBody
 
 // ApplyStarterJSONRequestBody defines body for ApplyStarter for application/json ContentType.
 type ApplyStarterJSONRequestBody = StarterSet
@@ -41012,6 +41083,38 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 	PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListWorkspaceSamples The workspace's sample content
+	//
+	// What a showcase or a person marked as sample content of the workspace - hubs, collections, entries, pages, whiteboards, goals, portfolios, dashboards and time records - by its key, so that one act removes it all. A mark names its object and says nothing about it; the object itself is read where it lives. Needs STRUCTURE or READ_CONFIGURATION on the workspace.
+	//
+	// Corresponds with GET /tenant/samples (the `ListWorkspaceSamples` operationId).
+	ListWorkspaceSamples(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MarkWorkspaceSampleWithBody Mark an object as sample content
+	//
+	// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+	MarkWorkspaceSampleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MarkWorkspaceSample Mark an object as sample content
+	//
+	// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+	MarkWorkspaceSample(ctx context.Context, body MarkWorkspaceSampleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveWorkspaceSamples Remove the workspace's sample content
+	//
+	// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+	//
+	// Corresponds with POST /tenant/samples:remove (the `RemoveWorkspaceSamples` operationId).
+	RemoveWorkspaceSamples(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ApplyStarterWithBody Answers the first start's question with its starter set
 	//
@@ -63272,6 +63375,78 @@ func (c *Client) SetModule(ctx context.Context, module Module, body SetModuleJSO
 // Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 func (c *Client) PreviewModuleReach(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewPreviewModuleReachRequest(c.Server, module, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListWorkspaceSamples The workspace's sample content
+//
+// What a showcase or a person marked as sample content of the workspace - hubs, collections, entries, pages, whiteboards, goals, portfolios, dashboards and time records - by its key, so that one act removes it all. A mark names its object and says nothing about it; the object itself is read where it lives. Needs STRUCTURE or READ_CONFIGURATION on the workspace.
+//
+// Corresponds with GET /tenant/samples (the `ListWorkspaceSamples` operationId).
+func (c *Client) ListWorkspaceSamples(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListWorkspaceSamplesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MarkWorkspaceSampleWithBody Mark an object as sample content
+//
+// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+func (c *Client) MarkWorkspaceSampleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMarkWorkspaceSampleRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MarkWorkspaceSample Mark an object as sample content
+//
+// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+func (c *Client) MarkWorkspaceSample(ctx context.Context, body MarkWorkspaceSampleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMarkWorkspaceSampleRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveWorkspaceSamples Remove the workspace's sample content
+//
+// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+//
+// Corresponds with POST /tenant/samples:remove (the `RemoveWorkspaceSamples` operationId).
+func (c *Client) RemoveWorkspaceSamples(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveWorkspaceSamplesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -101071,6 +101246,100 @@ func NewPreviewModuleReachRequest(server string, module Module, params *PreviewM
 	return req, nil
 }
 
+// NewListWorkspaceSamplesRequest constructs an http.Request for the ListWorkspaceSamples method
+func NewListWorkspaceSamplesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/samples")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewMarkWorkspaceSampleRequest calls the generic MarkWorkspaceSample builder with application/json body
+func NewMarkWorkspaceSampleRequest(server string, body MarkWorkspaceSampleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMarkWorkspaceSampleRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewMarkWorkspaceSampleRequestWithBody constructs an http.Request for the MarkWorkspaceSample method, with any body, and a specified content type
+func NewMarkWorkspaceSampleRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/samples")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveWorkspaceSamplesRequest constructs an http.Request for the RemoveWorkspaceSamples method
+func NewRemoveWorkspaceSamplesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/samples:remove")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewApplyStarterRequest calls the generic ApplyStarter builder with application/json body
 func NewApplyStarterRequest(server string, params *ApplyStarterParams, body ApplyStarterJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -115699,6 +115968,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/modules/{module}/reach (the `PreviewModuleReach` operationId).
 	PreviewModuleReachWithResponse(ctx context.Context, module Module, params *PreviewModuleReachParams, reqEditors ...RequestEditorFn) (*PreviewModuleReachResult, error)
+
+	// ListWorkspaceSamplesWithResponse The workspace's sample content
+	//
+	// What a showcase or a person marked as sample content of the workspace - hubs, collections, entries, pages, whiteboards, goals, portfolios, dashboards and time records - by its key, so that one act removes it all. A mark names its object and says nothing about it; the object itself is read where it lives. Needs STRUCTURE or READ_CONFIGURATION on the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/samples (the `ListWorkspaceSamples` operationId).
+	ListWorkspaceSamplesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkspaceSamplesResult, error)
+
+	// MarkWorkspaceSampleWithBodyWithResponse Mark an object as sample content
+	//
+	// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+	MarkWorkspaceSampleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MarkWorkspaceSampleResult, error)
+
+	// MarkWorkspaceSampleWithResponse Mark an object as sample content
+	//
+	// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+	MarkWorkspaceSampleWithResponse(ctx context.Context, body MarkWorkspaceSampleJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkWorkspaceSampleResult, error)
+
+	// RemoveWorkspaceSamplesWithResponse Remove the workspace's sample content
+	//
+	// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/samples:remove (the `RemoveWorkspaceSamples` operationId).
+	RemoveWorkspaceSamplesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveWorkspaceSamplesResult, error)
 
 	// ApplyStarterWithBodyWithResponse Answers the first start's question with its starter set
 	//
@@ -153601,6 +153906,176 @@ func (r PreviewModuleReachResult) ContentType() string {
 	return ""
 }
 
+type ListWorkspaceSamplesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceSampleList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListWorkspaceSamplesResult) GetJSON200() *WorkspaceSampleList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListWorkspaceSamplesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListWorkspaceSamplesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListWorkspaceSamplesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListWorkspaceSamplesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListWorkspaceSamplesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MarkWorkspaceSampleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *WorkspaceSample
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r MarkWorkspaceSampleResult) GetJSON201() *WorkspaceSample {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MarkWorkspaceSampleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MarkWorkspaceSampleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MarkWorkspaceSampleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MarkWorkspaceSampleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MarkWorkspaceSampleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveWorkspaceSamplesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		// Kept The marked objects left in place, each with the reason as a message code.
+		Kept []struct {
+			Code string `json:"code"`
+			Key  string `json:"key"`
+
+			// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+			Kind     WorkspaceSampleKind `json:"kind"`
+			ObjectId openapi_types.UUID  `json:"object_id"`
+		} `json:"kept"`
+
+		// Removed How many marked objects were removed or were gone already.
+		Removed int `json:"removed"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveWorkspaceSamplesResult) GetJSON200() *struct {
+	// Kept The marked objects left in place, each with the reason as a message code.
+	Kept []struct {
+		Code string `json:"code"`
+		Key  string `json:"key"`
+
+		// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+		Kind     WorkspaceSampleKind `json:"kind"`
+		ObjectId openapi_types.UUID  `json:"object_id"`
+	} `json:"kept"`
+
+	// Removed How many marked objects were removed or were gone already.
+	Removed int `json:"removed"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveWorkspaceSamplesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveWorkspaceSamplesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveWorkspaceSamplesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveWorkspaceSamplesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveWorkspaceSamplesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ApplyStarterResult201Headers the declared response headers of an HTTP 201 response for ApplyStarter
 type ApplyStarterResult201Headers struct {
 	ETag *string
@@ -174928,6 +175403,66 @@ func (c *ClientWithResponses) PreviewModuleReachWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParsePreviewModuleReachResult(rsp)
+}
+
+// ListWorkspaceSamplesWithResponse The workspace's sample content
+//
+// What a showcase or a person marked as sample content of the workspace - hubs, collections, entries, pages, whiteboards, goals, portfolios, dashboards and time records - by its key, so that one act removes it all. A mark names its object and says nothing about it; the object itself is read where it lives. Needs STRUCTURE or READ_CONFIGURATION on the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/samples (the `ListWorkspaceSamples` operationId).
+func (c *ClientWithResponses) ListWorkspaceSamplesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListWorkspaceSamplesResult, error) {
+	rsp, err := c.ListWorkspaceSamples(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListWorkspaceSamplesResult(rsp)
+}
+
+// MarkWorkspaceSampleWithBodyWithResponse Mark an object as sample content
+//
+// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+func (c *ClientWithResponses) MarkWorkspaceSampleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MarkWorkspaceSampleResult, error) {
+	rsp, err := c.MarkWorkspaceSampleWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMarkWorkspaceSampleResult(rsp)
+}
+
+// MarkWorkspaceSampleWithResponse Mark an object as sample content
+//
+// Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/samples (the `MarkWorkspaceSample` operationId).
+func (c *ClientWithResponses) MarkWorkspaceSampleWithResponse(ctx context.Context, body MarkWorkspaceSampleJSONRequestBody, reqEditors ...RequestEditorFn) (*MarkWorkspaceSampleResult, error) {
+	rsp, err := c.MarkWorkspaceSample(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMarkWorkspaceSampleResult(rsp)
+}
+
+// RemoveWorkspaceSamplesWithResponse Remove the workspace's sample content
+//
+// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/samples:remove (the `RemoveWorkspaceSamples` operationId).
+func (c *ClientWithResponses) RemoveWorkspaceSamplesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveWorkspaceSamplesResult, error) {
+	rsp, err := c.RemoveWorkspaceSamples(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveWorkspaceSamplesResult(rsp)
 }
 
 // ApplyStarterWithBodyWithResponse Answers the first start's question with its starter set
@@ -202636,6 +203171,118 @@ func ParsePreviewModuleReachResult(rsp *http.Response) (*PreviewModuleReachResul
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ModuleReach
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListWorkspaceSamplesResult parses an HTTP response from a ListWorkspaceSamplesWithResponse call
+func ParseListWorkspaceSamplesResult(rsp *http.Response) (*ListWorkspaceSamplesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListWorkspaceSamplesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceSampleList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMarkWorkspaceSampleResult parses an HTTP response from a MarkWorkspaceSampleWithResponse call
+func ParseMarkWorkspaceSampleResult(rsp *http.Response) (*MarkWorkspaceSampleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MarkWorkspaceSampleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest WorkspaceSample
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveWorkspaceSamplesResult parses an HTTP response from a RemoveWorkspaceSamplesWithResponse call
+func ParseRemoveWorkspaceSamplesResult(rsp *http.Response) (*RemoveWorkspaceSamplesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveWorkspaceSamplesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			// Kept The marked objects left in place, each with the reason as a message code.
+			Kept []struct {
+				Code string `json:"code"`
+				Key  string `json:"key"`
+
+				// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+				Kind     WorkspaceSampleKind `json:"kind"`
+				ObjectId openapi_types.UUID  `json:"object_id"`
+			} `json:"kept"`
+
+			// Removed How many marked objects were removed or were gone already.
+			Removed int `json:"removed"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

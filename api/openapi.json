@@ -25095,6 +25095,156 @@
         }
       }
     },
+    "/tenant/samples": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listWorkspaceSamples",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "workspace samples",
+        "summary": "The workspace's sample content",
+        "description": "What a showcase or a person marked as sample content of the workspace - hubs, collections, entries, pages, whiteboards, goals, portfolios, dashboards and time records - by its key, so that one act removes it all. A mark names its object and says nothing about it; the object itself is read where it lives. Needs STRUCTURE or READ_CONFIGURATION on the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The marks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceSampleList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "markWorkspaceSample",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "workspace sample-mark",
+        "summary": "Mark an object as sample content",
+        "description": "Marks one object as sample content under a key of the workspace. Marking the same object under the same key again changes nothing; a key that marks another object is refused (`config.sample_taken`). `version` is the object's version as it was made: a goal, a portfolio, a dashboard or a time record has no trash, and removing the samples deletes it only while it still stands at that version - one changed since, or marked without a version, is kept. Needs STRUCTURE on the workspace.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "kind",
+                  "object_id"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_.]{0,99}$"
+                  },
+                  "kind": {
+                    "$ref": "#/components/schemas/WorkspaceSampleKind"
+                  },
+                  "object_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "The object's version as it was made."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Marked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceSample"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/samples:remove": {
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "removeWorkspaceSamples",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "workspace samples-remove",
+        "summary": "Remove the workspace's sample content",
+        "description": "Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.\n",
+        "responses": {
+          "200": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "removed",
+                    "kept"
+                  ],
+                  "properties": {
+                    "removed": {
+                      "type": "integer",
+                      "description": "How many marked objects were removed or were gone already."
+                    },
+                    "kept": {
+                      "type": "array",
+                      "description": "The marked objects left in place, each with the reason as a message code.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "key",
+                          "kind",
+                          "object_id",
+                          "code"
+                        ],
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "$ref": "#/components/schemas/WorkspaceSampleKind"
+                          },
+                          "object_id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "code": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/tenant/structure": {
       "patch": {
         "tags": [
@@ -65983,6 +66133,62 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SampleEntry"
+            }
+          }
+        }
+      },
+      "WorkspaceSampleKind": {
+        "type": "string",
+        "enum": [
+          "CONTAINER",
+          "ENTRY",
+          "PAGE",
+          "WHITEBOARD",
+          "GOAL",
+          "PORTFOLIO",
+          "DASHBOARD",
+          "TIME_RECORD"
+        ],
+        "description": "What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.\n"
+      },
+      "WorkspaceSample": {
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "object_id",
+          "version"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WorkspaceSampleKind"
+          },
+          "object_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The version it was marked with; null without one."
+          }
+        }
+      },
+      "WorkspaceSampleList": {
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceSample"
             }
           }
         }

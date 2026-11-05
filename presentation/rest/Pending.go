@@ -3219,6 +3219,18 @@ func (pending) RemoveSampleEntries(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+func (pending) ListWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) MarkWorkspaceSample(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) ListConfigDrafts(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

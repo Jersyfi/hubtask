@@ -5644,6 +5644,17 @@ class SampleEntry(TypedDict, total=False):
 class SampleEntryList(TypedDict, total=False):
     samples: Required[list["SampleEntry"]]
 
+WorkspaceSampleKind = Literal["CONTAINER", "ENTRY", "PAGE", "WHITEBOARD", "GOAL", "PORTFOLIO", "DASHBOARD", "TIME_RECORD"]
+
+class WorkspaceSample(TypedDict, total=False):
+    key: Required[str]
+    kind: Required["WorkspaceSampleKind"]
+    object_id: Required[str]
+    version: Required[int | None]
+
+class WorkspaceSampleList(TypedDict, total=False):
+    samples: Required[list["WorkspaceSample"]]
+
 class HubTemplatePage(TypedDict, total=False):
     key: Required[str]
     page_id: Required[str]

@@ -10657,6 +10657,42 @@ func (e WorkspaceHostState) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceSampleKind.
+const (
+	WorkspaceSampleKindCONTAINER  WorkspaceSampleKind = "CONTAINER"
+	WorkspaceSampleKindDASHBOARD  WorkspaceSampleKind = "DASHBOARD"
+	WorkspaceSampleKindENTRY      WorkspaceSampleKind = "ENTRY"
+	WorkspaceSampleKindGOAL       WorkspaceSampleKind = "GOAL"
+	WorkspaceSampleKindPAGE       WorkspaceSampleKind = "PAGE"
+	WorkspaceSampleKindPORTFOLIO  WorkspaceSampleKind = "PORTFOLIO"
+	WorkspaceSampleKindTIMERECORD WorkspaceSampleKind = "TIME_RECORD"
+	WorkspaceSampleKindWHITEBOARD WorkspaceSampleKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceSampleKind enum.
+func (e WorkspaceSampleKind) Valid() bool {
+	switch e {
+	case WorkspaceSampleKindCONTAINER:
+		return true
+	case WorkspaceSampleKindDASHBOARD:
+		return true
+	case WorkspaceSampleKindENTRY:
+		return true
+	case WorkspaceSampleKindGOAL:
+		return true
+	case WorkspaceSampleKindPAGE:
+		return true
+	case WorkspaceSampleKindPORTFOLIO:
+		return true
+	case WorkspaceSampleKindTIMERECORD:
+		return true
+	case WorkspaceSampleKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceStructureDefaultPreset.
 const (
 	WorkspaceStructureDefaultPresetFLOW        WorkspaceStructureDefaultPreset = "FLOW"
@@ -25956,6 +25992,26 @@ type WorkspaceQuestion struct {
 	Question string `json:"question"`
 }
 
+// WorkspaceSample defines model for WorkspaceSample.
+type WorkspaceSample struct {
+	Key string `json:"key"`
+
+	// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+	Kind     WorkspaceSampleKind `json:"kind"`
+	ObjectId openapi_types.UUID  `json:"object_id"`
+
+	// Version The version it was marked with; null without one.
+	Version *int `json:"version"`
+}
+
+// WorkspaceSampleKind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+type WorkspaceSampleKind string
+
+// WorkspaceSampleList defines model for WorkspaceSampleList.
+type WorkspaceSampleList struct {
+	Samples []WorkspaceSample `json:"samples"`
+}
+
 // WorkspaceStructure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
 type WorkspaceStructure struct {
 	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
@@ -28791,6 +28847,18 @@ type PreviewModuleReachParams struct {
 // PreviewModuleReachParamsSwitch defines parameters for PreviewModuleReach.
 type PreviewModuleReachParamsSwitch string
 
+// MarkWorkspaceSampleJSONBody defines parameters for MarkWorkspaceSample.
+type MarkWorkspaceSampleJSONBody struct {
+	Key string `json:"key"`
+
+	// Kind What a sample mark names. CONTAINER is a hub or a collection; ENTRY a task, work package or activity.
+	Kind     WorkspaceSampleKind `json:"kind"`
+	ObjectId openapi_types.UUID  `json:"object_id"`
+
+	// Version The object's version as it was made.
+	Version *int `json:"version,omitempty"`
+}
+
 // ApplyStarterParams defines parameters for ApplyStarter.
 type ApplyStarterParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -30191,6 +30259,9 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
 type SetModuleJSONRequestBody = ModuleSwitch
+
+// MarkWorkspaceSampleJSONRequestBody defines body for MarkWorkspaceSample for application/json ContentType.
+type MarkWorkspaceSampleJSONRequestBody MarkWorkspaceSampleJSONBody
 
 // ApplyStarterJSONRequestBody defines body for ApplyStarter for application/json ContentType.
 type ApplyStarterJSONRequestBody = StarterSet
@@ -33004,6 +33075,15 @@ type ServerInterface interface {
 	// PreviewModuleReach How many people switching a module off would leave without it
 	// (GET /tenant/modules/{module}/reach)
 	PreviewModuleReach(w http.ResponseWriter, r *http.Request, module Module, params PreviewModuleReachParams)
+	// ListWorkspaceSamples The workspace's sample content
+	// (GET /tenant/samples)
+	ListWorkspaceSamples(w http.ResponseWriter, r *http.Request)
+	// MarkWorkspaceSample Mark an object as sample content
+	// (POST /tenant/samples)
+	MarkWorkspaceSample(w http.ResponseWriter, r *http.Request)
+	// RemoveWorkspaceSamples Remove the workspace's sample content
+	// (POST /tenant/samples:remove)
+	RemoveWorkspaceSamples(w http.ResponseWriter, r *http.Request)
 	// ApplyStarter Answers the first start's question with its starter set
 	// (POST /tenant/starter:apply)
 	ApplyStarter(w http.ResponseWriter, r *http.Request, params ApplyStarterParams)
@@ -58726,6 +58806,48 @@ func (siw *ServerInterfaceWrapper) PreviewModuleReach(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ListWorkspaceSamples operation middleware
+func (siw *ServerInterfaceWrapper) ListWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWorkspaceSamples(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkWorkspaceSample operation middleware
+func (siw *ServerInterfaceWrapper) MarkWorkspaceSample(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkWorkspaceSample(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveWorkspaceSamples operation middleware
+func (siw *ServerInterfaceWrapper) RemoveWorkspaceSamples(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveWorkspaceSamples(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ApplyStarter operation middleware
 func (siw *ServerInterfaceWrapper) ApplyStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -61791,6 +61913,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/directory/ldap:sync", wrapper.SyncLdapDirectory)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:apply", wrapper.ApplyStarter)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/samples", wrapper.ListWorkspaceSamples)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/samples", wrapper.MarkWorkspaceSample)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/samples:remove", wrapper.RemoveWorkspaceSamples)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/structure:preview", wrapper.PreviewWorkspaceStructure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/entry-types", wrapper.ListEntryTypes)

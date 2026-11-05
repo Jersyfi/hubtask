@@ -3237,6 +3237,18 @@ var generatedCommands = []door{
 			{Name: "item_id", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name"}},
+	{Group: "workspace", Verb: "sample-mark", OperationID: "markWorkspaceSample", Method: "POST", Path: "/tenant/samples", Summary: "Mark an object as sample content",
+		Body: []doorParam{
+			{Name: "key", Kind: "string", Help: "", Required: true},
+			{Name: "kind", Kind: "string", Help: "What a sample mark names", Required: true},
+			{Name: "object_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "version", Kind: "integer", Help: "The object's version as it was made", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "kind", "version"}},
+	{Group: "workspace", Verb: "samples", OperationID: "listWorkspaceSamples", Method: "GET", Path: "/tenant/samples", Summary: "The workspace's sample content",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "workspace", Verb: "samples-remove", OperationID: "removeWorkspaceSamples", Method: "POST", Path: "/tenant/samples:remove", Summary: "Remove the workspace's sample content",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"removed"}},
 	{Group: "workspace", Verb: "structure preview", OperationID: "previewWorkspaceStructure", Method: "POST", Path: "/tenant/structure:preview", Summary: "What a change of the workspace's structure would stop showing",
 		Body: []doorParam{
 			{Name: "default_preset", Kind: "string", Help: "The preset a hub created without one starts from; null removes it", Required: false},

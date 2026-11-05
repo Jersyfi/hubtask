@@ -3147,6 +3147,21 @@ export class HubtaskClient {
     return this.call("POST", "/tenant/starter:apply", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The workspace's sample content */
+  listWorkspaceSamples(options: CallOptions = {}): Promise<operations["listWorkspaceSamples"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/samples", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Mark an object as sample content */
+  markWorkspaceSample(body: NonNullable<operations["markWorkspaceSample"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["markWorkspaceSample"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/tenant/samples", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove the workspace's sample content */
+  removeWorkspaceSamples(options: CallOptions = {}): Promise<operations["removeWorkspaceSamples"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant/samples:remove", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** PATCH /tenant/structure */
   setWorkspaceStructure(body: NonNullable<operations["setWorkspaceStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setWorkspaceStructure"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
