@@ -2322,7 +2322,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON sample_entry TO hubtask_app;
 CREATE TABLE config_draft (
   tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   section   text NOT NULL CHECK (section IN ('types', 'sla_policies', 'roles')),
-  key       text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  -- A custom role's key may be 63 characters (0365).
+  key       text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$'),
   block     jsonb NOT NULL
     CHECK (jsonb_typeof(block) = 'object' AND pg_column_size(block) <= 262144),
   saved_by  uuid NOT NULL,

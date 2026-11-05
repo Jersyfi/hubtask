@@ -84,3 +84,26 @@ func holdsDraft(drafts []repository.Draft, key string) bool {
 	}
 	return false
 }
+
+// A role's key may be 63 characters long (custom_role, shared.ValidKey), and its draft holds the
+// same key (migrations 0365, 0366).
+func TestARoleWithALongKeyIsDrafted(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	key := "r" + strings.Repeat("o", 40) + strings.ReplaceAll(freshID(t).String(), "-", "")[:22]
+	if len(key) != 63 {
+		t.Fatalf("the key is %d long", len(key))
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, ok, err := postgres.ConfigDraftRepository{}.Save(ctx, repository.Draft{
+			Section: "roles", Key: key, Block: domain.Block{"name": "Long"}, SavedBy: authorA,
+			SavedAt: time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC),
+		}, 0)
+		if err != nil || !ok {
+			t.Errorf("a draft of a 63 character key: %v, %v", ok, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
