@@ -531,6 +531,10 @@ func (h RelateCis) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
+				if target.HubID != source.HubID {
+					// Answered as missing: the hub's own refusal would tell that the CI exists there.
+					return shared.ErrNotFound.WithDetail("cmdb.ci_not_found")
+				}
 				if err := domain.CheckRelation(t, source, target, reg.classes); err != nil {
 					return err
 				}

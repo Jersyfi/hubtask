@@ -548,3 +548,19 @@ func TestAnItemHoldingAZeroByteIsRefusedAloneAndNamesNoValue(t *testing.T) {
 		t.Fatalf("refused by its code under a reference the run can keep: %v", d)
 	}
 }
+
+// A target in another hub is answered as a missing one: naming the other hub would tell a writer
+// that a CI of that identifier exists where they may not read.
+func TestACiOfAnotherHubIsNotFoundAsARelationsTarget(t *testing.T) {
+	f := newFixture()
+	out, err := call(t, CreateCi{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "class": "application_service", "name": "Shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	elsewhere := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000d0ff")
+	f.m.cis[elsewhere] = domain.CI{ID: elsewhere, HubID: private, Class: "virtual_machine", Name: "hidden"}
+	_, err = call(t, RelateCis{f.inv}.Descriptor(), as(anna), usecase.Input{"source_ci_id": out["id"], "target_ci_id": elsewhere.String(), "type": "runs_on"})
+	if code(err) != "cmdb.ci_not_found" {
+		t.Fatalf("a target in another hub: %v", err)
+	}
+}
