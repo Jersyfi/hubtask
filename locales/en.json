@@ -4829,6 +4829,7 @@
   "app.templates.section_collection_views": "collection's view",
   "app.templates.section_collection_rules": "collection's rule",
   "app.templates.section_collection_fields": "collection's field",
+  "app.templates.section_collection_attributes": "collection's key prefix",
   "app.templates.section_other": "part of the configuration",
   "app.templates.change_add": "Adds the {section} “{key}”",
   "app.templates.change_change": "Changes the {section} “{key}”",

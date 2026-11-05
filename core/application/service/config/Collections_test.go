@@ -26,7 +26,9 @@ type placesCatalogue struct {
 	catalogue
 	structure map[string]map[string]any
 	tolerance map[string]map[string]any
-	written   map[string][]usecase.Input
+	// prefixes are the collections' key prefixes, as GetContainer answers them.
+	prefixes map[string]string
+	written  map[string][]usecase.Input
 }
 
 func (c placesCatalogue) Invoke(ctx context.Context, name string, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -40,8 +42,12 @@ func (c placesCatalogue) Invoke(ctx context.Context, name string, actor appshare
 		for name := range own {
 			sources[name] = "COLLECTION"
 		}
-		return usecase.Output{"type": "COLLECTION", "parent_id": c.w.parentOf(in.String("container_id")),
-			"structure": map[string]any{"settings": maps.Clone(own), "sources": sources}}, nil
+		out := usecase.Output{"type": "COLLECTION", "parent_id": c.w.parentOf(in.String("container_id")),
+			"structure": map[string]any{"settings": maps.Clone(own), "sources": sources}}
+		if prefix := c.prefixes[in.String("container_id")]; prefix != "" {
+			out["key_prefix"] = prefix
+		}
+		return out, nil
 	case "ReadPlanTolerance":
 		if in["tolerance_only"] != true {
 			panic("the document read the plan's standing")
@@ -50,7 +56,7 @@ func (c placesCatalogue) Invoke(ctx context.Context, name string, actor appshare
 			return usecase.Output(row), nil
 		}
 		return usecase.Output{"source": "WORKSPACE", "time_tolerance_days": nil, "locked_by": nil}, nil
-	case "SetPlanTolerance", "SetContainerStructure":
+	case "SetPlanTolerance", "SetContainerStructure", "RenameContainer":
 		c.written[name] = append(c.written[name], maps.Clone(in))
 		return usecase.Output{}, nil
 	}
@@ -80,7 +86,8 @@ func collectionsFixture() (fixture, placesCatalogue) {
 			deskHub:      {"source": "HUB", "time_tolerance_days": 5, "locked_by": "HUB"},
 			networkQueue: {"source": "COLLECTION", "time_tolerance_days": 2, "locked_by": nil},
 		},
-		written: map[string][]usecase.Input{},
+		prefixes: map[string]string{networkQueue: "NET"},
+		written:  map[string][]usecase.Input{},
 	}
 	f.desk.Catalogue = c
 	return f, c

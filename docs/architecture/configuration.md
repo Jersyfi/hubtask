@@ -19,7 +19,9 @@ too. One mechanism serves all three.
   contains its hubs' and collections' configuration; a hub document its own. A hub's and its
   collections' blocks are read and applied as the hub's document (`hub_id`): a collection's own
   structure settings, time tolerance, shared views, rules and custom fields in the `collection_*`
-  sections, each
+  sections, and its key prefix as `collection_attributes.<handle>.key_prefix` (written through the
+  rename, never removed by a document: an older export applied whole would turn its keys back to
+  the handle's - `config.not_removable`), each
   block under the collection's handle, a dot and the block's key (`collection_views.network.open`);
   a handle that names no collection of the hub is refused (`config.collection_unknown`). The hub's
   `pages` section holds its space's way of writing: the block `drafts` while the space keeps drafts
@@ -189,7 +191,7 @@ Scopes: a **hub template** (most templates), a **collection template**, and a **
 
 A **collection part** (`collection_document`, migration 0310) holds the collection sections of a
 hub's document (§1: `collection_structure`, `collection_tolerance`, `collection_views`,
-`collection_rules`, `collection_fields`) with each block keyed without a handle, so one part sets up
+`collection_rules`, `collection_fields`, `collection_attributes`) with each block keyed without a handle, so one part sets up
 any collection; a section of another kind or a key with a handle is refused at publish
 (`config.section_not_for_collections`, `config.key_invalid`), and the part is linted as an empty
 collection would take it. `PlanConfigTemplate` with `collection_id` puts the collection's handle in

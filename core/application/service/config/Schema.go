@@ -121,6 +121,11 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 		return map[string]any{"type": "array", "items": map[string]any{"type": "string", "format": "uuid"},
 			"description": "The groups holding the custom role at the whole workspace."}
 	}
+	if s.name == sectionCollectionAttributes {
+		return map[string]any{"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]{1,4}$", "description": "key_prefix: " +
+			"the word the collection's entry keys start with (INC in INC-42), stored in capitals; a block " +
+			"is never removed by a document."}
+	}
 	if s.name == sectionCollectionStructure {
 		return map[string]any{"description": "The collection's own value of the setting, in the shape of " +
 			"StructureSettings; a removed block leaves it to the hub."}

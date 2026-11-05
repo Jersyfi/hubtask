@@ -96,4 +96,4 @@ export const pagePart = (path: string): PagePart => PAGE_PARTS[path] ?? { sectio
 export const placePart = (isHub: boolean, handle?: string): PagePart =>
   isHub
     ? { sections: ['structure', 'scheme', 'views', 'rules'] }
-    : { sections: ['collection_structure', 'collection_fields', 'collection_views', 'collection_rules', 'collection_tolerance'], handle };
+    : { sections: ['collection_structure', 'collection_fields', 'collection_views', 'collection_rules', 'collection_tolerance', 'collection_attributes'], handle };

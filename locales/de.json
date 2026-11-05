@@ -4158,6 +4158,7 @@
   "app.templates.section_collection_views": "Ansicht der Sammlung",
   "app.templates.section_collection_rules": "Regel der Sammlung",
   "app.templates.section_collection_fields": "Feld der Sammlung",
+  "app.templates.section_collection_attributes": "Schlüsselpräfix der Sammlung",
   "app.templates.section_other": "Teil der Konfiguration",
   "app.templates.change_add": "Fügt hinzu: {section} „{key}“",
   "app.templates.change_change": "Ändert: {section} „{key}“",

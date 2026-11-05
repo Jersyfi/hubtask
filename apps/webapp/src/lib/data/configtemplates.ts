@@ -91,6 +91,7 @@ export const SECTIONS: readonly string[] = [
   'modules', 'roles', 'fields', 'link_types', 'types', 'workflows', 'settings', 'structure', 'scheme', 'tolerance',
   'business_calendars', 'sla_policies', 'reply_templates', 'requester_organisations', 'views', 'rules', 'pages',
   'template_pages', 'collection_structure', 'collection_tolerance', 'collection_views', 'collection_rules', 'collection_fields',
+  'collection_attributes',
 ];
 
 /** The word for a section, a generic one for a section this client does not know yet. */

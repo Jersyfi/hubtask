@@ -28,6 +28,10 @@ const (
 	sectionCollectionViews     = "collection_views"
 	sectionCollectionRules     = "collection_rules"
 	sectionCollectionFields    = "collection_fields"
+	// sectionCollectionAttributes holds a collection's own attributes, today its key prefix
+	// (user-experience.md §5.6), changed through the rename the collection's settings call.
+	sectionCollectionAttributes = "collection_attributes"
+	keyPrefixAttribute          = "key_prefix"
 	// toleranceKey is the tolerance's one block, under the catalogue's name.
 	toleranceKey   = "time_tolerance_days"
 	sourceLevel    = "COLLECTION"
@@ -144,6 +148,29 @@ func collectionSections() []section {
 			hides: removing, permissions: true,
 		},
 		collectionFieldsSection(),
+		{
+			// A prefix is never removed by a document: an older export without the block, applied
+			// whole, would otherwise turn every key back to the handle's.
+			name: sectionCollectionAttributes, list: "GetContainer", collection: true,
+			listFor: func(c string) usecase.Input { return usecase.Input{"container_id": c} },
+			rowsFor: func(answer map[string]any, _ string) []any {
+				if prefix := text(answer[keyPrefixAttribute]); prefix != "" {
+					return []any{map[string]any{"attribute": keyPrefixAttribute, settingValueField: prefix}}
+				}
+				return nil
+			},
+			key: "attribute", attributes: []string{settingValueField},
+			create: "RenameContainer", change: "RenameContainer", changeable: []string{settingValueField},
+			opsAt: func(now current, change domain.BlockChange, _ map[string]any) ([]operation, error) {
+				collection, inner := now.Places.collection(change.Key)
+				if inner != keyPrefixAttribute {
+					return nil, refused("config.key_unknown", change.Path(), nil)
+				}
+				return []operation{{UseCase: "RenameContainer", Path: change.Path(), Input: usecase.Input{
+					"container_id": collection, keyPrefixAttribute: text(change.After[settingValueField]),
+				}}}, nil
+			},
+		},
 	}
 }
 

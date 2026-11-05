@@ -142,3 +142,43 @@ func TestAProposalKeepsTheCollection(t *testing.T) {
 		t.Errorf("the provenance went to %+v", f.store.uses)
 	}
 }
+
+// user-experience.md §5.6: a template sets its collection's key prefix - the network queue's NET
+// becomes OPS through the rename the collection's settings call -, the hub's document shows the
+// prefix in force, and a document without the block is refused rather than turning the keys back
+// to the handle's.
+func TestATemplateSetsItsCollectionsKeyPrefix(t *testing.T) {
+	f, c := collectionsFixture()
+	exported := invoke(t, ExportConfig{f.desk}.Descriptor(), person, usecase.Input{"hub_id": deskHub})["document"].(map[string]any)
+	if got := block(t, exported, "collection_attributes", "network.key_prefix"); got["value"] != "NET" {
+		t.Fatalf("the hub's document reads the prefix as %v", got)
+	}
+
+	invoke(t, PublishConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{
+		"key": "ops_kit", "name": "Operations", "document": map[string]any{},
+		"collection_document": map[string]any{"collection_attributes": map[string]any{"key_prefix": map[string]any{"value": "OPS"}}},
+	})
+	plan := invoke(t, PlanConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{"key": "ops_kit", "collection_id": networkQueue})
+	if got := block(t, plan["document"].(map[string]any), "collection_attributes", "network.key_prefix"); got["value"] != "OPS" {
+		t.Fatalf("the plan holds %v", plan["document"])
+	}
+	applied := invoke(t, ApplyConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"document": plan["document"], "plan_hash": plan["plan_hash"], "template": plan["template"],
+		"mode": plan["mode"], "collection_id": networkQueue, "acknowledge": true,
+	})
+	if applied["state"] != "APPLIED" {
+		t.Fatalf("not applied: %v", applied)
+	}
+	renamed := c.written["RenameContainer"]
+	if len(renamed) != 1 || renamed[0]["container_id"] != networkQueue || renamed[0]["key_prefix"] != "OPS" {
+		t.Errorf("the prefix was written as %v", renamed)
+	}
+
+	out := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{
+		"hub_id": deskHub, "mode": "REPLACE", "document": map[string]any{"collection_attributes": map[string]any{}},
+	})
+	refusals, _ := out["refusals"].([]usecase.Output)
+	if len(refusals) != 1 || refusals[0]["code"] != "config.not_removable" || out["plan_hash"] != nil {
+		t.Errorf("a document without the prefix was planned: %v", out)
+	}
+}
