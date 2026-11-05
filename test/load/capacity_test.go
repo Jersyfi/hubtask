@@ -58,7 +58,7 @@ var capacityPaths = []capacityPath{
 		body: func(as tenant) string {
 			return `{"scope":{"container_id":"` + as.collection + `"},` +
 				`"filter":{"field":"is_completed","op":"EQ","value":false},` +
-				`"sort":[{"field":"due_at","direction":"ASC"}],"page":{"size":50}}`
+				`"sort":[{"field":"due_at","dir":"ASC"}],"page":{"size":50}}`
 		}},
 	{name: "board_by_completion", method: http.MethodPost,
 		path: func(tenant) string { return "/api/v1/items:query" },
