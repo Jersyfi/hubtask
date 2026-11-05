@@ -17,6 +17,7 @@ func serviceShape(statuses ...string) map[string]any {
 	return map[string]any{"statuses": rows}
 }
 
+// UC-CFG-01 check 4, with the tests below.
 // configuration.md §2: a plan says what a workflow's new shape reaches - the entries it moves,
 // taken from the publish preview of the shape the plan sets, before anything is saved.
 func TestAPlanNamesTheEntriesAWorkflowsNewShapeMoves(t *testing.T) {

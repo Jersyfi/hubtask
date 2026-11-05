@@ -17,6 +17,7 @@ import (
 
 const guidePage = "0190a000-0000-7000-8000-0000000000d1"
 
+// UC-CFG-01 check 14, with the tests below.
 // configuration.md §6: a hub's document reads the pages a template brought by key with their
 // title and icon - never their text -, writes one through AddHubTemplatePage with its body and
 // subpages, and removes one by trashing its page; every attribute is fixed once written.

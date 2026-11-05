@@ -635,6 +635,8 @@ func TestTheExportNamesEveryBlockByItsStableKey(t *testing.T) {
 	}
 }
 
+// UC-CFG-01 check 3: each change by key path, the refusals with a code and a key path, and nothing
+// written.
 func TestAPlanShowsTheChangesAndRefusalsAndWritesNothing(t *testing.T) {
 	f := newFixture()
 	in := usecase.Input{"document": map[string]any{
@@ -682,6 +684,8 @@ func TestAPlanShowsTheChangesAndRefusalsAndWritesNothing(t *testing.T) {
 	}
 }
 
+// UC-CFG-01 check 5, with the three tests below: by its hash, all or nothing, refused until a flag
+// is acknowledged, and an agent's apply waits for a person.
 func TestApplyRunsThePlanByItsHashAndRefusesAConfigurationChangedSince(t *testing.T) {
 	f := newFixture()
 	plan := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": incident()})

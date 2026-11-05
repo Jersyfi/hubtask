@@ -21,6 +21,7 @@ const (
 	sampleItem       = "0190a000-0000-7000-8000-0000000000e1"
 )
 
+// UC-CFG-01 check 12, with the tests below.
 // configuration.md §6: a hub's document reads its sample entries by key with the collection's
 // handle, adds a sample through AddSampleEntry - in the hub's first collection where the block
 // names none - and removes one by trashing its entry.
