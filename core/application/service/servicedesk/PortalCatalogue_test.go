@@ -90,7 +90,7 @@ func (h held) Permits(_ context.Context, _ appshared.ActorContext, request acces
 
 // The desk's team reads its own portal's catalogue by READ and is told it raises nothing there;
 // a requester may raise; whoever holds neither is refused for REQUEST. Only who manages the
-// collection's members is told whether it has a public form.
+// collection's members is told whether it has a public form. UC-SVC-05 check 1.
 func TestTheCatalogueSaysWhetherTheReaderMayRaiseAndWhetherAFormExists(t *testing.T) {
 	links := &formLinks{rows: map[shared.ID]domain.PublicForm{collection: {CollectionID: collection}}, keys: map[string]shared.ID{}}
 	cases := []struct {
