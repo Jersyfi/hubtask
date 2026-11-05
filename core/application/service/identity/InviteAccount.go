@@ -358,5 +358,8 @@ func accountOutput(account domain.Account) usecase.Output {
 	if account.OnboardingCompletedAt != nil {
 		out["onboarding_completed_at"] = *account.OnboardingCompletedAt
 	}
+	if len(account.ProductsSeen) > 0 {
+		out["products_seen"] = append([]string(nil), account.ProductsSeen...)
+	}
 	return out
 }

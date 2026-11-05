@@ -5,6 +5,7 @@ package identity
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,6 +174,40 @@ func TestTheMomentsAreWrittenAndClearedLikeEveryOtherPreference(t *testing.T) {
 		usecase.Input{"account_id": adminID.String(), "celebrations": "off"})
 	if err == nil {
 		t.Fatal("a word that is not a switch was accepted")
+	}
+}
+
+// user-experience.md §3.4: the products seen are written as the whole list, left by a write that
+// does not name them, cleared by the empty list a null arrives as, and an unknown product is
+// refused by name.
+func TestTheProductsSeenAreWrittenLeftAndCleared(t *testing.T) {
+	accounts := newAccounts(settled(t))
+	handler := preferencesHandler(accounts, &authorizer{}, &auditSink{})
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	invoke := func(in usecase.Input) (usecase.Output, error) {
+		in["account_id"] = adminID.String()
+		return registry.Invoke(t.Context(), UpdateAccountPreferencesName, admin(), in)
+	}
+	out, err := invoke(usecase.Input{"products_seen": []any{"SERVICE_DESK", "TIME"}})
+	if err != nil {
+		t.Fatalf("writing the products seen: %v", err)
+	}
+	if seen, _ := out["products_seen"].([]string); strings.Join(seen, ",") != "SERVICE_DESK,TIME" {
+		t.Fatalf("products_seen = %v", out["products_seen"])
+	}
+	out, err = invoke(usecase.Input{"locale": "nl"})
+	if seen, _ := out["products_seen"].([]string); err != nil || strings.Join(seen, ",") != "SERVICE_DESK,TIME" {
+		t.Errorf("a write that did not name them changed them: %v, %v", out["products_seen"], err)
+	}
+	out, err = invoke(usecase.Input{"products_seen": []any{}})
+	if _, present := out["products_seen"]; err != nil || present {
+		t.Errorf("a null did not clear them: %v, %v", out["products_seen"], err)
+	}
+	if _, err := invoke(usecase.Input{"products_seen": []any{"CHESS"}}); shared.AsError(err).DetailCode != "accounts.products_seen_invalid" {
+		t.Errorf("an unknown product: %v, want accounts.products_seen_invalid", err)
 	}
 }
 

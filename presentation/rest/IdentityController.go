@@ -191,6 +191,13 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.Celebrations = &celebrations
 	}
 	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
+	if seen, ok := out["products_seen"].([]string); ok && len(seen) > 0 {
+		modules := make([]openapi.Module, 0, len(seen))
+		for _, key := range seen {
+			modules = append(modules, openapi.Module(key))
+		}
+		account.ProductsSeen = &modules
+	}
 	account.MailUndeliverableSince = timePointer(out["mail_undeliverable_since"])
 	account.AvatarMediaId = optionalUUID(out.String("avatar_media_id"))
 	if armed, held := out["has_second_factor"].(bool); held {

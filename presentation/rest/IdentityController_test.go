@@ -345,6 +345,42 @@ func TestTheMomentsTravelAsWordsAndAnswerInTheirTypes(t *testing.T) {
 	}
 }
 
+// user-experience.md §3.4: the products seen travel as the list of module keys, a null clears the
+// list, and the account answers them; an unknown key is the domain's to refuse.
+func TestTheProductsSeenTravelAsAListAndAnswerOnTheAccount(t *testing.T) {
+	registry := &catalogue{out: ownAccount()}
+	recorder := identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", `{"products_seen": ["SERVICE_DESK", "TIME"]}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	got, err := registry.in.StringList("products_seen")
+	if err != nil || strings.Join(got, ",") != "SERVICE_DESK,TIME" {
+		t.Errorf("products_seen = %v (%v), want the two keys", registry.in["products_seen"], err)
+	}
+
+	registry = &catalogue{out: ownAccount()}
+	recorder = identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/"+signedInAccount+"/preferences", `{"products_seen": null}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if cleared, err := registry.in.StringList("products_seen"); err != nil || len(cleared) != 0 {
+		t.Errorf("a null products_seen = %v (%v), want it cleared", registry.in["products_seen"], err)
+	}
+	if _, present := registry.in["products_seen"]; !present {
+		t.Error("a null products_seen was dropped instead of clearing the list")
+	}
+
+	answered := ownAccount()
+	answered["products_seen"] = []string{"TIME"}
+	recorder = identityRequest(t, &catalogue{out: answered}, http.MethodGet, "/accounts/me")
+	var read struct {
+		ProductsSeen []string `json:"products_seen"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &read); err != nil || strings.Join(read.ProductsSeen, ",") != "TIME" {
+		t.Errorf("products_seen = %v (%v), want TIME", read.ProductsSeen, err)
+	}
+}
+
 // `me` is a reserved segment and not a possible identifier - identifiers are UUIDs - so the two
 // routes cannot collide. Asserted rather than assumed, because the day somebody widens the
 // AccountId schema to a plain string is the day this stops being true silently.
