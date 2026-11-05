@@ -491,6 +491,13 @@ func startServer(ctx context.Context, dsn string) (string, string, int, string, 
 	}
 	teardown = append(teardown, func() { _ = os.RemoveAll(home) })
 
+	// S6's source serves https on loopback under a root the server is told to trust, as a
+	// self-hoster's private CA is (HUBTASK_HTTP_CA_FILE, security.md §10).
+	roots, err := mintSourceCertificate(home)
+	if err != nil {
+		return "", "", 0, "", err
+	}
+
 	binary := filepath.Join(home, "hubtask-server")
 	build := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", binary, "./cmd/server")
 	build.Dir = repositoryRoot()
@@ -550,6 +557,7 @@ func startServer(ctx context.Context, dsn string) (string, string, int, string, 
 		// by exact host, for a target this run brought up itself.
 		"HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true",
 		"HUBTASK_HTTP_ALLOWED_HOSTS=127.0.0.1",
+		"HUBTASK_HTTP_CA_FILE="+roots,
 	)
 	server.Env = append(server.Env, shedEnv(os.Getenv(envCapacity) != "")...)
 	// Kept beside the evidence, where one is named, so the run's errors outlive the process.

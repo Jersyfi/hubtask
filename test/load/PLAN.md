@@ -47,13 +47,16 @@ two-minute window ran; a connector's reconciliation (S6) did not, as it is not b
 | S3 | **Sync, initial walk**: one null-cursor walk of the largest workspace to its end (`sync:snapshot`, then `:pull` page by page): pages, bytes, total time, how long it holds its snapshot connection; then the browser's narrowed snapshot of the hubs opened lately (offline-sync.md §1) | that a device joining a large workspace gets its copy without a 5xx or a held connection | yes — `TestS3InitialWalk` (`HUBTASK_LOAD_SYNC=1`) | every page within `HUBTASK_REQUEST_TIMEOUT` (30 s), no 5xx; total time and bytes recorded as the first baseline |
 | S4 | **Sync, stream**: L1 — 64 change streams of eight credentials while 10 writes a second land | that live delivery keeps pace and the writes stay fast | yes — `TestL1LiveUpdatesInOneWorkspace` | no stream refused, writes P95 < 300 ms, no record later than 30 s or missing, NOTIFY queue under half (A-36) |
 | S5 | **Live documents with many writers**: 30 clients on one page's live document across the run's process, each sending an edit once a second and a cursor ten times a second for 2 minutes | that the relay holds its bound and no update is lost | yes — `TestS5LiveDocumentsWithManyWriters` (`HUBTASK_LOAD_DOCUMENTS=1`); the run has one process, whose relay opens no transaction for a cursor (offline-sync.md §13), so the transaction bound is met by construction and the outcomes are what it measures | at most 10 relaying transactions a second per process (offline-sync.md §13), no `too_large` or `failed` in `hubtask_realtime_awareness_relayed_total`, every client's document equal at the end |
-| S6 | **Connector reconciliation**: a scheduled pull from a local fake source (the `NETBOX` kind's two endpoints, served by the test) holding more devices than one run's 50-page bound takes, run twice (the second continues from the kept cursor), then a third with 1 % changed | that a run's pages reconcile and commit one by one without holding a transaction, the cursor is kept, and a changed record changes only its CI | **no** | no 5xx and no `connector.*` failure; each page's transaction under SLO-3's 300 ms at P95; the third run touches only the changed CIs |
+| S6 | **Connector reconciliation**: a scheduled pull from a local fake source (the `NETBOX` kind's two endpoints, served by the test) holding more devices than one run's 50-page bound takes, run twice (the second continues from the kept cursor), then a third with 1 % changed | that a run's pages reconcile and commit one by one without holding a transaction, the cursor is kept, and a changed record changes only its CI | yes - `TestS6ConnectorReconciliation` (`HUBTASK_LOAD_CONNECTOR=1`); on demand through `:run` rather than waiting for the schedule's 15 minutes, as many runs as the walk takes before the change (at least two), each page timed by the interval between its run record and the next | no 5xx and no `connector.*` failure; each page's transaction under SLO-3's 300 ms at P95; the third run touches only the changed CIs |
 | C1 | **The CMDB ceiling**: the largest workspace's hub filled to `MaxCIsPerHub` (20 000 CIs, 19 800 relations), then `cmdb-health`, `software` and `service-map` each held by eight callers paced at 400 a second, 5 s warm-up and 30 s held | what a view that judges a hub's whole inventory costs at the bound, and that the process stays under its memory target | yes — `TestCmdbViewsAtTheHubCeiling`, run by `make capacity` after S1 | no 5xx; peak resident under `GOMEMLIMIT` (768 MiB); each P95 recorded against SLO-2's 200 ms |
 | S7 | **Bundle per route**: the walk of R3 records, per screen, the script and style bytes the browser fetched (gzip as served) and the time until the screen settled | what each product's first visit costs, beyond the first screen's budget (`apps/webapp/build/budget.test.js`, 200 000 gzip bytes) | yes — `walk-<items>.json` beside the capacity run's walk (`HUBTASK_LOAD_WALK=1`) | every screen settles within 30 s with no console error; the bytes per route recorded as the first baseline |
 
 S6's fake source listens on loopback, which the run's server already reaches: the harness opens
 the egress guard by exact host (`HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true`,
-`HUBTASK_HTTP_ALLOWED_HOSTS=127.0.0.1`, `stack_test.go`, for the storm's webhook target).
+`HUBTASK_HTTP_ALLOWED_HOSTS=127.0.0.1`, `stack_test.go`, for the storm's webhook target). A
+connector's address is https only, so the harness mints a root for 127.0.0.1 before the server
+starts and names it in `HUBTASK_HTTP_CA_FILE` (accepted.md, seventh answers, item 14;
+`source_cert_test.go`); the source serves under it.
 
 ### The sizes
 
@@ -151,7 +154,7 @@ gets, so for those the sum is an upper bound.
 | S3 sync initial walk | cap 10 min | cap 20 min | not built |
 | S4 stream, 2-minute window | about 2.5 min | — | derived from the probe: its 60 s window, the streams' opening and the end within 67 s after the setup |
 | S5 live documents, 2-minute window | cap 4 min | — | not built |
-| S6 connector, three runs | cap 5 min | — | not built |
+| S6 connector, three runs | cap 5 min | — | built; its trial at 6 000 devices took 54 s after the setup |
 | Error collection and teardown | under 1 min | under 1 min | the probe's container ended in the second its test passed |
 | **One invocation** | **about 49 min**, 19 of them measured or derived | **about 63 min**, 42.5 of them measured | |
 
@@ -203,10 +206,20 @@ machine's.
    2026-11-05: 30 writers, 570 edits, 5 940 cursors, every document and a fresh opener's equal,
    no edit unsent, no connection closed, 5 971 awareness messages `local`, none `too_large` or
    `failed`; 39 s in all.
-5. S6, the connector run, with its fake source in the test. **Not built**: a connector's address
-   is https only (`cmdb` `Connector`), and the run's server trusts only the platform's roots - on
-   macOS Go ignores `SSL_CERT_FILE` (checked 2026-11-05) - so a source the test serves cannot be
-   reached from the workstation without a setting that adds a trusted root, which is the owner's.
+5. S6, the connector run, with its fake source in the test. Built once the owner's seventh
+   answers (item 14) gave the setting that adds a trusted root (`HUBTASK_HTTP_CA_FILE`,
+   `0601e7780`). Trial on 2026-11-06 at a small dataset (3 workspaces, 3 000 entries; not the
+   10⁶/10⁷ load), 6 000 devices: run 1 33 pages in 25 676 ms, run 2 29 pages in 17 678 ms, run 3
+   after 60 changed 2 pages in 444 ms; no 5xx, every run `OK`. Its first trial found that 50
+   pages outlast the request's 30 s: the deadline cut the run off, its pages stayed written and
+   its cursor did not, and the next run walked them again - fixed (`d0ddb387f`: a run near its
+   deadline stops and keeps its cursor; runs 1 and 2 above are that). Two findings stand, so the
+   scenario fails: a page's interval is 670 ms at P50 and 1 133 ms [1 035–2 336] at P95 over 61
+   pages, over SLO-3's 300; and the third run created 13 CIs (`netbox-1`, `netbox-201`, …) and
+   updated 47 of the 60 changed - the identifier lookup (`FindCmdbIdentifiers`, `LIMIT 5000`)
+   answers every CI sharing the item's manufacturer, an identifier, and the cut drops the item's
+   own native-key and hostname rows, so a CI it already has is created again once a hub holds
+   more than 5 000 CIs of one manufacturer. Open, not fixed in this round.
 6. S7, per-screen bytes and settle time in `scalewalk.mjs`, the walk of all three workspaces
    under one 10-minute deadline. Built; trial with the capacity run at the default dataset,
    2026-11-05: 33 screens, each settled in 939 to 1 255 ms, no browser row; every screen fetched
@@ -239,7 +252,7 @@ P95 with its 95 % band; "largest" is the largest credentialled workspace (170 12
 | S3 | 10⁷ | 2 451 pages in 41 635 ms, 1 225 170 records, 1.2 GB | pages 16/17 [17–17]/18, max 69; both snapshots ended at the 512 MiB budget without the cursor (543 127 records, held about 8 s), by design | not measured | passes |
 | S4 | 10⁶ | 1 200 writes, 76 800 deliveries in 120 s; 1 096 transactions a second | writes 20/60 [58–62]/69; delivery 185/302 [302–302]/314, max 329; none late or missing; NOTIFY queue 0 | not measured | passes |
 | S5 | 10⁶ | 3 570 edits, 35 430 cursors in 120 s; 304 transactions a second | - (it records outcomes, not latencies) | not measured | failed twice, fixed (`b01afe7fc`, `ba349641d`), then passes: documents equal, no edit unsent, no connection closed, 35 461 relayed `local` |
-| S6 | - | - | - | - | **did not run**: not built (item 5 above) |
+| S6 | - | - | - | - | **did not run** in this round: built afterwards (item 5 above), its trial only |
 | S7 | 10⁶, 10⁷ | 33 screens each | settled in 949 to 1 260 (10⁶) and 945 to 1 262 (10⁷) | not measured | passes; every screen fetched the whole precache, 472 files, 2 246 158 script and 198 224 style gzip bytes |
 | C1 | 10⁶ | 34.0, 56.2, 21.8 a second | health 235/248 [247–250]/256, software 142/152 [151–152]/157, service map 365/390 [386–398]/429 | **796 MiB, over** `GOMEMLIMIT` 768 MiB | no 5xx; memory over its bar; health's and the service map's P95 over SLO-2 |
 
