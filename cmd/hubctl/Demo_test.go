@@ -264,7 +264,7 @@ func TestTheShowcasesProjectPlanHasNoUndatedEntry(t *testing.T) {
 	}
 	undated, entries := []string{}, 0
 	for _, w := range s.bodies {
-		if w.path != "/items" || !(inHub[str(w.body["collection_id"])] || inHub[str(w.body["parent_id"])]) {
+		if w.path != "/items" || (!inHub[str(w.body["collection_id"])] && !inHub[str(w.body["parent_id"])]) {
 			continue
 		}
 		inHub[w.id] = true
