@@ -198,6 +198,11 @@ func checkTemplateChildren(
 	if err != nil {
 		return err
 	}
+	// A field the type does not carry is refused when the template is saved, not when it is used:
+	// stamped out later, it would be refused then or lost (UC-WRK-16 check 2).
+	if err := checkTemplateFields(profile, node, path); err != nil {
+		return err
+	}
 
 	for index, child := range node.Children {
 		childPath := path + "/children/" + strconv.Itoa(index)
@@ -215,6 +220,28 @@ func checkTemplateChildren(
 				})
 		}
 		if err := checkTemplateChildren(hierarchy, child, childPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkTemplateFields refuses a value on a node whose type's profile does not carry its capability.
+func checkTemplateFields(profile domain.CapabilityProfile, node domain.TemplateNode, path string) error {
+	carried := []struct {
+		isSet      bool
+		capability domain.Capability
+		field      string
+	}{
+		{node.Notes != "", domain.CapabilityNotes, "/notes"},
+		{node.DueOffset != nil, domain.CapabilityDueDate, "/due_offset"},
+		{!node.AssigneeID.IsZero(), domain.CapabilityAssignment, "/assignee_id"},
+	}
+	for _, each := range carried {
+		if !each.isSet {
+			continue
+		}
+		if err := profile.Require(each.capability, path+each.field); err != nil {
 			return err
 		}
 	}

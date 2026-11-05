@@ -247,7 +247,7 @@ func TestDefiningATemplateWritesTheRowTheChangeAndTheEntry(t *testing.T) {
 }
 
 // The check the definition exists for: a tree the profiles do not permit is refused where it is
-// written, with the path of the node that cannot sit there.
+// written, with the path of the node that cannot sit there (UC-WRK-16 check 2).
 func TestATreeTheProfilesRefuseIsRefusedAtTheDefinition(t *testing.T) {
 	h := newTemplateHarness(t)
 
@@ -263,6 +263,32 @@ func TestATreeTheProfilesRefuseIsRefusedAtTheDefinition(t *testing.T) {
 	}
 	if len(refusal.Fields) != 1 ||
 		refusal.Fields[0].Path != "/nodes/0/children/0/children/0/type" {
+		t.Errorf("the refusal points at %v", refusal.Fields)
+	}
+	if len(h.templates.inserted) != 0 {
+		t.Error("the template was stored despite the refusal")
+	}
+}
+
+// UC-WRK-16 check 2: a field the type does not carry is refused when the template is saved, at the
+// node that carries it - an activity keeps no notes.
+func TestAFieldTheTypeDoesNotCarryIsRefusedAtTheDefinition(t *testing.T) {
+	h := newTemplateHarness(t)
+
+	spec := moveSpec(t)
+	spec.Root.Children[0].Children = []domain.TemplateNode{
+		{Type: domain.ItemActivity, Title: "Ring the removal firm", Notes: "Ask for the big van."},
+	}
+
+	_, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{Spec: spec})
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "items.capability_not_supported" {
+		t.Fatalf("refused as %v, want items.capability_not_supported", err)
+	}
+	if refusal.Params["item_type"] != string(domain.ItemActivity) || refusal.Params["capability"] != string(domain.CapabilityNotes) {
+		t.Errorf("the refusal names %v", refusal.Params)
+	}
+	if len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/nodes/0/children/0/children/0/notes" {
 		t.Errorf("the refusal points at %v", refusal.Fields)
 	}
 	if len(h.templates.inserted) != 0 {
