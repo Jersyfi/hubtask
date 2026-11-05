@@ -500,6 +500,20 @@ func (q *Queries) DeleteMailReceiptsOfAccount(ctx context.Context, accountID pgt
 	return result.RowsAffected(), nil
 }
 
+const deleteMailUndeliverableOfAccount = `-- name: DeleteMailUndeliverableOfAccount :execrows
+DELETE FROM mail_undeliverable WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// The mark of an address the mail server refused holds that address; an anonymised account keeps
+// its row, so the mark does not go by the cascade.
+func (q *Queries) DeleteMailUndeliverableOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMailUndeliverableOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMediaObject = `-- name: DeleteMediaObject :execrows
 DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = $1
 `

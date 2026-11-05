@@ -639,7 +639,8 @@ func (r PrivacyRepository) RevokeCredentials(
 	return int(removed + rows), nil
 }
 
-// DiscardNotifications removes what was sent to them and what was about to be.
+// DiscardNotifications removes what was sent to them and what was about to be, and the mark of an
+// address the mail server refused. The count is of the notifications.
 func (r PrivacyRepository) DiscardNotifications(
 	ctx context.Context, accountID shared.ID,
 ) (int, error) {
@@ -651,6 +652,9 @@ func (r PrivacyRepository) DiscardNotifications(
 	rows, err := queries.DeleteNotificationsOfAccount(ctx, id)
 	if err != nil {
 		return 0, erasureFailed("removing the notifications of an account", err)
+	}
+	if _, err := queries.DeleteMailUndeliverableOfAccount(ctx, id); err != nil {
+		return 0, erasureFailed("removing the undeliverable mark of an account", err)
 	}
 	return int(rows), nil
 }

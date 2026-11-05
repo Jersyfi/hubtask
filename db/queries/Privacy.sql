@@ -369,6 +369,11 @@ DELETE FROM webauthn_credential WHERE account_id = sqlc.arg('account_id');
 -- rendering rather than in the row, but the row says who was told what and when.
 DELETE FROM notification WHERE tenant_id = current_tenant_id() AND recipient_id = sqlc.arg('account_id');
 
+-- name: DeleteMailUndeliverableOfAccount :execrows
+-- The mark of an address the mail server refused holds that address; an anonymised account keeps
+-- its row, so the mark does not go by the cascade.
+DELETE FROM mail_undeliverable WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: DeleteAiDraftsOfAccount :execrows
 -- What AI drafted for the person alone: a suggestion about their own account (a rule drafted from
 -- their sentence). Suggestions about entries stay - they are about the workspace's content, and
