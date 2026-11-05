@@ -287,6 +287,25 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   assert.deepEqual(walk.unstubbed(), []);
 });
 
+// user-experience.md §5.12: on a phone the running timer, a long entry title among it, wraps
+// rather than widening the page.
+test('chromium: time - 390 px, a running timer on a long title scrolls nothing sideways', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const title = 'Als Kundin möchte ich meine offenen Rechnungen im Portal sehen und einzeln herunterladen können';
+  const running = { running: true, entry_id: ENTRY.id, entry_title: title, work_type: 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }), width: 390, height: 844 });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time`);
+  await page.locator('[data-timer="running"]').getByRole('button', { name: `On ${title}` }).waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Stop timer' }).waitFor({ timeout: 5_000 });
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
+  assert.deepEqual(walk.errors(), []);
+});
+
 // user-experience.md §5.10: a rate's days are the reader's dates, never ISO text.
 test('chromium: time - the cost rates name their days in words', async (t) => {
   const browser = await chromium.launch();

@@ -376,8 +376,11 @@
     }}
   >
     {#snippet figure()}{#if current === 'week' && figureText}<span class="figure" data-time-figure>{figureText}</span>{/if}{/snippet}
-    {#snippet aside()}<RunningTimer {onnavigate} />{/snippet}
+    {#snippet aside()}{#if !viewport.isCompact}<RunningTimer {onnavigate} />{/if}{/snippet}
   </PageHeader>
+  <!-- On a phone the header's actions keep their one line, so the timer - an entry's whole title
+       among it - stands under the header, where it wraps (user-experience.md §5.12). -->
+  {#if viewport.isCompact}<div class="timer-line"><RunningTimer {onnavigate} /></div>{/if}
 
   <PlaceTabs label={t('app.time.title')} {tabs} {current} onnavigate={select} />
 
@@ -648,6 +651,7 @@
   .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+  .timer-line { min-inline-size: 0; overflow-wrap: anywhere; }
   .note { display: inline-flex; align-items: center; gap: var(--sp-025); margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .strong { font-weight: var(--fw-medium); }
