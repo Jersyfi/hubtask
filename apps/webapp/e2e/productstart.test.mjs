@@ -222,6 +222,70 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
   assert.deepEqual(failures, []);
 });
 
+// §5.2: a create dialog names where it makes the object as its *In:* chip, one press to change -
+// among the hubs where the product is on and the reader may write, never one where it is off.
+test('chromium: the create dialog makes the page in the hub its place chip names', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const HUB = '01a0e2e0-0000-7000-8000-0000000004f1';
+  const IT = '01a0e2e0-0000-7000-8000-0000000004f2';
+  const OFF = '01a0e2e0-0000-7000-8000-0000000004f3';
+  const hubOf = (id, name, key) => ({ id, type: 'HUB', parent_id: null, name, order_key: key, version: 1, structure: DEFAULT_STRUCTURE });
+  const hubs = [hubOf(HUB, 'Allgemein', 'a1'), hubOf(IT, 'IT-Service-Desk', 'a2'), hubOf(OFF, 'Vertrieb', 'a3')];
+  const on = ['WORKFLOWS', 'KNOWLEDGE'];
+  const made = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    const method = route.request().method();
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: on } });
+    if (path === `/containers/${OFF}/modules`) return route.fulfill({ json: { modules_on: ['WORKFLOWS'] } });
+    if (/^\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: on } });
+    if (path === '/sync:snapshot') {
+      const records = hubs.map((hub) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: hub.id, container_id: null, payload: hub }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
+    }
+    if (path === '/containers' && method === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? hubs : [] } });
+    const pagesAt = /^\/hubs\/([^/]+)\/pages$/.exec(path);
+    if (pagesAt && method === 'POST') {
+      made.push(pagesAt[1]);
+      return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000004f9', hub_id: pagesAt[1], title: 'Runbook', parent_id: null } });
+    }
+    if (pagesAt) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
+      const scope = url.searchParams.get('scope_id');
+      return route.fulfill({ json: { ...PAGE, data: [{ id: `m-${scope}`, scope_type: 'HUB', scope_id: scope, account_id: ACCOUNT.id, role: 'OWNER' }], grantable_roles: [] } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/hubs/${HUB}/pages?new=1`);
+  const dialog = page.getByRole('dialog', { name: 'New page' });
+  await dialog.waitFor({ timeout: 15_000 });
+  const chip = dialog.locator('[data-chip="place"]');
+  await chip.filter({ hasText: 'Allgemein' }).waitFor({ timeout: 10_000 });
+  await chip.click();
+  const choices = page.getByRole('menuitem');
+  await choices.first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(await choices.allInnerTexts(), ['Allgemein', 'IT-Service-Desk'], 'the chip offers a hub where pages are off');
+  await page.getByRole('menuitem', { name: 'IT-Service-Desk' }).click();
+  await chip.filter({ hasText: 'IT-Service-Desk' }).waitFor({ timeout: 10_000 });
+  await dialog.getByLabel('Title').fill('Runbook');
+  await dialog.getByRole('button', { name: 'Write the page', exact: true }).click();
+  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 10_000 });
+  assert.deepEqual(made, [IT], 'the page was not made in the hub the chip names');
+  assert.deepEqual(failures, []);
+});
+
 // §5.2: a hub takes its part once the workspace took the template's own. Whoever may change the
 // workspace is shown the workspace's part first in the same dialog, then the hub's - no refusal.
 test('chromium: a template the workspace has not taken is planned for the workspace first, then for the hub', async (t) => {

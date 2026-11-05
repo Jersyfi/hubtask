@@ -48,6 +48,8 @@
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import PlaceChip from '../lib/product/PlaceChip.svelte';
+  import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
     /** The hub whose space is drawn; absent when a page's address names only the page. */
@@ -161,12 +163,17 @@
   let draftParent = $state<string | undefined>(undefined);
   let draftTemplate = $state('');
   let draftWithSubpages = $state(true);
+  // A top-level page may be made in another hub where pages are on (§5.2); a child stays under its parent.
+  let draftHub = $state('');
+  const placesToMake = createPlaces('KNOWLEDGE', 'HUB', () => isCreating && !draftParent);
+  const isElsewhere = $derived(draftHub !== '' && draftHub !== hubId);
   const draftOwnTemplate = $derived(draftTemplate.startsWith('own:') ? draftTemplate.slice(4) : undefined);
   const draftOffersSubpages = $derived(draftOwnTemplate !== undefined && hasSubpages(rows, draftOwnTemplate));
 
   function startCreate(parent?: string) {
     draftTitle = '';
     draftParent = parent;
+    draftHub = hubId;
     draftTemplate = '';
     draftWithSubpages = true;
     isCreating = true;
@@ -186,7 +193,7 @@
     const own = draftOwnTemplate;
     const subpages = space?.subpages;
     const made = await act(() =>
-      pages.create(hubId, {
+      pages.create(isElsewhere ? draftHub : hubId, {
         title: title || shipped?.title || t('app.pages.untitled'),
         ...(draftParent ? { parent_id: draftParent } : {}),
         ...(shipped ? { body: shipped.body } : {}),
@@ -483,7 +490,8 @@
 
   const templateOptions = $derived([
     { value: '', label: t('app.pages.template_none') },
-    ...templateRows.map((row) => ({ value: `own:${row.id}`, label: row.title })),
+    // A hub's own templates are its pages: offered only for a page made in that hub.
+    ...(isElsewhere ? [] : templateRows.map((row) => ({ value: `own:${row.id}`, label: row.title }))),
     ...SHIPPED_TEMPLATES.map((key) => ({ value: `shipped:${key}`, label: t(`app.pages.template.${key}.title`) })),
   ]);
   const templateGroups = $derived([
@@ -922,6 +930,12 @@
       <Select label={t('app.pages.start_from')} options={templateOptions} groups={templateGroups} bind:value={draftTemplate} />
       {#if draftOffersSubpages}
         <Switch label={t('app.pages.with_subpages')} bind:checked={draftWithSubpages} />
+      {/if}
+      {#if !draftParent}
+        <PlaceChip current={draftHub} fallback={hub?.name} places={placesToMake.list} onchoose={(id) => {
+          draftHub = id;
+          if (draftTemplate.startsWith('own:') && id !== hubId) draftTemplate = '';
+        }} />
       {/if}
     </Stack>
     {#snippet actions()}

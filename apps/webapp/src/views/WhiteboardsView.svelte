@@ -35,6 +35,8 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import BoardTemplates, { startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import PlaceChip from '../lib/product/PlaceChip.svelte';
+  import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
     /** The hub whose boards are listed; absent when a board's address names only the board. */
@@ -88,6 +90,9 @@
 
   let isCreating = $state(false);
   let titleDraft = $state('');
+  /** Where the board is made (§5.2): this hub, or another where whiteboards are on. */
+  let draftHub = $state('');
+  const placesToMake = createPlaces('WHITEBOARD', 'HUB', () => isCreating);
   let start = $state<BoardStart>('BLANK');
   let format = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
   let imported = $state<ReturnType<typeof readNative>>(undefined);
@@ -109,6 +114,7 @@
     start = choice;
     titleDraft = suggested(choice);
     lastSuggested = titleDraft;
+    draftHub = hubId;
     isCreating = true;
   }
 
@@ -131,13 +137,14 @@
 
   async function create() {
     const title = titleDraft.trim();
-    if (!title || !hubId || isMaking) return;
+    const at = draftHub || hubId;
+    if (!title || !at || isMaking) return;
     createFailure = undefined;
     const name = templateOf(start, format);
     const elements = imported?.elements ?? (name ? startElements(name, (key) => t(`app.whiteboards.word_${key}`), elementId) : undefined);
     isMaking = true;
     try {
-      const made = await whiteboards.create(hubId, { title, ...(elements && elements.length > 0 ? { elements: elements as never } : {}) });
+      const made = await whiteboards.create(at, { title, ...(elements && elements.length > 0 ? { elements: elements as never } : {}) });
       // An export's pictures and files are placed on the new board, or its readers read none.
       const failed = imported ? await placeCarried(imported.elements, (id) => whiteboards.placeMedia(made.id, id)) : [];
       if (failed.length > 0) toast.show({ text: t('app.whiteboards.carried_unplaced', { count: String(failed.length) }), tone: 'warning' });
@@ -280,7 +287,7 @@
       {:else}
         <BoardTemplates bind:chosen={start} bind:format />
       {/if}
-      {#if hub}<p class="meta" data-board-place>{t('app.whiteboards.made_in', { place: hub.name })}</p>{/if}
+      <PlaceChip current={draftHub} fallback={hub?.name} places={placesToMake.list} onchoose={(id) => (draftHub = id)} />
       <Disclosure label={t('app.whiteboards.import_fold')} description={t('app.whiteboards.import_fold_hint')} tone="quiet" bind:isOpen={isImportOpen}>
         <UploadField
           label={t('app.whiteboards.import')}
@@ -324,5 +331,4 @@
   }
   .start { display: grid; gap: var(--sp-200); }
   .boards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
-  .meta { color: var(--text-secondary); font-size: var(--fs-075); margin: 0; }
 </style>
