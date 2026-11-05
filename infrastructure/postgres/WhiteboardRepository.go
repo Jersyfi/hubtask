@@ -182,8 +182,7 @@ func (WhiteboardRepository) Update(ctx context.Context, board whiteboard.Board, 
 	}
 	rows, err := queries.UpdateWhiteboard(ctx, sqlc.UpdateWhiteboardParams{
 		Title: board.Title, Scene: scene, DeletedAt: optionalTimestamp(board.DeletedAt), UpdatedBy: ids[1],
-		DeletedByType: optionalText(string(board.DeletedByKind)),
-		UpdatedAt: timestampOf(board.UpdatedAt), ID: ids[0],
+		UpdatedAt: timestampOf(board.UpdatedAt), ID: ids[0], DeletedByType: optionalText(string(board.DeletedByKind)),
 		ExpectedVersion: int32(expected), //nolint:gosec // a row's version
 	})
 	if err != nil {
