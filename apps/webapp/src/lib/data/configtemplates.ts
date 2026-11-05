@@ -107,6 +107,27 @@ export function modulesToSwitchOn(refusals: readonly Refused[]): string[] {
   return [...new Set(refusals.map((each) => each.params?.module ?? ''))];
 }
 
+/**
+ * Whether a place's plan was refused because the workspace has to take the template first: the
+ * server says so as a field of `config.refused`, not as the problem's own code.
+ */
+export function asksWorkspaceFirst(error: {
+  readonly detailCode?: string;
+  readonly fieldErrors?: readonly { readonly path?: string; readonly code?: string }[];
+}): boolean {
+  const code = 'config.template_workspace_first';
+  return error.detailCode === code || (error.fieldErrors ?? []).some((each) => each.code === code);
+}
+
+/**
+ * Whether a place's template opens on the workspace part's plan (user-experience.md §5.2): the
+ * list says the workspace has not taken it, and the reader may change the workspace - so the
+ * refusal never comes after choosing.
+ */
+export function startsWithWorkspace(template: { readonly workspace_first?: boolean | null }, place: string | undefined, mayChangeWorkspace: boolean): boolean {
+  return place !== undefined && mayChangeWorkspace && template.workspace_first === true;
+}
+
 /** A change of a plan in words: what it does to which part, as code and parameters. */
 export function changeWords(change: Changed): { code: string; section: string; key: string; module?: string } {
   const code = `app.templates.change_${change.op.toLowerCase()}`;

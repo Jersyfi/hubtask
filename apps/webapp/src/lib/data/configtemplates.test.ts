@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SECTIONS, answersOf, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from './configtemplates.ts';
+import { SECTIONS, answersOf, asksWorkspaceFirst, startsWithWorkspace, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from './configtemplates.ts';
 
 test('the gallery draws the four origins in order and leaves an empty one out', () => {
   const groups = byOrigin([
@@ -107,4 +107,18 @@ test('a plan is said in words, refusals first, without its path or its JSON', as
   assert.match(lines[1]!.text, /Incident/);
   assert.match(lines[2]!.text, /app\.modules\.name_pages/);
   for (const line of lines) assert.doesNotMatch(line.text, /\/roles\/|[{}"]/);
+});
+
+// user-experience.md §5.2: a place's template the workspace has not taken is planned for the
+// workspace first - known from the list before choosing, and from the refusal's field as the
+// server answers it (`config.refused` naming `config.template_workspace_first`).
+test('a place takes the workspace part first where the workspace has not taken it', () => {
+  const refused = { detailCode: 'config.refused', fieldErrors: [{ path: '/key', code: 'config.template_workspace_first' }] };
+  assert.equal(asksWorkspaceFirst(refused), true);
+  assert.equal(asksWorkspaceFirst({ detailCode: 'config.template_workspace_first', fieldErrors: [] }), true);
+  assert.equal(asksWorkspaceFirst({ detailCode: 'config.refused', fieldErrors: [{ path: '/types', code: 'module.off' }] }), false);
+  assert.equal(startsWithWorkspace({ workspace_first: true }, 'hub', true), true);
+  assert.equal(startsWithWorkspace({ workspace_first: true }, undefined, true), false);
+  assert.equal(startsWithWorkspace({ workspace_first: true }, 'hub', false), false);
+  assert.equal(startsWithWorkspace({ workspace_first: false }, 'hub', true), false);
 });

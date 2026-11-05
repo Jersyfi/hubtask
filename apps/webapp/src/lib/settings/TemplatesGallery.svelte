@@ -20,7 +20,7 @@
   import { holds, holdsHere } from '../data/capability.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { people } from '../data/people.svelte.ts';
-  import { answersOf, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, takenFirst } from '../data/configtemplates.ts';
+  import { answersOf, asksWorkspaceFirst, byOrigin, changeWords, galleryScope, modulesToSwitchOn, offerOf, offersSamples, refusalWords, startsWithWorkspace, takenFirst } from '../data/configtemplates.ts';
   import { modules } from '../data/modules.svelte.ts';
   import { groups as workspaceGroups } from '../data/groups.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -139,16 +139,18 @@
     withSamples = false;
     acknowledged = false;
     dialogFailure = undefined;
-    isWorkspaceFirst = false;
+    // A hub or a collection takes its part once the workspace took the template's own. Whoever
+    // may change the workspace is shown that part's plan first, in the same dialog, rather than
+    // a refusal (user-experience.md §5.2); anybody else reads why.
+    const mayChangeWorkspace = holdsHere('STRUCTURE') === true;
+    isWorkspaceFirst = startsWithWorkspace(template, hubId ?? collectionId, mayChangeWorkspace);
     try {
-      plan = await config.planTemplate(template.key, undefined, hubId, answersOf(template.questions, answers), false, collectionId);
+      plan = await config.planTemplate(template.key, undefined, isWorkspaceFirst ? undefined : hubId, answersOf(template.questions, answers), false, isWorkspaceFirst ? undefined : collectionId);
       take = takenFirst(plan.upgrade);
       isOpen = true;
     } catch (error) {
-      // A hub or a collection takes its part once the workspace took the template's own. Whoever
-      // may change the workspace is shown that part's plan first, in the same dialog, rather than
-      // a refusal (user-experience.md §5.2); anybody else reads why.
-      if ((hubId || collectionId) && (error as TransportError).detailCode === 'config.template_workspace_first' && holdsHere('STRUCTURE') === true) {
+      // The list was read before the workspace's part moved: the refusal says so instead.
+      if (!isWorkspaceFirst && (hubId || collectionId) && asksWorkspaceFirst(error as TransportError) && mayChangeWorkspace) {
         try {
           plan = await config.planTemplate(template.key, undefined, undefined, answersOf(template.questions, answers), false);
           take = takenFirst(plan.upgrade);
