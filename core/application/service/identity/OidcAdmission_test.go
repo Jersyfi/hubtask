@@ -105,6 +105,16 @@ func TestTheAdmissionLadderIsWhoComesIn(t *testing.T) {
 			if got == refused && len(f.external.links) != 0 {
 				t.Errorf("a refused arrival still linked %v", f.external.links)
 			}
+			// UC-ID-09 check 3: under invitation only, a verified person with no account here is
+			// told they were not invited, and no account is created.
+			if got == refused && tc.mode == domain.ProvisionInvitedOnly && tc.arrival.verified {
+				if code := shared.AsError(err).DetailCode; code != "identity_provider.not_invited" {
+					t.Errorf("%s was refused as %q, want identity_provider.not_invited", tc.arrival.name, code)
+				}
+				if len(f.accounts.byID) != before {
+					t.Errorf("a refused arrival left %d accounts, want %d", len(f.accounts.byID), before)
+				}
+			}
 		})
 	}
 }

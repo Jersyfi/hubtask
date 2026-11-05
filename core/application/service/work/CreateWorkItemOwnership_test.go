@@ -15,7 +15,7 @@ import (
 // to it may create, and what it creates is its own. Without that, the entry would be out of its
 // creator's reach the moment it existed.
 
-// UC-WRK-10 check 6, with the refusals below.
+// UC-WRK-10 check 6 and UC-ID-15 check 3, with the refusals below.
 func TestCreatingOnBehalfOfARoleThatWritesOnlyItsOwn(t *testing.T) {
 	h := newItemHarness()
 	h.withAssignment()

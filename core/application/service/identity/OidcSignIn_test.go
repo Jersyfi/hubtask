@@ -391,6 +391,7 @@ func TestASecondArrivalFindsTheSameAccount(t *testing.T) {
 // address inside the configured domains - and it is recorded, because it is the event a review
 // looks for. The account here holds no credential, so the provider has to be authoritative for the
 // address as well (ADR-0078 §5, OidcCredentialless_test.go).
+// UC-ID-09 check 2: signed in, linked, and the link in the trail.
 func TestAVerifiedAddressInsideTheDomainsLinksAndIsRecorded(t *testing.T) {
 	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	existing := domain.Account{

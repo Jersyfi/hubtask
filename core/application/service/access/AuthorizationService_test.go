@@ -228,7 +228,7 @@ func TestARefusalIsRecorded(t *testing.T) {
 }
 
 // The token scope is the second bound: the role may allow it and the credential still may not
-// (ADR-0005). It is checked first, because it needs no database at all.
+// (ADR-0005, UC-ID-17 check 2). It is checked first, because it needs no database at all.
 func TestTheTokenScopeIsCheckedBeforeTheRole(t *testing.T) {
 	authorize, store, trail, _ := serviceWith([]identity.Membership{
 		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleOwner},

@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D6]
 serves: [P-01, P-05]
 state: built
 tasks: [B-02]
-checked_by: [core/domain/service/Authorization_test.go, apps/webapp/e2e/invitescope.test.mjs]
+checked_by: [core/domain/service/Authorization_test.go, apps/webapp/e2e/invitescope.test.mjs, test/security/authorization_test.go, core/domain/service/ItemAccess_test.go, core/application/service/work/CreateWorkItemOwnership_test.go]
 ---
 
 # Let a person see only part of the workspace
