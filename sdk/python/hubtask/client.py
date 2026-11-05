@@ -1624,7 +1624,7 @@ class Client:
         return self._call("POST", "/accounts:resolve", {}, None, {}, body, "json", "application/json", "json")
 
     def read_invitation_deliveries(self, body: dict[str, Any]) -> dict[str, Any]:
-        """How the last invitation mail to each of many accounts went"""
+        """How the last mail to each of many accounts went"""
         return self._call("POST", "/accounts:invitation-deliveries", {}, None, {}, body, "json", "application/json", "json")
 
     def get_account(self, account_id: str) -> "AccountSummary":

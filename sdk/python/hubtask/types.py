@@ -4946,6 +4946,7 @@ class InvitationDelivery(TypedDict, total=False):
     at: Required[str]
     code: Required[str | None]
     params: dict[str, Any]
+    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA"]
 
 class ErasurePreview(TypedDict, total=False):
     mode: Required["ErasureMode"]

@@ -16607,8 +16607,8 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-list": "data",
         "x-hubtask-rest-answer": "invitationDeliveryResponse",
-        "summary": "How the last invitation mail to each of many accounts went",
-        "description": "For the people list's rows: for up to 200 accounts, the last invitation mail this\nworkspace queued for each - queued, being sent, sent, failed with its code, or cancelled -\nand when. An account with no invitation mail on record (none queued, an installation that\nhands invitations over as links, or one finished long enough ago to be cleared from the\nqueue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.\n",
+        "summary": "How the last mail to each of many accounts went",
+        "description": "For the people list's rows: for up to 200 accounts, the last mail this workspace queued\nfor each - an invitation, or any other mail it tells a person by (`category`) - queued,\nbeing sent, sent, failed with its code, or cancelled, and when. The newer of the last\ninvitation and the last other mail is answered. An account with no mail on record (none\nqueued, an installation that hands invitations over as links, or one finished long enough\nago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation\ndoes.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -61951,6 +61951,22 @@
               "type": "string"
             },
             "description": "The failure's parameters, beside its code."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "ASSIGNMENT",
+              "MEMBERSHIP",
+              "COMMENT",
+              "INVITATION",
+              "REMINDER",
+              "INTEGRATION",
+              "RETENTION",
+              "EMERGENCY_ACCESS",
+              "REQUEST_REPLY",
+              "SLA"
+            ],
+            "description": "What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.\n"
           }
         }
       },

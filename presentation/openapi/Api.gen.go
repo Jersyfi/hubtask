@@ -5692,6 +5692,48 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 	}
 }
 
+// Defines values for InvitationDeliveryCategory.
+const (
+	InvitationDeliveryCategoryASSIGNMENT      InvitationDeliveryCategory = "ASSIGNMENT"
+	InvitationDeliveryCategoryCOMMENT         InvitationDeliveryCategory = "COMMENT"
+	InvitationDeliveryCategoryEMERGENCYACCESS InvitationDeliveryCategory = "EMERGENCY_ACCESS"
+	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
+	InvitationDeliveryCategoryINVITATION      InvitationDeliveryCategory = "INVITATION"
+	InvitationDeliveryCategoryMEMBERSHIP      InvitationDeliveryCategory = "MEMBERSHIP"
+	InvitationDeliveryCategoryREMINDER        InvitationDeliveryCategory = "REMINDER"
+	InvitationDeliveryCategoryREQUESTREPLY    InvitationDeliveryCategory = "REQUEST_REPLY"
+	InvitationDeliveryCategoryRETENTION       InvitationDeliveryCategory = "RETENTION"
+	InvitationDeliveryCategorySLA             InvitationDeliveryCategory = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the InvitationDeliveryCategory enum.
+func (e InvitationDeliveryCategory) Valid() bool {
+	switch e {
+	case InvitationDeliveryCategoryASSIGNMENT:
+		return true
+	case InvitationDeliveryCategoryCOMMENT:
+		return true
+	case InvitationDeliveryCategoryEMERGENCYACCESS:
+		return true
+	case InvitationDeliveryCategoryINTEGRATION:
+		return true
+	case InvitationDeliveryCategoryINVITATION:
+		return true
+	case InvitationDeliveryCategoryMEMBERSHIP:
+		return true
+	case InvitationDeliveryCategoryREMINDER:
+		return true
+	case InvitationDeliveryCategoryREQUESTREPLY:
+		return true
+	case InvitationDeliveryCategoryRETENTION:
+		return true
+	case InvitationDeliveryCategorySLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitationDeliveryState.
 const (
 	InvitationDeliveryStateCANCELLED InvitationDeliveryState = "CANCELLED"
@@ -17957,6 +17999,9 @@ type InvitationDelivery struct {
 	// At When it was sent or ended, or - while it waits - when it was queued or prepared.
 	At time.Time `json:"at"`
 
+	// Category What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.
+	Category *InvitationDeliveryCategory `json:"category,omitempty"`
+
 	// Code The message code of the last failure, where an attempt failed.
 	Code *string `json:"code"`
 
@@ -17966,6 +18011,9 @@ type InvitationDelivery struct {
 	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 	State InvitationDeliveryState `json:"state"`
 }
+
+// InvitationDeliveryCategory What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.
+type InvitationDeliveryCategory string
 
 // InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 type InvitationDeliveryState string
@@ -30728,7 +30776,7 @@ type ServerInterface interface {
 	// CreateManagedAccount Give somebody an account without a mail address
 	// (POST /accounts:create-managed)
 	CreateManagedAccount(w http.ResponseWriter, r *http.Request, params CreateManagedAccountParams)
-	// ReadInvitationDeliveries How the last invitation mail to each of many accounts went
+	// ReadInvitationDeliveries How the last mail to each of many accounts went
 	// (POST /accounts:invitation-deliveries)
 	ReadInvitationDeliveries(w http.ResponseWriter, r *http.Request)
 	// InviteAccount Invite a person into this workspace

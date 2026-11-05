@@ -5698,6 +5698,48 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 	}
 }
 
+// Defines values for InvitationDeliveryCategory.
+const (
+	InvitationDeliveryCategoryASSIGNMENT      InvitationDeliveryCategory = "ASSIGNMENT"
+	InvitationDeliveryCategoryCOMMENT         InvitationDeliveryCategory = "COMMENT"
+	InvitationDeliveryCategoryEMERGENCYACCESS InvitationDeliveryCategory = "EMERGENCY_ACCESS"
+	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
+	InvitationDeliveryCategoryINVITATION      InvitationDeliveryCategory = "INVITATION"
+	InvitationDeliveryCategoryMEMBERSHIP      InvitationDeliveryCategory = "MEMBERSHIP"
+	InvitationDeliveryCategoryREMINDER        InvitationDeliveryCategory = "REMINDER"
+	InvitationDeliveryCategoryREQUESTREPLY    InvitationDeliveryCategory = "REQUEST_REPLY"
+	InvitationDeliveryCategoryRETENTION       InvitationDeliveryCategory = "RETENTION"
+	InvitationDeliveryCategorySLA             InvitationDeliveryCategory = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the InvitationDeliveryCategory enum.
+func (e InvitationDeliveryCategory) Valid() bool {
+	switch e {
+	case InvitationDeliveryCategoryASSIGNMENT:
+		return true
+	case InvitationDeliveryCategoryCOMMENT:
+		return true
+	case InvitationDeliveryCategoryEMERGENCYACCESS:
+		return true
+	case InvitationDeliveryCategoryINTEGRATION:
+		return true
+	case InvitationDeliveryCategoryINVITATION:
+		return true
+	case InvitationDeliveryCategoryMEMBERSHIP:
+		return true
+	case InvitationDeliveryCategoryREMINDER:
+		return true
+	case InvitationDeliveryCategoryREQUESTREPLY:
+		return true
+	case InvitationDeliveryCategoryRETENTION:
+		return true
+	case InvitationDeliveryCategorySLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InvitationDeliveryState.
 const (
 	InvitationDeliveryStateCANCELLED InvitationDeliveryState = "CANCELLED"
@@ -17963,6 +18005,9 @@ type InvitationDelivery struct {
 	// At When it was sent or ended, or - while it waits - when it was queued or prepared.
 	At time.Time `json:"at"`
 
+	// Category What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.
+	Category *InvitationDeliveryCategory `json:"category,omitempty"`
+
 	// Code The message code of the last failure, where an attempt failed.
 	Code *string `json:"code"`
 
@@ -17972,6 +18017,9 @@ type InvitationDelivery struct {
 	// State QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 	State InvitationDeliveryState `json:"state"`
 }
+
+// InvitationDeliveryCategory What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.
+type InvitationDeliveryCategory string
 
 // InvitationDeliveryState QUEUED waits to be sent, or to be tried again after a failure `code` names; SENDING is being prepared; SENT went to the mail server; FAILED was given up on or not sent at all (no address, no mail server - `code` says which); CANCELLED was withdrawn, as when the invitation was handed over by link instead. What the mail itself did, not only that it was queued.
 type InvitationDeliveryState string
@@ -31394,26 +31442,30 @@ type ClientInterface interface {
 	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
 	CreateManagedAccount(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadInvitationDeliveriesWithBody How the last invitation mail to each of many accounts went
+	// ReadInvitationDeliveriesWithBody How the last mail to each of many accounts went
 	//
-	// For the people list's rows: for up to 200 accounts, the last invitation mail this
-	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-	// and when. An account with no invitation mail on record (none queued, an installation that
-	// hands invitations over as links, or one finished long enough ago to be cleared from the
-	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+	// invitation and the last other mail is answered. An account with no mail on record (none
+	// queued, an installation that hands invitations over as links, or one finished long enough
+	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+	// does.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
 	ReadInvitationDeliveriesWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadInvitationDeliveries How the last invitation mail to each of many accounts went
+	// ReadInvitationDeliveries How the last mail to each of many accounts went
 	//
-	// For the people list's rows: for up to 200 accounts, the last invitation mail this
-	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-	// and when. An account with no invitation mail on record (none queued, an installation that
-	// hands invitations over as links, or one finished long enough ago to be cleared from the
-	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+	// invitation and the last other mail is answered. An account with no mail on record (none
+	// queued, an installation that hands invitations over as links, or one finished long enough
+	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+	// does.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -42890,13 +42942,15 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 	return c.Client.Do(req)
 }
 
-// ReadInvitationDeliveriesWithBody How the last invitation mail to each of many accounts went
+// ReadInvitationDeliveriesWithBody How the last mail to each of many accounts went
 //
-// For the people list's rows: for up to 200 accounts, the last invitation mail this
-// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-// and when. An account with no invitation mail on record (none queued, an installation that
-// hands invitations over as links, or one finished long enough ago to be cleared from the
-// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+// invitation and the last other mail is answered. An account with no mail on record (none
+// queued, an installation that hands invitations over as links, or one finished long enough
+// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+// does.
 //
 // Takes any type of body and a specified content type.
 //
@@ -42913,13 +42967,15 @@ func (c *Client) ReadInvitationDeliveriesWithBody(ctx context.Context, contentTy
 	return c.Client.Do(req)
 }
 
-// ReadInvitationDeliveries How the last invitation mail to each of many accounts went
+// ReadInvitationDeliveries How the last mail to each of many accounts went
 //
-// For the people list's rows: for up to 200 accounts, the last invitation mail this
-// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-// and when. An account with no invitation mail on record (none queued, an installation that
-// hands invitations over as links, or one finished long enough ago to be cleared from the
-// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+// invitation and the last other mail is answered. An account with no mail on record (none
+// queued, an installation that hands invitations over as links, or one finished long enough
+// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+// does.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -105187,26 +105243,30 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts:create-managed (the `CreateManagedAccount` operationId).
 	CreateManagedAccountWithResponse(ctx context.Context, params *CreateManagedAccountParams, body CreateManagedAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateManagedAccountResult, error)
 
-	// ReadInvitationDeliveriesWithBodyWithResponse How the last invitation mail to each of many accounts went
+	// ReadInvitationDeliveriesWithBodyWithResponse How the last mail to each of many accounts went
 	//
-	// For the people list's rows: for up to 200 accounts, the last invitation mail this
-	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-	// and when. An account with no invitation mail on record (none queued, an installation that
-	// hands invitations over as links, or one finished long enough ago to be cleared from the
-	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+	// invitation and the last other mail is answered. An account with no mail on record (none
+	// queued, an installation that hands invitations over as links, or one finished long enough
+	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+	// does.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /accounts:invitation-deliveries (the `ReadInvitationDeliveries` operationId).
 	ReadInvitationDeliveriesWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadInvitationDeliveriesResult, error)
 
-	// ReadInvitationDeliveriesWithResponse How the last invitation mail to each of many accounts went
+	// ReadInvitationDeliveriesWithResponse How the last mail to each of many accounts went
 	//
-	// For the people list's rows: for up to 200 accounts, the last invitation mail this
-	// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-	// and when. An account with no invitation mail on record (none queued, an installation that
-	// hands invitations over as links, or one finished long enough ago to be cleared from the
-	// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+	// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+	// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+	// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+	// invitation and the last other mail is answered. An account with no mail on record (none
+	// queued, an installation that hands invitations over as links, or one finished long enough
+	// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+	// does.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -157951,13 +158011,15 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 	return ParseCreateManagedAccountResult(rsp)
 }
 
-// ReadInvitationDeliveriesWithBodyWithResponse How the last invitation mail to each of many accounts went
+// ReadInvitationDeliveriesWithBodyWithResponse How the last mail to each of many accounts went
 //
-// For the people list's rows: for up to 200 accounts, the last invitation mail this
-// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-// and when. An account with no invitation mail on record (none queued, an installation that
-// hands invitations over as links, or one finished long enough ago to be cleared from the
-// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+// invitation and the last other mail is answered. An account with no mail on record (none
+// queued, an installation that hands invitations over as links, or one finished long enough
+// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+// does.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -157970,13 +158032,15 @@ func (c *ClientWithResponses) ReadInvitationDeliveriesWithBodyWithResponse(ctx c
 	return ParseReadInvitationDeliveriesResult(rsp)
 }
 
-// ReadInvitationDeliveriesWithResponse How the last invitation mail to each of many accounts went
+// ReadInvitationDeliveriesWithResponse How the last mail to each of many accounts went
 //
-// For the people list's rows: for up to 200 accounts, the last invitation mail this
-// workspace queued for each - queued, being sent, sent, failed with its code, or cancelled -
-// and when. An account with no invitation mail on record (none queued, an installation that
-// hands invitations over as links, or one finished long enough ago to be cleared from the
-// queue) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation does.
+// For the people list's rows: for up to 200 accounts, the last mail this workspace queued
+// for each - an invitation, or any other mail it tells a person by (`category`) - queued,
+// being sent, sent, failed with its code, or cancelled, and when. The newer of the last
+// invitation and the last other mail is answered. An account with no mail on record (none
+// queued, an installation that hands invitations over as links, or one finished long enough
+// ago to be cleared) is left out. Asks `MANAGE_MEMBERS` at the workspace, as an invitation
+// does.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

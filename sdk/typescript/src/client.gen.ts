@@ -2025,7 +2025,7 @@ export class HubtaskClient {
     return this.call("POST", "/accounts:resolve", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** How the last invitation mail to each of many accounts went */
+  /** How the last mail to each of many accounts went */
   readInvitationDeliveries(body: NonNullable<operations["readInvitationDeliveries"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["readInvitationDeliveries"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/accounts:invitation-deliveries", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
