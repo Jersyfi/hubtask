@@ -444,6 +444,22 @@ groups:
             watching worker has the connections to spare.
           runbook: RB-A38-mailbox-watch-full.md
 
+      # A-38, too: a shard of the mailbox watch no worker leads - the workers are fewer than
+      # HUBTASK_MAILBOX_WATCH_SHARDS over HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER allow - leaves
+      # its workspaces' mailboxes to the minute's read, and no leader is there to count them.
+      - alert: HubtaskMailboxWatchShardUnled
+        expr: max(hubtask_mailbox_watch_shards) - sum(hubtask_mailbox_watch_shards_led) > 0
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-38
+        annotations:
+          summary: "{{ $value }} shards of the mailbox watch have no worker"
+          description: >
+            No worker leads these shards, so their workspaces' connected mailboxes are read only
+            every minute. Start more workers or raise HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER.
+          runbook: RB-A38-mailbox-watch-full.md
+
       # A-39. An initial synchronisation skipped a kind whose read failed: the walk went on
       # without it, so devices start with everything else, and a later pull walks the kind again.
       # Those devices lack that kind until its read is mended; a ticket, for the defect or the row.

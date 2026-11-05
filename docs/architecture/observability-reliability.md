@@ -450,19 +450,24 @@ in PostgreSQL, and nothing else is required to run it.
 * **The scheduler** runs in exactly one active process: the `scheduler` role elects a leader with
   `pg_try_advisory_lock`, acts every `HUBTASK_SCHEDULER_TICK_INTERVAL`, and distributes the work
   itself as jobs. A standby takes over within a tick of the leader's lock being released.
-* **The mailbox watch** holds the connected IMAP mailboxes open (IDLE, RFC 2177) in exactly one
-  `worker` process, by an advisory lock of its own beside the scheduler's: each mailbox in a
+* **The mailbox watch** holds the connected IMAP mailboxes open (IDLE, RFC 2177), each shard of
+  the workspaces in exactly one `worker` process, by an advisory lock of its own beside the scheduler's: each mailbox in a
   long-lived hold under `concurrency.Go`, renewed every 25 minutes, retried with a backoff from
   5 seconds to 5 minutes (each pause at a random point in its upper half), a server without IDLE
-  asked again after an hour, at most 1000 mailboxes per installation. A tick's sign-ins start
+  asked again after an hour, at most 1000 mailboxes per shard. A tick's sign-ins start
   50 ms apart, so 1000 mailboxes take 50 seconds rather than one burst a provider throttles. A
   lock that cannot be asked (a database failover) keeps the holds; only a lock known lost, or one
   unknown for longer than a hold, lets them go. An arrival pulls the mailbox's `mail.mailbox_poll` forward by its dedupe key;
   the job's read every minute stays, so a failed hold, a lost lock or a stopped worker cost the
   delay and nothing else. The mailboxes to hold are the open `mail.mailbox_poll` jobs' keys, read
   from the job table, which has no tenant boundary; each mailbox is then loaded in its own
-  workspace. `hubtask_mailbox_watches_held` and `hubtask_mailbox_watch_holds_total{outcome}`
-  measure it.
+  workspace. The workspaces can be split into shards (`HUBTASK_MAILBOX_WATCH_SHARDS`, by a hash
+  of the workspace), each under an advisory lock of its own - shard 0 keeps the one lock there was,
+  so a rolling update never has two leaders of it - and a worker leads at most
+  `HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER` of them, so the connections spread over the workers and
+  one worker's stop costs only its shards' seconds until another with a seat free takes them.
+  `hubtask_mailbox_watches_held{shard}`, `hubtask_mailbox_watch_holds_total{outcome}` and
+  `hubtask_mailbox_watch_shards` beside `hubtask_mailbox_watch_shards_led` measure it (A-38).
 * **Nothing enumerates tenants.** Every per-tenant duty is seeded by its own tenant's write and
   reschedules itself while work remains ([multi-tenancy.md](./multi-tenancy.md) §2.1).
 * **Recurrence** is RFC 5545 RRULE through `rrule-go`, read in a stored IANA time zone, and only on

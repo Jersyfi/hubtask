@@ -520,6 +520,43 @@ tests:
         alertname: HubtaskMailboxWatchFull
         exp_alerts: []
 
+  # A-38: four shards, two workers leading one each - two shards without a worker.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watch_shards{instance="w1"}'
+        values: '4x60'
+      - series: 'hubtask_mailbox_watch_shards{instance="w2"}'
+        values: '4x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w1"}'
+        values: '1x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskMailboxWatchShardUnled
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-38
+            exp_annotations:
+              summary: "2 shards of the mailbox watch have no worker"
+              description: "No worker leads these shards, so their workspaces' connected mailboxes are read only every minute. Start more workers or raise HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER.\n"
+              runbook: RB-A38-mailbox-watch-full.md
+
+  # A-38 stays quiet while every shard has its worker.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_mailbox_watch_shards{instance="w1"}'
+        values: '2x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w1"}'
+        values: '1x60'
+      - series: 'hubtask_mailbox_watch_shards_led{instance="w2"}'
+        values: '1x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskMailboxWatchShardUnled
+        exp_alerts: []
+
   # A-39: a first synchronisation skipped the labels.
   - interval: 1m
     input_series:
