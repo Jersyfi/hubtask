@@ -6,11 +6,11 @@ package mail
 import (
 	"context"
 	"errors"
-	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"testing"
 	"time"
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
