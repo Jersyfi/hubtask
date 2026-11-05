@@ -42175,7 +42175,7 @@
               "integer",
               "null"
             ],
-            "description": "Calendar days later than agreed; negative is earlier."
+            "description": "Calendar days of the reader's time zone later than agreed; negative is earlier."
           },
           "finish_variance_days": {
             "type": [

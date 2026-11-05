@@ -13174,7 +13174,7 @@ type BaselineVariance struct {
 	ItemId  openapi_types.UUID `json:"item_id"`
 	StartAt *time.Time         `json:"start_at"`
 
-	// StartVarianceDays Calendar days later than agreed; negative is earlier.
+	// StartVarianceDays Calendar days of the reader's time zone later than agreed; negative is earlier.
 	StartVarianceDays *int `json:"start_variance_days"`
 }
 

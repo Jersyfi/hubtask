@@ -28712,7 +28712,7 @@ components:
         baseline_due_at: { type: [string, "null"], format: date-time }
         start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
-        start_variance_days: { type: [integer, "null"], description: "Calendar days later than agreed; negative is earlier." }
+        start_variance_days: { type: [integer, "null"], description: "Calendar days of the reader's time zone later than agreed; negative is earlier." }
         finish_variance_days: { type: [integer, "null"] }
 
     BaselineComparison:
