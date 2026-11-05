@@ -101,7 +101,9 @@ type ImportEntries struct {
 	Jobs       Enqueuer
 	// Kinds is which kinds this build converts; a kind the contract declares and no converter
 	// serves is refused by name here rather than in the job.
-	Kinds      []domain.Kind
+	Kinds []domain.Kind
+	// Audit records the request (`import.requested`) in the transaction that writes the run.
+	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -219,6 +221,24 @@ func (h ImportEntries) Execute(
 			DedupeKey: "import:" + importID.String(),
 		})
 		if err != nil {
+			return err
+		}
+		changes := []audit.Change{
+			{Field: "kind", Classification: audit.Open, To: string(cmd.Kind)},
+			{Field: "hub_id", Classification: audit.Open, To: cmd.HubID.String()},
+			{Field: "dry_run", Classification: audit.Open, To: cmd.DryRun},
+		}
+		if !cmd.CollectionID.IsZero() {
+			changes = append(changes, audit.Change{Field: "collection_id", Classification: audit.Open, To: cmd.CollectionID.String()})
+		}
+		if err := h.Audit.Append(ctx, audit.Entry{
+			TenantID: actor.TenantID, OccurredAt: h.Clock.Now(),
+			Action: ImportedAction, Outcome: audit.OutcomeSuccess, Severity: audit.SeverityInfo,
+			ActorKind: actor.Kind, ActorID: actor.AccountID, ActorLabel: actor.AccountName,
+			TargetType: importTarget, TargetID: importID,
+			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
+			Changes: audit.Changes(changes...),
+		}); err != nil {
 			return err
 		}
 		accepted = Accepted{JobID: jobID, ImportID: importID}

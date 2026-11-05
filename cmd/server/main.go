@@ -3539,7 +3539,7 @@ func run() error {
 		// serves is refused by name at the request.
 		importservice.ImportEntries{
 			Runs: importRuns, Objects: mediaObjects, Containers: containers, Authorizer: authorizer,
-			Jobs: jobs, Kinds: importKinds, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Jobs: jobs, Kinds: importKinds, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		importservice.GetImport{Runs: importRuns, Authorizer: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		lifecycle.RetainItem{
