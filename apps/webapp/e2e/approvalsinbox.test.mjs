@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// *Waiting for my yes* as the one inbox (UC-SVC-09 check 1; user-experience.md §7.8): an agent's held
+// *Waiting for your yes* as the one inbox (UC-SVC-09 check 1; user-experience.md §7.8): an agent's held
 // act stands beside the approvals with its own presses and is approved there, and a desk with more
 // approvals than a page shows the first fifty and the rest on *Show more*, asked by the page's cursor
 // - with no console error and no refused or failed answer on the way.

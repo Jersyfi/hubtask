@@ -832,7 +832,7 @@ Nothing outside a band, nothing in two.
 
 | Band | What is in it | Where |
 |---|---|---|
-| `places` | Today, Search, Inbox, *Waiting for my yes* (where the service desk is on) | At the top. Search is here on every width |
+| `places` | Today, Search, Inbox, *Waiting for your yes* (where the service desk is on) | At the top. Search is here on every width |
 | `products` | One row per product switched on, in `Module.Keys()` order: Plans, Pages, Whiteboards, Service desk, Assets, Time, Goals, Agents, each opening its home | Under the caption *Products*; absent while no product is on |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
 | `workspace` | *Administration*, only where the manifest's `workspace_permissions` carry `STRUCTURE` or the auditor's `READ_CONFIGURATION` - an address under `/administration` typed by anybody else answers as one that reaches nothing | Under the caption *Workspace*, below the hubs |

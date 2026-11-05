@@ -3,7 +3,7 @@
 
 // The service desk clicked through as its administrator and a handler do it (UC-SVC-01, UC-SVC-02,
 // UC-SVC-03, UC-SVC-09): a calendar and an SLA policy on it defined, a request read with its
-// promised times, who raised it and its approval, and in *Waiting for my yes* one approval approved
+// promised times, who raised it and its approval, and in *Waiting for your yes* one approval approved
 // and another declined - not before a reason is given - with no console error and no refused or
 // failed answer on the way.
 

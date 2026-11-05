@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Waiting for my yes* (UC-SVC-09 check 1): the one inbox of what waits for the reader's decision.
+  // *Waiting for your yes* (UC-SVC-09 check 1): the one inbox of what waits for the reader's decision.
   // The approvals whose current level counts them, names a role they hold there, or belongs to
   // somebody away whose approvals they decide - oldest first, as the server answers, a page at a
   // time; and, where agents are on, the acts an agent holds for the reader's yes, each decided in

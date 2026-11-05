@@ -162,12 +162,12 @@ for (const scheme of ['light', 'dark']) {
     // The places (the approvals where the desk is on), then the products in Module.Keys() order
     // whatever order the manifest answers, then the hubs.
     // Today's row counts what waits for the reader's yes beside its name.
-    assert.deepEqual(rows, ['Today  1 waiting', 'Search', 'Inbox', 'Waiting for my yes', 'Pages', 'Service desk', 'Time', HUB.name], JSON.stringify(rows));
+    assert.deepEqual(rows, ['Today  1 waiting', 'Search', 'Inbox', 'Waiting for your yes', 'Pages', 'Service desk', 'Time', HUB.name], JSON.stringify(rows));
     assert.equal(await page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 1, 'the band has no caption');
     // The account menu carries none of them.
     await page.getByRole('button', { name: ACCOUNT.display_name }).click();
     const items = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((item) => item.trim());
-    for (const product of ['Pages', 'Service desk', 'Time', 'My notes', 'Waiting for my yes', 'Administration']) assert.ok(!items.includes(product), `${product} is behind the avatar`);
+    for (const product of ['Pages', 'Service desk', 'Time', 'My notes', 'Waiting for your yes', 'Administration']) assert.ok(!items.includes(product), `${product} is behind the avatar`);
     await page.keyboard.press('Escape');
 
     await tree.getByRole('treeitem', { name: 'Pages' }).click();
@@ -225,7 +225,7 @@ for (const scheme of ['light', 'dark']) {
     const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
     // What the bar does not carry: the approvals, then the products, the hub, the administration
     // and the keeping band.
-    assert.deepEqual(rows, ['Waiting for my yes', 'Service desk', 'Assets', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
+    assert.deepEqual(rows, ['Waiting for your yes', 'Service desk', 'Assets', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
     await drawer.getByRole('treeitem', { name: 'Assets' }).click();
     await page.waitForFunction(() => location.pathname === '/assets', null, { timeout: 5_000 });
     assert.equal(await bar.getByRole('button', { name: 'More' }).getAttribute('aria-current'), 'page', 'More is not current on a place only the drawer lists');
