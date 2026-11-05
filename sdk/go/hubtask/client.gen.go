@@ -35650,7 +35650,7 @@ type ClientInterface interface {
 
 	// CloseGoalPeriodWithBody Close a goal period and grade its goals
 	//
-	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35659,7 +35659,7 @@ type ClientInterface interface {
 
 	// CloseGoalPeriod Close a goal period and grade its goals
 	//
-	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -35675,7 +35675,7 @@ type ClientInterface interface {
 
 	// CreateGoalWithBody Set a goal
 	//
-	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35684,7 +35684,7 @@ type ClientInterface interface {
 
 	// CreateGoal Set a goal
 	//
-	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -51994,7 +51994,7 @@ func (c *Client) ChangeGoalPeriod(ctx context.Context, periodId openapi_types.UU
 
 // CloseGoalPeriodWithBody Close a goal period and grade its goals
 //
-// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -52013,7 +52013,7 @@ func (c *Client) CloseGoalPeriodWithBody(ctx context.Context, periodId openapi_t
 
 // CloseGoalPeriod Close a goal period and grade its goals
 //
-// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -52049,7 +52049,7 @@ func (c *Client) ListGoals(ctx context.Context, params *ListGoalsParams, reqEdit
 
 // CreateGoalWithBody Set a goal
 //
-// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -52068,7 +52068,7 @@ func (c *Client) CreateGoalWithBody(ctx context.Context, contentType string, bod
 
 // CreateGoal Set a goal
 //
-// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -109782,7 +109782,7 @@ type ClientWithResponsesInterface interface {
 
 	// CloseGoalPeriodWithBodyWithResponse Close a goal period and grade its goals
 	//
-	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109791,7 +109791,7 @@ type ClientWithResponsesInterface interface {
 
 	// CloseGoalPeriodWithResponse Close a goal period and grade its goals
 	//
-	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+	// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109809,7 +109809,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateGoalWithBodyWithResponse Set a goal
 	//
-	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109818,7 +109818,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateGoalWithResponse Set a goal
 	//
-	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+	// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -165454,7 +165454,7 @@ func (c *ClientWithResponses) ChangeGoalPeriodWithResponse(ctx context.Context, 
 
 // CloseGoalPeriodWithBodyWithResponse Close a goal period and grade its goals
 //
-// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -165469,7 +165469,7 @@ func (c *ClientWithResponses) CloseGoalPeriodWithBodyWithResponse(ctx context.Co
 
 // CloseGoalPeriodWithResponse Close a goal period and grade its goals
 //
-// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the workspace.
+// Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the caller sees it - and takes no more check-ins. Held to the version read. A period holding more goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays open. Needs STRUCTURE at the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -165499,7 +165499,7 @@ func (c *ClientWithResponses) ListGoalsWithResponse(ctx context.Context, params 
 
 // CreateGoalWithBodyWithResponse Set a goal
 //
-// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -165514,7 +165514,7 @@ func (c *ClientWithResponses) CreateGoalWithBodyWithResponse(ctx context.Context
 
 // CreateGoalWithResponse Set a goal
 //
-// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. Needs WRITE_ITEMS at the workspace or the hub.
+// For an open period, at the workspace or in a hub, with its key results and an optional parent goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs WRITE_ITEMS at the workspace or the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

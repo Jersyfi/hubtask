@@ -663,6 +663,8 @@ func (m *memory) Goal(_ context.Context, id shared.ID) (domain.Goal, error) {
 	return g, nil
 }
 
+func (m *memory) CountGoals(context.Context) (int, error) { return len(m.goals), nil }
+
 func (m *memory) InsertGoal(_ context.Context, g domain.Goal, _ shared.ID, _ time.Time) error {
 	g.Version = 1
 	m.goals[g.ID] = g

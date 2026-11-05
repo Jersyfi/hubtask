@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strconv"
 
 	goalrepo "github.com/Jersyfi/hubtask/core/application/repository/goal"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -215,9 +216,14 @@ func (h CloseGoalPeriod) Descriptor() usecase.Descriptor {
 				if _, err := s.Store.LockPeriod(ctx, id); err != nil {
 					return err
 				}
-				goals, err := s.Store.Goals(ctx, goalrepo.GoalFilter{PeriodID: id, Max: maxGoals})
+				goals, err := s.Store.Goals(ctx, goalrepo.GoalFilter{PeriodID: id, Max: maxGoals + 1})
 				if err != nil {
 					return err
+				}
+				if len(goals) > maxGoals {
+					// Grading the first ones and closing would leave the rest ungraded for good.
+					return shared.ErrConflict.WithDetail("goal_periods.too_many_goals").
+						WithParams(map[string]string{"maximum": strconv.Itoa(maxGoals)})
 				}
 				grades := map[shared.ID]float64{}
 				for _, g := range goals {
@@ -623,6 +629,13 @@ func (h CreateGoal) Descriptor() usecase.Descriptor {
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if err := s.stillOpen(ctx, g.PeriodID); err != nil {
 					return err
+				}
+				held, err := s.Store.CountGoals(ctx)
+				if err != nil {
+					return err
+				}
+				if held >= maxGoals {
+					return shared.ErrConflict.WithDetail("goals.limit").WithParams(map[string]string{"maximum": strconv.Itoa(maxGoals)})
 				}
 				if err := s.Store.InsertGoal(ctx, g, actor.AccountID, now); err != nil {
 					return err

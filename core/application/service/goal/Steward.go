@@ -75,12 +75,14 @@ const (
 	DashboardDeletedAction  audit.Action = "dashboard.deleted"
 	DashboardReadAction     audit.Action = "dashboard.read"
 	maxPeriods                           = 200
-	maxGoals                             = 2000
-	maxPortfolios                        = 500
-	maxDashboards                        = 1000
-	maxCheckIns                          = 200
-	maxUpdates                           = 200
-	maxLiveResults                       = 100
+	// maxGoals is the workspace's ceiling: every reader of the goals - progress, portfolios, the
+	// close - reads them at once.
+	maxGoals       = 2000
+	maxPortfolios  = 500
+	maxDashboards  = 1000
+	maxCheckIns    = 200
+	maxUpdates     = 200
+	maxLiveResults = 100
 )
 
 // Authorizer records a refusal and answers it.

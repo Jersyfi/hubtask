@@ -262,3 +262,35 @@ func TestThePortfolioWalkStaysInItsWorkspace(t *testing.T) {
 		t.Error("the workspace next door walked the portfolio")
 	}
 }
+
+// The goals' ceiling counts the workspace's own goals only.
+func TestTheGoalCountStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewGoalRepository()
+	count := func(tenant shared.ID) int {
+		var n int
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			n, err = store.CountGoals(ctx)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	beforeA, beforeB := count(tenantA), count(tenantB)
+	now := time.Date(2026, 11, 5, 9, 0, 0, 0, time.UTC)
+	period := goal.Period{ID: freshID(t), Name: "Q4", StartOn: 20393, EndOn: 20483}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := store.InsertPeriod(ctx, period, authorA, now); err != nil {
+			return err
+		}
+		return store.InsertGoal(ctx, goal.Goal{ID: freshID(t), PeriodID: period.ID, Title: "Count me", OwnerID: authorA, Status: goal.StatusNone}, authorA, now)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if a, b := count(tenantA), count(tenantB); a != beforeA+1 || b != beforeB {
+		t.Fatalf("counted %d and %d, want %d and %d", a, b, beforeA+1, beforeB)
+	}
+}

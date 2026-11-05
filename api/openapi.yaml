@@ -1067,8 +1067,9 @@ paths:
       summary: Close a goal period and grade its goals
       description: >
         Every goal of the period is graded 0 to 1 - the grade given for it, else its progress as the
-        caller sees it - and takes no more check-ins. Held to the version read. Needs STRUCTURE at the
-        workspace.
+        caller sees it - and takes no more check-ins. Held to the version read. A period holding more
+        goals than the workspace may hold is refused with `goal_periods.too_many_goals` and stays
+        open. Needs STRUCTURE at the workspace.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:
@@ -1123,7 +1124,8 @@ paths:
       summary: Set a goal
       description: >
         For an open period, at the workspace or in a hub, with its key results and an optional parent
-        goal. Needs WRITE_ITEMS at the workspace or the hub.
+        goal. A workspace holds at most 2000 goals; one more is refused with `goals.limit`. Needs
+        WRITE_ITEMS at the workspace or the hub.
       requestBody:
         required: true
         content:

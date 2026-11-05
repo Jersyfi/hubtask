@@ -1147,3 +1147,20 @@ func (GoalRepository) DigestSent(ctx context.Context, id shared.ID, sent *time.T
 	}
 	return nil
 }
+
+// CountGoals counts the workspace's goals under their ceiling lock, held to the end of the
+// transaction.
+func (GoalRepository) CountGoals(ctx context.Context) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if err := queries.LockGoals(ctx); err != nil {
+		return 0, goalError(err, "locking the goals")
+	}
+	count, err := queries.CountGoals(ctx)
+	if err != nil {
+		return 0, goalError(err, "counting the goals")
+	}
+	return int(count), nil
+}

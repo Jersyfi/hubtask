@@ -37,6 +37,9 @@ type Store interface {
 	ClosePeriod(ctx context.Context, id shared.ID, expected int, grades map[shared.ID]float64, by shared.ID, at time.Time) error
 
 	Goals(ctx context.Context, filter GoalFilter) ([]domain.Goal, error)
+	// CountGoals counts the workspace's goals and holds their ceiling to the end of the
+	// transaction, so two creates count in turn.
+	CountGoals(ctx context.Context) (int, error)
 	Goal(ctx context.Context, id shared.ID) (domain.Goal, error)
 	InsertGoal(ctx context.Context, g domain.Goal, by shared.ID, at time.Time) error
 	UpdateGoal(ctx context.Context, g domain.Goal, expected int, by shared.ID, at time.Time) error

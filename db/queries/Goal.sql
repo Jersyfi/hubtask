@@ -63,6 +63,14 @@ SELECT id, period_id, hub_id, parent_id, title, description, owner_id, status, c
 FROM goal
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;
 
+-- name: LockGoals :exec
+-- Taken before the workspace's goals are counted against their ceiling, for the rest of the
+-- transaction: two creates at once count in turn.
+SELECT pg_advisory_xact_lock(hashtextextended('goals/' || current_tenant_id()::text, 0));
+
+-- name: CountGoals :one
+SELECT count(*)::int FROM goal WHERE tenant_id = current_tenant_id();
+
 -- name: InsertGoal :exec
 INSERT INTO goal (id, tenant_id, period_id, hub_id, parent_id, title, description, owner_id, status,
   confidence, key_results, created_at, created_by, updated_at, updated_by, version)

@@ -49,6 +49,17 @@ func (q *Queries) CloseGoalPeriod(ctx context.Context, arg CloseGoalPeriodParams
 	return result.RowsAffected(), nil
 }
 
+const countGoals = `-- name: CountGoals :one
+SELECT count(*)::int FROM goal WHERE tenant_id = current_tenant_id()
+`
+
+func (q *Queries) CountGoals(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countGoals)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteDashboard = `-- name: DeleteDashboard :execrows
 DELETE FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id = $1::uuid
@@ -1098,6 +1109,17 @@ func (q *Queries) LockGoalPeriod(ctx context.Context, id pgtype.UUID) (LockGoalP
 		&i.Version,
 	)
 	return i, err
+}
+
+const lockGoals = `-- name: LockGoals :exec
+SELECT pg_advisory_xact_lock(hashtextextended('goals/' || current_tenant_id()::text, 0))
+`
+
+// Taken before the workspace's goals are counted against their ceiling, for the rest of the
+// transaction: two creates at once count in turn.
+func (q *Queries) LockGoals(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockGoals)
+	return err
 }
 
 const markDashboardDigestSent = `-- name: MarkDashboardDigestSent :execrows
