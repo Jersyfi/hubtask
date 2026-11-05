@@ -16,6 +16,9 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import ProductEmpty from '../product/ProductEmpty.svelte';
+  import PlaceChip from '../product/PlaceChip.svelte';
+  import { createPlaces } from '../product/places.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import AttributeField from './AttributeField.svelte';
 
   interface Props {
@@ -82,6 +85,9 @@
   let draftClass = $state('');
   let draftName = $state('');
   let drafts = $state<Record<string, string>>({});
+  /** Where the CI is made (§5.2): this hub, or another where the assets are on; the classes are the workspace's. */
+  let draftHub = $state('');
+  const placesToMake = createPlaces('ASSETS', 'HUB', () => isCreating);
   const chosen = $derived(classes.find((each) => each.key === draftClass));
   const missing = $derived(chosen ? missingRequired(chosen.all_attributes, drafts) : []);
 
@@ -89,6 +95,7 @@
     draftClass = shown && offered.some((each) => each.key === shown) ? shown : '';
     draftName = '';
     drafts = {};
+    draftHub = hubId;
     createFailure = undefined;
     isCreating = true;
   }
@@ -115,7 +122,7 @@
       return;
     }
     try {
-      const made = await cmdb.create(hubId, { class: chosen.key, name: draftName.trim(), attributes });
+      const made = await cmdb.create(draftHub || hubId, { class: chosen.key, name: draftName.trim(), attributes });
       isCreating = false;
       onnavigate(`/cis/${made.id}`);
     } catch (error) {
@@ -202,6 +209,7 @@
           <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} />
         {/each}
       {/if}
+      <PlaceChip current={draftHub} fallback={containers.find(hubId)?.name} places={placesToMake.list} onchoose={(id) => (draftHub = id)} />
       {#if createFailure}<FailureNote problem={createFailure} />{/if}
     </Stack>
     {#snippet actions()}

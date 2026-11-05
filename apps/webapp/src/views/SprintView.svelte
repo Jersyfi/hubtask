@@ -43,6 +43,8 @@
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
+  import PlaceChip from '../lib/product/PlaceChip.svelte';
+  import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
     /** The collection the sprints belong to. */
@@ -175,6 +177,9 @@
   /** The sprint the dialog changes; undefined while it plans a new one. */
   let editing = $state<Sprint | undefined>(undefined);
   const draft = $state({ name: '', goal: '', start_on: '', end_on: '', unit: 'POINTS' as 'POINTS' | 'HOURS' });
+  /** Where a new sprint is planned (§5.2): this collection, or another where the plans are on. */
+  let draftCollection = $state('');
+  const placesToPlan = createPlaces('PLANNING', 'COLLECTION', () => isPlanning && !editing);
   function openPlan(sprint: Sprint | undefined) {
     editing = sprint;
     draft.name = sprint?.name ?? '';
@@ -182,6 +187,7 @@
     draft.start_on = sprint?.start_on ?? today;
     draft.end_on = sprint?.end_on ?? '';
     draft.unit = sprint?.unit ?? 'POINTS';
+    draftCollection = collectionId;
     isPlanning = true;
   }
   function plan() {
@@ -195,9 +201,11 @@
       void act(() => sprints.update(collectionId, zone, changing, change), t('app.sprints.changed', { name: fields.name }));
       return;
     }
+    const at = draftCollection || collectionId;
     void act(async () => {
-      const made = await sprints.create(collectionId, zone, fields);
-      chosenId = made.id;
+      const made = await sprints.create(at, zone, fields);
+      if (at === collectionId) chosenId = made.id;
+      else onnavigate(`/collections/${encodeURIComponent(at)}/sprints`);
     }, t('app.sprints.planned', { name: fields.name }));
   }
 
@@ -452,6 +460,9 @@
       </Inline>
       <Select label={t('app.sprints.unit')} bind:value={draft.unit} disabledReason={editing?.state === 'ACTIVE' ? t('sprints.running_start_fixed') : undefined}
         options={[{ value: 'POINTS', label: t('app.sprints.unit_POINTS') }, { value: 'HOURS', label: t('app.sprints.unit_HOURS') }]} />
+      {#if !editing}
+        <PlaceChip current={draftCollection} fallback={place ? [containers.find(place.parent_id ?? '')?.name, place.name].filter(Boolean).join(' › ') : ''} places={placesToPlan.list} onchoose={(id) => (draftCollection = id)} />
+      {/if}
       <Inline justify="end"><Button onclick={plan}>{editing ? t('app.sprints.save') : t('app.sprints.plan')}</Button></Inline>
     </Stack>
   </Dialog>

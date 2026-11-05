@@ -188,6 +188,8 @@ test('chromium: 1280 px — a sprint planned with a goal and a time box', async 
 
   await page.getByRole('button', { name: 'Plan a sprint' }).click();
   const dialog = page.getByRole('dialog');
+  // §5.2: the dialog names where the sprint is planned.
+  await dialog.locator('[data-chip="place"]').filter({ hasText: `${HUB.name} › ${COLLECTION.name}` }).waitFor({ timeout: 5_000 });
   await dialog.getByLabel('Name').fill('Sprint 4');
   await dialog.getByLabel('Goal').fill('The floor is down');
   await dialog.getByLabel('First day').fill(addDays(today, 25));
