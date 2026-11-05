@@ -101,6 +101,7 @@ type demo struct {
 	c       *Client
 	held    map[string]string // mark key -> object id
 	people  map[string]string // display name -> account id, where the workspace has the person
+	self    string            // the signed-in person's account id, once read
 	groups  map[string]string // group name -> id, where the workspace has the group
 	counts  map[string]int
 	refused []string
@@ -149,6 +150,12 @@ func (d *demo) load(ctx context.Context) error {
 	}
 	for _, s := range listed.Samples {
 		d.held[s.Key] = s.ObjectID
+	}
+	var me struct {
+		ID string `json:"id"`
+	}
+	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, "/accounts/me", nil, &me) }); err == nil {
+		d.self = me.ID
 	}
 	var groups struct {
 		Data []struct {

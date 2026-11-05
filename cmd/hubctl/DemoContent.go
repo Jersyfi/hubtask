@@ -40,9 +40,10 @@ func (d *demo) run(ctx context.Context) {
 	classic := d.classic(ctx)
 	desk, deskFresh := d.serviceDesk(ctx)
 	d.cmdb(ctx, desk, deskFresh)
+	mine := d.yours(ctx, scrum, kanban, classic, desk)
 	d.wiki(ctx, scrum.hub, desk.hub, classic.hub)
 	d.whiteboards(ctx, scrum, kanban)
-	d.timeTracking(ctx, scrum, classic, desk)
+	d.timeTracking(ctx, scrum, classic, desk, mine)
 	d.goals(ctx, scrum, kanban, classic, desk)
 }
 
@@ -333,6 +334,53 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 	}
 	out.entries = append(stories, platform...)
 	return out
+}
+
+// yours gives the person the showcase runs as - the one meant to see what exists - work of their
+// own, so that Today shows it (user-experience.md §3.3): an entry due today in the running sprint,
+// one overdue, one coming up and a desk incident whose promised times run. Each under a mark of its
+// own, so a showcase made before this is completed by the next run.
+func (d *demo) yours(ctx context.Context, scrum, kanban, classic, desk demoHub) []string {
+	if d.self == "" {
+		return nil
+	}
+	story, fresh := d.entry(ctx, "mine.story", scrum.coll["app"], "Passkey-Anmeldung: Wiederherstellung über ein zweites Gerät",
+		entryOptions{entryType: "story", assignee: d.self, due: d.day(0, 17)})
+	if fresh {
+		d.write(ctx, "estimate", "PUT", "/items/"+story+"/estimate", map[string]any{"unit": "POINTS", "value": 3})
+		if sprint := d.runningSprint(ctx, scrum.coll["app"]); sprint != "" {
+			d.write(ctx, "sprint mine", "POST", "/sprints/"+sprint+"/entries", map[string]any{"item_ids": []string{story}})
+		}
+	}
+	card, _ := d.entry(ctx, "mine.card", kanban.coll["board"], "Pressemitteilung zur Herbstmesse freigeben",
+		entryOptions{entryType: "card", assignee: d.self, due: d.day(-2, 12)})
+	phase, _ := d.entry(ctx, "mine.phase", classic.coll["plan"], "Lenkungskreis: Freigabe der Ausführungsplanung",
+		entryOptions{entryType: "deliverable", assignee: d.self, start: d.day(-3, 8), due: d.day(3, 12)})
+	incident, _ := d.entry(ctx, "mine.incident", desk.coll["desk"], "Geschäftsführung erreicht das Board-Portal nicht",
+		entryOptions{entryType: "incident", assignee: d.self, fields: map[string]any{"impact": "High", "urgency": "High", "priority": "P1"}})
+	return []string{story, card, phase, incident}
+}
+
+// runningSprint is the collection's active sprint, or empty where none runs or it cannot be read.
+func (d *demo) runningSprint(ctx context.Context, collection string) string {
+	if collection == "" {
+		return ""
+	}
+	var sprints struct {
+		Data []struct {
+			ID    string `json:"id"`
+			State string `json:"state"`
+		} `json:"data"`
+	}
+	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, "/collections/"+collection+"/sprints", nil, &sprints) }); err != nil {
+		return ""
+	}
+	for _, s := range sprints.Data {
+		if s.State == "ACTIVE" {
+			return s.ID
+		}
+	}
+	return ""
 }
 
 func (d *demo) kanban(ctx context.Context) demoHub {
@@ -780,7 +828,7 @@ type demoTime struct {
 // Signed in alone, the person records the first plan as their own; under --voices each person of
 // seed-demo.sh records their own and the signed-in person approves two of the weeks after.
 // The kinds of work, absences and rates are the workspace's, written with the first week.
-func (d *demo) timeTracking(ctx context.Context, scrum, classic, desk demoHub) {
+func (d *demo) timeTracking(ctx context.Context, scrum, classic, desk demoHub, mine []string) {
 	for _, w := range []struct {
 		key, name string
 		billable  bool
@@ -802,6 +850,11 @@ func (d *demo) timeTracking(ctx context.Context, scrum, classic, desk demoHub) {
 		if d.recordWeeks(ctx, plan, lastMonday) {
 			freshWeek = true
 		}
+	}
+	if d.voices && len(mine) > 0 {
+		// The person it runs as records their own time too, on their own work: a Today without
+		// it reads 0:00 for the one meant to see what exists.
+		d.recordWeeks(ctx, demoTime{"", "planning", mine[:1]}, lastMonday)
 	}
 	if !freshWeek {
 		return

@@ -24,7 +24,17 @@ type showcaseInstallation struct {
 	creates []string
 	removed int
 	periods []any
+	bodies  []showcaseWrite
 }
+
+// showcaseWrite is one create the showcase sent, with its body.
+type showcaseWrite struct {
+	path string
+	body map[string]any
+}
+
+const showcaseSelf = "0190a000-0000-7000-8000-00000000aaaa"
+const showcaseSprint = "0190a000-0000-7000-8000-00000000bbbb"
 
 func serveShowcase(t *testing.T) *showcaseInstallation {
 	t.Helper()
@@ -54,6 +64,10 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		case r.Method == http.MethodPost && path == "/tenant/samples:remove":
 			s.removed++
 			answer(map[string]any{"removed": len(s.marks), "kept": []any{}})
+		case r.Method == http.MethodGet && path == "/accounts/me":
+			answer(map[string]any{"id": showcaseSelf, "display_name": "Jana Krüger"})
+		case r.Method == http.MethodGet && strings.HasSuffix(path, "/sprints"):
+			answer(map[string]any{"data": []any{map[string]any{"id": showcaseSprint, "state": "ACTIVE"}}})
 		case r.Method == http.MethodGet && path == "/goal-periods":
 			answer(map[string]any{"data": s.periods})
 		case r.Method == http.MethodPost && path == "/goal-periods":
@@ -73,6 +87,9 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		default:
 			if r.Method == http.MethodPost && !strings.Contains(path, ":") {
 				s.creates = append(s.creates, path)
+				var body map[string]any
+				_ = json.Unmarshal(raw, &body)
+				s.bodies = append(s.bodies, showcaseWrite{path: path, body: body})
 			}
 			s.next++
 			answer(map[string]any{"id": fmt.Sprintf("0190a000-0000-7000-8000-%012d", s.next), "version": 1,
@@ -145,7 +162,7 @@ func TestTheShowcaseLeavesOtherPeoplesWordsToThem(t *testing.T) {
 		t.Fatalf("exit %d: %s %s", code, out, errOut)
 	}
 	for _, path := range s.creates {
-		if strings.HasSuffix(path, "/comments") || path == "/requests" || path == "/time-records" {
+		if strings.HasSuffix(path, "/comments") || path == "/requests" {
 			t.Errorf("%s was written by the signed-in person", path)
 		}
 	}
@@ -181,5 +198,42 @@ func TestTheShowcaseLeavesOtherPeoplesWordsToThem(t *testing.T) {
 	}
 	if requests != 4 || waiting == 0 || marks < 4 {
 		t.Errorf("%d requests, %d waiting writes, %d marks after the voices", requests, waiting, marks)
+	}
+}
+
+// user-experience.md §3.6: the showcase is how the owner sees what exists, so the person it is run
+// as gets work of their own that Today shows (§3.3) - due today in the running sprint, overdue,
+// coming up and a desk incident - and, with --voices too, their own time this week.
+func TestTheShowcaseGivesThePersonItRunsAsWorkOfTheirOwn(t *testing.T) {
+	for _, voices := range []bool{false, true} {
+		s := serveShowcase(t)
+		args := []string{"workspace", "demo", "--workspace", "nordlicht"}
+		if voices {
+			args = append(args, "--voices")
+		}
+		if code, out, errOut := invoke(t, s.env(), "", args...); code != exitOK {
+			t.Fatalf("voices %v: exit %d: %s %s", voices, code, out, errOut)
+		}
+		mine, due, incident, sprint, time := 0, map[string]bool{}, false, false, 0
+		for _, w := range s.bodies {
+			switch {
+			case w.path == "/items" && w.body["assignee_id"] == showcaseSelf:
+				mine++
+				if at, ok := w.body["due_at"].(string); ok {
+					due[at[:10]] = true
+				}
+				if w.body["entry_type"] == "incident" {
+					incident = true
+				}
+			case w.path == "/sprints/"+showcaseSprint+"/entries":
+				sprint = true
+			case w.path == "/time-records" && w.body["entry_id"] != nil:
+				time++
+			}
+		}
+		if mine < 4 || len(due) < 3 || !incident || !sprint || time == 0 {
+			t.Errorf("voices %v: %d entries on the person, due on %v, incident %v, in the running sprint %v, %d own time records",
+				voices, mine, due, incident, sprint, time)
+		}
 	}
 }

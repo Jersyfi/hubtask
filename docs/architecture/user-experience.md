@@ -311,7 +311,11 @@ child goal is keyed under its parent so that it goes first. `--remove`
 whiteboards into the trash (an entry gone with its hub counts as removed), goals, portfolios,
 dashboards and time records deleted only at the version they were marked at; anything changed
 since, and time in a week already handed in, is kept and named. People and the desk's groups are
-used only where the workspace has seed-demo.sh's by name. `make demo DEMO_WORKSPACE=<short>` runs
+used only where the workspace has seed-demo.sh's by name. The person it runs as is given work of
+their own, each under its own mark so that an older showcase is completed by the next run: a story
+due today in the running sprint, a card overdue, a plan phase coming up and a P1 incident on the
+desk, so that their Today shows its bands; under `--voices` they record their own time on that
+story too. `make demo DEMO_WORKSPACE=<short>` runs
 it. `make demo` without it runs `scripts/seed-demo.sh`, which provisions a new workspace with its
 people and requesters and runs the same showcase as its owner with `--voices`: what the others say
 there - their comments, check-ins, own time and timesheets, a requester's request and reply -
