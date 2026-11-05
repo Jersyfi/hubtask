@@ -18,9 +18,16 @@ class Coordinator {
     this.#starterOpen = open;
   }
 
-  /** Whether the base tour may start now. */
+  /** Whether the starter's dialog is open in this tab: a tour already walking steps aside. */
+  get starterIsOpen(): boolean {
+    return this.#starterOpen;
+  }
+
+  /** Whether the base tour may start now; a workspace that cannot be read offers no starter. */
   get tourMayStart(): boolean {
-    return tourMayStart({ starterOffered: workspace.workspace?.starter_offered === true, starterOpen: this.#starterOpen });
+    const read = workspace.state;
+    const starterOffered = read.status === 'ready' ? read.data.starter_offered === true : read.status === 'failed' ? false : undefined;
+    return tourMayStart({ starterOffered, starterOpen: this.#starterOpen });
   }
 }
 

@@ -7,7 +7,10 @@
 
   import { Tour } from '@hubtask/design-system/components';
 
+  import { untrack } from 'svelte';
+
   import { actor } from '../data/account.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { onboarding } from '../onboarding/onboarding.svelte.ts';
   import { tour } from '../tour.svelte.ts';
@@ -24,6 +27,8 @@
   $effect(() => {
     tour.attach(onnavigate);
   });
+  // Whether the starter is offered decides the start (user-experience.md §3.1), on any route.
+  $effect(() => untrack(() => workspace.open()));
 
   // The first sign-in of an account that has not taken the tour: started once, when the account
   // is known. A second arrival of the same account - a re-read after a preference changed - does
@@ -43,7 +48,7 @@
   const step = $derived(tour.step);
 </script>
 
-{#if step}
+{#if step && !onboarding.starterIsOpen}
   <Tour
     target={tour.target}
     caption={t(`app.tour.${step.words ?? step.id}.caption`)}

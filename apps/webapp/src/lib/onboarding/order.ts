@@ -8,13 +8,19 @@
  */
 
 export interface Onboarding {
-  /** The workspace offers its first start and nobody answered or skipped it yet. */
-  readonly starterOffered: boolean;
+  /**
+   * The workspace offers its first start and nobody answered or skipped it yet; undefined while
+   * the workspace's read has not answered.
+   */
+  readonly starterOffered: boolean | undefined;
   /** The starter's dialog is open in this tab. */
   readonly starterOpen: boolean;
 }
 
-/** Whether the base tour may start now: not while the starter is offered or open. */
+/**
+ * Whether the base tour may start now: not while the starter is offered or open, nor before the
+ * workspace said whether it is - the account arrives first, and the starter a moment later.
+ */
 export function tourMayStart(state: Onboarding): boolean {
-  return !state.starterOffered && !state.starterOpen;
+  return state.starterOffered === false && !state.starterOpen;
 }

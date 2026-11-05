@@ -11,3 +11,10 @@ test('the tour waits for the starter and never opens beside it (user-experience.
   assert.equal(tourMayStart({ starterOffered: false, starterOpen: true }), false);
   assert.equal(tourMayStart({ starterOffered: false, starterOpen: false }), true);
 });
+
+// The first sign-in: the account arrives before the workspace's answer, and a tour started then
+// opened over the starter a moment later. Until the workspace has said whether it offers the
+// starter, the tour waits.
+test('the tour waits while the workspace has not said whether it offers the starter', () => {
+  assert.equal(tourMayStart({ starterOffered: undefined, starterOpen: false }), false);
+});
