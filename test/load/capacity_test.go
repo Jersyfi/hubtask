@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -188,11 +189,29 @@ func TestCapacityAtScale(t *testing.T) {
 	writeEvidence(t, fmt.Sprintf("capacity-%d.json", items), finding)
 	if os.Getenv(envWalk) != "" {
 		// After the measuring, so the browser's requests are not in its figures.
+		// One deadline for the three workspaces' walk (test/load/PLAN.md, S7).
 		endWalk := scenario("S7")
-		for rank := range seen {
-			keepBrowserRows("S7", walk(t, stack, stack.tenants[rank]))
+		ctx, cancel := context.WithTimeout(context.Background(), walkDeadline)
+		walked := WalkFinding{Test: "S7 bundle per route", RanAt: time.Now().UTC(), DeadlineSeconds: int(walkDeadline / time.Second)}
+		for _, rank := range ranks {
+			if !seen[rank] || slices.ContainsFunc(walked.Workspaces, func(w WalkWorkspace) bool { return w.Rank == rank }) {
+				continue
+			}
+			rows, screens := walk(ctx, t, stack, stack.tenants[rank])
+			keepBrowserRows("S7", rows)
+			walked.Workspaces = append(walked.Workspaces, WalkWorkspace{Rank: rank, Items: itemsOfRank(rank, tenants, items), Screens: screens})
+			for _, screen := range screens {
+				if screen.SettledMS == nil {
+					t.Errorf("rank %d, %s did not settle within %s", rank, screen.Screen, walkSettle)
+				}
+			}
 		}
+		if ctx.Err() != nil {
+			t.Errorf("the walk did not end within %s", walkDeadline)
+		}
+		cancel()
 		endWalk()
+		writeEvidence(t, fmt.Sprintf("walk-%d.json", items), walked)
 	}
 	if os.Getenv(envExplain) != "" {
 		writeEvidence(t, fmt.Sprintf("plans-%d.json", items), slowPlans(t, stack))
@@ -225,17 +244,50 @@ func slowPlans(t *testing.T, stack *stack) []harness.SlowPlan {
 // server's. It needs `pnpm --filter @hubtask/webapp build` and Playwright's Chromium first.
 const envWalk = "HUBTASK_LOAD_WALK"
 
-// walk runs apps/webapp/e2e/scalewalk.mjs over one workspace's start, hub and collection and
-// answers its rows. A walk that cannot run is the run's error, never an empty list.
 // productHomes are the products' homes the R3 walk visits beside a hub and a collection
 // (user-experience.md §3.6): the paths of PRODUCTS in apps/webapp/src/lib/navigation.ts.
 var productHomes = []string{"/plans", "/pages", "/whiteboards", "/desk", "/assets", "/time", "/goals", "/agents"}
 
-func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
+// The walk's bounds: the three workspaces' 33 screens under one deadline, and the time one screen
+// may take to settle (scalewalk.mjs SETTLE_MS).
+const (
+	walkDeadline = 10 * time.Minute
+	walkSettle   = 30 * time.Second
+)
+
+// WalkFinding is S7: per workspace and screen what the screen fetched and how long it took to
+// settle.
+type WalkFinding struct {
+	Test            string          `json:"test"`
+	RanAt           time.Time       `json:"ran_at"`
+	DeadlineSeconds int             `json:"deadline_seconds"`
+	Workspaces      []WalkWorkspace `json:"workspaces"`
+}
+
+// WalkWorkspace is one workspace's walk.
+type WalkWorkspace struct {
+	Rank    int          `json:"rank"`
+	Items   int          `json:"items"`
+	Screens []WalkScreen `json:"screens"`
+}
+
+// WalkScreen is one screen, as scalewalk.mjs records it; SettledMS is nil for one that never did.
+type WalkScreen struct {
+	Screen          string `json:"screen"`
+	SettledMS       *int64 `json:"settled_ms"`
+	ScriptBytes     int64  `json:"script_bytes"`
+	ScriptGzipBytes int64  `json:"script_gzip_bytes"`
+	StyleBytes      int64  `json:"style_bytes"`
+	StyleGzipBytes  int64  `json:"style_gzip_bytes"`
+	Files           int    `json:"files"`
+}
+
+// walk runs apps/webapp/e2e/scalewalk.mjs over one workspace's start, hub, collection and product
+// homes and answers its rows and screens. A walk that cannot run is the run's error, never an
+// empty list.
+func walk(ctx context.Context, t *testing.T, stack *stack, as tenant) ([]harness.LogError, []WalkScreen) {
 	t.Helper()
 	out := filepath.Join(t.TempDir(), "walk.json")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-	defer cancel()
 	paths := append([]string{"/", "/hubs/" + as.hub, "/collections/" + as.collection}, productHomes...)
 	cmd := exec.CommandContext(ctx, "node", append([]string{"e2e/scalewalk.mjs", stack.baseURL, as.walkToken, out}, paths...)...)
 	cmd.Dir = filepath.Join(repositoryRoot(), "apps", "webapp")
@@ -243,18 +295,21 @@ func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
 	t.Logf("walk of %s:\n%s", as.id, output)
 	if err != nil {
 		t.Errorf("walking %s: %v", as.id, err)
-		return nil
+		return nil, nil
 	}
 	raw, err := os.ReadFile(out)
 	if err != nil {
 		t.Errorf("reading the walk of %s: %v", as.id, err)
-		return nil
+		return nil, nil
 	}
-	var rows []harness.LogError
-	if err := json.Unmarshal(raw, &rows); err != nil {
+	var walked struct {
+		Rows    []harness.LogError `json:"rows"`
+		Screens []WalkScreen       `json:"screens"`
+	}
+	if err := json.Unmarshal(raw, &walked); err != nil {
 		t.Errorf("reading the walk of %s: %v", as.id, err)
 	}
-	return rows
+	return walked.Rows, walked.Screens
 }
 
 // measurePath holds one path for one tenant and reads what the window recorded.

@@ -3,7 +3,9 @@
 
 // Run R3 of test/load/PLAN.md: the built bundle walked against a running server holding the
 // capacity dataset, every console error, uncaught error, failed request and 5xx counted. The
-// capacity run starts it per measured workspace (HUBTASK_LOAD_WALK); by hand:
+// capacity run starts it per measured workspace (HUBTASK_LOAD_WALK). Per screen it records S7's
+// figures as well: the script and style bytes fetched for it and the time until it settled. By
+// hand:
 //
 //   node e2e/scalewalk.mjs <api origin> <bearer> <out.json> <path>...
 //
@@ -14,6 +16,7 @@ import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 import { serve } from './serve.mjs';
 import { fold, record } from './scalewalk-errors.mjs';
+import { screenOf, tally } from './scalewalk-screens.mjs';
 
 const [api, bearer, out, ...paths] = process.argv.slice(2);
 if (!api || !bearer || !out || paths.length === 0) {
@@ -40,6 +43,7 @@ async function settled(inFlight, deadline) {
 const served = await serve(process.cwd() + '/dist');
 const browser = await chromium.launch();
 const events = [];
+const screens = [];
 // The aborts the walk made itself: the browser logs each as a console error without its URL.
 let walkAborts = 0;
 try {
@@ -72,13 +76,27 @@ try {
   const own = (request) => !/\/api\/v1\/sync[:/]/.test(request.url());
   page.on('request', (request) => own(request) && inFlight.add(request));
   for (const done of ['requestfinished', 'requestfailed']) page.on(done, (request) => inFlight.delete(request));
+  // The bundle's files each screen fetched: what is cached from an earlier screen is not fetched
+  // again, so a screen's bytes are what a first visit to it costs after the screens before it.
+  let fetched = [];
+  page.on('response', (response) => {
+    const kind = response.request().resourceType();
+    if ((kind === 'script' || kind === 'stylesheet') && response.url().startsWith(served.origin)) {
+      fetched.push(response.body().then((body) => ({ kind, body }), () => ({ kind, body: Buffer.alloc(0) })));
+    }
+  });
   for (const path of paths) {
+    fetched = [];
+    const began = Date.now();
+    let settledMs = null;
     try {
       await page.goto(served.origin + path, { waitUntil: 'load', timeout: SETTLE_MS });
       await settled(inFlight, Date.now() + SETTLE_MS);
+      settledMs = Date.now() - began;
     } catch (error) {
-      events.push({ level: 'ERROR', message: `did not settle: ${path.replace(/[0-9a-f-]{36}/g, '?')} ${error.name}` });
+      events.push({ level: 'ERROR', message: `did not settle: ${screenOf(path)} ${error.name}` });
     }
+    screens.push({ screen: screenOf(path), settled_ms: settledMs, ...tally(await Promise.all(fetched)) });
   }
 } finally {
   await browser.close();
@@ -93,6 +111,9 @@ const rows = fold(events.filter((e) => {
   }
   return true;
 }));
-writeFileSync(out, JSON.stringify(rows, null, 2) + '\n');
+writeFileSync(out, JSON.stringify({ rows, screens }, null, 2) + '\n');
 console.log(`${rows.length} browser rows over ${paths.length} screens`);
+for (const s of screens) {
+  console.log(`screen ${s.screen}: settled ${s.settled_ms ?? 'never'} ms, ${s.script_gzip_bytes} script and ${s.style_gzip_bytes} style gzip bytes in ${s.files} files`);
+}
 for (const row of rows) console.log(`browser ${row.level} ×${row.count}: ${row.message}`);
