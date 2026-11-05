@@ -436,7 +436,7 @@ func shardCount(s queue.Shard) int32 {
 	if s.Count <= 1 || s.Count > maxShards || s.Index < 0 || s.Index >= s.Count {
 		return 1
 	}
-	return int32(s.Count) //nolint:gosec // G115: bounded by maxShards above
+	return int32(s.Count)
 }
 
 func shardIndex(s queue.Shard) int32 {
