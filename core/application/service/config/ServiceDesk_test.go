@@ -4,8 +4,11 @@
 package config
 
 import (
+	"maps"
 	"slices"
 	"testing"
+
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
@@ -178,5 +181,55 @@ func TestAnOrganisationIsRemovedAfterThePolicyNamingIt(t *testing.T) {
 	}
 	if !slices.Equal(order, []string{"DeleteSlaPolicy", "DeleteRequesterOrganisation"}) {
 		t.Fatalf("the removals run as %v", order)
+	}
+}
+
+// The plan refuses removing a calendar a policy of the document still names, as the apply's
+// DeleteBusinessCalendar would, in the apply's order: a policy removed or moved to another
+// calendar in the same document no longer names it, and a key the installation also offers is
+// what the policy then counts on.
+func TestAPlanRefusesRemovingACalendarAPolicyStillNames(t *testing.T) {
+	calendar := map[string]any{"key": "office", "name": "Office", "zone": "Europe/Berlin", "hours": []any{}, "holidays": []any{}}
+	policy := map[string]any{"key": "incidents", "name": "Incidents", "calendar": "office", "entry_types": []any{}, "goals": []any{}, "enabled": true}
+	setUp := func(offered ...string) fixture {
+		f := newFixture()
+		f.world.calendars = map[string]map[string]any{"office": maps.Clone(calendar)}
+		f.world.policies = map[string]map[string]any{"incidents": maps.Clone(policy)}
+		f.world.offered = offered
+		return f
+	}
+	removal := func(also map[string]any) map[string]any {
+		document := map[string]any{sectionCalendars: map[string]any{}}
+		maps.Copy(document, also)
+		return document
+	}
+	refused := func(t *testing.T, f fixture, document map[string]any) []any {
+		t.Helper()
+		out := invoke(t, PlanConfig{f.desk}.Descriptor(), person, usecase.Input{"document": document, "mode": "REPLACE"})
+		refusals, _ := out["refusals"].([]usecase.Output)
+		var found []any
+		for _, r := range refusals {
+			if r["code"] != "calendars.in_use" {
+				t.Fatalf("the plan refused for another reason: %v", refusals)
+			}
+			found = append(found, r)
+		}
+		return found
+	}
+
+	if got := refused(t, setUp(), removal(nil)); len(got) != 1 {
+		t.Errorf("a calendar a policy names was planned away: %v", got)
+	}
+	if got := refused(t, setUp(), removal(map[string]any{sectionPolicies: map[string]any{}})); len(got) != 0 {
+		t.Errorf("a calendar whose policy goes in the same apply was refused: %v", got)
+	}
+	moved := maps.Clone(policy)
+	moved["calendar"] = "standard"
+	delete(moved, "key")
+	if got := refused(t, setUp(), removal(map[string]any{sectionPolicies: map[string]any{"incidents": moved}})); len(got) != 0 {
+		t.Errorf("a calendar whose policy moves to another was refused: %v", got)
+	}
+	if got := refused(t, setUp("office"), removal(nil)); len(got) != 0 {
+		t.Errorf("a calendar the installation also offers was refused: %v", got)
 	}
 }

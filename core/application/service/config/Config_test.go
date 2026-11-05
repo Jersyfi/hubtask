@@ -70,12 +70,17 @@ type world struct {
 	// containers the hubs and collections ListContainers answers.
 	views, rules map[string]map[string]any
 	containers   []any
+	// calendars and policies, nil withholding the section, are the business calendars and SLA
+	// policies by key; offered the installation's calendar keys.
+	calendars, policies map[string]map[string]any
+	offered             []string
 }
 
 func (w *world) clone() *world {
 	out := &world{types: map[string]map[string]any{}, roles: map[string]map[string]any{}, failOn: w.failOn,
 		workspace: w.workspace, ai: w.ai, timePolicy: w.timePolicy, inputs: maps.Clone(w.inputs), workflows: w.workflows, preview: w.preview, previewWithheld: w.previewWithheld, grants: w.grants,
-		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach, containers: w.containers}
+		hub: w.hub, hubStructure: maps.Clone(w.hubStructure), scheme: w.scheme, hubCalendars: w.hubCalendars, fields: w.fields, fieldReach: w.fieldReach, containers: w.containers,
+		calendars: w.calendars, policies: w.policies, offered: w.offered}
 	if w.views != nil {
 		out.views = map[string]map[string]any{}
 		for k, v := range w.views {
@@ -295,6 +300,25 @@ func (c catalogue) Invoke(_ context.Context, name string, _ appshared.ActorConte
 	case "ListContainers", "ListSavedViews", "ListRules", "CreateSavedView", "UpdateSavedView", "DeleteSavedView",
 		"CreateRule", "UpdateRule", "EnableRule", "DisableRule", "DeleteRule":
 		return furniture(w, name, in)
+	case "ListBusinessCalendars", "ListSlaPolicies":
+		held := w.calendars
+		if name == "ListSlaPolicies" {
+			held = w.policies
+		}
+		if held == nil {
+			return nil, shared.ErrValidation.WithDetail("module.off")
+		}
+		rows := rowsOf(held)
+		if name == "ListBusinessCalendars" && in.Bool("include_offered") {
+			for i, raw := range rows {
+				row := maps.Clone(raw.(map[string]any))
+				if slices.Contains(w.offered, text(row["key"])) {
+					row["shadows_offered"] = true
+				}
+				rows[i] = row
+			}
+		}
+		return usecase.Output{"data": rows}, nil
 	case "GetGroup":
 		if in["group_id"] == knownGroup {
 			return usecase.Output{"id": knownGroup}, nil

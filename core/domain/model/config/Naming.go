@@ -20,6 +20,18 @@ func RulesAddressingRole(rules Section, role string) int {
 	return count
 }
 
+// PoliciesNamingCalendar counts the SLA policies of a document's policy section that name the
+// calendar: a calendar they name may not go (DeleteBusinessCalendar refuses it).
+func PoliciesNamingCalendar(policies Section, calendar string) int {
+	count := 0
+	for _, policy := range policies {
+		if stringOf(policy["calendar"]) == calendar {
+			count++
+		}
+	}
+	return count
+}
+
 func notifiesRole(actions []any, role string, depth int) bool {
 	if depth > maxBranchNesting {
 		return false

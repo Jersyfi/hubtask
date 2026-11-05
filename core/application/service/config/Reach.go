@@ -49,6 +49,7 @@ type reach struct {
 const (
 	previewWorkflowPublish  = "PreviewWorkflowPublish"
 	listRoles               = "ListRoles"
+	listBusinessCalendars   = "ListBusinessCalendars"
 	previewCustomFieldReach = "PreviewCustomFieldReach"
 	// The structure previews: a hub's, and the workspace's over every hub that follows it.
 	previewContainerStructure = "PreviewContainerStructure"
@@ -65,6 +66,8 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 	grantsRead, grantsWithheld := false, false
 	structure := map[string]any{}
 	reset := []any{}
+	var shadows map[string]bool
+	shadowsRead := false
 	for _, change := range p.Changes {
 		switch {
 		case change.Section == sectionModules && slices.Contains([]string{"OFF", "INHERIT"}, text(change.After[switchAttribute])):
@@ -163,6 +166,25 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 			if gaps := work.IntakeGaps(before, after); len(gaps) > 0 {
 				p.Reach = append(p.Reach, reach{Path: change.Path(), Intake: gaps})
 			}
+		case change.Section == sectionCalendars && change.Op == domain.OpRemove && p.Hub.IsZero():
+			// DeleteBusinessCalendar refuses a calendar a policy names, unless the installation offers
+			// its key. Counted in the document's own policies, which the apply defines and removes
+			// before it removes a calendar; a hub's own version and a rule's trigger are found at the apply.
+			if domain.PoliciesNamingCalendar(p.Target[sectionPolicies], change.Key) == 0 {
+				continue
+			}
+			if !shadowsRead {
+				shadowsRead = true
+				var err error
+				if shadows, err = d.shadowedCalendars(ctx, actor); err != nil {
+					return err
+				}
+			}
+			// nil: the reader may not list the calendars, and the apply refuses what the plan cannot see.
+			if shadows != nil && !shadows[change.Key] {
+				p.Refusals = append(p.Refusals, domain.Refusal("calendars.in_use", change.Path(),
+					map[string]string{"key": change.Key}))
+			}
 		case change.Section == sectionRoles && change.Op != domain.OpAdd:
 			if !grantsRead {
 				grantsRead = true
@@ -238,6 +260,31 @@ func (d Desk) reachOf(ctx context.Context, actor appshared.ActorContext, p *plan
 		p.Hash = ""
 	}
 	return nil
+}
+
+// shadowedCalendars are the workspace's calendar keys the installation also offers; nil where the
+// reader may not list the calendars.
+func (d Desk) shadowedCalendars(ctx context.Context, actor appshared.ActorContext) (map[string]bool, error) {
+	out := map[string]bool{}
+	answer, err := d.preview(ctx, listBusinessCalendars, actor, usecase.Input{"include_offered": true})
+	if err != nil {
+		if withheld(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	normal, err := normalise(map[string]any(answer))
+	if err != nil {
+		return nil, err
+	}
+	rows, _ := normal.(map[string]any)["data"].([]any)
+	for _, raw := range rows {
+		row, _ := raw.(map[string]any)
+		if shadows, _ := row["shadows_offered"].(bool); shadows {
+			out[text(row["key"])] = true
+		}
+	}
+	return out, nil
 }
 
 // structureReach asks the structure preview of the plan's scope - a hub's, or the workspace's

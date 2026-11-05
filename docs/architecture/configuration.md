@@ -64,9 +64,11 @@ business calendar a policy or a switched-on rule counts on (`calendars.in_use`,
 `calendars.named_by_rules`) - a rollback recreates a block, never who held it where). The plan
 already refuses removing a role somebody holds (`roles.held`, with the count of its grants) or one
 a switched-on rule the plan keeps notifies (`roles.named_by_rules`, counted in the document's own
-rules, which the apply changes and removes before any role); a rule of another scope and the
-calendars in use are found at the apply, which refuses whole. The plan does not see the
-installation's calendars, which let a workspace's calendar of the same key go.
+rules, which the apply changes and removes before any role), and a business calendar a policy the
+plan keeps names (`calendars.in_use`, counted in the document's own policies, which the apply
+defines and removes before any calendar), unless the installation offers its key (the calendar list
+says `shadows_offered`). A rule of another scope, a hub's own version of a calendar and a rule's
+trigger counting on one are found at the apply, which refuses whole.
 
 **Apply is all or nothing,** carries the version it was planned against (`If-Match`; a configuration
 somebody changed since is refused with `version_conflict`), writes one configuration version and
