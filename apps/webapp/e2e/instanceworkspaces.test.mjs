@@ -259,7 +259,7 @@ test('chromium: suspending asks first, and the own workspace is marked and warne
   await dialog.waitFor();
   assert.match(await dialog.textContent() ?? '', /only an operator from another workspace can cancel the deletion/);
   // UC-INS-08 check 4: the name is typed to confirm, and the grace period is said.
-  assert.match(await dialog.textContent() ?? '', /removed for good when the grace period ends/);
+  assert.match(await dialog.textContent() ?? '', /removed for good when the grace period of 30 days ends/);
   await dialog.getByLabel(`Type ${WORKSPACE.slug} to confirm`).or(dialog.getByLabel(`Type ${WORKSPACE.display_name} to confirm`)).first().waitFor();
   assert.equal(sent.length, 1, 'opening the dialogs sent something');
 });

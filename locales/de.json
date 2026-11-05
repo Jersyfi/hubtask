@@ -5173,7 +5173,7 @@
   "app.instance.done": "Schließen",
   "app.instance.delete": "Löschen",
   "app.instance.delete_title": "Diesen Arbeitsbereich löschen",
-  "app.instance.delete_cost": "Der Arbeitsbereich antwortet sofort nicht mehr, und alles darin wird mit Ablauf der Frist endgültig entfernt. Bis dahin lässt sich das abbrechen, danach nicht mehr.",
+  "app.instance.delete_cost": "Der Arbeitsbereich antwortet sofort nicht mehr, und alles darin wird mit Ablauf der Frist von {days} Tagen endgültig entfernt. Bis dahin lässt sich das abbrechen, danach nicht mehr.",
   "app.instance.delete_confirm_label": "Zum Bestätigen {name} eingeben",
   "app.instance.delete_confirm_hint": "Genau so, wie es oben steht.",
   "app.instance.delete_now": "Löschen",

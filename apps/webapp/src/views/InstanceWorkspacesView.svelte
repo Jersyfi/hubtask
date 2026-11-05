@@ -60,6 +60,8 @@
   /** The opening's bounds, as the contract states them: a day unless said otherwise, a week at most. */
   const OPENING_DEFAULT_HOURS = 24;
   const OPENING_MAXIMUM_HOURS = 168;
+  /** A deletion's grace as the contract states it (multi-tenancy.md §5): fixed, not configured. */
+  const DELETION_GRACE_DAYS = 30;
 
   /** Which act is open, and on which workspace. One at a time: two dialogs would be two answers. */
   let acting = $state<
@@ -639,7 +641,7 @@
   {/snippet}
   <Stack gap="150">
     <!-- What it costs, before the button and not in a help page. -->
-    <Banner tone="warning">{t('app.instance.delete_cost')}</Banner>
+    <Banner tone="warning">{t('app.instance.delete_cost', { days: String(DELETION_GRACE_DAYS) })}</Banner>
     {#if isOwn}
       <Banner tone="danger">{t('app.instance.delete_own')}</Banner>
     {/if}

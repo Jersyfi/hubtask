@@ -3852,7 +3852,7 @@
   "app.instance.done": "Close",
   "app.instance.delete": "Delete",
   "app.instance.delete_title": "Delete this workspace",
-  "app.instance.delete_cost": "The workspace stops answering at once and everything in it is removed for good when the grace period ends. Until then it can be called off, and after it nothing can.",
+  "app.instance.delete_cost": "The workspace stops answering at once and everything in it is removed for good when the grace period of {days} days ends. Until then it can be called off, and after it nothing can.",
   "app.instance.delete_confirm_label": "Type {name} to confirm",
   "app.instance.delete_confirm_hint": "Exactly as it is written above.",
   "app.instance.delete_now": "Delete it",
