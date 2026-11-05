@@ -50,6 +50,8 @@ export const sectionOf = (name: string | undefined): AssetSection =>
 const READER_SECTIONS = ['inventory', 'health', 'alerts', 'groups'] as const satisfies readonly AssetSection[];
 /** The operator's sections, a second strip behind *Manage*; the import last, as the head's create list reaches it too. */
 const MANAGE_SECTIONS = ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software', 'import'] as const satisfies readonly AssetSection[];
+/** The sections behind *Manage* that write nothing, which a reader without it reads in the first strip. */
+const LISTED_SECTIONS = ['register', 'software'] as const satisfies readonly AssetSection[];
 
 export interface AssetStrips {
   /** The first strip's tabs: the reader's sections and, where it holds anything, `manage`. */
@@ -66,12 +68,14 @@ export interface AssetStrips {
  * The two strips of a hub's *Assets* for a reader. *Manage* is drawn for whoever may run what is
  * behind it - writing runs pulls and settles duplicates, shaping defines connectors -, and the
  * import only for a writer, because it writes; an address naming a section the reader cannot
- * reach shows the inventory rather than an empty strip.
+ * reach shows the inventory rather than an empty strip. Without *Manage*, the register and the
+ * software - which only list - join the first strip, so a reader reads them too (UC-AST-12 check 5).
  */
 export function assetStrips(section: AssetSection, may: { readonly write: boolean; readonly shape: boolean }): AssetStrips {
   const manage = may.write || may.shape ? MANAGE_SECTIONS.filter((each) => each !== 'import' || may.write) : [];
-  const top = [...READER_SECTIONS, ...(manage.length > 0 ? ['manage'] : [])];
-  const reachable = (READER_SECTIONS as readonly string[]).includes(section) || (manage as readonly string[]).includes(section);
+  const read: readonly AssetSection[] = manage.length > 0 ? READER_SECTIONS : [...READER_SECTIONS, ...LISTED_SECTIONS];
+  const top = [...read, ...(manage.length > 0 ? ['manage'] : [])];
+  const reachable = read.includes(section) || (manage as readonly string[]).includes(section);
   const shown = reachable ? section : 'inventory';
   return { top, manage, selected: (manage as readonly string[]).includes(shown) ? 'manage' : shown, shown };
 }

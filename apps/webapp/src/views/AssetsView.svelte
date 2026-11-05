@@ -8,7 +8,8 @@
   // address; one configuration item is at `/cis/:id`.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
-  // reads every section and is offered no write; the import section is not offered to them at all.
+  // is offered no write: the import is not offered to them at all, the other operator sections are
+  // not shown, and the register and the software, which only list, stand in the first strip.
 
   import { untrack } from 'svelte';
   import { Badge, Banner, PageHeader, Skeleton, Spinner, Tabs } from '@hubtask/design-system/components';

@@ -668,7 +668,8 @@ campaign*, each opening its section's own dialog once. No licence count is drawn
 which licences expire. The first strip is *Inventory · Health · Alerts · Groups and map · Manage*;
 *Manage* opens *Runs · Duplicates · Connectors · Campaigns · Register · Software · Import* as a
 second strip and is drawn for whoever may write or shape the hub, the import for a writer only;
-an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
+for a reader without it, *Register* and *Software*, which only list, join the first strip
+(UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
 `ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
 empty inventory offers the create and the import, a reader is told how CIs arrive. A connector is
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched

@@ -456,13 +456,19 @@ test('the Assets screen opens on the inventory and keeps the operator\'s section
   // A member who may write runs pulls and resolves duplicates; one who only shapes defines connectors.
   assert.deepEqual(assetStrips('runs', { write: false, shape: true }).manage, ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software']);
 
-  // Manage is visible to whoever may run what is behind it; a reader is shown the inventory instead.
+  // Manage is visible to whoever may run what is behind it; a reader is shown the inventory instead,
+  // and reads the register and the software in the first strip (UC-AST-12 check 5).
   const reader = assetStrips('connectors', { write: false, shape: false });
-  assert.deepEqual(reader.top, ['inventory', 'health', 'alerts', 'groups']);
+  assert.deepEqual(reader.top, ['inventory', 'health', 'alerts', 'groups', 'register', 'software']);
   assert.deepEqual(reader.manage, []);
   assert.equal(reader.shown, 'inventory');
   assert.equal(reader.selected, 'inventory');
   assert.equal(assetStrips('import', { write: false, shape: true }).shown, 'inventory');
+  for (const listed of ['register', 'software'] as const) {
+    const reading = assetStrips(listed, { write: false, shape: false });
+    assert.equal(reading.shown, listed);
+    assert.equal(reading.selected, listed);
+  }
 });
 
 test('the Assets head says how many CIs there are, how many need attention and how many alerts fire', () => {

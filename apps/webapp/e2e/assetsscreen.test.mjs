@@ -3,10 +3,10 @@
 
 // A hub's Assets as user-experience.md §7.3 draws it: the inventory first under a head that says
 // how it stands, the operator's sections behind *Manage* as a second strip that a reader is never
-// shown, a create in the head's list that opens its section's own dialog, connectors as cards with
+// shown - the register and the software, which only list, in the reader's first strip -, a create in the head's list that opens its section's own dialog, connectors as cards with
 // one act and a menu, and alerts that say where they come from when there are none - with no
 // sideways scroll on a phone, full or empty; and a CI's relations as a small graph beside the list
-// (UC-AST-01 check 8, UC-AST-07 check 7, UC-AST-08 check 7).
+// (UC-AST-01 check 8, UC-AST-07 check 7, UC-AST-08 check 7, UC-AST-12 check 5).
 //
 // Chromium only: what this asserts is the rendered screen.
 
@@ -59,6 +59,12 @@ const ALERTS = [
   { id: '01a0e2e0-0000-7000-8000-0000000ca002', hub_id: HUB.id, connector_id: CONNECTORS[1].id, key: 'cpu', status: 'RESOLVED', severity: 'warning', title: 'CPU high', first_at: '2026-11-03T08:00:00Z', last_at: '2026-11-03T09:00:00Z', resolved_at: '2026-11-03T09:30:00Z', count: 1 },
 ];
 
+const ASSET = {
+  ci_id: MANY[1].id, hub_id: HUB.id, asset_tag: 'LT-0042', cost_minor: 129900, currency: 'EUR', purchased_on: '2026-01-15',
+  supplier: 'A supplier', warranty_until: '2029-01-15', warranty_ended: false, contract_id: null, stockroom_id: null,
+  assigned_to: null, request_id: null, state: 'IN_STOCK', disposal: null, updated_at: '2026-10-01T08:00:00Z', version: 1,
+};
+
 async function open(browser, { width = 1280, height = 900, path, full = true, role = 'OWNER', scheme = 'light' }) {
   const { page, context, failures } = await signedIn(browser, width, height);
   await page.emulateMedia({ colorScheme: scheme });
@@ -79,6 +85,7 @@ async function open(browser, { width = 1280, height = 900, path, full = true, ro
     if (at === '/cmdb/sources') return route.fulfill({ json: { data: [{ key: 'netbox', kind: 'CONNECTOR', priority: 50 }] } });
     if (at === `/hubs/${HUB.id}/cis`) return route.fulfill({ json: { data: full ? MANY : [], next: null } });
     if (at === `/hubs/${HUB.id}/cmdb-health`) return route.fulfill({ json: full ? health(MANY.length, 6) : health(0, 0) });
+    if (at === `/hubs/${HUB.id}/assets`) return route.fulfill({ json: { data: full ? [ASSET] : [], next: null } });
     if (at === `/hubs/${HUB.id}/cmdb-connectors`) return route.fulfill({ json: { data: full ? CONNECTORS : [] } });
     if (at === `/hubs/${HUB.id}/ci-alerts`) {
       const status = url.searchParams.get('status');
@@ -128,8 +135,16 @@ test('chromium: a reader is shown neither Manage nor a create, and a managed add
   t.after(() => context.close());
 
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 20_000 });
-  assert.deepEqual(await tabNames(strips(page).first()), ['Inventory', 'Health', 'Alerts', 'Groups and map']);
+  assert.deepEqual(await tabNames(strips(page).first()), ['Inventory', 'Health', 'Alerts', 'Groups and map', 'Register', 'Software']);
   assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0);
+
+  // The register lists for a reader, and offers nothing to write (UC-AST-12 check 5).
+  await strips(page).first().getByRole('tab', { name: 'Register' }).click();
+  await page.locator(`[data-asset="${ASSET.ci_id}"]`).waitFor({ timeout: 5_000 });
+  assert.ok(page.url().endsWith('/assets/register'));
+  assert.equal(await page.locator('[data-register] button').count(), 0);
+  await strips(page).first().getByRole('tab', { name: 'Software' }).click();
+  await page.waitForFunction(() => location.pathname.endsWith('/assets/software'), null, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
