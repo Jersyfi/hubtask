@@ -167,6 +167,10 @@ def provision():
             "owner_email": f"owner@{SLUG}.{DOMAIN}", "owner_display_name": "Jana Krüger",
             "default_locale": "de", "default_time_zone": "Europe/Berlin"}
     made = raw("POST", "/admin/tenants", body, headers={"Authorization": f"Bearer {admin}"})
+    if "owner_redemption_token" not in made:
+        # An installation that sends mail mails the owner's way in and answers no token (UC-INS-07 check 3).
+        sys.exit("this server mails the owner's invitation (SMTP is configured), so no token comes back to "
+                 "redeem: seed against a server without HUBTASK_SMTP_HOST")
     tokens = raw("POST", "/auth/invitations:redeem", {"token": made["owner_redemption_token"], "password": PASSWORD})
     return made, Client(made["id"], tokens)
 

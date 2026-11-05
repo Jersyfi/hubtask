@@ -550,7 +550,7 @@ stateDiagram-v2
 
 | Phase | Actions |
 |---|---|
-| Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent under `Idempotency-Key` |
+| Provisioning | Tenant, default hub, example collection, owner membership, locale/time zone, standard buckets/labels; idempotent under `Idempotency-Key`. The owner's way in travels one way only (`owner_delivery`): where the installation sends mail their invitation is queued, as any invitation's is, and no token is answered; where it does not, the redemption token is answered once. Never both, since the mail mints its own token at delivery and the newest voids any other |
 | Active | Normal operation; metering only if enabled |
 | Suspended | The API answers `403 access.tenant_suspended`; data remains; the export still works |
 | PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works. A deletion request is refused while a legal hold in the workspace is in force, and a workspace already here stays here until the last hold is lifted ([data-protection.md](./data-protection.md) §5); its grace job comes back daily and removes nothing while one stands, and no hold can be placed here |

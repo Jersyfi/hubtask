@@ -129,7 +129,7 @@ func TestAMovesDryRunFromTheTerminal(t *testing.T) {
 func TestProvisioningNamesThePlan(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, `{"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "maria",
 	  "display_name": "Maria", "status": "ACTIVE", "created_at": "2026-10-01T08:00:00Z",
-	  "owner_account_id": "0192f000-0000-7000-8000-0000000000e2", "owner_redemption_token": "hbt_red_x",
+	  "owner_account_id": "0192f000-0000-7000-8000-0000000000e2", "owner_delivery": "LINK", "owner_redemption_token": "hbt_red_x",
 	  "default_hub_id": "0192f000-0000-7000-8000-0000000000e3", "example_collection_id": "0192f000-0000-7000-8000-0000000000e4"}`)
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "create",
 		"--slug", "maria", "--name", "Maria", "--owner-email", "maria@example.org", "--plan", "family")

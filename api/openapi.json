@@ -18854,7 +18854,7 @@
         "x-hubtask-rest-shown-once": "owner_redemption_token",
         "x-hubtask-rest-location": "/admin/tenants",
         "summary": "Provision a workspace",
-        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
+        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose invitation is mailed where this installation sends mail, and whose redemption token is answered once where it does not, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -52506,7 +52506,7 @@
             "type": "object",
             "required": [
               "owner_account_id",
-              "owner_redemption_token",
+              "owner_delivery",
               "default_hub_id",
               "example_collection_id"
             ],
@@ -52515,9 +52515,17 @@
                 "type": "string",
                 "format": "uuid"
               },
+              "owner_delivery": {
+                "type": "string",
+                "enum": [
+                  "MAIL",
+                  "LINK"
+                ],
+                "description": "How the owner's way in travels. MAIL where this installation sends mail (`features.mail`): the owner's invitation is queued to their address and no token is answered. LINK where it does not: `owner_redemption_token` is answered, once. Never both, since the mail carries a way in of its own that voids any other.\n"
+              },
               "owner_redemption_token": {
                 "type": "string",
-                "description": "The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in. Hand it to them; it cannot be read again.\n"
+                "description": "The owner's way in, shown for the only time and only where `owner_delivery` is LINK: whoever the workspace is for redeems it, sets a password, and is signed in. Hand it to them; it cannot be read again.\n"
               },
               "default_hub_id": {
                 "type": "string",

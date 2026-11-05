@@ -205,7 +205,12 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 			provisioned.DefaultHubId.String(), provisioned.ExampleCollectionId.String(),
 		}},
 	})
-	printf(cli.Out, "%s\n", provisioned.OwnerRedemptionToken)
+	// Mailed or handed over, never both (UC-INS-07 check 3).
+	if provisioned.OwnerRedemptionToken == nil {
+		printf(cli.Err, "the owner's invitation is on its way to their address by mail\n")
+		return nil
+	}
+	printf(cli.Out, "%s\n", *provisioned.OwnerRedemptionToken)
 	printf(cli.Err,
 		"that redemption token is the owner's whole way in and is shown once: hand it to them, "+
 			"and provision again if it is lost\n")

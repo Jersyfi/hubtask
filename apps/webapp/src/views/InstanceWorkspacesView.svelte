@@ -72,6 +72,8 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** The owner's way in, from the one answer that carries it. Held by the screen, never the store. */
   let provisioned = $state<ProvisionedTenant | undefined>(undefined);
+  /** The address the owner's invitation was mailed to, said beside the answer that has none. */
+  let mailedTo = $state('');
 
   // The new workspace's fields.
   let slug = $state('');
@@ -356,7 +358,13 @@
         <FailureNote problem={failure} />
       {/if}
 
-      {#if provisioned}
+      {#if provisioned?.owner_delivery === 'MAIL'}
+        <!-- Mailed, so nothing is shown: the mail's own way in would void a token shown beside it
+             (UC-INS-07 check 3). -->
+        <Banner tone="success" title={t('app.instance.owner_mailed_title')} dismissLabel={t('app.instance.done')} onDismiss={() => (provisioned = undefined)}>
+          {t('app.instance.owner_mailed', { email: mailedTo })}
+        </Banner>
+      {:else if provisioned?.owner_redemption_token}
         <!-- The owner's way in, once. It is not in the store and not in the listing: it exists in
              the answer that created the workspace and nowhere else. -->
         <OneTimeSecret
@@ -552,6 +560,7 @@
           return;
         }
         void run('new', async () => {
+          mailedTo = ownerEmail.trim();
           provisioned = await instance.provision({
             slug: slug.trim(),
             display_name: displayName.trim(),

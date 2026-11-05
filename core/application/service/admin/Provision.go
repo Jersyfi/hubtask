@@ -110,10 +110,13 @@ type ProvisionTenantCommand struct {
 type ProvisionedTenant struct {
 	Tenant domain.Tenant
 	// Plan is the plan the workspace started on, and Version the row's version once it is there.
-	Plan                string
-	ExternalReference   string
-	Version             int
-	OwnerAccountID      shared.ID
+	Plan              string
+	ExternalReference string
+	Version           int
+	OwnerAccountID    shared.ID
+	// OwnerDelivery is how the owner's way in travels: MAIL, the invitation queued, or LINK, the
+	// redemption token in this answer (UC-INS-07 check 3). Never both - see MailsOwner.
+	OwnerDelivery       string
 	OwnerRedemption     secret.Secret
 	DefaultHubID        shared.ID
 	ExampleCollectionID shared.ID
@@ -177,7 +180,17 @@ type ProvisionTenant struct {
 	// Instance is the installation's level, whose language and zone a workspace provisioned without
 	// its own starts with. Nil is a build without the level: `en` and `UTC`.
 	Instance identityrepo.InstanceSettings
+	// MailsOwner is whether this installation sends mail (`features.mail`): then the owner's
+	// invitation is queued as mail and no token is answered. Never both, because the mail mints a
+	// token of its own at delivery and the newest voids the one answered here.
+	MailsOwner bool
 }
+
+// Owner deliveries, as the answer and the journal name them (the identity service's words).
+const (
+	ownerDeliveryMail = "MAIL"
+	ownerDeliveryLink = "LINK"
+)
 
 // Execute provisions the workspace and answers the owner's way in.
 func (h ProvisionTenant) Execute(
@@ -224,19 +237,20 @@ func (h ProvisionTenant) Execute(
 		return ProvisionedTenant{}, err
 	}
 
-	material, err := h.Entropy.Bytes(domain.TokenSecretBytes)
-	if err != nil {
-		return ProvisionedTenant{}, shared.ErrInternal.
-			WithDetail("auth.session_unmintable").WithCause(err)
-	}
-	redemption, err := domain.NewRedemptionToken(tenant.ID, material)
-	if err != nil {
-		return ProvisionedTenant{}, err
-	}
-
-	result := ProvisionedTenant{
-		Tenant: tenant, OwnerAccountID: owner.ID,
-		OwnerRedemption: secret.New(redemption.Secret()),
+	// The mail needs the queue; a build without one hands the token over.
+	mails := h.MailsOwner && h.Jobs != nil
+	result := ProvisionedTenant{Tenant: tenant, OwnerAccountID: owner.ID, OwnerDelivery: ownerDeliveryMail}
+	var redemption domain.Token
+	if !mails {
+		material, err := h.Entropy.Bytes(domain.TokenSecretBytes)
+		if err != nil {
+			return ProvisionedTenant{}, shared.ErrInternal.
+				WithDetail("auth.session_unmintable").WithCause(err)
+		}
+		if redemption, err = domain.NewRedemptionToken(tenant.ID, material); err != nil {
+			return ProvisionedTenant{}, err
+		}
+		result.OwnerDelivery, result.OwnerRedemption = ownerDeliveryLink, secret.New(redemption.Secret())
 	}
 
 	// The new tenant's own scope: the first write it ever sees is already bounded to it, and
@@ -291,7 +305,15 @@ func (h ProvisionTenant) Execute(
 			result.Plan, result.Version = cmd.Plan, result.Version+1
 		}
 
-		if _, err := h.Redemption.SetRedemptionToken(
+		if mails {
+			// No inviter: the control plane is no person of the new workspace.
+			if _, err := h.Jobs.Enqueue(ctx, queue.Request{
+				Kind: queue.KindInvitationEmail, TenantID: tenant.ID, DedupeKey: owner.ID.String(),
+				Payload: map[string]any{"account_id": owner.ID.String()},
+			}); err != nil {
+				return err
+			}
+		} else if _, err := h.Redemption.SetRedemptionToken(
 			ctx, owner.ID, redemption, now.Add(domain.RedemptionLifetime).UTC(), now,
 		); err != nil {
 			return err
@@ -303,6 +325,7 @@ func (h ProvisionTenant) Execute(
 				"owner_account_id": owner.ID.String(),
 				"default_hub_id":   hubID.String(),
 				"plan":             cmd.Plan,
+				"owner_delivery":   result.OwnerDelivery,
 			},
 		}); err != nil {
 			return err
@@ -549,10 +572,11 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ProvisionTenantName,
 		Summary: "Creates a workspace with its defaults: the tenant, an invited owner whose " +
-			"redemption token is answered once, a default hub, an example collection, standard " +
+			"invitation is mailed where this installation sends mail and whose redemption token " +
+			"is answered once where it does not, a default hub, an example collection, standard " +
 			"buckets and labels. Multi mode only, and idempotent under an Idempotency-Key.",
-		SideEffects: "Writes the tenant and its seeded structure, announces the structure's " +
-			"events, records the provisioning in the new tenant's audit trail and in the " +
+		SideEffects: "Writes the tenant and its seeded structure, queues the owner's invitation " +
+			"mail where this installation sends mail, announces the structure's events, records the provisioning in the new tenant's audit trail and in the " +
 			"instance journal.",
 		TokenScope: adminTenantsScope,
 		AlsoScope:  provisioningScope,
@@ -618,8 +642,11 @@ func (h ProvisionTenant) invoke(
 		ExternalReference: provisioned.ExternalReference,
 	})
 	out["owner_account_id"] = provisioned.OwnerAccountID.String()
-	// The one appearance of the owner's way in (T-18's "shown once").
-	out["owner_redemption_token"] = provisioned.OwnerRedemption.Reveal()
+	out["owner_delivery"] = provisioned.OwnerDelivery
+	// The one appearance of the owner's way in (T-18's "shown once"), where no mail carries it.
+	if provisioned.OwnerDelivery == ownerDeliveryLink {
+		out["owner_redemption_token"] = provisioned.OwnerRedemption.Reveal()
+	}
 	out["default_hub_id"] = provisioned.DefaultHubID.String()
 	out["example_collection_id"] = provisioned.ExampleCollectionID.String()
 	return out, nil

@@ -93,7 +93,7 @@ func TestListingWorkspacesMarksALegalHold(t *testing.T) {
 func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, `{"id":"`+acmeID+`","slug":"acme",
 	  "display_name":"Acme","status":"ACTIVE","created_at":"2026-09-01T09:00:00Z",
-	  "owner_account_id":"`+ownerID+`","owner_redemption_token":"`+redemptionToken+`",
+	  "owner_account_id":"`+ownerID+`","owner_delivery":"LINK","owner_redemption_token":"`+redemptionToken+`",
 	  "default_hub_id":"`+seededHub+`","example_collection_id":"`+collectionID+`"}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
@@ -119,6 +119,24 @@ func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) 
 	// collection in it, and their identifiers are what the owner's first commands name.
 	if !strings.Contains(out, seededHub) || !strings.Contains(out, collectionID) {
 		t.Errorf("the seeded structure is not in the answer: %q", out)
+	}
+}
+
+// UC-INS-07 check 3, hubctl's part: where the installation mails the owner, no token is answered
+// and the command says the invitation is on its way.
+func TestProvisioningWithMailSaysTheInvitationIsOnItsWay(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, `{"id":"`+acmeID+`","slug":"acme",
+	  "display_name":"Acme","status":"ACTIVE","created_at":"2026-09-01T09:00:00Z",
+	  "owner_account_id":"`+ownerID+`","owner_delivery":"MAIL",
+	  "default_hub_id":"`+seededHub+`","example_collection_id":"`+collectionID+`"}`)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "create", "--slug", "acme", "--name", "Acme", "--owner-email", "eva@acme.example")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(errOut, "on its way to their address by mail") || strings.Contains(errOut, "shown once") {
+		t.Errorf("the command did not say the invitation was mailed: %q", errOut)
 	}
 }
 

@@ -5198,6 +5198,8 @@
   "app.instance.owner_email_label": "E-Mail-Adresse der Inhaberin",
   "app.instance.owner_email_hint": "Von hier aus wird nichts verschickt. Gib das Token weiter, das dieser Bildschirm einmal zeigt, sobald der Arbeitsbereich besteht.",
   "app.instance.owner_name_label": "Name der Inhaberin",
+  "app.instance.owner_mailed_title": "Die Einladung der Inhaberin geht per Mail",
+  "app.instance.owner_mailed": "Die Einladung an {email} wartet auf den Versand. Mit ihrem Link wird ein Passwort gesetzt und angemeldet, es gibt also nichts zu übergeben.",
   "app.instance.owner_token_title": "Token der Inhaberin",
   "app.instance.owner_token_hint": "Es wird dieses eine Mal gezeigt und nirgends so abgelegt, dass es wieder lesbar wäre. Die Inhaberin tauscht es gegen ihr eigenes Passwort.",
   "app.instance.owner_token_kept": "Ich habe es weitergegeben",

@@ -367,6 +367,58 @@ test('chromium: a reserved short name is refused at the field of New workspace',
   assert.equal(sent[0].slug, 'www');
 });
 
+// UC-INS-07 check 3: where the installation mails, the screen says the owner's invitation is
+// queued for their address and shows no token; where it does not, the token is shown once.
+for (const delivery of ['MAIL', 'LINK']) {
+  test(`chromium: a new workspace's owner is reached by ${delivery === 'MAIL' ? 'mail, with no token shown' : 'the token shown once'}`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    t.after(() => context.close());
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
+      if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [workspace()] });
+      if (path === '/admin/tenants:query') return route.fulfill({ json: { data: [workspace()], page: { next_cursor: null, has_more: false } } });
+      if (path === '/admin/tenants' && request.method() === 'POST') {
+        return route.fulfill({
+          status: 201,
+          json: {
+            ...workspace(), id: '01a0e2e0-0000-7000-8000-0000000000f1', slug: 'web', display_name: 'Web',
+            owner_account_id: '01a0e2e0-0000-7000-8000-0000000000f2', owner_delivery: delivery,
+            ...(delivery === 'LINK' ? { owner_redemption_token: 'hbt_red_e2e' } : {}),
+            default_hub_id: '01a0e2e0-0000-7000-8000-0000000000f3', example_collection_id: '01a0e2e0-0000-7000-8000-0000000000f4',
+          },
+        });
+      }
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+
+    await page.goto(`${served.origin}/instance/workspaces`);
+    await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
+    await page.getByRole('button', { name: 'New workspace' }).click();
+    const dialog = page.getByRole('dialog', { name: 'New workspace' });
+    await dialog.getByLabel(/^Address/).fill('web');
+    await dialog.getByLabel(/^Name/).fill('Web');
+    await dialog.getByLabel(/^The owner's email address/).fill('eva@acme.example');
+    await dialog.getByRole('button', { name: 'Create it' }).click();
+
+    if (delivery === 'MAIL') {
+      await page.getByText('The invitation to eva@acme.example is queued for mail.', { exact: false }).waitFor({ timeout: 10_000 });
+      assert.equal(await page.getByText("The owner's token").count(), 0, 'a token was shown beside the mail');
+    } else {
+      await page.getByText("The owner's token").first().waitFor({ timeout: 10_000 });
+      assert.equal(await page.getByText('is queued for mail', { exact: false }).count(), 0, 'the mail was said beside the token');
+    }
+  });
+}
+
 // user-experience.md §8.4: a workspace near or at a limit is marked on its row, from the
 // installation's own answer of which workspaces stand at 90% or more; the limits dialog says what
 // is in use beside the field and warns, before saving, where a ceiling is typed below it.

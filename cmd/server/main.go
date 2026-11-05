@@ -1927,6 +1927,8 @@ func run() error {
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
 		Platform: platformEvents,
 		Instance: postgres.NewInstanceSettingRepository(),
+		// The owner's invitation is mailed on exactly the condition every invitation is.
+		MailsOwner: cfg.Mail.Configured(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))

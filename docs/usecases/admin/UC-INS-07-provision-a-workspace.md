@@ -28,7 +28,10 @@ that deliver it themselves.
 1. The screen, `hubctl admin tenant create` and `POST /admin/tenants` create the same workspace with
    the same checks.
 2. A short name that is taken, reserved or not a valid address label is refused at the field.
-3. The owner's way in is delivered by mail and, once, as a link to copy.
+3. Where the installation sends mail, the owner's invitation is queued to their address and the
+   answer says so (`owner_delivery: MAIL`) with no token; where it does not, the owner's way in is
+   shown once to copy (`LINK`). Never both, since the mail's own way in voids any other (by the
+   owner's seventh answers, item 11).
 4. On a single-tenant installation, *New workspace* is not offered anywhere.
 5. The creation is in the instance journal and in the new workspace's own trail.
 

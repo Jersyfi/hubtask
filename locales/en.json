@@ -3855,6 +3855,8 @@
   "app.instance.owner_email_label": "The owner's email address",
   "app.instance.owner_email_hint": "They receive nothing from here. Hand them the token this screen shows once the workspace exists.",
   "app.instance.owner_name_label": "The owner's name",
+  "app.instance.owner_mailed_title": "The owner's invitation goes by mail",
+  "app.instance.owner_mailed": "The invitation to {email} is queued for mail. Its link lets them set a password and sign in, so there is nothing to hand over.",
   "app.instance.owner_token_title": "The owner's token",
   "app.instance.owner_token_hint": "It is shown this once and is not stored anywhere it can be read again. The owner exchanges it for their own password.",
   "app.instance.owner_token_kept": "I have handed it over",

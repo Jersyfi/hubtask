@@ -7834,6 +7834,24 @@ func (e ProviderSummaryScope) Valid() bool {
 	}
 }
 
+// Defines values for ProvisionedTenantOwnerDelivery.
+const (
+	ProvisionedTenantOwnerDeliveryLINK ProvisionedTenantOwnerDelivery = "LINK"
+	ProvisionedTenantOwnerDeliveryMAIL ProvisionedTenantOwnerDelivery = "MAIL"
+)
+
+// Valid indicates whether the value is a known member of the ProvisionedTenantOwnerDelivery enum.
+func (e ProvisionedTenantOwnerDelivery) Valid() bool {
+	switch e {
+	case ProvisionedTenantOwnerDeliveryLINK:
+		return true
+	case ProvisionedTenantOwnerDeliveryMAIL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProvisionedTenantStatus.
 const (
 	ProvisionedTenantStatusACTIVE          ProvisionedTenantStatus = "ACTIVE"
@@ -21854,8 +21872,11 @@ type ProvisionedTenant struct {
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
 	OwnerAccountId openapi_types.UUID `json:"owner_account_id"`
 
-	// OwnerRedemptionToken The owner's way in, shown for the only time: whoever the workspace is for redeems it, sets a password, and is signed in. Hand it to them; it cannot be read again.
-	OwnerRedemptionToken string `json:"owner_redemption_token"`
+	// OwnerDelivery How the owner's way in travels. MAIL where this installation sends mail (`features.mail`): the owner's invitation is queued to their address and no token is answered. LINK where it does not: `owner_redemption_token` is answered, once. Never both, since the mail carries a way in of its own that voids any other.
+	OwnerDelivery ProvisionedTenantOwnerDelivery `json:"owner_delivery"`
+
+	// OwnerRedemptionToken The owner's way in, shown for the only time and only where `owner_delivery` is LINK: whoever the workspace is for redeems it, sets a password, and is signed in. Hand it to them; it cannot be read again.
+	OwnerRedemptionToken *string `json:"owner_redemption_token,omitempty"`
 
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
@@ -21874,6 +21895,9 @@ type ProvisionedTenant struct {
 	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
 	Version *int `json:"version,omitempty"`
 }
+
+// ProvisionedTenantOwnerDelivery How the owner's way in travels. MAIL where this installation sends mail (`features.mail`): the owner's invitation is queued to their address and no token is answered. LINK where it does not: `owner_redemption_token` is answered, once. Never both, since the mail carries a way in of its own that voids any other.
+type ProvisionedTenantOwnerDelivery string
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
 type ProvisionedTenantStatus string

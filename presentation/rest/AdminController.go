@@ -13,16 +13,21 @@ import (
 // provisionedTenantResponse maps a new workspace with the one answer the owner's way in ever appears in (T-18's shown once).
 func provisionedTenantResponse(out usecase.Output) openapi.ProvisionedTenant {
 	tenant := adminTenantResponse(out)
-	return openapi.ProvisionedTenant{
+	answer := openapi.ProvisionedTenant{
 		Id: tenant.Id, Slug: tenant.Slug, DisplayName: tenant.DisplayName,
 		Status:        openapi.ProvisionedTenantStatus(tenant.Status),
 		DefaultLocale: tenant.DefaultLocale, DefaultTimeZone: tenant.DefaultTimeZone,
-		CreatedAt:            tenant.CreatedAt,
-		OwnerAccountId:       uuidValue(out.String("owner_account_id")),
-		DefaultHubId:         uuidValue(out.String("default_hub_id")),
-		ExampleCollectionId:  uuidValue(out.String("example_collection_id")),
-		OwnerRedemptionToken: out.String("owner_redemption_token"),
+		CreatedAt:           tenant.CreatedAt,
+		OwnerAccountId:      uuidValue(out.String("owner_account_id")),
+		DefaultHubId:        uuidValue(out.String("default_hub_id")),
+		ExampleCollectionId: uuidValue(out.String("example_collection_id")),
+		OwnerDelivery:       openapi.ProvisionedTenantOwnerDelivery(out.String("owner_delivery")),
 	}
+	// Only where no mail carries the way in (UC-INS-07 check 3).
+	if token := out.String("owner_redemption_token"); token != "" {
+		answer.OwnerRedemptionToken = &token
+	}
+	return answer
 }
 
 func adminTenantResponse(row usecase.Output) openapi.AdminTenant {

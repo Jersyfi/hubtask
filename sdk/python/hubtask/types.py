@@ -3074,7 +3074,8 @@ class ProvisionedTenant(TypedDict, total=False):
     purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
     owner_account_id: Required[str]
-    owner_redemption_token: Required[str]
+    owner_delivery: Required[Literal["MAIL", "LINK"]]
+    owner_redemption_token: str
     default_hub_id: Required[str]
     example_collection_id: Required[str]
 
