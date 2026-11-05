@@ -245,6 +245,7 @@ test('§9.3: an ACCESS_REVOKED for a hub leaves nothing of the hub in the store'
   assert.notEqual(await held(storage, 'item', OTHER_ITEM), undefined);
 });
 
+// UC-SYN-05 check 1: a position that is too old loads the workspace again from the start.
 test('§9.4: sync.cursor_too_old empties the store and resynchronises; the device stays', async () => {
   const transport = new FakeTransport()
     .snapshotSessions({ records: WORKSPACE.slice(0, 5), cursor: 'c-old' }, { records: WORKSPACE, cursor: 'c-new' })

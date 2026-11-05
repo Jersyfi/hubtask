@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-11]
 state: built
 tasks: [N-02, N-09, N-11, P-12]
-checked_by: [test/integration/sync_epoch_test.go, test/integration/initial_sync_test.go, test/integration/snapshot_test.go, packages/sync-engine/test/engine.test.ts]
+checked_by: [test/integration/sync_epoch_test.go, test/integration/initial_sync_test.go, test/integration/snapshot_test.go, packages/sync-engine/test/engine.test.ts, core/application/service/sync/PullChanges_test.go, packages/sync-engine/test/replica.test.ts]
 ---
 
 # Come back after a long time away, or after a restore

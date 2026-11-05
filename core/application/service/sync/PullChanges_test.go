@@ -322,7 +322,8 @@ func TestANullCursorIsRefusedUntilTheInitialSynchronisationExists(t *testing.T) 
 	}
 }
 
-// The stream's two cursor refusals, through the pull: not copied, the same code path.
+// The stream's two cursor refusals, through the pull: not copied, the same code path. A position
+// past the window is too old and one the server did not issue is invalid (UC-SYN-05 checks 1, 4).
 func TestAPullRefusesTheSameCursorsTheStreamRefuses(t *testing.T) {
 	pull, f := pulling(t, entry(1, readable))
 
