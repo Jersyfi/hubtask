@@ -103,8 +103,9 @@ code: the version is burned in through `-ldflags` and reported by `/meta/health`
 Rolling updates run the old and the new version at once, so every schema change follows
 expand/contract:
 
-1. **Expand** (release *n*): a new column or table, additive and nullable, backfilled as a
-   background job; the code writes both old **and** new.
+1. **Expand** (release *n*): a new column or table, additive and nullable, backfilled by a
+   migration of its own in resumable batches (the rules below); the code writes both old **and**
+   new.
 2. **Migrate** (release *n*): the code reads new, falling back to old.
 3. **Contract** (release *n+1* or later): remove the old column once every instance runs the new
    code.

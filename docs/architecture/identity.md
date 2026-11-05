@@ -758,7 +758,7 @@ for **one named workspace** (`POST /admin/tenants/{id}:open-password`):
 * A password switched off on purpose is honoured; a broken provider there: §17.2.
 * No address: §13. No mail server: §17.2 or the instance file (§19).
 * An installation nobody can run: a server command
-  ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)), not built.
+  ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)).
 
 ---
 
