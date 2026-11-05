@@ -2070,7 +2070,7 @@ func run() error {
 		Ratings:       deskAnnouncer.Ratings(serviceDeskStore.Ratings()),
 		Organisations: serviceDeskStore.Organisations(),
 		HubCalendars:  serviceDeskStore.HubCalendars(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms, Visibility: authorizer,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms, Visibility: authorizer, Domains: domains,
 		Rules: automationservice.RulesNaming{Rules: postgres.NewAutomationRuleRepository(cursors)},
 	}
 	// The requester portal (UC-SVC-05): it raises and answers through the entry use cases in the

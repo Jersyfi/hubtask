@@ -64,3 +64,41 @@ func TestAPersonBelongsByTheDomainOfTheirAddress(t *testing.T) {
 		}
 	}
 }
+
+// punycode is the encoder's one answer the test needs; anything else it refuses as the DNS would.
+type punycode map[string]string
+
+func (p punycode) ToASCII(domain string) (string, error) {
+	if ascii, known := p[domain]; known {
+		return ascii, nil
+	}
+	return "", errors.New("not a domain")
+}
+
+// UC-SVC-11 check 1: a domain typed in its own letters is kept in the form the DNS holds it in,
+// the one an account's address is stored in, so `müller.de` is an organisation's domain and its
+// people belong to it.
+func TestAnOrganisationsDomainInItsOwnLettersIsKeptAsTheDNSHoldsIt(t *testing.T) {
+	encoder := punycode{"müller.de": "xn--mller-kva.de"}
+	got, err := NewOrganisation(NewOrganisationInput{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-000000000001"), TenantID: shared.MustParseID("0192f000-0000-7000-8000-000000000002"),
+		Key: "mueller", Name: "Müller", Domains: []string{"Müller.de", "xn--mller-kva.de "}, Now: time.Unix(0, 0), Encoder: encoder,
+	})
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "organisations.domain_repeated" {
+		t.Fatalf("the two spellings of one domain were not one: %+v, %v", got, err)
+	}
+	got, err = NewOrganisation(NewOrganisationInput{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-000000000001"), TenantID: shared.MustParseID("0192f000-0000-7000-8000-000000000002"),
+		Key: "mueller", Name: "Müller", Domains: []string{"müller.de"}, Now: time.Unix(0, 0), Encoder: encoder,
+	})
+	if err != nil || !slices.Equal(got.Domains, []string{"xn--mller-kva.de"}) || !got.Holds("anna@xn--mller-kva.de") {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+	if _, err = NewOrganisation(NewOrganisationInput{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-000000000001"), TenantID: shared.MustParseID("0192f000-0000-7000-8000-000000000002"),
+		Key: "mueller", Name: "Müller", Domains: []string{"mü ller.de"}, Now: time.Unix(0, 0), Encoder: encoder,
+	}); !errors.As(err, &refusal) || refusal.DetailCode != "organisations.domain_malformed" {
+		t.Fatalf("a domain the encoder refuses: %v", err)
+	}
+}

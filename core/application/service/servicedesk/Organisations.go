@@ -116,7 +116,7 @@ func (h DefineRequesterOrganisation) Execute(
 			}
 			if out, err = domain.NewOrganisation(domain.NewOrganisationInput{
 				ID: h.Desk.IDs.NewID(), TenantID: actor.TenantID, Key: cmd.Key, Name: cmd.Name,
-				Domains: cmd.Domains, SharesRequests: cmd.SharesRequests, Now: now, Text: h.Desk.Text,
+				Domains: cmd.Domains, SharesRequests: cmd.SharesRequests, Now: now, Text: h.Desk.Text, Encoder: h.Desk.Domains,
 			}); err != nil {
 				return err
 			}
@@ -129,7 +129,7 @@ func (h DefineRequesterOrganisation) Execute(
 			if cmd.ExpectedVersion != 0 && cmd.ExpectedVersion != current.Version {
 				return shared.ErrVersionConflict.WithDetail("organisations.version_conflict")
 			}
-			if out, err = current.Change(cmd.Name, cmd.Domains, cmd.SharesRequests, now, h.Desk.Text); err != nil {
+			if out, err = current.Change(cmd.Name, cmd.Domains, cmd.SharesRequests, now, h.Desk.Text, h.Desk.Domains); err != nil {
 				return err
 			}
 			if err := h.Desk.Organisations.Update(ctx, out, current.Version); err != nil {

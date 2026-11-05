@@ -98,6 +98,9 @@ type Desk struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	Text       text.Normalizer
+	// Domains brings an organisation's domain typed in its own letters to its ASCII form, the
+	// one accounts' addresses are stored in; nil takes ASCII domains only.
+	Domains text.DomainEncoder
 }
 
 // RuleNames counts the switched-on automation rules that name a calendar by its key.

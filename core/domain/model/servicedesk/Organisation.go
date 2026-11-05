@@ -45,6 +45,9 @@ type NewOrganisationInput struct {
 	SharesRequests bool
 	Now            time.Time
 	Text           text.Normalizer
+	// Encoder brings a domain typed in its own letters to the form the DNS - and an account's
+	// address - holds it in; nil takes ASCII domains only.
+	Encoder text.DomainEncoder
 }
 
 // NewOrganisation checks an organisation: a key, a name on one line, and one to twenty mail
@@ -61,7 +64,7 @@ func NewOrganisation(in NewOrganisationInput) (Organisation, error) {
 	if err != nil {
 		return Organisation{}, err
 	}
-	domains, err := OrganisationDomains(in.Domains)
+	domains, err := OrganisationDomains(in.Domains, in.Encoder)
 	if err != nil {
 		return Organisation{}, err
 	}
@@ -72,10 +75,12 @@ func NewOrganisation(in NewOrganisationInput) (Organisation, error) {
 }
 
 // Change answers the organisation with a new name, domains and sharing, its key kept.
-func (o Organisation) Change(name string, domains []string, shares bool, now time.Time, normalizer text.Normalizer) (Organisation, error) {
+func (o Organisation) Change(
+	name string, domains []string, shares bool, now time.Time, normalizer text.Normalizer, encoder text.DomainEncoder,
+) (Organisation, error) {
 	changed, err := NewOrganisation(NewOrganisationInput{
 		ID: o.ID, TenantID: o.TenantID, Key: o.Key, Name: name, Domains: domains,
-		SharesRequests: shares, Now: now, Text: normalizer,
+		SharesRequests: shares, Now: now, Text: normalizer, Encoder: encoder,
 	})
 	if err != nil {
 		return Organisation{}, err
@@ -85,8 +90,9 @@ func (o Organisation) Change(name string, domains []string, shares bool, now tim
 }
 
 // OrganisationDomains checks and normalises a list of mail domains: trimmed, small letters, a
-// leading `@` dropped, sorted; an empty, malformed or repeated one is refused.
-func OrganisationDomains(raw []string) ([]string, error) {
+// leading `@` dropped, one typed in its own letters in its ASCII form (with an encoder), sorted;
+// an empty, malformed or repeated one is refused.
+func OrganisationDomains(raw []string, encoder text.DomainEncoder) ([]string, error) {
 	if len(raw) == 0 {
 		return nil, invalid("/domains", "organisations.domains_required")
 	}
@@ -96,6 +102,11 @@ func OrganisationDomains(raw []string) ([]string, error) {
 	out := make([]string, 0, len(raw))
 	for _, d := range raw {
 		domain := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(d)), "@")
+		if encoder != nil && !ascii(domain) {
+			if encoded, err := encoder.ToASCII(domain); err == nil {
+				domain = encoded
+			}
+		}
 		if !validDomain(domain) {
 			return nil, shared.ErrValidation.WithDetail("organisations.domain_malformed").
 				WithParams(map[string]string{"domain": d}).
@@ -126,6 +137,15 @@ func DomainOfAddress(address string) string {
 func (o Organisation) Holds(address string) bool {
 	domain := DomainOfAddress(address)
 	return domain != "" && slices.Contains(o.Domains, domain)
+}
+
+func ascii(s string) bool {
+	for i := range len(s) {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 // validDomain is a host name of at least two labels, each of letters, digits and inner hyphens.
