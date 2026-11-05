@@ -1165,7 +1165,7 @@
       {/if}
       <div class="title-row">
         <!-- Completing the entry from its own page: the same control the row has, the same write.
-             Not where a workflow runs: its status decides completion (D-02). -->
+             Not where a workflow runs: its status category decides completion there. -->
         {#if isChangeable && !hasWorkflow}
           <Checkbox
             label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}

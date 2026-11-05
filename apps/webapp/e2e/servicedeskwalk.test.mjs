@@ -256,7 +256,7 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
 
 // A desk entry's detail by type (user-experience.md §5.6): its triage fields directly under the head,
 // above the notes and not folded among the details; no done checkbox where its workflow decides
-// completion (D-02); who raised it before what sits under it.
+// completion; who raised it before what sits under it.
 test('chromium: service desk - a request shows its triage under the head, no done checkbox, the requester before its parts', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
