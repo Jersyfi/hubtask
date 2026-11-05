@@ -1355,6 +1355,13 @@ var entities = []Entity{
 		Keys: []string{"item_id", "seq"}, Duplicable: true,
 		References: []Reference{{Field: "item_id", Table: "work_item"}},
 	},
+	// The workspace's sample content (migration 0377, user-experience.md §3.6): the mark only,
+	// after every object it can name. Its object_id names a row of the table its kind says, so it
+	// has no reference to remap, as a live document's head has none; a copy would name the
+	// originals, so a DUPLICATE skips it.
+	{
+		Name: "sample_objects", Table: "sample_object", Whole: true, Later: true, Keys: []string{"key"},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

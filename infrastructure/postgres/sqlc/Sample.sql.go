@@ -11,6 +11,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const deleteSampleObject = `-- name: DeleteSampleObject :execrows
+DELETE FROM sample_object WHERE tenant_id = current_tenant_id() AND key = $1
+`
+
+func (q *Queries) DeleteSampleObject(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteSampleObject, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertSampleEntry = `-- name: InsertSampleEntry :execrows
 
 INSERT INTO sample_entry (tenant_id, item_id, hub_id, key, created_at)
@@ -38,6 +50,51 @@ func (q *Queries) InsertSampleEntry(ctx context.Context, arg InsertSampleEntryPa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const insertSampleObject = `-- name: InsertSampleObject :one
+
+INSERT INTO sample_object (tenant_id, key, kind, object_id, version, created_at)
+VALUES (current_tenant_id(), $1, $2, $3,
+        $4, $5)
+ON CONFLICT (tenant_id, key) DO UPDATE SET key = sample_object.key
+RETURNING key, kind, object_id, version
+`
+
+type InsertSampleObjectParams struct {
+	Key       string
+	Kind      string
+	ObjectID  pgtype.UUID
+	Version   *int64
+	CreatedAt pgtype.Timestamptz
+}
+
+type InsertSampleObjectRow struct {
+	Key      string
+	Kind     string
+	ObjectID pgtype.UUID
+	Version  *int64
+}
+
+// The workspace's sample content (migration 0377, user-experience.md §3.6).
+// The same object under the same key again is the same mark; the caller refuses a key that marks
+// another object, which the answer names.
+func (q *Queries) InsertSampleObject(ctx context.Context, arg InsertSampleObjectParams) (InsertSampleObjectRow, error) {
+	row := q.db.QueryRow(ctx, insertSampleObject,
+		arg.Key,
+		arg.Kind,
+		arg.ObjectID,
+		arg.Version,
+		arg.CreatedAt,
+	)
+	var i InsertSampleObjectRow
+	err := row.Scan(
+		&i.Key,
+		&i.Kind,
+		&i.ObjectID,
+		&i.Version,
+	)
+	return i, err
 }
 
 const listSampleEntries = `-- name: ListSampleEntries :many
@@ -73,6 +130,46 @@ func (q *Queries) ListSampleEntries(ctx context.Context, hubID pgtype.UUID) ([]L
 			&i.Title,
 			&i.EntryType,
 			&i.CollectionID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSampleObjects = `-- name: ListSampleObjects :many
+SELECT key, kind, object_id, version
+FROM sample_object
+WHERE tenant_id = current_tenant_id()
+ORDER BY key
+LIMIT $1::int
+`
+
+type ListSampleObjectsRow struct {
+	Key      string
+	Kind     string
+	ObjectID pgtype.UUID
+	Version  *int64
+}
+
+func (q *Queries) ListSampleObjects(ctx context.Context, max int32) ([]ListSampleObjectsRow, error) {
+	rows, err := q.db.Query(ctx, listSampleObjects, max)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSampleObjectsRow{}
+	for rows.Next() {
+		var i ListSampleObjectsRow
+		if err := rows.Scan(
+			&i.Key,
+			&i.Kind,
+			&i.ObjectID,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}

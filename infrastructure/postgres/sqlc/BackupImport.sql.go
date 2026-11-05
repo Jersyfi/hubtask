@@ -1359,6 +1359,18 @@ func (q *Queries) ClearSampleEntry(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearSampleObject = `-- name: ClearSampleObject :execrows
+DELETE FROM sample_object
+`
+
+func (q *Queries) ClearSampleObject(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSampleObject)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearSatisfactionRating = `-- name: ClearSatisfactionRating :execrows
 DELETE FROM satisfaction_rating
 `
@@ -3006,6 +3018,19 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsSampleEntry(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsSampleEntry, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSampleObject = `-- name: HoldsSampleObject :one
+SELECT EXISTS (
+  SELECT 1 FROM sample_object WHERE key = $1::jsonb->>'key'
+) AS held
+`
+
+func (q *Queries) HoldsSampleObject(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSampleObject, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -7238,6 +7263,32 @@ type ImportSampleEntryParams struct {
 
 func (q *Queries) ImportSampleEntry(ctx context.Context, arg ImportSampleEntryParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importSampleEntry, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSampleObject = `-- name: ImportSampleObject :execrows
+INSERT INTO sample_object (tenant_id, key, kind, object_id, version, created_at)
+SELECT r.tenant_id, r.key, r.kind, r.object_id, r.version, r.created_at
+FROM jsonb_populate_record(
+  NULL::sample_object,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  kind = EXCLUDED.kind, object_id = EXCLUDED.object_id, version = EXCLUDED.version,
+  created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportSampleObjectParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportSampleObject(ctx context.Context, arg ImportSampleObjectParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSampleObject, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

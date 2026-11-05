@@ -2961,6 +2961,15 @@ type SampleEntry struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type SampleObject struct {
+	TenantID  pgtype.UUID
+	Key       string
+	Kind      string
+	ObjectID  pgtype.UUID
+	Version   *int64
+	CreatedAt pgtype.Timestamptz
+}
+
 type SatisfactionLink struct {
 	TenantID    pgtype.UUID
 	RequesterID pgtype.UUID

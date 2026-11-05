@@ -199,6 +199,7 @@ var notThePersons = map[string]string{
 	"config_template_use":     "which template the workspace took at which version, which names nobody",
 	"config_hub_template_use": "which template a hub took at which version, which names nobody",
 	"sample_entry":            "which entry a template brought as a sample, which names nobody; the entry itself is in the map above",
+	"sample_object":           "which object was marked as the workspace's sample content, which names nobody; each object is in the map above",
 	"template_page":           "which page a template brought, which names nobody; the page itself is in the map above",
 	"realtime_document":       "a live document's head - its last place and its snapshot's - which names nobody",
 	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",

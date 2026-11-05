@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -26,4 +27,19 @@ type Samples interface {
 	Mark(ctx context.Context, hub, item shared.ID, key string, at time.Time) (bool, error)
 	// List answers the hub's marked entries not in the trash, by key.
 	List(ctx context.Context, hub shared.ID) ([]Sample, error)
+}
+
+// MaxSampleMarks bounds the workspace's sample content one act lists and removes.
+const MaxSampleMarks = 2000
+
+// SampleMarks keeps the marks of the workspace's sample content (user-experience.md §3.6) in the
+// transaction's workspace.
+type SampleMarks interface {
+	// Mark marks the object under key and answers the mark the key holds: this one, or the one
+	// marked under it before, which names another object where the key is taken.
+	Mark(ctx context.Context, mark domain.SampleMark, at time.Time) (domain.SampleMark, error)
+	// List answers the workspace's marks by key, at most MaxSampleMarks.
+	List(ctx context.Context) ([]domain.SampleMark, error)
+	// Unmark removes the mark under key; a key nobody marks is no error.
+	Unmark(ctx context.Context, key string) error
 }

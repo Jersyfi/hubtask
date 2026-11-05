@@ -4044,6 +4044,26 @@ SELECT EXISTS (
 -- name: ClearSampleEntry :execrows
 DELETE FROM sample_entry;
 
+-- name: ImportSampleObject :execrows
+INSERT INTO sample_object (tenant_id, key, kind, object_id, version, created_at)
+SELECT r.tenant_id, r.key, r.kind, r.object_id, r.version, r.created_at
+FROM jsonb_populate_record(
+  NULL::sample_object,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  kind = EXCLUDED.kind, object_id = EXCLUDED.object_id, version = EXCLUDED.version,
+  created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsSampleObject :one
+SELECT EXISTS (
+  SELECT 1 FROM sample_object WHERE key = sqlc.arg('payload')::jsonb->>'key'
+) AS held;
+
+-- name: ClearSampleObject :execrows
+DELETE FROM sample_object;
+
 -- name: ImportConfigDraft :execrows
 INSERT INTO config_draft (tenant_id, section, key, block, saved_by, saved_at, version)
 SELECT r.tenant_id, r.section, r.key, r.block, r.saved_by, r.saved_at, r.version

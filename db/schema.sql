@@ -7854,4 +7854,20 @@ ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
 ALTER TABLE account ADD COLUMN products_seen text[] NOT NULL DEFAULT '{}',
   ADD CONSTRAINT account_products_seen_bound CHECK (cardinality(products_seen) <= 9);
 
+-- Migration 0377: the workspace's sample content (user-experience.md §3.6), one act removes it.
+CREATE TABLE sample_object (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_.]{0,99}$'),
+  kind       text NOT NULL CHECK (kind IN ('CONTAINER', 'ENTRY', 'PAGE', 'WHITEBOARD', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'TIME_RECORD')),
+  object_id  uuid NOT NULL,
+  version    bigint CHECK (version >= 0),
+  created_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, key)
+);
+ALTER TABLE sample_object ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sample_object FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON sample_object
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON sample_object TO hubtask_app;
+
 COMMIT;

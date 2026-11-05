@@ -5279,6 +5279,51 @@ func (q *Queries) ExportSampleEntries(ctx context.Context, arg ExportSampleEntri
 	return items, nil
 }
 
+const exportSampleObjects = `-- name: ExportSampleObjects :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT o.key AS record_id,
+         o.created_at AS changed_at,
+         (to_jsonb(o) - 'tenant_id')::jsonb AS payload,
+         o.key AS key_1
+  FROM sample_object o
+) s
+  WHERE s.key_1 > $1::text
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportSampleObjectsParams struct {
+	AfterID string
+	Batch   int32
+}
+
+type ExportSampleObjectsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportSampleObjects(ctx context.Context, arg ExportSampleObjectsParams) ([]ExportSampleObjectsRow, error) {
+	rows, err := q.db.Query(ctx, exportSampleObjects, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportSampleObjectsRow{}
+	for rows.Next() {
+		var i ExportSampleObjectsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportSatisfactionRatings = `-- name: ExportSatisfactionRatings :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

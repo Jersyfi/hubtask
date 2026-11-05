@@ -909,6 +909,17 @@ var importers = map[string]importer{
 			return queries.ClearTemplatePage(ctx)
 		},
 	},
+	"sample_object": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportSampleObject(ctx, sqlc.ImportSampleObjectParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsSampleObject(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearSampleObject(ctx)
+		},
+	},
 	"sample_entry": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportSampleEntry(ctx, sqlc.ImportSampleEntryParams{Payload: payload, Overwrite: overwrite})

@@ -1902,6 +1902,19 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportSampleObjects :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT o.key AS record_id,
+         o.created_at AS changed_at,
+         (to_jsonb(o) - 'tenant_id')::jsonb AS payload,
+         o.key AS key_1
+  FROM sample_object o
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::text
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportConfigDrafts :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
