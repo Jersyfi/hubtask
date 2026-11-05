@@ -120,7 +120,15 @@ func (d *demo) child(ctx context.Context, key, parent, kind, title string, assig
 	if parent == "" {
 		return "", false
 	}
-	return d.item(ctx, key, map[string]any{"type": kind, "title": title, "parent_id": parent}, entryOptions{assignee: assignee})
+	return d.datedChild(ctx, key, parent, kind, title, entryOptions{assignee: assignee})
+}
+
+// datedChild is a work package or an activity with its own options, its dates among them.
+func (d *demo) datedChild(ctx context.Context, key, parent, kind, title string, o entryOptions) (string, bool) {
+	if parent == "" {
+		return "", false
+	}
+	return d.item(ctx, key, map[string]any{"type": kind, "title": title, "parent_id": parent}, o)
 }
 
 func (d *demo) item(ctx context.Context, key string, body map[string]any, o entryOptions) (string, bool) {
@@ -475,12 +483,18 @@ func (d *demo) classic(ctx context.Context) demoHub {
 			phasesFresh = true
 		}
 	}
-	for i, title := range []string{"Statik Hallendach (Spannweite 42 m)", "Sprinkleranlage nach VdS CEA 4001", "Hochregallager 24 m – Regalbediengeräte"} {
-		d.child(ctx, fmt.Sprintf("classic.phase3.wp%d", i), ids[3], "WORK_PACKAGE", title, nil)
+	// The work packages and activities lie inside their phase's window (-3 to 40), so the plan
+	// draws each under its phase rather than in the tray of entries without dates.
+	type span struct {
+		title      string
+		start, end int
 	}
-	sub, _ := d.child(ctx, "classic.phase3.air", ids[3], "WORK_PACKAGE", "Lüftung und Wärmerückgewinnung", nil)
-	for i, title := range []string{"Lastannahmen mit dem Betreiber abstimmen", "Variantenvergleich Wärmepumpe vs. Fernwärme", "Kosten nach DIN 276 schätzen"} {
-		d.child(ctx, fmt.Sprintf("classic.phase3.air.a%d", i), sub, "ACTIVITY", title, nil)
+	for i, wp := range []span{{"Statik Hallendach (Spannweite 42 m)", -3, 12}, {"Sprinkleranlage nach VdS CEA 4001", 5, 25}, {"Hochregallager 24 m – Regalbediengeräte", 10, 35}} {
+		d.datedChild(ctx, fmt.Sprintf("classic.phase3.wp%d", i), ids[3], "WORK_PACKAGE", wp.title, entryOptions{start: d.day(wp.start, 8), due: d.day(wp.end, 17)})
+	}
+	sub, _ := d.datedChild(ctx, "classic.phase3.air", ids[3], "WORK_PACKAGE", "Lüftung und Wärmerückgewinnung", entryOptions{start: d.day(0, 8), due: d.day(30, 17)})
+	for i, a := range []span{{"Lastannahmen mit dem Betreiber abstimmen", 0, 6}, {"Variantenvergleich Wärmepumpe vs. Fernwärme", 4, 14}, {"Kosten nach DIN 276 schätzen", 12, 20}} {
+		d.datedChild(ctx, fmt.Sprintf("classic.phase3.air.a%d", i), sub, "ACTIVITY", a.title, entryOptions{start: d.day(a.start, 8), due: d.day(a.end, 17)})
 	}
 	if phasesFresh && ids[7] != "" {
 		for _, m := range []int{2, 7} {
@@ -506,25 +520,28 @@ func (d *demo) classic(ctx context.Context) demoHub {
 				"currency": "EUR", "expected_version": version})
 		}
 	}
+	// Each risk, the issue and the change request is due for its next review or decision, which
+	// is the day the plan draws it on.
 	for i, r := range []struct {
 		title, probability, impact string
 		walk                       []string
+		review                     int
 	}{
-		{"Lieferverzug Stahlträger wegen Engpass im Walzwerk", "High", "High", []string{"mitigate"}},
-		{"Baugrund: Altlasten im Bereich der ehemaligen Tankstelle", "Medium", "High", nil},
-		{"Fachkräftemangel Elektro – Nachunternehmer springt ab", "Medium", "Medium", []string{"mitigate"}},
-		{"Genehmigung verzögert sich durch Einwendungen der Nachbarschaft", "Low", "High", []string{"close"}},
+		{"Lieferverzug Stahlträger wegen Engpass im Walzwerk", "High", "High", []string{"mitigate"}, 7},
+		{"Baugrund: Altlasten im Bereich der ehemaligen Tankstelle", "Medium", "High", nil, 14},
+		{"Fachkräftemangel Elektro – Nachunternehmer springt ab", "Medium", "Medium", []string{"mitigate"}, 10},
+		{"Genehmigung verzögert sich durch Einwendungen der Nachbarschaft", "Low", "High", []string{"close"}, -10},
 	} {
 		if id, made := d.entry(ctx, fmt.Sprintf("classic.risk%d", i), risks, r.title, entryOptions{entryType: "risk",
-			fields: map[string]any{"probability": r.probability, "impact": r.impact}, assignee: priya}); made {
+			fields: map[string]any{"probability": r.probability, "impact": r.impact}, assignee: priya, due: d.day(r.review, 12)}); made {
 			d.steps(ctx, id, r.walk...)
 		}
 	}
-	if issue, made := d.entry(ctx, "classic.access", risks, "Zufahrt für Schwerlastverkehr während der Bauphase ungeklärt", entryOptions{entryType: "issue", assignee: lukas}); made {
+	if issue, made := d.entry(ctx, "classic.access", risks, "Zufahrt für Schwerlastverkehr während der Bauphase ungeklärt", entryOptions{entryType: "issue", assignee: lukas, due: d.day(3, 10)}); made {
 		d.comment(ctx, "Lukas Brandt", issue, "Termin mit dem Bezirksamt Hamburg-Mitte am Donnerstag, 10 Uhr. Unterlagen liegen im Wiki.", false)
 	}
 	if cr, made := d.entry(ctx, "classic.pv", risks, "Änderungsantrag: zusätzliche Photovoltaik auf Halle B (420 kWp)", entryOptions{entryType: "change_request",
-		notes: "Mehrkosten ca. 380.000 €, Amortisation laut Gutachten nach 7,5 Jahren."}); made {
+		notes: "Mehrkosten ca. 380.000 €, Amortisation laut Gutachten nach 7,5 Jahren.", due: d.day(14, 12)}); made {
 		d.steps(ctx, cr, "assess")
 	}
 	out.entries = ids

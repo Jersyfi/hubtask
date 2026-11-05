@@ -31,6 +31,8 @@ type showcaseInstallation struct {
 type showcaseWrite struct {
 	path string
 	body map[string]any
+	// id is what the installation answered the write with.
+	id string
 }
 
 const showcaseSelf = "0190a000-0000-7000-8000-00000000aaaa"
@@ -89,7 +91,7 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 				s.creates = append(s.creates, path)
 				var body map[string]any
 				_ = json.Unmarshal(raw, &body)
-				s.bodies = append(s.bodies, showcaseWrite{path: path, body: body})
+				s.bodies = append(s.bodies, showcaseWrite{path: path, body: body, id: fmt.Sprintf("0190a000-0000-7000-8000-%012d", s.next+1)})
 			}
 			s.next++
 			answer(map[string]any{"id": fmt.Sprintf("0190a000-0000-7000-8000-%012d", s.next), "version": 1,
@@ -235,5 +237,43 @@ func TestTheShowcaseGivesThePersonItRunsAsWorkOfTheirOwn(t *testing.T) {
 			t.Errorf("voices %v: %d entries on the person, due on %v, incident %v, in the running sprint %v, %d own time records",
 				voices, mine, due, incident, sprint, time)
 		}
+	}
+}
+
+// The classic project's plan is a Gantt worth showing (user-experience.md §3.6): every entry the
+// showcase makes in its hub - phases, their work packages and activities, risks and change
+// requests - has dates, so none stands in the plan's tray asking to be given them.
+func TestTheShowcasesProjectPlanHasNoUndatedEntry(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	inHub := map[string]bool{}
+	for _, w := range s.bodies {
+		if w.path == "/containers" && w.body["type"] == "HUB" && strings.HasPrefix(str(w.body["name"]), "Neubau Logistikzentrum") {
+			inHub[w.id] = true
+		}
+	}
+	if len(inHub) != 1 {
+		t.Fatalf("the classic project's hub was not made: %v", inHub)
+	}
+	for _, w := range s.bodies {
+		if w.path == "/containers" && inHub[str(w.body["parent_id"])] {
+			inHub[w.id] = true
+		}
+	}
+	undated, entries := []string{}, 0
+	for _, w := range s.bodies {
+		if w.path != "/items" || !(inHub[str(w.body["collection_id"])] || inHub[str(w.body["parent_id"])]) {
+			continue
+		}
+		inHub[w.id] = true
+		entries++
+		if str(w.body["start_at"]) == "" && str(w.body["due_at"]) == "" {
+			undated = append(undated, str(w.body["title"]))
+		}
+	}
+	if entries < 20 || len(undated) > 0 {
+		t.Errorf("%d entries in the project's hub, these without dates: %q", entries, undated)
 	}
 }
