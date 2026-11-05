@@ -748,7 +748,7 @@ The branch is pushed to origin suite/concept at e1dae74c0 and the tree is clean.
 
 Still open (each checked against the code):
 - Finding 5: People rows still show only the invitation mail, not a person's other mail.
-- Finding 6: `hubctl workspace demo` is not built. It needs a sample mark outside entries first: domain, migration and contract. The capacity run that proves the R3 walk was not run.
+- Finding 6: `hubctl workspace demo` is not built. It needs a sample mark outside entries first: domain, migration and contract. (Closed by `32fb4a1cc` … `1c29c34a2`, see the gap row.) The capacity run that proves the R3 walk was not run.
 - Finding 7 is not started: archiving entry_status_change touches the archive format, the restore order, the trigger's synthetic row, OVERRIDING SYSTEM VALUE for the GENERATED ALWAYS seq, and tenant-export.md.
 - One trash: the hubs' own page and whiteboard trash lists still exist and are not yet links into /trash narrowed by kind.
 - One trash: who trashed a page or board is not recorded on the row, so those trash rows name nobody.
