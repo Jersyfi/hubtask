@@ -3273,6 +3273,7 @@ func run() error {
 		work.CloseStarter{Starter: starterKept}.Descriptor(),
 		work.ApplyStarter{
 			Starter: starterKept, Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
+			Samples: configservice.StarterTemplates{Desk: configDesk},
 		}.Descriptor(),
 		work.CreateHubFromTemplate{
 			Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},

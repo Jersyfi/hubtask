@@ -3546,6 +3546,7 @@ class HubFromTemplate(TypedDict, total=False):
 class StarterCollection(TypedDict, total=False):
     name: Required[str]
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
+    samples: list[str]
 
 class ContainerUpdate(TypedDict, total=False):
     name: str

@@ -573,6 +573,7 @@
   "admin.slug_taken": "That subdomain is already a workspace's. Choose another.",
   "workspace.starter_closed": "The first start was answered already, or the workspace holds something somebody made. Nothing new was set up.",
   "workspace.starter_collections_too_many": "The first start sets up at most ten collections.",
+  "workspace.starter_samples_too_many": "The first start makes at most five sample entries in a collection.",
   "workspace.version_conflict": "Somebody else changed the workspace. Read it again and retry.",
   "workspace.admin_flag_contradicts_rule": "This change says two different things about who needs a second factor. Send only the rule.",
   "workspace.week_start_invalid": "A week starts on Monday, Saturday or Sunday, not on {value}.",

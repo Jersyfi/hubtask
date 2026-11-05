@@ -26,14 +26,22 @@ const CodeStarterClosed = "workspace.starter_closed"
 // CodeStarterCollectionsTooMany refuses a set of more collections than maxStarterCollections.
 const CodeStarterCollectionsTooMany = "workspace.starter_collections_too_many"
 
+// CodeStarterSamplesTooMany refuses a collection of more sample entries than maxStarterSamples.
+const CodeStarterSamplesTooMany = "workspace.starter_samples_too_many"
+
 // maxStarterCollections bounds the set, as the contract does.
 const maxStarterCollections = 10
 
+// maxStarterSamples bounds a collection's sample entries, as the contract does.
+const maxStarterSamples = 5
+
 // StarterPlace is one hub or collection of a starter set: its name in the reader's language and
-// the preset it starts from; a collection without one follows its hub.
+// the preset it starts from; a collection without one follows its hub. A collection's Samples are
+// the titles of its sample entries, in the reader's language too.
 type StarterPlace struct {
-	Name   string
-	Preset domain.PresetKey
+	Name    string
+	Preset  domain.PresetKey
+	Samples []string
 }
 
 // ApplyStarterCommand is the set: one hub and its collections, in their order, and the template
@@ -62,6 +70,12 @@ type StarterTemplates interface {
 	TakeForHub(ctx context.Context, actor appshared.ActorContext, take StarterTemplate, hub shared.ID) error
 }
 
+// StarterSamples makes a collection's sample entries, marked as the hub's samples so they go in
+// one press, inside the transaction it is called in.
+type StarterSamples interface {
+	AddStarterSamples(ctx context.Context, actor appshared.ActorContext, hub, collection shared.ID, index int, titles []string) error
+}
+
 // StarterBaseline records the configuration as the first start leaves it - the workspace's, and the
 // hub's it made - as a version (configuration.md §5), inside the transaction it is called in.
 type StarterBaseline interface {
@@ -79,13 +93,15 @@ type ApplyStarter struct {
 	Containers CreateContainer
 	// Templates takes a set's template; a set naming one is refused where it is not wired.
 	Templates StarterTemplates
+	// Samples makes the collections' sample entries; a set naming one is refused where it is not wired.
+	Samples StarterSamples
 }
 
 // Execute makes the set and answers its hub, with the hub's structure.
 func (h ApplyStarter) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ApplyStarterCommand,
 ) (domain.Container, *domain.EffectiveStructure, error) {
-	if err := validStarterSet(cmd, h.Templates); err != nil {
+	if err := validStarterSet(cmd, h.Templates, h.Samples); err != nil {
 		return domain.Container{}, nil, err
 	}
 	s := h.Starter
@@ -128,11 +144,17 @@ func (h ApplyStarter) Execute(
 		}); err != nil {
 			return err
 		}
-		for _, place := range cmd.Collections {
-			if _, _, err := h.Containers.create(ctx, actor, CreateContainerCommand{
+		for i, place := range cmd.Collections {
+			collection, _, err := h.Containers.create(ctx, actor, CreateContainerCommand{
 				Type: domain.ContainerCollection, ParentID: hub.ID, Name: place.Name, Preset: place.Preset,
-			}); err != nil {
+			})
+			if err != nil {
 				return err
+			}
+			if len(place.Samples) > 0 {
+				if err := h.Samples.AddStarterSamples(ctx, actor, hub.ID, collection.ID, i, place.Samples); err != nil {
+					return err
+				}
 			}
 		}
 		if cmd.Template.Key != "" {
@@ -167,7 +189,7 @@ func (h ApplyStarter) Execute(
 
 // validStarterSet refuses a set the contract does not describe before anything is read: only
 // Hubtask's own presets, and at most maxStarterCollections collections.
-func validStarterSet(cmd ApplyStarterCommand, templates StarterTemplates) error {
+func validStarterSet(cmd ApplyStarterCommand, templates StarterTemplates, samples StarterSamples) error {
 	if cmd.Template.Key != "" && templates == nil {
 		return invalidStarterField("/template", "usecase.field_not_in_enum")
 	}
@@ -179,8 +201,15 @@ func validStarterSet(cmd ApplyStarterCommand, templates StarterTemplates) error 
 		return invalidStarterField("/collections", CodeStarterCollectionsTooMany)
 	}
 	for i, place := range cmd.Collections {
+		at := "/collections/" + strconv.Itoa(i)
 		if place.Preset != "" && !place.Preset.BuiltIn() {
-			return invalidStarterField("/collections/"+strconv.Itoa(i)+"/preset", "usecase.field_not_in_enum")
+			return invalidStarterField(at+"/preset", "usecase.field_not_in_enum")
+		}
+		if len(place.Samples) > 0 && samples == nil {
+			return invalidStarterField(at+"/samples", "usecase.field_not_in_enum")
+		}
+		if len(place.Samples) > maxStarterSamples {
+			return invalidStarterField(at+"/samples", CodeStarterSamplesTooMany)
 		}
 	}
 	return nil
@@ -208,9 +237,34 @@ func starterPlacesFrom(raw any) ([]StarterPlace, error) {
 			return nil, invalidStarterField(fmt.Sprintf("/collections/%d/name", i), "usecase.field_required")
 		}
 		preset, _ := object["preset"].(string)
-		places = append(places, StarterPlace{Name: name, Preset: domain.PresetKey(preset)})
+		samples, err := starterSamplesFrom(object["samples"], i)
+		if err != nil {
+			return nil, err
+		}
+		places = append(places, StarterPlace{Name: name, Preset: domain.PresetKey(preset), Samples: samples})
 	}
 	return places, nil
+}
+
+// starterSamplesFrom reads a collection's sample titles: a list of text.
+func starterSamplesFrom(raw any, collection int) ([]string, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	path := fmt.Sprintf("/collections/%d/samples", collection)
+	list, ok := raw.([]any)
+	if !ok {
+		return nil, invalidStarterField(path, "usecase.field_type_invalid")
+	}
+	titles := make([]string, 0, len(list))
+	for i, each := range list {
+		title, ok := each.(string)
+		if !ok {
+			return nil, invalidStarterField(fmt.Sprintf("%s/%d", path, i), "usecase.field_type_invalid")
+		}
+		titles = append(titles, title)
+	}
+	return titles, nil
 }
 
 // starterAnswersFrom reads the template's answers: text by the question's key.
@@ -261,8 +315,9 @@ func (h ApplyStarter) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "collections", Kind: usecase.KindList,
-				Description: "The hub's collections, in their order: {name, preset}; a collection " +
-					"without a preset follows its hub. At most ten.",
+				Description: "The hub's collections, in their order: {name, preset, samples}; a " +
+					"collection without a preset follows its hub, and its samples are the titles of " +
+					"up to five sample entries made in it, marked as the hub's samples. At most ten.",
 			},
 			{
 				Name: "template", Kind: usecase.KindString,

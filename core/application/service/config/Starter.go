@@ -5,6 +5,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/Jersyfi/hubtask/core/application/service/work"
@@ -24,7 +25,26 @@ var (
 	_ work.StarterTemplates = StarterTemplates{}
 	_ work.StarterBaseline  = StarterTemplates{}
 	_ work.HubTemplates     = StarterTemplates{}
+	_ work.StarterSamples   = StarterTemplates{}
 )
+
+// AddStarterSamples makes a starter collection's sample entries as AddSampleEntry makes a
+// template's - the entry created as any is, then marked under a key of the hub - so the hub's
+// *Remove sample entries* takes them too. The key names the collection's place in the set and the
+// title's, which a set made once never repeats. Called inside the starter's transaction, which
+// authorised the actor; creating each entry asks what creating any entry asks.
+func (s StarterTemplates) AddStarterSamples(ctx context.Context, actor appshared.ActorContext, hub, collection shared.ID, index int, titles []string) error {
+	for i, title := range titles {
+		in := usecase.Input{
+			"hub_id": hub.String(), "collection_id": collection.String(), "title": title,
+			"key": fmt.Sprintf("starter_%d_%d", index+1, i+1),
+		}
+		if _, err := s.Desk.addSample(ctx, actor, hub, in); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // Baseline records the workspace, and the hub the first start made if any, as the start left them,
 // as a version of its own where it has none or moved since (drifted): a start that took no

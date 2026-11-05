@@ -33669,6 +33669,13 @@ components:
           type: [string, "null"]
           enum: [LIST, TASKS, PROJECT, FLOW, null]
           description: Its own preset; none, or its hub's, follows the hub.
+        samples:
+          type: array
+          maxItems: 5
+          description: >
+            Titles of sample entries made in this collection, marked as the hub's samples and
+            removable at once, as a template's are (`POST /hubs/{hubId}/sample-entries:remove`).
+          items: { type: string, minLength: 1, maxLength: 500 }
 
     ContainerUpdate:
       type: object

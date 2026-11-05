@@ -23722,6 +23722,9 @@ type StarterCollection struct {
 
 	// Preset Its own preset; none, or its hub's, follows the hub.
 	Preset *StarterCollectionPreset `json:"preset,omitempty"`
+
+	// Samples Titles of sample entries made in this collection, marked as the hub's samples and removable at once, as a template's are (`POST /hubs/{hubId}/sample-entries:remove`).
+	Samples *[]string `json:"samples,omitempty"`
 }
 
 // StarterCollectionPreset Its own preset; none, or its hub's, follows the hub.

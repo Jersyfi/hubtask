@@ -160,3 +160,22 @@ func TestAHubFromATemplateTakesItsWorkspacePartOnce(t *testing.T) {
 		t.Error("a template without a hub part took its workspace part")
 	}
 }
+
+// user-experience.md §3.2: a starter set's sample entries are made in their collection and marked
+// as the hub's samples under a key of their place, so removing the hub's samples takes them too.
+func TestAStartersSampleEntriesAreMarkedInTheirCollection(t *testing.T) {
+	f, w := sampleFixture()
+	starter := StarterTemplates{Desk: f.desk}
+	if err := starter.AddStarterSamples(t.Context(), person, shared.ID(supportHub), shared.ID(firstCollection), 1, []string{"Plan the week"}); err != nil {
+		t.Fatalf("the samples: %v", err)
+	}
+	if len(w.created) != 1 || w.created[0]["collection_id"] != firstCollection || w.created[0]["title"] != "Plan the week" {
+		t.Fatalf("created %v", w.created)
+	}
+	if _, marked := w.marks["starter_2_1"]; !marked {
+		t.Errorf("not marked under its place: %v", w.marks)
+	}
+	if err := starter.AddStarterSamples(t.Context(), person, shared.ID(supportHub), shared.ID(secondCollection), 0, []string{"Elsewhere"}); err == nil {
+		t.Error("a collection of another hub took a sample")
+	}
+}
