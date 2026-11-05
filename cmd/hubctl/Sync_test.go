@@ -157,6 +157,7 @@ func TestPushingRefusesAFileWithoutOperationIdentifiers(t *testing.T) {
 	}
 }
 
+// UC-SYN-03 check 7.
 func TestDevicesAreListedAndForgotten(t *testing.T) {
 	var forgotten string
 	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
 state: built
 tasks: [N-03, F6-07]
-checked_by: [core/application/service/sync/Devices_test.go, test/integration/device_test.go]
+checked_by: [core/application/service/sync/Devices_test.go, test/integration/device_test.go, cmd/hubctl/Sync_test.go]
 ---
 
 # See and forget my devices

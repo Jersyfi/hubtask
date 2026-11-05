@@ -248,15 +248,25 @@ func TestForgettingRevokesTheSessionAndWritesTheTrail(t *testing.T) {
 	if len(f.audit.entries) != 1 || len(f.sessions.revoked) != 1 {
 		t.Errorf("a repeat wrote something")
 	}
+	// UC-SYN-03 check 3: the forgotten device stays in the list, marked.
+	out, err := ListSyncDevices{Writer: f.writer}.Descriptor().Handler.Invoke(t.Context(), signedIn(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	rows := out["data"].([]usecase.Output)
+	if len(rows) != 1 || rows[0]["id"] != device.String() || rows[0]["blocked"] != true {
+		t.Errorf("after forgetting the list is %v, want the device marked as forgotten", rows)
+	}
 }
 
+// UC-SYN-03 check 4, forgetting twice in the test above.
 func TestSomebodyElsesDeviceIsNotFound(t *testing.T) {
 	f := devicesOf(t)
 	f.devices.devices[deviceB] = domain.Device{ID: deviceB, AccountID: otherPerson}
 
 	err := (ForgetSyncDevice{Writer: f.writer}).Execute(t.Context(), signedIn(), deviceB)
-	if !errors.Is(err, shared.ErrNotFound) {
-		t.Errorf("forgetting somebody else's device answered %v", err)
+	if !errors.Is(err, shared.ErrNotFound) || shared.AsError(err).DetailCode != "sync.device_not_found" {
+		t.Errorf("forgetting somebody else's device answered %v, want sync.device_not_found", err)
 	}
 	if f.devices.devices[deviceB].Blocked {
 		t.Errorf("somebody else's device was blocked")
