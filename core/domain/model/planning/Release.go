@@ -114,8 +114,6 @@ func (r *Release) set(f ReleaseFields, normalizer text.Normalizer) error {
 		return shared.ErrValidation.WithDetail("releases.description_too_long").
 			WithParams(map[string]string{"maximum": strconv.Itoa(MaxReleaseDescriptionLength)}).
 			WithFields(shared.FieldError{Path: "/description", Code: "releases.description_too_long"})
-	case f.ReleaseOn == 0:
-		return invalid("/release_on", "releases.date_required")
 	}
 	r.Name, r.Description, r.ReleaseOn = name, description, f.ReleaseOn
 	return nil

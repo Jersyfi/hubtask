@@ -12303,7 +12303,6 @@
   "app.structure.preset.SCRUM_TEAM": "Scrum team",
   "releases.carry_target_invalid": "Open work moves into another planned release of the same hub.",
   "releases.date_invalid": "A release's day is a date such as 2026-11-30.",
-  "releases.date_required": "A release needs the day it is meant to go out.",
   "releases.description_too_long": "A release's description is at most {maximum} characters.",
   "releases.entries_required": "Pick at least one entry.",
   "releases.entry_elsewhere": "Only entries of the release's hub can join it.",

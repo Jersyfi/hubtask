@@ -32,7 +32,8 @@ func TestAReleaseIsCheckedAsItIsPlanned(t *testing.T) {
 		{"no name", ReleaseFields{Name: " ", ReleaseOn: day}, "releases.name_required"},
 		{"two lines", ReleaseFields{Name: "a\nb", ReleaseOn: day}, "releases.name_invalid"},
 		{"too long", ReleaseFields{Name: "a", Description: strings.Repeat("x", MaxReleaseDescriptionLength+1), ReleaseOn: day}, "releases.description_too_long"},
-		{"no day", ReleaseFields{Name: "a"}, "releases.date_required"},
+		// Day 0 is 1970-01-01, a day like any other; a missing day is the door's to refuse.
+		{"the first day of 1970", ReleaseFields{Name: "2.4", Description: "Checkout"}, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r, err := release(t, tc.fields)
