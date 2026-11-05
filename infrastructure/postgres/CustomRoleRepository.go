@@ -64,6 +64,21 @@ func (r CustomRoleRepository) Find(ctx context.Context, key string) (repository.
 	return customRoleFrom(row)
 }
 
+// Hold keeps the role by its key for the transaction (HoldCustomRoleByKey).
+func (r CustomRoleRepository) Hold(ctx context.Context, key string) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.HoldCustomRoleByKey(ctx, key); err != nil {
+		if IsNoRows(err) {
+			return shared.ErrNotFound.WithDetail("roles.not_found").WithParams(map[string]string{"key": key})
+		}
+		return roleQueryError(err, "holding the custom role")
+	}
+	return nil
+}
+
 func (r CustomRoleRepository) Lock(ctx context.Context, roleID shared.ID) (repository.CustomRoleRow, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

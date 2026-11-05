@@ -29,6 +29,30 @@ func (r roleKeys) Find(_ context.Context, key string) (identityrepo.CustomRoleRo
 	return identityrepo.CustomRoleRow{}, nil
 }
 
+func (r roleKeys) Hold(ctx context.Context, key string) error {
+	_, err := r.Find(ctx, key)
+	return err
+}
+
+// heldRoleKeys answers the check's read as known and records what the write holds; gone names a
+// role a concurrent deletion removed between the two.
+type heldRoleKeys struct {
+	held []string
+	gone map[string]bool
+}
+
+func (r *heldRoleKeys) Find(context.Context, string) (identityrepo.CustomRoleRow, error) {
+	return identityrepo.CustomRoleRow{}, nil
+}
+
+func (r *heldRoleKeys) Hold(_ context.Context, key string) error {
+	r.held = append(r.held, key)
+	if r.gone[key] {
+		return shared.ErrNotFound
+	}
+	return nil
+}
+
 func notifyingHarness() *harness {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -145,5 +169,32 @@ func TestTheCheckFindsANotificationStepWhoseCustomRoleIsGone(t *testing.T) {
 	codes := findingCodes(checked[0])
 	if len(codes) != 1 || codes["/actions/2/params/role"] != FindingReferenceGone {
 		t.Errorf("findings %v, want only %s at /actions/2/params/role", codes, FindingReferenceGone)
+	}
+}
+
+// A role deletion counts the switched-on rules naming the role while it holds the role; a rule
+// write holds each custom role its NOTIFY_ROLE steps name in its own transaction, so the two take
+// turns, and a role deleted after the check is refused at the write rather than named by a rule.
+func TestARuleWriteHoldsTheCustomRolesItNames(t *testing.T) {
+	h := notifyingHarness()
+	roles := &heldRoleKeys{}
+	h.writer.CustomRoles = roles
+	command := validCommand()
+	command.Actions = []domain.Action{
+		{Kind: "NOTIFY_ROLE", Params: map[string]any{"role": "ADMIN"}},
+		{Kind: "NOTIFY_ROLE", Params: map[string]any{"role": "dispatcher"}},
+	}
+	if _, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), command); err != nil {
+		t.Fatalf("refused: %v", err)
+	}
+	if len(roles.held) != 1 || roles.held[0] != "dispatcher" {
+		t.Errorf("held %v, want the custom role only", roles.held)
+	}
+
+	h = notifyingHarness()
+	h.writer.CustomRoles = &heldRoleKeys{gone: map[string]bool{"dispatcher": true}}
+	_, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), writerActor(), command)
+	if fields := fieldCodes(t, err); fields["/actions/1/params/role"] != "notifications.recipient_unknown" {
+		t.Errorf("refused with %v, want the role deleted meanwhile named at its field", fields)
 	}
 }

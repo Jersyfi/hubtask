@@ -167,6 +167,20 @@ func (q *Queries) GrantCustomRole(ctx context.Context, arg GrantCustomRoleParams
 	return result.RowsAffected(), nil
 }
 
+const holdCustomRoleByKey = `-- name: HoldCustomRoleByKey :one
+SELECT id FROM custom_role WHERE key = $1
+FOR SHARE
+`
+
+// Held by a rule write that names the role, so a deletion counting the rules naming it waits for
+// the write, and a write after the deletion finds no role.
+func (q *Queries) HoldCustomRoleByKey(ctx context.Context, key string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, holdCustomRoleByKey, key)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertCustomRole = `-- name: InsertCustomRole :exec
 INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
 VALUES ($1, current_tenant_id(), $2, $3,

@@ -18,9 +18,11 @@ import (
 // recipientUnknownCode is the notification steps' own refusal, given at the save as at the run.
 const recipientUnknownCode = "notifications.recipient_unknown"
 
-// RoleKeys answers a custom role by its key.
+// RoleKeys answers a custom role by its key. Hold keeps it, inside the writing transaction, from a
+// deletion that counts the rules naming it (DeleteRole); a role already gone is ErrNotFound.
 type RoleKeys interface {
 	Find(ctx context.Context, key string) (identityrepo.CustomRoleRow, error)
+	Hold(ctx context.Context, key string) error
 }
 
 // recipientFields is which parameter of which notification step names its recipient, and what
@@ -49,6 +51,44 @@ func (w Writer) checkRecipients(ctx context.Context, actor appshared.ActorContex
 	}
 	if len(findings) > 0 {
 		return shared.ErrValidation.WithDetail("automation.actions_invalid").WithFields(findings...)
+	}
+	return nil
+}
+
+// holdRoles holds every custom role the rule's NOTIFY_ROLE steps name, in the write's own
+// transaction: the check above ran in a transaction of its own, and a role deleted in between would
+// otherwise be named by a switched-on rule its deletion did not count.
+func (w Writer) holdRoles(ctx context.Context, actions []domain.Action, at string, depth int) error {
+	var gone []shared.FieldError
+	for i, action := range actions {
+		path := at + "/" + itoa(i)
+		if action.Kind == domain.ActionBranch {
+			branch, err := domain.ReadBranch(action.Params, path, depth)
+			if err != nil {
+				return err
+			}
+			for name, arm := range map[string][]domain.Action{"then": branch.Then, "else": branch.Else} {
+				if err := w.holdRoles(ctx, arm, path+"/params/"+name, depth+1); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		key, named := action.Params["role"].(string)
+		if action.Kind != "NOTIFY_ROLE" || !named || identity.Role(key).Valid() || w.CustomRoles == nil {
+			continue
+		}
+		err := w.CustomRoles.Hold(ctx, key)
+		if errors.Is(err, shared.ErrNotFound) {
+			gone = append(gone, shared.FieldError{Path: path + "/params/role", Code: recipientUnknownCode})
+			continue
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if len(gone) > 0 {
+		return shared.ErrValidation.WithDetail("automation.actions_invalid").WithFields(gone...)
 	}
 	return nil
 }

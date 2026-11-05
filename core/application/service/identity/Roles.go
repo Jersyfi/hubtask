@@ -515,7 +515,8 @@ func (h DeleteRole) Execute(ctx context.Context, actor appshared.ActorContext, k
 	}
 	now := h.Roles.Clock.Now()
 	return h.Roles.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// Held before counting: a grant committed meanwhile would otherwise go by cascade.
+		// Held before counting: a grant committed meanwhile would otherwise go by cascade, and a rule
+		// write naming the role holds it too (automation Writer.holdRoles).
 		if _, err := h.Roles.Store.Lock(ctx, current.Role.ID); err != nil {
 			return err
 		}

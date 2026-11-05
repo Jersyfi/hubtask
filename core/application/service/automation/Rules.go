@@ -239,6 +239,9 @@ func (h CreateRule) Execute(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := w.holdRoles(ctx, rule.Actions, "/actions", 0); err != nil {
+			return err
+		}
 		if err := w.Rules.Insert(ctx, rule); err != nil {
 			return err
 		}
@@ -368,6 +371,9 @@ func (h UpdateRule) Execute(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := w.holdRoles(ctx, wanted.Actions, "/actions", 0); err != nil {
+			return err
+		}
 		if err := w.Rules.Update(ctx, wanted, expectedOr(cmd.ExpectedVersion, current.Version)); err != nil {
 			return err
 		}
@@ -473,6 +479,11 @@ func (w Writer) setEnabled(
 	}
 
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if enabled {
+			if err := w.holdRoles(ctx, rule.Actions, "/actions", 0); err != nil {
+				return err
+			}
+		}
 		if err := w.Rules.SetEnabled(ctx, id, enabled, rule.Version, now); err != nil {
 			return err
 		}

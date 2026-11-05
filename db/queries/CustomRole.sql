@@ -78,3 +78,9 @@ WHERE (sqlc.narg('role_id')::uuid IS NULL OR g.role_id = sqlc.narg('role_id')::u
   AND (sqlc.narg('after')::uuid IS NULL OR g.id > sqlc.narg('after')::uuid)
 ORDER BY g.id
 LIMIT sqlc.arg('max_rows');
+
+-- name: HoldCustomRoleByKey :one
+-- Held by a rule write that names the role, so a deletion counting the rules naming it waits for
+-- the write, and a write after the deletion finds no role.
+SELECT id FROM custom_role WHERE key = sqlc.arg('key')
+FOR SHARE;

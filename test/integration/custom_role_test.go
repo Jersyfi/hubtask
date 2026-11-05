@@ -104,6 +104,9 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 		if _, err := roles.Lock(ctx, role.ID); err == nil {
 			t.Fatal("B holds A's role")
 		}
+		if err := roles.Hold(ctx, "service_lead"); err == nil {
+			t.Fatal("B holds A's role by its key")
+		}
 		if written, err := roles.Update(ctx, role, 1, now); err != nil || written {
 			t.Fatalf("B changes A's role: %v %v", written, err)
 		}
@@ -145,6 +148,14 @@ func TestAWorkspacesCustomRolesAreItsOwn(t *testing.T) {
 			return err
 		}); err == nil {
 			t.Error("a second transaction held the same role at once")
+		}
+		// A rule write naming the role waits for a deletion holding it (DeleteRole).
+		naming, cancelNaming := context.WithTimeout(ctx, 300*time.Millisecond)
+		defer cancelNaming()
+		if err := write(naming, t, tenantA, func(inner context.Context) error {
+			return roles.Hold(inner, "service_lead")
+		}); err == nil {
+			t.Error("a rule write held the role while a deletion held it")
 		}
 		return nil
 	}); err != nil {
