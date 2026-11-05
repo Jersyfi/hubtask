@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
@@ -134,5 +135,10 @@ func TestARequestFiledByMailNamesNoOrganisationNorAssets(t *testing.T) {
 	}
 	if found.Organisation != nil || len(found.Assets) != 0 {
 		t.Errorf("a request filed by mail names %+v and %d assets", found.Organisation, len(found.Assets))
+	}
+	// The panel is told, so it lists no other requests by the intake's owner as the requester's.
+	out, err := read.Descriptor().Handler.Invoke(context.Background(), reader(), usecase.Input{"item_id": itemID.String()})
+	if err != nil || out["by_mail"] != true {
+		t.Errorf("answered %v, %v; want by_mail", out, err)
 	}
 }

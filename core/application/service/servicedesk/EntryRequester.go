@@ -41,6 +41,9 @@ type EntryRequester struct {
 	AccountID    shared.ID
 	Organisation *domain.Organisation
 	Assets       []cmdb.CI
+	// ByMail says the mail intake filed it for a sender without an account: AccountID is then
+	// the intake's owner, not the requester.
+	ByMail bool
 }
 
 // OwnedAssets answers the CIs an account owns across the workspace's hubs (repository/cmdb).
@@ -109,7 +112,8 @@ func (h ReadEntryRequester) Execute(ctx context.Context, actor appshared.ActorCo
 			// Filed by mail: the creator's organisation and CIs are the intake owner's, not the
 			// requester's, who belongs to none (UC-SVC-11).
 			filed, err := h.Requesters.AddressesOn(ctx, itemID)
-			if err != nil || len(filed) > 0 {
+			out.ByMail = len(filed) > 0
+			if err != nil || out.ByMail {
 				return err
 			}
 		}
@@ -202,7 +206,7 @@ func (h ReadEntryRequester) Descriptor() usecase.Descriptor {
 					"id": ci.ID.String(), "hub_id": ci.HubID.String(), "class": ci.Class, "name": ci.Name, "stage": string(ci.Stage),
 				})
 			}
-			out := usecase.Output{"account_id": found.AccountID.String(), "organisation": nil, "assets": assets}
+			out := usecase.Output{"account_id": found.AccountID.String(), "organisation": nil, "assets": assets, "by_mail": found.ByMail}
 			if found.Organisation != nil {
 				out["organisation"] = usecase.Output{"key": found.Organisation.Key, "name": found.Organisation.Name}
 			}
