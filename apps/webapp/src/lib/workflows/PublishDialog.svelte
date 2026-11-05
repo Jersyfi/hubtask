@@ -7,7 +7,8 @@
   // again; nothing moves until *Publish* is pressed, and then everything moves at once.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { Workflow, WorkflowPreview, WorkflowShape } from '@hubtask/sync-engine';
 
   import { removedOf, statusLabel, workflows } from '../data/workflows.svelte.ts';
@@ -119,7 +120,7 @@
         </ul>
       {/if}
     {/if}
-    {#if refusal}<Banner tone="danger" title={refusal} />{/if}
+    {#if refusal}<FailureNote problem={refusal} />{/if}
   </Stack>
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workflow_designer.cancel')}</Button>

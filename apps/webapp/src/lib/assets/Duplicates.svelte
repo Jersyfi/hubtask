@@ -6,7 +6,8 @@
   // retired, never deleted - or records them as distinct. A person decides every merge.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, EmptyState, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, EmptyState, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CiDuplicate, CiDuplicateList, ConfigurationItem } from '@hubtask/sync-engine';
 
   import { classWord, cmdb, duplicatesPath, sideBySide, type Words } from '../data/cmdb.svelte.ts';
@@ -63,7 +64,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else if !list}
   <Spinner label={t('app.assets.loading')} />
 {:else if list.length === 0}

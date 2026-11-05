@@ -22,6 +22,8 @@
   // refusal is said where it happened, in the server's words.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
     type Column, type PlaceTab,
@@ -407,7 +409,7 @@
     </div>
 
     {#if sheetRefusal}
-      <Banner tone="danger">{sheetRefusal}</Banner>
+      <FailureNote problem={sheetRefusal} />
     {:else if !sheet}
       <div aria-busy="true"><Skeleton lines={6} /></div>
     {:else}
@@ -494,7 +496,7 @@
 
   {:else if current === 'approvals'}
     {#if queueRefusal}
-      <Banner tone="danger">{queueRefusal}</Banner>
+      <FailureNote problem={queueRefusal} />
     {:else if !waiting}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if waiting.length === 0}
@@ -556,7 +558,7 @@
       <Button size="sm" tone="secondary" icon="file-text" isBusy={isExportingSheet} busyLabel={t('app.time.export_spreadsheet')} onclick={() => void exportSpreadsheet()}>{t('app.time.export_spreadsheet')}</Button>
     </div>
     {#if reportRefusal}
-      <Banner tone="danger">{reportRefusal}</Banner>
+      <FailureNote problem={reportRefusal} />
     {:else if !answer}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if answer.groups.length === 0}
@@ -608,7 +610,7 @@
       <Textarea label={t('app.time.col_note')} bind:value={draft.note} maxlength={2000} />
       <Checkbox label={t('app.time.billable')} checked={draft.billable}
         onchange={(event: Event) => { draft.billable = (event.currentTarget as HTMLInputElement).checked; draft.isBillableTouched = true; }} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
       <Inline justify="end"><Button onclick={() => void saveRecord()}>{editing ? t('app.time.save') : t('app.time.record')}</Button></Inline>
     </Stack>
   </Dialog>
@@ -621,7 +623,7 @@
       <Input label={t('app.time.col_day')} type="date" bind:value={correction.day} />
       <Input label={t('app.time.correction_label')} hint={t('app.time.correction_hint')} bind:value={correction.minutes} error={correctionError} />
       <Textarea label={t('app.time.col_note')} bind:value={correction.note} maxlength={2000} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
       <Inline justify="end"><Button onclick={() => void saveCorrection()}>{t('app.time.correct')}</Button></Inline>
     </Stack>
   </Dialog>
@@ -631,7 +633,7 @@
   <Dialog bind:isOpen={isRejecting} title={t('app.time.send_back_title', { name: personName(deciding.account_id) })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <Textarea label={t('app.time.reason')} hint={t('app.time.reason_hint')} bind:value={reason} maxlength={500} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
       <Inline justify="end"><Button disabledReason={reason.trim() === '' ? t('app.time.reason_needed') : undefined} onclick={() => void reject()}>{t('app.time.send_back')}</Button></Inline>
     </Stack>
   </Dialog>

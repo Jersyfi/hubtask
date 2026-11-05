@@ -20,7 +20,9 @@
   // proof a check could present, so the password's lines show what can be seen locally and say
   // the rest is checked on sending.
 
-  import { Banner, Button, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, Input, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   import PasswordField from '../lib/signin/PasswordField.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
@@ -74,9 +76,9 @@
 
 {#snippet notice()}
   {#if session.problem && !isFieldProblem}
-    <Banner tone="danger" title={session.problem.message}>
+    <FailureNote problem={session.problem}>
       {#if session.problem.reference}{session.problem.reference}{/if}
-    </Banner>
+    </FailureNote>
   {/if}
 {/snippet}
 

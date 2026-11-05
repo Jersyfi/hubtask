@@ -5,7 +5,8 @@
   // for review, which a member who may write closes; a closed hold stays on record (UC-AST-02 check 7).
 
   import { untrack } from 'svelte';
-  import { Banner, Button, EmptyState, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Button, EmptyState, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CiHold, CiHoldList, CiRun, CiRunList } from '@hubtask/sync-engine';
 
   import { classWord, cmdb, holdsPath, runsPath, type Words } from '../data/cmdb.svelte.ts';
@@ -100,7 +101,7 @@
   <section class="part" aria-labelledby="runs-list">
     <h2 id="runs-list" class="heading">{t('app.assets.section.runs')}</h2>
     {#if refusal}
-      <Banner tone="danger">{refusal}</Banner>
+      <FailureNote problem={refusal} />
     {:else if !runs}
       <Spinner label={t('app.assets.loading')} />
     {:else if runs.length === 0}

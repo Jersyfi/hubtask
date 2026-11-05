@@ -7,7 +7,8 @@
   // source's conflict rate; and the CIs found wanting, each opened from its row.
 
   import { untrack } from 'svelte';
-  import { Banner, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CmdbHealth, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
   import { cisPath, classWord, cmdb, healthPath, percent, type Words } from '../data/cmdb.svelte.ts';
@@ -60,7 +61,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else if !health}
   <Spinner label={t('app.assets.loading')} />
 {:else}

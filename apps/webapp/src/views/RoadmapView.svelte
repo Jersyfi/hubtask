@@ -12,7 +12,8 @@
   // opens the hub, the project's plan or the entry.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, IconButton, Inline, PageHeader, Select, Skeleton, Table, Timeline, type Column } from '@hubtask/design-system/components';
+  import { Badge, Button, IconButton, Inline, PageHeader, Select, Skeleton, Table, Timeline, type Column } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { PortfolioRoadmap } from '@hubtask/sync-engine';
 
@@ -135,7 +136,7 @@
   />
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !roadmap}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else if health.projects === 0}

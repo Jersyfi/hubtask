@@ -189,7 +189,11 @@ test('chromium: a step-up return the server fails is a sentence with its referen
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm with Contoso Entra ID' }).click();
 
   await page.getByRole('heading', { name: 'Not confirmed' }).waitFor({ timeout: 15_000 });
-  const said = await page.getByRole('alert').innerText();
-  assert.match(said, /Something went wrong on our side/, said);
-  assert.match(said, /req_e2e_su500/, `no reference: ${said}`);
+  // The sentence, and the reference folded behind *Details for support* (user-experience.md §5.8).
+  const alert = page.getByRole('alert');
+  const said = await alert.innerText();
+  assert.match(said, /Something went wrong/, said);
+  assert.doesNotMatch(said, /req_e2e_su500/, `the reference is in the sentence: ${said}`);
+  await alert.getByRole('button', { name: 'Details for support' }).click();
+  assert.match(await alert.getByRole('region', { name: 'Details for support' }).innerText(), /req_e2e_su500/);
 });

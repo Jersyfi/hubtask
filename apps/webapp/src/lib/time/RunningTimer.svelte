@@ -7,7 +7,8 @@
   // prefilled at the usual end of work - with *Discard* the second choice.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, Icon, IconButton, Inline, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Icon, IconButton, Inline, Input, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CapacityList, TimeTimer, WorkTypeList } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -147,7 +148,7 @@
     <Stack gap="150">
       <p class="quiet">{t('app.time.record_until_hint', { day: formatPlainDay(startDay ?? '', messages.locale), start: startClock ?? '' })}</p>
       <Input label={t('app.time.until')} type="time" bind:value={until} error={untilError} />
-      {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+      {#if failure}<FailureNote problem={failure} />{/if}
       <Inline justify="end" gap="100">
         <Button tone="subtle" {isBusy} busyLabel={t('app.time.discard')} onclick={() => void discard()}>{t('app.time.discard')}</Button>
         <Button {isBusy} busyLabel={t('app.time.record')} onclick={() => void recordUntil()}>{t('app.time.record')}</Button>

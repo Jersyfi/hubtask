@@ -12,6 +12,7 @@
 
   import { untrack } from 'svelte';
   import { EmptyState, Banner, Button, Checkbox, CodeBlock, Dialog, Disclosure, PageHeader, PlanSummary, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { ConfigDraftList, ConfigExport, ConfigTemplateList, ConfigPlan, ConfigProposal, ConfigProposalList, ConfigSandbox, ConfigVersion, ConfigVersionList, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -263,7 +264,7 @@
       <div class="part" data-proposals>
         <h3>{t('app.changes.proposed')}</h3>
     {#if refusalOf(waiting)}
-      <Banner tone="danger" title={refusalOf(waiting)?.message ?? ''} />
+      <FailureNote problem={refusalOf(waiting) ?? ''} />
     {:else if waiting?.status !== 'ready'}
       <Spinner label={t('app.changes.reading')} />
     {:else if waiting.data.data.length === 0}
@@ -330,7 +331,7 @@
   <section class="panel" data-versions>
     <h2>{t('app.changes.history')}</h2>
     {#if refusalOf(versions)}
-      <Banner tone="danger" title={refusalOf(versions)?.message ?? ''} />
+      <FailureNote problem={refusalOf(versions) ?? ''} />
     {:else if versions?.status !== 'ready'}
       <Spinner label={t('app.changes.reading')} />
     {:else if versions.data.data.length === 0}
@@ -412,7 +413,7 @@
     <h2>{t('app.changes.sandbox')}</h2>
     <p class="quiet">{t('app.changes.sandbox_explain')}</p>
     {#if refusalOf(sandbox)}
-      <Banner tone="danger" title={refusalOf(sandbox)?.message ?? ''} />
+      <FailureNote problem={refusalOf(sandbox) ?? ''} />
     {:else if sandbox?.status !== 'ready'}
       <Spinner label={t('app.changes.reading')} />
     {:else if !sandbox.data.exists}
@@ -426,9 +427,9 @@
     {:else}
       <p class="note">{t('app.changes.sandbox_state', { writes: sandbox.data.writes ?? 0, at: at(sandbox.data.updated_at ?? '') })}</p>
       {#if promotion && promotion.refusals.length > 0}
-        <Banner tone="danger" title={t('app.changes.sandbox_refused')}>
+        <FailureNote problem={t('app.changes.sandbox_refused')}>
           <PlanSummary label={t('app.changes.plan_label')} lines={planLines(promotion, t)} emptyLabel={t('app.changes.plan_empty')} />
-        </Banner>
+        </FailureNote>
       {:else if promotion && promotion.changes.length === 0}
         <p class="quiet">{t('app.changes.sandbox_same')}</p>
       {:else if promotion}
@@ -462,7 +463,7 @@
     {#if current?.status === 'ready'}
       <CodeBlock code={file} label={t('app.changes.file')} language="json" copyLabel={t('app.apps.copy')} copiedLabel={t('app.apps.copied')} />
     {:else if refusalOf(current)}
-      <Banner tone="danger" title={refusalOf(current)?.message ?? ''} />
+      <FailureNote problem={refusalOf(current) ?? ''} />
     {:else}
       <Spinner label={t('app.changes.reading')} />
     {/if}
@@ -475,9 +476,9 @@
   <Dialog bind:isOpen={isPreviewOpen} title={t('app.changes.preview_title')} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
       {#if previewed.refusals.length > 0}
-        <Banner tone="danger" title={t('app.changes.preview_refused')}>
+        <FailureNote problem={t('app.changes.preview_refused')}>
           <PlanSummary label={t('app.changes.plan_label')} lines={planLines({ changes: [], refusals: previewed.refusals }, t)} emptyLabel={t('app.changes.plan_empty')} />
-        </Banner>
+        </FailureNote>
       {:else}
         <p class="quiet">{counts(previewed.counts)}</p>
         <PlanSummary label={t('app.changes.plan_label')} lines={planLines(previewed, t)} emptyLabel={t('app.changes.plan_empty')} />
@@ -491,9 +492,9 @@
   <Dialog bind:isOpen={isRollbackOpen} title={t('app.changes.rollback_title', { version: rollingBack })} dismissLabel={t('app.changes.cancel')}>
     <Stack gap="150">
       {#if plan.refusals.length > 0}
-        <Banner tone="danger" title={t('app.changes.rollback_refused')}>
+        <FailureNote problem={t('app.changes.rollback_refused')}>
           <PlanSummary label={t('app.changes.plan_label')} lines={planLines({ changes: [], refusals: plan.refusals }, t)} emptyLabel={t('app.changes.plan_empty')} />
-        </Banner>
+        </FailureNote>
       {:else}
         <p class="quiet">{counts(plan.counts)}</p>
         <PlanSummary label={t('app.changes.plan_label')} lines={planLines(plan, t)} emptyLabel={t('app.changes.plan_empty')} />
@@ -503,7 +504,7 @@
             onchange={(event: Event) => (acknowledgeRollback = (event.currentTarget as HTMLInputElement).checked)} />
         {/if}
       {/if}
-      {#if rollbackFailure}<Banner tone="danger">{rollbackFailure}</Banner>{/if}
+      {#if rollbackFailure}<FailureNote problem={rollbackFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isRollbackOpen = false)}>{t('app.changes.cancel')}</Button>

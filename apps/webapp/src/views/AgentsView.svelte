@@ -13,6 +13,8 @@
   // no registration, model or switch. The server decides (rule 2).
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Banner, Button, CheckboxGroup, Dialog, Disclosure, Icon, IconButton, Input, ListRow, PageHeader, PlaceTabs, Select, Skeleton, Stack, Switch, Table, Textarea,
     type PlaceTab, type SelectOption,
@@ -399,7 +401,7 @@
   <PlaceTabs label={t('app.agents.title')} {tabs} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if agentsRead.state.status !== 'ready'}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if current === 'requests'}
@@ -412,7 +414,7 @@
         {/if}
       </div>
       {#if requestsRead.state.status === 'failed'}
-        <Banner tone="danger">{renderProblem(requestsRead.state.error, messages).message}</Banner>
+        <FailureNote problem={renderProblem(requestsRead.state.error, messages)} />
       {:else if requestsRead.state.status !== 'ready'}
         <div aria-busy="true"><Skeleton lines={3} /></div>
       {:else if shown.length === 0}
@@ -645,7 +647,7 @@
       </div>
       <p class="meta">{t('app.agents.budget_hint')}</p>
       <Input label={t('app.agents.min_accuracy')} hint={t('app.agents.min_accuracy_hint')} inputmode="numeric" bind:value={draft.accuracy} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDraftOpen = false)}>{t('app.agents.cancel')}</Button>
@@ -668,7 +670,7 @@
       <Select label={t('app.agents.col_region')} options={regionOptions} bind:value={modelDraft.region} />
       <Input label={t('app.agents.col_retention')} hint={t('app.agents.retention_hint')} inputmode="numeric" bind:value={modelDraft.retention} />
       {#if modelEditing}<Switch label={t('app.agents.retire_model')} bind:checked={modelDraft.retired} />{/if}
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isModelOpen = false)}>{t('app.agents.cancel')}</Button>

@@ -7,7 +7,8 @@
   // reader who may read the configuration (P-05).
 
   import { untrack } from 'svelte';
-  import { Banner, Button, CodeBlock, Dialog, Spinner } from '@hubtask/design-system/components';
+  import { Button, CodeBlock, Dialog, Spinner } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { ConfigExport, ResourceState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -55,7 +56,7 @@
     {#if current?.status === 'ready'}
       <CodeBlock code={file} label={t('app.settings.file_title')} language="json" />
     {:else if current?.status === 'failed'}
-      <Banner tone="danger" title={renderProblem(current.error, messages).message} />
+      <FailureNote problem={renderProblem(current.error, messages)} />
     {:else}
       <Spinner label={t('app.changes.reading')} />
     {/if}

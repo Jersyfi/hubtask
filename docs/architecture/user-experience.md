@@ -474,7 +474,10 @@ templates*, so *Templates* means one thing. A test pins the section order per le
   refusal holds, such as its field sentences, comes inside it); a screen or list that could not be
   read is `FailureState` (`ErrorState` with *Try again*). Both fold the reference and the code behind
   *Details for support* (`FailureDetails`). `apps/webapp/build/failure.test.js` refuses a bare
-  `<ErrorState>` or a hand-written reference line outside them.
+  `<ErrorState>`, a hand-written reference line, or a danger `Banner` that only says a kept
+  sentence or a problem's message outside them. A screen that kept only the sentence passes it
+  alone (`FailureNote problem={sentence}`), which folds nothing; the danger banners left are
+  warnings about the domain (a restore that replaces, a failing retention run), not refusals.
 * **Every user-facing code has a catalogue entry.** The catalogue gate (`make locales`,
   `gate-architecture`) is extended: every code used as a validation, conflict, forbidden or
   rate-limited detail, or as a `FieldError.Code`, must be in the source catalogue; internal codes

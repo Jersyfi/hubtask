@@ -34,6 +34,10 @@ test('no screen draws a failure outside FailureNote and FailureState', () => {
     const source = fs.readFileSync(file, 'utf8');
     if (/<ErrorState\b/.test(source) && !MAY_DRAW_ERRORSTATE.has(name)) found.push(`${name}: <ErrorState> - use FailureState`);
     if (source.includes("t('app.error_reference'") && !MAY_SAY_REFERENCE.has(name)) found.push(`${name}: the reference by hand - use FailureNote or FailureState`);
+    // A danger banner that only says a kept sentence, or a problem's message, is a failure by hand.
+    if (/<Banner tone="danger">\{[^}]*\}<\/Banner>/.test(source) || /<Banner tone="danger" title=\{[^}]*\.message[^}]*\}/.test(source)) {
+      if (!MAY_SAY_REFERENCE.has(name)) found.push(`${name}: a failure in a bare danger Banner - use FailureNote`);
+    }
   }
   assert.deepEqual(found, []);
 });

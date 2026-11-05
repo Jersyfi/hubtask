@@ -8,7 +8,8 @@
   // **Drawn only for MANAGE_COSTS or MANAGE_MEMBERS** (P-05): what a person earns is nobody else's.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, Inline, Input, Radio, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, Dialog, Inline, Input, Radio, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CostRate, CostRateList } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -94,7 +95,7 @@
   </Inline>
   <p class="quiet">{t('app.rates.hint')}</p>
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if rates}
     <Table label={t('app.rates.title')} isLabelHidden {columns}>
       {#snippet empty()}{t('app.rates.empty')}{/snippet}

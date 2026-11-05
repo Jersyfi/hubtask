@@ -255,7 +255,7 @@
                 {/if}
               </Inline>
             </Inline>
-            {#if refusal}<Banner tone="danger" title={refusal} />{/if}
+            {#if refusal}<FailureNote problem={refusal} />{/if}
             <Tabs {tabs} selected={tab} onselect={(id) => (tab = id)} label={t('app.workflow_designer.tabs')}>
             {#if tab === 'design'}
               <WorkflowDiagram shape={draft} {selected} onselect={(next) => (selected = next)} />

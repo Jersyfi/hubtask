@@ -16,6 +16,8 @@
   import { untrack } from 'svelte';
 
   import { Badge, Banner, Button, EmptyState, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CalendarPush, CalendarPushList } from '@hubtask/sync-engine';
 
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
@@ -93,7 +95,7 @@
     <Stack gap="200">
       <p class="quiet">{t('app.pushes.intro')}</p>
       {#if connected}<p class="done" role="status">{t('app.pushes.connected', { calendar: providerName(connected) })}</p>{/if}
-      {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+      {#if failure}<FailureNote problem={failure} />{/if}
 
       {#each pushes as push (push.id)}
         <section class="panel" data-push={push.provider} aria-label={providerName(push)}>

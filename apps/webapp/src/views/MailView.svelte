@@ -16,8 +16,9 @@
 
   import { untrack } from 'svelte';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import {
-    Banner,
     Button,
     IconButton,
     Input,
@@ -257,7 +258,7 @@
   <WorkspaceGate permission="AUTOMATION">
     {#snippet actions()}
       {#if readFailure}
-        <Banner tone="danger">{readFailure}</Banner>
+        <FailureNote problem={readFailure} />
       {:else if !loaded}
         <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
       {:else}
@@ -276,7 +277,7 @@
             },
           }}
         >
-          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
+          {#if saveFailure}<FailureNote problem={saveFailure} />{/if}
           <section id="mail-part-mailboxes" aria-labelledby="mail-mailboxes" data-mail-mailboxes>
             <Stack gap="150">
               <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>

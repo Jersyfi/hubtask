@@ -6,7 +6,9 @@
   // collection. The subject works through every door the workspace's intake has, so it is the one
   // thing always shown; the address only where the operator's receiving domain makes one.
 
-  import { Banner, Button, IconButton, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, IconButton, Input, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
 
   import { announcer } from '../announce.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -88,7 +90,7 @@
       <Button tone="secondary" isBusy={isSaving} busyLabel={t('app.mail.saving')} disabledReason={isChanged ? undefined : t('app.mail.unchanged')} onclick={() => void save()}>{t('app.mail.save_handle')}</Button>
     </div>
   {/if}
-  {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+  {#if failure}<FailureNote problem={failure} />{/if}
 </Stack>
 
 <style>

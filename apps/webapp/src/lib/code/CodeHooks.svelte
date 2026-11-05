@@ -10,8 +10,10 @@
   // the reader confirms they kept it.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import {
-    Banner, Button, Dialog, EmptyState, Input, OneTimeSecret, Select, Spinner, Stack, Switch, type SelectOption,
+    Button, Dialog, EmptyState, Input, OneTimeSecret, Select, Spinner, Stack, Switch, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { CodeHook, CodeHookList } from '@hubtask/sync-engine';
 
@@ -134,7 +136,7 @@
   </div>
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !hooks}
     <Spinner label={t('app.code.loading')} />
   {:else if hooks.length === 0}
@@ -177,7 +179,7 @@
     <Stack gap="150">
       <Select label={t('app.code.forge_label')} options={forgeOptions} bind:value={kind} />
       <Input label={t('app.code.name_label')} hint={t('app.code.name_hint')} bind:value={name} maxlength={80} />
-      {#if addFailure}<Banner tone="danger">{addFailure}</Banner>{/if}
+      {#if addFailure}<FailureNote problem={addFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAddOpen = false)}>{t('app.code.cancel')}</Button>
@@ -190,7 +192,7 @@
   <Dialog isOpen={true} onClose={() => (renaming = undefined)} title={t('app.code.rename')} dismissLabel={t('app.code.cancel')}>
     <Stack gap="150">
       <Input label={t('app.code.name_label')} bind:value={newName} maxlength={80} />
-      {#if renameFailure}<Banner tone="danger">{renameFailure}</Banner>{/if}
+      {#if renameFailure}<FailureNote problem={renameFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (renaming = undefined)}>{t('app.code.cancel')}</Button>

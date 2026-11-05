@@ -12,6 +12,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, ViewSwitcher } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
 
   import TemplatePreview from './TemplatePreview.svelte';
@@ -280,7 +281,7 @@
   <h2 id="templates-gallery">{t(scope === 'collection' ? 'app.templates.collection_gallery' : scope === 'hub' ? 'app.templates.hub_gallery' : 'app.templates.gallery')}</h2>
   <p class="quiet">{t(scope === 'collection' ? 'app.templates.collection_about' : scope === 'hub' ? 'app.templates.hub_about' : 'app.templates.about')}</p>
   {#if refusal}
-    <Banner tone="danger" title={refusal.message} />
+    <FailureNote problem={refusal} />
   {:else if list?.status !== 'ready'}
     <Spinner label={t('app.templates.reading')} />
   {:else if scope === 'collection' && groups.length === 0}
@@ -398,13 +399,13 @@
             {maySwitch ? t('app.templates.needs_modules_body') : t('app.templates.needs_modules_ask')}</p>
         </Banner>
       {:else if plan.refusals.length > 0}
-        <Banner tone="danger" title={t('app.templates.refused')}>
+        <FailureNote problem={t('app.templates.refused')}>
           <ul class="changes">
             {#each plan.refusals as refused (refused.path + refused.code)}
               <li>{refusalText(refused)}</li>
             {/each}
           </ul>
-        </Banner>
+        </FailureNote>
       {:else}
         <p class="quiet">{counts(plan.counts)}</p>
         <ul class="changes" data-plan-changes>
@@ -418,7 +419,7 @@
             onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />
         {/if}
       {/if}
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.changes.cancel')}</Button>

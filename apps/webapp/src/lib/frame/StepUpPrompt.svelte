@@ -16,7 +16,9 @@
   // page: the person signs in there once more and comes back to where they were. A passkey or
   // security key is a press too: the device answers, and nothing is typed.
 
-  import { Banner, Button, CodeField, Dialog, Input, Stack } from '@hubtask/design-system/components';
+  import { Button, CodeField, Dialog, Input, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from './FailureNote.svelte';
 
   import { canCreatePasskeys } from '../data/passkeys.ts';
   import { stepUp } from '../data/stepup.svelte.ts';
@@ -106,9 +108,9 @@
 
       {#if stepUp.failure}
         <!-- The server's own sentence. Which of the two was wrong is not something this client says. -->
-        <Banner tone="danger" title={stepUp.failure.message}>
+        <FailureNote problem={stepUp.failure}>
           {#if stepUp.failure.reference}{stepUp.failure.reference}{/if}
-        </Banner>
+        </FailureNote>
       {/if}
 
       {#if cannotProve}

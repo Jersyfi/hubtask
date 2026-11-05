@@ -11,7 +11,8 @@
   // reference before it is sent. A disposed asset is kept and offers no move.
 
   import { untrack } from 'svelte';
-  import { Banner, Badge, Button, Dialog, Input, Select, Spinner, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Input, Select, Spinner, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiAsset, CiClass, ConfigurationItem, WorkItem } from '@hubtask/sync-engine';
 
   import EntryPicker from '../entries/EntryPicker.svelte';
@@ -208,7 +209,7 @@
         {/if}
         <EntryPicker chosen={request} onchoose={(found) => (request = found)} />
       </fieldset>
-      {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
+      {#if saveFailure}<FailureNote problem={saveFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -223,7 +224,7 @@
       <p class="meta">{t('app.register.dispose_hint')}</p>
       <Select label={t('app.register.method_label')} options={DISPOSAL_METHODS.map((each) => ({ value: each, label: t(`app.register.method.${each}`) }))} bind:value={method} />
       <Input label={t('app.register.certificate')} hint={t('app.register.certificate_hint')} bind:value={certificate} maxlength={200} isRequired />
-      {#if moveFailure}<Banner tone="danger">{moveFailure}</Banner>{/if}
+      {#if moveFailure}<FailureNote problem={moveFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDisposeOpen = false)}>{t('app.assets.cancel')}</Button>

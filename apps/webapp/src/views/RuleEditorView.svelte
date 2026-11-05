@@ -898,7 +898,7 @@
       {#if failure && !failure.fields.size}
         <FailureNote problem={failure} />
       {:else if failure}
-        <Banner tone="danger" title={failure.message} />
+        <FailureNote problem={failure} />
       {/if}
 
       {#if minted && minted.rule_id === stored?.id}

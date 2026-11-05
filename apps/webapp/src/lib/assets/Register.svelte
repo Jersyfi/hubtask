@@ -6,7 +6,8 @@
   // own screen, which each row opens.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiAsset, CiAssetList, CiClass } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -44,7 +45,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else}
   <Stack gap="150">
     <p class="meta">{t('app.register.hint')}</p>

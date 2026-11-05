@@ -17,8 +17,10 @@
   // screen shows values, not controls.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Textarea,
+    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Textarea,
     hasLeftTheHandle, type Column, type PageAction,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -333,7 +335,7 @@
   <PlaceStrip placeId={collectionId} current="sprints" {onnavigate} />
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !list}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}

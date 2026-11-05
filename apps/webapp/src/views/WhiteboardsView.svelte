@@ -10,6 +10,8 @@
   // sees the boards and is offered no write; the board's own `writable` says the same for it.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Banner, Button, Dialog, Disclosure, EmptyState, Input, PageHeader, Skeleton, Spinner, Stack, UploadField,
   } from '@hubtask/design-system/components';
@@ -188,7 +190,7 @@
     <div class="waiting">
       <h1 class="title">{t('app.whiteboards.title')}</h1>
       {#if openRefusal}
-        <Banner tone="danger">{openRefusal}</Banner>
+        <FailureNote problem={openRefusal} />
       {:else}
         <Spinner label={t('app.whiteboards.loading')} />
       {/if}
@@ -231,7 +233,7 @@
     {#if hubFromRoute}<PlaceStrip placeId={hubFromRoute} current="whiteboards" {onnavigate} />{/if}
 
     {#if listRefusal}
-      <Banner tone="danger">{listRefusal}</Banner>
+      <FailureNote problem={listRefusal} />
     {:else if !list}
       <div aria-busy="true"><Skeleton lines={3} /></div>
     {:else if boards.length === 0}
@@ -280,7 +282,7 @@
         />
         {#if imported}<Button size="sm" tone="subtle" icon="x" onclick={() => (imported = undefined)}>{t('app.whiteboards.import_drop')}</Button>{/if}
       </Disclosure>
-      {#if createFailure}<Banner tone="danger">{createFailure}</Banner>{/if}
+      {#if createFailure}<FailureNote problem={createFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.links.cancel')}</Button>

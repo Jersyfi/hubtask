@@ -26,6 +26,8 @@
   // is sent when its message leaves; *Undo* sends nothing, and a closed tab keeps the baseline.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Banner, Button, Checkbox, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Table, Timeline,
     type Column, type TimelineCarry, type TimelineDependency, type TimelineLink,
@@ -470,7 +472,7 @@
   <PlaceStrip placeId={planId} current="plan" view="plan" {onnavigate} />
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !schedule}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else if rows.length === 0 && undated.length === 0}

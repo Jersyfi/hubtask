@@ -11,6 +11,8 @@
   // keeps it when the reader replaces the projects (check 3).
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column,
@@ -232,7 +234,7 @@
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !portfolio}
     <div aria-busy="true"><Skeleton lines={8} /></div>
   {:else}

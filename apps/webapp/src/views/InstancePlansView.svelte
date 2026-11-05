@@ -179,7 +179,7 @@
   {/snippet}
   <Stack gap="150">
     {#if failure && !failure.fields.size}
-      <Banner tone="danger" title={failure.message} />
+      <FailureNote problem={failure} />
     {/if}
     <Input
       label={t('app.instance.plan_display_name')}

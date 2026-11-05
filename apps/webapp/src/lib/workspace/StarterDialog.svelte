@@ -18,7 +18,9 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, VisuallyHidden } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -338,7 +340,7 @@
         </section>
       {/if}
       <p class="hint">{t('app.starter.changeable')}</p>
-      {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+      {#if failure}<FailureNote problem={failure} />{/if}
     </Stack>
   </div>
 

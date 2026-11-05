@@ -14,6 +14,8 @@
   import { untrack } from 'svelte';
 
   import { Badge, Banner, Button, Input, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { LdapDirectory, LdapDirectoryConfiguration, LdapSyncRun } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -184,12 +186,12 @@
   {#if reading.status === 'idle' || reading.status === 'loading'}
     <p class="quiet"><Spinner size="sm" /> <span>{t('app.workspace.reading')}</span></p>
   {:else if unreadable}
-    <Banner tone="danger" title={unreadable.message} />
+    <FailureNote problem={unreadable} />
   {:else}
     {#if failure}
-      <Banner tone="danger" title={failure.message}>
+      <FailureNote problem={failure}>
         {#if failure.reference}{failure.reference}{/if}
-      </Banner>
+      </FailureNote>
     {/if}
     {#if saved}
       <Banner tone="success" title={t('app.ldap.saved')} />

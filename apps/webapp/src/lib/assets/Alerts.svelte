@@ -9,7 +9,8 @@
   // narrowed to firing and empty, it says nothing is firing (user-experience.md §5.5).
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Select, Skeleton, Toolbar, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Select, Skeleton, Toolbar, type SelectOption } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiAlert, CiAlertList, CiConnector, CiConnectorList } from '@hubtask/sync-engine';
 
   import { RUN_ALERT_KEY, alertTone, alertsPath, connectorsPath } from '../data/cmdb.svelte.ts';
@@ -70,7 +71,7 @@
 
 <div class="alerts">
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !alerts}
     <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if alerts.length === 0 && !narrowed}

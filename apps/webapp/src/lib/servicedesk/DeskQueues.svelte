@@ -10,7 +10,8 @@
   // merge two orders by a moment it is not sent. The SLA is one read per row shown (at most
   // `QUEUE_SHOWN` a hub): the query answers no goal.
   import { untrack } from 'svelte';
-  import { Avatar, Banner, EmptyState, LabelChip, Skeleton, Stack, Table, ViewSwitcher } from '@hubtask/design-system/components';
+  import { Avatar, EmptyState, LabelChip, Skeleton, Stack, Table, ViewSwitcher } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { ItemQueryResult, SlaPolicyList, WorkItem } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -121,7 +122,7 @@
   <div class="queues"><ViewSwitcher label={t('app.desk_queues.label')} views={tabs} {selected} onselect={(id) => (chosen = id as DeskQueue)} /></div>
   <div role="region" aria-label={t(`app.desk_queues.${selected}`)}>
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if rows.length === 0 && isReading}
     <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if rows.length === 0}

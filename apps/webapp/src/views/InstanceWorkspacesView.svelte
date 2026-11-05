@@ -615,7 +615,7 @@
     <!-- What it does to the people in it, before the button. -->
     <Banner tone="warning">{t('app.instance.suspend_cost')}</Banner>
     {#if isOwn}
-      <Banner tone="danger">{t('app.instance.suspend_own')}</Banner>
+      <FailureNote problem={t('app.instance.suspend_own')} />
     {/if}
   </Stack>
 </Dialog>
@@ -644,7 +644,7 @@
     <!-- What it costs, before the button and not in a help page. -->
     <Banner tone="warning">{t('app.instance.delete_cost', { days: String(DELETION_GRACE_DAYS) })}</Banner>
     {#if isOwn}
-      <Banner tone="danger">{t('app.instance.delete_own')}</Banner>
+      <FailureNote problem={t('app.instance.delete_own')} />
     {/if}
     <Input
       label={t('app.instance.delete_confirm_label', { name: acting?.tenant?.display_name ?? '' })}

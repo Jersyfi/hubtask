@@ -15,6 +15,8 @@
   import { tick, untrack } from 'svelte';
 
   import { EmptyState, Banner, Button, CheckboxGroup, Disclosure, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { AccessExplanation, CustomRole } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -218,7 +220,7 @@
   <div class="file"><ViewSectionsAsFile sections={['roles']} /></div>
   <SectionFindings sections={['roles']} />
 
-  {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+  {#if failure}<FailureNote problem={failure} />{/if}
 
   {#if !catalogue}
     {#if roles.state?.status === 'failed'}

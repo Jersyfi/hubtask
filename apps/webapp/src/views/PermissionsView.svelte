@@ -16,6 +16,8 @@
   import { untrack } from 'svelte';
 
   import { Banner, PermissionMatrix, Select, Spinner, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { AccessExplanation, AccessSource, ResourceState, SettingsCatalogue } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -157,7 +159,7 @@
     <Select label={t('app.access.permission')} bind:value={asked} options={permissionOptions} />
   </div>
 
-  {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+  {#if failure}<FailureNote problem={failure} />{/if}
 
   {#if who}
     <section class="answer" aria-live="polite">

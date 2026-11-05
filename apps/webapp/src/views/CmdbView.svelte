@@ -11,10 +11,11 @@
   // page lists the definitions and offers no control.
 
   import {
-    Banner, Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Textarea,
+    Button, Checkbox, CheckboxGroup, Dialog, IconButton, Input, PageHeader, Select, Spinner, Stack, Switch, Textarea,
     type SelectOption,
   } from '@hubtask/design-system/components';
   import SettingsPage from '../lib/settings/SettingsPage.svelte';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import type {
     CiAttribute, CiClass, CiClassList, CiRelationType, CiRelationTypeList, CiSource, CiSourceDefine, CiSourceList, SoftwareAlias, SoftwareAliasList,
   } from '@hubtask/sync-engine';
@@ -259,7 +260,7 @@
   />{/if}
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if classesRead.state.status !== 'ready'}
     <Spinner label={t('app.assets.loading')} />
   {:else}
@@ -406,7 +407,7 @@
       </fieldset>
       <Input label={t('app.cmdb_admin.staleness_label')} hint={t('app.cmdb_admin.staleness_hint')} inputmode="numeric" bind:value={classDraftState.staleness} />
       {#if classEditing}<Switch label={t('app.cmdb_admin.archived')} bind:checked={classDraftState.archived} />{/if}
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isClassOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -434,7 +435,7 @@
         <div><Button size="sm" tone="subtle" icon="plus" onclick={() => typeDraft?.pairs.push({ from: 'ci', to: 'ci' })}>{t('app.cmdb_admin.add_pair')}</Button></div>
       </fieldset>
       {#if typeEditing}<Switch label={t('app.cmdb_admin.archived')} bind:checked={typeDraft.archived} />{/if}
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isTypeOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -451,7 +452,7 @@
       <Input label={t('app.cmdb_admin.rank_label')} hint={t('app.cmdb_admin.rank_hint')} inputmode="numeric" bind:value={sourceDraft.rank} />
       <Switch label={t('app.cmdb_admin.may_create')} bind:checked={sourceDraft.mayCreate} />
       <CheckboxGroup label={t('app.cmdb_admin.source_classes')} hint={t('app.cmdb_admin.source_classes_hint')} options={classChecks} selected={sourceDraft.classes} onChange={(next) => { if (sourceDraft) sourceDraft.classes = [...next]; }} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isSourceOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -469,7 +470,7 @@
       <p class="meta">{t('app.cmdb_admin.alias_target')}</p>
       <Input label={t('app.cmdb_admin.alias_product')} bind:value={aliasDraft.product} maxlength={200} isRequired />
       <Input label={t('app.cmdb_admin.alias_publisher')} bind:value={aliasDraft.publisher} maxlength={200} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAliasOpen = false)}>{t('app.assets.cancel')}</Button>

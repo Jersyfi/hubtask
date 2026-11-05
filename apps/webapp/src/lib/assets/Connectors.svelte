@@ -15,6 +15,8 @@
   // (user-experience.md §7.3). The head's create opens the dialog here (`isAsked`).
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import {
     Badge, Banner, Button, Dialog, IconButton, Input, Menu, OneTimeSecret, Select, Skeleton, Stack, Switch, Textarea, type MenuItem, type SelectOption,
   } from '@hubtask/design-system/components';
@@ -242,7 +244,7 @@
   </div>
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !connectors}
     <div aria-busy="true"><Skeleton lines={3} /></div>
   {:else if connectors.length === 0}
@@ -303,7 +305,7 @@
                 {answer.dry_run ? t('app.assets.connector_dry_answer', { pages: answer.pages }) : t('app.assets.connector_answer', { pages: answer.pages })}
                 · {counts(answer)}
               </p>
-              {#if answer.outcome === 'FAILED' && answer.error}<Banner tone="danger">{errorWord(answer.error)}</Banner>{/if}
+              {#if answer.outcome === 'FAILED' && answer.error}<FailureNote problem={errorWord(answer.error)} />{/if}
               {#if answer.decisions?.length}<Decisions decisions={answer.decisions} {classes} {words} />{/if}
             </div>
           {/if}
@@ -344,7 +346,7 @@
         <Select label={t('app.assets.connector_collection')} hint={t('app.assets.connector_collection_hint')} options={collectionOptions} bind:value={draft.collection} />
       {/if}
       <Switch label={t('app.assets.connector_enabled')} bind:checked={draft.enabled} />
-      {#if defineFailure}<Banner tone="danger">{defineFailure}</Banner>{/if}
+      {#if defineFailure}<FailureNote problem={defineFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDefineOpen = false)}>{t('app.assets.cancel')}</Button>
@@ -364,7 +366,7 @@
         bind:value={credential}
         maxlength={4096}
       />
-      {#if credentialFailure}<Banner tone="danger">{credentialFailure}</Banner>{/if}
+      {#if credentialFailure}<FailureNote problem={credentialFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCredentialOpen = false)}>{t('app.assets.cancel')}</Button>

@@ -36,6 +36,8 @@
 
   import { Banner, Button, Checkbox, Stack } from '@hubtask/design-system/components';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import PasswordField from '../lib/signin/PasswordField.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
@@ -135,16 +137,16 @@
   {#if oidc.failure}
     <!-- The server's own sentence: an invitation that cannot be redeemed, or a provider that is not
          there. -->
-    <Banner tone="danger" title={oidc.failure.message}>
+    <FailureNote problem={oidc.failure}>
       {#if oidc.failure.reference}{oidc.failure.reference}{/if}
-    </Banner>
+    </FailureNote>
   {:else if session.problem}
-    <Banner tone="danger" title={session.problem.message}>
+    <FailureNote problem={session.problem}>
       {#if session.problem.reference}{session.problem.reference}{/if}
-    </Banner>
+    </FailureNote>
   {:else if invitation.failure}
     <!-- The invitation would not redeem: the redemption's one sentence, before anything is typed. -->
-    <Banner tone="danger">{t(invitation.failure)}</Banner>
+    <FailureNote problem={t(invitation.failure)} />
   {/if}
 {/snippet}
 

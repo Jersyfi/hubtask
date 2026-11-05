@@ -12,7 +12,8 @@
   // not shown, and the register and the software, which only list, stand in the first strip.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, PageHeader, Skeleton, Spinner, Tabs } from '@hubtask/design-system/components';
+  import { Badge, PageHeader, Skeleton, Spinner, Tabs } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CiAlert, CiAlertList, CiClassList, CiRelationTypeList, CmdbHealth, ConfigurationItem } from '@hubtask/sync-engine';
 
   import Alerts from '../lib/assets/Alerts.svelte';
@@ -133,7 +134,7 @@
       <h1 class="title">{t('app.assets.title')}</h1>
     {/if}
     {#if openRefusal}
-      <Banner tone="danger">{openRefusal}</Banner>
+      <FailureNote problem={openRefusal} />
     {:else if !current || classesRead.state.status !== 'ready'}
       <Spinner label={t('app.assets.loading')} />
     {:else}
@@ -174,7 +175,7 @@
     </PageHeader>
     {#if hubId}<PlaceStrip placeId={hubId} current="assets" {onnavigate} />{/if}
     {#if classesRefusal}
-      <Banner tone="danger">{classesRefusal}</Banner>
+      <FailureNote problem={classesRefusal} />
     {:else if classesRead.state.status !== 'ready'}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if hubId}

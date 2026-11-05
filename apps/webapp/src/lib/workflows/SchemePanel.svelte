@@ -7,7 +7,8 @@
   // made only on *Use it*, which sends the confirmation the server asks for.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, IconButton, Inline, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, IconButton, Inline, Select, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { Workflow, WorkflowPreview, WorkflowSchemeChange } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
@@ -145,7 +146,7 @@
         </Inline>
       </div>
     {/if}
-    {#if refusal}<Banner tone="danger" title={refusal} />{/if}
+    {#if refusal}<FailureNote problem={refusal} />{/if}
   </Stack>
 </section>
 

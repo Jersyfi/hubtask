@@ -19,6 +19,8 @@
 
   import { tick, untrack } from 'svelte';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import {
     Badge,
     Banner,
@@ -595,7 +597,7 @@
     <p class="quiet">{t('app.people.intro')}</p>
 
     {#if failure}
-      <Banner tone="danger">{failure}</Banner>
+      <FailureNote problem={failure} />
     {/if}
 
     {#if renewed}

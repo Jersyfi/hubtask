@@ -37,7 +37,9 @@
   // server where it belongs and goes there whole, replacing this history entry, so the code is in
   // no address but the one that removes it again. In single-tenant operation the answer is here.
 
-  import { Banner, Button, Spinner } from '@hubtask/design-system/components';
+  import { Button, Spinner } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
 
   import SignInCard from '../lib/signin/SignInCard.svelte';
   import { oidc } from '../lib/data/oidc.svelte.ts';
@@ -152,9 +154,9 @@
     <!-- The server's own code: a spent or unknown `state`, a provider that could not be reached, a
          workspace whose provider is switched off - or, for a step-up, a different account at the
          provider, or one that did not confirm a fresh sign-in. -->
-    <Banner tone="danger" title={failure.message}>
+    <FailureNote problem={failure}>
       {#if failure.reference}{failure.reference}{/if}
-    </Banner>
+    </FailureNote>
   {/if}
 {/snippet}
 

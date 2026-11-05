@@ -19,8 +19,10 @@
   // weekday at an hour of their zone; the server computes the mail as them when it is sent.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack,
+    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack,
   } from '@hubtask/design-system/components';
   import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
 
@@ -302,12 +304,12 @@
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !dashboard}
     <div aria-busy="true"><Skeleton lines={8} /></div>
   {:else}
     {#if figures && !isEditing}<p class="quiet">{t('app.dashboards.computed', { when: formatDateTime(figures.computed_at, locale) })}</p>{/if}
-    {#if figuresRefusal}<Banner tone="danger">{figuresRefusal}</Banner>{/if}
+    {#if figuresRefusal}<FailureNote problem={figuresRefusal} />{/if}
     {#if isEditing}<p class="quiet">{t('app.dashboards.editing_hint')}</p>{/if}
 
     {#if ordered.length === 0}

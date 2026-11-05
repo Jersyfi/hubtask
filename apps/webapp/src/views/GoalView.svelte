@@ -13,8 +13,10 @@
   // this reader, and an entry they may not read is not listed (UC-GOL-01 check 5).
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Dialog, EmptyState, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Button, Dialog, EmptyState, IconButton, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
   import type { Goal, GoalCheckInList, GoalList, KeyResultWrite, SavedView, WorkItem } from '@hubtask/sync-engine';
@@ -299,7 +301,7 @@
       {#snippet action()}<Button tone="primary" onclick={() => onnavigate('/goals')}>{t('app.goals.missing_back')}</Button>{/snippet}
     </EmptyState>
   {:else if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !goal}
     <div aria-busy="true"><Skeleton lines={8} /></div>
   {:else}

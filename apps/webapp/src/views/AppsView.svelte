@@ -146,7 +146,7 @@
       {/if}
     {/if}
 
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.apps.reading')} /> <span>{t('app.apps.reading')}</span></p>
@@ -211,7 +211,7 @@
   <Dialog bind:isOpen={isAdding} title={t('app.apps.new_title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (addFailure = undefined)}>
     <form onsubmit={register}>
       <Stack gap="200">
-        {#if addFailure}<Banner tone="danger">{addFailure}</Banner>{/if}
+        {#if addFailure}<FailureNote problem={addFailure} />{/if}
         <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired error={missing.name && !name.trim() ? t(missing.name) : undefined} />
         <Textarea
           label={t('app.apps.uris')}

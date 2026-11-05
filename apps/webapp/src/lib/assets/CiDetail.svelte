@@ -12,6 +12,7 @@
 
   import { untrack } from 'svelte';
   import { Badge, Banner, Button, Checkbox, Input, PageHeader, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiBacklinkList, CiClass, CiCompliance, CiImpact, CiRelationType, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -465,7 +466,7 @@
       />
     </div>
     {#if impactRefusal}
-      <Banner tone="danger">{impactRefusal}</Banner>
+      <FailureNote problem={impactRefusal} />
     {:else if !impact}
       <Spinner label={t('app.assets.loading')} />
     {:else if depths.length === 0}

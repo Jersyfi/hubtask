@@ -8,6 +8,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Button, Checkbox, Inline, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { ConfigDraft, ConfigDraftList, ConfigPlan, ResourceState } from '@hubtask/sync-engine';
 
   import { config, type DraftSection } from '../data/config.svelte.ts';
@@ -97,7 +98,7 @@
     <Banner tone="info" title={t('app.config_drafts.waiting', { when: formatDateTime(waiting.saved_at, messages.locale) })} />
   {/if}
   {#if plan && step === 'refused'}
-    <Banner tone="danger" title={t('app.config_drafts.refused')} />
+    <FailureNote problem={t('app.config_drafts.refused')} />
     <ul class="lines" data-draft-refusals>
       {#each plan.refusals as refusal, index (index)}<li>{t(refusal.code)}</li>{/each}
     </ul>

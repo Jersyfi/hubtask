@@ -21,6 +21,8 @@
 
   import { Badge, Banner, Button, Dialog, EmptyState, Input, Radio, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
+  import FailureNote from '../frame/FailureNote.svelte';
+
   import { announcer } from '../announce.svelte.ts';
   import {
     authorizeMailbox,
@@ -262,12 +264,12 @@
   {#if isReading}
     <p class="quiet"><Spinner label={t('app.mail.reading')} /> {t('app.mail.reading')}</p>
   {:else if readFailure}
-    <Banner tone="danger">{readFailure}</Banner>
+    <FailureNote problem={readFailure} />
   {:else}
     {#if isCompleting}
       <p class="quiet" data-mailbox-completing><Spinner label={t('app.mail.oauth_completing')} /> {t('app.mail.oauth_completing')}</p>
     {/if}
-    {#if oauthFailure && !isAdding}<div data-mailbox-oauth-failure><Banner tone="danger">{oauthFailure}</Banner></div>{/if}
+    {#if oauthFailure && !isAdding}<div data-mailbox-oauth-failure><FailureNote problem={oauthFailure} /></div>{/if}
 
     {#if mailboxes.length > 0}
       <ul class="boxes">
@@ -306,7 +308,7 @@
           </li>
         {/each}
       </ul>
-      {#if rowFailure}<Banner tone="danger">{rowFailure}</Banner>{/if}
+      {#if rowFailure}<FailureNote problem={rowFailure} />{/if}
     {:else if !isCompleting}
       <EmptyState kind="unused" icon="mail" title={t('app.mail.mailboxes_empty_title')} description={t('app.mail.mailboxes_hint')} action={connectAct} />
     {/if}
@@ -320,7 +322,7 @@
 <Dialog bind:isOpen={isAdding} title={t('app.mail.mailbox_add')} dismissLabel={t('app.mail.oauth_cancel')} isWide>
   <Stack gap="200">
     <p class="quiet small">{t('app.mail.mailboxes_hint')}</p>
-    {#if oauthFailure}<div data-mailbox-oauth-failure><Banner tone="danger">{oauthFailure}</Banner></div>{/if}
+    {#if oauthFailure}<div data-mailbox-oauth-failure><FailureNote problem={oauthFailure} /></div>{/if}
 
     {#if oauthProviders.length > 0}
       <div class="connect" data-mailbox-oauth>
@@ -403,7 +405,7 @@
           <Input label={t('app.mail.mailbox_username')} hint={t('app.mail.mailbox_username_hint')} bind:value={username} />
         {/if}
       </div>
-      {#if connectFailure}<Banner tone="danger">{connectFailure}</Banner>{/if}
+      {#if connectFailure}<FailureNote problem={connectFailure} />{/if}
       <div>
         <Button
           tone="primary"

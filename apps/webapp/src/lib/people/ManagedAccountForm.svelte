@@ -11,7 +11,9 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Button, Input, Select, Stack } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
@@ -117,7 +119,7 @@
   <p class="quiet small">{t('app.people.managed_hint')}</p>
 
   {#if failure}
-    <Banner tone="danger">{failure}</Banner>
+    <FailureNote problem={failure} />
   {/if}
 
   {#if created}

@@ -12,6 +12,7 @@
 
   import { untrack } from 'svelte';
   import { Banner, Spinner } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, ServiceMap } from '@hubtask/sync-engine';
 
   import { classWord, isGroupEdge, mapInWords, mapLayers, serviceMapPath, type Words } from '../data/cmdb.svelte.ts';
@@ -89,7 +90,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else if !map}
   <Spinner label={t('app.assets.loading')} />
 {:else if layers.length === 0}

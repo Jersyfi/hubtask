@@ -9,7 +9,8 @@
   // **The server counts**: capacity, holidays, absences, the remaining estimates and their spread.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Workload } from '@hubtask/sync-engine';
 
@@ -83,7 +84,7 @@
   </div>
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}

@@ -7,7 +7,8 @@
   // and are kept under *Configuration items*, which an administrator reaches from here.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { SoftwareProductList } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -40,7 +41,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else if !products}
   <Spinner label={t('app.assets.loading')} />
 {:else}

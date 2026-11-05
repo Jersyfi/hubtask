@@ -14,8 +14,10 @@
   // shows the releases and their entries, not controls.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Button, Checkbox, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -241,7 +243,7 @@
   <PlaceStrip placeId={hubId} current="plan" view="releases" {onnavigate} />
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !list}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else if list.length === 0}
@@ -252,7 +254,7 @@
       create={mayWrite ? { label: t('app.releases.plan'), onclick: () => openPlan(undefined) } : undefined}
     />
   {:else if chosen}
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
 
     {#if list.length > 1}
       <div class="chooser">
@@ -363,7 +365,7 @@
       <Input label={t('app.releases.name')} bind:value={draft.name} maxlength={120} isRequired error={nameError} />
       <Textarea label={t('app.releases.description')} bind:value={draft.description} maxlength={2000} />
       <Input label={t('app.releases.release_on')} type="date" bind:value={draft.release_on} isRequired error={dayError} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
       <Inline justify="end"><Button onclick={plan}>{editing ? t('app.releases.save') : t('app.releases.plan')}</Button></Inline>
     </Stack>
   </Dialog>
@@ -377,7 +379,7 @@
       <Select label={t('app.releases.carry_to')} bind:value={carryTo}
         options={[{ value: '', label: t('app.releases.carry_out') }, ...targets.map((r) => ({ value: r.id, label: r.name }))]} />
       <Checkbox label={t('app.releases.write_notes')} bind:checked={writeNotes} />
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
       <Inline justify="end"><Button onclick={publish}>{t('app.releases.publish')}</Button></Inline>
     </Stack>
   </Dialog>
@@ -387,7 +389,7 @@
   <Dialog bind:isOpen={isDeleting} title={t('app.releases.delete_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p>{t('app.releases.delete_cost', { count: String(detail?.entries.length ?? 0) })}</p>
-      {#if dialogFailure}<Banner tone="danger">{dialogFailure}</Banner>{/if}
+      {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
       <Inline justify="end" gap="100">
         <Button tone="subtle" onclick={() => (isDeleting = false)}>{t('app.releases.keep')}</Button>
         <Button tone="danger" icon="trash" onclick={remove}>{t('app.releases.delete')}</Button>

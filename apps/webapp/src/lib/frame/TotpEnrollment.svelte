@@ -31,7 +31,9 @@
   // is exactly where they started.
 
   import { canCopy } from '@hubtask/design-system/components';
-  import { Banner, Button, CodeField, OneTimeSecret, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
+
+  import FailureNote from './FailureNote.svelte';
+  import { Button, CodeField, OneTimeSecret, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
 
   import { mfa, type OwedChange } from '../data/mfa.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -104,7 +106,7 @@
   {#if mfa.failure}
     <!-- The server's own code: a setup refused while one is already armed says so, and a wrong code
          is the sign-in's own sentence. -->
-    <Banner tone="danger">{t(mfa.failure)}</Banner>
+    <FailureNote problem={t(mfa.failure)} />
   {/if}
 
   {#if armed}

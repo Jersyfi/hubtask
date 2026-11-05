@@ -16,8 +16,10 @@
   // a refusal is said where it happened, in its words.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Dialog, Icon, Inline, Input, PageHeader, PlaceTabs, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
+    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, PlaceTabs, ProgressBar, Select, Skeleton, Stack, Table, Textarea,
     type Column, type PlaceTab,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -293,7 +295,7 @@
 
   {#if current === 'goals'}
     {#if periodsRefusal}
-      <Banner tone="danger">{periodsRefusal}</Banner>
+      <FailureNote problem={periodsRefusal} />
     {:else if !periods}
       <div aria-busy="true"><Skeleton lines={5} /></div>
     {:else if periods.length === 0}
@@ -314,7 +316,7 @@
       </div>
 
       {#if goalsRefusal}
-        <Banner tone="danger">{goalsRefusal}</Banner>
+        <FailureNote problem={goalsRefusal} />
       {:else if !goalList}
         <div aria-busy="true"><Skeleton lines={6} /></div>
       {:else if tree.length === 0}
@@ -361,7 +363,7 @@
 
   {:else if current === 'portfolios'}
     {#if portfoliosRefusal}
-      <Banner tone="danger">{portfoliosRefusal}</Banner>
+      <FailureNote problem={portfoliosRefusal} />
     {:else if !portfolioList}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if portfolioList.length === 0}
@@ -383,7 +385,7 @@
 
   {:else}
     {#if dashboardsRefusal}
-      <Banner tone="danger">{dashboardsRefusal}</Banner>
+      <FailureNote problem={dashboardsRefusal} />
     {:else if !dashboardList}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if dashboardList.length === 0}

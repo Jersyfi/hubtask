@@ -61,6 +61,8 @@
   import { untrack } from 'svelte';
 
   import { Badge, Banner, Button, Dialog, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import FailureState from '../lib/frame/FailureState.svelte';
   import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { TransportError } from '@hubtask/sync-engine';
@@ -574,9 +576,9 @@
       <p class="lead">{part === 'legal' ? t('app.signin_settings.legal_hint') : t('app.signin_settings.lead')}</p>
 
       {#if general}
-        <Banner tone="danger" title={general.message}>
+        <FailureNote problem={general}>
           {#if general.reference}{general.reference}{/if}
-        </Banner>
+        </FailureNote>
       {/if}
 
       <!-- One tab at a time on the shell (user-experience.md §5.4); the save bar stays in the

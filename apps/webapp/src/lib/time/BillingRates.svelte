@@ -8,7 +8,8 @@
   // **Drawn only for MANAGE_COSTS or MANAGE_MEMBERS at the plan** (P-05), as the budget is.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, Dialog, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Button, Dialog, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { BillingRate, BillingRateList } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -92,7 +93,7 @@
   </Inline>
   <p class="quiet">{t('app.billing.hint')}</p>
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if rates}
     <Table label={t('app.billing.title')} isLabelHidden {columns}>
       {#snippet empty()}{t('app.billing.empty')}{/snippet}

@@ -6,8 +6,10 @@
   // ledger never holds an input or an answer, so neither does this.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Dialog, IconButton, Input, Select, Spinner, Stack, Table, Tabs, Textarea, type SelectOption,
+    Badge, Button, Dialog, IconButton, Input, Select, Spinner, Stack, Table, Tabs, Textarea, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentActionList, AgentCaseList, AgentJobList, AgentRunList, WorkItem } from '@hubtask/sync-engine';
 
@@ -138,7 +140,7 @@
   <Tabs label={agent.name} {tabs} bind:selected={shown}>
     {#if shown === 'ledger'}
       {#if failureOf(ledger.state)}
-        <Banner tone="danger">{failureOf(ledger.state)}</Banner>
+        <FailureNote problem={failureOf(ledger.state) ?? ''} />
       {:else if ledger.state.status !== 'ready'}
         <Spinner label={t('app.agents.reading')} />
       {:else}
@@ -176,7 +178,7 @@
           <p class="meta">{t('app.agents.runs_when_live')}</p>
         {/if}
         {#if failureOf(jobs.state)}
-          <Banner tone="danger">{failureOf(jobs.state)}</Banner>
+          <FailureNote problem={failureOf(jobs.state) ?? ''} />
         {:else if jobs.state.status !== 'ready'}
           <Spinner label={t('app.agents.reading')} />
         {:else}
@@ -223,7 +225,7 @@
           <div><Button icon="plus" onclick={() => (isCaseOpen = true)}>{t('app.agents.add_case')}</Button></div>
         {/if}
         {#if failureOf(cases.state)}
-          <Banner tone="danger">{failureOf(cases.state)}</Banner>
+          <FailureNote problem={failureOf(cases.state) ?? ''} />
         {:else if cases.state.status === 'ready'}
           <ul class="rows">
             {#each cases.state.data.data as each (each.id)}

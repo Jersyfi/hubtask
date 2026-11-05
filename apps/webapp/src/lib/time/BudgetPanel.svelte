@@ -9,7 +9,8 @@
   // refuses anybody else all the same.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, Dialog, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Inline, Input, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { BudgetBurn } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -84,7 +85,7 @@
     {#if burn}<Button size="sm" tone="subtle" icon="pencil" onclick={open}>{t('app.budget.edit')}</Button>{/if}
   </Inline>
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if burn}
     {#if !burn.budgeted}<p class="quiet">{t('app.budget.none')}</p>{/if}
     <dl class="facts">

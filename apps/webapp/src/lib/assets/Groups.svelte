@@ -9,7 +9,8 @@
   // the filter matches when it is read. Defining needs WRITE_ITEMS and is not drawn without it.
 
   import { untrack } from 'svelte';
-  import { Banner, Button, CheckboxGroup, Dialog, IconButton, Input, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Dialog, IconButton, Input, Select, Spinner, Stack, Textarea, type SelectOption } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, CiGroup, CiGroupList, CiGroupMembers, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
   import {
@@ -125,7 +126,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else if !groups}
   <Spinner label={t('app.assets.loading')} />
 {:else}
@@ -199,7 +200,7 @@
       <Input label={t('app.ci_groups.name_has')} bind:value={draft.nameHas} maxlength={200} />
       <Textarea label={t('app.ci_groups.conditions')} hint={t('app.ci_groups.conditions_hint')} rows={3} bind:value={draft.conditions} />
       <Select label={t('app.ci_groups.service')} options={[{ value: '', label: t('app.ci_groups.no_service') }, ...serviceOptions]} bind:value={draft.service} />
-      {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
+      {#if saveFailure}<FailureNote problem={saveFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.assets.cancel')}</Button>

@@ -8,8 +8,10 @@
   // address its app posts to.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, Dialog, EmptyState, IconButton, Input, Select, Spinner, Stack, Switch, type SelectOption,
+    Button, Checkbox, Dialog, EmptyState, IconButton, Input, Select, Spinner, Stack, Switch, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { ChatBot, ChatBotList, ChatLinkCode, Container } from '@hubtask/sync-engine';
 
@@ -140,7 +142,7 @@
     {#if mayShape}<Button size="sm" tone="secondary" icon="plus" data-seat-bot onclick={open}>{t('app.chatbots.add')}</Button>{/if}
   </div>
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if bots === undefined}
     <Spinner label={t('app.chatbots.loading')} />
   {:else if bots.length === 0}
@@ -232,7 +234,7 @@
       <Select label={t('app.chatbots.collection')} options={collectionOptions} bind:value={draft.collectionId} />
       <Checkbox label={t('app.chatbots.unfurl')} hint={t('app.chatbots.unfurl_hint')} bind:checked={draft.unfurl} />
       <Checkbox label={t('app.chatbots.capture')} hint={t('app.chatbots.capture_hint')} bind:checked={draft.capture} />
-      {#if seatFailure}<Banner tone="danger">{seatFailure}</Banner>{/if}
+      {#if seatFailure}<FailureNote problem={seatFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAddOpen = false)}>{t('app.chatbots.cancel')}</Button>

@@ -19,9 +19,10 @@
 
   import { untrack } from 'svelte';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
+
   import {
     Badge,
-    Banner,
     Button,
     IconButton,
     Input,
@@ -285,7 +286,7 @@
   <WorkspaceGate permission="AUTOMATION">
     {#snippet actions()}
       {#if readFailure}
-        <Banner tone="danger">{readFailure}</Banner>
+        <FailureNote problem={readFailure} />
       {:else if !loaded}
         <p class="quiet"><Spinner label={t('app.voice.reading')} /> {t('app.voice.reading')}</p>
       {:else}
@@ -304,7 +305,7 @@
             },
           }}
         >
-          {#if saveFailure}<Banner tone="danger">{saveFailure}</Banner>{/if}
+          {#if saveFailure}<FailureNote problem={saveFailure} />{/if}
           <section id="voice-part-on" class="panel" aria-labelledby="voice-on" data-voice-settings>
             <Stack gap="150">
               <h2 class="section" id="voice-on">{t('app.voice.section_on')}</h2>
@@ -340,7 +341,7 @@
                 <Select label={t('app.voice.try_language')} options={locales} bind:value={() => locale, (next) => (chosenLocale = next)} />
                 <Button tone="secondary" onclick={() => void tryIt()}>{t('app.voice.try')}</Button>
               </div>
-              {#if tryFailure}<Banner tone="danger">{tryFailure}</Banner>{/if}
+              {#if tryFailure}<FailureNote problem={tryFailure} />{/if}
               {#if tried}
                 <p class="result" role="status" data-voice-result>
                   {#if tried.found && tried.place}
@@ -379,7 +380,7 @@
                       <Select label={t('app.voice.try_language')} options={locales} bind:value={() => modelLocale, (next) => (chosenModelLocale = next)} />
                       <Button tone="secondary" icon={copied === 'model' ? 'check' : 'copy'} onclick={() => void copyModel()}>{t('app.voice.copy_model')}</Button>
                     </div>
-                    {#if modelFailure}<Banner tone="danger">{modelFailure}</Banner>{/if}
+                    {#if modelFailure}<FailureNote problem={modelFailure} />{/if}
                   </li>
                   <li>
                     <h3>{t('app.voice.step_endpoint')}</h3>
@@ -393,7 +394,7 @@
                       <Input label={t('app.voice.vendor_id')} hint={t('app.voice.vendor_id_hint')} bind:value={vendorId} />
                       <Button tone="secondary" isBusy={isLinking} busyLabel={t('app.voice.making_linking')} disabledReason={vendorId.trim() ? undefined : t('app.voice.vendor_first')} onclick={() => void makeLinking()}>{t('app.voice.make_linking')}</Button>
                     </div>
-                    {#if linkFailure}<Banner tone="danger">{linkFailure}</Banner>{/if}
+                    {#if linkFailure}<FailureNote problem={linkFailure} />{/if}
                     {@render value('authorization', t('app.voice.authorization_uri'), authorizationUri)}
                     {@render value('token', t('app.voice.token_uri'), tokenUri)}
                     {@render value('scheme', t('app.voice.auth_scheme'), 'HTTP Basic')}

@@ -11,12 +11,15 @@
   import type { RenderedProblem } from '../problem.ts';
   import FailureDetails from './FailureDetails.svelte';
 
+  type Problem = Pick<RenderedProblem, 'message' | 'reference' | 'requestId' | 'sentence' | 'code'>;
   type Props = {
-    problem: Pick<RenderedProblem, 'message' | 'reference' | 'requestId' | 'sentence' | 'code'>;
+    /** The rendered problem; a sentence alone where the screen kept only that, which folds nothing. */
+    problem: Problem | string;
     /** More of the same refusal, drawn inside the banner above the details. */
     children?: Snippet;
   };
-  const { problem, children }: Props = $props();
+  const { problem: given, children }: Props = $props();
+  const problem = $derived<Problem>(typeof given === 'string' ? { message: given } : given);
 
   const folded = $derived(problem.requestId !== undefined && problem.sentence !== undefined);
 </script>

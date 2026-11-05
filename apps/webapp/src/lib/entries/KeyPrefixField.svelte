@@ -5,7 +5,9 @@
   // "INC" in "INC-42". Derived from the name when the collection was made; whoever shapes the
   // collection changes or clears it, and a cleared prefix reads the keys with the handle again.
 
-  import { Banner, Button, Input } from '@hubtask/design-system/components';
+  import { Button, Input } from '@hubtask/design-system/components';
+
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { Container } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -56,7 +58,7 @@
     </div>
   {/if}
   {#if example}<p class="hint">{t('app.keys.example', { key: example })}</p>{/if}
-  {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+  {#if failure}<FailureNote problem={failure} />{/if}
 </div>
 
 <style>

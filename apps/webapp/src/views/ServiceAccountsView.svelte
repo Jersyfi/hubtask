@@ -22,7 +22,7 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Badge, Banner, Button, Dialog, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Badge, Button, Dialog, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -168,7 +168,7 @@
   <Dialog bind:isOpen={isAdding} title={t('app.service_accounts.new_title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (addFailure = undefined)}>
     <form onsubmit={create}>
       <Stack gap="150">
-        {#if addFailure}<Banner tone="danger">{addFailure}</Banner>{/if}
+        {#if addFailure}<FailureNote problem={addFailure} />{/if}
         <Input
           label={t('app.service_accounts.name')}
           hint={t('app.service_accounts.name_hint')}

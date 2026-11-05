@@ -7,7 +7,8 @@
   // opens the dialog here (`isAsked`); an empty inventory offers it with the import beside it.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, Dialog, Input, ListRow, LoadMore, Select, Skeleton, Stack, Toolbar } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, Input, ListRow, LoadMore, Select, Skeleton, Stack, Toolbar } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
   import { cisPath, classWord, cmdb, instantiable, inventoryByClass, missingRequired, parseAttribute, type Words } from '../data/cmdb.svelte.ts';
@@ -133,7 +134,7 @@
 
 <Stack gap="150">
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !first}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if all.length === 0 && !shown}
@@ -201,7 +202,7 @@
           <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} />
         {/each}
       {/if}
-      {#if createFailure}<Banner tone="danger">{createFailure}</Banner>{/if}
+      {#if createFailure}<FailureNote problem={createFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.assets.cancel')}</Button>

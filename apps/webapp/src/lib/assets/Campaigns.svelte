@@ -10,7 +10,8 @@
   // closing need WRITE_ITEMS and are not drawn without it.
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, CheckboxGroup, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, CheckboxGroup, Dialog, Input, Spinner, Stack } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { CiCampaign, CiCampaignDetail, CiCampaignList, CiClass } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -121,7 +122,7 @@
 </script>
 
 {#if refusal}
-  <Banner tone="danger">{refusal}</Banner>
+  <FailureNote problem={refusal} />
 {:else if !campaigns}
   <Spinner label={t('app.assets.loading')} />
 {:else}
@@ -214,7 +215,7 @@
       <Input label={t('app.campaigns.due_by')} hint={t('app.campaigns.due_by_hint')} type="date" bind:value={draft.dueBy} />
       <Input label={t('app.campaigns.due_on')} type="date" bind:value={draft.dueOn} isRequired />
       <Input label={t('app.campaigns.months')} hint={t('app.campaigns.months_hint')} inputmode="numeric" bind:value={draft.months} />
-      {#if startFailure}<Banner tone="danger">{startFailure}</Banner>{/if}
+      {#if startFailure}<FailureNote problem={startFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isStartOpen = false)}>{t('app.assets.cancel')}</Button>

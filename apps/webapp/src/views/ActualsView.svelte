@@ -10,7 +10,8 @@
   // manages costs, the plan's budget and its burn (UC-TIM-08 check 8) and its billing rates (check 9).
 
   import { untrack } from 'svelte';
-  import { Banner, PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import { PageHeader, Skeleton, Stack, Table, type Column } from '@hubtask/design-system/components';
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { EstimatesVsActuals } from '@hubtask/sync-engine';
 
@@ -80,7 +81,7 @@
   {#if mayCost}<BudgetPanel {planId} /><BillingRates {planId} />{/if}
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}

@@ -11,8 +11,10 @@
   // shows the values. The cost rates (UC-TIM-08) are drawn only for MANAGE_COSTS or MANAGE_MEMBERS.
 
   import { untrack } from 'svelte';
+
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Dialog, IconButton, Inline, Input, PageHeader, Skeleton, Stack, Switch, Table, type Column,
+    Button, Dialog, IconButton, Inline, Input, PageHeader, Skeleton, Stack, Switch, Table, type Column,
   } from '@hubtask/design-system/components';
   import type { SettingDefinition, TimePolicy, WorkType, WorkTypeList } from '@hubtask/sync-engine';
 
@@ -181,7 +183,7 @@
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if refusal}
-    <Banner tone="danger">{refusal}</Banner>
+    <FailureNote problem={refusal} />
   {:else if !policy || !kinds}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
