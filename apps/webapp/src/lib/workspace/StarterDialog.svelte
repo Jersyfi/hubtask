@@ -18,22 +18,21 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Checkbox, Dialog, Input, Select, Spinner, Stack, TemplateCard, TemplateGallery, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, Spinner, Stack, TemplateCard, TemplateGallery, VisuallyHidden } from '@hubtask/design-system/components';
 
   import FailureNote from '../frame/FailureNote.svelte';
-  import type { ConfigTemplate, ConfigTemplateList, ConfigTemplatePlan, ResourceState, TransportError } from '@hubtask/sync-engine';
+  import type { ConfigTemplate, ConfigTemplateList, ResourceState, TransportError } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
-  import { config, needsAcknowledge } from '../data/config.svelte.ts';
-  import { answersOf, changeWords, offersSamples } from '../data/configtemplates.ts';
-  import { holdsHere } from '../data/capability.svelte.ts';
-  import { groups as workspaceGroups } from '../data/groups.svelte.ts';
+  import { config } from '../data/config.svelte.ts';
+  import { answersOf, offersSamples } from '../data/configtemplates.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { onboarding } from '../onboarding/onboarding.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { familyMark, markOf, switchedOn, type Family } from './hubGallery.ts';
+  import TemplateTakeFields from './TemplateTakeFields.svelte';
   import { afterStarter, PURPOSES, STARTER_SETS, starterFamilies, templateStarterBody, type Purpose } from './starterSet.ts';
 
   interface Props {
@@ -95,8 +94,6 @@
   let withSamples = $state(true);
   let acknowledged = $state(false);
   let hubName = $state('');
-  let plan = $state<ConfigTemplatePlan>();
-  let isPlanning = $state(false);
 
   const familyTemplates = $derived(families.find((each) => each.family === family)?.templates ?? []);
   const samplesOffered = $derived(offersSamples(chosen, 'starter'));
@@ -110,46 +107,8 @@
   const familyAbout = (each: Family | 'simple') =>
     messages.has(`app.starter.family_about.${each}`) ? t(`app.starter.family_about.${each}`) : undefined;
 
-  const asksGroup = $derived(chosen?.questions?.some((question) => question.kind === 'GROUP') ?? false);
-  $effect(() => {
-    if (!asksGroup) return;
-    return untrack(() => workspaceGroups.open());
-  });
-
-  // A GROUP question offers to make the group in place (§3.2): where it is created it is the answer.
-  const mayCreateGroup = $derived(holdsHere('MANAGE_MEMBERS') === true);
-  let groupDraft = $state<Record<string, string>>({});
-  let groupBusy = $state<string>();
-  async function createGroup(key: string) {
-    const name = (groupDraft[key] ?? '').trim();
-    if (name === '') return;
-    groupBusy = key;
-    failure = undefined;
-    try {
-      const group = await workspaceGroups.create(name);
-      groupDraft = { ...groupDraft, [key]: '' };
-      answer(key, group.id);
-    } catch (error) {
-      failure = renderProblem(error as TransportError, messages).message;
-    } finally {
-      groupBusy = undefined;
-    }
-  }
-
-  /** The workspace part's plan, in words: what the set will change before *Set up* (§5.4). */
-  async function replan() {
-    if (!chosen) return;
-    isPlanning = true;
-    failure = undefined;
-    try {
-      plan = await config.planTemplate(chosen.key, undefined, undefined, answersOf(chosen.questions, answers), false);
-    } catch (error) {
-      plan = undefined;
-      failure = renderProblem(error as TransportError, messages).message;
-    } finally {
-      isPlanning = false;
-    }
-  }
+  let isPlanning = $state(false);
+  let mustAcknowledge = $state(false);
 
   function pickTemplate(template: ConfigTemplate) {
     chosen = template;
@@ -157,22 +116,15 @@
     withSamples = true;
     acknowledged = false;
     hubName = nameOf(template);
-    void replan();
   }
 
   function back() {
     failure = undefined;
     if (chosen) {
       chosen = undefined;
-      plan = undefined;
     } else {
       family = undefined;
     }
-  }
-
-  function answer(key: string, value: string) {
-    answers = { ...answers, [key]: value };
-    void replan();
   }
 
   async function skip() {
@@ -230,12 +182,6 @@
       templateStarterBody(name, chosen.key, given, samplesOffered && withSamples, acknowledged), chosen);
   }
 
-  function changeText(change: ConfigTemplatePlan['changes'][number]): string {
-    const words = changeWords(change);
-    return t(words.code, { section: t(words.section), key: words.module ? t(words.module) : words.key });
-  }
-
-  const mustAcknowledge = $derived(plan ? needsAcknowledge(plan.flags) : false);
 </script>
 
 <!-- Dismissed without an answer is a skip: the question is not asked again. -->
@@ -288,56 +234,8 @@
         {#if summaryOf(chosen)}<p class="hint">{summaryOf(chosen)}</p>{/if}
         <Input label={t('app.starter.hub_name')} value={hubName} data-starter-hub-name
           oninput={(event: Event) => (hubName = (event.currentTarget as HTMLInputElement).value)} />
-        {#if chosen.questions && chosen.questions.length > 0}
-          <div class="questions" data-template-questions>
-            <p class="hint">{t('app.templates.questions_about')}</p>
-            {#each chosen.questions as question (question.key)}
-              {@const label = t(`app.templates.question.${question.key}`)}
-              {#if question.kind === 'TEXT'}
-                <Input {label} value={answers[question.key] ?? question.default ?? ''} data-question={question.key}
-                  onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLInputElement).value)} />
-              {:else}
-                <Select {label} value={answers[question.key] ?? question.default ?? ''} data-question={question.key}
-                  hint={question.required ? undefined : t('app.templates.question_optional')}
-                  options={[
-                    { value: '', label: t('app.templates.question_open') },
-                    ...(question.kind === 'GROUP'
-                      ? workspaceGroups.all.map((group) => ({ value: group.id, label: group.name }))
-                      : question.options.map((option) => ({ value: option, label: option }))),
-                  ]}
-                  onchange={(event: Event) => answer(question.key, (event.currentTarget as HTMLSelectElement).value)} />
-                {#if question.kind === 'GROUP' && mayCreateGroup}
-                  <div class="create-group" data-create-group={question.key}>
-                    <Input label={t('app.templates.create_group_name')} value={groupDraft[question.key] ?? ''}
-                      oninput={(event: Event) => (groupDraft = { ...groupDraft, [question.key]: (event.currentTarget as HTMLInputElement).value })} />
-                    <Button tone="secondary" size="sm" isBusy={groupBusy === question.key}
-                      disabledReason={(groupDraft[question.key] ?? '').trim() === '' ? t('app.templates.create_group_name_first') : undefined}
-                      onclick={() => createGroup(question.key)}>{t('app.templates.create_group')}</Button>
-                  </div>
-                {/if}
-              {/if}
-            {/each}
-          </div>
-        {/if}
-        {#if samplesOffered}
-          <Checkbox label={t('app.templates.samples')} hint={t('app.templates.samples_hint')} checked={withSamples} data-template-samples
-            onchange={(event: Event) => (withSamples = (event.currentTarget as HTMLInputElement).checked)} />
-        {/if}
-        <section class="plan" aria-label={t('app.starter.plan')} data-starter-plan>
-          <h3>{t('app.starter.plan')}</h3>
-          <TemplatePreview template={chosen} />
-          {#if isPlanning}
-            <Spinner label={t('app.starter.plan_reading')} />
-          {:else if plan && plan.refusals.length === 0}
-            <ul class="changes" data-plan-changes>
-              {#each plan.changes as change (change.path)}<li>{changeText(change)}</li>{/each}
-            </ul>
-            {#if mustAcknowledge}
-              <Checkbox label={t('app.changes.acknowledge')} checked={acknowledged}
-                onchange={(event: Event) => (acknowledged = (event.currentTarget as HTMLInputElement).checked)} />
-            {/if}
-          {/if}
-        </section>
+        <TemplateTakeFields template={chosen} plansWorkspace {samplesOffered} bind:answers bind:withSamples bind:acknowledged
+          bind:isPlanning bind:mustAcknowledge bind:failure />
       {/if}
       <p class="hint">{t('app.starter.changeable')}</p>
       {#if failure}<FailureNote problem={failure} />{/if}
@@ -360,9 +258,4 @@
 
 <style>
   .hint { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }
-  .questions { display: grid; gap: var(--sp-100); }
-  .create-group { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
-  .plan { display: grid; gap: var(--sp-100); }
-  .plan h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .changes { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
