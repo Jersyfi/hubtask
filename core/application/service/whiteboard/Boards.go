@@ -187,26 +187,36 @@ func (h ReadWhiteboard) Descriptor() usecase.Descriptor {
 // ListWhiteboards reads a hub's boards without their objects, the last changed first.
 type ListWhiteboards struct{ Studio Studio }
 
-// Execute reads the list.
-func (h ListWhiteboards) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, trashed bool) ([]usecase.Output, error) {
+// Execute reads a page of the list after the board after names, at most limit (the hub's
+// ceiling when not given), and the board the next page continues after - zero on the last page.
+// A hub holds at most its ceiling outside the trash; its trash holds more, read page by page.
+func (h ListWhiteboards) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, trashed bool, after shared.ID, limit int) ([]usecase.Output, shared.ID, error) {
 	if err := actor.RequireScope(boardsRead); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if err := h.Studio.authorizeRead(ctx, actor, hubID, hubID, BoardReadAction); err != nil {
-		return nil, err
+		return nil, "", err
+	}
+	if limit <= 0 || limit > domain.MaxBoardsPerHub {
+		limit = domain.MaxBoardsPerHub
 	}
 	out := []usecase.Output{}
+	var next shared.ID
 	err := h.Studio.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Studio.hub(ctx, hubID); err != nil {
 			return err
 		}
-		boards, err := h.Studio.Boards.List(ctx, hubID, trashed, domain.MaxBoardsPerHub)
+		boards, err := h.Studio.Boards.List(ctx, hubID, trashed, after, limit+1)
+		if len(boards) > limit {
+			boards = boards[:limit]
+			next = boards[limit-1].Board.ID
+		}
 		for _, summary := range boards {
 			out = append(out, BoardOutput(summary.Board, summary.Elements, false))
 		}
 		return err
 	})
-	return out, err
+	return out, next, err
 }
 
 // Descriptor is the catalogue entry.
@@ -214,13 +224,16 @@ func (h ListWhiteboards) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListWhiteboardsName, Permission: service.PermissionRead,
 		Summary: "Lists a hub's whiteboards without their objects, the last changed first, with how " +
-			"many objects each holds; with trashed, the boards in the hub's trash instead.",
+			"many objects each holds; with trashed, the boards in the hub's trash instead. A page holds at " +
+			"most limit (1000 by default); page.next_cursor continues it, null on the last page.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  boardsRead,
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
 			{Name: "trashed", Kind: usecase.KindBool, Description: "List the boards in the trash instead."},
+			{Name: "cursor", Kind: usecase.KindID, Description: "The page's next_cursor of the previous page."},
+			{Name: "limit", Kind: usecase.KindInt, Description: "How many, at most 1000; 1000 when not given."},
 		},
 		Audit: usecase.AuditDeclaration{Action: BoardReadAction, TargetType: boardTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -228,11 +241,19 @@ func (h ListWhiteboards) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			boards, err := h.Execute(ctx, actor, hub, in.Bool("trashed"))
+			after, err := in.ID("cursor")
 			if err != nil {
 				return nil, err
 			}
-			return usecase.Output{"data": boards}, nil
+			boards, next, err := h.Execute(ctx, actor, hub, in.Bool("trashed"), after, in.Int("limit"))
+			if err != nil {
+				return nil, err
+			}
+			var cursor any
+			if !next.IsZero() {
+				cursor = next.String()
+			}
+			return usecase.Output{"data": boards, "page": map[string]any{"next_cursor": cursor, "has_more": !next.IsZero()}}, nil
 		}),
 	})
 }

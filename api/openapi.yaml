@@ -23529,12 +23529,15 @@ paths:
       summary: A hub's whiteboards
       description: >
         The hub's boards without their objects, the last changed first, each with how many objects
-        it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and
-        the whiteboard module switched on.
+        it holds; with `trashed`, the boards in the hub's trash instead. A page holds at most `limit`
+        (1000 by default, a hub's most boards outside the trash); `page.next_cursor` continues it,
+        null on the last page. Needs READ on the hub and the whiteboard module switched on.
       parameters:
         - name: trashed
           in: query
           schema: { type: boolean }
+        - $ref: "#/components/parameters/Cursor"
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 1000 } }
       responses:
         "200":
           description: The boards
@@ -41836,6 +41839,7 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/Whiteboard" }
+        page: { $ref: "#/components/schemas/PageInfo" }
 
     WhiteboardElement:
       type: object

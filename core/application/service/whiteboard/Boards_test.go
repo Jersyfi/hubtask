@@ -130,7 +130,7 @@ func (s *store) Update(_ context.Context, board domain.Board, expected int) erro
 	return nil
 }
 
-func (s *store) List(_ context.Context, hubID shared.ID, trashed bool, _ int) ([]repository.Summary, error) {
+func (s *store) List(_ context.Context, hubID shared.ID, trashed bool, _ shared.ID, _ int) ([]repository.Summary, error) {
 	var out []repository.Summary
 	for _, board := range s.boards {
 		if board.HubID == hubID && board.IsTrashed() == trashed {
@@ -141,7 +141,7 @@ func (s *store) List(_ context.Context, hubID shared.ID, trashed bool, _ int) ([
 }
 
 func (s *store) Count(ctx context.Context, hubID shared.ID) (int, error) {
-	list, err := s.List(ctx, hubID, false, 0)
+	list, err := s.List(ctx, hubID, false, "", 0)
 	return len(list), err
 }
 
@@ -394,10 +394,10 @@ func TestABoardGoesToTheTrashAndComesBack(t *testing.T) {
 	if _, _, err := (ReadWhiteboard{Studio: s}).Execute(context.Background(), actor(anna), board.ID); detail(err) != "whiteboards.not_found" {
 		t.Fatalf("a trashed board was read: %v", err)
 	}
-	if list, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, false); len(list) != 0 {
+	if list, _, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, false, "", 0); len(list) != 0 {
 		t.Fatal("a trashed board is listed")
 	}
-	if trashed, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true); len(trashed) != 1 || trashed[0]["element_count"] != 5 {
+	if trashed, _, _ := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 0); len(trashed) != 1 || trashed[0]["element_count"] != 5 {
 		t.Fatalf("the trash: %+v", trashed)
 	}
 	restored, err := RestoreWhiteboard{Studio: s}.Execute(context.Background(), actor(anna), board.ID)
@@ -530,4 +530,21 @@ func (s *store) HoldsMedia(_ context.Context, boardID, mediaID shared.ID) (bool,
 
 func (s *store) CountMedia(_ context.Context, boardID shared.ID) (int, error) {
 	return len(s.media[boardID]), nil
+}
+
+// A trash holding more than a page answers the next page's cursor, and none on the last.
+func TestATrashBeyondAPageNamesTheNextPage(t *testing.T) {
+	s, boards, _ := studio(gate{})
+	for i := 0; i < 3; i++ {
+		at := time.Date(2026, 11, 5, 9, i, 0, 0, time.UTC)
+		id := shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-%012x", 0xb00+i))
+		boards.boards[id] = domain.Board{ID: id, HubID: hub, Title: "Old", DeletedAt: &at, Version: 1}
+	}
+	listed, next, err := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 2)
+	if err != nil || len(listed) != 2 || next.IsZero() || next.String() != listed[1].String("id") {
+		t.Fatalf("a page of two: %d boards, next %v, %v", len(listed), next, err)
+	}
+	if _, next, err := (ListWhiteboards{Studio: s}).Execute(context.Background(), actor(anna), hub, true, "", 5); err != nil || !next.IsZero() {
+		t.Fatalf("the last page names a next one: %v, %v", next, err)
+	}
 }

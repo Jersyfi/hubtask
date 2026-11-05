@@ -25,13 +25,17 @@ UPDATE whiteboard SET
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: ListHubWhiteboards :many
--- A hub's boards, the last changed first, without their scenes; the trash or the rest.
-SELECT id, hub_id, title, jsonb_array_length(scene)::int AS elements, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
-FROM whiteboard
-WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
-  AND (deleted_at IS NOT NULL) = sqlc.arg('trashed')::boolean
-ORDER BY updated_at DESC, id
+-- A hub's boards, the last changed first, without their scenes; the trash or the rest; after the
+-- board `after` names when it is given (a page's cursor).
+SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.deleted_at,
+       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version
+FROM whiteboard w
+WHERE w.tenant_id = current_tenant_id() AND w.hub_id = sqlc.arg('hub_id')
+  AND (w.deleted_at IS NOT NULL) = sqlc.arg('trashed')::boolean
+  AND (sqlc.narg('after')::uuid IS NULL OR (w.updated_at, w.id) < (
+    SELECT c.updated_at, c.id FROM whiteboard c
+    WHERE c.tenant_id = current_tenant_id() AND c.id = sqlc.narg('after')::uuid))
+ORDER BY w.updated_at DESC, w.id DESC
 LIMIT sqlc.arg('batch');
 
 -- name: LockHubWhiteboards :exec
@@ -50,7 +54,7 @@ SELECT w.id, w.hub_id, w.title, r.strength
 FROM whiteboard_reference r JOIN whiteboard w ON w.tenant_id = r.tenant_id AND w.id = r.whiteboard_id
 WHERE r.tenant_id = current_tenant_id() AND r.target_kind = sqlc.arg('target_kind')
   AND r.target_id = sqlc.arg('target_id')
-ORDER BY w.updated_at DESC, w.id
+ORDER BY w.updated_at DESC, w.id DESC
 LIMIT sqlc.arg('batch');
 
 -- name: WhiteboardsByID :many

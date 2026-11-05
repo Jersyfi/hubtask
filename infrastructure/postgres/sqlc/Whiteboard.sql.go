@@ -353,18 +353,22 @@ func (q *Queries) LastWhiteboardVersion(ctx context.Context, whiteboardID pgtype
 }
 
 const listHubWhiteboards = `-- name: ListHubWhiteboards :many
-SELECT id, hub_id, title, jsonb_array_length(scene)::int AS elements, deleted_at,
-       created_by, created_at, updated_by, updated_at, version
-FROM whiteboard
-WHERE tenant_id = current_tenant_id() AND hub_id = $1
-  AND (deleted_at IS NOT NULL) = $2::boolean
-ORDER BY updated_at DESC, id
-LIMIT $3
+SELECT w.id, w.hub_id, w.title, jsonb_array_length(w.scene)::int AS elements, w.deleted_at,
+       w.created_by, w.created_at, w.updated_by, w.updated_at, w.version
+FROM whiteboard w
+WHERE w.tenant_id = current_tenant_id() AND w.hub_id = $1
+  AND (w.deleted_at IS NOT NULL) = $2::boolean
+  AND ($3::uuid IS NULL OR (w.updated_at, w.id) < (
+    SELECT c.updated_at, c.id FROM whiteboard c
+    WHERE c.tenant_id = current_tenant_id() AND c.id = $3::uuid))
+ORDER BY w.updated_at DESC, w.id DESC
+LIMIT $4
 `
 
 type ListHubWhiteboardsParams struct {
 	HubID   pgtype.UUID
 	Trashed bool
+	After   pgtype.UUID
 	Batch   int32
 }
 
@@ -381,9 +385,15 @@ type ListHubWhiteboardsRow struct {
 	Version   int32
 }
 
-// A hub's boards, the last changed first, without their scenes; the trash or the rest.
+// A hub's boards, the last changed first, without their scenes; the trash or the rest; after the
+// board `after` names when it is given (a page's cursor).
 func (q *Queries) ListHubWhiteboards(ctx context.Context, arg ListHubWhiteboardsParams) ([]ListHubWhiteboardsRow, error) {
-	rows, err := q.db.Query(ctx, listHubWhiteboards, arg.HubID, arg.Trashed, arg.Batch)
+	rows, err := q.db.Query(ctx, listHubWhiteboards,
+		arg.HubID,
+		arg.Trashed,
+		arg.After,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +699,7 @@ SELECT w.id, w.hub_id, w.title, r.strength
 FROM whiteboard_reference r JOIN whiteboard w ON w.tenant_id = r.tenant_id AND w.id = r.whiteboard_id
 WHERE r.tenant_id = current_tenant_id() AND r.target_kind = $1
   AND r.target_id = $2
-ORDER BY w.updated_at DESC, w.id
+ORDER BY w.updated_at DESC, w.id DESC
 LIMIT $3
 `
 

@@ -46,8 +46,9 @@ type Boards interface {
 	FindForUpdate(ctx context.Context, id shared.ID) (whiteboard.Board, error)
 	// Update writes a board at the version expected; another version is a conflict.
 	Update(ctx context.Context, board whiteboard.Board, expected int) error
-	// List answers a hub's boards without their scenes, the trashed ones or the others.
-	List(ctx context.Context, hubID shared.ID, trashed bool, limit int) ([]Summary, error)
+	// List answers a hub's boards without their scenes, the trashed ones or the others, the last
+	// changed first, after the board after names when it is not zero.
+	List(ctx context.Context, hubID shared.ID, trashed bool, after shared.ID, limit int) ([]Summary, error)
 	// Count answers how many boards a hub holds outside the trash; it holds the hub's ceiling to
 	// the end of the transaction, so two creates count in turn.
 	Count(ctx context.Context, hubID shared.ID) (int, error)

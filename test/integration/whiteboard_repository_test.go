@@ -54,7 +54,7 @@ func TestABoardIsReadAsItWasWritten(t *testing.T) {
 			read.Scene.Elements[0].Colour != shared.LabelTokenAmber || read.Scene.Elements[2].Route != whiteboard.RouteElbow {
 			t.Errorf("board %+v, %v", read, err)
 		}
-		list, err := repo.List(ctx, hub, false, 10)
+		list, err := repo.List(ctx, hub, false, "", 10)
 		if err != nil || len(list) != 1 || list[0].Elements != 3 {
 			t.Errorf("list %+v, %v", list, err)
 		}
@@ -98,7 +98,7 @@ func TestABoardIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		if err := repo.Update(ctx, whiteboard.Board{ID: board, Title: "x", UpdatedBy: authorB, UpdatedAt: at}, 1); err == nil {
 			t.Error("the workspace next door wrote the board")
 		}
-		if list, _ := repo.List(ctx, hub, false, 10); len(list) != 0 {
+		if list, _ := repo.List(ctx, hub, false, "", 10); len(list) != 0 {
 			t.Error("the workspace next door listed the boards")
 		}
 		if n, _ := repo.Count(ctx, hub); n != 0 {
@@ -308,5 +308,49 @@ func TestTheBoardWalkStaysInItsWorkspace(t *testing.T) {
 	}
 	if _, found := seen(tenantB)[board]; found {
 		t.Error("the workspace next door walked the board")
+	}
+}
+
+// A hub's trash is read a page at a time, the last changed first, so a board past the first page
+// can still be found to restore.
+func TestATrashIsReadAPageAtATime(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub := freshID(t)
+	repo := postgres.NewWhiteboardRepository()
+	var boards []shared.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, freshName(t), "a0")); err != nil {
+			return err
+		}
+		for i := 0; i < 3; i++ {
+			at := time.Date(2026, 11, 5, 9, i, 0, 0, time.UTC)
+			id := freshID(t)
+			boards = append(boards, id)
+			if err := repo.Insert(ctx, whiteboard.Board{
+				ID: id, HubID: hub, Title: "Old", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1,
+			}); err != nil {
+				return err
+			}
+			if err := repo.Update(ctx, whiteboard.Board{ID: id, HubID: hub, Title: "Old", UpdatedBy: authorA, UpdatedAt: at, DeletedAt: &at}, 1); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		first, err := repo.List(ctx, hub, true, "", 2)
+		if err != nil || len(first) != 2 || first[0].Board.ID != boards[2] || first[1].Board.ID != boards[1] {
+			t.Fatalf("the first page is %+v, %v", first, err)
+		}
+		rest, err := repo.List(ctx, hub, true, first[1].Board.ID, 2)
+		if err != nil || len(rest) != 1 || rest[0].Board.ID != boards[0] {
+			t.Fatalf("the next page is %+v, %v", rest, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

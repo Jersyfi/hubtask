@@ -195,7 +195,7 @@ func (WhiteboardRepository) Update(ctx context.Context, board whiteboard.Board, 
 }
 
 // List answers a hub's boards without their scenes.
-func (WhiteboardRepository) List(ctx context.Context, hubID shared.ID, trashed bool, limit int) ([]repository.Summary, error) {
+func (WhiteboardRepository) List(ctx context.Context, hubID shared.ID, trashed bool, after shared.ID, limit int) ([]repository.Summary, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -204,8 +204,12 @@ func (WhiteboardRepository) List(ctx context.Context, hubID shared.ID, trashed b
 	if err != nil {
 		return nil, err
 	}
+	cursor, err := optionalUUID(after)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := queries.ListHubWhiteboards(ctx, sqlc.ListHubWhiteboardsParams{
-		HubID: hub, Trashed: trashed, Batch: int32(limit), //nolint:gosec // bounded by whiteboard.MaxBoardsPerHub
+		HubID: hub, Trashed: trashed, After: cursor, Batch: int32(limit), //nolint:gosec // bounded by whiteboard.MaxBoardsPerHub
 	})
 	if err != nil {
 		return nil, boardFailed("listing the boards", err)
