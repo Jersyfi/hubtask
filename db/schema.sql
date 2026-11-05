@@ -1630,6 +1630,9 @@ CREATE TABLE page (
   verified_by      uuid,
   archived_at      timestamptz,
   deleted_at       timestamptz,
+  -- Who trashed it (migration 0371).
+  deleted_by_type  text,
+  deleted_by_id    uuid,
   created_by       uuid NOT NULL,
   created_at       timestamptz NOT NULL,
   updated_by       uuid NOT NULL,
@@ -1872,6 +1875,9 @@ CREATE TABLE whiteboard (
   title      text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
   scene      jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(scene) = 'array' AND jsonb_array_length(scene) <= 5000),
   deleted_at timestamptz,
+  -- Who trashed it (migration 0371).
+  deleted_by_type text,
+  deleted_by_id   uuid,
   created_by uuid NOT NULL,
   created_at timestamptz NOT NULL,
   updated_by uuid NOT NULL,
@@ -5778,7 +5784,9 @@ CREATE TABLE cmdb_connector (
   UNIQUE (tenant_id, key),
   CONSTRAINT cmdb_connector_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE,
-  CONSTRAINT cmdb_connector_credential_whole CHECK ((credential_enc IS NULL) = (credential_key_id IS NULL))
+  CONSTRAINT cmdb_connector_credential_whole CHECK ((credential_enc IS NULL) = (credential_key_id IS NULL)),
+  -- Migrations 0369/0370.
+  CONSTRAINT cmdb_connector_run_as_fkey FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id)
 );
 CREATE INDEX cmdb_connector_hub_idx ON cmdb_connector (tenant_id, hub_id, key);
 CREATE INDEX cmdb_connector_due_idx ON cmdb_connector (tenant_id, next_run_at)
@@ -6805,7 +6813,9 @@ CREATE TABLE agent (
   version                 integer NOT NULL DEFAULT 1,
   UNIQUE (tenant_id, account_id),
   UNIQUE (tenant_id, id),
-  CONSTRAINT agent_model_fkey FOREIGN KEY (tenant_id, model_id) REFERENCES agent_model (tenant_id, id)
+  CONSTRAINT agent_model_fkey FOREIGN KEY (tenant_id, model_id) REFERENCES agent_model (tenant_id, id),
+  -- Migrations 0369/0370.
+  CONSTRAINT agent_owner_fkey FOREIGN KEY (tenant_id, owner_id) REFERENCES account (tenant_id, id)
 );
 ALTER TABLE agent ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agent FORCE ROW LEVEL SECURITY;
@@ -7344,7 +7354,9 @@ CREATE TABLE code_hook (
   last_delivery_at  timestamptz,
   UNIQUE (tenant_id, id),
   CONSTRAINT code_hook_hub_fkey FOREIGN KEY (tenant_id, hub_id)
-    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  -- Migrations 0369/0370.
+  CONSTRAINT code_hook_run_as_fkey FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id)
 );
 CREATE INDEX code_hook_hub_idx ON code_hook (tenant_id, hub_id, created_at);
 
