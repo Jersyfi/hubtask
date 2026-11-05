@@ -344,6 +344,47 @@ func (r AccountRepository) Restricted(
 	return restricted, nil
 }
 
+// SignInDetails answers each person's address and authenticator app, in one round trip for the
+// people list's page of rows.
+func (r AccountRepository) SignInDetails(
+	ctx context.Context, accountIDs []shared.ID,
+) ([]repository.SignInDetail, error) {
+	if len(accountIDs) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]pgtype.UUID, 0, len(accountIDs))
+	for _, accountID := range accountIDs {
+		key, err := uuidOf(accountID)
+		if err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	rows, err := queries.SignInDetails(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading people's sign-in details: %w", err))
+	}
+	details := make([]repository.SignInDetail, 0, len(rows))
+	for _, row := range rows {
+		accountID, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		detail := repository.SignInDetail{AccountID: accountID, AuthenticatorApp: row.AuthenticatorApp}
+		if row.Email != nil {
+			detail.Email = *row.Email
+		}
+		details = append(details, detail)
+	}
+	return details, nil
+}
+
 func (r AccountRepository) UpdatePreferences(
 	ctx context.Context, account identity.Account, at time.Time,
 ) error {

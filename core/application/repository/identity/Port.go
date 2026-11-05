@@ -230,6 +230,22 @@ type Accounts interface {
 	Restricted(ctx context.Context, accountIDs []shared.ID) (map[shared.ID]bool, error)
 }
 
+// SignInDetail is a person's address and whether an authenticator app stands.
+type SignInDetail struct {
+	AccountID shared.ID
+	// Email is empty for a managed account.
+	Email            string
+	AuthenticatorApp bool
+}
+
+// SignInDetails reads what the people list shows an administrator beside each person: the address
+// and the factor a reset removes. A port of its own because Accounts' many readers must not reach
+// the address of everybody at once. Service accounts, erased accounts and identifiers of no
+// account in the transaction's tenant are absent from the answer.
+type SignInDetails interface {
+	SignInDetails(ctx context.Context, accountIDs []shared.ID) ([]SignInDetail, error)
+}
+
 // AccountNames writes the one column a person may change about themselves: their display name. A
 // port of its own rather than a method on Accounts, whose many users never rename anybody.
 type AccountNames interface {
