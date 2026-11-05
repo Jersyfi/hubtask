@@ -23,7 +23,7 @@ import { manifest } from './data/capabilities.svelte.ts';
 import { products } from './navigation.ts';
 import { preferences } from './data/preferences.svelte.ts';
 import { viewport } from './frame/viewport.svelte.ts';
-import { TOUR_SESSION_KEY, stepsFor, type Step } from './tour.ts';
+import { hubsInTourOrder, STARTER_HUB_SESSION_KEY, TOUR_SESSION_KEY, stepsFor, type Step } from './tour.ts';
 
 /** How long a route may take to draw the element a step points at. */
 const ARRIVAL_ATTEMPTS = 40;
@@ -99,6 +99,15 @@ class TourStore {
     const frame = viewport.isCompact ? 'phone' : viewport.isBelowExpanded ? 'drawer' : 'pinned';
     this.#steps = stepsFor({ ...workspace, hasJumble: holdsHere('READ') === true, firstProduct: products({ modulesOn: manifest.value?.modules_on })[0]?.id, frame });
     await this.#go(Math.min(at, this.#steps.length - 1), 1);
+  }
+
+  /** The starter made `hubId`: the tour in this tab walks it first. */
+  starterMade(hubId: string): void {
+    try {
+      session()?.setItem(STARTER_HUB_SESSION_KEY, hubId);
+    } catch {
+      // A tab that cannot remember it walks the first hub listed, as before the starter.
+    }
   }
 
   /** The help menu: the field cleared, so the tour is the account's again, and started. */
@@ -208,12 +217,13 @@ class TourStore {
    */
   async #workspace(): Promise<{ collectionId?: string; itemId?: string }> {
     try {
-      // A collection is listed under its hub, so the hubs come first and the first hub with one wins.
+      // A collection is listed under its hub, so the hubs come first and the first hub with one
+      // wins - the starter's before the workspace's default, which every workspace holds.
       const hubs = await engine.refresh<{ data?: readonly Document[] }>({ path: '/containers?type=HUB&page_size=200' });
+      const listed = (hubs.status === 'ready' ? (hubs.data.data ?? []) : []).flatMap((hub) => (typeof hub.id === 'string' ? [hub.id] : []));
       let collection: Document | undefined;
-      for (const hub of hubs.status === 'ready' ? (hubs.data.data ?? []) : []) {
-        if (typeof hub.id !== 'string') continue;
-        const collections = await engine.refresh<{ data?: readonly Document[] }>({ path: `/containers?parent_id=${hub.id}&page_size=1` });
+      for (const hub of hubsInTourOrder(listed, session()?.getItem(STARTER_HUB_SESSION_KEY) ?? undefined)) {
+        const collections = await engine.refresh<{ data?: readonly Document[] }>({ path: `/containers?parent_id=${hub}&page_size=1` });
         collection = collections.status === 'ready' ? collections.data.data?.[0] : undefined;
         if (collection) break;
       }

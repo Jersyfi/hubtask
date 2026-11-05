@@ -104,3 +104,14 @@ export function startsAt(path: string): boolean {
 
 /** The key under which this tab remembers the tour: `walked` to its end or skipped, or `at:<n>`, the step it stands at. */
 export const TOUR_SESSION_KEY = 'hubtask.tour';
+
+/** The key under which this tab remembers the hub the starter made, which the tour walks first. */
+export const STARTER_HUB_SESSION_KEY = 'hubtask.starter.hub';
+
+/**
+ * The hubs in the order the tour looks for a collection in them: the one the starter made first
+ * (user-experience.md §3.1, the tour on what the starter made), then the rest as listed.
+ */
+export function hubsInTourOrder(hubs: readonly string[], made: string | undefined): string[] {
+  return made && hubs.includes(made) ? [made, ...hubs.filter((each) => each !== made)] : [...hubs];
+}

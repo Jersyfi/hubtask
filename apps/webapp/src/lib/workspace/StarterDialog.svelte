@@ -29,6 +29,7 @@
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { onboarding } from '../onboarding/onboarding.svelte.ts';
+  import { tour } from '../tour.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { familyMark, markOf, switchedOn, type Family } from './hubGallery.ts';
@@ -152,6 +153,7 @@
     keys[answerKey] ??= crypto.randomUUID();
     try {
       const hub = await workspace.applyStarter(body, keys[answerKey]);
+      tour.starterMade(hub.id);
       isClosing = true;
       isAnswered = true;
       announcer.say(t('app.starter.done'));

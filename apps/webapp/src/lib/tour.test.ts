@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import german from '../../../../locales/de.json' with { type: 'json' };
 
 import { SOURCE } from './i18n/source.ts';
-import { startsAt, stepsFor } from './tour.ts';
+import { hubsInTourOrder, startsAt, stepsFor } from './tour.ts';
 
 test('the layouts step names every layout a collection may offer, the timeline too', () => {
   const de = german as Record<string, string>;
@@ -64,4 +64,10 @@ test('a width that draws no column or no palette field counts no step for them, 
   const drawer = stepsFor({ collectionId: 'c', hasJumble: false, firstProduct: 'pages', frame: 'drawer' });
   assert.deepEqual(drawer.slice(0, 3).map((s) => s.id), ['hubs', 'capture', 'palette'], 'the drawer draws the palette\'s way in, but no column for the products');
   assert.equal(stepsFor({ collectionId: 'c', hasJumble: false }).at(0)?.words, undefined);
+});
+
+test('the tour looks for its collection in the hub the starter made first, then in the hubs as listed (user-experience.md §3.1)', () => {
+  assert.deepEqual(hubsInTourOrder(['general', 'team'], 'team'), ['team', 'general']);
+  assert.deepEqual(hubsInTourOrder(['general', 'team'], undefined), ['general', 'team']);
+  assert.deepEqual(hubsInTourOrder(['general'], 'gone'), ['general'], 'a hub no longer listed is not walked');
 });
