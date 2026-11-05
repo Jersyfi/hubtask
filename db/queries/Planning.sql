@@ -87,5 +87,10 @@ FROM plan_baseline_entry
 WHERE tenant_id = current_tenant_id() AND baseline_id = sqlc.arg('baseline_id')::uuid
 ORDER BY entry_id;
 
+-- name: NoticePlanBaselineException :execrows
+-- The first finding of a plan in exception against the baseline; a later one changes no row.
+UPDATE plan_baseline SET exception_noticed_at = sqlc.arg('at')
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND exception_noticed_at IS NULL;
+
 -- name: DeletePlanBaseline :execrows
 DELETE FROM plan_baseline WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid;

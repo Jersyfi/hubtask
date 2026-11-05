@@ -152,6 +152,15 @@ func TestTheWorkspacesToleranceReachesEveryPlanAndHearsItsException(t *testing.T
 	if len(notified.recipients) != 1 || notified.recipients[0] != decider {
 		t.Errorf("told %v, want the person who decided the tolerance", notified.recipients)
 	}
+
+	// Every later read of the same exception records nothing and tells nobody again.
+	recorded := len(f.audit.entries)
+	if again, err := (ReadPlanTolerance{Planner: f.planner}).Execute(ctx, actor(), ScheduleQuery{PlanID: collection}); err != nil || again.Exception == nil || !again.Exception.Exceeded {
+		t.Fatalf("read again: %+v %v", again, err)
+	}
+	if len(f.audit.entries) != recorded || len(notified.recipients) != 1 {
+		t.Errorf("a second read recorded %v and told %v", f.audit.entries[recorded:], notified.recipients)
+	}
 }
 
 // UC-PLN-04 check 6: a plan whose all-day due date stands where it was agreed is in no exception

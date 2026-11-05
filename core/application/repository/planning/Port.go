@@ -66,6 +66,9 @@ type Baselines interface {
 	List(ctx context.Context, planID shared.ID) ([]planning.Baseline, error)
 	// Find returns a baseline with its entries, or ErrNotFound.
 	Find(ctx context.Context, id shared.ID) (planning.Baseline, error)
+	// NoticeException marks the first time the plan was found in exception against the baseline;
+	// true when this call marked it, false when it was marked before or the baseline is gone.
+	NoticeException(ctx context.Context, id shared.ID, at time.Time) (bool, error)
 	// Delete removes a baseline, or reports ErrNotFound.
 	Delete(ctx context.Context, id shared.ID) error
 }

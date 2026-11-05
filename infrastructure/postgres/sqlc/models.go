@@ -2555,13 +2555,14 @@ type Plan struct {
 }
 
 type PlanBaseline struct {
-	ID         pgtype.UUID
-	TenantID   pgtype.UUID
-	PlanID     pgtype.UUID
-	Name       string
-	TakenAt    pgtype.Timestamptz
-	TakenBy    pgtype.UUID
-	EntryCount int32
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	PlanID             pgtype.UUID
+	Name               string
+	TakenAt            pgtype.Timestamptz
+	TakenBy            pgtype.UUID
+	EntryCount         int32
+	ExceptionNoticedAt pgtype.Timestamptz
 }
 
 type PlanBaselineEntry struct {

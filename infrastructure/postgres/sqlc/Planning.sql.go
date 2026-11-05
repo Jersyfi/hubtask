@@ -353,6 +353,25 @@ func (q *Queries) LockPlanBaselines(ctx context.Context, planID pgtype.UUID) err
 	return err
 }
 
+const noticePlanBaselineException = `-- name: NoticePlanBaselineException :execrows
+UPDATE plan_baseline SET exception_noticed_at = $1
+WHERE tenant_id = current_tenant_id() AND id = $2::uuid AND exception_noticed_at IS NULL
+`
+
+type NoticePlanBaselineExceptionParams struct {
+	At pgtype.Timestamptz
+	ID pgtype.UUID
+}
+
+// The first finding of a plan in exception against the baseline; a later one changes no row.
+func (q *Queries) NoticePlanBaselineException(ctx context.Context, arg NoticePlanBaselineExceptionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, noticePlanBaselineException, arg.At, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setEntryLinkTiming = `-- name: SetEntryLinkTiming :execrows
 UPDATE entry_link SET dependency_kind = $1, lag_days = $2
 WHERE tenant_id = current_tenant_id() AND id = $3::uuid

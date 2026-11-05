@@ -188,6 +188,17 @@ type baselines struct {
 	count int
 	taken []domain.Baseline
 	found domain.Baseline
+	// noticed is the baselines whose exception was recorded.
+	noticed map[shared.ID]bool
+}
+
+func (b *baselines) NoticeException(_ context.Context, id shared.ID, _ time.Time) (bool, error) {
+	if b.noticed == nil {
+		b.noticed = map[shared.ID]bool{}
+	}
+	first := !b.noticed[id]
+	b.noticed[id] = true
+	return first, nil
 }
 
 func (b *baselines) Count(context.Context, shared.ID) (int, error) { return b.count, nil }

@@ -6019,6 +6019,7 @@ CREATE TABLE plan_baseline (
   taken_at    timestamptz NOT NULL,
   taken_by    uuid,
   entry_count integer NOT NULL DEFAULT 0 CHECK (entry_count BETWEEN 0 AND 10000),
+  exception_noticed_at timestamptz,  -- 0373: the plan first found in exception against it
   UNIQUE (tenant_id, id),
   CONSTRAINT plan_baseline_plan_fkey
     FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE

@@ -145,16 +145,25 @@ func (h ReadPlanTolerance) read(ctx context.Context, actor appshared.ActorContex
 	}
 	exception := domain.TimeException(agreed, scheduled.Result.Finish, days)
 	view.Exception = &exception
-	if exception.Exceeded {
-		now := h.Planner.Clock.Now()
+	if !exception.Exceeded {
+		return view, nil
+	}
+	// Recorded and told once per baseline: every later read finds the mark and writes nothing.
+	now := h.Planner.Clock.Now()
+	err = h.Planner.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		first, err := h.Planner.Baselines.NoticeException(ctx, view.Baseline.ID, now)
+		if err != nil || !first {
+			return err
+		}
 		if err := h.Planner.record(ctx, actor, ToleranceExceededAction, toleranceTarget, plan.ID, now,
 			audit.Change{Field: "slip_days", Classification: audit.Open, To: strconv.Itoa(exception.SlipDays)},
 			audit.Change{Field: "tolerance_days", Classification: audit.Open, To: strconv.Itoa(days)}); err != nil {
-			return ToleranceView{}, err
+			return err
 		}
-		if err := h.Planner.tell(ctx, actor, walk, view, now); err != nil {
-			return ToleranceView{}, err
-		}
+		return h.Planner.tell(ctx, actor, walk, view, now)
+	})
+	if err != nil {
+		return ToleranceView{}, err
 	}
 	return view, nil
 }
@@ -211,7 +220,7 @@ func (h ReadPlanTolerance) Descriptor() usecase.Descriptor {
 		Summary: "Reads a plan's time tolerance - its days, the level it comes from and the level that locked it - " +
 			"and, when the plan keeps a baseline, how far the forecast end lies past the latest baseline's and whether " +
 			"that is beyond the tolerance: the plan is then in exception.",
-		SideEffects: "Writes an audit entry when the plan is found in exception.",
+		SideEffects: "Writes an audit entry the first time the plan is found in exception against its latest baseline.",
 		TokenScope:  itemsRead,
 		Input: append(scheduleInput(), usecase.Field{
 			Name: "tolerance_only", Kind: usecase.KindBool,

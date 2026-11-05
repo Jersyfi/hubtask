@@ -6534,8 +6534,8 @@ func (q *Queries) ImportPersonalSpace(ctx context.Context, arg ImportPersonalSpa
 }
 
 const importPlanBaseline = `-- name: ImportPlanBaseline :execrows
-INSERT INTO plan_baseline (id, tenant_id, plan_id, name, taken_at, taken_by, entry_count)
-SELECT r.id, r.tenant_id, r.plan_id, r.name, r.taken_at, r.taken_by, r.entry_count
+INSERT INTO plan_baseline (id, tenant_id, plan_id, name, taken_at, taken_by, entry_count, exception_noticed_at)
+SELECT r.id, r.tenant_id, r.plan_id, r.name, r.taken_at, r.taken_by, r.entry_count, r.exception_noticed_at
 FROM jsonb_populate_record(
   NULL::plan_baseline,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())

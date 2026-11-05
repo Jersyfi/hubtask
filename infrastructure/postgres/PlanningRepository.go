@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -276,6 +277,23 @@ func (PlanningBaselines) Find(ctx context.Context, id shared.ID) (planning.Basel
 		})
 	}
 	return baseline, nil
+}
+
+// NoticeException marks the baseline's first exception; true when this call marked it.
+func (PlanningBaselines) NoticeException(ctx context.Context, id shared.ID, at time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	affected, err := queries.NoticePlanBaselineException(ctx, sqlc.NoticePlanBaselineExceptionParams{ID: key, At: timestampOf(at)})
+	if err != nil {
+		return false, planningError(err, "noticing a baseline's exception")
+	}
+	return affected > 0, nil
 }
 
 // Delete removes a baseline and its entries.

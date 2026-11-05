@@ -154,4 +154,22 @@ func TestAPlanStaysInItsWorkspace(t *testing.T) {
 	}); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("the other workspace deleted the baseline: %v", err)
 	}
+	// An exception is noticed once per baseline, and only in its own workspace.
+	notice := func(tenant shared.ID) bool {
+		var first bool
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			first, err = baselines.NoticeException(ctx, baseline.ID, now)
+			return err
+		}); err != nil {
+			t.Fatalf("noticing: %v", err)
+		}
+		return first
+	}
+	if notice(tenantB) {
+		t.Error("the other workspace noticed the baseline's exception")
+	}
+	if !notice(tenantA) || notice(tenantA) {
+		t.Error("the exception was not noticed exactly once")
+	}
 }
