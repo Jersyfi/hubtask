@@ -64,13 +64,17 @@ export function invitePlaceOf(choice: string): InvitePlace {
 }
 
 /**
- * The row's line of how the last invitation mail went (user-experience.md §8.3): its state's
- * sentence with the time, and - where an attempt failed - the failure's own code and parameters,
- * rendered beside it as its reason.
+ * The row's line of how the last mail went (user-experience.md §8.3): its state's sentence with
+ * the time - the invitation's own words, or the last mail's with what it told the person (`kind`)
+ * -, and where an attempt failed the failure's own code and parameters, rendered beside it as its
+ * reason.
  */
 export function deliveryLine(
-  delivery: Pick<InvitationDelivery, 'state' | 'at' | 'code' | 'params'>,
-): { code: string; reason?: { code: string; params: Readonly<Record<string, string>> } } {
-  const line = { code: `app.people.delivery_${delivery.state.toLowerCase()}` };
+  delivery: Pick<InvitationDelivery, 'state' | 'at' | 'code' | 'params' | 'category'>,
+): { code: string; kind?: string; reason?: { code: string; params: Readonly<Record<string, string>> } } {
+  const state = delivery.state.toLowerCase();
+  const line = delivery.category && delivery.category !== 'INVITATION'
+    ? { code: `app.people.mail_${state}`, kind: `app.people.mail_kind_${delivery.category}` }
+    : { code: `app.people.delivery_${state}` };
   return delivery.code ? { ...line, reason: { code: delivery.code, params: delivery.params ?? {} } } : line;
 }

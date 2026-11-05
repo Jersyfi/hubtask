@@ -31,7 +31,7 @@ const roles = [
   { role: 'MEMBER', permissions: ['READ', 'WRITE_ITEMS'] },
 ];
 
-async function open(browser, { mail, invite, grants = OWNER_GRANTS, width = 1280, height = 900, grant }, sent) {
+async function open(browser, { mail, invite, grants = OWNER_GRANTS, width = 1280, height = 900, grant, deliveries = [] }, sent) {
   const context = await browser.newContext({ viewport: { width, height } });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -51,6 +51,10 @@ async function open(browser, { mail, invite, grants = OWNER_GRANTS, width = 1280
       sent.grant = request.postDataJSON();
       if (grant) return route.fulfill(grant);
       return route.fulfill({ status: 201, json: { id: 'm-new', scope_type: 'TENANT', account_id: NEWCOMER, role: 'MEMBER' } });
+    }
+    if (path === '/accounts:invitation-deliveries') {
+      sent.deliveriesOf = request.postDataJSON().ids;
+      return route.fulfill({ json: { data: deliveries } });
     }
     if (path === '/accounts:invite') {
       sent.invite = request.postDataJSON();
@@ -316,6 +320,31 @@ test('a mailed invitation whose role could not be given says so at the form', as
     assert.equal(await form.getByLabel('Email address').inputValue(), '', 'a sent invitation stayed in the form');
     const warning = form.locator('.banner[data-tone="warning"]');
     assert.ok(await warning.count() > 0, 'why the role is missing is not said at the form');
+  } finally {
+    await close();
+    await browser.close();
+  }
+});
+
+// user-experience.md §8.3: where mail goes out, each row says how the last mail to the person went -
+// a newer mail of another kind with what it told them, the invitation in its own words with its
+// failure's reason -, asked for everybody on the list, not only the invited.
+test('each row says how the last mail of any kind to the person went', async () => {
+  const browser = await chromium.launch();
+  const sent = {};
+  const deliveries = [
+    { account_id: ACCOUNT.id, state: 'SENT', at: '2026-11-04T09:00:00Z', code: null, category: 'COMMENT' },
+    { account_id: INVITED.id, state: 'FAILED', at: '2026-11-04T10:00:00Z', code: 'mail.recipient_rejected', params: { status: '550' } },
+  ];
+  const { page, close } = await open(browser, { mail: true, invite: linked, deliveries }, sent);
+  try {
+    await page.goto(`${served.origin}/administration/people`);
+    const arrived = page.getByRole('row').filter({ hasText: ACCOUNT.display_name });
+    await arrived.locator('[data-delivery="SENT"][data-mail-kind="COMMENT"]').waitFor();
+    assert.match(await arrived.locator('[data-delivery]').innerText(), /^Last mail \(a comment\) sent /);
+    const invited = page.getByRole('row').filter({ hasText: 'Bert' });
+    assert.match(await invited.locator('[data-delivery="FAILED"]').innerText(), /^Invitation mail failed /);
+    assert.deepEqual([...sent.deliveriesOf].sort(), [ACCOUNT.id, INVITED.id].sort(), 'not everybody on the list was asked for');
   } finally {
     await close();
     await browser.close();

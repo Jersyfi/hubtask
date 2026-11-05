@@ -980,10 +980,12 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   it cancels the queued delivery, so the earlier link dies and the mailed token never kills the
   handed-over one (identity.md §12, "Never both", holds). A self-hosting alert fires when
   `hubtask_notification_failures_total` rises above its threshold for a period.
-  Today: an invited person's row shows the last invitation mail's state, time and failure
-  (`POST /accounts:invitation-deliveries`): the queue's invitation job until it has recorded the
-  mail, then the invitation notification - sent, failed or suppressed with its reason, or
-  withdrawn for a link. A person's other mail is not shown there. *Copy invitation link* where
+  Today: each row shows the last mail's state, time and failure (`POST
+  /accounts:invitation-deliveries`): the invitation by the queue's invitation job until it has
+  recorded the mail, then by the invitation notification - sent, failed or suppressed with its
+  reason, or withdrawn for a link -, or, where it is newer, the person's last notification of any
+  other kind with its `category` and its delivery job's failure (*Last mail (a comment) sent …*).
+  *Copy invitation link* where
   mail is configured is `delivery: LINK` on the renewal, behind step-up and the role ceiling,
   audited as `LINK`; it cancels the waiting invitation job and delivery and sets the unsent record
   aside, and is refused (`accounts.invitation_mail_sending`) while a delivery is being sent, since

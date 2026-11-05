@@ -52,3 +52,18 @@ test('each invitation delivery state has its sentence, and a failure its reason'
   const failed = deliveryLine({ state: 'FAILED', at: '2026-11-04T09:00:00Z', code: 'mail.recipient_rejected', params: { status: '550' } });
   assert.deepEqual(failed.reason, { code: 'mail.recipient_rejected', params: { status: '550' } });
 });
+
+// §8.3: the last mail of any kind - a mail of another kind says what it told the person, in every
+// state, and an invitation keeps its own words.
+test('the last mail of another kind says its kind, an invitation its own words', () => {
+  const catalogue = JSON.parse(readFileSync(new URL('../../../../../locales/en.json', import.meta.url), 'utf8')) as Record<string, string>;
+  const categories = ['ASSIGNMENT', 'MEMBERSHIP', 'COMMENT', 'REMINDER', 'INTEGRATION', 'RETENTION', 'EMERGENCY_ACCESS', 'REQUEST_REPLY', 'SLA'] as const;
+  for (const category of categories) {
+    for (const state of ['QUEUED', 'SENDING', 'SENT', 'FAILED', 'CANCELLED'] as const) {
+      const line = deliveryLine({ state, at: '2026-11-04T09:00:00Z', code: null, category });
+      assert.ok(catalogue[line.code], `${category} ${state} has no words`);
+      assert.ok(line.kind && catalogue[line.kind], `${category} has no kind`);
+    }
+  }
+  assert.deepEqual(deliveryLine({ state: 'SENT', at: '2026-11-04T09:00:00Z', code: null, category: 'INVITATION' }), { code: 'app.people.delivery_sent' });
+});

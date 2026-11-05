@@ -368,14 +368,14 @@
   }
 
   /**
-   * How the last invitation mail to each invited person went (user-experience.md §8.3), for whoever
-   * may invite, where invitations go by mail. Read again after a renewal; a refusal leaves the rows
-   * without the line rather than failing the list.
+   * How the last mail to each person on the list went (user-experience.md §8.3) - the invitation,
+   * or a newer mail of any kind -, for whoever may invite, where invitations go by mail. Read again
+   * after a renewal; a refusal leaves the rows without the line rather than failing the list.
    */
   let deliveries = $state<Readonly<Record<string, InvitationDelivery>>>({});
   const invitedIds = $derived(
     way === 'mail' && holdsHere('MANAGE_MEMBERS') === true
-      ? [...new Set(holders.map((holder) => holder.accountId).filter((id): id is string => !!id && statusOf(id) === 'INVITED'))].sort()
+      ? [...new Set(holders.map((holder) => holder.accountId).filter((id): id is string => !!id))].sort().slice(0, 200)
       : [],
   );
   const invitedKey = $derived(invitedIds.join(','));
@@ -552,6 +552,15 @@
       : undefined,
   );
 </script>
+
+{#snippet mailLine(delivery: InvitationDelivery | undefined)}
+  {#if delivery}
+    {@const line = deliveryLine(delivery)}
+    <p class="delivery" class:failed={delivery.state === 'FAILED'} data-delivery={delivery.state} data-mail-kind={delivery.category ?? 'INVITATION'}>
+      {t(line.code, { at: formatDateTime(delivery.at, messages.locale), kind: line.kind ? t(line.kind) : '' })}{#if line.reason}<br />{t(line.reason.code, line.reason.params)}{/if}
+    </p>
+  {/if}
+{/snippet}
 
 <Stack gap="300">
   <!-- The section's page pattern (ADR-0063 decision 7): the trail says where in the
@@ -757,16 +766,10 @@
               {#if statusOf(holder.accountId) === 'INVITED'}
                 <!-- Not a failure and not a person yet: the invitation is out and unredeemed. -->
                 <Badge tone="info">{t('app.people.invited')}</Badge>
-                {@const delivery = holder.accountId ? deliveries[holder.accountId] : undefined}
-                {#if delivery}
-                  {@const line = deliveryLine(delivery)}
-                  <p class="delivery" class:failed={delivery.state === 'FAILED'} data-delivery={delivery.state}>
-                    {t(line.code, { at: formatDateTime(delivery.at, messages.locale) })}{#if line.reason}<br />{t(line.reason.code, line.reason.params)}{/if}
-                  </p>
-                {/if}
               {:else if statusOf(holder.accountId)}
                 <Badge>{t(`app.people.status_${statusOf(holder.accountId)?.toLowerCase()}`)}</Badge>
               {/if}
+              {@render mailLine(holder.accountId ? deliveries[holder.accountId] : undefined)}
             </td>
             <td>
               <div class="actions">
