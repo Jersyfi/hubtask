@@ -188,6 +188,39 @@ test('a second factor becomes the second step, with the code field and the ident
   }
 });
 
+// UC-ID-02 check 3: six digits typed in, a numeric keyboard on a phone, and no submit of its own -
+// the person presses Sign in. UC-ID-02 check 1: *Not you?* returns to step one, the address kept.
+test('the code field waits for its button, and Not you? goes back with the address kept', async () => {
+  const { origin, close } = await serve(DIST);
+  let verified = 0;
+  const stub = stubFor({ answer: owed });
+  const { browser, page } = await open(origin, async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sessions:verify')) verified++;
+    return stub(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+
+    const code = page.locator('input[autocomplete="one-time-code"]');
+    assert.equal(await code.getAttribute('inputmode'), 'numeric', 'a phone shows the numeric keyboard');
+    await code.pressSequentially('482197');
+    await page.waitForTimeout(500);
+    assert.equal(verified, 0, 'six digits sent themselves');
+    assert.ok(await code.isVisible(), 'the step moved on by itself');
+
+    await page.getByRole('button', { name: 'Not you?' }).click();
+    await page.locator('input[autocomplete="one-time-code"]').waitFor({ state: 'detached' });
+    assert.equal(await page.locator('input[type="email"]').inputValue(), 'walker@example.invalid', 'the address was kept');
+    assert.equal(verified, 0);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-02 check 5: a wrong code is one sentence and an emptied field, and the step stays - the
 // same credential is presented again with the next code, so nothing restarts.
 test('a wrong code is one sentence and an emptied field, and the step stays', async () => {
