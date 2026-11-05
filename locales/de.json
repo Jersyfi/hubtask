@@ -700,6 +700,7 @@
   "accounts.week_start_invalid": "Eine Woche kann an MONDAY, SUNDAY oder SATURDAY beginnen.",
   "accounts.celebrations_invalid": "{value} ist keine Einstellung für die Feiermomente. Schick true, false oder nichts für die Voreinstellung.",
   "accounts.onboarding_completed_at_invalid": "{value} ist kein Zeitpunkt. Schick Datum und Uhrzeit nach RFC 3339, oder nichts, damit die Tour wieder läuft.",
+  "accounts.products_seen_invalid": "{value} ist kein Produkt. Schick die Modulschlüssel der Produkte, etwa SERVICE_DESK, oder nichts, damit jedes Produkt seinen ersten Hinweis wieder zeigt.",
   "accounts.not_found": "Diese Person ist nicht in diesem Workspace.",
   "accounts.account_required": "Sag, wessen Konto gelesen werden soll.",
   "accounts.too_many": "Höchstens {maximum} Konten in einer Anfrage nennen.",

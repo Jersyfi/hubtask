@@ -1198,6 +1198,7 @@
   "accounts.week_start_invalid": "A week can start on MONDAY, SUNDAY or SATURDAY.",
   "accounts.celebrations_invalid": "{value} is not a setting for the celebrations. Send true, false, or nothing for the default.",
   "accounts.onboarding_completed_at_invalid": "{value} is not a moment. Send an RFC 3339 date and time, or nothing to run the tour again.",
+  "accounts.products_seen_invalid": "{value} is not a product. Send the products' module keys, such as SERVICE_DESK, or nothing to show each product's first mark again.",
   "accounts.not_found": "That person is not in this workspace.",
   "accounts.account_required": "Say whose account to read.",
   "accounts.too_many": "Name at most {maximum} accounts in one request.",
