@@ -24,6 +24,7 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { isModuleOn } from '../lib/frame/moduleroute.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { WEEK_STARTS, localesOf } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -257,9 +258,10 @@
             />
           </WriteOnly>
         </form>
-        <PublicLinksSwitch />
-        <PublicFormsSwitch />
-        <PublicRoadmapsSwitch />
+        <!-- Each switch is its product's: read while the module is off, its policy is refused. -->
+        {#if isModuleOn('KNOWLEDGE', manifest.value?.modules_on)}<PublicLinksSwitch />{/if}
+        {#if isModuleOn('SERVICE_DESK', manifest.value?.modules_on)}<PublicFormsSwitch />{/if}
+        {#if isModuleOn('GOALS', manifest.value?.modules_on)}<PublicRoadmapsSwitch />{/if}
         </SettingsPage>
       </WorkspaceGate>
     {/if}

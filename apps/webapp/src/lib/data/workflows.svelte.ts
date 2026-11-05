@@ -13,6 +13,7 @@ import type {
 
 import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
+import { subscribeWhileOn } from './modulereads.svelte.ts';
 import { CONFIG_CHECK, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS } from './touches.ts';
 
 export * from './workflows.ts';
@@ -35,7 +36,8 @@ class Workflows {
 
   /** Starts the read. **From `untrack`**, for the reason the other stores record. */
   open(): () => void {
-    return engine.subscribe<WorkflowList>({ path: PATH }, (next) => {
+    // The module's own resource: not asked while the module is off (`modulereads.svelte.ts`).
+    return subscribeWhileOn<WorkflowList>('WORKFLOWS', { path: PATH }, (next) => {
       this.#state = next;
     });
   }

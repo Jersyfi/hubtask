@@ -13,6 +13,9 @@ test('a module page whose module is off says so before it reads anything', () =>
   assert.equal(offModuleOf('workflows', []), 'WORKFLOWS');
   assert.equal(offModuleOf('service-desk', undefined), undefined, 'a manifest not read yet withholds nothing');
   assert.equal(offModuleOf('webhooks', []), undefined, 'a page of no module');
+  // The approvals waiting for the reader are the desk's, the notes the pages': off, each is refused.
+  assert.equal(offModuleOf('approvals', []), 'SERVICE_DESK');
+  assert.equal(offModuleOf('notes', ['WORKFLOWS']), 'KNOWLEDGE');
 });
 
 test('a module section is drawn only once the module is known to be on', () => {

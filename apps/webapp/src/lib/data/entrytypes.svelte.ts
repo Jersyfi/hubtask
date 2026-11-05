@@ -16,6 +16,7 @@ import type { FormActor } from '@hubtask/expression';
 import { engine, INTENT } from './engine.ts';
 import { actorOf, offlineFormState, withOwnGrants, type HeldGrant, type HeldRole } from './entryforms.ts';
 import { etagFor } from './etag.ts';
+import { subscribeWhileOn } from './modulereads.svelte.ts';
 import { CONFIG_CHECK } from './touches.ts';
 import { roles } from './roles.svelte.ts';
 
@@ -57,7 +58,8 @@ class EntryTypes {
 
   /** Starts the read. **From `untrack`**, for the reason the other stores record. */
   open(): () => void {
-    return engine.subscribe<EntryTypeList>({ path: PATH }, (next) => {
+    // The module's own resource: not asked while the module is off (`modulereads.svelte.ts`).
+    return subscribeWhileOn<EntryTypeList>('WORKFLOWS', { path: PATH }, (next) => {
       this.#state = next;
     });
   }
