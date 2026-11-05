@@ -84,7 +84,7 @@ func (h SetAiPersonOptOut) Execute(
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
 			return err
 		}
-		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
+		if err = w.Rules.shown(ctx, &state); err != nil {
 			return err
 		}
 		// Whose entries may be embedded moves with the position, so the pass is seeded by the

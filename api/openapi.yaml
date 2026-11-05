@@ -26014,10 +26014,15 @@ components:
       type: object
       required: [source, sources, installation_sources, sources_origin, min_jurisdiction,
         min_jurisdiction_origin, offered, version, person_opt_out, person_opt_out_origin,
-        keeping_out_count, prepare_on_arrival]
+        keeping_out_count, prepare_on_arrival, own_configured]
       properties:
         source:
           $ref: "#/components/schemas/AiSourceKind"
+        own_configured:
+          type: boolean
+          description: >
+            Whether the workspace has configured its own provider (`GET /ai-provider`). False
+            means that read answers `404 ai.not_configured`, so a screen need not ask it.
         offered_model_id:
           type: string
           format: uuid

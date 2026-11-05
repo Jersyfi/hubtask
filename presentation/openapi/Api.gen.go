@@ -12473,6 +12473,9 @@ type AiSource struct {
 	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
 	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
 
+	// OwnConfigured Whether the workspace has configured its own provider (`GET /ai-provider`). False means that read answers `404 ai.not_configured`, so a screen need not ask it.
+	OwnConfigured bool `json:"own_configured"`
+
 	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
 	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
 

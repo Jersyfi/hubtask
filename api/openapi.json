@@ -37836,11 +37836,16 @@
           "person_opt_out",
           "person_opt_out_origin",
           "keeping_out_count",
-          "prepare_on_arrival"
+          "prepare_on_arrival",
+          "own_configured"
         ],
         "properties": {
           "source": {
             "$ref": "#/components/schemas/AiSourceKind"
+          },
+          "own_configured": {
+            "type": "boolean",
+            "description": "Whether the workspace has configured its own provider (`GET /ai-provider`). False means that read answers `404 ai.not_configured`, so a screen need not ask it.\n"
           },
           "offered_model_id": {
             "type": "string",

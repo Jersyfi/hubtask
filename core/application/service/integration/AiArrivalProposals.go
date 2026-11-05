@@ -64,7 +64,7 @@ func (h SetAiArrivalProposals) Execute(
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
 			return err
 		}
-		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
+		if err = w.Rules.shown(ctx, &state); err != nil {
 			return err
 		}
 		return w.Audit.Append(ctx, audit.Entry{

@@ -75,6 +75,7 @@ func aiSourceResponse(out usecase.Output) openapi.AiSource {
 		answer.PersonOptOutSince = &since
 	}
 	answer.PrepareOnArrival = out["prepare_on_arrival"] == true
+	answer.OwnConfigured = out["own_configured"] == true
 	if count, held := out["keeping_out_count"].(int); held {
 		answer.KeepingOutCount = count
 	}

@@ -88,6 +88,9 @@ type AiState struct {
 	KeepingOut int
 	// PrepareOnArrival is the workspace's switch for proposals on arrival (UC-JUM-07 check 10).
 	PrepareOnArrival bool
+	// OwnConfigured is whether the workspace configured its own provider, so a screen asks for it
+	// only where there is one.
+	OwnConfigured bool
 }
 
 // ChosenOffered answers the offered model the choice names, when it still exists.
@@ -150,14 +153,27 @@ func (r AiRules) Resolve(ctx context.Context, tenantID shared.ID) (AiState, erro
 	return state, nil
 }
 
-// keepingOut counts the people whose newest ai_processing record is a withdrawal. Only the two
-// reads that show it ask, not every AI call that resolves the rule.
-func (r AiRules) keepingOut(ctx context.Context) (int, error) {
-	if r.Consents == nil {
-		return 0, nil
+// shown fills what only an answer of the AI source shows, not every AI call that resolves the
+// rule: how many people's newest ai_processing record is a withdrawal, and whether the workspace
+// configured its own provider.
+func (r AiRules) shown(ctx context.Context, state *AiState) error {
+	if r.Consents != nil {
+		standing, err := r.Consents.Standing(ctx, privacydomain.PurposeAi)
+		if err != nil {
+			return err
+		}
+		state.KeepingOut = len(standing)
 	}
-	standing, err := r.Consents.Standing(ctx, privacydomain.PurposeAi)
-	return len(standing), err
+	if r.Own != nil {
+		_, err := r.Own.Find(ctx)
+		switch {
+		case err == nil:
+			state.OwnConfigured = true
+		case !errors.Is(err, shared.ErrNotFound):
+			return err
+		}
+	}
+	return nil
 }
 
 // AiSourceWriter is what the two use cases share.
@@ -241,7 +257,7 @@ func (h ReadAiSource) Execute(ctx context.Context, actor appshared.ActorContext)
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
 			return err
 		}
-		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
+		if err = w.Rules.shown(ctx, &state); err != nil {
 			return err
 		}
 		state.SearchRebuilding, err = w.rebuilding(ctx, actor.TenantID)
@@ -307,6 +323,9 @@ func (h ChooseAiSource) Execute(
 		}
 		state, err = w.Rules.Resolve(ctx, actor.TenantID)
 		if err != nil {
+			return err
+		}
+		if err := w.Rules.shown(ctx, &state); err != nil {
 			return err
 		}
 		if err := h.reseedIfMoved(ctx, actor.TenantID, before, state); err != nil {
@@ -452,6 +471,7 @@ func AiSourceOutput(state AiState) usecase.Output {
 	}
 	out["keeping_out_count"] = state.KeepingOut
 	out["prepare_on_arrival"] = state.PrepareOnArrival
+	out["own_configured"] = state.OwnConfigured
 	return out
 }
 

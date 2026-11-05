@@ -131,7 +131,7 @@ func sourceRegistryOver(t *testing.T, world *sourceWorld, store *providerStore) 
 	writer := AiSourceWriter{
 		Rules: AiRules{
 			Instance: world, Workspaces: sourceWorkspaces{world},
-			Offered: sourceOffered{world}, Choices: sourceChoices{world}, Plans: world,
+			Offered: sourceOffered{world}, Choices: sourceChoices{world}, Plans: world, Own: store,
 		},
 		Authorizer: providerAllow{}, Audit: store, UnitOfWork: providerDirect{},
 		Clock: providerClock{}, Reindex: sourceReseeder{world},
@@ -341,6 +341,30 @@ func TestSwitchingAiOffKeepsTheOwnProvidersConfiguration(t *testing.T) {
 		if store.stored == nil || *store.stored != configured || store.sealed != sealed {
 			t.Fatalf("after choosing %s the provider is %+v, want %+v with its key", source, store.stored, configured)
 		}
+	}
+}
+
+// The answer says whether the workspace configured its own provider, read and chosen alike, so a
+// screen asks for the provider only where there is one.
+func TestTheAnswerSaysWhetherTheOwnProviderIsConfigured(t *testing.T) {
+	writer, store := providerWriter()
+	registry := sourceRegistryOver(t, &sourceWorld{}, store)
+	if got := readSource(t, registry)["own_configured"]; got != false {
+		t.Fatalf("own_configured before configuring = %v, want false", got)
+	}
+	if _, err := (ConfigureAiProvider{Writer: writer}).
+		Execute(context.Background(), providerActor(), providerCommand()); err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	if got := readSource(t, registry)["own_configured"]; got != true {
+		t.Fatalf("own_configured after configuring = %v, want true", got)
+	}
+	chosen, err := registry.Invoke(t.Context(), ChooseAiSourceName, providerActor(), usecase.Input{"source": "NONE"})
+	if err != nil {
+		t.Fatalf("choosing: %v", err)
+	}
+	if chosen["own_configured"] != true {
+		t.Fatalf("own_configured in the choice's answer = %v, want true", chosen["own_configured"])
 	}
 }
 

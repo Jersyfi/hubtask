@@ -486,6 +486,7 @@ AiMinJurisdiction = Literal["ANY", "ADEQUACY", "EEA", "SELF_HOSTED"]
 
 class AiSource(TypedDict, total=False):
     source: Required["AiSourceKind"]
+    own_configured: Required[bool]
     offered_model_id: str
     sources: Required["AiSources"]
     installation_sources: Required["AiSources"]
