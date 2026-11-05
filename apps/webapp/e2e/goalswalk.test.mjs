@@ -136,6 +136,8 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await titleLink.waitFor({ timeout: 5_000 });
   for (const colorScheme of ['light', 'dark']) {
     await page.emulateMedia({ colorScheme });
+    // The theme follows the media query on its change event, a task later.
+    await page.waitForFunction((scheme) => document.documentElement.dataset.theme === scheme, colorScheme);
     const colours = await page.evaluate(() => {
       const probe = document.createElement('span');
       probe.style.color = 'var(--text-brand)';
@@ -248,8 +250,9 @@ test('chromium: a widget names its groups and periods, and every chart draws som
   const perWeek = widget(2, 'Done per week', 'LINE', { aggregate: { function: 'COUNT', bucket: { field: 'completed_at', period: 'week' } } });
   const board = { id: '01a0e2e0-0000-7000-8000-00000000a402', name: 'Weekly', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], version: 1, widgets: [byType, perWeek] };
   const type = (key, name) => ({ key, name, level: 'TASK', icon: null, color_token: 'blue', hub_id: null });
+  // The types' names are Workflows' to answer, read only while it is on.
   const walk = await productWalk(browser, {
-    modules: ['GOALS'],
+    modules: ['GOALS', 'WORKFLOWS'],
     answer: goalsBackend({ seed: {
       dashboards: [board],
       types: [type('bug', 'Bug'), type('change_request', 'Change request')],
