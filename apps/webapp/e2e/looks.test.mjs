@@ -79,6 +79,8 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
   const dialog = page.getByRole('dialog', { name: 'Create hub' });
   await dialog.waitFor({ timeout: 5_000 });
 
+  // Folded below what the hub starts from (UX-4).
+  await dialog.getByRole('button', { name: 'Description, colour and symbol' }).click();
   // Rule 3: every colour has a name in words, and "none" comes first.
   const colours = dialog.getByRole('group', { name: 'Colour' }).getByRole('radio');
   assert.deepEqual(await colours.evaluateAll((radios) => radios.map((radio) => radio.getAttribute('aria-label'))), ['No colour', ...LABEL_COLOURS]);

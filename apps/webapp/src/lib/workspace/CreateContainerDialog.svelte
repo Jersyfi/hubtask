@@ -35,7 +35,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, Input, Radio, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Button, Dialog, Disclosure, Inline, Input, Radio, Stack, Switch, TemplateCard, TemplateGallery, Textarea, VisuallyHidden } from '@hubtask/design-system/components';
   import type { ConfigTemplate, ConfigTemplateList } from '@hubtask/sync-engine';
 
   import TemplatePreview from '../settings/TemplatePreview.svelte';
@@ -109,6 +109,7 @@
     isPrivate = false;
     preset = '';
     fromTemplate = '';
+    shownFamily = 'all';
     filled = '';
     symbol = undefined;
     colour = undefined;
@@ -136,6 +137,9 @@
     }));
   });
   const families = $derived(offersCatalogue ? hubFamilies(catalogue) : []);
+  /** The family the gallery is narrowed to (§5.2's family filter), or every family. */
+  let shownFamily = $state('all');
+  const isShown = (family: string): boolean => shownFamily === 'all' || shownFamily === family;
   const templateName = (each: ConfigTemplate): string =>
     each.origin === 'HUBTASK' ? t(`app.structure.preset.${each.key.toUpperCase()}`) : each.name;
   const productsOf = (each: ConfigTemplate): string[] =>
@@ -270,6 +274,7 @@
 <Dialog
   bind:isOpen
   {title}
+  isWide={isHub && (presetOptions.length > 0 || families.length > 0)}
   dismissLabel={t('app.workspace.cancel')}
 >
   <div bind:this={body}>
@@ -280,11 +285,21 @@
       oninput={() => (isNameMissing = false)}
       error={isNameMissing ? t('app.workspace.name_required') : isNameFailure ? failure?.message : undefined}
     />
-    <Textarea label={t('app.workspace.description')} bind:value={description} />
-    <LookFields {type} bind:symbol bind:colour />
     {#if isHub && (presetOptions.length > 0 || families.length > 0)}
       <div class="gallery" data-hub-gallery>
         <p class="lead">{t('app.workspace.hub_gallery_about')}</p>
+        {#if families.length > 0}
+          <div role="group" aria-label={t('app.workspace.hub_families')} data-family-filter>
+            <Inline gap="050">
+              {#each ['all', 'simple', ...families.map((group) => group.family)] as family (family)}
+                <Button size="sm" tone={shownFamily === family ? 'secondary' : 'subtle'} aria-pressed={shownFamily === family} onclick={() => (shownFamily = family)}>
+                  {family === 'all' ? t('app.workspace.hub_family_all') : t(`app.workspace.hub_family.${family}`)}
+                </Button>
+              {/each}
+            </Inline>
+          </div>
+        {/if}
+        {#if isShown('simple')}
         <div data-family="simple">
           <TemplateGallery label={t('app.workspace.hub_family.simple')}>
             {#each simple as option (option.value)}
@@ -299,7 +314,8 @@
             {/each}
           </TemplateGallery>
         </div>
-        {#each families as group (group.family)}
+        {/if}
+        {#each families.filter((group) => isShown(group.family)) as group (group.family)}
           <div data-family={group.family}>
             <TemplateGallery label={t(`app.workspace.hub_family.${group.family}`)}>
               {#each group.templates as each (each.key)}
@@ -328,6 +344,13 @@
     {:else if presetOptions.length > 0}
       <Radio label={t('app.structure.preset_at_creation')} options={presetOptions} bind:value={preset} />
     {/if}
+    <!-- What only dresses the place waits folded below the choice of what it starts from (UX-4). -->
+    <Disclosure label={t('app.workspace.look_fold')} tone="quiet">
+      <Stack gap="150">
+        <Textarea label={t('app.workspace.description')} bind:value={description} />
+        <div data-look-fields><LookFields {type} bind:symbol bind:colour /></div>
+      </Stack>
+    </Disclosure>
     {#if isPrivateHubOnly}
       <p class="private">{t('app.workspace.private_hint')}</p>
     {:else if isPrivacyOffered}
