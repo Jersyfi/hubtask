@@ -1743,11 +1743,12 @@ type EntrySla struct {
 }
 
 type EntryStatusChange struct {
-	TenantID  pgtype.UUID
-	ItemID    pgtype.UUID
-	Seq       int64
-	Status    string
-	EnteredAt pgtype.Timestamptz
+	TenantID    pgtype.UUID
+	ItemID      pgtype.UUID
+	Seq         int64
+	Status      string
+	EnteredAt   pgtype.Timestamptz
+	FromRestore bool
 }
 
 type EntryType struct {

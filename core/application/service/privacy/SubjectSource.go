@@ -215,6 +215,7 @@ var notThePersons = map[string]string{
 	"sla_policy":              "the workspace's promised response and resolution times",
 	"entry_sla":               "how an entry's promised times stood, which names nobody; the entry is the entry's",
 	"entry_ola":               "how a team's promised times on an entry stood, which names a group and nobody; the entry is the entry's",
+	"entry_status_change":     "when an entry entered each status, which names nobody; the entry is the entry's",
 	"reply_template":          "the workspace's canned replies, text the team wrote once for many requests",
 	"requester_organisation":  "a portal's organisation: a name and mail domains, which name nobody; who belongs is read from each account's address",
 	"entry_schedule":          "whether the scheduler may move an entry, which names nobody; the entry is the entry's",

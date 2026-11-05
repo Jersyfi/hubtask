@@ -6545,12 +6545,15 @@ CREATE POLICY tenant_isolation ON dashboard_digest
 GRANT SELECT, INSERT, UPDATE, DELETE ON dashboard_digest TO hubtask_app;
 
 -- An entry's status history (migration 0250): written by a trigger as an entry enters a status.
+-- `from_restore` (0374) marks the stand-in a restore's write of an entry leaves until the
+-- archive's own history for it is written back.
 CREATE TABLE entry_status_change (
-  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  item_id    uuid NOT NULL,
-  seq        bigint GENERATED ALWAYS AS IDENTITY,
-  status     text NOT NULL,
-  entered_at timestamptz NOT NULL,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id      uuid NOT NULL,
+  seq          bigint GENERATED ALWAYS AS IDENTITY,
+  status       text NOT NULL,
+  entered_at   timestamptz NOT NULL,
+  from_restore boolean NOT NULL DEFAULT false,
   PRIMARY KEY (tenant_id, item_id, seq),
   CONSTRAINT entry_status_change_item_fkey
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
@@ -6562,20 +6565,25 @@ CREATE POLICY tenant_isolation ON entry_status_change
 GRANT SELECT, INSERT, DELETE ON entry_status_change TO hubtask_app;
 CREATE OR REPLACE FUNCTION work_item_status_history() RETURNS trigger LANGUAGE plpgsql AS
 $$
+DECLARE
+  entered   timestamptz;
+  restoring boolean := coalesce(current_setting('hubtask.restoring', true), '') = 'on';
 BEGIN
   IF NEW.status IS NULL THEN
     RETURN NULL;
   END IF;
-  IF TG_OP = 'UPDATE' THEN
-    IF NEW.status IS NOT DISTINCT FROM OLD.status THEN
-      RETURN NULL;
-    END IF;
-    INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at)
-    VALUES (NEW.tenant_id, NEW.id, NEW.status, NEW.updated_at);
-  ELSE
-    INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at)
-    VALUES (NEW.tenant_id, NEW.id, NEW.status, NEW.created_at);
+  IF TG_OP = 'UPDATE' AND NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    RETURN NULL;
   END IF;
+  IF restoring THEN
+    entered := transaction_timestamp();
+  ELSIF TG_OP = 'UPDATE' THEN
+    entered := NEW.updated_at;
+  ELSE
+    entered := NEW.created_at;
+  END IF;
+  INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at, from_restore)
+  VALUES (NEW.tenant_id, NEW.id, NEW.status, entered, restoring);
   RETURN NULL;
 END
 $$;

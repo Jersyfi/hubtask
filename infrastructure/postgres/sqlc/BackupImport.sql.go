@@ -735,6 +735,18 @@ func (q *Queries) ClearEntrySla(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearEntryStatusChange = `-- name: ClearEntryStatusChange :execrows
+DELETE FROM entry_status_change
+`
+
+func (q *Queries) ClearEntryStatusChange(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntryStatusChange)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearEntryType = `-- name: ClearEntryType :execrows
 DELETE FROM entry_type
 `
@@ -2341,6 +2353,23 @@ SELECT EXISTS (SELECT 1 FROM entry_sla WHERE id = ($1::jsonb->>'id')::uuid) AS h
 
 func (q *Queries) HoldsEntrySla(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsEntrySla, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsEntryStatusChange = `-- name: HoldsEntryStatusChange :one
+SELECT EXISTS (
+  SELECT 1 FROM entry_status_change
+  WHERE item_id = ($1::jsonb->>'item_id')::uuid
+    AND status = $1::jsonb->>'status'
+    AND entered_at = ($1::jsonb->>'entered_at')::timestamptz
+    AND NOT from_restore
+) AS held
+`
+
+func (q *Queries) HoldsEntryStatusChange(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntryStatusChange, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -5454,6 +5483,37 @@ type ImportEntrySlaParams struct {
 
 func (q *Queries) ImportEntrySla(ctx context.Context, arg ImportEntrySlaParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntrySla, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importEntryStatusChange = `-- name: ImportEntryStatusChange :execrows
+WITH stand_in AS (
+  DELETE FROM entry_status_change
+  WHERE item_id = ($1::jsonb->>'item_id')::uuid AND from_restore
+)
+INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at, from_restore)
+SELECT r.tenant_id, r.item_id, r.status, r.entered_at, false
+FROM jsonb_populate_record(
+  NULL::entry_status_change,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE NOT EXISTS (
+  SELECT 1 FROM entry_status_change c
+  WHERE c.item_id = r.item_id AND c.status = r.status AND c.entered_at = r.entered_at
+    AND NOT c.from_restore
+)
+`
+
+// The entry's status history (migration 0374). `seq` is drawn anew rather than carried: the
+// identity is installation-wide, and a carried number could meet the one this installation draws
+// for the entry's next change. The rows of a file come in the order of their old numbers, so the
+// new ones keep it. The first archived row of an entry removes the stand-in the restore's write of
+// the entry left; a fact the entry already holds is not written twice, whatever the rule.
+func (q *Queries) ImportEntryStatusChange(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntryStatusChange, payload)
 	if err != nil {
 		return 0, err
 	}

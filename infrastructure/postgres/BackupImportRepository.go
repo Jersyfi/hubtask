@@ -68,8 +68,8 @@ func (r BackupImportRepository) Write(
 		return false, err
 	}
 	if table == "work_item" {
-		// The status history is not archived: the trigger dates a restored entry's status from the
-		// restore rather than from its creation (migration 0350).
+		// The trigger dates a restored entry's status from the restore rather than from its
+		// creation, as a stand-in the archive's history replaces where it carries one (0350, 0374).
 		if err := markRestoring(ctx); err != nil {
 			return false, err
 		}

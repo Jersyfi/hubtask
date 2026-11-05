@@ -1896,4 +1896,18 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"entry_status_change": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportEntryStatusChanges(ctx, sqlc.ExportEntryStatusChangesParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorNumber(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportEntryStatusChangesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 }

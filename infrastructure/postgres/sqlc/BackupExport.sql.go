@@ -2827,6 +2827,55 @@ func (q *Queries) ExportEntrySlas(ctx context.Context, arg ExportEntrySlasParams
 	return items, nil
 }
 
+const exportEntryStatusChanges = `-- name: ExportEntryStatusChanges :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.item_id::text || '/' || c.seq::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id' - 'from_restore')::jsonb AS payload,
+         c.item_id AS key_1,
+         c.seq::bigint AS key_2
+  FROM entry_status_change c
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::bigint)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportEntryStatusChangesParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond int64
+	Batch       int32
+}
+
+type ExportEntryStatusChangesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// `from_restore` is this installation's bookkeeping, not history: a stand-in an earlier restore
+// left is archived as the fact it is, the moment the entry's history starts.
+func (q *Queries) ExportEntryStatusChanges(ctx context.Context, arg ExportEntryStatusChangesParams) ([]ExportEntryStatusChangesRow, error) {
+	rows, err := q.db.Query(ctx, exportEntryStatusChanges, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportEntryStatusChangesRow{}
+	for rows.Next() {
+		var i ExportEntryStatusChangesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportEntryTypes = `-- name: ExportEntryTypes :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

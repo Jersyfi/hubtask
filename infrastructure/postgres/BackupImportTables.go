@@ -1547,4 +1547,15 @@ var importers = map[string]importer{
 			return queries.ClearSetElement(ctx)
 		},
 	},
+	"entry_status_change": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportEntryStatusChange(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsEntryStatusChange(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearEntryStatusChange(ctx)
+		},
+	},
 }

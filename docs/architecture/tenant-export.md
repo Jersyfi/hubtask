@@ -264,6 +264,7 @@ re-mints identities must rewrite exactly these).
 | 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
 | 133 | `public_forms` | `public_form` | `collection_id` | `collection_id`→containers, `created_by`→accounts (a collection's public form, UC-SVC-13; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
 | 134 | `entry_olas` | `entry_ola` | `id` | `item_id`→work_items (what became of each goal of an assignee group's OLA on an entry, migration 0303; the group is named, not referenced, and the clock is a timer, not archived) |
+| 140 | `entry_status_changes` | `entry_status_change` | `item_id/seq` | `item_id`→work_items (when an entry entered each status, `status` and `entered_at`, migration 0374; an importer draws `seq` anew - it only orders an entry's rows - and Hubtask's restore writes them after the entries, replacing the row its write of each entry dated from the restore's moment; an entry an archive carries no history for - an archive from before this file - keeps that row, and its history starts at the restore) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
@@ -339,10 +340,6 @@ reasoning is backup-restore.md §8.4):
 * **Kept figures** (`collection_figure`, `collection_figure_touch`, `collection_figure_stamp`,
   migration 0292): counts kept between reads and the record of when they stop answering; a
   restore's write of each entry records its change, and the first read counts again.
-* **The status history** (`entry_status_change`, migration 0250): derived from the entries' status
-  changes as they happen; a restored entry's history starts with its restore, which records its
-  current status at the restore's moment (migration 0350), so its cycle time and WIP age count
-  from there - never from its creation, which would claim a year in a status entered yesterday.
 * **AI machinery**: the AI provider configuration (with its sealed key), the workspace's choice of AI
   source (choosing an offered model is a consent a restore must not resume), suggestions, pending AI
   requests, and embedding vectors (derived from content that is in the export). The workspace's own

@@ -4079,3 +4079,37 @@ SELECT EXISTS (
 
 -- name: ClearTemplatePage :execrows
 DELETE FROM template_page;
+
+-- name: ImportEntryStatusChange :execrows
+-- The entry's status history (migration 0374). `seq` is drawn anew rather than carried: the
+-- identity is installation-wide, and a carried number could meet the one this installation draws
+-- for the entry's next change. The rows of a file come in the order of their old numbers, so the
+-- new ones keep it. The first archived row of an entry removes the stand-in the restore's write of
+-- the entry left; a fact the entry already holds is not written twice, whatever the rule.
+WITH stand_in AS (
+  DELETE FROM entry_status_change
+  WHERE item_id = (sqlc.arg('payload')::jsonb->>'item_id')::uuid AND from_restore
+)
+INSERT INTO entry_status_change (tenant_id, item_id, status, entered_at, from_restore)
+SELECT r.tenant_id, r.item_id, r.status, r.entered_at, false
+FROM jsonb_populate_record(
+  NULL::entry_status_change,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE NOT EXISTS (
+  SELECT 1 FROM entry_status_change c
+  WHERE c.item_id = r.item_id AND c.status = r.status AND c.entered_at = r.entered_at
+    AND NOT c.from_restore
+);
+
+-- name: HoldsEntryStatusChange :one
+SELECT EXISTS (
+  SELECT 1 FROM entry_status_change
+  WHERE item_id = (sqlc.arg('payload')::jsonb->>'item_id')::uuid
+    AND status = sqlc.arg('payload')::jsonb->>'status'
+    AND entered_at = (sqlc.arg('payload')::jsonb->>'entered_at')::timestamptz
+    AND NOT from_restore
+) AS held;
+
+-- name: ClearEntryStatusChange :execrows
+DELETE FROM entry_status_change;

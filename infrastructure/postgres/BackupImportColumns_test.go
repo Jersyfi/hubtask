@@ -36,6 +36,7 @@ var notImported = map[string]string{
 	"page.search_document":             "not exported: the trigger builds it",
 	"work_item.search_configuration":   "the trigger sets it with the document",
 	"media_object.unreferenced_since":  "the recount's clock; NULL holds the sweep off until it counts",
+	"entry_status_change.seq":          "drawn anew: the identity is installation-wide, and a carried one could meet the next drawn",
 }
 
 var (
