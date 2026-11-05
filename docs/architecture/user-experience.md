@@ -234,8 +234,9 @@ made; Today's first steps then carry *Choose what you use Hubtask for*, which op
 dialog, and `starter:apply` takes the set once more under the tenant row's lock (dismissing it
 again sends nothing). A *Simple* set's collections carry a few sample entries in the reader's
 language (`StarterCollection.samples`), made and marked as the hub's samples in the same
-transaction, so *Remove sample entries* takes them as a template's. The tab remembers the hub the starter made, and the
-base tour looks for its collection there first.
+transaction, so *Remove sample entries* takes them as a template's. In the template's form, what
+it creates is drawn unfolded under *This sets up*, beside the workspace part's plan. The tab
+remembers the hub the starter made, and the base tour looks for its collection there first.
 
 ### 3.3 Today, the place the app opens on
 

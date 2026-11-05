@@ -148,7 +148,7 @@
 {/if}
 <section class="plan" aria-label={t('app.starter.plan')} data-starter-plan>
   <h3>{t('app.starter.plan')}</h3>
-  <TemplatePreview {template} />
+  <TemplatePreview {template} isUnfolded />
   {#if isPlanning}
     <Spinner label={t('app.starter.plan_reading')} />
   {:else if plan && (plan.refusals ?? []).length === 0}

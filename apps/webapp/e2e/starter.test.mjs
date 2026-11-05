@@ -191,6 +191,9 @@ test('chromium: the first start on a template - its family, its plan in words, t
   await card.locator('button').last().click();
   await dialog.locator('[data-plan-changes] li').first().waitFor({ timeout: 10_000 });
   assert.match(await dialog.locator('[data-plan-changes]').innerText(), /Adds the .*Incident/, 'the plan is not said in words');
+  // What it creates stands open in the form, not behind a fold (§3.2).
+  assert.equal(await dialog.locator('[data-starter-plan] [data-template-preview]').isVisible(), true, 'what the template creates is folded away');
+  assert.match(await dialog.locator('[data-starter-plan] [data-template-preview]').innerText(), /Entry types/);
   assert.equal(await dialog.locator('input[data-template-samples]').isChecked(), true, 'sample entries are not on by default');
   // A GROUP question makes its group in place, and the new group is the answer (§3.2).
   const makeGroup = dialog.locator('[data-create-group="first_group"]');
