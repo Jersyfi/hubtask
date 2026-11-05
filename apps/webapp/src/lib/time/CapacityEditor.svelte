@@ -14,6 +14,7 @@
   import { engine } from '../data/engine.ts';
   import { CAPACITIES, dayHeading, minutesOfHours, minutesText, time, weekDays, weekStartOf } from '../data/time.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { decimalSeparatorOf } from '../i18n/number.ts';
   import { todayIn } from '../i18n/zone.ts';
@@ -76,7 +77,7 @@
       <Table label={t('app.capacity.title')} {columns}>
         {#each capacities as capacity (capacity.from)}
           <tr>
-            <th scope="row">{capacity.from}</th>
+            <th scope="row">{formatPlainDay(capacity.from, locale)}</th>
             {#each capacity.week_minutes as minutes, i (i)}<td class="number">{minutesText(minutes)}</td>{/each}
             <td><Button size="sm" tone="subtle" icon="trash" onclick={() => void remove(capacity)}>{t('app.capacity.remove')}</Button></td>
           </tr>

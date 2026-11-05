@@ -34,7 +34,7 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running, kinds } = {}) {
+function timeBackend({ running, kinds, rates } = {}) {
   const id = ids('00000b');
   const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
@@ -59,7 +59,7 @@ function timeBackend({ running, kinds } = {}) {
     if (path === '/time-policy' && method === 'GET') return { json: { locked_through: null, visibility: 'FULL', version: 1 } };
     if (path === '/timer' && method === 'GET') return { json: timer };
     if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
-    if (path === '/cost-rates' && method === 'GET') return { json: { data: [] } };
+    if (path === '/cost-rates' && method === 'GET') return { json: { data: rates ?? [] } };
     if (path === '/time-absences' && method === 'GET') return { json: { data: [] } };
     if (path === '/timer:start' && method === 'POST') {
       timer = { running: true, entry_id: body.entry_id ?? null, work_type: body.work_type ?? 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
@@ -283,6 +283,24 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   await page.goto(`${served.origin}/time?tab=settings`);
   await page.getByRole('rowheader', { name: 'Development' }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('columnheader', { name: 'Key' }).count(), 0, 'a key column is drawn');
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+// user-experience.md §5.10: a rate's days are the reader's dates, never ISO text.
+test('chromium: time - the cost rates name their days in words', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const rate = { id: '01a0e2e0-0000-7000-8000-00000000b701', account_id: null, role: 'MEMBER', hour_minor: 9000, currency: 'EUR', from: '2025-11-05', to: '2026-03-31', version: 1 };
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ rates: [rate] }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/time?tab=settings`);
+  const rates = page.getByRole('table', { name: 'Cost rates' });
+  await rates.getByText('Nov 5, 2025', { exact: true }).waitFor({ timeout: 10_000 });
+  await rates.getByText('Mar 31, 2026', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('2025-11-05').count(), 0, 'no ISO day reaches the reader');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });

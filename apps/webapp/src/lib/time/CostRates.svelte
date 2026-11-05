@@ -17,6 +17,7 @@
   import { engine } from '../data/engine.ts';
   import { RATES, minorDigits, minorOf, moneyText, time } from '../data/time.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { decimalSeparatorOf } from '../i18n/number.ts';
   import PersonPicker from '../people/PersonPicker.svelte';
@@ -103,8 +104,8 @@
         <tr>
           <th scope="row">{subjectOf(rate)}</th>
           <td class="number">{moneyText(rate.hour_minor, rate.currency, locale)}</td>
-          <td>{rate.from}</td>
-          <td>{rate.to ?? t('app.rates.open_ended')}</td>
+          <td>{formatPlainDay(rate.from, locale)}</td>
+          <td>{rate.to ? formatPlainDay(rate.to, locale) : t('app.rates.open_ended')}</td>
           <td>
             <Inline gap="050">
               <Button size="sm" tone="subtle" icon="pencil" onclick={() => open(rate)}>{t('app.rates.edit')}</Button>
