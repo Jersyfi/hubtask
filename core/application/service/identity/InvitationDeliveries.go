@@ -18,14 +18,14 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// ReadInvitationDeliveriesName is the people list's read of how each invitation mail went.
+// ReadInvitationDeliveriesName is the people list's read of how the last mail to each person went.
 const ReadInvitationDeliveriesName = "ReadInvitationDeliveries"
 
 // MailReplacedByLink is the reason an unsent invitation mail was set aside: its invitation was
 // handed over by link instead (RenewInvitation, delivery LINK).
 const MailReplacedByLink = "notifications.replaced_by_link"
 
-// InvitationDelivery is the last invitation mail to one account in the people list's words.
+// InvitationDelivery is the last mail to one account in the people list's words.
 type InvitationDelivery struct {
 	AccountID shared.ID
 	// State is QUEUED, SENDING, SENT, FAILED or CANCELLED.
@@ -33,12 +33,15 @@ type InvitationDelivery struct {
 	At     time.Time
 	Code   string
 	Params map[string]string
+	// Category is what a recorded mail told the person; empty for an invitation not yet recorded.
+	Category string
 }
 
-// ReadInvitationDeliveries answers, for the people list's rows, how the last invitation mail to
-// each account went (user-experience.md §8.3): a person who asks "did my invitation go out?" is
-// answered on the row, not by the operator's log. Asked of MANAGE_MEMBERS at the workspace, the
-// right that sends an invitation.
+// ReadInvitationDeliveries answers, for the people list's rows, how the last mail to each account
+// went (user-experience.md §8.3) - the invitation, or the newer of it and any other mail: a person
+// who asks "did my invitation go out?" or "why did she not hear of it?" is answered on the row, not
+// by the operator's log. Asked of MANAGE_MEMBERS at the workspace, the right that sends an
+// invitation.
 type ReadInvitationDeliveries struct {
 	Jobs       repository.InvitationJobs
 	Authorizer Authorizer
@@ -68,9 +71,13 @@ func (h ReadInvitationDeliveries) Execute(
 		return nil, err
 	}
 	var jobs []repository.InvitationJob
+	var mails []repository.LastMail
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		jobs, err = h.Jobs.Latest(ctx, accountIDs)
+		if jobs, err = h.Jobs.Latest(ctx, accountIDs); err != nil {
+			return err
+		}
+		mails, err = h.Jobs.LatestMail(ctx, accountIDs)
 		return err
 	})
 	if err != nil {
@@ -103,7 +110,68 @@ func (h ReadInvitationDeliveries) Execute(
 		}
 		out = append(out, delivery)
 	}
-	return out, nil
+	return newerMail(out, jobs, mails), nil
+}
+
+// newerMail puts the last mail of another kind in place of an account's invitation where it is
+// newer, and adds it for an account without one. An invitation the queue still knows is said by
+// its job, which also knows the mail before it was recorded; the record alone stands for one the
+// queue has cleared.
+func newerMail(out []InvitationDelivery, jobs []repository.InvitationJob, mails []repository.LastMail) []InvitationDelivery {
+	at := make(map[shared.ID]int, len(out))
+	for i, delivery := range out {
+		at[delivery.AccountID] = i
+	}
+	invited := make(map[shared.ID]bool, len(jobs))
+	for _, job := range jobs {
+		invited[job.AccountID] = true
+	}
+	for _, mail := range mails {
+		if mail.Category == "INVITATION" && invited[mail.AccountID] {
+			continue
+		}
+		delivery := lastMailDelivery(mail)
+		if i, ok := at[mail.AccountID]; ok {
+			if delivery.At.After(out[i].At) {
+				out[i] = delivery
+			}
+			continue
+		}
+		at[mail.AccountID] = len(out)
+		out = append(out, delivery)
+	}
+	return out
+}
+
+// lastMailDelivery is a recorded mail in the list's words. A record still PENDING whose delivery
+// job has ended was given up on by the queue; one with a failure on its job waits to be tried
+// again.
+func lastMailDelivery(mail repository.LastMail) InvitationDelivery {
+	delivery := InvitationDelivery{AccountID: mail.AccountID, Category: mail.Category, At: mail.RecordedAt}
+	switch mail.State {
+	case "SENT":
+		delivery.State = "SENT"
+		if !mail.SentAt.IsZero() {
+			delivery.At = mail.SentAt
+		}
+	case "SUPPRESSED", "FAILED":
+		delivery.State, delivery.Code = "FAILED", mail.Reason
+		if mail.Reason == MailReplacedByLink {
+			delivery.State, delivery.Code = "CANCELLED", ""
+		}
+		if delivery.Code == "" && delivery.State == "FAILED" {
+			delivery.Code, delivery.Params = mail.DeliveryError, mail.DeliveryParams
+		}
+		if !mail.DeliveryEnded.IsZero() {
+			delivery.At = mail.DeliveryEnded
+		}
+	default:
+		delivery.State, delivery.Code, delivery.Params = "QUEUED", mail.DeliveryError, mail.DeliveryParams
+		if !mail.DeliveryEnded.IsZero() {
+			delivery.State, delivery.At = "FAILED", mail.DeliveryEnded
+		}
+	}
+	return delivery
 }
 
 // mailDelivery is a recorded invitation in the list's words: waiting for its delivery, sent, or
@@ -141,9 +209,10 @@ func (h ReadInvitationDeliveries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:       ReadInvitationDeliveriesName,
 		Permission: service.PermissionManageMembers,
-		Summary: "Reads, for up to 200 accounts, how the last invitation mail to each went: " +
-			"queued, being sent, sent, failed with its message code, or cancelled, and when. An " +
-			"account with no invitation mail on record is left out.",
+		Summary: "Reads, for up to 200 accounts, how the last mail to each went - the invitation, " +
+			"or a newer mail of another kind with its category: queued, being sent, sent, failed " +
+			"with its message code, or cancelled, and when. An account with no mail on record is " +
+			"left out.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  membersRead,
 		ReadOnly:    true,
@@ -177,6 +246,9 @@ func (h ReadInvitationDeliveries) invoke(
 		}
 		if len(d.Params) > 0 {
 			row["params"] = d.Params
+		}
+		if d.Category != "" {
+			row["category"] = d.Category
 		}
 		rows = append(rows, row)
 	}

@@ -27,10 +27,28 @@ type InvitationJob struct {
 	MailSentAt time.Time
 }
 
+// LastMail is the newest notification of one account, whatever it told the person: its category,
+// what the mail did - PENDING, SENT, FAILED or SUPPRESSED, with the record's reason code - and its
+// delivery job's end and last failure, where it has one.
+type LastMail struct {
+	AccountID      shared.ID
+	Category       string
+	State          string
+	Reason         string
+	RecordedAt     time.Time
+	SentAt         time.Time
+	DeliveryEnded  time.Time
+	DeliveryError  string
+	DeliveryParams map[string]string
+}
+
 // InvitationJobs reads the queue's last invitation job per account, of the transaction's
 // workspace.
 type InvitationJobs interface {
 	Latest(ctx context.Context, accountIDs []shared.ID) ([]InvitationJob, error)
+	// LatestMail answers the newest notification of each account that has one, of the
+	// transaction's workspace (user-experience.md §8.3: the last mail of any kind).
+	LatestMail(ctx context.Context, accountIDs []shared.ID) ([]LastMail, error)
 	// CancelOpen cancels the invitation mail still waiting for one account and sets its unsent
 	// record aside, and answers how many jobs it cancelled: a handed-over link must not be
 	// replaced by the token a later delivery would mint (identity.md §12, "Never both"). A mail

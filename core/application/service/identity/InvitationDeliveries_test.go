@@ -18,6 +18,7 @@ import (
 
 type invitationJobsDouble struct {
 	jobs  []repository.InvitationJob
+	mails []repository.LastMail
 	asked []shared.ID
 	// cancelled is whose open invitation mail was cancelled; open how many it finds.
 	cancelled []shared.ID
@@ -32,6 +33,67 @@ func (d *invitationJobsDouble) CancelOpen(_ context.Context, id shared.ID, _ tim
 func (d *invitationJobsDouble) Latest(_ context.Context, ids []shared.ID) ([]repository.InvitationJob, error) {
 	d.asked = ids
 	return d.jobs, nil
+}
+
+func (d *invitationJobsDouble) LatestMail(_ context.Context, _ []shared.ID) ([]repository.LastMail, error) {
+	return d.mails, nil
+}
+
+// §8.3: the row says the last mail of any kind - a newer mail in place of the invitation, the last
+// mail of a person never invited, and an invitation the queue still knows by its job.
+func TestThePeopleListSaysTheLastMailOfAnyKind(t *testing.T) {
+	early := time.Date(2026, 11, 4, 9, 0, 0, 0, time.UTC)
+	later := early.Add(time.Hour)
+	ids := []shared.ID{
+		shared.MustParseID("0192f000-0000-7000-8000-00000000e001"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000e002"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000e003"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000e004"),
+		shared.MustParseID("0192f000-0000-7000-8000-00000000e005"),
+	}
+	jobs := &invitationJobsDouble{
+		jobs: []repository.InvitationJob{
+			{AccountID: ids[0], State: "SUCCEEDED", QueuedAt: early, FinishedAt: early, MailState: "SENT", MailSentAt: early},
+			{AccountID: ids[3], State: "PENDING", QueuedAt: later},
+		},
+		mails: []repository.LastMail{
+			// Newer than the invitation, and failed: the row says that one.
+			{AccountID: ids[0], Category: "ASSIGNMENT", State: "FAILED", Reason: "mail.recipient_rejected", RecordedAt: later, DeliveryEnded: later.Add(time.Minute)},
+			// Never invited by mail; the last one went out.
+			{AccountID: ids[1], Category: "COMMENT", State: "SENT", RecordedAt: early, SentAt: later},
+			// The queue gave up on the delivery without an outcome on the record.
+			{AccountID: ids[2], Category: "REMINDER", State: "PENDING", RecordedAt: early, DeliveryError: "mail.unavailable", DeliveryEnded: later},
+			// Older than the invitation still queued: the invitation stays the row's.
+			{AccountID: ids[3], Category: "MEMBERSHIP", State: "SENT", RecordedAt: early, SentAt: early},
+			// Waiting to be tried again after a failure.
+			{AccountID: ids[4], Category: "SLA", State: "PENDING", RecordedAt: early, DeliveryError: "mail.unavailable"},
+		},
+	}
+	h := ReadInvitationDeliveries{Jobs: jobs, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{}}
+	got, err := h.Execute(context.Background(), adminActor(), ids)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	by := map[shared.ID]InvitationDelivery{}
+	for _, d := range got {
+		by[d.AccountID] = d
+	}
+	want := map[shared.ID]InvitationDelivery{
+		ids[0]: {AccountID: ids[0], Category: "ASSIGNMENT", State: "FAILED", Code: "mail.recipient_rejected", At: later.Add(time.Minute)},
+		ids[1]: {AccountID: ids[1], Category: "COMMENT", State: "SENT", At: later},
+		ids[2]: {AccountID: ids[2], Category: "REMINDER", State: "FAILED", Code: "mail.unavailable", At: later},
+		ids[3]: {AccountID: ids[3], State: "QUEUED", At: later},
+		ids[4]: {AccountID: ids[4], Category: "SLA", State: "QUEUED", Code: "mail.unavailable", At: early},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d rows, want %d: %+v", len(got), len(want), got)
+	}
+	for id, w := range want {
+		g := by[id]
+		if g.Category != w.Category || g.State != w.State || g.Code != w.Code || !g.At.Equal(w.At) {
+			t.Errorf("%s: got %+v, want %+v", id, g, w)
+		}
+	}
 }
 
 func TestThePeopleListSaysHowEachInvitationMailWent(t *testing.T) {
