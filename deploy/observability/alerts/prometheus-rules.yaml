@@ -3,14 +3,15 @@
 #
 # The self-hosting alert set (observability-reliability.md §10).
 #
-# Nine rules, not thirty. The catalogue's full set is written for provider operation with an
+# Ten rules, not thirty. The catalogue's full set is written for provider operation with an
 # on-call rota and an error budget; a self-hosted installation has one person, who is asleep, and
 # an alert that fires for a symptom nobody will act on trains that person to ignore the next one.
 # What is left is the set where doing nothing loses data or leaves the installation broken:
 # A-03 (nobody is serving), A-04 (a defect), A-05 (events are stuck), A-07 (work was finally
 # given up on), A-12 (the backup is not happening), A-19 (a data subject request nears its
 # statutory deadline), A-20 (nobody has proved the backups restore), A-30 (the scheduler stands
-# still, so no backup is taken), and A-08 (reminders are late),
+# still, so no backup is taken), A-41 (a volume fills: a full database volume refuses every write
+# and a full media volume every upload), and A-08 (reminders are late),
 # which joins them because a reminder that does not arrive is not a symptom somebody can catch up
 # on afterwards: the moment it was for has passed, and to the person waiting for it the failure is
 # indistinguishable from the reminder never having been set.
@@ -193,3 +194,34 @@ groups:
           summary: "The scheduler is not running its duties"
           description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
           runbook: RB-A30-scheduler-stalled.md
+
+      - alert: HubtaskVolumeFillingUp
+        # A-41. A volume of the release's namespace has less than 15% free and its trend over six
+        # hours reaches zero within four days, or has less than 5% free whatever the trend. The
+        # chart records `hubtask:release_namespace`, which scopes the rule to its own volumes;
+        # loaded without it (a copied file), the rule watches every volume rather than none.
+        expr: |
+          (
+            (
+              kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.15
+              and predict_linear(kubelet_volume_stats_available_bytes[6h], 4 * 86400) < 0
+            )
+            or kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.05
+          )
+          and on(namespace) hubtask:release_namespace
+          or (
+            (
+              kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.15
+              and predict_linear(kubelet_volume_stats_available_bytes[6h], 4 * 86400) < 0
+            )
+            or kubelet_volume_stats_available_bytes / kubelet_volume_stats_capacity_bytes < 0.05
+          )
+          unless on() hubtask:release_namespace
+        for: 30m
+        labels:
+          severity: ticket
+          alert_id: A-41
+        annotations:
+          summary: "A volume is filling up"
+          description: "{{ $labels.persistentvolumeclaim }} will be full within days, or is almost full. A full database volume refuses every write; grow the volume or free space before then."
+          runbook: RB-A41-volume-filling-up.md

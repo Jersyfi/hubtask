@@ -554,20 +554,20 @@ func (q Queue) OldestTransactionSeconds(ctx context.Context) (float64, error) {
 	return seconds, nil
 }
 
-// DatabaseHorizon answers the share of the NOTIFY queue in use and the transaction-ID age vacuum
-// has not frozen (alerts A-36, A-37; migration 0353).
-func (q Queue) DatabaseHorizon(ctx context.Context) (float64, int64, error) {
+// DatabaseHorizon answers the share of the NOTIFY queue in use, the transaction-ID age vacuum
+// has not frozen (alerts A-36, A-37; migration 0353) and the database's size (A-42).
+func (q Queue) DatabaseHorizon(ctx context.Context) (float64, int64, int64, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	row, err := queries.DatabaseHorizon(ctx)
 	if err != nil {
-		return 0, 0, shared.ErrUnavailable.
+		return 0, 0, 0, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading the database's horizon: %w", err))
 	}
-	return row.NotifyQueueUsage, row.XidAge, nil
+	return row.NotifyQueueUsage, row.XidAge, row.DatabaseBytes, nil
 }
 
 // InvalidIndexCount answers how many indexes of the schema PostgreSQL holds invalid (alert A-28).

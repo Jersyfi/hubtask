@@ -426,7 +426,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 	m.SchedulerTicked(ctx, time.Unix(1793534400, 0))
 	m.TimerFailed(ctx, "SLA")
 	m.KindSkipped(ctx, "label")
-	m.DatabaseHorizon(ctx, 0.25, 1200)
+	m.DatabaseHorizon(ctx, 0.25, 1200, 5<<30)
 
 	body := scrape(t, m)
 	for _, want := range []string{
@@ -434,6 +434,7 @@ func TestTheQueueSignalsAreScrapableUnderTheirCatalogueNames(t *testing.T) {
 		`hubtask_sync_kinds_skipped_total{kind="label"} 1`,
 		`hubtask_db_notify_queue_usage_ratio 0.25`,
 		`hubtask_db_frozen_xid_age 1200`,
+		`hubtask_db_size_bytes 5.36870912e+09`,
 		`hubtask_job_failures_total{attempt_class="retry",job_type="outbox.dispatch"} 1`,
 		`hubtask_job_failures_total{attempt_class="final",job_type="reminder.fire"} 1`,
 		`hubtask_job_dead_letter_total{job_type="reminder.fire"} 1`,

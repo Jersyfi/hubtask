@@ -229,8 +229,12 @@ Alerts are symptom-based, each with a runbook. **The rule files and the runbooks
 catalogue**: condition, threshold and severity live in
 [`deploy/observability/alerts/`](../../deploy/observability/alerts/), meaning and action in
 [`deploy/observability/runbooks/`](../../deploy/observability/runbooks/). Every rule carries its
-catalogue ID (A-01…A-40) as the label `alert_id` and its runbook as the annotation `runbook`;
-thresholds are starting values an operator tunes in their own copy.
+catalogue ID (A-01…A-42) as the label `alert_id` and its runbook as the annotation `runbook`;
+thresholds are starting values an operator tunes in their own copy. What a copied file cannot know
+of a release the chart records as series (`k8s/templates/prometheusrule-release.yaml`): its
+namespace, `hubtask:release_namespace`, which scopes A-41 to the release's volumes (without it A-41
+watches every volume rather than none), and A-42's budget, `hubtask:db_size_budget_bytes` from
+`prometheusRules.databaseSizeBudget` (none recorded, A-42 stays silent).
 
 **Which file an alert is in is a decision about who is paged** (§11):
 

@@ -62,8 +62,9 @@ type SchedulerSignals interface {
 	// number: vacuum cannot reclaim what changed after it began.
 	OldestTransaction(ctx context.Context, seconds float64)
 	// DatabaseHorizon is the share of the NOTIFY queue in use and the transaction-ID age vacuum
-	// has not frozen - alerts A-36 and A-37: each, at its limit, stops every write.
-	DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge int64)
+	// has not frozen - alerts A-36 and A-37: each, at its limit, stops every write - and the
+	// database's size on disk, alert A-42's number.
+	DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge, databaseBytes int64)
 	// InvalidIndexes is how many indexes PostgreSQL holds invalid - alert A-28's number.
 	InvalidIndexes(ctx context.Context, count int64)
 	// MailApp is one installation mail app's mailboxes and the failing ones - alert A-29's numbers.
@@ -106,9 +107,10 @@ type OldestTransactions interface {
 	OldestTransactionSeconds(ctx context.Context) (float64, error)
 }
 
-// DatabaseHorizons answers the share of the NOTIFY queue in use and the unfrozen transaction-ID age.
+// DatabaseHorizons answers the share of the NOTIFY queue in use, the unfrozen transaction-ID age
+// and the database's size on disk.
 type DatabaseHorizons interface {
-	DatabaseHorizon(ctx context.Context) (notifyQueueUsage float64, xidAge int64, err error)
+	DatabaseHorizon(ctx context.Context) (notifyQueueUsage float64, xidAge, databaseBytes int64, err error)
 }
 
 // FinishedJobs removes the jobs whose catalogue period has run out. The queue's own table, read
@@ -898,11 +900,11 @@ func (s Scheduler) sampleDatabaseHorizon(ctx context.Context) {
 	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
 	var usage float64
-	var age int64
+	var age, size int64
 	// On the primary: its queue is the one writers notify into.
 	err := s.UnitOfWork.Within(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
 		var err error
-		usage, age, err = s.Horizon.DatabaseHorizon(txCtx)
+		usage, age, size, err = s.Horizon.DatabaseHorizon(txCtx)
 		return err
 	})
 	if err != nil {
@@ -911,7 +913,7 @@ func (s Scheduler) sampleDatabaseHorizon(ctx context.Context) {
 		}
 		return
 	}
-	s.Signals.DatabaseHorizon(ctx, usage, age)
+	s.Signals.DatabaseHorizon(ctx, usage, age, size)
 }
 
 // sampleInvalidIndexes publishes how many indexes are invalid (A-28): an interrupted concurrent

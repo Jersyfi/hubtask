@@ -108,6 +108,7 @@ type Metrics struct {
 	oldestTransaction metric.Float64Gauge
 	notifyQueueUsage  metric.Float64Gauge
 	frozenXIDAge      metric.Int64Gauge
+	databaseSize      metric.Int64Gauge
 	invalidIndexes    metric.Int64Gauge
 	mailApps          metric.Int64Gauge
 	mailAppsFailing   metric.Int64Gauge
@@ -591,6 +592,14 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"PostgreSQL refuses writes. Reported by the scheduler leader only."),
 	); err != nil {
 		return fmt.Errorf("frozen xid age gauge: %w", err)
+	}
+	if m.databaseSize, err = meter.Int64Gauge(
+		namespace+"_db_size",
+		metric.WithDescription("The database's size on disk, held against the operator's budget. "+
+			"Reported by the scheduler leader only."),
+		metric.WithUnit("By"),
+	); err != nil {
+		return fmt.Errorf("database size gauge: %w", err)
 	}
 	if m.invalidIndexes, err = meter.Int64Gauge(
 		namespace+"_db_invalid_indexes",
@@ -1400,10 +1409,12 @@ func (m *Metrics) OldestTransaction(ctx context.Context, seconds float64) {
 	m.oldestTransaction.Record(ctx, seconds)
 }
 
-// DatabaseHorizon publishes the NOTIFY queue's use and the unfrozen transaction-ID age.
-func (m *Metrics) DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge int64) {
+// DatabaseHorizon publishes the NOTIFY queue's use, the unfrozen transaction-ID age and the
+// database's size.
+func (m *Metrics) DatabaseHorizon(ctx context.Context, notifyQueueUsage float64, xidAge, databaseBytes int64) {
 	m.notifyQueueUsage.Record(ctx, notifyQueueUsage)
 	m.frozenXIDAge.Record(ctx, xidAge)
+	m.databaseSize.Record(ctx, databaseBytes)
 }
 
 // InvalidIndexes publishes how many indexes PostgreSQL holds invalid.

@@ -585,3 +585,18 @@ groups:
           description: "Vacuum is not freezing old rows. Near two billion PostgreSQL refuses writes; find what holds vacuum back before then."
           runbook: RB-A37-transaction-id-age.md
 
+      # A-42. The database has grown past 80% of the operator's budget - the plan of a managed
+      # database or the volume a self-hoster sized. The budget is the chart's recorded
+      # `hubtask:db_size_budget_bytes`; without it the rule has nothing to compare with and stays
+      # silent, which the chart's value says.
+      - alert: HubtaskDatabaseNearBudget
+        expr: max(hubtask_db_size_bytes) > 0.8 * scalar(max(hubtask:db_size_budget_bytes))
+        for: 1h
+        labels:
+          severity: ticket
+          alert_id: A-42
+        annotations:
+          summary: "The database is past 80% of its size budget"
+          description: "The database grows towards the size its plan or volume allows. Raise the budget or find what grows before writes are refused."
+          runbook: RB-A42-database-near-budget.md
+

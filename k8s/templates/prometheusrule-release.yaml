@@ -1,0 +1,27 @@
+{{/*
+What the shipped rules need to know of this release and cannot carry in a copied file: the
+namespace, which scopes A-41 to the release's own volumes, and A-42's budget. Recorded as series,
+so the rule files stay what the gate tests (observability-reliability.md §13.1).
+*/}}
+{{- if .Values.prometheusRules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ printf "%s-release" (include "hubtask.fullname" .) }}
+  labels: {{- include "hubtask.labels" (dict "root" .) | nindent 4 }}
+    {{- with .Values.prometheusRules.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: hubtask-release
+      rules:
+        - record: hubtask:release_namespace
+          expr: vector(1)
+          labels:
+            namespace: {{ .Release.Namespace | quote }}
+        {{- if gt (int64 .Values.prometheusRules.databaseSizeBudget) 0 }}
+        - record: hubtask:db_size_budget_bytes
+          expr: vector({{ int64 .Values.prometheusRules.databaseSizeBudget }})
+        {{- end }}
+{{- end }}

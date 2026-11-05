@@ -806,3 +806,31 @@ tests:
       - eval_time: 20m
         alertname: HubtaskRealtimeUnreachable
         exp_alerts: []
+
+  # A-42: the database at 85% of the recorded budget for an hour raises a ticket; without a
+  # recorded budget nothing fires.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_size_bytes{instance="one"}'
+        values: '850x90'
+      - series: 'hubtask:db_size_budget_bytes'
+        values: '1000x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskDatabaseNearBudget
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-42
+            exp_annotations:
+              summary: "The database is past 80% of its size budget"
+              description: "The database grows towards the size its plan or volume allows. Raise the budget or find what grows before writes are refused."
+              runbook: RB-A42-database-near-budget.md
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_db_size_bytes{instance="one"}'
+        values: '850x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: HubtaskDatabaseNearBudget
+        exp_alerts: []

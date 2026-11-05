@@ -82,7 +82,7 @@ type schedulerSignals struct {
 	auditHeld        []int64
 	auditDefaultAged []int64
 	oldest           []float64
-	horizon          [][2]float64
+	horizon          [][3]float64
 	invalidIndexes   []int64
 	mailApps         []mail.AppHealth
 	samlEnding       []identity.SAMLCertificateCount
@@ -104,8 +104,8 @@ func (s *schedulerSignals) OldestTransaction(_ context.Context, seconds float64)
 	s.oldest = append(s.oldest, seconds)
 }
 
-func (s *schedulerSignals) DatabaseHorizon(_ context.Context, usage float64, age int64) {
-	s.horizon = append(s.horizon, [2]float64{usage, float64(age)})
+func (s *schedulerSignals) DatabaseHorizon(_ context.Context, usage float64, age, bytes int64) {
+	s.horizon = append(s.horizon, [3]float64{usage, float64(age), float64(bytes)})
 }
 
 func newSchedulerSignals() *schedulerSignals {
@@ -678,20 +678,24 @@ func TestTheLeaderPublishesTheOldestTransaction(t *testing.T) {
 type horizon struct {
 	usage float64
 	age   int64
+	bytes int64
 }
 
-func (h horizon) DatabaseHorizon(context.Context) (float64, int64, error) { return h.usage, h.age, nil }
+func (h horizon) DatabaseHorizon(context.Context) (float64, int64, int64, error) {
+	return h.usage, h.age, h.bytes, nil
+}
 
-// Alerts A-36 and A-37's numbers: the NOTIFY queue's use and the unfrozen transaction-ID age,
-// published by the leader on every tick, so either limit is seen long before writes stop.
+// Alerts A-36, A-37 and A-42's numbers: the NOTIFY queue's use, the unfrozen transaction-ID age
+// and the database's size, published by the leader on every tick, so each limit is seen long
+// before writes stop.
 func TestTheLeaderPublishesTheDatabaseHorizon(t *testing.T) {
 	signals := newSchedulerSignals()
 	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
-	leader.Horizon = horizon{usage: 0.6, age: 900_000_000}
+	leader.Horizon = horizon{usage: 0.6, age: 900_000_000, bytes: 3 << 30}
 
 	leader.tick(t.Context(), false, now)
-	if len(signals.horizon) != 1 || signals.horizon[0] != [2]float64{0.6, 900_000_000} {
-		t.Errorf("published %v, want [[0.6 9e8]]", signals.horizon)
+	if len(signals.horizon) != 1 || signals.horizon[0] != [3]float64{0.6, 900_000_000, 3 << 30} {
+		t.Errorf("published %v, want [[0.6 9e8 3GiB]]", signals.horizon)
 	}
 }
 

@@ -249,3 +249,58 @@ tests:
               summary: "The scheduler is not running its duties"
               description: "No leader has ticked on time for ten minutes: no backups, reminders or recurrences are being scheduled."
               runbook: RB-A30-scheduler-stalled.md
+
+  # A-41: the release's database volume at 10% free and falling fires; a volume of another
+  # namespace in the same state does not, because the chart recorded the release's namespace.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask:release_namespace{namespace="hubtask"}'
+        values: '1x400'
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-db-1"}'
+        values: '1000x400'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-db-1"}'
+        values: '140-0.05x400'
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '1000x400'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '140-0.05x400'
+      # Plenty of room and falling slowly: no alert.
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-media"}'
+        values: '1000x400'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="hubtask", persistentvolumeclaim="hubtask-media"}'
+        values: '600-0.05x400'
+    alert_rule_test:
+      - eval_time: 6h
+        alertname: HubtaskVolumeFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-41
+              namespace: hubtask
+              persistentvolumeclaim: hubtask-db-1
+            exp_annotations:
+              summary: "A volume is filling up"
+              description: "hubtask-db-1 will be full within days, or is almost full. A full database volume refuses every write; grow the volume or free space before then."
+              runbook: RB-A41-volume-filling-up.md
+
+  # A-41 without the chart's record (the file copied by hand): every volume is watched, and an
+  # almost full one fires whatever its trend.
+  - interval: 1m
+    input_series:
+      - series: 'kubelet_volume_stats_capacity_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '1000x60'
+      - series: 'kubelet_volume_stats_available_bytes{namespace="other", persistentvolumeclaim="data"}'
+        values: '40x60'
+    alert_rule_test:
+      - eval_time: 45m
+        alertname: HubtaskVolumeFillingUp
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-41
+              namespace: other
+              persistentvolumeclaim: data
+            exp_annotations:
+              summary: "A volume is filling up"
+              description: "data will be full within days, or is almost full. A full database volume refuses every write; grow the volume or free space before then."
+              runbook: RB-A41-volume-filling-up.md

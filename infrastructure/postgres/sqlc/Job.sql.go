@@ -296,22 +296,25 @@ func (q *Queries) CountOpenJobKeys(ctx context.Context, kind string) (int64, err
 }
 
 const databaseHorizon = `-- name: DatabaseHorizon :one
-SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age
+SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age,
+  pg_database_size(current_database())::bigint AS database_bytes
 `
 
 type DatabaseHorizonRow struct {
 	NotifyQueueUsage float64
 	XidAge           int64
+	DatabaseBytes    int64
 }
 
 // How close the database is to the limits that stop every write (alerts A-36, A-37): the share of
 // the NOTIFY queue a stuck listener has filled - once full, every transaction that notifies fails
 // at commit - and the transaction-ID age vacuum has not yet frozen, which at about two billion
-// makes PostgreSQL refuse writes (migration 0353).
+// makes PostgreSQL refuse writes (migration 0353); and the database's size on disk, which alert
+// A-42 holds against the operator's budget before the volume or the plan runs out.
 func (q *Queries) DatabaseHorizon(ctx context.Context) (DatabaseHorizonRow, error) {
 	row := q.db.QueryRow(ctx, databaseHorizon)
 	var i DatabaseHorizonRow
-	err := row.Scan(&i.NotifyQueueUsage, &i.XidAge)
+	err := row.Scan(&i.NotifyQueueUsage, &i.XidAge, &i.DatabaseBytes)
 	return i, err
 }
 

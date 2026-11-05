@@ -223,8 +223,11 @@ func TestEveryAlertCarriesWhatAnOperatorNeeds(t *testing.T) {
 //
 // A-30 is in it for A-08's reason: while the scheduler stands still no backup is taken and no
 // reminder fires, and nothing else in the set notices - the queues do not grow.
+//
+// A-41 is in it because a full volume leaves the installation broken: the database refuses every
+// write, and nothing else in the set warns before it does.
 func TestTheSelfHostingSetIsExactlyWhatWasDecided(t *testing.T) {
-	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20", "A-30"}
+	want := []string{"A-03", "A-04", "A-05", "A-07", "A-08", "A-12", "A-19", "A-20", "A-30", "A-41"}
 
 	// The self-hosting file alone: the tenant file next door (A-18) is the provider's
 	// set, under its own rule - a capacity signal is not "doing nothing loses data", which is
