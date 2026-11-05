@@ -40804,7 +40804,7 @@ type ClientInterface interface {
 
 	// DismissSuggestion Dismiss a suggestion
 	//
-	// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated.
+	// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated. A stale suggestion, which accepting refuses, is still dismissed.
 	//
 	// Corresponds with POST /suggestions/{suggestionId}:dismiss (the `DismissSuggestion` operationId).
 	DismissSuggestion(ctx context.Context, suggestionId SuggestionId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -62829,7 +62829,7 @@ func (c *Client) AcceptSuggestion(ctx context.Context, suggestionId SuggestionId
 
 // DismissSuggestion Dismiss a suggestion
 //
-// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated.
+// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated. A stale suggestion, which accepting refuses, is still dismissed.
 //
 // Corresponds with POST /suggestions/{suggestionId}:dismiss (the `DismissSuggestion` operationId).
 func (c *Client) DismissSuggestion(ctx context.Context, suggestionId SuggestionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -115671,7 +115671,7 @@ type ClientWithResponsesInterface interface {
 
 	// DismissSuggestionWithResponse Dismiss a suggestion
 	//
-	// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated.
+	// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated. A stale suggestion, which accepting refuses, is still dismissed.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -174943,7 +174943,7 @@ func (c *ClientWithResponses) AcceptSuggestionWithResponse(ctx context.Context, 
 
 // DismissSuggestionWithResponse Dismiss a suggestion
 //
-// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated.
+// A state, not a deletion: the record stays readable, so "what was proposed and turned down" has an answer, and the retention engine ages it out by rule rather than by hand. Dismissing an already decided suggestion is refused rather than silently repeated. A stale suggestion, which accepting refuses, is still dismissed.
 //
 // Returns a wrapper object for the known response body format(s).
 //
