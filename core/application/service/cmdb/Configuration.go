@@ -83,12 +83,13 @@ func ClassOutput(c domain.Class, resolved domain.Resolved) usecase.Output {
 	}
 	required := make([]usecase.Output, 0, len(resolved.Required))
 	for _, r := range resolved.Required {
-		required = append(required, usecase.Output{"types": append([]string{}, r.Types...), "outgoing": r.Outgoing})
+		required = append(required, usecase.Output{"types": append([]string{}, r.Types...), "outgoing": r.Outgoing, "class": r.Class})
 	}
 	return usecase.Output{
 		"key": c.Key, "parent": c.Parent, "name": c.Name, "icon": c.Icon, "abstract": c.Abstract, "system": c.System,
 		"attributes": attrs(c.Attributes), "all_attributes": attrs(resolved.Attributes), "identifier_rules": rules,
-		"required_relations": required, "staleness_days": resolved.StalenessDays, "lineage": append([]string{}, resolved.Lineage...),
+		"required_relations": required, "staleness_days": resolved.StalenessDays,
+		"own_staleness_days": c.StalenessDays, "lineage": append([]string{}, resolved.Lineage...),
 		"archived": c.ArchivedAt != nil, "version": c.Version,
 	}
 }

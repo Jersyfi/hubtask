@@ -88,6 +88,8 @@ type RequiredRelation struct {
 	Types []string
 	// Outgoing is true when the CI is the relation's source.
 	Outgoing bool
+	// Class is the class that declared it; set when a class is resolved.
+	Class string
 }
 
 // Class is a kind of configuration item.
@@ -404,7 +406,10 @@ func (r Classes) Resolve(key string) Resolved {
 	for i := len(lineage) - 1; i >= 0; i-- {
 		c := r.byKey[lineage[i]]
 		out.Attributes = append(out.Attributes, c.Attributes...)
-		out.Required = append(out.Required, c.Required...)
+		for _, r := range c.Required {
+			r.Class = c.Key
+			out.Required = append(out.Required, r)
+		}
 		if c.StalenessDays > 0 {
 			out.StalenessDays = c.StalenessDays
 		}

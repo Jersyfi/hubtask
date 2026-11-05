@@ -29,6 +29,9 @@ func TestAClassInheritsAttributesAndRulesNearestFirst(t *testing.T) {
 	if r.StalenessDays != DefaultStalenessDay || DefaultStalenessDay != 60 {
 		t.Fatalf("staleness inherited from the root's 60 days, got %d", r.StalenessDays)
 	}
+	if vm := NewClasses(nil).Resolve("virtual_machine"); len(vm.Required) != 1 || vm.Required[0].Class != "virtual_machine" {
+		t.Fatalf("a required relation names the class that declared it, got %+v", vm.Required)
+	}
 }
 
 func TestAWorkspaceClassIsCheckedAgainstTheRegistry(t *testing.T) {

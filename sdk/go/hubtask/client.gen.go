@@ -14104,15 +14104,18 @@ type CiCampaignStart struct {
 
 // CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
-	Abstract          *bool                `json:"abstract,omitempty"`
-	AllAttributes     []CiAttribute        `json:"all_attributes"`
-	Archived          *bool                `json:"archived,omitempty"`
-	Attributes        []CiAttribute        `json:"attributes"`
-	Icon              *string              `json:"icon,omitempty"`
-	IdentifierRules   []CiIdentifierRule   `json:"identifier_rules"`
-	Key               string               `json:"key"`
-	Lineage           []string             `json:"lineage"`
-	Name              *string              `json:"name,omitempty"`
+	Abstract        *bool              `json:"abstract,omitempty"`
+	AllAttributes   []CiAttribute      `json:"all_attributes"`
+	Archived        *bool              `json:"archived,omitempty"`
+	Attributes      []CiAttribute      `json:"attributes"`
+	Icon            *string            `json:"icon,omitempty"`
+	IdentifierRules []CiIdentifierRule `json:"identifier_rules"`
+	Key             string             `json:"key"`
+	Lineage         []string           `json:"lineage"`
+	Name            *string            `json:"name,omitempty"`
+
+	// OwnStalenessDays The staleness period the class sets itself; 0 where it inherits.
+	OwnStalenessDays  *int                 `json:"own_staleness_days,omitempty"`
 	Parent            string               `json:"parent"`
 	RequiredRelations []CiRequiredRelation `json:"required_relations"`
 	StalenessDays     int                  `json:"staleness_days"`
@@ -14578,6 +14581,8 @@ type CiRelationTypeList struct {
 
 // CiRequiredRelation defines model for CiRequiredRelation.
 type CiRequiredRelation struct {
+	// Class The class that declared it; left out where it is defined.
+	Class    *string  `json:"class,omitempty"`
 	Outgoing bool     `json:"outgoing"`
 	Types    []string `json:"types"`
 }

@@ -68226,6 +68226,10 @@
           },
           "outgoing": {
             "type": "boolean"
+          },
+          "class": {
+            "type": "string",
+            "description": "The class that declared it; left out where it is defined."
           }
         }
       },
@@ -68289,6 +68293,10 @@
           },
           "staleness_days": {
             "type": "integer"
+          },
+          "own_staleness_days": {
+            "type": "integer",
+            "description": "The staleness period the class sets itself; 0 where it inherits."
           },
           "lineage": {
             "type": "array",

@@ -6042,9 +6042,11 @@ CiIdentifierRule = TypedDict("CiIdentifierRule", {
     "class": str,
 }, total=False)
 
-class CiRequiredRelation(TypedDict, total=False):
-    types: Required[list[str]]
-    outgoing: Required[bool]
+CiRequiredRelation = TypedDict("CiRequiredRelation", {
+    "types": Required[list[str]],
+    "outgoing": Required[bool],
+    "class": str,
+}, total=False)
 
 class CiClass(TypedDict, total=False):
     """A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits."""
@@ -6059,6 +6061,7 @@ class CiClass(TypedDict, total=False):
     identifier_rules: Required[list["CiIdentifierRule"]]
     required_relations: Required[list["CiRequiredRelation"]]
     staleness_days: Required[int]
+    own_staleness_days: int
     lineage: Required[list[str]]
     archived: bool
     version: Required[int]
