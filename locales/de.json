@@ -12223,6 +12223,7 @@
   "app.desk.macro_pressed": "Das Makro läuft für diesen Eintrag.",
   "app.desk.portal": "Anfrageportal",
   "app.desk.requester.title": "Anfragende Person",
+  "app.desk.requester.by_mail": "Per Mail eingereicht, von jemandem ohne Konto",
   "app.desk.requester.open": "Weitere offene Anfragen",
   "app.desk.requester.none_open": "Keine weiteren offenen Anfragen",
   "app.desk.requester.assets": "Zugeordnete Assets",

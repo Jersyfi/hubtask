@@ -12223,6 +12223,7 @@
   "app.desk.macro_pressed": "The macro runs on this entry.",
   "app.desk.portal": "Requester portal",
   "app.desk.requester.title": "Requester",
+  "app.desk.requester.by_mail": "Filed by mail by someone without an account",
   "app.desk.requester.open": "Their other open requests",
   "app.desk.requester.none_open": "No other open requests",
   "app.desk.requester.assets": "Their assets",
