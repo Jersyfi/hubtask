@@ -82,6 +82,7 @@ func TestL1LiveUpdatesInOneWorkspace(t *testing.T) {
 		window = time.Duration(seconds) * time.Second
 	}
 	stack := runningStack(t)
+	defer scenario("S4")()
 	as := stack.tenants[0]
 	tokens := mintStreamTokens(t, stack.database, 0, liveCredentials)
 

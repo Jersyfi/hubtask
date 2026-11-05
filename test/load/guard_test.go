@@ -61,6 +61,7 @@ type GuardFinding struct {
 // gate-unit, gate-selftest style.
 func TestTheRegressionGuardComparesThisRunAgainstTheStoredBaseline(t *testing.T) {
 	stack := runningStack(t)
+	defer scenario("guard")()
 	tenants, items := datasetSize(t)
 
 	// The warm-up is outside the measurement: the first requests against a cold pool and an

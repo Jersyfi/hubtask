@@ -59,6 +59,7 @@ func TestCmdbViewsAtTheHubCeiling(t *testing.T) {
 		t.Skip(envCapacity + " is not set; run `make capacity`")
 	}
 	stack := runningStack(t)
+	defer scenario("C1")()
 	as := stack.tenants[0]
 	relations := seedInventory(t, stack, as)
 

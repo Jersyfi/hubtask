@@ -82,6 +82,7 @@ type RT6Finding struct {
 // baseline stage's. The absolute figures are the capacity ramp's, on named iron.
 func TestRT6SheddingHoldsTheInteractivePathUnderOverload(t *testing.T) {
 	stack := runningStack(t)
+	defer scenario("RT-6")()
 	tenants, items := datasetSize(t)
 
 	plan := make(harness.Plan, 0, len(rt6Stages))

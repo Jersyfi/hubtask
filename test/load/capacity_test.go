@@ -160,6 +160,7 @@ func TestCapacityAtScale(t *testing.T) {
 		seen[rank] = true
 		as := stack.tenants[rank]
 		row := CapacityTenant{Rank: rank, Items: itemsOfRank(rank, tenants, items)}
+		endReads := scenario("S1")
 		for _, path := range capacityPaths {
 			measured := measurePath(t, stack, as, path)
 			if measured.ServerErrors > 0 || measured.Latency.Count == 0 {
@@ -168,8 +169,11 @@ func TestCapacityAtScale(t *testing.T) {
 			}
 			row.Paths = append(row.Paths, measured)
 		}
+		endReads()
 		finding.Tenants = append(finding.Tenants, row)
+		endMixed := scenario("S2")
 		mixed := measureMixed(t, stack, as)
+		endMixed()
 		mixed.Rank, mixed.Items = rank, row.Items
 		for _, measured := range []CapacityPath{mixed.Reads, mixed.Writes} {
 			if measured.ServerErrors > 0 || measured.Latency.Count == 0 {
@@ -182,14 +186,14 @@ func TestCapacityAtScale(t *testing.T) {
 	finding.PeakResident, finding.MemoryObserved = peak.read()
 	finding.MemoryLimit = memoryLimitBytes
 	writeEvidence(t, fmt.Sprintf("capacity-%d.json", items), finding)
-	collected := collectErrors(t, stack)
 	if os.Getenv(envWalk) != "" {
 		// After the measuring, so the browser's requests are not in its figures.
+		endWalk := scenario("S7")
 		for rank := range seen {
-			collected = append(collected, walk(t, stack, stack.tenants[rank])...)
+			keepBrowserRows("S7", walk(t, stack, stack.tenants[rank]))
 		}
+		endWalk()
 	}
-	writeEvidence(t, fmt.Sprintf("errors-%d.json", items), collected)
 	if os.Getenv(envExplain) != "" {
 		writeEvidence(t, fmt.Sprintf("plans-%d.json", items), slowPlans(t, stack))
 	}
@@ -251,41 +255,6 @@ func walk(t *testing.T, stack *stack, as tenant) []harness.LogError {
 		t.Errorf("reading the walk of %s: %v", as.id, err)
 	}
 	return rows
-}
-
-// collectErrors is every warning and error the server and PostgreSQL logged during the run, one
-// row per message (accepted.md, "The owner's word on the performance tests"). Failed requests are
-// in the finding's server errors and statuses.
-func collectErrors(t *testing.T, stack *stack) []harness.LogError {
-	t.Helper()
-	var found []harness.LogError
-	if file, err := os.Open(stack.serverLog); err == nil {
-		rows, err := harness.ServerErrors(file)
-		_ = file.Close()
-		if err != nil {
-			t.Errorf("reading the server's log: %v", err)
-		}
-		found = append(found, rows...)
-	}
-	if stack.database != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		logs, err := stack.database.Logs(ctx)
-		if err != nil {
-			t.Errorf("reading PostgreSQL's log: %v", err)
-			return found
-		}
-		defer func() { _ = logs.Close() }()
-		rows, err := harness.PostgresErrors(logs)
-		if err != nil {
-			t.Errorf("reading PostgreSQL's log: %v", err)
-		}
-		found = append(found, rows...)
-	}
-	for _, row := range found {
-		t.Logf("%s %s ×%d: %s", row.Source, row.Level, row.Count, row.Message)
-	}
-	return found
 }
 
 // measurePath holds one path for one tenant and reads what the window recorded.

@@ -98,6 +98,8 @@ type stack struct {
 	// performance tests").
 	serverLog string
 	database  *tcpostgres.PostgresContainer
+	// items is the dataset's size, which names the run's errors-<items>.json.
+	items int
 }
 
 type tenant struct {
@@ -123,9 +125,16 @@ var (
 )
 
 // TestMain owns the installation's lifetime, because it is the only thing here that outlives a
-// test.
+// test. It collects the run's errors once, after the last scenario and before the teardown ends
+// the server and the container whose logs they are read from.
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if sharedStack != nil {
+		if err := collectRunErrors(sharedStack); err != nil {
+			fmt.Fprintln(os.Stderr, "collecting the run's errors:", err)
+			code = max(code, 1)
+		}
+	}
 	for i := len(teardown) - 1; i >= 0; i-- {
 		teardown[i]()
 	}
@@ -174,7 +183,7 @@ func startStack(tenants, items int) (*stack, error) {
 		return nil, err
 	}
 
-	return &stack{baseURL: url, tenants: minted, serverPID: pid, serverLog: serverLog, database: container}, nil
+	return &stack{baseURL: url, tenants: minted, serverPID: pid, serverLog: serverLog, database: container, items: items}, nil
 }
 
 func postgresImage() string {
@@ -702,23 +711,30 @@ const envEvidence = "HUBTASK_LOAD_EVIDENCE_DIR"
 // failure is read from the artefact rather than reconstructed from a log.
 func writeEvidence(t *testing.T, name string, finding any) {
 	t.Helper()
-	encoded, err := json.MarshalIndent(finding, "", "  ")
-	if err != nil {
-		t.Fatalf("encoding the finding: %v", err)
-	}
-
 	directory := os.Getenv(envEvidence)
 	if directory == "" {
 		directory = t.TempDir()
-	} else if err := os.MkdirAll(directory, 0o750); err != nil {
-		t.Fatalf("making %s: %v", directory, err)
 	}
-
-	path := filepath.Join(directory, name)
-	if err := os.WriteFile(path, append(encoded, '\n'), 0o600); err != nil {
-		t.Fatalf("writing %s: %v", path, err)
+	path, err := writeEvidenceFile(directory, name, finding)
+	if err != nil {
+		t.Fatal(err)
 	}
 	t.Logf("the run is in %s", path)
+}
+
+func writeEvidenceFile(directory, name string, finding any) (string, error) {
+	encoded, err := json.MarshalIndent(finding, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("encoding the finding: %w", err)
+	}
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		return "", fmt.Errorf("making %s: %w", directory, err)
+	}
+	path := filepath.Join(directory, name)
+	if err := os.WriteFile(path, append(encoded, '\n'), 0o600); err != nil {
+		return "", fmt.Errorf("writing %s: %w", path, err)
+	}
+	return path, nil
 }
 
 // The walk's credential carries every scope a session does, so R3 sees what a person's web app
