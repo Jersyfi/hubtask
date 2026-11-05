@@ -8,7 +8,7 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
-  leftRows, percentText, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
+  leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
   widgetWrite,
 } from './goals.ts';
 
@@ -75,6 +75,42 @@ test('a widget’s figures become rows the chart and the table share', () => {
   ]));
   assert.deepEqual(matrix.columns, ['2026-10-26', '2026-11-02']);
   assert.deepEqual(matrix.cells, [['', '1'], ['2', '']]);
+});
+
+// UC-GOL-04 check 8: a group is named in words and a period is the reader's date, sorted as the
+// server's values sort (user-experience.md §5.6, §5.10).
+test('a widget’s groups and periods are named, never keys or ISO dates', () => {
+  const naming = { group: (value: string) => ({ bug: 'Bug', change_request: 'Change' })[value] ?? value, period: (day: string) => `day ${day.slice(8)}/${day.slice(5, 7)}` };
+  const rows = figureRows([
+    { group: 'change_request', period: null, count: 2, value: null },
+    { group: 'bug', period: null, count: 1, value: null },
+    { group: null, period: null, count: 1, value: null },
+  ], naming);
+  assert.deepEqual(rows.map((row) => row.label), ['Change', 'Bug', '']);
+  const weeks = figureRows([{ group: null, period: '2026-11-02', count: 8, value: null }], naming);
+  assert.equal(weeks[0]?.label, 'day 02/11');
+  const matrix = matrixOf(figureRows([
+    { group: 'bug', period: '2026-11-02', count: 1, value: null },
+    { group: 'bug', period: '2026-10-26', count: 2, value: null },
+  ], naming));
+  assert.deepEqual(matrix.rows, ['Bug']);
+  assert.deepEqual(matrix.columns, ['day 26/10', 'day 02/11'], 'periods sort by their day, not by their words');
+  const table = seriesTable([{ name: 'a', rows: figureRows([
+    { group: null, period: '2026-11-02', count: 1, value: null },
+    { group: null, period: '2026-10-26', count: 2, value: null },
+  ], naming) }, { name: 'left', rows: leftRows([{ group: null, period: '2026-10-26', value: '3' }], naming) }]);
+  assert.deepEqual(table.labels, ['day 26/10', 'day 02/11']);
+  assert.deepEqual(table.series[1]?.texts, ['3', '']);
+});
+
+// A line of one period draws a dot, and the value axis reaches the highest value.
+test('a line of one period is a dot, and the scale has a top', () => {
+  const one = figureRows([{ group: null, period: '2026-11-02', count: 8, value: null }]);
+  assert.equal(lineDots(linePoints(one, 400, 160)), 'M200,0h0');
+  assert.equal(lineDots('0,25 100,0'), 'M0,25h0M100,0h0');
+  assert.equal(lineDots(''), '');
+  assert.equal(scaleTop([3, undefined, 8]), 8);
+  assert.equal(scaleTop([]), 0);
 });
 
 // UC-GOL-04 check 8: the chart draws what its table lists, in the design system's colours.

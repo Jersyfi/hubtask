@@ -61,6 +61,7 @@ function goalsBackend({ seed } = {}) {
       Object.assign(goal, { status: body.status, confidence: body.confidence, check_ins: [made, ...goal.check_ins], version: goal.version + 1 });
       return { status: 201, json: goal };
     }
+    if (path === '/entry-types' && method === 'GET' && seed?.types) return { json: page(seed.types) };
     if (path === '/portfolios' && method === 'GET') return { json: page(seed?.portfolios ?? []) };
     const folio = /^\/portfolios\/([^/]+)(\/updates)?$/.exec(path);
     const portfolio = folio && (seed?.portfolios ?? []).find((each) => each.id === folio[1]);
@@ -76,7 +77,7 @@ function goalsBackend({ seed } = {}) {
     const dashboard = board && dashboards.find((each) => each.id === board[1]);
     if (dashboard && !board[2] && method === 'GET') return { json: dashboard };
     if (dashboard && board[2] === '/figures') {
-      return { json: { dashboard_id: dashboard.id, computed_at: '2026-11-01T09:00:00Z', widgets: dashboard.widgets.map((each) => ({ id: each.id, data: [], truncated: false, error: null, compare: null, remaining: null })) } };
+      return { json: { dashboard_id: dashboard.id, computed_at: '2026-11-01T09:00:00Z', widgets: dashboard.widgets.map((each) => ({ id: each.id, data: seed?.figures?.[each.id] ?? [], truncated: false, error: null, compare: null, remaining: null })) } };
     }
     if (dashboard && board[2] === '/digest' && method === 'GET') {
       return { json: { dashboard_id: dashboard.id, cadence: 'NONE', weekday: null, hour: null, time_zone: 'UTC', next_at: null, last_sent_at: null } };
@@ -231,6 +232,48 @@ test('chromium: a widget with nothing to show names why, by its source', async (
   await page.getByText('None of its goals is one you may read, or they were deleted.').waitFor({ timeout: 5_000 });
   await page.getByText('No entry matches what this widget counts yet.').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('Nothing to count.', { exact: true }).count(), 0);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
+// user-experience.md §5.6 and §5.10: a widget's groups are named, its periods are the reader's
+// dates, a bar chart has its axes and a line of one week is drawn as a dot.
+test('chromium: a widget names its groups and periods, and every chart draws something', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = (n, title, chart, query) => ({
+    id: `01a0e2e0-0000-7000-8000-00000000a31${n}`, title, chart, source: 'QUERY', view_id: null, query, goal_ids: [], compare: null, cumulative: false, x: (n - 1) * 6, y: 0, w: 6, h: 4,
+  });
+  const byType = widget(1, 'Open by type', 'BAR', { aggregate: { function: 'COUNT', group_by: 'entry_type' } });
+  const perWeek = widget(2, 'Done per week', 'LINE', { aggregate: { function: 'COUNT', bucket: { field: 'completed_at', period: 'week' } } });
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a402', name: 'Weekly', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], version: 1, widgets: [byType, perWeek] };
+  const type = (key, name) => ({ key, name, level: 'TASK', icon: null, color_token: 'blue', hub_id: null });
+  const walk = await productWalk(browser, {
+    modules: ['GOALS'],
+    answer: goalsBackend({ seed: {
+      dashboards: [board],
+      types: [type('bug', 'Bug'), type('change_request', 'Change request')],
+      figures: {
+        [byType.id]: [{ group: 'bug', period: null, count: 3, value: null }, { group: 'change_request', period: null, count: 5, value: null }],
+        [perWeek.id]: [{ group: null, period: '2026-11-02', count: 8, value: null }],
+      },
+    } }),
+  });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  const types = page.getByRole('table', { name: 'Open by type' });
+  await types.getByText('Change request', { exact: true }).waitFor({ timeout: 10_000 });
+  await types.getByText('Bug', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('change_request').count(), 0, 'no type key reaches the reader');
+  await page.getByRole('table', { name: 'Done per week' }).getByText('Week of Nov 2, 2026', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('2026-11-02').count(), 0, 'no ISO day reaches the reader');
+  const bars = page.locator('[data-plot="BAR"]');
+  assert.deepEqual(await bars.locator('.y span').allTextContents(), ['5', '0'], 'the value axis runs from nothing to the highest bar');
+  assert.deepEqual(await bars.locator('.x span').allTextContents(), ['Bug', 'Change request']);
+  const dot = await page.locator('[data-plot="LINE"] path.dots').boundingBox();
+  assert.ok(dot && dot.width > 0 && dot.height > 0, `a line of one week draws its dot: ${JSON.stringify(dot)}`);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });

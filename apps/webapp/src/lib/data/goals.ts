@@ -206,7 +206,20 @@ export interface FigureRow {
   readonly runningText?: string;
   readonly goalId?: string;
   readonly status?: string;
+  /** The group and the period as the server wrote them, which is the order they sort in. */
+  readonly order?: string;
+  readonly period?: string;
 }
+
+/**
+ * A row's group and period in words (user-experience.md §5.6, §5.10): a type's name for its key,
+ * a person's for their id, the reader's date for a period's first day - never a key or ISO text.
+ */
+export interface FigureNaming {
+  readonly group: (value: string) => string;
+  readonly period: (day: string) => string;
+}
+const asIs: FigureNaming = { group: (value) => value, period: (day) => day };
 
 const asText = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
 
@@ -214,7 +227,7 @@ const asText = (value: unknown): string | undefined => (typeof value === 'string
  * A widget's rows as `GET /dashboards/{id}/figures` answered them, in one shape: a summary's
  * (count, group, period, value) or a GOALS widget's (goal_id, title, status, progress).
  */
-export function figureRows(data: readonly Record<string, unknown>[]): FigureRow[] {
+export function figureRows(data: readonly Record<string, unknown>[], naming: FigureNaming = asIs): FigureRow[] {
   return data.map((row, i) => {
     const goalId = asText(row['goal_id']);
     if (goalId) {
@@ -235,12 +248,10 @@ export function figureRows(data: readonly Record<string, unknown>[]): FigureRow[
     const raw = asText(row['value']);
     const parsed = raw === undefined ? Number.NaN : Number(raw);
     const value = Number.isFinite(parsed) ? parsed : count;
-    const both = group !== undefined && period !== undefined;
     const running = asText(row['running']);
     return {
       key: `${group ?? ''}|${period ?? ''}|${i}`,
-      label: both ? group : (group ?? period ?? ''),
-      ...(both ? { column: period } : {}),
+      ...namedPlace(group, period, naming),
       value,
       text: raw ?? String(count),
       count,
@@ -249,22 +260,33 @@ export function figureRows(data: readonly Record<string, unknown>[]): FigureRow[
   });
 }
 
+/** A row's label and column in words, with the server's values kept to sort by. */
+function namedPlace(group: string | undefined, period: string | undefined, naming: FigureNaming) {
+  const groupName = group === undefined || group === '' ? group : naming.group(group);
+  const periodName = period === undefined || period === '' ? period : naming.period(period);
+  const both = group !== undefined && period !== undefined;
+  return {
+    label: both ? groupName! : (groupName ?? periodName ?? ''),
+    ...(both ? { column: periodName } : {}),
+    order: `${group ?? ''}\u0000${period ?? ''}`,
+    ...(period !== undefined ? { period } : {}),
+  };
+}
+
 /** Rows as a cumulative widget draws them: each period's running total in place of its own value. */
 export function runningRows(rows: readonly FigureRow[]): FigureRow[] {
   return rows.map((row) => (row.running === undefined ? row : { ...row, value: row.running, text: row.runningText ?? String(row.running) }));
 }
 
 /** `remaining` as `GET /dashboards/{id}/figures` answers it, as rows. */
-export function leftRows(data: readonly Record<string, unknown>[] | null | undefined): FigureRow[] {
+export function leftRows(data: readonly Record<string, unknown>[] | null | undefined, naming: FigureNaming = asIs): FigureRow[] {
   return (data ?? []).map((row, i) => {
     const group = asText(row['group']);
     const period = asText(row['period']);
     const text = asText(row['value']) ?? '';
-    const both = group !== undefined && period !== undefined;
     return {
       key: `left|${group ?? ''}|${period ?? ''}|${i}`,
-      label: both ? group : (group ?? period ?? ''),
-      ...(both ? { column: period } : {}),
+      ...namedPlace(group, period, naming),
       value: Number.isFinite(Number(text)) ? Number(text) : 0,
       text,
     };
@@ -284,7 +306,9 @@ export interface SeriesTable {
  */
 export function seriesTable(series: readonly { name: string; rows: readonly FigureRow[]; isRunning?: boolean }[]): SeriesTable {
   const nameOf = (row: FigureRow) => (row.column === undefined ? row.label : `${row.label} ${row.column}`);
-  const labels = [...new Set(series.flatMap((each) => each.rows.map(nameOf)))].sort();
+  const orderOf = new Map<string, string>();
+  for (const row of series.flatMap((each) => each.rows)) if (!orderOf.has(nameOf(row))) orderOf.set(nameOf(row), row.order ?? nameOf(row));
+  const labels = [...orderOf.keys()].sort((a, b) => compare(orderOf.get(a)!, orderOf.get(b)!));
   return {
     labels,
     series: series.map((each) => {
@@ -414,18 +438,38 @@ export function matrixOf(rows: readonly FigureRow[]): Matrix {
   const rowNames: string[] = [];
   const columnNames: string[] = [];
   const at = new Map<string, string>();
+  const periodOf = new Map<string, string>();
   for (const row of rows) {
     const column = row.column ?? '';
     if (!rowNames.includes(row.label)) rowNames.push(row.label);
     if (!columnNames.includes(column)) columnNames.push(column);
+    if (!periodOf.has(column)) periodOf.set(column, row.period ?? column);
     at.set(`${row.label}\u0000${column}`, row.text);
   }
-  columnNames.sort();
+  columnNames.sort((a, b) => compare(periodOf.get(a)!, periodOf.get(b)!));
   return {
     rows: rowNames,
     columns: columnNames,
     cells: rowNames.map((r) => columnNames.map((c) => at.get(`${r}\u0000${c}`) ?? '')),
   };
+}
+
+/** Code-point order, as the server's group and period values sort. */
+function compare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * A dot at each point of a line, as an SVG path: a line of one period is a dot, never nothing.
+ * Each dot is a segment of no length, drawn with a round cap.
+ */
+export function lineDots(points: string): string {
+  return points.split(' ').filter(Boolean).map((point) => `M${point}h0`).join('');
+}
+
+/** The highest value a chart's scale reaches, zero for none: the top of its value axis. */
+export function scaleTop(values: readonly (number | undefined)[]): number {
+  return Math.max(0, ...values.filter((v): v is number => v !== undefined && Number.isFinite(v)));
 }
 
 function round(value: number): number {

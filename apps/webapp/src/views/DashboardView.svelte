@@ -27,11 +27,13 @@
   import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { entryTypes, typeNameOf } from '../lib/data/entrytypes.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
     MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
-    seriesTable, widgetWrite, type FigureRow, type SeriesTable,
+    seriesTable, widgetWrite, type FigureNaming, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
@@ -42,7 +44,7 @@
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import WidgetEditor from '../lib/goals/WidgetEditor.svelte';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -217,10 +219,61 @@
 
   // --- Figures ----------------------------------------------------------------------------------
 
+  /** A widget's summary document: its own for QUERY, its saved view's for VIEW. */
+  function aggregateOf(widget: DashboardWidgetWrite): { group_by?: unknown; bucket?: { period?: unknown } } | undefined {
+    const query = widget.source === 'QUERY' ? widget.query : views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === widget.view_id)?.query;
+    const aggregate = (query as { aggregate?: unknown } | null | undefined)?.aggregate;
+    return aggregate && typeof aggregate === 'object' ? aggregate as never : undefined;
+  }
+  const groupFields = $derived(new Set(shown.map((widget) => aggregateOf(widget)?.group_by).filter((field): field is string => typeof field === 'string')));
+  const readsViews = $derived(shown.some((widget) => widget.source === 'VIEW'));
+  // A group is named by what it is a value of, so the names are read where a widget groups by them.
+  $effect(() => {
+    const wanted = { types: groupFields.has('entry_type'), views: readsViews, hub: placeHub ?? undefined };
+    return untrack(() => {
+      const closers = [
+        ...(wanted.types ? [entryTypes.open()] : []),
+        ...(wanted.views ? [views.open(), ...(wanted.hub ? [views.open(wanted.hub)] : [])] : []),
+      ];
+      return () => closers.forEach((close) => close());
+    });
+  });
+  $effect(() => {
+    if (!groupFields.has('assignee_id') && !groupFields.has('created_by')) return;
+    const ids = (figures?.widgets ?? []).flatMap((each) => each.data.map((row) => row['group'])).filter((id): id is string => typeof id === 'string');
+    untrack(() => accounts.resolve(ids));
+  });
+  /** A group's value in words (user-experience.md §5.6), by the field it is a value of. */
+  function groupName(field: unknown, value: string): string {
+    switch (field) {
+      case 'entry_type': return typeNameOf(entryTypes.all, value, (level) => t('app.entry_types.level', { level }));
+      case 'type': return t('app.entry_types.level', { level: value });
+      case 'assignee_id':
+      case 'created_by': return accounts.nameOf(value) ?? t('app.people.unnamed');
+      case 'collection_id': return containers.find(value)?.name ?? value;
+      case 'is_completed': return t(value === 'true' ? 'app.dashboards.group_done' : 'app.dashboards.group_open');
+      case 'status': return ['todo', 'in_progress', 'done'].includes(value) ? t(`workflows.status.${value}`) : value;
+      default: return value;
+    }
+  }
+  /** A period's first day as the reader's date (§5.10): a month by its name, a week by its first day. */
+  function periodName(period: unknown, day: string): string {
+    if (period === 'month') {
+      const at = Date.parse(`${day}T00:00:00Z`);
+      return Number.isNaN(at) ? day : new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(at);
+    }
+    const date = formatPlainDay(day, locale);
+    return period === 'week' ? t('app.dashboards.week_of', { day: date }) : date;
+  }
+  function namingOf(widget: DashboardWidgetWrite): FigureNaming {
+    const aggregate = aggregateOf(widget);
+    return { group: (value) => groupName(aggregate?.group_by, value), period: (day) => periodName(aggregate?.bucket?.period, day) };
+  }
+
   const figureOf = (id: string | undefined) => (id ? figures?.widgets.find((each) => each.id === id) : undefined);
   /** A widget's own rows, as running totals where it is cumulative. */
   function rowsOf(widget: DashboardWidgetWrite): FigureRow[] {
-    const rows = figureRows(figureOf(widget.id)?.data ?? []);
+    const rows = figureRows(figureOf(widget.id)?.data ?? [], namingOf(widget));
     return widget.cumulative ? runningRows(rows) : rows;
   }
   /** A widget with a second series as one table: its own, the second, and with running totals what is left. */
@@ -228,11 +281,11 @@
     const figure = figureOf(widget.id);
     if (!widget.compare || !figure) return undefined;
     const running = widget.cumulative === true;
-    const second = figureRows(figure.compare?.data ?? []);
+    const second = figureRows(figure.compare?.data ?? [], namingOf(widget));
     return seriesTable([
       { name: widget.compare.first_title, rows: rowsOf(widget), isRunning: running },
       ...(figure.compare?.error ? [] : [{ name: widget.compare.title, rows: running ? runningRows(second) : second, isRunning: running }]),
-      ...(figure.remaining ? [{ name: t('app.dashboards.series_left'), rows: leftRows(figure.remaining) }] : []),
+      ...(figure.remaining ? [{ name: t('app.dashboards.series_left'), rows: leftRows(figure.remaining, namingOf(widget)) }] : []),
     ]);
   }
   function exportWidget(widget: DashboardWidgetWrite, asSheet = false) {

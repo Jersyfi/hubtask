@@ -10,12 +10,14 @@
   // A widget of two series - created beside resolved, and with running totals what is left - is
   // handed over as one table of series, drawn as grouped bars or one line per series.
 
+  import type { Snippet } from 'svelte';
+
   import { ProgressBar, Table, VisuallyHidden, type Column } from '@hubtask/design-system/components';
 
   import {
-    barLayout, linePoints, matrixOf, percentOf, pieSlices, seriesBars, seriesLines, seriesOf, totalOf, type FigureRow, type SeriesTable,
+    barLayout, lineDots, linePoints, matrixOf, percentOf, pieSlices, scaleTop, seriesBars, seriesLines, seriesOf, totalOf, type FigureRow, type SeriesTable,
   } from '../data/goals.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     title: string;
@@ -46,7 +48,30 @@
   ]);
   const summary = $derived(t('app.dashboards.chart_summary', { title, count: String(rows.length) }));
   const labelText = (row: FigureRow) => row.label === '' ? t('app.dashboards.no_value') : row.label;
+
+  // The axes are words beside the drawing, not in it: the drawing stretches to its box, and a
+  // text inside it would stretch with it. The table beside lists the same, so they are hidden
+  // from a screen reader.
+  const MAX_AXIS_LABELS = 12;
+  const axisLabels = $derived(multi && table ? table.labels.map((label) => label || t('app.dashboards.no_value')) : rows.map(labelText));
+  const top = $derived(multi && table ? scaleTop(table.series.flatMap((each) => each.values)) : scaleTop(rows.map((row) => row.value)));
+  const topText = $derived(new Intl.NumberFormat(messages.locale).format(top));
+  const zeroText = $derived(new Intl.NumberFormat(messages.locale).format(0));
+  /** Under bars, each bar's label where they fit; under a line, where it starts and ends. */
+  const xLabels = $derived(chart === 'LINE'
+    ? (axisLabels.length > 1 ? [axisLabels[0]!, axisLabels[axisLabels.length - 1]!] : axisLabels)
+    : axisLabels.length <= MAX_AXIS_LABELS ? axisLabels : []);
 </script>
+
+{#snippet plot(drawing: Snippet)}
+  <div class="plot" data-plot={chart}>
+    <div class="y" aria-hidden="true"><span>{topText}</span><span>{zeroText}</span></div>
+    {@render drawing()}
+    {#if xLabels.length > 0}
+      <div class="x" class:ends={chart === 'LINE' && xLabels.length > 1} aria-hidden="true">{#each xLabels as label, i (i)}<span>{label}</span>{/each}</div>
+    {/if}
+  </div>
+{/snippet}
 
 {#if multi && table}
   {#if table.labels.length === 0}
@@ -55,13 +80,19 @@
     {@const multiSummary = t('app.dashboards.series_summary', { title, count: String(table.labels.length), series: table.series.map((each) => each.name).join(', ') })}
     <div class="figure" data-chart={chart}>
       {#if chart === 'BAR'}
-        <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={multiSummary}>
-          {#each multiBars as bar (bar.key)}<rect x={bar.x} y={bar.y} width={bar.width} height={bar.height} data-series={bar.series} />{/each}
-        </svg>
+        {#snippet multiBarDrawing()}
+          <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={multiSummary}>
+            {#each multiBars as bar (bar.key)}<rect x={bar.x} y={bar.y} width={bar.width} height={bar.height} data-series={bar.series} />{/each}
+          </svg>
+        {/snippet}
+        {@render plot(multiBarDrawing)}
       {:else if chart === 'LINE'}
-        <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={multiSummary}>
-          {#each multiLines as points, s (s)}<polyline {points} data-series={seriesOf(s)} />{/each}
-        </svg>
+        {#snippet multiLineDrawing()}
+          <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={multiSummary}>
+            {#each multiLines as points, s (s)}<polyline {points} data-series={seriesOf(s)} /><path class="dots" d={lineDots(points)} data-series={seriesOf(s)} />{/each}
+          </svg>
+        {/snippet}
+        {@render plot(multiLineDrawing)}
       {/if}
       <div class="scroll table" class:only={chart === 'TABLE'}>
         <table class="matrix">
@@ -88,17 +119,23 @@
     {#if chart === 'NUMBER'}
       <p class="number-big" aria-label={t('app.dashboards.total_of', { title, total: String(total) })}>{total}</p>
     {:else if chart === 'BAR'}
-      <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
-        {#each bars as bar (bar.key)}<rect x={bar.x} y={bar.y} width={bar.width} height={bar.height} data-series={bar.series} />{/each}
-      </svg>
+      {#snippet barDrawing()}
+        <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
+          {#each bars as bar (bar.key)}<rect x={bar.x} y={bar.y} width={bar.width} height={bar.height} data-series={bar.series} />{/each}
+        </svg>
+      {/snippet}
+      {@render plot(barDrawing)}
     {:else if chart === 'PIE'}
       <svg class="pie" viewBox="-1.05 -1.05 2.1 2.1" role="img" aria-label={summary}>
         {#each slices as slice (slice.key)}<path d={slice.path} data-series={slice.series} />{/each}
       </svg>
     {:else if chart === 'LINE'}
-      <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
-        <polyline points={line} data-series="blue" />
-      </svg>
+      {#snippet lineDrawing()}
+        <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
+          <polyline points={line} data-series="blue" /><path class="dots" d={lineDots(line)} data-series="blue" />
+        </svg>
+      {/snippet}
+      {@render plot(lineDrawing)}
     {:else if chart === 'PROGRESS'}
       <ul class="bars">
         {#each rows as row (row.key)}
@@ -143,12 +180,21 @@
 
 <style>
   .figure { display: flex; flex-wrap: wrap; gap: var(--sp-150); align-items: flex-start; min-width: 0; }
-  .figure > .chart, .figure > .pie { flex: 1 1 var(--layout-board-column); min-width: 0; }
+  .figure > .plot, .figure > .pie { flex: 1 1 var(--layout-board-column); min-width: 0; }
+  .plot { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--sp-050); row-gap: var(--sp-025); }
+  .plot > .chart { grid-column: 2; grid-row: 1; overflow: visible; }
+  .y { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; justify-content: space-between; text-align: end; }
+  .x { grid-column: 2; grid-row: 2; display: flex; min-width: 0; }
+  .x > span { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .x.ends { justify-content: space-between; }
+  .x.ends > span { flex: 0 1 auto; }
+  .y, .x { color: var(--text-subtle); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
   .figure > .table { flex: 1 1 var(--layout-board-column); }
   .figure > .table.only { flex-basis: 100%; }
   .chart { width: 100%; height: var(--sp-1600); background: var(--bg-surface-sunken); border-radius: var(--r-sm); }
   .pie { max-height: var(--sp-1600); aspect-ratio: 1; }
   .chart polyline { fill: none; stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
+  .chart .dots { fill: none; stroke-width: var(--sp-100); stroke-linecap: round; vector-effect: non-scaling-stroke; }
   .scroll { overflow-x: auto; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
@@ -171,5 +217,5 @@
   [data-series='slate'] { --series: var(--label-slate-fg); }
   rect[data-series], path[data-series] { fill: var(--series); }
   path[data-series] { stroke: var(--bg-surface); stroke-width: var(--bw-hairline); vector-effect: non-scaling-stroke; }
-  polyline[data-series] { stroke: var(--series); }
+  polyline[data-series], path.dots[data-series] { stroke: var(--series); }
 </style>
