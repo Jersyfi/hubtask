@@ -41,9 +41,11 @@
     hubId?: string;
     boardId?: string;
     onnavigate: (path: string) => void;
+    /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
+    isCreateAsked?: boolean;
   }
 
-  const { hubId: hubFromRoute, boardId, onnavigate }: Props = $props();
+  const { hubId: hubFromRoute, boardId, onnavigate, isCreateAsked = false }: Props = $props();
 
   const opened = untrack(() => (boardId ? resource<WhiteboardRead>(boardPath(boardId)) : undefined));
   const current = $derived(opened?.state.status === 'ready' ? opened.state.data : undefined);
@@ -75,6 +77,14 @@
   const mayWrite = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted' : false,
   );
+
+  // Opened once, when the reader's role here has answered that they may write.
+  let isCreateOpened = false;
+  $effect(() => {
+    if (!isCreateAsked || isCreateOpened || !mayWrite) return;
+    isCreateOpened = true;
+    untrack(() => startCreate());
+  });
 
   let isCreating = $state(false);
   let titleDraft = $state('');

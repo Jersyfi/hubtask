@@ -193,6 +193,9 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
     if (path === '/containers' && route.request().method() === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [] } });
     if (path === `/hubs/${HUB}/pages`) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [KANBAN, SCRUM] } });
+    if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
+      return route.fulfill({ json: { ...PAGE, data: [{ id: 'm-a', scope_type: 'HUB', scope_id: HUB, account_id: ACCOUNT.id, role: 'OWNER' }], grantable_roles: [] } });
+    }
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -207,6 +210,10 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
   const main = page.locator('#main');
   await main.getByRole('button', { name: 'Scrum team', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await main.getByRole('button', { name: 'New page', exact: true }).count(), 1, 'the create act is not offered once');
+  // §5.2: the act creates - the place's create dialog opens, not only its list.
+  await main.getByRole('button', { name: 'New page', exact: true }).click();
+  await page.waitForURL(`**/hubs/${HUB}/pages?new=1`, { timeout: 10_000 });
+  await page.getByRole('dialog', { name: 'New page' }).waitFor({ timeout: 10_000 });
   assert.deepEqual(failures, []);
 });
 

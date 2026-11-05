@@ -557,6 +557,7 @@
         props={{
           hubId: route.name === 'hub-pages' ? route.params.id : undefined,
           pageId: route.name === 'page' ? route.params.id : undefined,
+          isCreateAsked: route.query['new'] === '1',
           onnavigate: (path: string) => router.navigate(path),
           onreplace: (path: string) => router.replace(path),
         }}
@@ -569,6 +570,7 @@
         props={{
           hubId: route.name === 'hub-whiteboards' ? route.params.id : undefined,
           boardId: route.name === 'whiteboard' ? route.params.id : undefined,
+          isCreateAsked: route.query['new'] === '1',
           onnavigate: (path: string) => router.navigate(path),
         }}
       />
@@ -615,7 +617,7 @@
     {/key}
   {:else if route.name === 'collection-sprints'}
     {#key route.path}
-      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'hub-assets' || route.name === 'hub-assets-section' || route.name === 'ci'}
     {#key route.name === 'ci' ? route.path : route.params.id}
@@ -625,6 +627,7 @@
           hubId: route.name === 'ci' ? undefined : route.params.id,
           section: route.name === 'hub-assets-section' ? route.params.section : undefined,
           ciId: route.name === 'ci' ? route.params.id : undefined,
+          isCreateAsked: route.query['new'] === '1',
           onnavigate: (path: string) => router.navigate(path),
         }}
       />

@@ -48,9 +48,11 @@
     /** The collection the sprints belong to. */
     collectionId: string;
     onnavigate: (path: string) => void;
+    /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
+    isCreateAsked?: boolean;
   }
 
-  const { collectionId, onnavigate }: Props = $props();
+  const { collectionId, onnavigate, isCreateAsked = false }: Props = $props();
 
   const zone = $derived(actor.zone);
   const place = $derived(containers.find(collectionId));
@@ -64,6 +66,14 @@
   });
 
   const mayWrite = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
+
+  // Opened once, when the reader's role here has answered that they may write.
+  let isCreateOpened = false;
+  $effect(() => {
+    if (!isCreateAsked || isCreateOpened || !mayWrite) return;
+    isCreateOpened = true;
+    untrack(() => openPlan(undefined));
+  });
 
   let list = $state<Sprint[] | undefined>(undefined);
   let backlog = $state<SprintBacklog['data']>([]);

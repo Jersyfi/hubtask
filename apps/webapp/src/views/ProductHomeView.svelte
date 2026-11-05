@@ -22,7 +22,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { collectionScreenOf, createOf, homeTabs, isUnused, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { createAt, createOf, homeTabs, isUnused, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
@@ -168,8 +168,8 @@
     onclick: () => { startingFrom = template.key; isCreatingHub = true; },
   })) : []);
   const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
-  // The home's create act (UX-2): the product's own words, leading to the place's screen of it -
-  // the first place's, the others in its menu. Without a hub the empty state's *Create hub* is it.
+  // The home's create act (UX-2): the product's own words, opening the create dialog on the place's
+  // screen of it - the first place's, the others in its menu. Without a hub the empty state's *Create hub* is it.
   const createAct = $derived(createOf(module));
   // A create act at a collection reads the collections of the hubs where the product is on.
   const collectionHubs = $derived(createAct?.level === 'COLLECTION' ? hubsWith.map((hub) => hub.id).join(',') : '');
@@ -189,8 +189,8 @@
     if (!createAct || isReading || currentTab !== tabs[0]?.id) return undefined;
     const first = createPlaces[0];
     if (!first) return undefined;
-    const go = (id: string) =>
-      onnavigate((createAct.level === 'COLLECTION' ? collectionScreenOf(module, id) : hubScreenOf(module, id)) ?? `/hubs/${id}`);
+    // The place's own create dialog opens there (§5.2): the act creates, it does not list.
+    const go = (id: string) => onnavigate(createAt(module, id) ?? `/hubs/${id}`);
     return {
       label: t(createAct.code),
       icon: 'plus' as const,

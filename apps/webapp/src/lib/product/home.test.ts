@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createOf, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -148,6 +148,19 @@ test('every product home carries its primary create act', () => {
     assert.ok(screen && resolve(ROUTES, screen).name, `${row.module}'s create leads to no route: ${screen}`);
   }
   assert.equal(createOf('PLANNING')?.code, 'app.sprints.plan', 'the plans lead to a collection\'s Plan a sprint');
+});
+
+// §5.2: the home's create act creates - it opens the place's create dialog, not the place's list.
+test('a product home\'s create act opens the create dialog at the place', () => {
+  const id = '01a0e2e0-0000-7000-8000-000000000002';
+  for (const module of ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS', 'PLANNING']) {
+    const path = createAt(module, id);
+    assert.ok(path, `${module} has no create address`);
+    const url = new URL(path, 'https://hubtask.invalid');
+    assert.equal(url.searchParams.get(CREATE_ASKED), '1', `${module}: ${path}`);
+    assert.ok(resolve(ROUTES, url.pathname).name, `${module}'s create leads to no route: ${path}`);
+  }
+  assert.equal(createAt('TIME', id), undefined);
 });
 
 // §4: the first visit is decided by whether anything of the product exists yet, not by whether a

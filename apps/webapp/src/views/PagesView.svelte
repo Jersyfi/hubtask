@@ -56,9 +56,11 @@
     onnavigate: (path: string) => void;
     /** Goes on without a step back: a space's address sent on to its home page. */
     onreplace?: (path: string) => void;
+    /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
+    isCreateAsked?: boolean;
   }
 
-  const { hubId: hubFromRoute, pageId, onnavigate, onreplace }: Props = $props();
+  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false }: Props = $props();
 
   // --- What is read ------------------------------------------------------------------------------
 
@@ -107,13 +109,21 @@
   $effect(() => {
     if (pageId || !hubFromRoute || !treeState) return;
     const home = homePageOf(treeState.data);
-    if (home) untrack(() => (onreplace ?? onnavigate)(`/pages/${home}`));
+    if (home) untrack(() => (onreplace ?? onnavigate)(`/pages/${home}${isCreateAsked ? '?new=1' : ''}`));
   });
   const hasChildren = $derived(new Set(rows.map((row) => row.parent_id).filter((id): id is string => id !== null)));
 
   const mayWrite = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted' : false,
   );
+
+  // Opened once, when the reader's role here has answered that they may write.
+  let isCreateOpened = false;
+  $effect(() => {
+    if (!isCreateAsked || isCreateOpened || !mayWrite) return;
+    isCreateOpened = true;
+    untrack(() => startCreate());
+  });
   /** A wiki's or documents' import makes pages in the hub, which takes shaping it, as every import there does. */
   const mayImport = $derived(
     hubId ? holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted' : false,

@@ -95,6 +95,20 @@ export function createOf(module: string): { readonly code: string; readonly inCo
   }
 }
 
+/** The query a place's screen opens its create dialog on, once, as the home's create act asks. */
+export const CREATE_ASKED = 'new';
+
+/**
+ * Where a home's create act goes (§5.2): the place's screen of the product with its create dialog
+ * open, so the act creates rather than lists; undefined for a product without a create act.
+ */
+export function createAt(module: string, placeId: string): string | undefined {
+  const act = createOf(module);
+  if (!act) return undefined;
+  const screen = act.level === 'COLLECTION' ? collectionScreenOf(module, placeId) : hubScreenOf(module, placeId);
+  return screen ? `${screen}?${CREATE_ASKED}=1` : undefined;
+}
+
 /** The screen a create act at a collection leads to: the product's screen there. */
 export function collectionScreenOf(module: string, collectionId: string): string | undefined {
   return module === 'PLANNING' ? `/collections/${encodeURIComponent(collectionId)}/sprints` : undefined;
