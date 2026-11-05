@@ -161,7 +161,8 @@ for (const scheme of ['light', 'dark']) {
     const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
     // The places (the approvals where the desk is on), then the products in Module.Keys() order
     // whatever order the manifest answers, then the hubs.
-    assert.deepEqual(rows, ['Today', 'Search', 'Inbox', 'Waiting for my yes', 'Pages', 'Service desk', 'Time', HUB.name], JSON.stringify(rows));
+    // Today's row counts what waits for the reader's yes beside its name.
+    assert.deepEqual(rows, ['Today  1 waiting', 'Search', 'Inbox', 'Waiting for my yes', 'Pages', 'Service desk', 'Time', HUB.name], JSON.stringify(rows));
     assert.equal(await page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 1, 'the band has no caption');
     // The account menu carries none of them.
     await page.getByRole('button', { name: ACCOUNT.display_name }).click();
@@ -202,7 +203,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
   await tree.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
   assert.equal(await none.page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 0, 'a household with nothing on sees the caption');
   // Reached by a link while off: the neutral screen with its way forward (§2.8).
-  await none.page.getByRole('button', { name: 'Switch Whiteboard on' }).waitFor({ timeout: 5_000 });
+  await none.page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
   assert.equal(await none.page.getByText('Products', { exact: true }).count() > 0, true, 'the trail is not the products');
   assert.deepEqual([...narrowed.failures, ...none.failures], []);
 });
@@ -247,7 +248,7 @@ test('chromium 1280 px: Today offers the products that are off, and hides them f
   assert.deepEqual(names, ['Plans', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Goals', 'Agents'], JSON.stringify(names));
   await more.getByRole('listitem').filter({ hasText: 'Whiteboards' }).getByRole('button', { name: 'Try it' }).click();
   await page.waitForFunction(() => location.pathname === '/whiteboards', null, { timeout: 5_000 });
-  await page.getByRole('button', { name: 'Switch Whiteboard on' }).waitFor({ timeout: 5_000 });
+  await page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
   await page.goto(`${served.origin}/`);
   await more.getByRole('button', { name: 'Hide More in Hubtask for good' }).click();
   await more.waitFor({ state: 'detached', timeout: 5_000 });
@@ -425,7 +426,7 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await plan.click();
-  await page.waitForURL(`**/collections/${DESK.id}/sprints`, { timeout: 5_000 });
+  await page.waitForURL(`**/collections/${DESK.id}/sprints?new=1`, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
