@@ -155,7 +155,26 @@ func TestRemovingTheWorkspacesSamplesRemovesEachAsAloneAndKeepsTheChanged(t *tes
 	}
 }
 
-// A refusal of anything but a missing or changed object ends the act: nothing is half removed.
+// An object whose state forbids removing it - time in a week already handed in - is kept and
+// named with the refusal's own code; the rest of the showcase still goes.
+func TestASampleItsStateHoldsIsKeptAndTheRestRemoved(t *testing.T) {
+	f, w := showcaseFixture()
+	two := int64(2)
+	w.marks["time.monday"] = domain.SampleMark{Key: "time.monday", Kind: domain.SampleTimeRecord, ObjectID: showcaseTime, Version: &two}
+	w.marks["hub.scrum"] = domain.SampleMark{Key: "hub.scrum", Kind: domain.SampleContainer, ObjectID: showcaseHub}
+	w.answer["DeleteTimeRecord"] = shared.ErrConflict.WithDetail("time.week_not_open")
+	out := invoke(t, RemoveWorkspaceSamples{f.desk}.Descriptor(), person, usecase.Input{})
+
+	kept, _ := out["kept"].([]any)
+	if out["removed"] != 1 || len(kept) != 1 || kept[0].(map[string]any)["code"] != "time.week_not_open" {
+		t.Errorf("answered %v", out)
+	}
+	if len(w.marks) != 1 || w.marks["time.monday"].Key == "" {
+		t.Errorf("marks left %v", w.marks)
+	}
+}
+
+// A refusal of anything but a missing, changed or held object ends the act: nothing is half removed.
 func TestARemovalRefusedOtherwiseEndsTheWholeAct(t *testing.T) {
 	f, w := showcaseFixture()
 	w.marks["page.a"] = domain.SampleMark{Key: "page.a", Kind: domain.SamplePage, ObjectID: showcaseEntry}

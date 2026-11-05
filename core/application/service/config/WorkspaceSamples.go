@@ -169,7 +169,8 @@ func (h RemoveWorkspaceSamples) Descriptor() usecase.Descriptor {
 		Summary: "Removes everything marked as the workspace's sample content in one act, each object as " +
 			"removing it alone does: hubs, collections, entries, pages and whiteboards into the trash; " +
 			"goals, portfolios, dashboards and time records deleted only while they stand at the " +
-			"version they were marked with, and otherwise kept and named. Nothing unmarked is touched.",
+			"version they were marked with, and otherwise kept and named; an object its own state holds, such " +
+			"as time in a week handed in, is kept and named too. Nothing unmarked is touched.",
 		SideEffects: "Trashes or deletes each marked object with everything doing so alone writes, " +
 			"removes the marks of what went, and writes an audit entry with the counts.",
 		TokenScope:  scopeItemsWrite,
@@ -232,6 +233,12 @@ func (d Desk) removeSample(ctx context.Context, actor appshared.ActorContext, m 
 	case err == nil, errors.Is(err, shared.ErrNotFound), errors.Is(err, shared.ErrGone):
 		return "", nil
 	case errors.Is(err, shared.ErrVersionConflict):
+		return "config.sample_changed", nil
+	case errors.Is(err, shared.ErrConflict):
+		// Held by its own state, such as time in a week handed in: kept, the refusal's code named.
+		if code := shared.AsError(err).DetailCode; code != "" {
+			return code, nil
+		}
 		return "config.sample_changed", nil
 	}
 	return "", err

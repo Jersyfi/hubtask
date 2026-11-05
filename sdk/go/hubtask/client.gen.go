@@ -41111,7 +41111,7 @@ type ClientInterface interface {
 
 	// RemoveWorkspaceSamples Remove the workspace's sample content
 	//
-	// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+	// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`; so is an object its own state holds, such as time in a week already handed in, with the refusal's code. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
 	//
 	// Corresponds with POST /tenant/samples:remove (the `RemoveWorkspaceSamples` operationId).
 	RemoveWorkspaceSamples(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -63442,7 +63442,7 @@ func (c *Client) MarkWorkspaceSample(ctx context.Context, body MarkWorkspaceSamp
 
 // RemoveWorkspaceSamples Remove the workspace's sample content
 //
-// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`; so is an object its own state holds, such as time in a week already handed in, with the refusal's code. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
 //
 // Corresponds with POST /tenant/samples:remove (the `RemoveWorkspaceSamples` operationId).
 func (c *Client) RemoveWorkspaceSamples(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -115998,7 +115998,7 @@ type ClientWithResponsesInterface interface {
 
 	// RemoveWorkspaceSamplesWithResponse Remove the workspace's sample content
 	//
-	// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+	// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`; so is an object its own state holds, such as time in a week already handed in, with the refusal's code. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -175452,7 +175452,7 @@ func (c *ClientWithResponses) MarkWorkspaceSampleWithResponse(ctx context.Contex
 
 // RemoveWorkspaceSamplesWithResponse Remove the workspace's sample content
 //
-// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
+// Removes everything marked as sample content in one act, each object as removing it alone does: a hub, a collection, an entry, a page and a whiteboard move into the trash and are restorable until the trash period ends; a goal, a portfolio, a dashboard and a time record are deleted only while they stand at the version they were marked with, and are otherwise kept and answered under `kept`; so is an object its own state holds, such as time in a week already handed in, with the refusal's code. An object already gone, or gone with its hub, counts as removed. Nothing unmarked is touched; a refusal of anything else leaves everything as it was. Needs STRUCTURE on the workspace and, for each object, what removing it needs.
 //
 // Returns a wrapper object for the known response body format(s).
 //
