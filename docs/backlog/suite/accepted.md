@@ -304,3 +304,9 @@ repeated. The owner asked the orchestrating session for sensible proposals and a
     counting open entries created after `reachedAt`; the clause "not drawn while entries are open"
     is dropped as the contradiction. Where it goes: user-experience.md §7.5, an additive
     `open_since` on the container's milestone, UC-WRK-29 check 4.
+
+## The owner's word on the second performance round — 2026-11-05
+
+The owner accepted test/load/PLAN.md "The second round" as planned: S1 to S7 at 10⁶ and S1, S2,
+S3 and S7 at 10⁷ on the workstation, about 1 h 50 min of load in two invocations, after its six
+harness pieces are built. Every collected error is fixed afterwards, as the plan says.
