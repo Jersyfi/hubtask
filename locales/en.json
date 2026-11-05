@@ -9670,6 +9670,7 @@
   "app.pages.untitled": "Untitled",
   "app.pages.reference_unavailable": "Not available to you",
   "app.pages.reference_loading": "…",
+  "app.pages.body_label": "Text of {title}",
   "app.pages.toolbar": "Formatting",
   "app.pages.tool_heading": "Heading",
   "app.pages.tool_bold": "Bold",

@@ -427,6 +427,8 @@ export interface PageEditorOptions {
   readonly fallback?: string;
   /** Called when the person ticks or unticks a line linked to an entry (UC-DOC-03). */
   readonly onTick?: (entryId: string, checked: boolean) => void;
+  /** The text box's accessible name, resolved by the application: a text box without one is unnamed (WCAG 4.1.2). */
+  readonly label?: string;
 }
 
 /** Builds the editor. The caller destroys it with the screen. */
@@ -486,7 +488,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     extensions,
     // A live document brings its own content; seeding it is `seedFromMarkdown`'s.
     ...(options.live ? {} : { content: fromMarkdown(options.body) as JSONContent }),
-    editorProps: { attributes: { class: 'page-body', 'aria-multiline': 'true', role: 'textbox' } },
+    editorProps: { attributes: { class: 'page-body', 'aria-multiline': 'true', role: 'textbox', ...(options.label ? { 'aria-label': options.label } : {}) } },
     onUpdate: ({ editor: current, transaction }) => {
       if (transaction.getMeta('y-sync$')?.isChangeOrigin) return;
       if (!transaction.getMeta(MIRROR_META)) {

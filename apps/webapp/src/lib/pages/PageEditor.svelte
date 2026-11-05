@@ -252,7 +252,7 @@
         taskLine = editor ? taskLineOf(editor) : undefined;
       };
       let current = createPageEditor({
-        element, body, editable: false, drawing, fallback: t('app.pages.reference_loading'), onBlock: blockSeen,
+        element, body, editable: false, drawing, label: t('app.pages.body_label', { title: page.title }), fallback: t('app.pages.reference_loading'), onBlock: blockSeen,
       });
       editor = current;
       if (!page.writable) return () => current.destroy();
@@ -276,7 +276,7 @@
           current.destroy();
           element.replaceChildren();
           current = createPageEditor({
-            element, body, editable: true, drawing,
+            element, body, editable: true, drawing, label: t('app.pages.body_label', { title: page.title }),
             live: { doc, connection, user: { name: account?.display_name ?? '', caret: caretOf(account?.id ?? '') } },
             fallback: t('app.pages.reference_loading'),
             onChange: changed,

@@ -53,6 +53,8 @@ test('a formula, a diagram and coloured code are drawn under the policy', async 
     });
     await page.goto(`${served.origin}/pages/${PAGE_ID}`);
     await page.locator('.page-math__formula math').waitFor({ timeout: 20_000 });
+    // WCAG 4.1.2: the page's text box is named, by its page.
+    assert.equal(await page.getByRole('textbox', { name: 'Text of Formulas' }).count(), 1, 'the page\'s text box has no name');
     await page.locator('.hljs-keyword').first().waitFor({ timeout: 20_000 });
     const picture = page.locator('.page-diagram__picture');
     await picture.waitFor({ timeout: 20_000 });

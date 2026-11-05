@@ -9670,6 +9670,7 @@
   "app.pages.untitled": "Ohne Titel",
   "app.pages.reference_unavailable": "Für dich nicht sichtbar",
   "app.pages.reference_loading": "…",
+  "app.pages.body_label": "Text von {title}",
   "app.pages.toolbar": "Formatierung",
   "app.pages.tool_heading": "Überschrift",
   "app.pages.tool_bold": "Fett",
