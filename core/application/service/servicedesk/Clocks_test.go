@@ -327,6 +327,38 @@ func TestAGoalPausesWhileWaitingAndIsMetByCompletion(t *testing.T) {
 	}
 }
 
+// UC-SVC-02 check 2: each goal stands at the target of the entry's priority, also once the
+// priority changes - the working time counted stays, the target is the new priority's.
+func TestAChangedPriorityMovesTheRunningGoalsToItsTargets(t *testing.T) {
+	f := newFixture(t)
+	f.deliver(t, event.ItemCreated, monday, nil)
+
+	// An hour on, the incident is no longer P1: the resolution's ten working hours count from the
+	// start - nine left from 10:00 Berlin, due 09:00 Berlin on Tuesday.
+	f.items.item.CustomFields = map[string]any{"priority": "p3"}
+	f.deliver(t, event.ItemUpdated, monday.Add(time.Hour), map[string]any{"change_set": map[string]any{"custom_fields": map[string]any{}}})
+	resolution := f.records.goal(domain.GoalResolution)
+	if resolution.Target != 10*time.Hour || resolution.Standing != domain.StandingRunning ||
+		!resolution.DueAt.Equal(time.Date(2026, 11, 3, 8, 0, 0, 0, time.UTC)) {
+		t.Fatalf("the resolution after the change: %+v", resolution)
+	}
+	if warn := f.timers.named("resolution_warn"); warn.Budget != 5*time.Hour || warn.State != calendar.TimerRunning {
+		t.Errorf("the warning after the change: %+v", warn)
+	}
+	if first := f.records.goal(domain.GoalFirstResponse); first.Target != time.Hour {
+		t.Errorf("the first response after the change: %+v", first)
+	}
+	live := 0
+	for _, row := range f.timers.rows {
+		if liveTimer(row) && row.Name == "resolution" {
+			live++
+		}
+	}
+	if live != 1 {
+		t.Errorf("%d live resolution clocks, want one", live)
+	}
+}
+
 // UC-SVC-02 check 2: a type no policy covers gets no clock.
 func TestAnUncoveredEntryGetsNoClock(t *testing.T) {
 	f := newFixture(t)

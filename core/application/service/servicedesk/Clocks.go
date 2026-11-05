@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
@@ -124,6 +125,14 @@ func (s SLAClocks) Deliver(ctx context.Context, envelope event.Envelope) error {
 	case event.ItemUpdated:
 		if changed(envelope, "entry_type") {
 			if err := s.arm(ctx, clocks, item, policies, records, now); err != nil {
+				return err
+			}
+			if records, err = s.Records.OfItem(ctx, itemID); err != nil {
+				return err
+			}
+		}
+		if changed(envelope, work.FieldCustomFields) {
+			if err := s.retarget(ctx, clocks, item, policies, records, now); err != nil {
 				return err
 			}
 			if records, err = s.Records.OfItem(ctx, itemID); err != nil {
@@ -277,6 +286,69 @@ func (s SLAClocks) arm(
 		}
 	}
 	return nil
+}
+
+// retarget moves each live goal to the target of the entry's priority now (UC-SVC-02 check 2):
+// the working time counted stays, the budget is the new priority's - a target already spent
+// breaches at once. A warning that already fired is not raised again.
+func (s SLAClocks) retarget(
+	ctx context.Context, clocks calendarservice.Clocks, item work.WorkItem, policies []domain.SLAPolicy,
+	records []domain.EntrySLA, now time.Time,
+) error {
+	for _, record := range records {
+		if !live(record) {
+			continue
+		}
+		at := slices.IndexFunc(policies, func(p domain.SLAPolicy) bool { return p.Key == record.PolicyKey })
+		if at < 0 || policies[at].PriorityField == "" {
+			continue
+		}
+		policy := policies[at]
+		goal, wanted := policy.Goal(record.Goal)
+		priority := PriorityOf(item, policy)
+		if !wanted || goal.Target(priority) == record.Target {
+			continue
+		}
+		cal, err := s.calendarOf(ctx, policy, item)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		timer, rebuilt, err := s.rebuild(ctx, clocks, item, cal, goal.Kind.TimerName(), goal.Target(priority), now)
+		if err != nil || !rebuilt {
+			return err
+		}
+		if warning, ok := goal.Warning(priority); ok {
+			if _, _, err := s.rebuild(ctx, clocks, item, cal, goal.Kind.WarnTimerName(), warning, now); err != nil {
+				return err
+			}
+		}
+		record.Target = goal.Target(priority)
+		if err := s.Records.Save(ctx, record.Follow(timer, now), now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// rebuild gives a live timer a new budget, keeping the time it counted and whether it runs; a
+// timer no longer live is left as it is.
+func (s SLAClocks) rebuild(
+	ctx context.Context, clocks calendarservice.Clocks, item work.WorkItem, cal calendar.BusinessCalendar,
+	name string, budget time.Duration, now time.Time,
+) (calendar.Timer, bool, error) {
+	current, err := clocks.Timers.FindLive(ctx, calendar.PurposeSLA, item.ID, name)
+	if errors.Is(err, shared.ErrNotFound) {
+		return calendar.Timer{}, false, nil
+	}
+	if err != nil {
+		return calendar.Timer{}, false, err
+	}
+	timer, err := clocks.Rebuild(ctx, item.TenantID, calendar.PurposeSLA, item.ID, name, cal, budget,
+		current.Spent(now), current.State == calendar.TimerRunning)
+	return timer, err == nil, err
 }
 
 // start runs a goal's timers from now and saves its record in step with them.
