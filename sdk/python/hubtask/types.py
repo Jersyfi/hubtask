@@ -68,6 +68,7 @@ class Account(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    products_seen: list["Module"]
     avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
@@ -131,6 +132,7 @@ class InvitedAccount(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    products_seen: list["Module"]
     avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
@@ -168,6 +170,7 @@ class AccountPreferences(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    products_seen: list["Module"] | None
 
 class NotificationPreference(TypedDict, total=False):
     category: Required[str]

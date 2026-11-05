@@ -11797,6 +11797,9 @@ type Account struct {
 		Name         string             `json:"name"`
 	} `json:"portals,omitempty"`
 
+	// ProductsSeen The products whose home the person has opened and been shown around once - the mark pointing at where to create there is not shown again. Absent or empty: none yet.
+	ProductsSeen *[]Module `json:"products_seen,omitempty"`
+
 	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
 	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.
 	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
@@ -11846,9 +11849,12 @@ type AccountPreferences struct {
 	Locale       *string `json:"locale,omitempty"`
 
 	// OnboardingCompletedAt When the tour ended or was skipped, written by the client. `null` clears it, which is how the tour is asked for again.
-	OnboardingCompletedAt *time.Time                   `json:"onboarding_completed_at,omitempty"`
-	TimeZone              *string                      `json:"time_zone,omitempty"`
-	WeekStart             *AccountPreferencesWeekStart `json:"week_start,omitempty"`
+	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// ProductsSeen The products whose first-visit mark the person has seen, written by the client as the whole list. `null` or an empty list clears it, which shows each product's mark again.
+	ProductsSeen *[]Module                    `json:"products_seen,omitempty"`
+	TimeZone     *string                      `json:"time_zone,omitempty"`
+	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
@@ -18109,6 +18115,9 @@ type InvitedAccount struct {
 		CollectionId openapi_types.UUID `json:"collection_id"`
 		Name         string             `json:"name"`
 	} `json:"portals,omitempty"`
+
+	// ProductsSeen The products whose home the person has opened and been shown around once - the mark pointing at where to create there is not shown again. Absent or empty: none yet.
+	ProductsSeen *[]Module `json:"products_seen,omitempty"`
 
 	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
 	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.

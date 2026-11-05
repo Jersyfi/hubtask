@@ -10541,6 +10541,7 @@ paths:
       operationId: updateAccountPreferences
       x-hubtask-rest: generated
       x-hubtask-rest-null: empty
+      x-hubtask-rest-null-as: { products_seen: [] }
       x-hubtask-rest-words: [celebrations]
       x-hubtask-rest-utc: [onboarding_completed_at]
       x-hubtask-rest-answer: accountResponse
@@ -24580,6 +24581,12 @@ components:
           description: >
             When the person finished or skipped the first-run tour. Absent or null means the tour
             has not been taken - or was asked for again.
+        products_seen:
+          type: array
+          description: >
+            The products whose home the person has opened and been shown around once - the mark
+            pointing at where to create there is not shown again. Absent or empty: none yet.
+          items: { $ref: "#/components/schemas/Module" }
         avatar_media_id:
           type: [string, "null"]
           format: uuid
@@ -24862,6 +24869,14 @@ components:
           description: >
             When the tour ended or was skipped, written by the client. `null` clears it, which
             is how the tour is asked for again.
+        products_seen:
+          type: [array, "null"]
+          maxItems: 9
+          uniqueItems: true
+          description: >
+            The products whose first-visit mark the person has seen, written by the client as the
+            whole list. `null` or an empty list clears it, which shows each product's mark again.
+          items: { $ref: "#/components/schemas/Module" }
 
     NotificationPreference:
       type: object
