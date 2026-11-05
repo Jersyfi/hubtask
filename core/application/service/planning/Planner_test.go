@@ -500,6 +500,27 @@ func TestABaselineIsTakenAndComparedForItsReader(t *testing.T) {
 	}
 }
 
+// UC-PLN-04 check 2: a slip is counted in days of the reader's zone: a due half an hour before
+// midnight UTC moved an hour later is the same day in Berlin, and no slip there.
+func TestABaselineSlipIsCountedInTheReadersDays(t *testing.T) {
+	f := newFixture()
+	late := time.Date(2026, 11, 3, 23, 30, 0, 0, time.UTC)
+	f.baselines.found = domain.Baseline{ID: design, PlanID: hubID, Entries: []domain.BaselineEntry{
+		{EntryID: design, StartAt: at("2026-11-02"), DueAt: &late},
+	}}
+	reader := actor()
+	reader.TimeZone = "Europe/Berlin"
+	comparison, err := CompareBaseline{Planner: f.planner}.Execute(context.Background(), reader, design)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range comparison.Variances {
+		if v.EntryID == design && (v.FinishVarianceDays == nil || *v.FinishVarianceDays != 0) {
+			t.Errorf("design slipped %v days in Berlin, want 0", v.FinishVarianceDays)
+		}
+	}
+}
+
 // UC-PLN-02 check 7: the plan answers an entry it cannot place by its title, so the chart can tray
 // it, and says which placed entries have only a due date, which the chart draws as a point.
 func TestAPlanAnswersItsUndatedEntriesAndItsDueOnlyOnes(t *testing.T) {

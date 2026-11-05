@@ -217,7 +217,12 @@ func (h CompareBaseline) Execute(ctx context.Context, actor appshared.ActorConte
 			kept = append(kept, b)
 		}
 	}
-	return Comparison{Baseline: baseline, Variances: domain.Compare(kept, current, time.UTC)}, nil
+	// A slip is counted in days of the reader's zone, the days the chart shows them.
+	zone := time.UTC
+	if loaded, err := time.LoadLocation(actor.TimeZone); err == nil && actor.TimeZone != "" {
+		zone = loaded
+	}
+	return Comparison{Baseline: baseline, Variances: domain.Compare(kept, current, zone)}, nil
 }
 
 func (p Planner) findBaseline(ctx context.Context, actor appshared.ActorContext, id shared.ID) (domain.Baseline, error) {
