@@ -262,6 +262,22 @@ export function nextReleaseOf<R extends { readonly hub_id: string; readonly stat
 }
 
 /**
+ * The sprints running in the given collections (§2.2, §7.9), the soonest to end first, at most
+ * `limit`. A day is compared as text: `end_on` is a calendar date.
+ */
+export function sprintsRunning<S extends { readonly collection_id: string; readonly state: string; readonly end_on: string }>(
+  lists: Readonly<Record<string, readonly S[]>>,
+  collectionIds: readonly string[],
+  limit: number,
+): S[] {
+  return collectionIds
+    .flatMap((id) => lists[id] ?? [])
+    .filter((sprint) => sprint.state === 'ACTIVE')
+    .sort((a, b) => (a.end_on < b.end_on ? -1 : a.end_on > b.end_on ? 1 : 0))
+    .slice(0, limit);
+}
+
+/**
  * The assets' home lists the hubs that hold an inventory (§2.2): a hub whose health answered none
  * is left out once another holds one; one not answered yet stays, so nothing jumps away later.
  */

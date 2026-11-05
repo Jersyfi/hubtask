@@ -21,15 +21,18 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, hubsWithAssetsFirst, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, hubsWithAssetsFirst, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
+  import { sprintsPath } from '../lib/data/sprints.svelte.ts';
+  import { todayIn } from '../lib/i18n/zone.ts';
+  import { sprintDaysLeft } from '../lib/today.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, ReleaseList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
@@ -121,6 +124,27 @@
   eachHub<ReleaseList>('PLANNING', releasesPath, (hubId, data) => (releasesAt = { ...releasesAt, [hubId]: data.data }));
   const upcoming = $derived(module === 'PLANNING' ? releasesDue(releasesAt, hubsWith.map((hub) => hub.id), RELEASES_SHOWN) : []);
 
+  /** The plans' home lists the sprints running in the hubs' collections (§2.2), the soonest to end first. */
+  const SPRINTS_SHOWN = 8;
+  let sprintsAt = $state<Record<string, SprintList['data']>>({});
+  const collectionsOfHub = (hubId: string) => containers.collectionsOf(hubId).map((collection) => collection.id);
+  const sprintCollections = $derived(module === 'PLANNING' ? hubsWith.flatMap((hub) => collectionsOfHub(hub.id)) : []);
+  const sprintKey = $derived(sprintCollections.join(','));
+  $effect(() => {
+    const ids = sprintKey === '' ? [] : sprintKey.split(',');
+    return untrack(() => {
+      const stops = ids.map((id) =>
+        engine.subscribe<SprintList>({ path: `${sprintsPath(id)}?state=ACTIVE` }, (next) => {
+          if (next.status === 'ready') sprintsAt = { ...sprintsAt, [id]: next.data.data };
+        }),
+      );
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const running = $derived(sprintsRunning(sprintsAt, sprintCollections, SPRINTS_SHOWN));
+  const today = $derived(todayIn(actor.zone));
+  const sprintLeft = (endOn: string) => t('app.sprints.days_left', { count: String(sprintDaysLeft(endOn, today)) });
+
   /** The assets' home opens with the inventory's health across hubs (§2.2). */
   let healthAt = $state<Record<string, CmdbHealth>>({});
   eachHub<CmdbHealth>('ASSETS', healthPath, (hubId, data) => (healthAt = { ...healthAt, [hubId]: data }));
@@ -131,8 +155,13 @@
   /** What a hub's row says of it beside its name (§2.2): the plan's next release, the hub's inventory. */
   function hubLine(hubId: string): string | undefined {
     if (module === 'PLANNING') {
+      const sprint = sprintsRunning(sprintsAt, collectionsOfHub(hubId), 1)[0];
       const next = nextReleaseOf(releasesAt, hubId);
-      return next ? t('app.product_home.next_release', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) }) : undefined;
+      const said = [
+        ...(sprint ? [t('app.product_home.sprint_line', { name: sprint.name, remaining: sprintLeft(sprint.end_on) })] : []),
+        ...(next ? [t('app.product_home.next_release', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) })] : []),
+      ];
+      return said.length > 0 ? said.join(' · ') : undefined;
     }
     if (module === 'ASSETS') {
       const health = healthAt[hubId];
@@ -276,6 +305,25 @@
             <div><dt>{t('app.assets.review_overdue')}</dt><dd>{inventory.reviewOverdue}</dd></div>
           </dl>
           {#if inventory.wanting > 0}<p class="why">{t('app.assets.attention_why')}</p>{/if}
+        </Stack>
+      </section>
+    {/if}
+    {#if running.length > 0}
+      <section aria-labelledby="product-sprints">
+        <Stack gap="100">
+          <h2 class="heading" id="product-sprints">{t('app.product_home.sprints_running')}</h2>
+          <ul class="hubs">
+            {#each running as each (each.id)}
+              {@const where = containers.find(each.collection_id)}
+              <li data-running-sprint={each.id}>
+                <ListRow href={`/collections/${each.collection_id}/sprints`} onactivate={() => onnavigate(`/collections/${each.collection_id}/sprints`)} label={each.name}>
+                  {#snippet leading()}<Icon name="timer" size="sm" />{/snippet}
+                  <span class="name" title={each.name}>{each.name}</span>
+                  <span class="purpose">{[where ? `${hubName(where.parent_id ?? '')} › ${where.name}` : '', sprintLeft(each.end_on)].filter(Boolean).join(' · ')}</span>
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
         </Stack>
       </section>
     {/if}

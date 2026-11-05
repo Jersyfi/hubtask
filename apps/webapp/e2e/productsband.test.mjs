@@ -413,6 +413,22 @@ test('chromium 375 px, dark: the plans\' home lists the releases to come', async
   assert.deepEqual(failures, []);
 });
 
+// §2.2, §7.9: the plans' home lists the sprints running in the hubs' collections, with where and
+// how long, and a hub's row names its running sprint.
+test('chromium 1280 px: the plans\' home lists the sprints running and says each hub\'s', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING'] });
+  t.after(close);
+  const running = page.getByRole('region', { name: 'Sprints running' });
+  await running.waitFor({ timeout: 10_000 });
+  assert.deepEqual(await running.locator('.name').allTextContents(), ['Sprint Kranich']);
+  assert.match(await running.locator('.purpose').first().innerText(), new RegExp(`${HUB.name} › ${SCRUM.name} · (Its last day has passed|\\d+ days? left)`));
+  assert.equal(await running.getByRole('link').first().getAttribute('href'), `/collections/${SCRUM.id}/sprints`);
+  await page.waitForFunction((name) => [...document.querySelectorAll('main a')].some((a) => a.textContent?.includes(name) && a.textContent.includes('Sprint Kranich ·')), HUB.name, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 // §5.1/§5.2: the plans' head carries its primary create act, as every product home does: *Plan a
 // sprint* leads to a collection's sprints, the other collections in its menu.
 test('chromium 1280 px: the plans\' home leads its create act to a collection\'s sprints', async (t) => {
