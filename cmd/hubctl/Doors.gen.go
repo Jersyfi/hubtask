@@ -1569,7 +1569,7 @@ var generatedCommands = []door{
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"account_id"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"account_id", "by_mail"}},
 	{Group: "item", Verb: "rm", OperationID: "trashWorkItem", Method: "DELETE", Path: "/items/{itemId}", Summary: "",
 		PathParams: []doorParam{
 			{Name: "itemId", Kind: "uuid", Help: "", Required: true},

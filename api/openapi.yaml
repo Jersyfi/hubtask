@@ -30416,6 +30416,12 @@ components:
       required: [account_id, organisation, assets]
       properties:
         account_id: { type: string, format: uuid }
+        by_mail:
+          type: boolean
+          description: >
+            True where the mail intake filed the request for a sender without an account:
+            account_id is then whoever opened the intake, not the requester, and the requester's
+            other requests are not that person's.
         assets:
           description: >
             The configuration items the requester owns that the reader may read, by name, at most

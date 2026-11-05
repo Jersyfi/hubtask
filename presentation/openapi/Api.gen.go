@@ -16621,6 +16621,9 @@ type EntryRequester struct {
 		Stage string             `json:"stage"`
 	} `json:"assets"`
 
+	// ByMail True where the mail intake filed the request for a sender without an account: account_id is then whoever opened the intake, not the requester, and the requester's other requests are not that person's.
+	ByMail *bool `json:"by_mail,omitempty"`
+
 	// Organisation The portal organisation of the requester's mail domain; null for none.
 	Organisation *struct {
 		Key  string `json:"key"`

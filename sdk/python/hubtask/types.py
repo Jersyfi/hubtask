@@ -2296,6 +2296,7 @@ class PortalOrganisation(TypedDict, total=False):
 
 class EntryRequester(TypedDict, total=False):
     account_id: Required[str]
+    by_mail: bool
     assets: Required[list[dict[str, Any]]]
     organisation: Required[Any | dict[str, Any]]
 
