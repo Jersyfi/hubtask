@@ -13317,7 +13317,10 @@ type BusinessCalendar struct {
 
 	// Offered The installation's calendar, answered with include_offered; absent for the workspace's.
 	Offered *bool `json:"offered,omitempty"`
-	Version int   `json:"version"`
+
+	// ShadowsOffered With include_offered: the workspace's calendar of a key the installation also offers. What names the key counts on the installation's once this one is deleted.
+	ShadowsOffered *bool `json:"shadows_offered,omitempty"`
+	Version        int   `json:"version"`
 
 	// Zone An IANA time zone.
 	Zone string `json:"zone"`

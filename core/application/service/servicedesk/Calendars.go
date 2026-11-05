@@ -150,7 +150,11 @@ func (h ListBusinessCalendars) Descriptor() usecase.Descriptor {
 			data := make([]usecase.Output, 0, len(calendars))
 			held := map[string]bool{}
 			for _, c := range calendars {
-				data = append(data, CalendarOutput(c))
+				row := CalendarOutput(c)
+				if _, offered := h.Desk.Offered[c.Key]; offered && in.Bool("include_offered") {
+					row["shadows_offered"] = true
+				}
+				data = append(data, row)
 				held[c.Key] = true
 			}
 			if in.Bool("include_offered") {

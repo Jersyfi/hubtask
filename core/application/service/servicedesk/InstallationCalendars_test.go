@@ -145,14 +145,16 @@ func TestTheListAnswersTheInstallationsCalendarsWhenAsked(t *testing.T) {
 		}
 		var got []string
 		for _, row := range out["data"].([]usecase.Output) {
-			got = append(got, fmt.Sprintf("%s offered=%v", row["key"], row["offered"]))
+			got = append(got, fmt.Sprintf("%s offered=%v shadows=%v", row["key"], row["offered"], row["shadows_offered"]))
 		}
 		return got
 	}
-	if got := keys(usecase.Input{}); !slices.Equal(got, []string{office.Key + " offered=<nil>"}) {
+	if got := keys(usecase.Input{}); !slices.Equal(got, []string{office.Key + " offered=<nil> shadows=<nil>"}) {
 		t.Errorf("asked plainly: %v", got)
 	}
-	want := []string{"bavaria offered=true", office.Key + " offered=<nil>"}
+	// The workspace's of a key the installation also offers says so: a policy naming it counts on
+	// the installation's once it is deleted, which a plan reads before it refuses the deletion.
+	want := []string{"bavaria offered=true shadows=<nil>", office.Key + " offered=<nil> shadows=true"}
 	if got := keys(usecase.Input{"include_offered": true}); !slices.Equal(got, want) {
 		t.Errorf("with the installation's: %v, want %v", got, want)
 	}

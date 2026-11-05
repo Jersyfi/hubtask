@@ -13323,7 +13323,10 @@ type BusinessCalendar struct {
 
 	// Offered The installation's calendar, answered with include_offered; absent for the workspace's.
 	Offered *bool `json:"offered,omitempty"`
-	Version int   `json:"version"`
+
+	// ShadowsOffered With include_offered: the workspace's calendar of a key the installation also offers. What names the key counts on the installation's once this one is deleted.
+	ShadowsOffered *bool `json:"shadows_offered,omitempty"`
+	Version        int   `json:"version"`
 
 	// Zone An IANA time zone.
 	Zone string `json:"zone"`
@@ -34072,7 +34075,7 @@ type ClientInterface interface {
 
 	// ListBusinessCalendars The workspace's business calendars
 	//
-	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it; the workspace's calendar of a key the installation also offers then carries `shadows_offered`. Needs READ at the workspace and the service desk switched on.
 	//
 	// Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
 	ListBusinessCalendars(ctx context.Context, params *ListBusinessCalendarsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -48406,7 +48409,7 @@ func (c *Client) CompareBaseline(ctx context.Context, baselineId openapi_types.U
 
 // ListBusinessCalendars The workspace's business calendars
 //
-// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it; the workspace's calendar of a key the installation also offers then carries `shadows_offered`. Needs READ at the workspace and the service desk switched on.
 //
 // Corresponds with GET /business-calendars (the `ListBusinessCalendars` operationId).
 func (c *Client) ListBusinessCalendars(ctx context.Context, params *ListBusinessCalendarsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -108062,7 +108065,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListBusinessCalendarsWithResponse The workspace's business calendars
 	//
-	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
+	// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it; the workspace's calendar of a key the installation also offers then carries `shadows_offered`. Needs READ at the workspace and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -162528,7 +162531,7 @@ func (c *ClientWithResponses) CompareBaselineWithResponse(ctx context.Context, b
 
 // ListBusinessCalendarsWithResponse The workspace's business calendars
 //
-// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it. Needs READ at the workspace and the service desk switched on.
+// Every business calendar of the workspace, by key: its working hours per weekday, its holidays and its time zone. With `include_offered`, also the installation's calendars of a key the workspace holds none under, each `offered` - a policy may name one and a hub may keep its own version of it; the workspace's calendar of a key the installation also offers then carries `shadows_offered`. Needs READ at the workspace and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
