@@ -1014,7 +1014,8 @@ board is drawn by several people at once) unless that one is named. Bringing a v
 client's write of its objects into the live document; the save that follows is a version of its
 own (P-03). A voting session and a timer live in the live document beside the objects
 (`facilitation`, `votes`), never in the scene: an anonymous vote keeps each person's votes under a
-key their device minted.
+key their device minted. Each vote is a key of its own, so one person voting on two devices at
+once keeps both; votes given at once past the person's number are not counted.
 
 A board's `Comment`s (`whiteboard_comment`, UC-CNV-09) are threads pinned at a place on the board
 and, when they are about an object, at that object (`element_id`): the pin follows the object while

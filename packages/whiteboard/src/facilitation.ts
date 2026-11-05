@@ -8,7 +8,10 @@
  *
  * **Votes.** A session gives each person a number of votes to spread over the objects, several on
  * one if they like. A person's votes are kept under a voter key: their account in an open session,
- * a key their device minted in an anonymous one, so the document never names who voted what.
+ * a key their device minted in an anonymous one, so the document never names who voted what. Each
+ * vote is a key of its own (`session:voter#vote`), so two devices of one voter voting at once
+ * keep both; the votes past the voter's number, given at once, are not counted. A board that kept
+ * a voter's votes as one list (`session:voter`) is still read.
  *
  * **The timer** keeps when it ends (or, paused, what was left), not a ticking number, so every
  * device counts down by its own clock.
@@ -37,14 +40,21 @@ export interface Timer {
 export const MAX_VOTES_PER_PERSON = 20;
 export const MAX_TIMER = 4 * 60 * 60 * 1000;
 
+/** One vote: the key it is kept under, the object, and its place in a voter's list if listed. */
+interface Ballot {
+  key: string;
+  elementId: string;
+  listed?: number;
+}
+
 /** A board's voting session and timer in its live document. */
 export class Facilitation {
   readonly #map: Y.Map<unknown>;
-  readonly #votes: Y.Map<string[]>;
+  readonly #votes: Y.Map<string[] | string>;
 
   constructor(doc: Y.Doc) {
     this.#map = doc.getMap('facilitation');
-    this.#votes = doc.getMap<string[]>('votes');
+    this.#votes = doc.getMap<string[] | string>('votes');
   }
 
   get voting(): Voting | undefined {
@@ -78,16 +88,15 @@ export class Facilitation {
   /** The objects a voter gave their votes to, one entry per vote. */
   votesOf(voter: string): string[] {
     const voting = this.voting;
-    return voting ? [...(this.#votes.get(`${voting.id}:${voter}`) ?? [])] : [];
+    return voting ? (this.#ballots(voting).get(voter) ?? []).map((b) => b.elementId) : [];
   }
 
   /** Gives one vote to an object; refused once the voter has none left or the session is closed. */
   vote(voter: string, elementId: string): boolean {
     const voting = this.voting;
     if (!voting?.open) return false;
-    const mine = this.votesOf(voter);
-    if (mine.length >= voting.perPerson) return false;
-    this.#votes.set(`${voting.id}:${voter}`, [...mine, elementId]);
+    if (this.votesOf(voter).length >= voting.perPerson) return false;
+    this.#votes.set(`${voting.id}:${voter}#${globalThis.crypto.randomUUID()}`, elementId);
     return true;
   }
 
@@ -95,11 +104,15 @@ export class Facilitation {
   unvote(voter: string, elementId: string): boolean {
     const voting = this.voting;
     if (!voting?.open) return false;
-    const mine = this.votesOf(voter);
-    const at = mine.indexOf(elementId);
-    if (at < 0) return false;
-    mine.splice(at, 1);
-    this.#votes.set(`${voting.id}:${voter}`, mine);
+    const ballot = [...(this.#ballots(voting).get(voter) ?? [])].reverse().find((b) => b.elementId === elementId);
+    if (!ballot) return false;
+    if (ballot.listed === undefined) {
+      this.#votes.delete(ballot.key);
+      return true;
+    }
+    const kept = [...((this.#votes.get(ballot.key) as string[] | undefined) ?? [])];
+    kept.splice(ballot.listed, 1);
+    this.#votes.set(ballot.key, kept);
     return true;
   }
 
@@ -109,12 +122,41 @@ export class Facilitation {
     const counts = new Map<string, number>();
     let voters = 0;
     if (!voting) return { counts, voters };
-    this.#votes.forEach((ids, key) => {
-      if (!key.startsWith(`${voting.id}:`) || ids.length === 0) return;
+    for (const ballots of this.#ballots(voting).values()) {
+      if (ballots.length === 0) continue;
       voters += 1;
-      for (const id of ids.slice(0, voting.perPerson)) counts.set(id, (counts.get(id) ?? 0) + 1);
-    });
+      for (const { elementId } of ballots) counts.set(elementId, (counts.get(elementId) ?? 0) + 1);
+    }
     return { counts: new Map([...counts].sort((a, b) => b[1] - a[1])), voters };
+  }
+
+  /**
+   * The session's votes by voter, in one order on every device - the listed ones first, then by
+   * key - and at most the voter's number: votes given at once past it are not counted.
+   */
+  #ballots(voting: Voting): Map<string, Ballot[]> {
+    const prefix = `${voting.id}:`;
+    const byVoter = new Map<string, Ballot[]>();
+    const add = (voter: string, ballot: Ballot) => {
+      const list = byVoter.get(voter) ?? [];
+      list.push(ballot);
+      byVoter.set(voter, list);
+    };
+    const keys = [...this.#votes.keys()].filter((key) => key.startsWith(prefix)).sort();
+    for (const key of keys) {
+      const value = this.#votes.get(key);
+      const rest = key.slice(prefix.length);
+      const mark = rest.indexOf('#');
+      if (Array.isArray(value) && mark < 0) {
+        value.forEach((elementId, listed) => add(rest, { key, elementId, listed }));
+      } else if (typeof value === 'string' && mark > 0) {
+        add(rest.slice(0, mark), { key, elementId: value });
+      }
+    }
+    for (const [voter, list] of byVoter) {
+      byVoter.set(voter, [...list.filter((b) => b.listed !== undefined), ...list.filter((b) => b.listed === undefined)].slice(0, voting.perPerson));
+    }
+    return byVoter;
   }
 
   get timer(): Timer | undefined {
