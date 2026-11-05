@@ -274,6 +274,7 @@ func TestTheInstallationDefaultIsTheLastResort(t *testing.T) {
 	}
 }
 
+// UC-ID-17 check 5, its first half: a revoked token's next request fails (`access.token_revoked`).
 func TestARefusedCredential(t *testing.T) {
 	raw, valid := mintCredential(t)
 
@@ -340,6 +341,8 @@ func TestARefusedCredential(t *testing.T) {
 	}
 }
 
+// UC-ID-17 check 5, its second half: the last use is written back, which the list answers as
+// `last_used_at` (TestTheProjectionCarriesNoCredential).
 func TestTheLastUseIsWrittenBackAtMostOncePerInterval(t *testing.T) {
 	raw, credential := mintCredential(t)
 
