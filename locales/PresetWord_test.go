@@ -24,7 +24,8 @@ func catalogue(t *testing.T, name string) map[string]string {
 
 // A preset and a template are two concepts with two German words: *Voreinstellung* and *Vorlage*.
 // Every message about a preset is translated - the first start's question with them, which offers
-// hubs and collections on presets - and none calls one a *Vorlage*.
+// hubs and collections on presets - and none calls one a *Vorlage*; one naming both (the section
+// "Templates and presets") says both words.
 func TestAPresetHasItsOwnGermanWord(t *testing.T) {
 	en, de := catalogue(t, "en.json"), catalogue(t, "de.json")
 	for code, source := range en {
@@ -39,7 +40,7 @@ func TestAPresetHasItsOwnGermanWord(t *testing.T) {
 			t.Errorf("de.json has no %s (%q)", code, source)
 			continue
 		}
-		if strings.Contains(strings.ToLower(source), "preset") && strings.Contains(text, "Vorlage") {
+		if strings.Contains(strings.ToLower(source), "preset") && strings.Contains(text, "Vorlage") && !strings.Contains(text, "Voreinstellung") {
 			t.Errorf("de.json %s calls a preset a template: %s", code, text)
 		}
 	}
