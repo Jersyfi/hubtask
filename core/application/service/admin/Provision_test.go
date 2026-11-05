@@ -401,6 +401,7 @@ func provisionCommand() ProvisionTenantCommand {
 	}
 }
 
+// UC-INS-07 check 5: the creation is in the instance journal and in the new workspace's own trail.
 func TestProvisioningCreatesTheWholeSection5Table(t *testing.T) {
 	f := newProvisionFixture()
 

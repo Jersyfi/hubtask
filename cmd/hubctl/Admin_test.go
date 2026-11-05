@@ -87,7 +87,8 @@ func TestListingWorkspacesMarksALegalHold(t *testing.T) {
 	}
 }
 
-// The owner's way in is answered once. Same discipline as every other credential this client
+// UC-INS-07 check 1, hubctl's part: `admin tenant create` is POST /admin/tenants, the operation the
+// screen sends and whose use case holds the checks. The owner's way in is answered once. Same discipline as every other credential this client
 // meets: readable by a script on standard output, with the warning beside it.
 func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, `{"id":"`+acmeID+`","slug":"acme",

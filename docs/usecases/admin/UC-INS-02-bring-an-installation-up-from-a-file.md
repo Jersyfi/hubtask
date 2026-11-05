@@ -7,7 +7,7 @@ deployments: [D4, D5, D6, D7]
 serves: [P-08, P-09]
 state: built
 tasks: [SI-05, SI-17, SC-04]
-checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/OperatorsFromEnvironment_test.go, infrastructure/environment/EnvConfig_test.go, test/integration/first_start_test.go]
+checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/OperatorsFromEnvironment_test.go, infrastructure/environment/EnvConfig_test.go, test/integration/first_start_test.go, apps/webapp/e2e/instancesettings.test.mjs]
 ---
 
 # Bring an installation up from a file, operators included

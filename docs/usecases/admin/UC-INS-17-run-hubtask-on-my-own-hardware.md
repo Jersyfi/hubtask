@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D7]
 serves: [P-09, P-10, P-11]
 state: built
 tasks: [B-15]
-checked_by: [docs/architecture/support-matrix.md, .github/workflows/nightly.yml]
+checked_by: [docs/architecture/support-matrix.md, .github/workflows/nightly.yml, tools/checkdocs/matrix_test.go]
 ---
 
 # Run Hubtask on the hardware I have

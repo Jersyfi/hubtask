@@ -280,6 +280,7 @@ test('chromium: a level a file enforces is shown with its path and no control', 
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, close } = await open(browser, {
+    // UC-INS-02 check 2: while a file enforces the level, the screen names it and offers no control.
     level: { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' },
   });
   t.after(close);

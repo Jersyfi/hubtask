@@ -313,6 +313,8 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
   assert.equal(await pageOffers(multi.page, 'Delete'), 2);
 });
 
+// UC-INS-07 check 1, the screen's part: *New workspace* sends POST /admin/tenants, the operation
+// `hubctl admin tenant create` sends, and the use case's refusal comes back at the field.
 // UC-INS-07 check 2: a short name the installation reserves for itself is refused at the field of
 // *New workspace*, with its own sentence, and the dialog stays for another.
 test('chromium: a reserved short name is refused at the field of New workspace', async (t) => {
