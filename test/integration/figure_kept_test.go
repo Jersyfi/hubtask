@@ -41,6 +41,8 @@ func keptFigureReader(ctx context.Context, t *testing.T) workservice.FigureReade
 	return workservice.FigureReader{
 		Figures: postgres.NewFigureRepository(), Clock: portclock.Fixed(keptMoment),
 		Profiles: postgres.NewCapabilityProfileRepository(), Kept: postgres.NewKeptFigureRepository(),
+		// The late count runs before the read returns, so that the next read's answer is settled.
+		Spawn: func(ctx context.Context, _ string, fn func(context.Context)) { fn(ctx) },
 	}
 }
 
@@ -128,8 +130,13 @@ func TestAKeptFigureMovesWithEveryWriteInItsWorkspace(t *testing.T) {
 	if after.Changes <= before.Changes {
 		t.Fatalf("changes %d after %d", after.Changes, before.Changes)
 	}
-	if got := openFigure(ctx, t, collection).Counts.Open; got != 2 {
-		t.Fatalf("after the completion open %d, want 2", got)
+	// Within domain.FigureStaleFor the kept count answers as of its time, and a late count makes
+	// the next read's (UC-WRK-29/8).
+	if stale := openFigure(ctx, t, collection); stale.Counts.Open != 3 || !stale.CountedAt.Equal(keptMoment) {
+		t.Fatalf("right after the completion open %d as of %v, want 3 as of %v", stale.Counts.Open, stale.CountedAt, keptMoment)
+	}
+	if current := openFigure(ctx, t, collection); current.Counts.Open != 2 || !current.CountedAt.IsZero() {
+		t.Fatalf("after the late count open %d as of %v, want 2 and current", current.Counts.Open, current.CountedAt)
 	}
 
 	// A workspace-wide definition is every collection's change.
