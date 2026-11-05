@@ -147,10 +147,9 @@
   const reading = $derived(aiProvider.state);
   const provider = $derived(aiProvider.provider);
   const answering = $derived(aiAnsweringOf(source, provider));
-  const isAnsweringKnown = $derived(reading.status === 'ready' || (reading.status === 'failed' && reading.error.status === 404));
-
-  /** A `404` is a workspace that has never configured one — the form, not an error. */
-  const unconfigured = $derived(reading.status === 'failed' && reading.error.status === 404);
+  /** A workspace that has never configured one — the form, not an error. */
+  const unconfigured = $derived(aiProvider.unconfigured);
+  const isAnsweringKnown = $derived(reading.status === 'ready' || unconfigured);
   const unreadable = $derived(
     reading.status === 'failed' && !unconfigured ? renderProblem(reading.error, messages) : undefined,
   );
@@ -338,7 +337,7 @@
     <Stack gap="300">
     <p class="quiet">{t('app.ai.intro')}</p>
 
-    {#if reading.status === 'loading' || reading.status === 'idle'}
+    {#if !unconfigured && (reading.status === 'loading' || reading.status === 'idle')}
       <p class="quiet">
         <Spinner label={t('app.ai.reading')} />
         <span>{t('app.ai.reading')}</span>

@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { stub } from './fixture.mjs';
+import { AI_SOURCE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -35,6 +35,7 @@ async function open(browser, routes = {}) {
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (routes[path]) return routes[path](route, request, sent);
     if (path === '/ai-provider' && request.method() === 'GET') return route.fulfill({ json: ownProvider });
+    if (path === '/ai-source' && request.method() === 'GET') return route.fulfill({ json: { ...AI_SOURCE, own_configured: true } });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -65,7 +66,7 @@ const LARGE = { id: '01a0e2e0-0000-7000-8000-0000000006a1', display_name: 'Large
 /** A workspace's AI source under a rule, as `GET /ai-source` answers it. */
 const sourceUnder = (sources, extra = {}) => ({
   source: 'OWN', sources, installation_sources: sources, sources_origin: 'INSTANCE', min_jurisdiction: 'ANY',
-  min_jurisdiction_origin: 'DEFAULT', offered: [LARGE], search_rebuilding: false, version: 1, ...extra,
+  min_jurisdiction_origin: 'DEFAULT', offered: [LARGE], search_rebuilding: false, version: 1, own_configured: true, ...extra,
 });
 
 function sourceRoutes(answer) {

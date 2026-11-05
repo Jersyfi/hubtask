@@ -39,6 +39,12 @@ const walks = [
     refused: ['/approvals', '/pages:personal', '/pages:shared', '/pages:public-links', '/portfolios:public-links', '/public-forms:policy', '/entry-types', '/workflows'],
     paths: ['/approvals', '/notes', '/administration/workspace', '/', `/collections/${COLLECTION.id}`],
   },
+  {
+    // The fixture's workspace configured no provider: its source says so, and the read that would
+    // answer 404 is not asked.
+    name: 'an owner on the AI settings asks no provider the source says is not there',
+    modules: [], manifest: {}, refused: [], paths: ['/administration/ai'],
+  },
 ];
 
 for (const walkOf of walks) {
