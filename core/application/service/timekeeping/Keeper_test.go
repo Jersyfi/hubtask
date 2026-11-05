@@ -664,7 +664,8 @@ func TestAReportSumsWhatItsReaderMaySee(t *testing.T) {
 		t.Fatalf("a person named in an aggregated report: %v", err)
 	}
 	summed, err := ReadTimeReport{Keeper: f.keeper}.Execute(ctx, as(lead), week, false, []domain.Dimension{domain.ByEntry})
-	if err != nil || len(summed.Groups) != 0 || summed.WithheldMinutes != 90 {
+	if err != nil || len(summed.Groups) != 0 || summed.WithheldMinutes != 0 || !summed.WithheldMinutesHidden ||
+		summed.Minutes != 0 || summed.WithheldGroups != 1 {
 		t.Fatalf("a group of two shown: %+v %v", summed, err)
 	}
 	if _, _, err := (ListTimeRecords{Keeper: f.keeper}).Execute(ctx, as(lead), week, false); detail(err) != "time.aggregated_only" {

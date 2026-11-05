@@ -35,7 +35,9 @@ in is withheld.
    both rolled up with the entries below, the hours remaining (never below zero) and the variance.
 3. Aggregated, a report over other people takes no person dimension and no other person's filter
    (`time.aggregated_only`), withholds every group of fewer than three people and says how many
-   minutes it withheld; other people's records are not listed.
+   minutes it withheld; when the withheld groups together hold fewer than three people, their
+   minutes leave the total and the withheld sum, and `withheld_minutes_hidden` says so; other
+   people's records are not listed.
 4. Aggregated, only an approver of the plan reads its estimates against actuals.
 5. REST, MCP and hubctl read a report and a plan's actuals alike.
 6. The web app shows a report and a plan's estimates against actuals as tables.

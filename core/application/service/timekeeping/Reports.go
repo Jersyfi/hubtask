@@ -226,6 +226,7 @@ func (k Keeper) reportOutput(ctx context.Context, actor appshared.ActorContext, 
 	return usecase.Output{
 		"group_by": dims, "groups": groups, "minutes": r.Minutes,
 		"withheld_minutes": r.WithheldMinutes, "withheld_groups": r.WithheldGroups,
+		"withheld_minutes_hidden": r.WithheldMinutesHidden,
 	}, nil
 }
 

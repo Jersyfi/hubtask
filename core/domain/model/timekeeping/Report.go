@@ -70,6 +70,10 @@ type Report struct {
 	// WithheldMinutes are the minutes of the groups too small to show without naming a person.
 	WithheldMinutes int
 	WithheldGroups  int
+	// WithheldMinutesHidden says the withheld groups together hold fewer than MinPeoplePerGroup
+	// people: their minutes then leave the total and WithheldMinutes too, which would otherwise
+	// tell the time of one or two people by subtraction.
+	WithheldMinutesHidden bool
 }
 
 // CheckDimensions holds a report's grouping to the closed vocabulary, at most MaxDimensions and
@@ -120,15 +124,24 @@ func Summarise(lines []Line, dims []Dimension, aggregated bool, reader shared.ID
 	}
 	if aggregated {
 		kept := report.Groups[:0]
+		withheldPeople := map[shared.ID]bool{}
 		for _, g := range report.Groups {
 			if len(g.people) < MinPeoplePerGroup && (len(g.people) != 1 || !g.people[reader]) {
 				report.WithheldMinutes += g.Minutes
 				report.WithheldGroups++
+				for person := range g.people {
+					withheldPeople[person] = true
+				}
 				continue
 			}
 			kept = append(kept, g)
 		}
 		report.Groups = kept
+		if report.WithheldGroups > 0 && len(withheldPeople) < MinPeoplePerGroup {
+			report.Minutes -= report.WithheldMinutes
+			report.WithheldMinutes = 0
+			report.WithheldMinutesHidden = true
+		}
 	}
 	slices.SortFunc(report.Groups, func(a, b Group) int { return slices.Compare(a.Keys, b.Keys) })
 	for i := range report.Groups {

@@ -24538,6 +24538,9 @@ type TimeReport struct {
 
 	// WithheldMinutes The minutes of groups too small to show without naming a person.
 	WithheldMinutes int `json:"withheld_minutes"`
+
+	// WithheldMinutesHidden True when the withheld groups together hold fewer than three people: their minutes then leave both `minutes` and `withheld_minutes`, which would otherwise tell one or two people's time by subtraction; `withheld_groups` still counts them.
+	WithheldMinutesHidden *bool `json:"withheld_minutes_hidden,omitempty"`
 }
 
 // TimeTimer defines model for TimeTimer.

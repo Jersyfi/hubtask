@@ -11185,6 +11185,7 @@
   "app.time.report_total": "{minutes} insgesamt",
   "app.time.report_empty": "In diesem Zeitraum ist keine Zeit erfasst.",
   "app.time.withheld": "{groups} Gruppen mit weniger als drei Personen sind ausgelassen ({minutes}), damit niemand benannt wird.",
+  "app.time.withheld_hidden": "{groups} Gruppen mit weniger als drei Personen sind ausgelassen, ebenso ihre Minuten, die sonst die ein oder zwei Personen darin verraten würden.",
   "app.time.export": "Als CSV exportieren",
   "app.time.export_spreadsheet": "Als Tabelle exportieren",
   "app.time.export_with_costs": "Mit Kosten",

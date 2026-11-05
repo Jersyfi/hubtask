@@ -2830,7 +2830,7 @@ var generatedCommands = []door{
 			{Name: "mine", Kind: "boolean", Help: "", Required: false},
 			{Name: "to", Kind: "string", Help: "", Required: true},
 		},
-		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"minutes", "withheld_groups", "withheld_minutes"}},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"minutes", "withheld_groups", "withheld_minutes", "withheld_minutes_hidden"}},
 	{Group: "time", Verb: "rm", OperationID: "deleteTimeRecord", Method: "DELETE", Path: "/time-records/{recordId}", Summary: "Remove a record of one's own",
 		PathParams: []doorParam{
 			{Name: "recordId", Kind: "uuid", Help: "A time record", Required: true},

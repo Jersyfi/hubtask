@@ -224,10 +224,23 @@ func TestAReportSumsAndWithholdsSmallGroups(t *testing.T) {
 	if a.Minutes != 105 || a.BillableMinutes != 60 || a.Records != 3 {
 		t.Fatalf("entry A %+v", a)
 	}
+	// One person's group withheld: fewer than three people together, so its minutes leave the
+	// total and the withheld sum too (UC-TIM-04 check 3).
 	aggregated := Summarise(lines, []Dimension{ByEntry}, true, person)
 	if len(aggregated.Groups) != 1 || aggregated.Groups[0].Keys[0] != entryA.String() ||
-		aggregated.WithheldMinutes != 120 || aggregated.WithheldGroups != 1 {
+		aggregated.WithheldMinutes != 0 || aggregated.WithheldGroups != 1 || !aggregated.WithheldMinutesHidden ||
+		aggregated.Minutes != 105 {
 		t.Fatalf("aggregated %+v", aggregated)
+	}
+	// Withheld groups that together hold three people say their minutes.
+	spread := []Line{
+		{AccountID: person, EntryID: entryA, Day: d, Minutes: 10, Records: 1},
+		{AccountID: lead, EntryID: entryB, Day: d, Minutes: 20, Records: 1},
+		{AccountID: third, EntryID: entryB, Day: d, Minutes: 30, Records: 1},
+	}
+	if shown := Summarise(spread, []Dimension{ByEntry}, true, other); shown.WithheldMinutes != 60 ||
+		shown.WithheldGroups != 2 || shown.WithheldMinutesHidden || shown.Minutes != 60 {
+		t.Fatalf("three people withheld %+v", shown)
 	}
 	own := Summarise(lines[:1], []Dimension{ByDay}, true, person)
 	if len(own.Groups) != 1 || own.WithheldGroups != 0 {

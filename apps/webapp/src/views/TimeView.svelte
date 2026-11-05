@@ -564,7 +564,11 @@
     {:else}
       <h2 class="heading">{t('app.time.report_total', { minutes: minutesText(answer.minutes) })}</h2>
       {#if answer.withheld_groups > 0}
-        <p class="quiet">{t('app.time.withheld', { groups: String(answer.withheld_groups), minutes: minutesText(answer.withheld_minutes) })}</p>
+        {#if answer.withheld_minutes_hidden}
+          <p class="quiet">{t('app.time.withheld_hidden', { groups: String(answer.withheld_groups) })}</p>
+        {:else}
+          <p class="quiet">{t('app.time.withheld', { groups: String(answer.withheld_groups), minutes: minutesText(answer.withheld_minutes) })}</p>
+        {/if}
       {/if}
       <Table isStacked label={t('app.time.tab_report')} isLabelHidden columns={reportColumns}>
         {#each answer.groups as group, i (i)}

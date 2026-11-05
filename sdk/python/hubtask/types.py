@@ -1511,6 +1511,7 @@ class TimeReport(TypedDict, total=False):
     minutes: Required[int]
     withheld_minutes: Required[int]
     withheld_groups: Required[int]
+    withheld_minutes_hidden: bool
 
 class TimeExport(TypedDict, total=False):
     columns: Required[list[str]]
