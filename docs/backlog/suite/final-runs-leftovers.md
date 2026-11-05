@@ -556,7 +556,7 @@ Still open:
 - Assets offer no template on their first visit, because no shipped template switches the assets module on. Fixing that needs a catalogue change.
 - The people, entries and bytes columns were not added to the workspaces list. Those counts exist only through metering, so they stay on Usage.
 - Mockups were not updated for §8.9 to §8.11.
-- The new Configuration file screen has a unit test (installationFile) and a residue-walk render, but no e2e test.
+- The new Configuration file screen has a unit test (installationFile) and a residue-walk render, but no e2e test. (Closed by `dcf65328f`: apps/webapp/e2e/instancefile.test.mjs, run 2026-11-05, 2 pass.)
 
 Everything is pushed to origin suite/concept (HEAD c1c0f9bb5).
 
@@ -731,7 +731,7 @@ workstation (accepted.md, third answers, item 9).
 ===== leftovers 2 fix 1.3 done False
 Not run or not verified: make verify; the whole integration and e2e suites; and any walk against a running server. Nobody has applied a real shipped template through starter:apply end to end yet: the integration test uses a fake template taker and the config unit test uses the config fakes. The starter screenshots (stored in the session scratchpad) come from the e2e stubs only.
 
-Found and not fixed: apps/webapp/e2e/engines.test.mjs 'a limit set by the plan says so...' (the administration/quotas chip) fails in Chromium, Firefox and WebKit. It fails the same way with this session's TourGuide change reverted, and this session touched no quotas code. Its cause was not traced.
+Found and not fixed: apps/webapp/e2e/engines.test.mjs 'a limit set by the plan says so...' (the administration/quotas chip) fails in Chromium, Firefox and WebKit. It fails the same way with this session's TourGuide change reverted, and this session touched no quotas code. Its cause was not traced. (Closed by `7f89b54f0`: the walk's stub answered GET /integrations/webhooks with a page envelope, which the administration column reads since 7ee022994; 12 of 12 pass in the three engines.)
 
 Gaps left in finding 1:
 - Today's 'Choose what you use Hubtask for' after a skip is not built, because starter:apply refuses once the question was closed (named in user-experience.md §3.2 'As built').
@@ -784,7 +784,7 @@ Not run: make verify, the full integration and e2e suites, and any walk in the r
 Everything is pushed to origin suite/concept and the notes are appended to .git/suite-pr-notes.md.
 OWNER: ["Delegate for an absent approver (UC-SVC-10): a person who is counted at a level themselves and is also the delegate of an absent approver can decide only for themselves. Proposal: one decision fills one seat; deciding for the absent approver is a separate, explicit 'on behalf of' choice, so one person never fills two seats with a single act (four-eyes). This changes what an approver observes, so it is the owner's decision."]
 ===== leftovers 2 fix 6 done True
-Not covered: a German account on an English browser still loads English at boot, because the account's locale only arrives after sign-in. This was already the case before. Found but not mine: 3 tests in apps/webapp/e2e/privacy.test.mjs fail (2 writes where 1 is expected). They fail the same way with the previous source checked out, so this change did not cause them; I did not fix them. Not run: the full e2e suite (I ran about 10 files), the full pnpm test under the other two time zones (I ran the unit tests in the default time zone only), and the Go checks (nothing on the Go side changed). Pushed to origin suite/concept. Notes are added to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+Not covered: a German account on an English browser still loads English at boot, because the account's locale only arrives after sign-in. This was already the case before. Found but not mine: 3 tests in apps/webapp/e2e/privacy.test.mjs fail (2 writes where 1 is expected). They fail the same way with the previous source checked out, so this change did not cause them; I did not fix them. (Closed by `7230062c4`: the walk counted the erasure mode note's preview read as a write; 10 of 10 pass.) Not run: the full e2e suite (I ran about 10 files), the full pnpm test under the other two time zones (I ran the unit tests in the default time zone only), and the Go checks (nothing on the Go side changed). Pushed to origin suite/concept. Notes are added to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
 ```
 
 ## Needs a finding issue
