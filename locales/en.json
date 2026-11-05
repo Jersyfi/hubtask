@@ -6176,7 +6176,7 @@
   "app.people.mail_kind_REQUEST_REPLY": "an answer to a request",
   "app.people.mail_kind_SLA": "an entry's service level",
   "app.people.invited": "Invited, not yet arrived",
-  "app.people.status_active": "Here",
+  "app.people.status_active": "Active",
   "app.people.status_disabled": "Switched off",
   "app.people.status_restricted": "Restricted",
   "app.people.status_anonymized": "Erased",

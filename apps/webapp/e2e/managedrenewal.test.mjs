@@ -173,7 +173,7 @@ test('a managed owner is offered no new way in to an administrator', async (t) =
     await page.goto(`${served.origin}/administration/people`);
     const lena = rowOf(page, 'Lena');
     // The account is read once its status shows: whether it is managed is known from then on.
-    await lena.getByText('Here', { exact: true }).waitFor({ timeout: 15_000 });
+    await lena.getByText('Active', { exact: true }).waitFor({ timeout: 15_000 });
     if (offered) await lena.getByRole('button', { name: 'New start password' }).waitFor({ timeout: 15_000 });
     const label = `${reader} for a managed ${lenaRole}`;
     assert.equal(await lena.getByRole('button', { name: 'New start password' }).count(), offered ? 1 : 0, label);

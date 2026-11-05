@@ -6176,7 +6176,7 @@
   "app.people.mail_kind_REQUEST_REPLY": "eine Antwort auf eine Anfrage",
   "app.people.mail_kind_SLA": "das Service-Level eines Eintrags",
   "app.people.invited": "Eingeladen, noch nicht angekommen",
-  "app.people.status_active": "Hier",
+  "app.people.status_active": "Aktiv",
   "app.people.status_disabled": "Ausgeschaltet",
   "app.people.status_restricted": "Eingeschränkt",
   "app.people.status_anonymized": "Gelöscht",
