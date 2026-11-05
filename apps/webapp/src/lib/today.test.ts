@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, productBandsOf, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
+import { bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -162,4 +162,15 @@ test('a held act is approved at Today\'s row only where it can be undone', () =>
   ]);
   assert.deepEqual(heldActRows(acts, [], 'me', false).map((row) => [row.name, row.path]), [['', undefined], ['', undefined]], 'an agent not read yet has no name and no way there');
   assert.deepEqual(heldActRows(undefined, agents, 'me', true), []);
+});
+
+// §3.3: *Needs your answer* across hubs is nearest first - the due moment the server sorts by is the
+// earliest of the goals still running, and an entry not read yet keeps its place behind the rest.
+test('Needs your answer merges the hubs by the moment each entry is due', () => {
+  const goal = (standing: string, due_at: string | null) => ({ standing, due_at }) as never;
+  assert.equal(runningDue([goal('RUNNING', '2026-11-05T12:00:00Z'), goal('RUNNING', '2026-11-05T10:00:00Z'), goal('BREACHED', '2026-11-04T10:00:00Z')]), Date.parse('2026-11-05T10:00:00Z'));
+  assert.equal(runningDue([goal('PAUSED', '2026-11-05T10:00:00Z'), goal('RUNNING', null)]), undefined);
+  const rows = [{ id: 'a1' }, { id: 'a2' }, { id: 'b1' }, { id: 'b2' }];
+  assert.deepEqual(nearestFirst(rows, { a1: 30, a2: 40, b1: 10 }).map((row) => row.id), ['b1', 'a1', 'a2', 'b2']);
+  assert.deepEqual(nearestFirst(rows, {}).map((row) => row.id), ['a1', 'a2', 'b1', 'b2']);
 });

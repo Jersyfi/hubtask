@@ -51,18 +51,26 @@ const SPRINT = {
   start_on: day(-4), end_on: day(5), state: 'ACTIVE', unit: 'POINTS', committed_value: 20, committed_count: 6, completed_value: 8, completed_count: 2,
   started_at: `${day(-4)}T08:00:00Z`, closed_at: null, version: 2,
 };
+// A second hub whose entry breaks sooner than the first hub's (§3.3: nearest first across hubs).
+const HUB_2 = { id: '01a0e2e0-0000-7000-8000-0000000000b5', type: 'HUB', parent_id: null, name: 'Facilities', order_key: 'a1', version: 1 };
+const SOONER = { ...DESK_ENTRY, id: '01a0e2e0-0000-7000-8000-0000000000e6', title: 'Door to the lab will not lock', collection_id: '01a0e2e0-0000-7000-8000-0000000000e7' };
+const SOONER_GOAL = { ...SLA_GOAL, due_at: new Date(Date.now() + HOUR / 2).toISOString() };
 const BURNDOWN = [0, 1, 2, 3, 4].map((n) => ({ day: day(n - 4), remaining: 20 - 3 * n, scope: 20, ideal: 20 - 2 * n }));
 
-function stubFor({ modulesOn, asked, decided }) {
+function stubFor({ modulesOn, asked, decided, twoHubs = false }) {
+  const hubs = twoHubs ? [HUB, HUB_2] : [HUB];
   return async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname;
     if (path.endsWith('/api/v1/items:query') && JSON.stringify(request.postDataJSON()?.filter ?? {}).includes('sla_due')) {
       asked.push('desk');
-      return route.fulfill({ json: { data: [DESK_ENTRY], page: { next_cursor: null, has_more: false } } });
+      const rows = request.postDataJSON()?.scope?.container_id === HUB_2.id ? [SOONER] : [DESK_ENTRY];
+      return route.fulfill({ json: { data: rows, page: { next_cursor: null, has_more: false } } });
     }
     if (path.endsWith(`/api/v1/items/${DESK_ENTRY.id}/sla`)) return route.fulfill({ json: { data: [SLA_GOAL] } });
+    if (path.endsWith(`/api/v1/items/${SOONER.id}/sla`)) return route.fulfill({ json: { data: [SOONER_GOAL] } });
+    if (path.endsWith(`/api/v1/containers/${HUB_2.id}/modules`)) return route.fulfill({ json: { modules_on: modulesOn } });
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: modulesOn } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`)) {
       asked.push('pages');
@@ -75,8 +83,8 @@ function stubFor({ modulesOn, asked, decided }) {
     if (path.endsWith(`/api/v1/sprints/${SPRINT.id}`)) return route.fulfill({ json: { sprint: SPRINT, entries: [], burndown: BURNDOWN } });
     if (path.endsWith('/api/v1/stream')) return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
     if (path.endsWith('/api/v1/sync:snapshot')) {
-      const record = JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: HUB.id, container_id: null, payload: HUB });
-      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${record}\n{"cursor":"c-e2e"}\n` });
+      const records = hubs.map((hub) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: hub.id, container_id: null, payload: hub }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
     }
     if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
     if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
@@ -113,7 +121,7 @@ function stubFor({ modulesOn, asked, decided }) {
       const week_start = path.slice(-10);
       return route.fulfill({ json: { account_id: ACCOUNT.id, week_start, state: 'OPEN', submitted_minutes: 0, submitted_at: null, decided_at: null, decided_by: null, reason: '', version: 1, records: [], days: [{ day: today, minutes: 150, locked: false }], minutes: 630 } });
     }
-    if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
+    if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: hubs } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
     return fallback(route, request, path);
   };
@@ -122,11 +130,11 @@ function stubFor({ modulesOn, asked, decided }) {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, { width, scheme = 'light', modulesOn }) {
+async function open(browser, { width, scheme = 'light', modulesOn, twoHubs = false }) {
   const asked = [];
   const decided = [];
   const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme, timezoneId: 'UTC' });
-  await context.route('**/api/v1/**', stubFor({ modulesOn, asked, decided }));
+  await context.route('**/api/v1/**', stubFor({ modulesOn, asked, decided, twoHubs }));
   await context.addInitScript(() => {
     sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
@@ -248,3 +256,23 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
     assert.deepEqual(failures, []);
   });
 }
+
+// §3.3: *Needs your answer* across hubs is nearest first - the second hub's entry, due sooner, stands
+// above the first hub's, although the navigation draws the first hub first.
+test('chromium 1280 px: Needs your answer puts the entry due soonest first across hubs', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, modulesOn: ['SERVICE_DESK'], twoHubs: true });
+  t.after(close);
+  const desk = page.getByRole('region', { name: 'Needs your answer' });
+  await desk.getByRole('link', { name: DESK_ENTRY.title }).waitFor({ timeout: 10_000 });
+  await desk.getByRole('link', { name: SOONER.title }).waitFor({ timeout: 10_000 });
+  for (let tries = 0; tries < 50; tries++) {
+    const titles = await desk.getByRole('link').allTextContents();
+    if (titles.indexOf(SOONER.title) === 0) break;
+    await page.waitForTimeout(100);
+  }
+  const titles = (await desk.getByRole('link').allTextContents()).map((title) => title.trim());
+  assert.deepEqual(titles.filter((title) => title === SOONER.title || title === DESK_ENTRY.title), [SOONER.title, DESK_ENTRY.title]);
+  assert.deepEqual(failures, []);
+});

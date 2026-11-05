@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
   import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
@@ -58,7 +58,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { bandsOf, deskAnswerQuery, greetingOf, heldActRows, isListFigure, isProjectFigure, productBandsOf, sprintDaysLeft, timeTodayOf } from '../lib/today.ts';
+  import { bandsOf, deskAnswerQuery, greetingOf, heldActRows, isListFigure, isProjectFigure, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf } from '../lib/today.ts';
+  import { entrySlaPath } from '../lib/data/desk.svelte.ts';
   import { watchPageReviews, type ReviewRow } from '../lib/data/reviews.svelte.ts';
   import { burndownLine, burndownTop, sprintDays } from '../lib/data/sprints.ts';
   import { sprintPath } from '../lib/data/sprints.svelte.ts';
@@ -439,7 +440,7 @@
 
   /**
    * *Needs your answer* (§3.3): the desk entries on the reader with an SLA target running, the one
-   * about to breach first at each hub, the hubs in the order the navigation draws them.
+   * about to breach first on top across the hubs.
    */
   const DESK_SHOWN = 5;
   let deskAt = $state<Record<string, WorkItem[]>>({});
@@ -452,7 +453,22 @@
       return () => stops.forEach((stop) => stop());
     });
   });
-  const deskRows = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').flatMap((id) => deskAt[id] ?? []).slice(0, DESK_SHOWN) : []);
+  const deskCandidates = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').flatMap((id) => deskAt[id] ?? []) : []);
+  // Each hub answers its own nearest first; rows from more than one hub are merged by their due
+  // moments, read from each entry's SLA (the rows shown read the same path again).
+  const deskMerged = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').filter((id) => (deskAt[id]?.length ?? 0) > 0).length > 1 : false);
+  const deskCandidateIds = $derived(deskMerged ? deskCandidates.map((entry) => entry.id).join(' ') : '');
+  let deskDue = $state<Record<string, number | undefined>>({});
+  $effect(() => {
+    const ids = deskCandidateIds ? deskCandidateIds.split(' ') : [];
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<EntrySlaList>({ path: entrySlaPath(id) }, (next) => {
+        if (next.status === 'ready') deskDue = { ...deskDue, [id]: runningDue(next.data.data) };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const deskRows = $derived((deskMerged ? nearestFirst(deskCandidates, deskDue) : deskCandidates).slice(0, DESK_SHOWN));
   // The rows' time left is read against this moment; it moves on while the page stays open.
   let deskNow = $state(new Date());
   $effect(() => {

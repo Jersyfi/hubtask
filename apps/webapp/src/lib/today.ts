@@ -16,7 +16,7 @@
  * * **A project shows its next due step** (check 3): a collection whose figure is *progress*.
  */
 
-import type { Container, WorkItem } from '@hubtask/sync-engine';
+import type { Container, EntrySlaList, WorkItem } from '@hubtask/sync-engine';
 
 import { dateIn, instantOf, todayIn } from './i18n/zone.ts';
 import { isOverdue, nextDay } from './data/due.ts';
@@ -148,6 +148,25 @@ export function deskAnswerQuery(hubId: string, size: number): Record<string, unk
     sort: [{ field: 'sla_due', dir: 'ASC', nulls: 'LAST' }],
     page: { size },
   };
+}
+
+/**
+ * The moment an entry's SLA is due, as the server sorts a queue by `sla_due`: the earliest due
+ * moment of its goals that still run. None where no goal runs.
+ */
+export function runningDue(goals: EntrySlaList['data']): number | undefined {
+  const due = goals.filter((goal) => goal.standing === 'RUNNING' && goal.due_at).map((goal) => Date.parse(goal.due_at as string));
+  return due.length > 0 ? Math.min(...due) : undefined;
+}
+
+/**
+ * *Needs your answer* across hubs (§3.3): each hub answers its own nearest first, so the hubs' rows
+ * are merged by their due moments - an entry whose moment is not read yet keeps its place behind
+ * those that are, in the order it came.
+ */
+export function nearestFirst<T extends { readonly id: string }>(rows: readonly T[], dueOf: Readonly<Record<string, number | undefined>>): T[] {
+  const key = (row: T): number => dueOf[row.id] ?? Number.POSITIVE_INFINITY;
+  return rows.map((row, index) => ({ row, index })).sort((a, b) => key(a.row) - key(b.row) || a.index - b.index).map(({ row }) => row);
 }
 
 /** The days a sprint has left, today among them: one on its last day, none after it. */
