@@ -120,6 +120,7 @@ type usageCounts struct{ items, media, webhooks, people int64 }
 func (u *usageCounts) Items(context.Context) (int64, error)                 { return u.items, nil }
 func (u *usageCounts) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
 func (u *usageCounts) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageCounts) Mailboxes(context.Context) (int64, error)             { return 0, nil }
 func (u *usageCounts) LiveExports(context.Context) (int64, error)           { return 0, nil }
 func (u *usageCounts) Kept(context.Context, string) (int64, bool, error)    { return 0, false, nil }
 func (u *usageCounts) Accounts(context.Context) (int64, error)              { return u.people, nil }

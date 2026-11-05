@@ -142,6 +142,15 @@ func (g Guard) WebhookTargets(ctx context.Context, tenant string) error {
 	return g.check(ctx, tenant, WebhookTargets, limits.WebhookTargets, g.Usage.WebhookTargets, 1, "")
 }
 
+// Mailboxes refuses when another mailbox would pass the ceiling; the connected ones keep being read.
+func (g Guard) Mailboxes(ctx context.Context, tenant string) error {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	return g.check(ctx, tenant, Mailboxes, limits.Mailboxes, g.Usage.Mailboxes, 1, "")
+}
+
 // Accounts refuses when the people the workspace holds would pass their ceiling. Unlike the other
 // capacities it is serialised: where a limit is set the count runs under the workspace's people
 // lock, held until the creating transaction ends, so two creations at the last place admit one.

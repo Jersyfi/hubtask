@@ -126,7 +126,7 @@ func (s *storeFake) SetOverrides(
 }
 
 type usageFake struct {
-	items, media, webhooks, runs, exports int64
+	items, media, webhooks, runs, exports, mailboxes int64
 	// people is the people count, and locks how often the people lock was taken.
 	people int64
 	locks  int
@@ -156,6 +156,7 @@ func (u *usageFake) Kept(_ context.Context, metric string) (int64, bool, error) 
 	return value, ok, nil
 }
 func (u *usageFake) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageFake) Mailboxes(context.Context) (int64, error)             { return u.mailboxes, nil }
 func (u *usageFake) LiveExports(context.Context) (int64, error)           { return u.exports, nil }
 func (u *usageFake) Accounts(context.Context) (int64, error)              { return u.people, nil }
 func (u *usageFake) InvitationOpen(context.Context, string) (bool, error) { return u.open, nil }
@@ -292,6 +293,25 @@ func TestEveryCapacityQuotaSharesTheOneShape(t *testing.T) {
 	}
 	if err := guard.ExportJobs(t.Context(), "t1"); err == nil {
 		t.Error("a second export fit under a ceiling of one")
+	}
+}
+
+func TestMailboxesAreAQuotaOfFiveByDefaultInBothModes(t *testing.T) {
+	for _, mode := range []env.TenancyMode{env.TenancyMulti, env.TenancySingle} {
+		if got := Defaults(mode).Mailboxes; got != 5 {
+			t.Errorf("%s: %d mailboxes by default, want 5", mode, got)
+		}
+	}
+	usage := &usageFake{mailboxes: 5}
+	guard := guardWith(&storeFake{}, usage, &signalsFake{})
+	err := guard.Mailboxes(t.Context(), "t1")
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "capacity.mailboxes" {
+		t.Errorf("a sixth mailbox under the default answered %v", err)
+	}
+	raised := guardWith(&storeFake{overrides: repository.Overrides{Mailboxes: ceiling(8)}}, usage, &signalsFake{})
+	if err := raised.Mailboxes(t.Context(), "t1"); err != nil {
+		t.Errorf("a sixth mailbox under a ceiling of eight was refused: %v", err)
 	}
 }
 

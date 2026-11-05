@@ -6893,7 +6893,8 @@ paths:
         stores the mailbox only when that worked, the secret sealed. From then on the mailbox is
         read every minute; only mail that arrives after connecting is taken, and each taken
         message is moved to the done folder. A refused sign-in answers `422`
-        (`mail.mailbox_refused`), an unreachable server `503`.
+        (`mail.mailbox_refused`), an unreachable server `503`. At the workspace's `mailboxes`
+        quota (5 by default) the answer is `422 capacity.mailboxes`.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -6925,7 +6926,8 @@ paths:
         Answers the provider's page to send the browser to. The provider sends the browser back to
         `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state
         to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and
-        for the administrator who started it.
+        for the administrator who started it. At the workspace's `mailboxes` quota the start and
+        the completion answer `422 capacity.mailboxes`.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -32186,13 +32188,14 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, ai_arrival_proposals_per_day, accounts]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, ai_arrival_proposals_per_day, accounts, mailboxes]
           description: >
             The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is
             the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by
             the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day`
             how many jumble arrivals may be asked about on arrival - a number of entries, 200 by
-            default.
+            default. `mailboxes` is how many mailboxes the workspace connects, 5 by default. A
+            client tolerates a quota it does not know, as a later release may add one.
         limit:
           type: integer
           format: int64
@@ -32272,6 +32275,14 @@ components:
             by default in both modes. Whoever holds the workspace's intake address decides what
             arrives, so this bounds what they can make the workspace spend beside the token
             budget. Past it an arrival waits for somebody to ask; nothing else changes.
+        mailboxes:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            How many mailboxes the workspace connects to its mail intake, 5 by default in both
+            modes. Past it a new mailbox is refused `422 capacity.mailboxes`; the mailboxes
+            already connected keep being read.
 
     TenantDeletionScheduled:
       type: object

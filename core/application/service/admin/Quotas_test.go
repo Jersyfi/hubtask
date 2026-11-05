@@ -65,6 +65,7 @@ type quotaUsageFake struct{}
 func (quotaUsageFake) Items(context.Context) (int64, error)                 { return 3, nil }
 func (quotaUsageFake) MediaBytes(context.Context) (int64, error)            { return 0, nil }
 func (quotaUsageFake) WebhookTargets(context.Context) (int64, error)        { return 0, nil }
+func (quotaUsageFake) Mailboxes(context.Context) (int64, error)             { return 0, nil }
 func (quotaUsageFake) LiveExports(context.Context) (int64, error)           { return 0, nil }
 func (quotaUsageFake) Kept(context.Context, string) (int64, bool, error)    { return 0, false, nil }
 func (quotaUsageFake) Accounts(context.Context) (int64, error)              { return 0, nil }

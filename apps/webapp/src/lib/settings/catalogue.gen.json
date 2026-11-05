@@ -1029,6 +1029,28 @@
       ]
     },
     {
+      "key": "quotas.mailboxes",
+      "kind": "COUNT",
+      "levels": [
+        "INSTANCE",
+        "PLAN"
+      ],
+      "lockable": true,
+      "may": "RAISE",
+      "minimum": 0,
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        }
+      ]
+    },
+    {
       "key": "ai.sources",
       "kind": "CHOICE",
       "levels": [

@@ -216,6 +216,7 @@
     'ai_tokens_per_day',
     'ai_arrival_proposals_per_day',
     'accounts',
+    'mailboxes',
   ] as const;
 
   function open(

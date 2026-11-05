@@ -6,6 +6,7 @@ package mail
 import (
 	"context"
 	"errors"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	"testing"
 	"time"
 
@@ -170,13 +171,41 @@ func TestAMailboxIsStoredOnlyOnceItSignsIn(t *testing.T) {
 
 func TestAWorkspaceConnectsAFewMailboxesAtMost(t *testing.T) {
 	b, store, _, _ := boxes(&authorizer{})
-	for index := range domain.MaxMailboxes {
+	for index := range quotaservice.DefaultMailboxes {
 		store.boxes[shared.ID(string(rune('a'+index)))] = domain.Mailbox{}
 	}
 	_, err := ConnectMailbox{Boxes: b}.Descriptor().Handler.Invoke(context.Background(), person,
 		usecase.Input{"preset": "gmx", "address": "x@gmx.de", "secret": "app-pw"})
-	if !errors.Is(err, shared.ErrConflict) {
+	var refusal *shared.Error
+	if !errors.Is(err, shared.ErrValidation) || !errors.As(err, &refusal) || refusal.DetailCode != "capacity.mailboxes" {
 		t.Errorf("a sixth mailbox answered %v", err)
+	}
+}
+
+// mailboxCeiling is the guard's answer as a resolved quota gives it.
+type mailboxCeiling struct{ refuse bool }
+
+func (c mailboxCeiling) Mailboxes(context.Context, string) error {
+	if c.refuse {
+		return quotaservice.Exceeded(quotaservice.Mailboxes, 1, 1)
+	}
+	return nil
+}
+
+func TestTheMailboxesQuotaDecidesInsteadOfTheDefault(t *testing.T) {
+	b, store, _, _ := boxes(&authorizer{})
+	for index := range quotaservice.DefaultMailboxes {
+		store.boxes[shared.ID(string(rune('a'+index)))] = domain.Mailbox{}
+	}
+	b.Quota = mailboxCeiling{}
+	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"preset": "gmx", "address": "x@gmx.de", "secret": "app-pw"}); err != nil {
+		t.Errorf("a raised quota refused a sixth mailbox: %v", err)
+	}
+	b.Quota = mailboxCeiling{refuse: true}
+	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"preset": "gmx", "address": "y@gmx.de", "secret": "app-pw"}); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a lowered quota answered %v", err)
 	}
 }
 

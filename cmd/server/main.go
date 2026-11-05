@@ -1316,6 +1316,7 @@ func run() error {
 			UnitOfWork: unitOfWork, Scopes: unitOfWork, Clock: clockadapter.System{},
 		},
 	}
+	mailBoxes.Quota = quotaGuard
 
 	duplicate := work.DuplicateWorkItem{
 		Gate:     entryGate,

@@ -82,6 +82,7 @@
     'ai_own_tokens_per_day',
     'ai_arrival_proposals_per_day',
     'accounts',
+    'mailboxes',
   ]);
 
   /** The people limit, where one is set and reached: nobody new comes in, nobody here goes. */

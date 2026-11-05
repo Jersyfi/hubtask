@@ -11915,7 +11915,7 @@
         "operationId": "connectMailbox",
         "x-hubtask-rest": "generated",
         "summary": "Connect a mailbox to the mail intake",
-        "description": "Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.\n",
+        "description": "Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`. At the workspace's `mailboxes` quota (5 by default) the answer is `422 capacity.mailboxes`.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -11956,7 +11956,7 @@
         "operationId": "authorizeMailbox",
         "x-hubtask-rest": "generated",
         "summary": "Start connecting a mailbox through its provider's sign-in",
-        "description": "OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.\n",
+        "description": "OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it. At the workspace's `mailboxes` quota the start and the completion answer `422 capacity.mailboxes`.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -52253,9 +52253,10 @@
               "ai_tokens_per_day",
               "ai_own_tokens_per_day",
               "ai_arrival_proposals_per_day",
-              "accounts"
+              "accounts",
+              "mailboxes"
             ],
-            "description": "The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.\n"
+            "description": "The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default. `mailboxes` is how many mailboxes the workspace connects, 5 by default. A client tolerates a quota it does not know, as a later release may add one.\n"
           },
           "limit": {
             "type": "integer",
@@ -52383,6 +52384,15 @@
             "format": "int64",
             "minimum": 0,
             "description": "How many jumble arrivals a day of the workspace's own time zone may be asked about on arrival, where the workspace prepares proposals on arrival - a number of entries, 200 by default in both modes. Whoever holds the workspace's intake address decides what arrives, so this bounds what they can make the workspace spend beside the token budget. Past it an arrival waits for somebody to ask; nothing else changes.\n"
+          },
+          "mailboxes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0,
+            "description": "How many mailboxes the workspace connects to its mail intake, 5 by default in both modes. Past it a new mailbox is refused `422 capacity.mailboxes`; the mailboxes already connected keep being read.\n"
           }
         }
       },

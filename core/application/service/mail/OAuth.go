@@ -170,12 +170,8 @@ func (h AuthorizeMailbox) invoke(ctx context.Context, actor appshared.ActorConte
 		if _, err := b.OAuth.Authorizations.DeleteExpired(ctx, now); err != nil {
 			return err
 		}
-		count, err := b.Mailboxes.Count(ctx)
-		if err != nil {
+		if err := b.room(ctx, actor); err != nil {
 			return err
-		}
-		if count >= domain.MaxMailboxes {
-			return shared.ErrConflict.WithDetail("mail.mailboxes_full")
 		}
 		return b.OAuth.Authorizations.Insert(ctx, pending, stateHash(state), sealedVerifier, sealedClientSecret)
 	})
@@ -293,12 +289,8 @@ func (h CompleteMailboxAuthorization) invoke(ctx context.Context, actor appshare
 		return nil, err
 	}
 	err = b.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		count, err := b.Mailboxes.Count(ctx)
-		if err != nil {
+		if err := b.room(ctx, actor); err != nil {
 			return err
-		}
-		if count >= domain.MaxMailboxes {
-			return shared.ErrConflict.WithDetail("mail.mailboxes_full")
 		}
 		if err := b.Mailboxes.Insert(ctx, box, sealed, actor.AccountID); err != nil {
 			return err

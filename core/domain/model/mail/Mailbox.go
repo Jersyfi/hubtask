@@ -29,10 +29,6 @@ const (
 	ProtocolGraph Protocol = "GRAPH"
 )
 
-// MaxMailboxes is how many mailboxes one workspace connects: a household's and a team's, and a
-// shared support address beside them.
-const MaxMailboxes = 5
-
 // DefaultDoneFolder is where a fetched message is moved, so the mailbox shows what Hubtask took and
 // nothing is fetched twice even before the receipt is read.
 const DefaultDoneFolder = "Hubtask"

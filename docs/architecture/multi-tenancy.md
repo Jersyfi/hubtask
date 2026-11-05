@@ -305,6 +305,7 @@ check-then-act: two creates at the last place can both pass.
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
 | People per workspace (§4.2) | Unlimited | Unlimited |
+| Connected mailboxes per workspace (`mailboxes`) | 5 | 5 |
 | AI tokens per day, offered models | 200,000 | Unlimited |
 | AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 | Jumble arrivals asked about on arrival per day | 200 | 200 |
@@ -329,6 +330,10 @@ that answers, and by `ai_arrival_proposals_per_day`, a number of arrivals counte
 ledger on the same workspace day. It is not unlimited in single mode, unlike the tokens: whoever
 holds the intake address decides what arrives ([security.md](./security.md) T-27). An arrival past
 it is not asked about; it waits for a person, and nothing else changes.
+
+**Mailboxes** (UC-JUM-11) bound what a workspace's mail intake reads every minute. Past the
+ceiling a new mailbox, by password or by a provider's sign-in, is `422 capacity.mailboxes`; the
+mailboxes already connected keep being read, also after a lower ceiling.
 
 **Fairness:** the job queue claims per tenant round-robin, and a tenant's turn starts after the
 jobs it already has running, so one tenant cannot monopolise the workers - neither within one batch

@@ -10,6 +10,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/mail"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
@@ -65,6 +66,30 @@ type Boxes struct {
 	IDs       clock.IDGenerator
 	// OAuth connects a mailbox through its provider's sign-in; unset, only passwords connect.
 	OAuth OAuth
+	// Quota is the workspace's `mailboxes` ceiling (multi-tenancy.md §4). Unset, the default
+	// ceiling still holds: a missing guard never means unlimited.
+	Quota MailboxQuota
+}
+
+// MailboxQuota is the capacity guard's slice a new mailbox asks.
+type MailboxQuota interface {
+	Mailboxes(ctx context.Context, tenant string) error
+}
+
+// room refuses `422 capacity.mailboxes` when another mailbox would pass the ceiling, inside the
+// caller's transaction; the mailboxes already connected keep being read.
+func (b Boxes) room(ctx context.Context, actor appshared.ActorContext) error {
+	if b.Quota != nil {
+		return b.Quota.Mailboxes(ctx, actor.TenantID.String())
+	}
+	count, err := b.Mailboxes.Count(ctx)
+	if err != nil {
+		return err
+	}
+	if count >= quotaservice.DefaultMailboxes {
+		return quotaservice.Exceeded(quotaservice.Mailboxes, quotaservice.DefaultMailboxes, int64(count))
+	}
+	return nil
 }
 
 // ListMailboxes answers the workspace's connected mailboxes and how their last read went.
@@ -146,12 +171,8 @@ func (h ConnectMailbox) invoke(ctx context.Context, actor appshared.ActorContext
 		return nil, err
 	}
 	err = b.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		count, err := b.Mailboxes.Count(ctx)
-		if err != nil {
+		if err := b.room(ctx, actor); err != nil {
 			return err
-		}
-		if count >= domain.MaxMailboxes {
-			return shared.ErrConflict.WithDetail("mail.mailboxes_full")
 		}
 		if err := b.Mailboxes.Insert(ctx, box, sealed, actor.AccountID); err != nil {
 			return err

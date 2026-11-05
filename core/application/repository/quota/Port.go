@@ -32,6 +32,8 @@ type Overrides struct {
 	AiOwnTokensPerDay *int64
 	// AiArrivalProposalsPerDay is how many arrivals a day may be asked about on arrival.
 	AiArrivalProposalsPerDay *int64
+	// Mailboxes is how many mailboxes the workspace may connect.
+	Mailboxes *int64
 }
 
 // PlanLimits is a plan's ceilings and the quotas it locks, by their contract names.
@@ -102,6 +104,9 @@ type Usage interface {
 
 	// WebhookTargets counts the live subscriptions.
 	WebhookTargets(ctx context.Context) (int64, error)
+
+	// Mailboxes counts the connected mailboxes, switched off ones included.
+	Mailboxes(ctx context.Context) (int64, error)
 
 	// AutomationRunsSince counts the runs that actually ran since the instant - THROTTLED ones
 	// excluded, CountRunsSince's reasoning: counting the refusals would make the bound tighten

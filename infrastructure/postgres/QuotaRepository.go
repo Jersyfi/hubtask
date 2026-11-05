@@ -44,6 +44,7 @@ type quotasDocument struct {
 	Accounts                 *int64 `json:"accounts,omitempty"`
 	AiTokensPerDay           *int64 `json:"ai_tokens_per_day,omitempty"`
 	AiArrivalProposalsPerDay *int64 `json:"ai_arrival_proposals_per_day,omitempty"`
+	Mailboxes                *int64 `json:"mailboxes,omitempty"`
 }
 
 // quotaSettingPrefix is where a quota's default lives in the instance level's key space. The
@@ -233,6 +234,7 @@ func fromDocument(document quotasDocument) repository.Overrides {
 		Accounts:                 document.Accounts,
 		AiTokensPerDay:           document.AiTokensPerDay,
 		AiArrivalProposalsPerDay: document.AiArrivalProposalsPerDay,
+		Mailboxes:                document.Mailboxes,
 	}
 }
 
@@ -247,6 +249,7 @@ func toDocument(overrides repository.Overrides) quotasDocument {
 		Accounts:                 overrides.Accounts,
 		AiTokensPerDay:           overrides.AiTokensPerDay,
 		AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay,
+		Mailboxes:                overrides.Mailboxes,
 	}
 }
 
@@ -314,6 +317,13 @@ func (QuotaRepository) Kept(ctx context.Context, metric string) (int64, bool, er
 func (QuotaRepository) WebhookTargets(ctx context.Context) (int64, error) {
 	return count(ctx, "counting the webhook targets", func(q *sqlc.Queries) (int64, error) {
 		return q.CountWebhookTargets(ctx)
+	})
+}
+
+// Mailboxes counts the workspace's connected mailboxes.
+func (QuotaRepository) Mailboxes(ctx context.Context) (int64, error) {
+	return count(ctx, "counting the mailboxes", func(q *sqlc.Queries) (int64, error) {
+		return q.CountMailboxes(ctx)
 	})
 }
 

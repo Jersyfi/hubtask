@@ -122,6 +122,8 @@ one workspace, by person and place.
 | `quotas.ai_arrival_proposals_per_day` | PLAN | `admin:instance` | the installation's operators |
 | `quotas.accounts` | INSTANCE | `admin:instance` | the installation's operators |
 | `quotas.accounts` | PLAN | `admin:instance` | the installation's operators |
+| `quotas.mailboxes` | INSTANCE | `admin:instance` | the installation's operators |
+| `quotas.mailboxes` | PLAN | `admin:instance` | the installation's operators |
 | `ai.sources` | INSTANCE | `admin:instance` | the installation's operators |
 | `ai.sources` | PLAN | `admin:instance` | the installation's operators |
 | `ai.sources` | WORKSPACE | `STRUCTURE` | OWNER, ADMIN |

@@ -51,13 +51,16 @@ const (
 	// inside it: whoever holds the workspace's intake address can make things arrive, and the day's
 	// arrivals are what this counts (security.md T-27).
 	AiArrivalProposalsPerDay = "ai_arrival_proposals_per_day"
+	// Mailboxes is how many mailboxes a workspace connects (UC-JUM-11). Past it a new one is
+	// refused; the ones connected keep being read.
+	Mailboxes = "mailboxes"
 )
 
 // Names is the vocabulary in the contract's order.
 func Names() []string {
 	return []string{
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
-		AiTokensPerDay, AiOwnTokensPerDay, AiArrivalProposalsPerDay, Accounts,
+		AiTokensPerDay, AiOwnTokensPerDay, AiArrivalProposalsPerDay, Accounts, Mailboxes,
 	}
 }
 
@@ -98,6 +101,7 @@ type Limits struct {
 	AiOwnTokensPerDay     int64
 	// AiArrivalProposalsPerDay is a number of arrivals, not of tokens.
 	AiArrivalProposalsPerDay int64
+	Mailboxes                int64
 }
 
 // Defaults answers §4's two columns. Single mode's defaults stay effectively unlimited - the
@@ -121,6 +125,7 @@ func Defaults(mode env.TenancyMode) Limits {
 			// A busy workspace's day of arrivals, and a wall a flood of deliveries to the intake
 			// address reaches long before the token budget would.
 			AiArrivalProposalsPerDay: DefaultArrivalProposalsPerDay,
+			Mailboxes:                DefaultMailboxes,
 		}
 	}
 	return Limits{
@@ -137,11 +142,16 @@ func Defaults(mode env.TenancyMode) Limits {
 		// Not unlimited here, unlike the tokens: the tokens are a self-hoster's own to spend, but
 		// what arrives is not theirs to choose - anybody holding the intake address decides it.
 		AiArrivalProposalsPerDay: DefaultArrivalProposalsPerDay,
+		Mailboxes:                DefaultMailboxes,
 	}
 }
 
 // DefaultArrivalProposalsPerDay is both modes' default for the proposals prepared on arrival.
 const DefaultArrivalProposalsPerDay = 200
+
+// DefaultMailboxes is both modes' default: a household's and a team's mailbox, and a shared
+// support address beside them.
+const DefaultMailboxes = 5
 
 // The levels a limit resolves through and the words a standing says it with: which level set the
 // value in force, and which locked it.
@@ -255,6 +265,8 @@ func valueOf(overrides repository.Overrides, name string) *int64 {
 		return overrides.AiOwnTokensPerDay
 	case AiArrivalProposalsPerDay:
 		return overrides.AiArrivalProposalsPerDay
+	case Mailboxes:
+		return overrides.Mailboxes
 	default:
 		return nil
 	}
@@ -283,6 +295,8 @@ func (l *Limits) set(name string, value int64) {
 		l.AiOwnTokensPerDay = value
 	case AiArrivalProposalsPerDay:
 		l.AiArrivalProposalsPerDay = value
+	case Mailboxes:
+		l.Mailboxes = value
 	}
 }
 
@@ -309,6 +323,8 @@ func (l Limits) Of(quota string) int64 {
 		return l.AiOwnTokensPerDay
 	case AiArrivalProposalsPerDay:
 		return l.AiArrivalProposalsPerDay
+	case Mailboxes:
+		return l.Mailboxes
 	default:
 		return Unlimited
 	}

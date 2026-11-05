@@ -7865,6 +7865,7 @@ const (
 	AutomationRunsPerHour    QuotaStandingQuota = "automation_runs_per_hour"
 	ExportJobs               QuotaStandingQuota = "export_jobs"
 	Items                    QuotaStandingQuota = "items"
+	Mailboxes                QuotaStandingQuota = "mailboxes"
 	MediaBytes               QuotaStandingQuota = "media_bytes"
 	WebhookTargets           QuotaStandingQuota = "webhook_targets"
 )
@@ -7887,6 +7888,8 @@ func (e QuotaStandingQuota) Valid() bool {
 	case ExportJobs:
 		return true
 	case Items:
+		return true
+	case Mailboxes:
 		return true
 	case MediaBytes:
 		return true
@@ -21876,7 +21879,7 @@ type QuotaStanding struct {
 	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
 	Locked *bool `json:"locked,omitempty"`
 
-	// Quota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
+	// Quota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default. `mailboxes` is how many mailboxes the workspace connects, 5 by default. A client tolerates a quota it does not know, as a later release may add one.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -21889,7 +21892,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
+// QuotaStandingQuota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default. `mailboxes` is how many mailboxes the workspace connects, 5 by default. A client tolerates a quota it does not know, as a later release may add one.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -24351,8 +24354,11 @@ type TenantQuotas struct {
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
 	Items                 *int64 `json:"items,omitempty"`
-	MediaBytes            *int64 `json:"media_bytes,omitempty"`
-	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
+
+	// Mailboxes How many mailboxes the workspace connects to its mail intake, 5 by default in both modes. Past it a new mailbox is refused `422 capacity.mailboxes`; the mailboxes already connected keep being read.
+	Mailboxes      *int64 `json:"mailboxes,omitempty"`
+	MediaBytes     *int64 `json:"media_bytes,omitempty"`
+	WebhookTargets *int64 `json:"webhook_targets,omitempty"`
 }
 
 // TenantUpdate defines model for TenantUpdate.

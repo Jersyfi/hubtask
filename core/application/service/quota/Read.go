@@ -128,6 +128,7 @@ func Standings(
 		AiTokensPerDay:           overrides.AiTokensPerDay != nil,
 		AiOwnTokensPerDay:        overrides.AiOwnTokensPerDay != nil,
 		AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay != nil,
+		Mailboxes:                overrides.Mailboxes != nil,
 	}
 	counters := map[string]func(context.Context) (int64, error){
 		Items:          usage.Items,
@@ -135,6 +136,7 @@ func Standings(
 		WebhookTargets: usage.WebhookTargets,
 		ExportJobs:     usage.LiveExports,
 		Accounts:       usage.Accounts,
+		Mailboxes:      usage.Mailboxes,
 		AutomationRunsPerHour: func(ctx context.Context) (int64, error) {
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
 		},

@@ -74,6 +74,8 @@ says *In the jumble · Sender not allowed*.
 
 * Custom domains are a later step on the same intake
   ([ADR-0094](../../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)).
-* At most five mailboxes per workspace. IDLE is IMAP's alone: a JMAP or Graph mailbox, and the
+* A workspace connects as many mailboxes as its quota `mailboxes` allows, 5 by default in both
+  modes (multi-tenancy.md §4); past it a new one is refused `422 capacity.mailboxes`, and the
+  connected ones keep being read. IDLE is IMAP's alone: a JMAP or Graph mailbox, and the
   mailboxes past the first 1000 an installation holds, are read every minute.
 * No per-collection sender level: the level is the workspace's, the rules file by sender.
