@@ -38,7 +38,7 @@
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { homeTabs, recentRuns } from '../lib/product/home.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { resource } from '../lib/data/resource.svelte.ts';
+  import { resource, resourceWhen } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -114,10 +114,12 @@
 
   // --- The kill switch -------------------------------------------------------------------------
 
-  const haltRead = resource<AgentHalt>(agentHaltPath);
+  // The kill switch, the policy, the models and the metering are the administration's: only an
+  // administrator asks for them.
+  const haltRead = resourceWhen<AgentHalt>(() => (administers ? agentHaltPath : undefined));
   const halt = $derived(haltRead.state.status === 'ready' ? haltRead.state.data : undefined);
   // Whether MCP takes registered agents only (UC-AGT-02 check 10): absent for whoever may not read it.
-  const policyRead = resource<WorkspaceAgentPolicy>(agentPolicyPath);
+  const policyRead = resourceWhen<WorkspaceAgentPolicy>(() => (administers ? agentPolicyPath : undefined));
   const registeredOnly = $derived(policyRead.state.status === 'ready' ? policyRead.state.data['agents.registered_only'] : undefined);
 
   // --- An agent opened -------------------------------------------------------------------------
@@ -132,7 +134,7 @@
 
   // --- Registering or changing an agent --------------------------------------------------------
 
-  const modelsRead = resource<AgentModelList>(agentModelsPath);
+  const modelsRead = resourceWhen<AgentModelList>(() => (administers ? agentModelsPath : undefined));
   const models = $derived(modelsRead.state.status === 'ready' ? modelsRead.state.data.data : []);
   const modelOptions = $derived<SelectOption[]>([
     { value: '', label: t('app.agents.no_model') },
@@ -304,7 +306,7 @@
 
   // --- Models ----------------------------------------------------------------------------------
 
-  const sourceRead = resource<AiSource>('/ai-source');
+  const sourceRead = resourceWhen<AiSource>(() => (administers && holdsHere('READ_CONFIGURATION') === true ? '/ai-source' : undefined));
   const offered = $derived(sourceRead.state.status === 'ready' ? sourceRead.state.data.offered : []);
 
   interface ModelDraft {
@@ -361,7 +363,7 @@
 
   // --- Metering --------------------------------------------------------------------------------
 
-  const meteringRead = resource<AgentMeteringList>(meteringPath());
+  const meteringRead = resourceWhen<AgentMeteringList>(() => (administers ? meteringPath() : undefined));
   const totals = $derived(meteringRead.state.status === 'ready' ? meteringTotals(meteringRead.state.data.data) : []);
 </script>
 

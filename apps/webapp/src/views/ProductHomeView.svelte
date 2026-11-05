@@ -12,7 +12,7 @@
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { markOf } from '../lib/workspace/look.ts';
-  import { hubCreationHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
+  import { holdsHere, hubCreationHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { live } from '../lib/data/live.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -152,8 +152,10 @@
     !isReading && hubsWith.length > 0 && objectCounts !== undefined && isUnused(objectCounts, hubsWith.map((hub) => hub.id)) === true,
   );
   const isFirstVisit = $derived(mayCreateHub && !isReading && (hubsWith.length === 0 || module === 'SERVICE_DESK' || isUnusedHere));
+  // The catalogue is read by whoever holds STRUCTURE on the workspace; anybody else starts from the
+  // hub dialog's presets, and asks nothing the server would refuse.
   $effect(() => {
-    if (!isFirstVisit) return;
+    if (!isFirstVisit || holdsHere('STRUCTURE') !== true) return;
     return untrack(() => config.templates((next: { status: string; data?: ConfigTemplateList }) => {
       if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
     }));
