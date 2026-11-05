@@ -40,12 +40,12 @@ they were (not built, each its own probe once it is).
 |---|---|---|---|---|
 | S1 | **Read**: five read paths that grow with a workspace (a collection's page, open entries by due date, the board by completion, a count over the hub, the hub's level), for the largest, a middle and the smallest credentialled workspace, eight callers paced at 400 a second, 5 s warm-up and 30 s held | how each read decays with entries per workspace | yes — `TestCapacityAtScale` | no 5xx; P95 under SLO-2's 200 ms; a P95 more than twice the previous size's for the same rank is a finding |
 | S2 | **Mixed read and write**: the hub's level read by eight callers at 400 a second while two writers add entries at 40 a second, 35 s per workspace | what a write makes the next read pay | yes — the `mixed` part of `TestCapacityAtScale` | reads as S1, writes under SLO-3's 300 ms |
-| S3 | **Sync, initial walk**: one null-cursor walk of the largest workspace to its end (`sync:snapshot`, then `:pull` page by page): pages, bytes, total time, how long it holds its snapshot connection; then the browser's narrowed snapshot of the hubs opened lately (offline-sync.md §1) | that a device joining a large workspace gets its copy without a 5xx or a held connection | **no** (was L3) | every page within `HUBTASK_REQUEST_TIMEOUT` (30 s), no 5xx; total time and bytes recorded as the first baseline |
+| S3 | **Sync, initial walk**: one null-cursor walk of the largest workspace to its end (`sync:snapshot`, then `:pull` page by page): pages, bytes, total time, how long it holds its snapshot connection; then the browser's narrowed snapshot of the hubs opened lately (offline-sync.md §1) | that a device joining a large workspace gets its copy without a 5xx or a held connection | yes — `TestS3InitialWalk` (`HUBTASK_LOAD_SYNC=1`) | every page within `HUBTASK_REQUEST_TIMEOUT` (30 s), no 5xx; total time and bytes recorded as the first baseline |
 | S4 | **Sync, stream**: L1 — 64 change streams of eight credentials while 10 writes a second land | that live delivery keeps pace and the writes stay fast | yes — `TestL1LiveUpdatesInOneWorkspace` | no stream refused, writes P95 < 300 ms, no record later than 30 s or missing, NOTIFY queue under half (A-36) |
-| S5 | **Live documents with many writers**: 30 clients on one page's live document across the run's process, each sending an edit once a second and a cursor ten times a second for 2 minutes | that the relay holds its bound and no update is lost | **no** (L4, widened from awareness to edits) | at most 10 relaying transactions a second per process (offline-sync.md §13), no `too_large` or `failed` in `hubtask_realtime_awareness_relayed_total`, every client's document equal at the end |
+| S5 | **Live documents with many writers**: 30 clients on one page's live document across the run's process, each sending an edit once a second and a cursor ten times a second for 2 minutes | that the relay holds its bound and no update is lost | yes — `TestS5LiveDocumentsWithManyWriters` (`HUBTASK_LOAD_DOCUMENTS=1`); the run has one process, whose relay opens no transaction for a cursor (offline-sync.md §13), so the transaction bound is met by construction and the outcomes are what it measures | at most 10 relaying transactions a second per process (offline-sync.md §13), no `too_large` or `failed` in `hubtask_realtime_awareness_relayed_total`, every client's document equal at the end |
 | S6 | **Connector reconciliation**: a scheduled pull from a local fake source (the `NETBOX` kind's two endpoints, served by the test) holding more devices than one run's 50-page bound takes, run twice (the second continues from the kept cursor), then a third with 1 % changed | that a run's pages reconcile and commit one by one without holding a transaction, the cursor is kept, and a changed record changes only its CI | **no** | no 5xx and no `connector.*` failure; each page's transaction under SLO-3's 300 ms at P95; the third run touches only the changed CIs |
 | C1 | **The CMDB ceiling**: the largest workspace's hub filled to `MaxCIsPerHub` (20 000 CIs, 19 800 relations), then `cmdb-health`, `software` and `service-map` each held by eight callers paced at 400 a second, 5 s warm-up and 30 s held | what a view that judges a hub's whole inventory costs at the bound, and that the process stays under its memory target | yes — `TestCmdbViewsAtTheHubCeiling`, run by `make capacity` after S1 | no 5xx; peak resident under `GOMEMLIMIT` (768 MiB); each P95 recorded against SLO-2's 200 ms |
-| S7 | **Bundle per route**: the walk of R3 records, per screen, the script and style bytes the browser fetched (gzip as served) and the time until the screen settled | what each product's first visit costs, beyond the first screen's budget (`apps/webapp/build/budget.test.js`, 200 000 gzip bytes) | **partly**: the first screen's budget is a test; per route nothing | every screen settles within 30 s with no console error; the bytes per route recorded as the first baseline |
+| S7 | **Bundle per route**: the walk of R3 records, per screen, the script and style bytes the browser fetched (gzip as served) and the time until the screen settled | what each product's first visit costs, beyond the first screen's budget (`apps/webapp/build/budget.test.js`, 200 000 gzip bytes) | yes — `walk-<items>.json` beside the capacity run's walk (`HUBTASK_LOAD_WALK=1`) | every screen settles within 30 s with no console error; the bytes per route recorded as the first baseline |
 
 S6's fake source listens on loopback, which the run's server already reaches: the harness opens
 the egress guard by exact host (`HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true`,
@@ -111,8 +111,7 @@ Every invocation writes into `HUBTASK_LOAD_EVIDENCE_DIR`:
 | Failed requests | every 5xx the scenario did not ask for, every status that is not the path's, every refused stream, every failed write | the scenario's own JSON (`server_errors` and `refused` per path, `writes_failed_by_status` and `streams_refused_by_status` in L1's) | the recorder |
 | The browser | every console error and warning, uncaught error, failed request and 5xx | `browser` rows | `apps/webapp/e2e/scalewalk.mjs`, folded by `scalewalk-errors.mjs` the same way |
 
-Today only `TestCapacityAtScale` writes `errors-<items>.json`; L1 collects nothing from the logs.
-The change this round needs first: `collectErrors` runs **once per invocation**, in `TestMain`
+`collectErrors` runs **once per invocation**, in `TestMain`
 after the last scenario, over the whole server log and PostgreSQL log, and writes
 `errors-<items>.json` with each row's first and last time and the scenarios whose windows it fell
 in (each scenario records its start and end in the run's JSON). Expected rows — such as the figure
@@ -189,12 +188,31 @@ machine's.
 ### What the round needs built first, in order
 
 1. `collectErrors` once per invocation with the scenarios' windows and the expected rows (above).
-2. Each P95's confidence band in `harness.Latency`.
-3. S3, the sync walk, as `TestS3InitialWalk` against the shared stack.
-4. S5, live documents, beside L1 in `live_test.go`.
-5. S6, the connector run, with its fake source in the test.
+   Built: `errors_test.go`, `harness.Report`; trial with L1 for 20 s at the default dataset,
+   2026-11-05: one window (S4), no row.
+2. Each P95's confidence band in `harness.Latency`. Built: `p95_low`, `p95_high`.
+3. S3, the sync walk, as `TestS3InitialWalk` against the shared stack. Built; trial at the default
+   dataset, 2026-11-05: the largest workspace's 11 132 records, the snapshot 10 996 379 bytes held
+   228 ms, 23 pages in 391 ms (page P95 16 ms), the narrowed snapshot the same records (the
+   workspace has one hub), no 5xx; 20 s in all.
+4. S5, live documents, beside L1 in `live_test.go`. Built; trial for 20 s at the default dataset,
+   2026-11-05: 30 writers, 570 edits, 5 940 cursors, every document and a fresh opener's equal,
+   no edit unsent, no connection closed, 5 971 awareness messages `local`, none `too_large` or
+   `failed`; 39 s in all.
+5. S6, the connector run, with its fake source in the test. **Not built**: a connector's address
+   is https only (`cmdb` `Connector`), and the run's server trusts only the platform's roots - on
+   macOS Go ignores `SSL_CERT_FILE` (checked 2026-11-05) - so a source the test serves cannot be
+   reached from the workstation without a setting that adds a trusted root, which is the owner's.
 6. S7, per-screen bytes and settle time in `scalewalk.mjs`, the walk of all three workspaces
-   under one 10-minute deadline (today 10 minutes per workspace, `capacity_test.go`).
+   under one 10-minute deadline. Built; trial with the capacity run at the default dataset,
+   2026-11-05: 33 screens, each settled in 939 to 1 255 ms, no browser row; every screen fetched
+   the same 469 files, 2 231 784 script and 197 097 style bytes gzip-compressed (7 978 333 and
+   766 165 raw) - each screen's full navigation loads the whole set, a finding for the round
+   against the first screen's 200 000. The same trial found S1's three `items:query` paths shed
+   (4 660 to 7 060 refusals each, `capacity.shed`, class deferrable): the per-workspace stage
+   caps a workspace's deferrable calls at a quarter of the harness's threshold of 8. The capacity
+   run now measures at the installation's default threshold (`shedEnv`, `stack_test.go`, `ca3014143`);
+   rerun 2026-11-05: no refusal and no server error on any path, every P95 18 ms or less.
 
 None of these is load; each is proven by its own unit test and a run at the default dataset
 (about a minute) before the round starts.

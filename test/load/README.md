@@ -57,7 +57,9 @@ kept. The count a write makes the next read pay is the mixed run beside it: for 
 workspaces the hub's level is read by eight callers at 400 a second while two writers add entries
 to its collection at 40 a second, each side recorded on its own (`mixed` in the same file: the
 read's and the write's rate and P50 / P95 / P99). It skips unless `HUBTASK_LOAD_CAPACITY` is set, so
-`make gate-load` does not run it. The server's peak resident memory is recorded where `/proc` is
+`make gate-load` does not run it. It runs at the installation's default shed threshold (64 in flight), not RT-6's
+8, under which one workspace's deferrable calls are capped at two and its queries would measure
+the shedder. The server's peak resident memory is recorded where `/proc` is
 readable (Linux); elsewhere `memory_observed` is false.
 
 What a run needs: Docker, Go and `make tools` on the host, and the database grows by about 1.2 GB
@@ -75,11 +77,15 @@ HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
 
 Run R3 of [PLAN.md](./PLAN.md) is the same run with `HUBTASK_LOAD_WALK=1`: after the measuring,
 the built web app (`corepack pnpm --filter @hubtask/webapp build`, and Playwright's Chromium) is
-walked per measured workspace - its start, its hub and its collection - by
+walked per measured workspace - its start, its hub, its collection and the product homes - by
 `apps/webapp/e2e/scalewalk.mjs`, and every console error and warning, uncaught error, failed
 request and 5xx answer is added to `errors-<items>.json` as a `browser` row, deduplicated the way
 the server's are. The walk signs in with a token of its own that carries every scope a session
-carries; the load token's four would see only refusals.
+carries; the load token's four would see only refusals. The three workspaces' walk - its start, its hub, its
+collection and the eight product homes, 33 screens - shares one 10-minute deadline, and per screen
+it records S7's figures into `walk-<items>.json`: the script and style bytes the screen fetched,
+raw and gzip-compressed, and the time until it settled; a screen that did not settle within 30 s
+fails the run.
 
 A slow path is read with `HUBTASK_LOAD_EXPLAIN=1`: PostgreSQL runs with `auto_explain` and logs the
 plan, row counts and buffers of every statement over 100 ms, without its parameters, and the run
@@ -100,6 +106,33 @@ P95 past 300 ms, a record later than 30 s or missing, or the queue past half ful
 HUBTASK_LOAD_LIVE=1 HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
   go test -tags=load -run '^TestL1LiveUpdatesInOneWorkspace$' -timeout=40m -v ./test/load/
 ```
+
+Scenario S5, live documents with many writers, skips unless `HUBTASK_LOAD_DOCUMENTS` is set: one
+page in the largest workspace, thirty writers over four credentials of eight connections at most,
+each an edit a second and its cursor ten times a second for two minutes
+(`HUBTASK_LOAD_DOCUMENTS_SECONDS` shortens it), through the editors' own connection
+(`packages/editor/scripts/liveload.mjs`, `src/live.ts`). It fails unless every writer's document,
+and one opened afresh on a fifth credential, is the same at the end, every edit was sent, no
+connection was closed, and the awareness relay counted no `too_large` or `failed`
+(`documents-s5-latest.json`). With the run's one process the relay opens no transaction for a
+cursor (offline-sync.md §13), so its bound of ten a second is met by construction there.
+
+## The sync walk
+
+Scenario S3 skips unless `HUBTASK_LOAD_SYNC` is set: the largest workspace walked from a null cursor
+to its end three times - as one `sync:snapshot`, page by page through `:pull` at the browser's 500,
+and as the browser's narrowed snapshot of its hub - each with its records, bytes, first byte and
+the time it held the connection (`sync-s3-<items>.json`). It fails on a page slower than 30 s, any
+status but 200, a walk that did not end, or the cap of 10 minutes (20 above 10⁶ entries).
+
+## What every run collects
+
+Every P95 is written with its 95 % confidence band (`p95_low`, `p95_high`: the samples at the
+order statistics 0.95 *n* ± 1.96 √(*n* · 0.95 · 0.05)). After the last test of an invocation,
+`TestMain` reads the server's log and PostgreSQL's once and writes `errors-<items>.json`: the
+scenarios' windows (each test records its own; S1 and S2 one window per workspace), the findings,
+and the expected rows (`harness.ExpectedRows`, each with its reason) apart. Each row carries its
+first and last time and the scenarios whose windows held it; the browser's rows carry S7.
 
 ## The release tier, step by step
 
@@ -130,7 +163,9 @@ user count appears anywhere, the model appears beside it.
 | `guard_test.go` | The relative regression guard |
 | `capacity_test.go` | The capacity run at 10⁶ / 10⁷ entries (`make capacity`) |
 | `cmdb_test.go` | Run C1, the CMDB views of one hub at its ceiling of 20 000 CIs (`make capacity`, after the capacity run) |
-| `live_test.go` | Run L1, live updates in one workspace (`HUBTASK_LOAD_LIVE=1`) |
+| `live_test.go` | Run L1, live updates in one workspace (`HUBTASK_LOAD_LIVE=1`), and S5, live documents with many writers (`HUBTASK_LOAD_DOCUMENTS=1`) |
+| `sync_test.go` | S3, the sync walk of the largest workspace (`HUBTASK_LOAD_SYNC=1`) |
+| `errors_test.go` | The scenarios' windows and the one collection of the run's errors |
 
 ## Refreshing a baseline
 
