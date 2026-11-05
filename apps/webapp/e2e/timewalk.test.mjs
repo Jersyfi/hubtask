@@ -57,6 +57,10 @@ function timeBackend({ running, kinds, rates } = {}) {
       return { json: made };
     }
     if (path === '/time-policy' && method === 'GET') return { json: { locked_through: null, visibility: 'FULL', version: 1 } };
+    // A week drawn before its kinds arrive says whom to ask (user-experience.md §5.5): the owner here.
+    if (path === '/access/explain' && method === 'GET') {
+      return { json: { account_id: ACCOUNT.id, scope_type: query.get('scope_type') ?? 'TENANT', roles: ['OWNER'], permissions: [], sources: [] } };
+    }
     if (path === '/timer' && method === 'GET') return { json: timer };
     if (path === '/time-capacities' && method === 'GET') return { json: { data: [] } };
     if (path === '/cost-rates' && method === 'GET') return { json: { data: rates ?? [] } };
