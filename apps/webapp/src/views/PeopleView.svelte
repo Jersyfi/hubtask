@@ -36,7 +36,7 @@
     Table,
     Tabs,
   } from '@hubtask/design-system/components';
-  import type { InvitationDelivery, MembershipRole } from '@hubtask/sync-engine';
+  import type { InvitationDelivery, MembershipRole, SignInDetail } from '@hubtask/sync-engine';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -99,6 +99,7 @@
   const mayViewAs = $derived(holdsHere('MANAGE_MEMBERS') === true || holdsHere('READ_CONFIGURATION') === true);
   /** Whether the reader may look at somebody's screens (UC-ID-29): what `POST /auth/sessions:view-as` asks. */
   const mayViewScreens = $derived(holdsHere('MANAGE_MEMBERS') === true && !viewAs.running);
+  const mayManage = $derived(holdsHere('MANAGE_MEMBERS') === true);
   let viewingScreens = $state<string | undefined>(undefined);
 
   async function viewScreens(accountId: string): Promise<void> {
@@ -334,6 +335,7 @@
 
   const columns = $derived([
     { id: 'who', label: t('app.people.who'), isSortable: true },
+    ...(mayManage ? [{ id: 'email', label: t('app.people.email_column'), isSortable: true }] : []),
     { id: 'role', label: t('app.people.role_column'), isSortable: true },
     { id: 'status', label: t('app.people.status'), isSortable: true },
     { id: 'actions', label: t('app.people.actions'), isLabelHidden: true },
@@ -353,6 +355,7 @@
     read: (holder, columnId) => {
       if (columnId === 'role') return t(`app.people.role.${holder.role.toLowerCase()}`);
       if (columnId === 'status') return statusOf(holder.accountId);
+      if (columnId === 'email') return (holder.accountId && signIn.details[holder.accountId]?.email) || '';
       return nameOf(holder);
     },
   });
@@ -390,6 +393,33 @@
     const ids = invitedIds;
     untrack(() => readDeliveries(ids));
   });
+
+  /**
+   * Each person's address and authenticator app, for whoever manages members: the address column,
+   * and *Reset second factor* only where an app stands. Until the read answers the reset is not
+   * offered; where it failed the reset stays, and the server answers a person without an app.
+   */
+  let signIn = $state<{ readonly state: 'reading' | 'ready' | 'failed'; readonly details: Readonly<Record<string, SignInDetail>> }>({ state: 'reading', details: {} });
+  const peopleIds = $derived(
+    mayManage
+      ? [...new Set(holders.map((holder) => holder.accountId).filter((id): id is string => !!id))].sort().slice(0, 200)
+      : [],
+  );
+  const peopleKey = $derived(peopleIds.join(','));
+  function readSignIn(ids: readonly string[]): void {
+    void people.signInDetails(ids)
+      .then((answer) => (signIn = { state: 'ready', details: Object.fromEntries(answer.map((detail) => [detail.account_id, detail])) }))
+      .catch(() => (signIn = { state: 'failed', details: {} }));
+  }
+  $effect(() => {
+    void peopleKey;
+    const ids = peopleIds;
+    untrack(() => readSignIn(ids));
+  });
+  function hasApp(accountId: string | undefined): boolean | undefined {
+    if (signIn.state === 'failed') return undefined;
+    return accountId ? signIn.details[accountId]?.authenticator_app === true : false;
+  }
 
   /** Whether the account counts as an owner who can act: active or restricted, as the server counts. */
   function canAct(accountId: string): boolean {
@@ -754,7 +784,7 @@
             ...(holder.accountId && mayViewScreens && holder.accountId !== actor.account?.id && statusOf(holder.accountId) === 'ACTIVE'
               ? [{ id: 'screens', label: viewingScreens === holder.accountId ? t('app.people.working') : t('app.view_as.start'), icon: 'eye' as const }]
               : []),
-            ...(mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT))
+            ...(mayResetFactor(holder, actor.account?.id, statusOf(holder.accountId), people.grantableAt(TENANT), hasApp(holder.accountId))
               ? [{ id: 'factor', label: t('app.people.factor_reset'), icon: 'key' as const }]
               : []),
           ]}
@@ -764,6 +794,16 @@
                    screen is where that list lives; here it is named as what it is. -->
               {nameOf(holder)}
             </th>
+            {#if mayManage}
+              {@const detail = holder.accountId ? signIn.details[holder.accountId] : undefined}
+              <td class="address">
+                {#if detail?.email}
+                  {detail.email}
+                {:else if detail}
+                  <span class="quiet">{t('app.people.no_address')}</span>
+                {/if}
+              </td>
+            {/if}
             <td>
               <RoleBadge
                 label={t(`app.people.role.${holder.role.toLowerCase()}`)}
@@ -937,6 +977,9 @@
   .small { font-size: var(--fs-075); }
 
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
+
+  /* An address is one word to the line breaker; it breaks where it must rather than widen the table. */
+  .address { overflow-wrap: anywhere; color: var(--text-secondary); }
 
   /* A row still invited carries two actions; they wrap rather than widen the table on a phone. */
   /* In a phone's stacked row the standing is a word, not a bar across the row's width. */

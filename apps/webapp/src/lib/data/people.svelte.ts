@@ -16,7 +16,7 @@
  * and re-reading it per picker would be a request per keystroke's worth of nothing.
  */
 
-import type { GroupDetail, InvitationDelivery, Membership, MembershipPage, MembershipRole, MembershipScope } from '@hubtask/sync-engine';
+import type { GroupDetail, InvitationDelivery, Membership, MembershipPage, MembershipRole, MembershipScope, SignInDetail } from '@hubtask/sync-engine';
 
 import { accounts } from './accounts.svelte.ts';
 import { containers } from './containers.svelte.ts';
@@ -247,6 +247,20 @@ class People {
     if (accountIds.length === 0) return [];
     const state = await engine.refresh<{ data: InvitationDelivery[] }>({
       path: '/accounts:invitation-deliveries', body: { ids: accountIds.slice(0, 200) },
+    });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data.data : [];
+  }
+
+  /**
+   * Each person's address and whether an authenticator app stands, for whoever manages members:
+   * what the summary every member reads leaves out. Read afresh, since a person sets up or removes
+   * an app on their own.
+   */
+  async signInDetails(accountIds: readonly string[]): Promise<SignInDetail[]> {
+    if (accountIds.length === 0) return [];
+    const state = await engine.refresh<{ data: SignInDetail[] }>({
+      path: '/accounts:sign-in-details', body: { ids: accountIds.slice(0, 200) },
     });
     if (state.status === 'failed') throw state.error;
     return state.status === 'ready' ? state.data.data : [];

@@ -6147,6 +6147,8 @@
   "app.people.intro": "Wer am Arbeitsbereich selbst eine Rolle hält. Eine hier vergebene Rolle reicht bis zu allem darin; Rollen an einem Hub oder einer Sammlung werden dort verwaltet, wo sie vergeben wurden.",
   "app.people.reading": "Es wird gelesen, wer hier ist",
   "app.people.who": "Wer",
+  "app.people.email_column": "E-Mail",
+  "app.people.no_address": "Keine Adresse",
   "app.people.role_column": "Rolle",
   "app.people.status": "Stand",
   "app.people.actions": "Was sich tun lässt",

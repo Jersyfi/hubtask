@@ -1036,7 +1036,10 @@ The six groups of `configuration/ui.md` §1 stay. Inside them:
   mail is configured is `delivery: LINK` on the renewal, behind step-up and the role ceiling,
   audited as `LINK`; it cancels the waiting invitation job and delivery and sets the unsent record
   aside, and is refused (`accounts.invitation_mail_sending`) while a delivery is being sent, since
-  a detached delivery cannot be stopped mid-send.
+  a detached delivery cannot be stopped mid-send. Whoever holds `MANAGE_MEMBERS` also sees each
+  person's address in its own column (*No address* for a managed account) and *Reset second
+  factor* only on a row whose person holds an authenticator app (`POST /accounts:sign-in-details`;
+  `AccountSummary`, which every member reads, carries neither).
 * **Erasure**: §5.9.
 * **Changes and drafts**: `PlanSummary` everywhere (§5.4).
 

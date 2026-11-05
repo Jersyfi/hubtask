@@ -6147,6 +6147,8 @@
   "app.people.intro": "Who holds a role at this workspace itself. A role granted here reaches everything in it; roles granted on a hub or a collection are managed where they were granted.",
   "app.people.reading": "Reading who is here",
   "app.people.who": "Who",
+  "app.people.email_column": "Email",
+  "app.people.no_address": "No address",
   "app.people.role_column": "Role",
   "app.people.status": "Standing",
   "app.people.actions": "What can be done",

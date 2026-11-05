@@ -290,13 +290,16 @@ test('a scope read no further than its bound, or a page that did not arrive, sta
 test('a second factor is reset only for another active person within the ceiling (fifth answers 6)', () => {
   const belowOwner: MembershipRole[] = ['ADMIN', 'MEMBER', 'VIEWER'];
   const member = { accountId: 'a-2', role: 'MEMBER' as MembershipRole };
-  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', belowOwner), true);
-  assert.equal(mayResetFactor({ accountId: 'a-3', role: 'OWNER' }, 'a-1', 'ACTIVE', belowOwner), false);
-  assert.equal(mayResetFactor({ accountId: 'a-3', role: 'OWNER' }, 'a-1', 'ACTIVE', ['OWNER', ...belowOwner]), true);
-  assert.equal(mayResetFactor(member, 'a-2', 'ACTIVE', belowOwner), false);
-  assert.equal(mayResetFactor(member, 'a-1', 'INVITED', belowOwner), false);
-  assert.equal(mayResetFactor({ groupId: 'g-1', role: 'MEMBER' }, 'a-1', 'ACTIVE', belowOwner), false);
-  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', undefined), false);
+  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', belowOwner, true), true);
+  assert.equal(mayResetFactor({ accountId: 'a-3', role: 'OWNER' }, 'a-1', 'ACTIVE', belowOwner, true), false);
+  assert.equal(mayResetFactor({ accountId: 'a-3', role: 'OWNER' }, 'a-1', 'ACTIVE', ['OWNER', ...belowOwner], true), true);
+  assert.equal(mayResetFactor(member, 'a-2', 'ACTIVE', belowOwner, true), false);
+  assert.equal(mayResetFactor(member, 'a-1', 'INVITED', belowOwner, true), false);
+  assert.equal(mayResetFactor({ groupId: 'g-1', role: 'MEMBER' }, 'a-1', 'ACTIVE', belowOwner, true), false);
+  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', undefined, true), false);
+  // Nothing to reset where no app stands; not known, the server answers.
+  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', belowOwner, false), false);
+  assert.equal(mayResetFactor(member, 'a-1', 'ACTIVE', belowOwner, undefined), true);
 });
 
 test('who adds a template to the workspace: the workspace\'s holders of a role that may, groups expanded (user-experience.md §5.2)', () => {
