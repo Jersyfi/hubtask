@@ -404,6 +404,10 @@ func TestADueInAZoneThisServerDoesNotKnowIsRefused(t *testing.T) {
 	if parsed, err := ParseTodo(todo(`"Customized Time Zone"`)); err == nil {
 		t.Errorf("an unknown zone was read as %v", parsed.Due.UTC())
 	}
+	// "Local" is the client's own zone, never this server's.
+	if parsed, err := ParseTodo(todo("Local")); err == nil {
+		t.Errorf("the client's local zone was read in the server's as %v", parsed.Due.UTC())
+	}
 }
 
 // A client that names its own zone (Outlook's "W. Europe Standard Time", "Customized Time Zone")

@@ -224,6 +224,10 @@ func parseDateTime(value string, params map[string]string, zones map[string]defi
 // shape an older Thunderbird writes. Any other name is refused rather than read as UTC, which would
 // move the time by the zone's offset without a word.
 func zoneNamed(name string) (*time.Location, error) {
+	// The time package reads "Local" as this server's own zone; a client's "Local" is its own.
+	if strings.EqualFold(name, "Local") {
+		return nil, errors.New("calendar: a time zone this server does not know")
+	}
 	if loaded, err := time.LoadLocation(name); err == nil {
 		return loaded, nil
 	}
