@@ -313,3 +313,50 @@ harness pieces are built. Every collected error is fixed afterwards, as the plan
 
 On the evening of 2026-11-05 the owner said to start the round once it is ready, without asking
 again ("run the performance test when you are ready; you need not ask me about it any more").
+
+## The owner's seventh answers — 2026-11-05
+
+Owner items from the closing round (sixth answers built, tests and citations, the seeded walk and
+its fixes, the performance harness), merged and checked against the code at `3506c2ded`. As with
+the sixth answers, the owner accepted the orchestrating session's sensible proposals (2026-10-31);
+each keeps data safest and changes least. Item 4 touches `docs/vision/` and stays the owner's.
+
+1. **Templates for Pages and Assets.** configuration.md §9 gains a "Team wiki" template (switches
+   Knowledge on; its hub part brings a space with guide pages) and a "Configuration items"
+   template (switches Assets on, with CI classes), so the starter and "Try it" have a matching
+   template for both products. Where it goes: configuration.md §9, the shipped templates,
+   user-experience.md §3.2/§3.3.
+2. **The desk's team reads its portal's catalogue.** Kept: `GET /request-catalogue` answers the
+   team (READ as well as REQUEST) with `may_raise: false`. Where it goes: the UC-SVC use case of
+   the portal catalogue names it.
+3. **A template hub's first collection** is named after the hub (the person's own word, rule 8).
+   Kept; no code change.
+4. **A member at a typed `/administration` address.** Unchanged: "There is nothing at this
+   address", as P-05 in `docs/vision/principles.md` asks. The proposal — a refusal naming the
+   workspace's administrators — changes the vision and waits for the owner's own word.
+5. **Presets and templates.** Both words stay (design-system.md); the page and the hub-settings
+   row read "Templates and presets". Where it goes: locales, user-experience.md §5.7.
+6. **A group's queue** ("or their groups queue", user-experience.md §3.3): the open, unassigned
+   desk entries in collections whose auto-assign policy names a group the reader belongs to. No
+   new model. Where it goes: user-experience.md §3.3, the desk's queue read, its use case check.
+7. **elkjs 0.9.3** (EPL-2.0, unmodified, loaded only for Mermaid's ELK layout) is kept and listed
+   in THIRD-PARTY-LICENSES.md (done).
+8. **Removing the showcase** deletes only sample objects still at the version they were made at;
+   everything changed since is kept. Confirmed as built.
+9. **UC-WRK-07 check 3** names `item.duplicated` (correction).
+10. **UC-AUT-01 checks 5 and 7**: the tests assert `automation.condition_invalid` and
+    `automation.version_conflict` where the server sends them; where it does not, the check text
+    names the code it does send.
+11. **UC-INS-07 check 3**: where mail is configured, provisioning queues the owner's invitation
+    mail and the answer says so; where it is not, the link is shown once. Never both, since a
+    mail mints a token that voids the link.
+12. **UC-WRK-08 check 2**: the bulk trash applies at once with Undo, as UC-WRK-28 check 3; the
+    confirmation is dropped from the check.
+13. **UC-WRK-02 check 1**: one new entry is announced by its title; several by the place sentence.
+14. **A trusted root for outbound calls.** An installation setting `HUBTASK_HTTP_CA_FILE` adds
+    roots for outbound calls through GuardedClient only (default none, system roots unchanged); it
+    serves a self-hoster's private CA and lets the load run's S6 trust its test source. Where it
+    goes: security.md, the installation settings, test/load S6.
+15. **The capture prompt** says what capture does: the entry goes to the workspace's shared inbox
+    (domain-model: read under READ at the workspace). Wording only. Where it goes: locales,
+    UC-WRK-02.
