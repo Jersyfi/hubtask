@@ -5,6 +5,7 @@ package harness
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -16,12 +17,19 @@ import (
 const Tick = 5 * time.Second
 
 // Latency is what a run felt like, not what it promised.
+//
+// P95Low and P95High are the P95's 95 % confidence band: the samples at the order statistics
+// 0.95 n ± 1.96 √(n · 0.95 · 0.05), which needs no assumption about the distribution
+// (test/load/PLAN.md, "How it is shortened"). A reader sees how far a short window's P95 can be
+// trusted instead of assuming it.
 type Latency struct {
-	Count int   `json:"count"`
-	P50   int64 `json:"p50"`
-	P95   int64 `json:"p95"`
-	P99   int64 `json:"p99"`
-	Max   int64 `json:"max"`
+	Count   int   `json:"count"`
+	P50     int64 `json:"p50"`
+	P95     int64 `json:"p95"`
+	P95Low  int64 `json:"p95_low"`
+	P95High int64 `json:"p95_high"`
+	P99     int64 `json:"p99"`
+	Max     int64 `json:"max"`
 }
 
 // Bucket is one interval of the timeline.
@@ -305,14 +313,21 @@ func Percentiles(samples []int64) Latency {
 	}
 	sorted := append([]int64(nil), samples...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	last := len(sorted) - 1
 	at := func(q float64) int64 {
-		return sorted[int(float64(len(sorted)-1)*q)]
+		return sorted[int(float64(last)*q)]
 	}
+	// Outwards on both sides, so the band never claims more than the samples carry.
+	spread := 1.96 * math.Sqrt(float64(len(sorted))*0.95*0.05)
+	low := max(0, int(math.Floor(float64(last)*0.95-spread)))
+	high := min(last, int(math.Ceil(float64(last)*0.95+spread)))
 	return Latency{
-		Count: len(sorted),
-		P50:   at(0.50),
-		P95:   at(0.95),
-		P99:   at(0.99),
-		Max:   sorted[len(sorted)-1],
+		Count:   len(sorted),
+		P50:     at(0.50),
+		P95:     at(0.95),
+		P95Low:  sorted[low],
+		P95High: sorted[high],
+		P99:     at(0.99),
+		Max:     sorted[last],
 	}
 }

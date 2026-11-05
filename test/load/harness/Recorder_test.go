@@ -167,3 +167,31 @@ func TestThroughputCountsWhatWasAnsweredAndNothingElse(t *testing.T) {
 		t.Errorf("throughput = %v, want %v", got, want)
 	}
 }
+
+// The band is the order statistics 0.95 n ± 1.96 √(n · 0.95 · 0.05): for n = 12 000 (a 30 s
+// window at 400 a second) the percentiles 94.6 to 95.4, for n = 240 about 92.2 to 97.8, as
+// test/load/PLAN.md states them.
+func TestTheP95CarriesItsConfidenceBand(t *testing.T) {
+	cases := []struct {
+		n         int
+		low, high int64
+	}{
+		{n: 12_000, low: 11_353, high: 11_447},
+		{n: 240, low: 221, high: 235},
+		{n: 1, low: 1, high: 1},
+		{n: 2, low: 1, high: 2},
+	}
+	for _, c := range cases {
+		samples := make([]int64, c.n)
+		for i := range samples {
+			samples[i] = int64(i + 1)
+		}
+		got := Percentiles(samples)
+		if got.P95Low != c.low || got.P95High != c.high {
+			t.Errorf("n = %d: band %d to %d, want %d to %d", c.n, got.P95Low, got.P95High, c.low, c.high)
+		}
+		if got.P95Low > got.P95 || got.P95 > got.P95High {
+			t.Errorf("n = %d: P95 %d outside its band %d to %d", c.n, got.P95, got.P95Low, got.P95High)
+		}
+	}
+}
