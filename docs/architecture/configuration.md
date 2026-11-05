@@ -170,6 +170,9 @@ breached SLA goal tells the administrators along the entry's path (`NOTIFY_ROLE`
 the first responding group (`NOTIFY_GROUP`). Every template that opens a portal ships the role
 `requester` (*Requester*, `REQUEST` alone), so a desk's first requester is invited or granted with
 a role that already exists (`itil_service_desk@14`, the six other service templates `@4`).
+The team, project and desk templates name what counts in their hub's structure, which its
+collections inherit - `kanban_team@3` flow, `scrum_team@3` open entries, `classic_project@5`
+progress, `itil_service_desk@15` open entries - so their cards and rows carry a figure (UC-WRK-29).
 
 **Roles mapped to groups** are the document's `role_groups` section: a block per custom role, its
 `groups` the groups holding it at the whole workspace. Applying adds a `GrantRole` for each group

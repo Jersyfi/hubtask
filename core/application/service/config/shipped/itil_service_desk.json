@@ -1,6 +1,6 @@
 {
   "key": "itil_service_desk",
-  "version": 14,
+  "version": 15,
   "questions": [
     {
       "key": "first_group",
@@ -735,6 +735,11 @@
       }
     },
     "structure": {
+      "counts": {
+        "value": {
+          "figure": "OPEN"
+        }
+      },
       "entry_types": {
         "value": {
           "TASK": [

@@ -1,6 +1,6 @@
 {
   "key": "classic_project",
-  "version": 4,
+  "version": 5,
   "document": {
     "modules": {
       "workflows": {
@@ -392,6 +392,11 @@
       }
     },
     "structure": {
+      "counts": {
+        "value": {
+          "figure": "PROGRESS"
+        }
+      },
       "views": {
         "value": {
           "offered": [

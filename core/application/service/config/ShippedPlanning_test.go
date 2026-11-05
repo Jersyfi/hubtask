@@ -131,3 +131,25 @@ func TestThePlanningTemplatesOpenOnTheirOwnView(t *testing.T) {
 		}
 	}
 }
+
+// A hub made from a team, project or desk template shows what counts on its collections' cards
+// and rows (user-experience.md §2.5, §7.9; UC-WRK-29 check 1): the hub's structure names a figure,
+// which its collections inherit, instead of the default that counts nothing.
+func TestTheWorkTemplatesCountSomethingOnTheirCollections(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byKey := map[string]domain.Template{}
+	for _, template := range templates {
+		byKey[template.Key] = template
+	}
+	for key, figure := range map[string]work.Figure{
+		"kanban_team": work.FigureFlow, "scrum_team": work.FigureOpen, "classic_project": work.FigureProgress, "itil_service_desk": work.FigureOpen,
+	} {
+		counts, _ := byKey[key].Hub[sectionStructure][string(work.SettingCounts)][settingValueField].(map[string]any)
+		if text(counts["figure"]) != string(figure) {
+			t.Errorf("%s counts %v on its collections, want %s", key, counts["figure"], figure)
+		}
+	}
+}

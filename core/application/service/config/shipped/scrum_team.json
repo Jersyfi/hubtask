@@ -1,6 +1,6 @@
 {
   "key": "scrum_team",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -277,6 +277,11 @@
       }
     },
     "structure": {
+      "counts": {
+        "value": {
+          "figure": "OPEN"
+        }
+      },
       "views": {
         "value": {
           "offered": [
