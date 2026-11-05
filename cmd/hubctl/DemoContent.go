@@ -9,14 +9,13 @@ import (
 	"strings"
 )
 
-// The showcase's content: the words, structure and walks of scripts/seed-demo.py, written here
-// by one person. What seed-demo.py has other people write - their comments, their time, a
-// requester's request, the CAB's approval - this person writes where the API lets them, and
-// assigns to the people of seed-demo.sh only where the workspace has them by name.
+// The showcase's content, the one copy of it: scripts/seed-demo.sh runs it with --voices. What
+// another person of seed-demo.sh says goes through say, so that it is theirs there; the people
+// and groups are used only where the workspace has them by name.
 
 var demoModules = []string{"WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"}
 
-// entryOptions are the optional fields of an entry, as seed-demo.py's entry() takes them.
+// entryOptions are the optional fields of an entry.
 type entryOptions struct {
 	entryType, notes string
 	assignee         any
@@ -771,7 +770,7 @@ func (d *demo) whiteboards(ctx context.Context, scrum, kanban demoHub) {
 	d.board(ctx, "kanban.expo", kanban.hub, "Brainstorming IT-Expo Köln", notes)
 }
 
-// demoTime is one person's two weeks, as seed-demo.py records them.
+// demoTime is one person's two weeks of time.
 type demoTime struct {
 	person, workType string
 	entries          []string

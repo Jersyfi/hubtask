@@ -8,16 +8,16 @@
 # Everything goes through the product's own REST operations, never SQL: the workspace is
 # provisioned through the control plane as scripts/dev-workspace.sh does it, its owner's invitation
 # is redeemed, and every hub, entry, page and record after that is written by a signed-in person.
-# The content (scripts/seed-demo.py): eight people with workspace roles and three groups; the
-# Scrum, Kanban, classic project and ITIL templates taken; a Scrum hub with stories, work packages
-# and activities, sprints, estimates and releases; a Kanban board; a construction project with a
-# Gantt plan (dependencies with lags, milestones, a baseline, a budget), risks and change requests;
-# an ITIL service desk with portal requests from two requester organisations, SLAs, an approved
-# change and a problem; CIs with relations, a service, a CI group and asset records; wiki pages with
-# versions, an image and comments; whiteboards; time records, timesheets, absences and rates; goals
-# with key results and check-ins, portfolios and dashboards; two registered agents. Texts are German
-# and English, some titles long, some trees deep.
-#
+# The people (scripts/seed-demo.py): eight with workspace roles and three groups, three requesters
+# of two organisations. The showcase itself is `hubctl workspace demo` (cmd/hubctl/DemoContent.go),
+# run as the owner with --voices, so that `make demo DEMO_WORKSPACE=...` and this script fill a
+# workspace with the same content: the Scrum, Kanban, classic project and ITIL templates; a Scrum
+# hub with stories, sprints and releases; a Kanban board; a construction project with a Gantt plan;
+# a service desk with portal requests, SLAs and an approved change; CIs; wiki pages; whiteboards;
+# time and timesheets; goals, portfolios and dashboards. What the other people say there is written
+# as each of them; the CAB approves as itself; two agents are registered. Every object the showcase
+# makes is marked, so `hubctl workspace demo --workspace <slug> --remove` takes it away again.
+
 # Usage:
 #   scripts/seed-demo.sh                        # the demo workspace 'demo'
 #   scripts/seed-demo.sh --slug empty --empty   # an empty workspace beside it
@@ -30,6 +30,7 @@
 # Environment:
 #   HUBTASK_ADMIN_TOKEN     a personal access token carrying `admin:tenants`, as
 #                           `scripts/dev-workspace.sh --bootstrap` prints it.
+#   HUBTASK_HUBCTL          optional: a hubctl binary to run instead of building one with go.
 #   HUBTASK_DEMO_PASSWORD   every demo person's password, at least twelve characters. Sign in as
 #                           owner@<slug>.example.org, or as lukas.brandt@, amelia.hughes@,
 #                           mehmet.yilmaz@, sofia.rossi@, jonas.weber@, priya.natarajan@,
@@ -50,7 +51,7 @@ while [ $# -gt 0 ]; do
 		--slug) SLUG="$2"; shift 2 ;;
 		--name) NAME="$2"; shift 2 ;;
 		--empty) EMPTY=true; shift ;;
-		-h|--help) sed -n '5,36p' "$0"; exit 0 ;;
+		-h|--help) sed -n '5,37p' "$0"; exit 0 ;;
 		*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
@@ -62,6 +63,7 @@ PASSWORD="${HUBTASK_DEMO_PASSWORD:-}"
 [ -n "$PASSWORD" ] || die "HUBTASK_DEMO_PASSWORD is not set"
 [ "${#PASSWORD}" -ge 12 ] || die "the password is shorter than the twelve characters the server demands"
 command -v python3 >/dev/null || die "python3 is needed"
+command -v go >/dev/null || [ -x "${HUBTASK_HUBCTL:-}" ] || die "go is needed to build hubctl (or HUBTASK_HUBCTL naming a hubctl binary)"
 # The server refuses a password holding the workspace's own words (auth.password_rule.context_words),
 # and it learns that only after the workspace was provisioned - so the slug is caught here.
 case "$(printf '%s' "$PASSWORD" | tr '[:upper:]' '[:lower:]')" in
@@ -72,5 +74,13 @@ if [ -z "$NAME" ]; then
 	if [ "$EMPTY" = true ]; then NAME="Leerer Arbeitsbereich"; else NAME="Nordlicht GmbH (Demo)"; fi
 fi
 
+HUBCTL="${HUBTASK_HUBCTL:-}"
+if [ -z "$HUBCTL" ]; then
+	BUILD_DIR="$(mktemp -d)"
+	trap 'rm -rf "$BUILD_DIR"' EXIT
+	HUBCTL="$BUILD_DIR/hubctl"
+	go build -o "$HUBCTL" ./cmd/hubctl
+fi
+
 SEED_API="$API" SEED_SLUG="$SLUG" SEED_NAME="$NAME" SEED_EMPTY="$EMPTY" SEED_PASSWORD="$PASSWORD" \
-	SEED_ADMIN_TOKEN="$HUBTASK_ADMIN_TOKEN" exec python3 -I scripts/seed-demo.py
+	SEED_ADMIN_TOKEN="$HUBTASK_ADMIN_TOKEN" SEED_HUBCTL="$HUBCTL" python3 -I scripts/seed-demo.py

@@ -298,21 +298,27 @@ what the UI/UX run walks "with very much content"; the R3 walk of `test/load/PLA
 every product home.
 
 Today: `hubctl workspace demo --workspace <short>` fills the credential's workspace (the short
-name is a guard against filling another) with the content of `scripts/seed-demo.py`, written by
-the one signed-in person: the four templates with the desk's samples, the Scrum, Kanban, project
-and desk hubs with their entries, sprints, releases, plan, risks, portal requests and CIs, pages
+name is a guard against filling another) with the showcase of `cmd/hubctl/DemoContent.go`, written
+by the one signed-in person: the four templates with the desk's samples, the Scrum, Kanban, project
+and desk hubs with their entries, sprints, releases, plan, risks, the desk's calls and CIs, pages
 with an image and versions, three whiteboards, two weeks of the person's own time, goals with key
 results and check-ins, two portfolios and two dashboards. Every object it makes is marked under
 a key (`POST /tenant/samples`, migration 0377); a second run makes only what no mark holds, and
-what belongs to an object (its steps, comments, links) is written once, with it. `--remove`
+what belongs to an object (its steps, comments, links) is written once, with it. A goal,
+portfolio or dashboard is marked at the version its own check-ins and updates leave it at, and a
+child goal is keyed under its parent so that it goes first. `--remove`
 (`POST /tenant/samples:remove`) removes it all in one act: hubs, collections, entries, pages and
-whiteboards into the trash, goals, portfolios, dashboards and time records deleted only at the
-version they were made at, anything changed since kept and named. People are assigned only where
-the workspace has seed-demo.sh's people by name. `make demo DEMO_WORKSPACE=<short>` runs it;
-`make demo` without it still runs `scripts/seed-demo.sh`, which provisions a new workspace with
-its people and writes the same content as those people, unmarked. Not marked: the goal period (a
-frame, found by name), CIs, sprints and releases (they leave with their hub), and the workspace's
-kinds of work, rates and absences.
+whiteboards into the trash (an entry gone with its hub counts as removed), goals, portfolios,
+dashboards and time records deleted only at the version they were marked at; anything changed
+since, and time in a week already handed in, is kept and named. People and the desk's groups are
+used only where the workspace has seed-demo.sh's by name. `make demo DEMO_WORKSPACE=<short>` runs
+it. `make demo` without it runs `scripts/seed-demo.sh`, which provisions a new workspace with its
+people and requesters and runs the same showcase as its owner with `--voices`: what the others say
+there - their comments, check-ins, own time and timesheets, a requester's request and reply -
+comes back in order and is written as each of them, the CAB approves the change as itself, and two
+agents are registered (not marked). Another person's time stays theirs when the showcase is removed
+(T-04). Not marked: the goal period (a frame, found by name), CIs, sprints and releases (they leave
+with their hub), and the workspace's kinds of work, rates and absences.
 
 ---
 

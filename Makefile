@@ -303,6 +303,7 @@ workbench:
 # workspace with the showcase as hubctl's signed-in person (`hubctl workspace demo`), every object
 # marked as sample content, again without doubling and removable in one act
 # (DEMO_REMOVE=1). Without it, scripts/seed-demo.sh provisions a new workspace with its people
+# and runs the same showcase as its owner, the other people writing their own words
 # (HUBTASK_ADMIN_TOKEN, HUBTASK_DEMO_PASSWORD, a multi-workspace installation), so a second run
 # takes another DEMO_SLUG; DEMO_EMPTY=1 makes an empty one instead.
 DEMO_SLUG ?= demo

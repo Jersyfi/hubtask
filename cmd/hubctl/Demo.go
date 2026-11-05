@@ -356,7 +356,7 @@ func (d *demo) monday(offset int) int {
 	return offset - weekday
 }
 
-// compact leaves out the nil fields of a body, as seed-demo.py sends only what it has.
+// compact leaves out the empty fields of a body, so that only what the showcase has is sent.
 func compact(body map[string]any) map[string]any {
 	out := make(map[string]any, len(body))
 	for k, v := range body {
