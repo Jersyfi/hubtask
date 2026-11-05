@@ -246,6 +246,7 @@ func TestTheDueTrioTravelsTogether(t *testing.T) {
 	}
 }
 
+// UC-SYN-02 check 9.
 func TestAPatchIsJudgedByItsFieldNames(t *testing.T) {
 	cases := map[string]struct {
 		fields map[string]FieldChange

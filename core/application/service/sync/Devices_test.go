@@ -212,6 +212,8 @@ func TestListingAnswersOnlyTheCallersDevicesInTheContractsShape(t *testing.T) {
 	}
 }
 
+// UC-SYN-03 check 2.
+// UC-SYN-03 check 6.
 func TestForgettingRevokesTheSessionAndWritesTheTrail(t *testing.T) {
 	f := devicesOf(t)
 	f.devices.devices[device] = domain.Device{ID: device, AccountID: account, Platform: "ios", DisplayName: "Anna's phone", CredentialID: session}

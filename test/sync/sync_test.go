@@ -206,6 +206,7 @@ func (s *suite) count(t *testing.T, query string, args ...any) int {
 // and unique, and no reordering rewrites any key but the moved entry's own - which is what "no
 // renumbering" means, and what lets two devices reorder offline without either's keys being
 // invalidated by the other's.
+// UC-SYN-02 check 4.
 func TestSY4AThousandReorderingsConvergeWithoutRenumbering(t *testing.T) {
 	s := newSuite(t)
 	w := s.workspace(t, "SY-4")
