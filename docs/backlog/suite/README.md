@@ -222,6 +222,19 @@ this list with its row.
 | Fifth answers | A figure under steady writes shows the last kept count, marked with its time | closed by the commit `feat(work): a figure under steady writes answers its last kept count as of its time` (CollectionFigure.counted_at, domain.FigureStaleFor, *as of* in the collection's head; UC-WRK-29 check 8) |
 | Fifth answers | hubtask account reset-link for a self-hoster without mail | closed by the commit `feat(cmd): hubtask account reset-link prints a reset link where no mail goes out` (cmd/server/Account.go, admin.IssueResetLink; deployment.md, identity.md) |
 | Fifth answers | An administrator resets a person's second factor, audited and with step-up | closed by the commit `feat(identity): an administrator resets a person's lost second factor` (`POST /accounts/{accountId}:reset-second-factor`, ResetSecondFactor, *Reset second factor* in People; identity.md §9, §16.3, §17.4) |
+| Sixth answers | Mailboxes as the quota `mailboxes` | open: build it (accepted.md, sixth answers, item 1) |
+| Sixth answers | A fresh installation's first-backup step and health warning | open: build it (accepted.md, sixth answers, item 2) |
+| Sixth answers | Approvals links to agents' held acts | open: build it (accepted.md, sixth answers, item 4) |
+| Sixth answers | Erasure re-owns switched-off integrations; foreign keys NOT VALID then validated | open: build it (accepted.md, sixth answers, item 5) |
+| Sixth answers | Held uploads never released unscanned (security.md §7) | open: build it (accepted.md, sixth answers, item 6) |
+| Sixth answers | A copied page keeps its restriction | open: build it (accepted.md, sixth answers, item 7) |
+| Sixth answers | Withheld minutes hidden under three people | open: build it (accepted.md, sixth answers, item 8) |
+| Sixth answers | View as ends when the viewer loses MANAGE_MEMBERS | open: build it (accepted.md, sixth answers, item 9) |
+| Sixth answers | UC-TIM-03 and UC-ID-18 wording | open: build it (accepted.md, sixth answers, item 10) |
+| Sixth answers | A requester's intake line stripped from pages on erasure or expiry | open: build it (accepted.md, sixth answers, item 11) |
+| Sixth answers | Per-hub trash listings deprecated | open: build it (accepted.md, sixth answers, item 13) |
+| Sixth answers | UC-SVC-10 names the delegate rule | open: build it (accepted.md, sixth answers, item 14) |
+| Sixth answers | The milestone's open-since count | open: build it (accepted.md, sixth answers, item 15) |
 
 ## State
 

@@ -247,3 +247,60 @@ least.
    person is mailed, their sessions end, and enrolment is forced at the next sign-in where the
    workspace requires a factor. An owner's factor is reset only by another owner. No sign-in ever
    skips a factor (P-02); identity.md changes by this decision.
+
+## The owner's sixth answers — 2026-11-05
+
+Owner items from the final runs (coverage, role reviews, walks, functional tests and the leftover
+rounds), merged and checked against the code at `cba0b7278`; items already answered above are not
+repeated. The owner asked the orchestrating session for sensible proposals and accepted them
+(2026-10-31); each keeps data safest and changes least.
+
+1. **Mailboxes as a quota.** The fixed ceiling of five mailboxes (Mailbox.go) becomes the quota
+   `mailboxes`, resolved as every quota (multi-tenancy.md §4), 5 by default in both modes; past it
+   `422 capacity.mailboxes`; connected mailboxes keep being read. Where it goes: UC-JUM-11 *Where
+   it ends*, multi-tenancy.md §4, the quota enum in `api/openapi.yaml` (additive).
+2. **A fresh installation's first backup.** Hubtask still creates no target or schedule by itself.
+   The administration overview's first steps show "Backups: none yet — choose where they go", and
+   `/meta/health` warns while a workspace has no backup target or no backup in 7 days. Where it
+   goes: a check in UC-BAK-01, observability-reliability.md's health table.
+3. **Who reads a request catalogue.** Unchanged: only with REQUEST (UC-SVC-05 check 1); the
+   explanation shown to a team view stays. Where it goes: nothing.
+4. **Agents' held acts and Approvals.** Two places stay; `/approvals` links to *Profile → Agents →
+   Requests* when the agents module is on. Where it goes: a UI step only.
+5. **Erasing a person whom switched-off integrations name.** The erasure moves `run_as` and
+   `owner_id` of switched-off connectors, code hooks and retired agents to the workspace owner,
+   audited, and they stay off; then foreign keys added NOT VALID and validated in a later
+   migration. Active ones keep blocking (`privacy.erasure_blocked_by_integration`). Where it goes:
+   the erasure section of the privacy subject document, a check in UC-PRV-01, a migration pair.
+6. **Uploads held without a scanner.** Held files are never released unscanned, by any switch or
+   command; the operator configures a scanner again or an administrator trashes the file; the
+   critical warning `media.uploads_held_without_scanner` stays. Where it goes: security.md §7.
+7. **Copying a restricted page.** The copy keeps the source's restriction, which the copier may
+   lift; versions, comments, shares and public links are still not copied. Where it goes:
+   UC-DOC-01 check 8, the knowledge copy service.
+8. **Withheld minutes in an aggregated time report.** When the withheld groups together cover fewer
+   than three people, their minutes leave both the total and `withheld_minutes`; `withheld_groups`
+   still counts them and an additive `withheld_minutes_hidden: true` says so. Where it goes:
+   UC-TIM-04 check 3, the report schema (additive), the time subject document.
+9. **View as after the viewer loses their rights.** The view also ends at authentication when the
+   viewer no longer holds MANAGE_MEMBERS or the viewed person's role is now above the viewer's.
+   Where it goes: UC-ID-29 check 3, identity.md's view-as section.
+10. **Use case wording for built behaviour.** UC-TIM-03 check 3 names `time.correction_below_zero`;
+    UC-ID-18 gets a check that a workspace's support contact and documentation show in *Help*,
+    never in the sign-in footer. Where it goes: those use cases, `checked_by:`.
+11. **Page text on a requester's erasure or expiry.** Third answers item 2 extends to pages: only
+    the intake-written "From:" line is removed from the live page, its draft, every version and
+    the live document (rebuilt from the stripped body); a workspace hold keeps everything. Where
+    it goes: the erasure section, a check in UC-PRV-01.
+12. **Request rate and live connections per plan.** Stay per-process configuration in this
+    release (multi-tenancy.md §4); plan-resolved rate, connection, `stored_bytes` and object-count
+    quotas come in a following release as additive quota names. Where it goes: nothing now.
+13. **The per-hub trash listings.** `GET /hubs/{hubId}/trashed-pages` and `listWhiteboards?trashed`
+    are marked `deprecated: true` now, pointing to `GET /trash?kind=…`, and removed in the next
+    major. Where it goes: `api/openapi.yaml`, the release notes.
+14. **A delegate counted at the same level.** Unchanged: one person fills one seat per level, so
+    four eyes hold. Where it goes: UC-SVC-10 *Where it ends* says so; no code change.
+15. **The milestone after new entries.** The sentence reads "All done on 2 Nov · 5 open since",
+    counting open entries created after `reachedAt`; the clause "not drawn while entries are open"
+    is dropped as the contradiction. Where it goes: user-experience.md §7.5, an additive
+    `open_since` on the container's milestone, UC-WRK-29 check 4.
