@@ -569,3 +569,42 @@ func TestASnapshotLackingPartOfTheLogKeepsTheConnection(t *testing.T) {
 		t.Errorf("counted %v, want one incomplete snapshot", signals.outcomes)
 	}
 }
+
+// A connection whose client never stops sending is pinged all the same: the pong is read by the
+// same reader that hands the messages over, so a ping awaited on the connection's own loop would
+// stall it until the write bound and close it as idle (S5 at 10⁶, test/load/PLAN.md).
+func TestAPingDoesNotStallABusyConnection(t *testing.T) {
+	docs := &documents{writable: true}
+	handler := Handler{Documents: docs, Relay: NewRelay(), PingEvery: 20 * time.Millisecond}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = handler.Serve(w, r, appshared.ActorContext{TenantID: tenant, Kind: shared.ActorUser},
+			doc, nil, Credential{})
+	}))
+	t.Cleanup(server.Close)
+	writer, reader := dial(t, server), dial(t, server)
+	for _, conn := range []*websocket.Conn{writer, reader} {
+		next(t, conn)
+		next(t, conn)
+	}
+	// The writer's client answers the server's pings while it sends.
+	writing := writer.CloseRead(t.Context())
+
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		send(t, writer, Awareness([]byte("cursor")))
+		time.Sleep(2 * time.Millisecond)
+	}
+	send(t, writer, Awareness([]byte("last")))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	for {
+		_, data, err := reader.Read(ctx)
+		if err != nil {
+			t.Fatalf("the last cursor did not arrive: %v (writer closed: %v)", err, writing.Err())
+		}
+		if bytes.Equal(data, Awareness([]byte("last"))) {
+			return
+		}
+	}
+}

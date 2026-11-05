@@ -99,8 +99,9 @@ type Handler struct {
 	// Signals is optional; nil records nothing.
 	Signals Signals
 	// CredentialEvery is how often a held connection asks its credential again; zero is
-	// credentialRecheck.
+	// credentialRecheck. PingEvery is how often it is pinged; zero is pingInterval.
 	CredentialEvery time.Duration
+	PingEvery       time.Duration
 	// ConnectionBytes is the byte budget of one connection's updates and snapshots; zero is
 	// DefaultConnectionBytes. Workspaces is the one budget each workspace's connections on this
 	// process share; nil bounds none.
@@ -222,8 +223,17 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 	failed := make(chan error, 1)
 	concurrency.Go(ctx, "realtime.read", func(ctx context.Context) { c.read(ctx, incoming, failed) })
 
-	ping := time.NewTicker(pingInterval)
+	pingEvery := c.h.PingEvery
+	if pingEvery <= 0 {
+		pingEvery = pingInterval
+	}
+	ping := time.NewTicker(pingEvery)
 	defer ping.Stop()
+	// A ping is awaited beside the loop, never on it: its pong is read by the reader, which waits
+	// for this loop to take the message before it; awaited here, a client that keeps sending would
+	// stall the connection until writeTimeout and be closed as idle.
+	pinged := make(chan error, 1)
+	pinging := false
 	var poll <-chan time.Time
 	if woken == nil {
 		ticker := time.NewTicker(pollInterval)
@@ -319,9 +329,17 @@ func (c *connection) run(ctx context.Context, opened realtimeservice.Opened, clo
 				return c.ending(err)
 			}
 		case <-ping.C:
-			pingCtx, cancel := context.WithTimeout(ctx, writeTimeout)
-			err := c.conn.Ping(pingCtx)
-			cancel()
+			if pinging {
+				continue
+			}
+			pinging = true
+			concurrency.Go(ctx, "realtime.ping", func(ctx context.Context) {
+				pingCtx, cancel := context.WithTimeout(ctx, writeTimeout)
+				defer cancel()
+				pinged <- c.conn.Ping(pingCtx)
+			})
+		case err := <-pinged:
+			pinging = false
 			if err != nil {
 				return c.ending(err)
 			}
