@@ -444,6 +444,50 @@ func TestADuplicateIsOpenedAndMergedWithoutDeleting(t *testing.T) {
 	}
 }
 
+// A survivor from outside the duplicate is refused by its code, and resolving without a survivor
+// records the CIs as distinct and closes the duplicate, keeping both (UC-AST-03 checks 3 and 4).
+func TestADuplicateIsSeparatedAndRefusesAStrangerAsSurvivor(t *testing.T) {
+	f := newFixture()
+	for _, name := range []string{"one", "two", "stranger"} {
+		if _, err := call(t, CreateCi{f.inv}.Descriptor(), as(anna), usecase.Input{
+			"hub_id": hub.String(), "class": "server", "name": name, "attributes": map[string]any{"asset_tag": "T-" + name},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stranger shared.ID
+	for id, ci := range f.m.cis {
+		if ci.Name == "stranger" {
+			stranger = id
+			continue
+		}
+		f.m.ids[id]["mac_address"] = "aa:bb"
+	}
+	if _, err := call(t, ReconcileCis{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "source": "netbox", "items": items(
+		map[string]any{"class": "server", "name": "x", "attributes": map[string]any{"mac_address": "aa:bb"}})}); err != nil || len(f.m.dups) != 1 {
+		t.Fatalf("no duplicate opened: %v", err)
+	}
+	dup := f.m.dups[0]
+
+	_, err := call(t, ResolveCiDuplicate{f.inv}.Descriptor(), as(anna), usecase.Input{"duplicate_id": dup.ID.String(), "survivor_id": stranger.String()})
+	if code := shared.AsError(err).DetailCode; !errors.Is(err, shared.ErrValidation) || code != "cmdb.survivor_not_in_duplicate" {
+		t.Fatalf("a stranger as survivor answered %v", err)
+	}
+
+	out, err := call(t, ResolveCiDuplicate{f.inv}.Descriptor(), as(anna), usecase.Input{"duplicate_id": dup.ID.String()})
+	if err != nil || out["merged"] != false {
+		t.Fatalf("separating answered %v, %v", out, err)
+	}
+	if len(f.m.dups) != 0 {
+		t.Error("the duplicate is still open")
+	}
+	for _, id := range dup.CIs {
+		if ci := f.m.cis[id]; ci.Status == domain.StatusMerged || !ci.MergedInto.IsZero() {
+			t.Errorf("a CI kept distinct reads %+v", ci)
+		}
+	}
+}
+
 // A person cannot make a second CI the hub's identifiers already name (UC-AST-01 check 2).
 func TestCreatingACIThatExistsNamesIt(t *testing.T) {
 	f := newFixture()
@@ -464,6 +508,7 @@ func TestCreatingACIThatExistsNamesIt(t *testing.T) {
 }
 
 // A private hub's inventory is not found by anybody else (D14).
+// UC-AST-01 check 6: the hub half.
 func TestAPrivateHubsInventoryIsItsOwners(t *testing.T) {
 	f := newFixture()
 	if _, err := call(t, ListCis{f.inv}.Descriptor(), as(bert), usecase.Input{"hub_id": private.String()}); !errors.Is(err, shared.ErrNotFound) {
@@ -551,6 +596,7 @@ func TestAnItemHoldingAZeroByteIsRefusedAloneAndNamesNoValue(t *testing.T) {
 
 // A target in another hub is answered as a missing one: naming the other hub would tell a writer
 // that a CI of that identifier exists where they may not read.
+// UC-AST-05 check 4: no relation reaches another hub, so no walk does.
 func TestACiOfAnotherHubIsNotFoundAsARelationsTarget(t *testing.T) {
 	f := newFixture()
 	out, err := call(t, CreateCi{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "class": "application_service", "name": "Shop"})

@@ -92,6 +92,7 @@ func TestGLPIIsPulledWithAnOAuthClientSinceTheNewestChange(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 10.
 func TestNetBoxDevicesBecomeServersAndNetworkDevices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/dcim/devices/" || r.Header.Get("Authorization") != "Token s3cret" {
@@ -119,6 +120,7 @@ func TestNetBoxDevicesBecomeServersAndNetworkDevices(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 10.
 func TestNetBoxVirtualMachinesAreHostedOnTheirClusterAndDevice(t *testing.T) {
 	var asked string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +171,7 @@ func TestNetBoxVirtualMachinesAreHostedOnTheirClusterAndDevice(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 10.
 func TestNetBoxWalksEndAfterTheMachinesAndStartAgainAtTheDevices(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"count":0,"results":[]}`))
@@ -184,6 +187,7 @@ func TestNetBoxWalksEndAfterTheMachinesAndStartAgainAtTheDevices(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 10.
 func TestNautobotIsReadAsNetBoxsDialect(t *testing.T) {
 	var asked string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -255,6 +259,7 @@ func TestIntuneDevicesArePulledPageByPage(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 10.
 func TestIntunesDetectedAppsAreSoftwareInstalledOnTheirDevices(t *testing.T) {
 	var server *httptest.Server
 	server = microsoftServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -337,6 +342,7 @@ func TestEntraDevicesEndAtADeltaLinkAndSkipRemovedOnes(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 5: a 429 is connector.rate_limited with the wait it asked.
 func TestHetznerServersAreVirtualMachinesAndARateLimitIsHonoured(t *testing.T) {
 	limited := true
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -395,6 +401,7 @@ func TestOpenStackServersAreReadFromTheCataloguesComputeEndpoint(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 4.
 func TestAPullReachesNoHostTheConnectorDoesNotAllow(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("a host not allowed was called")
@@ -411,6 +418,7 @@ func TestAPullReachesNoHostTheConnectorDoesNotAllow(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 5.
 func TestAWrongCredentialIsUnauthorised(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

@@ -219,6 +219,7 @@ func idOf(t *testing.T, out usecase.Output) shared.ID {
 	return id
 }
 
+// UC-AST-07 check 2.
 func TestAConnectorIsScheduledAndItsCredentialIsSealedAndNeverAnswered(t *testing.T) {
 	f := newConnectorFixture()
 	out := f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
@@ -240,6 +241,8 @@ func TestAConnectorIsScheduledAndItsCredentialIsSealedAndNeverAnswered(t *testin
 	}
 }
 
+// UC-AST-07 checks 3 and 5: every page reconciled, the cursor kept through a failure, a dry run
+// writing nothing and a full walk starting over.
 func TestAPullRunsEveryPageThroughTheReconciliationAndKeepsTheCursor(t *testing.T) {
 	f := newConnectorFixture()
 	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
@@ -286,6 +289,7 @@ func TestAPullRunsEveryPageThroughTheReconciliationAndKeepsTheCursor(t *testing.
 	}
 }
 
+// UC-AST-07 check 6.
 func TestAScheduledPullRunsAsItsDefinerWhenDue(t *testing.T) {
 	f := newConnectorFixture()
 	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "hz", "kind": "HETZNER", "source": "netbox",
@@ -362,6 +366,8 @@ func signals(list ...domain.AlertSignal) AlertParser {
 	return func(domain.ConnectorKind, []byte) ([]domain.AlertSignal, error) { return list, nil }
 }
 
+// UC-AST-08 check 2: a wrong secret, a stale signature, a replay, an unknown and a switched-off
+// intake answer the same cmdb.intake_not_found.
 func TestAnAlertIntakeAcceptsOnlyItsSecretOrAFreshSignature(t *testing.T) {
 	f := newConnectorFixture()
 	id, key := intake(t, f)
@@ -385,6 +391,16 @@ func TestAnAlertIntakeAcceptsOnlyItsSecretOrAFreshSignature(t *testing.T) {
 	stale := strconv.FormatInt(start.Add(-10*time.Minute).Unix(), 10)
 	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Signature: Sign(key, stale, body), Timestamp: stale, Body: body}, fire); code(err) != "cmdb.intake_not_found" {
 		t.Fatalf("a stale signature: %v", err)
+	}
+	unknown := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000fffff")
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: unknown, Bearer: key}, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("an unknown intake: %v", err)
+	}
+	off := f.store.conns[id]
+	off.Enabled = false
+	f.store.conns[id] = off
+	if _, err := f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); code(err) != "cmdb.intake_not_found" {
+		t.Fatalf("a switched-off intake: %v", err)
 	}
 }
 

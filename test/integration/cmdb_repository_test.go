@@ -79,6 +79,7 @@ func TestACIIsFoundByItsIdentifiersAndItsImpact(t *testing.T) {
 }
 
 // Another workspace finds no CI, no identifier, no relation and walks nothing.
+// UC-AST-01 check 6, UC-AST-05 check 4: the workspace half.
 func TestACIIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 	ctx := context.Background()
 	hub, app, vm := seedCIs(ctx, t)

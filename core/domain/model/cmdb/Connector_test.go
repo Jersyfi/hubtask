@@ -10,6 +10,7 @@ import (
 
 func connectorSource() Source { return Source{Key: "glpi", Kind: SourceConnector, Rank: 50} }
 
+// UC-AST-07 check 1.
 func TestAConnectorIsCheckedAgainstItsKind(t *testing.T) {
 	base := ConnectorInput{ID: id("01"), HubID: id("02"), Key: "glpi", Kind: ConnectorGLPI, Source: connectorSource(),
 		BaseURL: "https://glpi.example.org/", Settings: map[string]string{"client_id": "c"}, Enabled: true, Now: now}
@@ -41,6 +42,7 @@ func TestAConnectorIsCheckedAgainstItsKind(t *testing.T) {
 	}
 }
 
+// UC-AST-07 check 4.
 func TestAConnectorReachesOnlyItsOwnHosts(t *testing.T) {
 	c, err := NewConnector(ConnectorInput{Key: "intune", Kind: ConnectorIntune, Source: connectorSource(), BaseURL: "https://graph.example",
 		Settings:     map[string]string{"tenant": "t", "client_id": "c", "authority": "https://login.example/"},
@@ -81,6 +83,8 @@ func TestAGLPIAgentIntakeIsPostedInventoryAndOpensNoEntries(t *testing.T) {
 	}
 }
 
+// UC-AST-07 checks 5 and 6: a failure keeps the cursor and honours the wait; ten in a row switch
+// it off.
 func TestAScheduledConnectorRunsEveryPeriodAndStopsAfterFailures(t *testing.T) {
 	c, err := NewConnector(ConnectorInput{Key: "hz", Kind: ConnectorHetzner, Source: connectorSource(), BaseURL: "https://hz.example",
 		Every: 60, Enabled: true, Now: now}, nil)
@@ -107,6 +111,7 @@ func TestAScheduledConnectorRunsEveryPeriodAndStopsAfterFailures(t *testing.T) {
 	}
 }
 
+// UC-AST-08 check 3.
 func TestAnAlertOpensRepeatsResolvesAndReopens(t *testing.T) {
 	fire := AlertSignal{Key: "k", Status: AlertFiring, Title: "disk full", Severity: "critical"}
 	a, change := Receive(Alert{}, fire, now)

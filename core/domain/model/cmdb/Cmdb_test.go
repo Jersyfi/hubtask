@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ var now = time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
 
 func id(n string) shared.ID { return shared.ID("00000000-0000-4000-8000-0000000000" + n) }
 
+// UC-AST-06 check 2: a class without its own period is stale after the root's 60 days; the health
+// test finds the CI unconfirmed for 90 days stale.
 func TestAClassInheritsAttributesAndRulesNearestFirst(t *testing.T) {
 	r := NewClasses(nil).Resolve("server")
 	if _, ok := r.Attribute("serial_number"); !ok {
@@ -23,8 +26,8 @@ func TestAClassInheritsAttributesAndRulesNearestFirst(t *testing.T) {
 	if r.Rules[0].Class != "computer" || r.Rules[len(r.Rules)-1].Class != "hardware" {
 		t.Fatalf("rules nearest first, got %+v", r.Rules)
 	}
-	if r.StalenessDays != DefaultStalenessDay {
-		t.Fatalf("staleness inherited from the root, got %d", r.StalenessDays)
+	if r.StalenessDays != DefaultStalenessDay || DefaultStalenessDay != 60 {
+		t.Fatalf("staleness inherited from the root's 60 days, got %d", r.StalenessDays)
 	}
 }
 
@@ -116,6 +119,7 @@ func TestALowerSourceDoesNotOverwriteWhatAHigherOneWrote(t *testing.T) {
 	}
 }
 
+// UC-AST-05 check 3.
 func TestProtectionIsInheritedAgainstTheImpact(t *testing.T) {
 	types := NewRelationTypes(nil)
 	app := CI{ID: id("01"), Class: "application_service", Compliance: Compliance{Protection: OwnProtection{Protection: Protection{C: LevelHigh, A: LevelVeryHigh}}}}
@@ -131,6 +135,7 @@ func TestProtectionIsInheritedAgainstTheImpact(t *testing.T) {
 	}
 }
 
+// UC-AST-06 check 2.
 func TestHealthFindsIncompleteStaleOrphanedAndDuplicateCIs(t *testing.T) {
 	seen := now.Add(-90 * 24 * time.Hour)
 	fresh := now.Add(-time.Hour)
@@ -148,6 +153,7 @@ func TestHealthFindsIncompleteStaleOrphanedAndDuplicateCIs(t *testing.T) {
 
 // A service's score is the share of what it rests on that health finds wanting in nothing (H7); a
 // relation a program no longer confirms is stale (R10), a person's never.
+// UC-AST-06 checks 7 and 8.
 func TestHealthScoresServicesAndCountsStaleRelations(t *testing.T) {
 	fresh, old := now.Add(-time.Hour), now.Add(-90*24*time.Hour)
 	owner := Compliance{OwnerGroup: id("99")}
@@ -273,5 +279,39 @@ func TestAReviewFallsDueByTheDayOfTheZoneNowIsIn(t *testing.T) {
 	}
 	if today := Today(asked).Format(time.DateOnly); today != "2026-10-30" {
 		t.Errorf("today %s, want 2026-10-30", today)
+	}
+}
+
+// Software is identified by its package URL, then its CPE, then its name and version
+// (UC-AST-04 check 2).
+func TestSoftwareIsIdentifiedByPackageURLThenCPEThenNameAndVersion(t *testing.T) {
+	var got [][]string
+	for _, rule := range NewClasses(nil).Resolve("software").Rules {
+		got = append(got, rule.Attributes)
+	}
+	want := [][]string{{"purl"}, {"cpe"}, {"name", "version"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("software is identified by %v, want %v", got, want)
+	}
+}
+
+// The shipped relation types are the eight the catalogue names, each saying which end suffers
+// (UC-AST-05 check 1).
+func TestTheShippedRelationTypesSayWhichEndSuffers(t *testing.T) {
+	var keys []string
+	for _, rt := range SystemRelationTypes() {
+		keys = append(keys, rt.Key)
+		switch rt.Impact {
+		case ImpactNone, ImpactSource, ImpactTarget, ImpactBoth:
+		default:
+			t.Errorf("%s says %q suffers", rt.Key, rt.Impact)
+		}
+		if !rt.System {
+			t.Errorf("%s is not marked as shipped", rt.Key)
+		}
+	}
+	want := []string{RelDependsOn, RelRunsOn, RelHostedOn, RelInstalled, RelContains, RelConnects, RelMemberOf, RelOfferingOf}
+	if !reflect.DeepEqual(keys, want) {
+		t.Errorf("the shipped types are %v, want %v", keys, want)
 	}
 }
