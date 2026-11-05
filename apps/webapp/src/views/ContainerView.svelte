@@ -1125,8 +1125,8 @@
        is about a *failure* rendered as an empty list; this is the other way round. -->
   <EmptyState kind="filtered" title={t('app.workspace.not_loaded')} />
 {:else}
-  <!-- What counts in the collection, counted by the server on its read (UC-WRK-29). Absent on a
-       hub, offline, and where the collection counts nothing. Beside it the milestone of a
+  <!-- What counts in the collection, or a hub's open entries from its collections, counted by the
+       server on its read (UC-WRK-29). Absent offline and where it counts nothing. Beside it the milestone of a
        collection or hub, while the reader celebrates (checks 4 and 7). -->
   {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
@@ -1341,7 +1341,7 @@
         },
       }}
       menu={headMenu}
-      figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
+      figure={container.figure || (container.type === 'COLLECTION' && hasAi) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >
       {#snippet notices()}

@@ -212,6 +212,8 @@ class Containers {
    */
   async refreshFigures(targets: { readonly collections: readonly string[]; readonly hubs: readonly string[] }): Promise<void> {
     const reads: Promise<unknown>[] = [];
+    // A hub's row carries the figure of its collections, so the hub level is read again once.
+    if (targets.hubs.length > 0 && this.#hubs.status !== 'idle') reads.push(this.refresh());
     for (const hubId of targets.hubs) {
       if (this.#levels[hubId] !== undefined) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
       // The hub's own document carries its milestone, which the same completions move (UC-WRK-29

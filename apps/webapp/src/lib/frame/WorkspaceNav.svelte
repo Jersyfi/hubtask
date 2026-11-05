@@ -50,7 +50,7 @@
   import { productBandsOf, todayRowCountOf } from '../today.ts';
   import { watchPageReviews } from '../data/reviews.svelte.ts';
   import { requestsPath } from '../data/agents.ts';
-  import type { AgentRequestList, ApprovalList } from '@hubtask/sync-engine';
+  import type { AgentRequestList, ApprovalList, Container } from '@hubtask/sync-engine';
   import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
@@ -194,6 +194,12 @@
       collectionHubId = hereHub.id;
       isCreatingCollection = true;
     }
+  }
+
+  /** A row's figure, short; nothing where it counts nothing or could not be counted. */
+  function figureText(container: Container): string | undefined {
+    const figure = container.figure ? rowMessage(container.figure, messages.locale) : undefined;
+    return figure ? t(figure.code, figure.params) : undefined;
   }
 
   let expanded = $state<string[]>([]);
@@ -379,9 +385,13 @@
       // it in words at the end of the row, so the choice does not cost the fact.
       icon: hub.private && !chosenSymbol(hub) ? ('lock' as const) : markOf(hub),
       colorToken: hub.color_token ?? undefined,
-      meta: hub.private && chosenSymbol(hub)
-        ? t('app.nav.private')
-        : live.isOnlineOnly(hub.id) ? t('app.nav.online_only') : undefined,
+      // What counts in it, from its collections (user-experience.md §2.5), after what the hub is.
+      meta: [
+        hub.private && chosenSymbol(hub)
+          ? t('app.nav.private')
+          : live.isOnlineOnly(hub.id) ? t('app.nav.online_only') : undefined,
+        figureText(hub),
+      ].filter(Boolean).join(' · ') || undefined,
       isMovable: mayRankIn(hub.id),
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
@@ -393,13 +403,12 @@
       children: [
         ...shownCollectionsOf(hub.id).map((collection) => {
           // What counts in it, short (UC-WRK-29): nothing where it counts nothing or nothing yet.
-          const figure = collection.figure ? rowMessage(collection.figure, messages.locale) : undefined;
           return {
             id: collection.id,
             label: collection.name,
             icon: markOf(collection),
             colorToken: collection.color_token ?? undefined,
-            meta: figure ? t(figure.code, figure.params) : undefined,
+            meta: figureText(collection),
             isMovable: mayRankIn(hub.id),
           };
         }),

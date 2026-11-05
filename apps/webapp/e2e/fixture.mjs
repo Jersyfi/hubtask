@@ -718,6 +718,9 @@ function structureRoute(route, request, url, path) {
 
 let figuresShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_FIGURES === '1';
 /** Adds the figure hub to the tree, for this process. */
+/** The open entries the figure hub's own figure answers. */
+export const HUB_FIGURE_OPEN = 31;
+
 export function showFigures() {
   figuresShown = true;
 }
@@ -726,13 +729,15 @@ export function showFigures() {
 function figureRoute(route, request, url, path) {
   if (!figuresShown) return undefined;
   const collections = Object.values(FIGURES);
+  // The hub's own figure, as the server sums its collections' open entries (user-experience.md §2.5).
+  const figuredHub = { ...FIGURE_HUB, figure: { kind: 'OPEN', today: today(), open: HUB_FIGURE_OPEN } };
   if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
-    return route.fulfill({ json: { ...PAGE, data: [HUB, FIGURE_HUB] } });
+    return route.fulfill({ json: { ...PAGE, data: [HUB, figuredHub] } });
   }
   if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === FIGURE_HUB.id) {
     return route.fulfill({ json: { ...PAGE, data: collections } });
   }
-  if (path.endsWith(`/api/v1/containers/${FIGURE_HUB.id}`)) return route.fulfill({ json: FIGURE_HUB });
+  if (path.endsWith(`/api/v1/containers/${FIGURE_HUB.id}`)) return route.fulfill({ json: figuredHub });
   // The replica holds the figure hub's containers as their records carry them: without a figure,
   // which is the server's read alone (offline-sync.md §4.2).
   if (path.endsWith('/api/v1/sync:snapshot')) {

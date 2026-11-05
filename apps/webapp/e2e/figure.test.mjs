@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { FIGURE_HUB, FIGURES, showFigures, signedIn, openSettings } from './fixture.mjs';
+import { FIGURE_HUB, FIGURES, HUB_FIGURE_OPEN, showFigures, signedIn, openSettings } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -109,6 +109,26 @@ test('chromium: 390 and 1280 px — the hub draws its collections as cards, each
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${width}: the page scrolls sideways`);
     assert.deepEqual(failures, []);
     assert.deepEqual(unstubbed(), []);
+    await context.close();
+  }
+});
+
+// user-experience.md §2.5: a hub's row and its head say the figure the server summed from its
+// collections, the same words a collection of open entries uses.
+test("chromium: 390 and 1280 px — the hub's row and head say its open entries", async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const width of [390, 1280]) {
+    const { page, context, failures } = await signedIn(browser, width, 900);
+    await page.goto(`${served.origin}/hubs/${FIGURE_HUB.id}`);
+    await page.getByRole('heading', { name: FIGURE_HUB.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
+    const head = page.locator('header [data-figure="OPEN"] .text').first();
+    assert.equal((await head.textContent({ timeout: 5_000 }))?.trim(), `${HUB_FIGURE_OPEN} open`, `${width}: the hub's head`);
+    if (width === 1280) {
+      const row = page.locator(`[data-node="${FIGURE_HUB.id}"] .meta`).first();
+      assert.equal((await row.textContent({ timeout: 5_000 }))?.trim(), `${HUB_FIGURE_OPEN} open`, "the hub's row");
+    }
+    assert.deepEqual(failures, []);
     await context.close();
   }
 });
