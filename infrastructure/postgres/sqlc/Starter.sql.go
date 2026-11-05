@@ -26,6 +26,17 @@ func (q *Queries) CloseStarter(ctx context.Context, at pgtype.Timestamptz) (int6
 	return result.RowsAffected(), nil
 }
 
+const holdStarter = `-- name: HoldStarter :exec
+SELECT 1 FROM tenant WHERE id = current_tenant_id() FOR UPDATE
+`
+
+// The tenant row's lock, taken before the question is read: a second set arriving at once waits for
+// the first and then finds the hub it made, whether or not the question was skipped before.
+func (q *Queries) HoldStarter(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, holdStarter)
+	return err
+}
+
 const starterPending = `-- name: StarterPending :one
 
 SELECT (t.starter_answered_at IS NULL
@@ -45,4 +56,21 @@ func (q *Queries) StarterPending(ctx context.Context) (bool, error) {
 	var pending bool
 	err := row.Scan(&pending)
 	return pending, err
+}
+
+const starterSkipped = `-- name: StarterSkipped :one
+SELECT (t.starter_answered_at IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM container c WHERE c.created_at <> t.created_at)
+        AND NOT EXISTS (SELECT 1 FROM work_item))::boolean AS skipped
+FROM tenant t
+WHERE t.id = current_tenant_id()
+`
+
+// A skipped question may still be answered while the workspace holds nothing somebody made, by the
+// same test as StarterPending: a skip made nothing, an answer made a hub.
+func (q *Queries) StarterSkipped(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, starterSkipped)
+	var skipped bool
+	err := row.Scan(&skipped)
+	return skipped, err
 }

@@ -16,3 +16,17 @@ WHERE t.id = current_tenant_id();
 -- second answer arriving at once wait, and then find it closed.
 UPDATE tenant SET starter_answered_at = sqlc.arg('at')
 WHERE id = current_tenant_id() AND starter_answered_at IS NULL;
+
+-- name: StarterSkipped :one
+-- A skipped question may still be answered while the workspace holds nothing somebody made, by the
+-- same test as StarterPending: a skip made nothing, an answer made a hub.
+SELECT (t.starter_answered_at IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM container c WHERE c.created_at <> t.created_at)
+        AND NOT EXISTS (SELECT 1 FROM work_item))::boolean AS skipped
+FROM tenant t
+WHERE t.id = current_tenant_id();
+
+-- name: HoldStarter :exec
+-- The tenant row's lock, taken before the question is read: a second set arriving at once waits for
+-- the first and then finds the hub it made, whether or not the question was skipped before.
+SELECT 1 FROM tenant WHERE id = current_tenant_id() FOR UPDATE;
