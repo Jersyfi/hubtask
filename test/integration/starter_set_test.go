@@ -397,8 +397,9 @@ func TestAHubFromATemplateLandsWholeOrNotAtAll(t *testing.T) {
 	if len(taking.steps) != 2 || taking.steps[0] != "workspace" || taking.steps[1] != "hub" || taking.hub != hub.ID {
 		t.Errorf("the template was taken as %v into %s, want the workspace part, then the hub part into %s", taking.steps, taking.hub, hub.ID)
 	}
-	if n := containersOf(ctx, t, tenant); n != 1 {
-		t.Errorf("%d containers, want the one hub", n)
+	// The hub starts with one collection named as the hub: its samples and first entry land there.
+	if n := containersOf(ctx, t, tenant); n != 2 {
+		t.Errorf("%d containers, want the hub and its first collection", n)
 	}
 }
 

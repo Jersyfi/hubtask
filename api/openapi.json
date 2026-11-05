@@ -27805,7 +27805,7 @@
         "x-hubtask-rest-answer": "containerResponse",
         "x-hubtask-rest-location": "/containers/{id}",
         "summary": "Creates a hub from a template of the catalogue",
-        "description": "Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.\n",
+        "description": "Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -54826,7 +54826,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100,
-            "description": "A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.\n"
+            "description": "A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made - with one collection named as the hub where `collections` names none - and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.\n"
           },
           "answers": {
             "type": "object",

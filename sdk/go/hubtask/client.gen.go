@@ -23754,7 +23754,7 @@ type StarterSet struct {
 	// Samples True takes the template's sample entries into the hub, marked and removable at once.
 	Samples *bool `json:"samples,omitempty"`
 
-	// Template A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.
+	// Template A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made - with one collection named as the hub where `collections` names none - and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.
 	Template *string `json:"template,omitempty"`
 }
 
@@ -35456,7 +35456,7 @@ type ClientInterface interface {
 
 	// CreateHubFromTemplateWithBody Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35465,7 +35465,7 @@ type ClientInterface interface {
 
 	// CreateHubFromTemplate Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -51320,7 +51320,7 @@ func (c *Client) UnarchiveContainer(ctx context.Context, containerId ContainerId
 
 // CreateHubFromTemplateWithBody Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -51339,7 +51339,7 @@ func (c *Client) CreateHubFromTemplateWithBody(ctx context.Context, params *Crea
 
 // CreateHubFromTemplate Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -109900,7 +109900,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateHubFromTemplateWithBodyWithResponse Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -109909,7 +109909,7 @@ type ClientWithResponsesInterface interface {
 
 	// CreateHubFromTemplateWithResponse Creates a hub from a template of the catalogue
 	//
-	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -165537,7 +165537,7 @@ func (c *ClientWithResponses) UnarchiveContainerWithResponse(ctx context.Context
 
 // CreateHubFromTemplateWithBodyWithResponse Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -165552,7 +165552,7 @@ func (c *ClientWithResponses) CreateHubFromTemplateWithBodyWithResponse(ctx cont
 
 // CreateHubFromTemplateWithResponse Creates a hub from a template of the catalogue
 //
-// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub with one collection named as the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

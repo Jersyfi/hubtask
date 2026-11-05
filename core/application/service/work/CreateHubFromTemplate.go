@@ -43,6 +43,13 @@ type CreateHubFromTemplate struct {
 	Templates  HubTemplates
 }
 
+// firstCollectionOf is the one collection a hub made from a template starts with, named as the
+// hub - the person's word, not the server's (rule 8). Without it the hub's sample entries had no
+// collection to land in and refused the whole, and its people a place to add the first entry.
+func firstCollectionOf(hub domain.Container) CreateContainerCommand {
+	return CreateContainerCommand{Type: domain.ContainerCollection, ParentID: hub.ID, Name: hub.Name}
+}
+
 // Execute makes the hub and answers it with its structure.
 func (h CreateHubFromTemplate) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateHubFromTemplateCommand,
@@ -69,6 +76,9 @@ func (h CreateHubFromTemplate) Execute(
 		if hub, structure, err = h.Containers.create(ctx, actor, create); err != nil {
 			return err
 		}
+		if _, _, err := h.Containers.create(ctx, actor, firstCollectionOf(hub)); err != nil {
+			return err
+		}
 		return h.Templates.TakeForHub(ctx, actor, cmd.Template, hub.ID)
 	})
 	if err != nil {
@@ -83,8 +93,9 @@ func (h CreateHubFromTemplate) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionStructure,
 		Name:       CreateHubFromTemplateName,
 		Summary: "Creates a hub from a template of the catalogue: the template's workspace part where " +
-			"the workspace has not taken it, the hub, and its hub part, as ApplyConfig would apply " +
-			"them, all in one transaction - a refused part leaves no hub. A template without a hub " +
+			"the workspace has not taken it, the hub with a first collection named as the hub, and its " +
+			"hub part, as ApplyConfig would apply them, all in one transaction - a refused part leaves " +
+			"no hub. A template without a hub " +
 			"part is refused. Needs the right to change the workspace's shape.",
 		SideEffects: "Writes the hub as CreateContainer does - its event, change and audit entry - " +
 			"and the configuration versions and audit entries ApplyConfig writes for each part taken.",

@@ -144,7 +144,7 @@ func (h ApplyStarter) Execute(
 		}); err != nil {
 			return err
 		}
-		for i, place := range cmd.Collections {
+		for i, place := range starterCollections(cmd) {
 			collection, _, err := h.Containers.create(ctx, actor, CreateContainerCommand{
 				Type: domain.ContainerCollection, ParentID: hub.ID, Name: place.Name, Preset: place.Preset,
 			})
@@ -185,6 +185,15 @@ func (h ApplyStarter) Execute(
 		return domain.Container{}, nil, err
 	}
 	return hub, structure, nil
+}
+
+// starterCollections are the set's collections; a set on a template naming none starts its hub
+// with one named as the hub, as a hub made from a template does (firstCollectionOf).
+func starterCollections(cmd ApplyStarterCommand) []StarterPlace {
+	if cmd.Template.Key != "" && len(cmd.Collections) == 0 {
+		return []StarterPlace{{Name: cmd.Hub.Name}}
+	}
+	return cmd.Collections
 }
 
 // validStarterSet refuses a set the contract does not describe before anything is read: only

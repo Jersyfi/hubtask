@@ -61,3 +61,24 @@ func TestAStarterSetsSampleEntriesAreReadAndBounded(t *testing.T) {
 		}
 	}
 }
+
+// A set on a template naming no collection starts its hub with one named as the hub, so the
+// template's sample entries have a place; a set naming its own keeps them.
+func TestAStarterSetOnATemplateStartsWithACollection(t *testing.T) {
+	onTemplate := ApplyStarterCommand{Hub: StarterPlace{Name: "Our team"}, Template: StarterTemplate{Key: "kanban_team"}}
+	if got := starterCollections(onTemplate); len(got) != 1 || got[0].Name != "Our team" || got[0].Preset != "" {
+		t.Errorf("collections %+v, want one named as the hub", got)
+	}
+	onPresets := ApplyStarterCommand{Hub: StarterPlace{Name: "Home", Preset: domain.PresetTasks}}
+	if got := starterCollections(onPresets); len(got) != 0 {
+		t.Errorf("a set on presets naming none got %+v", got)
+	}
+	named := onTemplate
+	named.Collections = []StarterPlace{{Name: "Board"}}
+	if got := starterCollections(named); len(got) != 1 || got[0].Name != "Board" {
+		t.Errorf("a set naming its collection got %+v", got)
+	}
+	if c := firstCollectionOf(domain.Container{ID: "h1", Name: "Support"}); c.Type != domain.ContainerCollection || c.ParentID != "h1" || c.Name != "Support" {
+		t.Errorf("first collection %+v", c)
+	}
+}

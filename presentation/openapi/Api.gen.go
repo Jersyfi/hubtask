@@ -23748,7 +23748,7 @@ type StarterSet struct {
 	// Samples True takes the template's sample entries into the hub, marked and removable at once.
 	Samples *bool `json:"samples,omitempty"`
 
-	// Template A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.
+	// Template A template of the catalogue (`GET /config/templates`) the set is built on, by its key. In the same transaction its workspace part is applied first, then the hub is made - with one collection named as the hub where `collections` names none - and takes the template's hub part - as `POST /config:apply` with `template` would, under the same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted, the set is hubs and collections on presets alone.
 	Template *string `json:"template,omitempty"`
 }
 
