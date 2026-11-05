@@ -10,7 +10,6 @@
   import { Badge, Icon, ListRow, PageHeader, PlaceTabs, Skeleton, Stack, type PlaceTab } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
-  import { afterCreating } from '../lib/workspace/hubGallery.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { markOf } from '../lib/workspace/look.ts';
   import { hubCreationHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
@@ -200,10 +199,10 @@
   });
   /** The first use's create act on the empty answer, where the head would otherwise carry it. */
   const firstCreate = $derived(primary ? { label: primary.label, onclick: primary.onclick } : undefined);
-  /** A hub made from a template opens on its *Products* section with that template's plan. */
-  function created(id: string, template?: string): void {
+  /** A hub made from a template opens where its main product is; any other on the product's screen. */
+  function created(id: string, landing?: string): void {
     startingFrom = undefined;
-    onnavigate(afterCreating(id, template, hubScreenOf(module, id) ?? `/hubs/${id}`));
+    onnavigate(landing ?? hubScreenOf(module, id) ?? `/hubs/${id}`);
   }
 </script>
 

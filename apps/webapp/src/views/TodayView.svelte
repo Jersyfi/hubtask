@@ -73,7 +73,6 @@
   import { moreInHubtask } from '../lib/product/home.ts';
   import { products } from '../lib/navigation.ts';
   import { tryTemplateOf } from '../lib/product/templates.ts';
-  import { afterCreating } from '../lib/workspace/hubGallery.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { mayCaptureHere } from '../lib/capture/places.svelte.ts';
@@ -970,7 +969,7 @@
 
 <StarterDialog bind:isChoosing onstarted={(path) => onnavigate?.(path)} />
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} template={tryingWith}
-  oncreated={(id, template) => { tryingWith = undefined; onnavigate?.(afterCreating(id, template, `/hubs/${id}`)); }} />
+  oncreated={(id, landing) => { tryingWith = undefined; onnavigate?.(landing ?? `/hubs/${id}`); }} />
 
 <style>
   .offers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }

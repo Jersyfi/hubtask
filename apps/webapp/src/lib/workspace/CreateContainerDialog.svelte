@@ -29,9 +29,9 @@
   //
   // A hub is chosen from the template gallery instead (user-experience.md §5.2): the presets as its
   // *Simple* family, then the catalogue's templates with a hub part by family, for whoever may read
-  // the catalogue (`STRUCTURE`). A template is not sent with the create: the hub is made as from the
-  // workspace's default and opens on its *Products* section with that template's plan (§8.11), so
-  // the plan is read in words before anything else is applied.
+  // the catalogue (`STRUCTURE`). A template chosen asks its questions and says what it sets up
+  // before the press, and `POST /containers:from-template` makes the hub with its parts in one
+  // transaction: a refused part leaves no hub behind.
 
   import { untrack } from 'svelte';
 
@@ -41,7 +41,10 @@
   import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { config } from '../data/config.svelte.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
+  import { answersOf, carriesSamples } from '../data/configtemplates.ts';
+  import { afterStarter } from './starterSet.ts';
   import { hubFamilies, markOf, prefilledName, switchedOn } from './hubGallery.ts';
+  import TemplateTakeFields from './TemplateTakeFields.svelte';
 
   import { containers } from '../data/containers.svelte.ts';
   import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
@@ -69,10 +72,10 @@
     /** A catalogue template chosen before the dialog opened (a product's first visit). */
     template?: string;
     /**
-     * Ran after the write succeeded, with the container the server answered and, for a hub, the
-     * catalogue template chosen for it to take next.
+     * Ran after the write succeeded, with the container the server answered and, for a hub made
+     * from a template, where that template's main product opens in it.
      */
-    oncreated?: (id: string, template?: string) => void;
+    oncreated?: (id: string, landing?: string) => void;
   }
 
   let { isOpen = $bindable(), type, parentId, isPrivateOnly = false, template: preselected, oncreated }: Props = $props();
@@ -91,6 +94,12 @@
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isNameFailure = $state(false);
+  let answers = $state<Record<string, string>>({});
+  let withSamples = $state(true);
+  let acknowledged = $state(false);
+  let isPlanning = $state(false);
+  let mustAcknowledge = $state(false);
+  let planFailure = $state<string | undefined>(undefined);
 
   // Reopening starts a new answer rather than resuming the last refused one.
   $effect(() => {
@@ -105,6 +114,10 @@
     colour = undefined;
     failure = undefined;
     isNameFailure = false;
+    answers = {};
+    withSamples = true;
+    acknowledged = false;
+    planFailure = undefined;
   });
 
   const isHub = $derived(type === 'HUB');
@@ -139,6 +152,7 @@
     fromTemplate = '';
   }
   function pickTemplate(key: string): void {
+    if (fromTemplate !== key) { answers = {}; withSamples = true; acknowledged = false; }
     fromTemplate = key;
     preset = '';
     const chosen = catalogue.find((each) => each.key === key);
@@ -184,6 +198,10 @@
     return untrack(() => workspace.open());
   });
   const isPrivateHubOnly = $derived(isHub && isPrivateOnly);
+  const chosenTemplate = $derived(isHub && fromTemplate ? catalogue.find((each) => each.key === fromTemplate) : undefined);
+  // The workspace part is planned where the workspace has not taken the template: the hub's make
+  // takes it then; one it took stays at its version.
+  const plansWorkspace = $derived(chosenTemplate?.taken_version == null);
   const isPrivacyOffered = $derived(isHub && !isPrivateOnly && workspace.workspace?.private_hubs_offered === true);
   const title = $derived(t(isPrivateHubOnly ? 'app.workspace.create_private_hub' : isHub ? 'app.workspace.create_hub' : 'app.workspace.create_collection'));
 
@@ -204,6 +222,24 @@
     try {
       // The `Idempotency-Key` is the caller's, as it is at every other write in this application:
       // pressing Create twice is one intent, not two hubs.
+      if (chosenTemplate) {
+        const given = answersOf(chosenTemplate.questions, answers);
+        const hub = await containers.createFromTemplate(
+          {
+            name: name.trim(),
+            description: description.trim() === '' ? null : description.trim(),
+            ...lookBody(symbol, colour),
+            template: chosenTemplate.key,
+            ...(Object.keys(given).length > 0 ? { answers: given } : {}),
+            ...(carriesSamples(chosenTemplate) && withSamples ? { samples: true } : {}),
+            ...(acknowledged ? { acknowledge: true } : {}),
+          },
+          crypto.randomUUID(),
+        );
+        isOpen = false;
+        oncreated?.(hub.id, afterStarter(chosenTemplate, hub.id));
+        return;
+      }
       const created = await containers.create(
         {
           type,
@@ -218,9 +254,8 @@
       );
       // It appears because the write invalidated the level and the engine re-read it. Nothing is
       // inserted into the sidebar or the list by hand.
-      const chosenTemplate = isHub && fromTemplate ? fromTemplate : undefined;
       isOpen = false;
-      oncreated?.(created.id, chosenTemplate);
+      oncreated?.(created.id);
     } catch (error) {
       const problem = error as TransportError;
       failure = renderProblem(problem, messages);
@@ -283,7 +318,12 @@
             </TemplateGallery>
           </div>
         {/each}
-        {#if fromTemplate}<p class="lead" data-hub-template-next>{t('app.workspace.hub_template_next')}</p>{/if}
+        {#if chosenTemplate}
+          <div class="take" data-hub-template-take>
+            <TemplateTakeFields template={chosenTemplate} {plansWorkspace} samplesOffered={carriesSamples(chosenTemplate)}
+              bind:answers bind:withSamples bind:acknowledged bind:isPlanning bind:mustAcknowledge bind:failure={planFailure} />
+          </div>
+        {/if}
       </div>
     {:else if presetOptions.length > 0}
       <Radio label={t('app.structure.preset_at_creation')} options={presetOptions} bind:value={preset} />
@@ -297,6 +337,8 @@
          error, because there is no field for it to land on. -->
     {#if failure && !isNameFailure}
       <p class="failure" role="alert">{failure.message}</p>
+    {:else if planFailure}
+      <p class="failure" role="alert">{planFailure}</p>
     {/if}
   </Stack>
   </div>
@@ -306,6 +348,8 @@
     <Button tone="primary"
       isBusy={isSaving}
       busyLabel={t('app.workspace.creating')}
+      disabledReason={chosenTemplate && isPlanning ? t('app.starter.plan_reading') : chosenTemplate && mustAcknowledge && !acknowledged ? t('app.changes.acknowledge_first') : undefined}
+      data-create-container
       onclick={create}
     >
       {title}
@@ -315,6 +359,7 @@
 
 <style>
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+  .take { display: grid; gap: var(--sp-150); }
   .gallery { display: flex; flex-direction: column; gap: var(--sp-150); }
   .lead { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); max-width: 64ch; }
   .private { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }

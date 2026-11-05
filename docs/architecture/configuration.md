@@ -202,6 +202,11 @@ organisation still decides itself (`standards.md` §3) - and a knowledge base wi
 
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).
+A hub made from a hub template (`CreateHubFromTemplate`, `POST /containers:from-template`) takes,
+in one transaction, the template's workspace part where the workspace has not taken the template
+(one it took stays at its version: making a hub is no upgrade), then the hub, then the hub part,
+each as `ApplyConfig` applies it; a refused part leaves no hub, and a template without a hub part is
+`config.template_not_for_hubs`.
 
 A **collection part** (`collection_document`, migration 0310) holds the collection sections of a
 hub's document (§1: `collection_structure`, `collection_tolerance`, `collection_views`,

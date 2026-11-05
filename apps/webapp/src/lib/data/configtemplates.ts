@@ -63,6 +63,14 @@ interface WithSamples extends Offered {
  */
 export function offersSamples(template: WithSamples | undefined, hubId: string | undefined): boolean {
   if (!template || !hubId || offerOf(template) !== 'TAKE') return false;
+  return carriesSamples(template);
+}
+
+/**
+ * Whether the template's hub part brings sample entries: a hub made from it is offered them,
+ * whether or not the workspace took the template before.
+ */
+export function carriesSamples(template: Pick<WithSamples, 'hub_document'>): boolean {
   const samples = template.hub_document?.['samples'];
   return typeof samples === 'object' && samples !== null && Object.keys(samples).length > 0;
 }

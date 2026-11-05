@@ -8,7 +8,7 @@ import { readdirSync } from 'node:fs';
 
 import { ICON_NAMES } from '@hubtask/design-system/icons';
 
-import { afterCreating, createsOf, familiesOf, familyOf, hubFamilies, markOf, prefilledName, switchedOn } from './hubGallery.ts';
+import { createsOf, familiesOf, familyOf, hubFamilies, markOf, prefilledName, switchedOn } from './hubGallery.ts';
 
 const of = (key: string, origin: 'HUBTASK' | 'INSTALLATION' | 'WORKSPACE' | 'OWN' = 'HUBTASK', hub = true) => ({
   key, origin, hub_document: hub ? {} : null,
@@ -44,10 +44,6 @@ test('a card names the products a template switches on, workflows left out', () 
   assert.deepEqual(switchedOn({}), []);
 });
 
-test('a hub made from a chosen template opens on that template\'s plan, else where the caller goes', () => {
-  assert.equal(afterCreating('h1', 'itil_service_desk', '/hubs/h1'), '/hubs/h1/settings/modules?template=itil_service_desk');
-  assert.equal(afterCreating('h1', undefined, '/hubs/h1'), '/hubs/h1');
-});
 
 test('choosing a template fills in its name until the reader types one', () => {
   assert.equal(prefilledName('', '', 'Scrum team'), 'Scrum team');

@@ -21,6 +21,7 @@
 
 import type { Container, ContainerPage, ResourceState, StructureChange, StructurePreview } from '@hubtask/sync-engine';
 
+import { TOUCHED } from './config.svelte.ts';
 import { engine, INTENT } from './engine.ts';
 import { etagFor } from './etag.ts';
 import { anchorFor } from './rank.ts';
@@ -271,6 +272,30 @@ class Containers {
     return engine.mutate<Container>('POST', '/containers', body, {
       idempotencyKey,
       invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * A hub made from a catalogue template (user-experience.md §5.2): the template's workspace part
+   * where the workspace lacks it, the hub and its hub part land in one transaction or not at all,
+   * so a refused part leaves no hub. The answer is the hub.
+   */
+  async createFromTemplate(
+    body: {
+      name: string;
+      description?: string | null;
+      icon?: string | null;
+      color_token?: string | null;
+      template: string;
+      answers?: Record<string, string>;
+      samples?: boolean;
+      acknowledge?: boolean;
+    },
+    idempotencyKey: string,
+  ): Promise<Container> {
+    return engine.mutate<Container>('POST', '/containers:from-template', body, {
+      idempotencyKey,
+      invalidates: [...new Set([...TOUCHES, ...TOUCHED])],
     });
   }
 

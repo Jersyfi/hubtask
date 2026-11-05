@@ -1184,9 +1184,11 @@ workspace's — English*), so leaving it says what it means.
 * **A product's first visit** (§4): while no hub uses the product, its empty home (`ProductEmpty`
   on the product home and the desk's home) offers beside *Create hub* the catalogue's templates
   that switch it on in their document (`modules.<product>.switch: ON`), with a hub part, Hubtask's
-  first, three at most (`product/templates.ts`). One press asks the hub's name; the new hub opens
-  on its *Products* section (`/hubs/<id>/settings/modules?template=<key>`) with that template's
-  plan open, so taking it is one more press. Workflows, which every shipped template switches on,
+  first, three at most (`product/templates.ts`). One press opens *Create hub* on that template: the
+  hub's name, the template's questions, its sample entries and what its workspace part sets up in
+  words (where the workspace has not taken it); *Create hub* makes the hub with the template's
+  parts in one transaction (`POST /containers:from-template`), so a refused part leaves no hub, and
+  opens the template's main product in it. Workflows, which every shipped template switches on,
   offers none. The template chosen names the hub until the reader types a name (another choice
   renames it, a typed name stays). Not built here: a preview per template; the assets have no
   shipped template that switches them on, so their home offers none.
@@ -1195,10 +1197,11 @@ workspace's — English*), so leaving it says what it means.
   `configuration.md` §9, placed by key on the client (`workspace/hubGallery.ts`, the contract
   carries no family), a published one under its origin. The catalogue is offered to whoever holds
   `STRUCTURE` on the workspace, which its read asks; a private hub's creator sees *Simple* alone. A
-  template chosen opens the new hub on its plan as above. Where the workspace has not taken the
-  template yet, the hub's (or collection's) plan dialog shows the workspace's part first and,
-  once applied, the place's own - two applies in one dialog, not yet the single server-side apply
-  of §3.2. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
+  template chosen is taken with the hub as above, one server-side apply: the questions, samples and
+  plan are the starter's own fields (`workspace/TemplateTakeFields.svelte`). At an existing hub's
+  (or collection's) *Templates*, where the workspace has not taken the template yet, the plan
+  dialog shows the workspace's part first and, once applied, the place's own - two applies in one
+  dialog. Each card says its sentence (`app.templates.summary.*`, one per shipped template) and
   folds its *Preview*. At a hub's or a collection's *Templates*, a template whose workspace part
   the workspace has not taken (the list's `workspace_first`) offers a reader who may not change
   the workspace no *Take*: its card says *Ask an administrator to add it* with the names of the

@@ -3969,7 +3969,6 @@
   "app.workspace.hub_template_choose": "Wählen",
   "app.workspace.hub_template_chosen": "Gewählt",
   "app.workspace.hub_template_in_workspace": "Der Arbeitsbereich nutzt sie schon",
-  "app.workspace.hub_template_next": "Ist der Hub angelegt, öffnet er sich im Bereich Produkte mit dem, was diese Vorlage einrichtet, in Worten. Übernehmen ist ein weiterer Klick.",
   "app.workspace.create_private_hub": "Privaten Hub anlegen",
   "app.workspace.create_collection": "Sammlung anlegen",
   "app.workspace.hub_name": "Name des Hubs",

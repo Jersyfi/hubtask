@@ -84,10 +84,6 @@ export function switchedOn(template: { readonly document?: { readonly modules?: 
     .map(([name]) => name.toUpperCase());
 }
 
-/** Where a hub made in the dialog opens: its *Products* section on the chosen template's plan (§8.11). */
-export function afterCreating(id: string, template: string | undefined, otherwise: string): string {
-  return template ? `/hubs/${encodeURIComponent(id)}/settings/modules?template=${encodeURIComponent(template)}` : otherwise;
-}
 
 /**
  * The hub's name once a template is chosen (§8.11): the template's name where the reader has typed

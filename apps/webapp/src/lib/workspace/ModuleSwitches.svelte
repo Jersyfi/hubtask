@@ -32,7 +32,6 @@
   import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
   import { config } from '../data/config.svelte.ts';
   import CreateContainerDialog from './CreateContainerDialog.svelte';
-  import { afterCreating } from './hubGallery.ts';
 
   interface Props {
     /** The hub to switch for; absent is the workspace. */
@@ -108,9 +107,9 @@
   /** The template a new hub is made from, chosen on the card at the workspace. */
   let startingFrom = $state<string | undefined>(undefined);
   let isCreatingHub = $state(false);
-  function created(id: string, template?: string): void {
+  function created(id: string, landing?: string): void {
     startingFrom = undefined;
-    onnavigate?.(afterCreating(id, template, `/hubs/${id}`));
+    onnavigate?.(landing ?? `/hubs/${id}`);
   }
 
   async function send(state: ModuleState, to: 'ON' | 'OFF' | 'INHERIT') {

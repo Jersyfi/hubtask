@@ -4643,7 +4643,6 @@
   "app.workspace.hub_template_choose": "Choose",
   "app.workspace.hub_template_chosen": "Chosen",
   "app.workspace.hub_template_in_workspace": "The workspace uses it already",
-  "app.workspace.hub_template_next": "Once the hub is created, it opens on its Products section with what this template sets up, in words. Taking it is one more press.",
   "app.workspace.create_private_hub": "Create private hub",
   "app.workspace.create_collection": "Create collection",
   "app.workspace.hub_name": "Hub name",

@@ -36,7 +36,7 @@ const planned = {
   changes: [{ path: 'workflows.scrum', section: 'workflows', key: 'scrum', op: 'ADD', fields: [] }],
 };
 
-test('chromium: an empty product home offers its templates, and one makes a hub that opens on its plan', async (t) => {
+test('chromium: an empty product home offers its templates, and one makes the hub with its parts at one press', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -44,6 +44,7 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
   forgetUnstubbed();
   const hubs = [];
   const planFor = [];
+  const made = [];
   const answer = async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -55,10 +56,12 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
       const records = hubs.map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: null, payload: c }));
       return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
     }
-    if (path === '/containers' && method === 'POST') {
-      const made = { id: NEW_HUB, type: 'HUB', parent_id: null, order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE, ...request.postDataJSON() };
-      hubs.push(made);
-      return route.fulfill({ status: 201, json: made });
+    if ((path === '/containers' || path === '/containers:from-template') && method === 'POST') {
+      made.push({ path, body: request.postDataJSON() });
+      const { template: _template, answers: _answers, samples: _samples, acknowledge: _acknowledge, ...look } = request.postDataJSON();
+      const hub = { id: NEW_HUB, type: 'HUB', parent_id: null, order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE, ...look };
+      hubs.push(hub);
+      return route.fulfill({ status: 201, json: hub });
     }
     if (path === '/containers' && method === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? hubs : [] } });
     if (path === `/containers/${NEW_HUB}` && method === 'GET' && hubs[0]) return route.fulfill({ json: hubs[0] });
@@ -71,6 +74,7 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
       planFor.push(url.searchParams.get('hub_id') ?? request.postDataJSON()?.hub_id ?? '');
       return route.fulfill({ json: planned });
     }
+    if (path === `/config/templates/${KANBAN.key}:plan`) return route.fulfill({ json: { ...planned, template: KANBAN.key, changes: [] } });
     return stub(route);
   };
   const failures = [];
@@ -107,16 +111,17 @@ test('chromium: an empty product home offers its templates, and one makes a hub 
   await hubName.fill('Delivery');
   await dialog.locator('[data-hub-template="scrum_team"] button').click();
   assert.equal(await hubName.inputValue(), 'Delivery');
+  // §5.2: what the template sets up is said before the press - the workspace part, which the
+  // workspace has not taken - and nothing is made yet.
+  await dialog.getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
+  assert.ok(planFor.length > 0 && planFor.every((hub) => hub === ''), 'the plan before the press was not the workspace part\'s');
+  assert.equal(made.length, 0, 'a hub was made before the press');
   await dialog.getByRole('button', { name: 'Create hub', exact: true }).click();
-  await page.waitForURL(`**/hubs/${NEW_HUB}/settings/modules?template=${SCRUM.key}`, { timeout: 10_000 });
-  // The live stream brings the new hub to a running client; this fixture has none, so the address
-  // is opened afresh, where the replica's first read carries the hub.
-  const fresh = await browser.newContext({ viewport: { width: 1280, height: 900 } });
-  t.after(() => fresh.close());
-  const again = await open(fresh);
-  await again.goto(page.url());
-  await again.getByRole('dialog').getByText('Adds the workflow “scrum”').waitFor({ timeout: 10_000 });
-  assert.ok(planFor.length > 0 && planFor.every((hub) => hub === NEW_HUB), 'the template\'s plan was not asked for the new hub');
+  // One request makes the hub with the template's parts, and the app opens its main product.
+  await page.waitForURL(`**/hubs/${NEW_HUB}/plan`, { timeout: 10_000 });
+  assert.deepEqual(made.map((each) => each.path), ['/containers:from-template'], 'the hub was not made with its template in one request');
+  assert.equal(made[0].body.template, SCRUM.key);
+  assert.equal(made[0].body.name, 'Delivery');
   assert.deepEqual(failures, []);
 });
 

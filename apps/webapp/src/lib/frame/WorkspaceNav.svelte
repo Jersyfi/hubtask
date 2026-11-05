@@ -22,7 +22,6 @@
   import FailureState from './FailureState.svelte';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
-  import { afterCreating } from '../workspace/hubGallery.ts';
   import ReplicaMark from './ReplicaMark.svelte';
   import { chosenSymbol, markOf } from '../workspace/look.ts';
 
@@ -579,7 +578,7 @@
   bind:isOpen={isCreatingHub}
   type="HUB"
   isPrivateOnly={creation === 'private'}
-  oncreated={(id, template) => onnavigate(afterCreating(id, template, `/hubs/${id}`))}
+  oncreated={(id, landing) => onnavigate(landing ?? `/hubs/${id}`)}
 />
 {#if collectionHubId}
   <CreateContainerDialog
