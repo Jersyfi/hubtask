@@ -53,6 +53,20 @@ library a step accepts; each notice is under `third-party/licenses/_bundled/`.
 | Library | Licence | For |
 |---|---|---|
 | [@marcbachmann/cel-js](https://github.com/marcbachmann/cel-js/blob/main/LICENSE) 8.0.0 | MIT | The browser's evaluator of forms and calculated fields offline (`packages/expression`) |
+| [KaTeX](https://github.com/KaTeX/KaTeX/blob/main/LICENSE) 0.19.0 | MIT | A page's formulas, drawn as MathML (`packages/editor`) |
+| [Mermaid](https://github.com/mermaid-js/mermaid/blob/develop/LICENSE) 12.2.0 | MIT | A page's diagrams (`packages/editor`); it brings its own KaTeX 0.18.11 (MIT) |
+| [lowlight](https://github.com/wooorm/lowlight/blob/main/license) 3.3.0 | MIT | The colours of a page's code blocks (`packages/editor`) |
+| [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/LICENSE) 11.11.2 | BSD-3-Clause | The grammars lowlight colours with |
+| [emojibase-data](https://github.com/milesj/emojibase/blob/master/LICENSE) 18.0.0 | MIT | The page editor's emoji picker, in the reader's language (`apps/webapp`) |
+| [Chevrotain](https://github.com/Chevrotain/chevrotain/blob/master/LICENSE.txt) 13.2.0 | Apache-2.0 | Mermaid's parser |
+| [DOMPurify](https://github.com/cure53/DOMPurify/blob/main/LICENSE) 3.4.17 | Apache-2.0 (chosen of MPL-2.0 OR Apache-2.0) | Mermaid's sanitiser of a diagram's text |
+| [D3](https://github.com/d3/d3/blob/main/LICENSE) 3 (its modules) | ISC; BSD-3-Clause for d3-array 2, d3-path 1, d3-shape 1, d3-sankey | Mermaid's drawing |
+| [khroma](https://github.com/fabiospampinato/khroma/blob/master/license) 2.1.0 | MIT (its licence file; the package names none) | Mermaid's colour arithmetic |
+| [elkjs](https://github.com/kieler/elkjs/blob/master/LICENSE.md) 0.9.3 | EPL-2.0 | Mermaid's ELK layout, a chunk loaded only by a diagram that asks for that layout. Weak copyleft on elkjs's own files, shipped unmodified; it places no condition on the code around it |
+
+The other parts these libraries bring (Cytoscape, dagre-d3-es, roughjs, marked, lodash-es, dayjs,
+stylis and smaller ones) are MIT; the pnpm lockfile pins each. The notice of every library in
+the table is under `third-party/licenses/_bundled/`.
 
 ## Brand marks
 

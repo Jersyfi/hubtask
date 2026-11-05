@@ -147,6 +147,14 @@ it generates its own types and has no edge to any first-party member.
   connection in the server's framing ([offline-sync.md](./offline-sync.md) §13) and the Markdown
   projection a page saves beside it. The socket is opened by the sync engine (`liveSocket`), which
   holds the bearer; the editor knows no address, no token and no screen (foundation.md §3).
+  Its formula (`$$` … `$$`, KaTeX drawn as MathML, `trust` off), diagram (a `mermaid` fence drawn
+  as a picture under it, so Mermaid's style element never reaches the page) and code colours
+  (lowlight) load their library on the first block that needs one; `@hubtask/editor/libraries`
+  names the three for the web app's precache (`lib/frame/parts.ts`), and nothing of them is in a
+  first screen. The emoji picker's sets (emojibase-data, in the reader's language, English where
+  emojibase has none) are the web app's, loaded the same way. Mermaid measures its labels in the
+  page, so the policy refuses its inline styles there - console lines, not a failure: the picture
+  is drawn from the SVG text, styled inside its own image document (`e2e/pageblocks.test.mjs`).
 * `packages/whiteboard` is a board's scene (M4): its objects in a Yjs live document (one map per
   object, so two people's drawing merges), the projection a board saves beside it, the geometry the
   canvas draws, culls and hits by, and the board drawn as SVG for export with the colours the
