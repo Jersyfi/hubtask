@@ -843,7 +843,7 @@ func (h TrashPage) Execute(ctx context.Context, actor appshared.ActorContext, id
 	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		now := h.Space.Clock.Now()
 		var err error
-		if count, err = h.Space.Pages.Trash(ctx, id, actor.AccountID, now); err != nil {
+		if count, err = h.Space.Pages.Trash(ctx, id, actor.AccountID, actor.Kind, now); err != nil {
 			return err
 		}
 		if err := h.Space.announceSubtree(ctx, actor, id, true); err != nil {

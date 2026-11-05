@@ -2207,13 +2207,14 @@ INSERT INTO page (
   id, tenant_id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
   owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
   created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
-  language_source_id, language_variant
+  language_source_id, language_variant, deleted_by_type, deleted_by_id
 )
 SELECT
   r.id, r.tenant_id, r.hub_id, r.parent_id, r.title, r.body, r.icon, r.order_key, r.template,
   r.content_language, r.owner_id, r.verified_until, r.verified_at, r.verified_by, r.archived_at,
   r.deleted_at, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version,
-  coalesce(r.restricted, false), r.daily_for, r.language_source_id, r.language_variant
+  coalesce(r.restricted, false), r.daily_for, r.language_source_id, r.language_variant,
+  r.deleted_by_type, r.deleted_by_id
 FROM jsonb_populate_record(
   NULL::page,
   (sqlc.arg('payload')::jsonb - 'search_document') || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2238,7 +2239,9 @@ ON CONFLICT (id) DO UPDATE SET
   updated_at = EXCLUDED.updated_at,
   version = EXCLUDED.version,
   restricted = EXCLUDED.restricted,
-  daily_for = EXCLUDED.daily_for
+  daily_for = EXCLUDED.daily_for,
+  deleted_by_type = EXCLUDED.deleted_by_type,
+  deleted_by_id = EXCLUDED.deleted_by_id
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsPage :one
@@ -2534,9 +2537,10 @@ DELETE FROM realtime_snapshot;
 
 -- name: ImportWhiteboard :execrows
 -- Where the board points is the trigger's to build.
-INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version)
+INSERT INTO whiteboard (id, tenant_id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version,
+                        deleted_by_type, deleted_by_id)
 SELECT r.id, r.tenant_id, r.hub_id, r.title, r.scene, r.deleted_at, r.created_by, r.created_at, r.updated_by,
-       r.updated_at, r.version
+       r.updated_at, r.version, r.deleted_by_type, r.deleted_by_id
 FROM jsonb_populate_record(
   NULL::whiteboard,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2547,7 +2551,9 @@ ON CONFLICT (id) DO UPDATE SET
   deleted_at = EXCLUDED.deleted_at,
   updated_by = EXCLUDED.updated_by,
   updated_at = EXCLUDED.updated_at,
-  version = EXCLUDED.version
+  version = EXCLUDED.version,
+  deleted_by_type = EXCLUDED.deleted_by_type,
+  deleted_by_id = EXCLUDED.deleted_by_id
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWhiteboard :one

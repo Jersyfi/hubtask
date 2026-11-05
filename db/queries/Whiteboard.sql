@@ -21,7 +21,17 @@ FOR UPDATE;
 -- Optimistic: zero rows is a board changed meanwhile.
 UPDATE whiteboard SET
   title = sqlc.arg('title'), scene = sqlc.arg('scene'), deleted_at = sqlc.narg('deleted_at'),
-  updated_by = sqlc.arg('updated_by'), updated_at = sqlc.arg('updated_at'), version = version + 1
+  updated_by = sqlc.arg('updated_by'), updated_at = sqlc.arg('updated_at'), version = version + 1,
+  -- Who trashed it is written by the write that trashes it - its writer - and kept while it stays
+  -- in the trash; a board no longer trashed names nobody.
+  deleted_by_type = CASE
+    WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL
+    WHEN deleted_at IS NULL THEN NULLIF(sqlc.narg('deleted_by_type')::text, '')
+    ELSE deleted_by_type END,
+  deleted_by_id = CASE
+    WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL
+    WHEN deleted_at IS NULL THEN sqlc.arg('updated_by')
+    ELSE deleted_by_id END
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: ListHubWhiteboards :many

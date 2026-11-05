@@ -194,7 +194,7 @@ func (s *store) LastOrderKey(_ context.Context, hubID, parentID shared.ID) (stri
 	}
 	return last, nil
 }
-func (s *store) Trash(_ context.Context, id, _ shared.ID, at time.Time) (int, error) {
+func (s *store) Trash(_ context.Context, id, _ shared.ID, _ shared.ActorKind, at time.Time) (int, error) {
 	count := 0
 	for key, page := range s.pages {
 		if key == id || page.ParentID == id {

@@ -72,7 +72,7 @@ func TestASpaceIsReadAsItWasWritten(t *testing.T) {
 		if err != nil || len(backlinks) != 1 || backlinks[0].SourceID != root || backlinks[0].HubID != hub {
 			t.Errorf("backlinks %+v, %v", backlinks, err)
 		}
-		if n, err := repo.Trash(ctx, root, authorA, at); err != nil || n != 2 {
+		if n, err := repo.Trash(ctx, root, authorA, shared.ActorUser, at); err != nil || n != 2 {
 			t.Errorf("trashed %d, %v; want the page and the one under it", n, err)
 		}
 		if tree, _ := repo.List(ctx, hub, true, false, 100); len(tree) != 0 {
@@ -121,7 +121,7 @@ func TestAPageIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		if key, _ := repo.LastOrderKey(ctx, hub, ""); key != "" {
 			t.Error("the workspace next door read the order")
 		}
-		if n, _ := repo.Trash(ctx, root, authorB, at); n != 0 {
+		if n, _ := repo.Trash(ctx, root, authorB, shared.ActorUser, at); n != 0 {
 			t.Error("the workspace next door trashed the page")
 		}
 		if n, _ := repo.Restore(ctx, root, authorB, at, at); n != 0 {
@@ -517,7 +517,7 @@ func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
 		if err != nil || len(pages) != 1 || pages[0] != root {
 			t.Errorf("pages %v, %v", pages, err)
 		}
-		if _, err := repo.Trash(ctx, root, authorA, time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)); err != nil {
+		if _, err := repo.Trash(ctx, root, authorA, shared.ActorUser, time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)); err != nil {
 			return err
 		}
 		if pages, _ := media.ReferencingPages(ctx, picture); len(pages) != 0 {

@@ -40,11 +40,14 @@ type Board struct {
 	Title     string
 	Scene     Scene
 	DeletedAt *time.Time
-	CreatedBy shared.ID
-	CreatedAt time.Time
-	UpdatedBy shared.ID
-	UpdatedAt time.Time
-	Version   int
+	// DeletedByKind is what trashes the board, read by the write that trashes it; that write's
+	// UpdatedBy is who. It is not read back.
+	DeletedByKind shared.ActorKind
+	CreatedBy     shared.ID
+	CreatedAt     time.Time
+	UpdatedBy     shared.ID
+	UpdatedAt     time.Time
+	Version       int
 }
 
 // IsTrashed reports whether the board is in the trash.

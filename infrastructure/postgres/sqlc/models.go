@@ -2429,6 +2429,8 @@ type Page struct {
 	DailyFor         pgtype.Date
 	LanguageSourceID pgtype.UUID
 	LanguageVariant  *string
+	DeletedByType    *string
+	DeletedByID      pgtype.UUID
 }
 
 type PageArticle struct {
@@ -3418,17 +3420,19 @@ type WebhookSubscription struct {
 }
 
 type Whiteboard struct {
-	ID        pgtype.UUID
-	TenantID  pgtype.UUID
-	HubID     pgtype.UUID
-	Title     string
-	Scene     []byte
-	DeletedAt pgtype.Timestamptz
-	CreatedBy pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	UpdatedBy pgtype.UUID
-	UpdatedAt pgtype.Timestamptz
-	Version   int32
+	ID            pgtype.UUID
+	TenantID      pgtype.UUID
+	HubID         pgtype.UUID
+	Title         string
+	Scene         []byte
+	DeletedAt     pgtype.Timestamptz
+	CreatedBy     pgtype.UUID
+	CreatedAt     pgtype.Timestamptz
+	UpdatedBy     pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Version       int32
+	DeletedByType *string
+	DeletedByID   pgtype.UUID
 }
 
 type WhiteboardComment struct {

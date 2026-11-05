@@ -50,9 +50,9 @@ FROM (
 
   -- A page goes with the pages under it trashed at the same moment (TrashPageSubtree), so the
   -- root is a page whose parent was not trashed at that moment. Its deletion is keyed on the page
-  -- itself, which is what its restore takes. Who trashed it is not recorded on the row.
+  -- itself, which is what its restore takes.
   SELECT
-    'PAGE'::text, p.id, p.id, p.deleted_at, NULL::text, NULL::uuid,
+    'PAGE'::text, p.id, p.id, p.deleted_at, p.deleted_by_type, p.deleted_by_id,
     p.title, 'PAGE'::text,
     p.hub_id, NULL::uuid, p.parent_id, p.version
   FROM page p
@@ -64,7 +64,7 @@ FROM (
   UNION ALL
 
   SELECT
-    'WHITEBOARD'::text, w.id, w.id, w.deleted_at, NULL::text, NULL::uuid,
+    'WHITEBOARD'::text, w.id, w.id, w.deleted_at, w.deleted_by_type, w.deleted_by_id,
     w.title, 'WHITEBOARD'::text,
     w.hub_id, NULL::uuid, NULL::uuid, w.version
   FROM whiteboard w

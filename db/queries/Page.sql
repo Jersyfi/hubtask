@@ -36,7 +36,10 @@ UPDATE page SET
   verified_until = sqlc.narg('verified_until'), verified_at = sqlc.narg('verified_at'),
   verified_by = sqlc.narg('verified_by'), archived_at = sqlc.narg('archived_at'),
   deleted_at = sqlc.narg('deleted_at'), updated_by = sqlc.arg('updated_by'),
-  updated_at = sqlc.arg('updated_at'), version = version + 1
+  updated_at = sqlc.arg('updated_at'), version = version + 1,
+  -- Who trashed it is TrashPageSubtree's to write; a page no longer trashed names nobody.
+  deleted_by_type = CASE WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL ELSE deleted_by_type END,
+  deleted_by_id = CASE WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL ELSE deleted_by_id END
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: ListHubPages :many
@@ -108,7 +111,7 @@ WITH RECURSIVE down (id, depth) AS (
    WHERE p.tenant_id = current_tenant_id() AND p.deleted_at IS NULL AND down.depth < 16
 )
 UPDATE page AS t SET deleted_at = sqlc.arg('at'), updated_by = sqlc.arg('by'), updated_at = sqlc.arg('at'),
-  version = t.version + 1
+  deleted_by_type = NULLIF(sqlc.arg('by_type')::text, ''), deleted_by_id = sqlc.arg('by'), version = t.version + 1
 WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down) AND t.deleted_at IS NULL;
 
 -- name: RestorePageSubtree :execrows
@@ -121,7 +124,7 @@ WITH RECURSIVE down (id, depth) AS (
    WHERE p.tenant_id = current_tenant_id() AND p.deleted_at = sqlc.arg('trashed_at')::timestamptz AND down.depth < 16
 )
 UPDATE page AS t SET deleted_at = NULL, updated_by = sqlc.arg('by'), updated_at = sqlc.arg('at'),
-  version = t.version + 1
+  deleted_by_type = NULL, deleted_by_id = NULL, version = t.version + 1
 WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
   AND t.deleted_at = sqlc.arg('trashed_at')::timestamptz;
 

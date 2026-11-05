@@ -1761,7 +1761,7 @@ WITH RECURSIVE down (id, depth) AS (
    WHERE p.tenant_id = current_tenant_id() AND p.deleted_at = $3::timestamptz AND down.depth < 16
 )
 UPDATE page AS t SET deleted_at = NULL, updated_by = $1, updated_at = $2,
-  version = t.version + 1
+  deleted_by_type = NULL, deleted_by_id = NULL, version = t.version + 1
 WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
   AND t.deleted_at = $3::timestamptz
 `
@@ -2053,25 +2053,31 @@ func (q *Queries) SpaceLabels(ctx context.Context, arg SpaceLabelsParams) ([]Spa
 
 const trashPageSubtree = `-- name: TrashPageSubtree :execrows
 WITH RECURSIVE down (id, depth) AS (
-  SELECT p.id, 0 FROM page p WHERE p.tenant_id = current_tenant_id() AND p.id = $3
+  SELECT p.id, 0 FROM page p WHERE p.tenant_id = current_tenant_id() AND p.id = $4
   UNION ALL
   SELECT p.id, down.depth + 1 FROM page p JOIN down ON p.parent_id = down.id
    WHERE p.tenant_id = current_tenant_id() AND p.deleted_at IS NULL AND down.depth < 16
 )
 UPDATE page AS t SET deleted_at = $1, updated_by = $2, updated_at = $1,
-  version = t.version + 1
+  deleted_by_type = NULLIF($3::text, ''), deleted_by_id = $2, version = t.version + 1
 WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down) AND t.deleted_at IS NULL
 `
 
 type TrashPageSubtreeParams struct {
-	At pgtype.Timestamptz
-	By pgtype.UUID
-	ID pgtype.UUID
+	At     pgtype.Timestamptz
+	By     pgtype.UUID
+	ByType string
+	ID     pgtype.UUID
 }
 
 // Marks the page and the pages under it trashed at one moment, which is what a restore brings back.
 func (q *Queries) TrashPageSubtree(ctx context.Context, arg TrashPageSubtreeParams) (int64, error) {
-	result, err := q.db.Exec(ctx, trashPageSubtree, arg.At, arg.By, arg.ID)
+	result, err := q.db.Exec(ctx, trashPageSubtree,
+		arg.At,
+		arg.By,
+		arg.ByType,
+		arg.ID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -2104,7 +2110,10 @@ UPDATE page SET
   verified_until = $9, verified_at = $10,
   verified_by = $11, archived_at = $12,
   deleted_at = $13, updated_by = $14,
-  updated_at = $15, version = version + 1
+  updated_at = $15, version = version + 1,
+  -- Who trashed it is TrashPageSubtree's to write; a page no longer trashed names nobody.
+  deleted_by_type = CASE WHEN $13::timestamptz IS NULL THEN NULL ELSE deleted_by_type END,
+  deleted_by_id = CASE WHEN $13::timestamptz IS NULL THEN NULL ELSE deleted_by_id END
 WHERE tenant_id = current_tenant_id() AND id = $16 AND version = $17
 `
 

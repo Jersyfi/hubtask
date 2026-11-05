@@ -523,8 +523,8 @@ once at its root, keyed on that page, a restricted page only to whom it admits, 
 trash takes pages and boards too. `TestEveryKindWithARestoreIsInTheOneTrash` holds every
 `:restore` to a listed kind (a label's and a page version's restore take nothing out of a trash).
 The hubs' own page and whiteboard trash lists still exist beside it; they are not yet links into
-`/trash` narrowed to their kind, and who trashed a page or a board is not recorded, so its row names
-nobody.
+`/trash` narrowed to their kind. Who trashed a page or a board is recorded since migration 0371, so
+its row names the person as an entry's does; one trashed before names nobody.
 
 ### 5.10 Forms and errors
 

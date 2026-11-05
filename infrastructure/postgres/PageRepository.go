@@ -290,8 +290,8 @@ func (PageRepository) LastOrderKey(ctx context.Context, hubID, parentID shared.I
 	return key, nil
 }
 
-// Trash marks a page and the pages under it trashed.
-func (PageRepository) Trash(ctx context.Context, id, by shared.ID, at time.Time) (int, error) {
+// Trash marks a page and the pages under it trashed, and by whom.
+func (PageRepository) Trash(ctx context.Context, id, by shared.ID, kind shared.ActorKind, at time.Time) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return 0, err
@@ -300,7 +300,9 @@ func (PageRepository) Trash(ctx context.Context, id, by shared.ID, at time.Time)
 	if err != nil {
 		return 0, err
 	}
-	rows, err := queries.TrashPageSubtree(ctx, sqlc.TrashPageSubtreeParams{ID: ids[0], By: ids[1], At: timestampOf(at)})
+	rows, err := queries.TrashPageSubtree(ctx, sqlc.TrashPageSubtreeParams{
+		ID: ids[0], By: ids[1], ByType: string(kind), At: timestampOf(at),
+	})
 	if err != nil {
 		return 0, pageFailed("trashing the pages", err)
 	}

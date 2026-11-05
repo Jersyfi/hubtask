@@ -119,7 +119,7 @@ type Pages interface {
 	LastOrderKey(ctx context.Context, hubID, parentID shared.ID) (string, error)
 	// Trash marks a page and the pages under it trashed at a moment; Restore brings back those
 	// trashed at that moment. Each answers how many pages it touched.
-	Trash(ctx context.Context, id, by shared.ID, at time.Time) (int, error)
+	Trash(ctx context.Context, id, by shared.ID, kind shared.ActorKind, at time.Time) (int, error)
 	Restore(ctx context.Context, id, by shared.ID, trashedAt, at time.Time) (int, error)
 	PageSearcher
 	// Labels answers the labels of each page among the identifiers, alphabetical.

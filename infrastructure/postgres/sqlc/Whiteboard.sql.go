@@ -572,8 +572,18 @@ func (q *Queries) NameWhiteboardVersion(ctx context.Context, arg NameWhiteboardV
 const updateWhiteboard = `-- name: UpdateWhiteboard :execrows
 UPDATE whiteboard SET
   title = $1, scene = $2, deleted_at = $3,
-  updated_by = $4, updated_at = $5, version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = $6 AND version = $7
+  updated_by = $4, updated_at = $5, version = version + 1,
+  -- Who trashed it is written by the write that trashes it - its writer - and kept while it stays
+  -- in the trash; a board no longer trashed names nobody.
+  deleted_by_type = CASE
+    WHEN $3::timestamptz IS NULL THEN NULL
+    WHEN deleted_at IS NULL THEN NULLIF($6::text, '')
+    ELSE deleted_by_type END,
+  deleted_by_id = CASE
+    WHEN $3::timestamptz IS NULL THEN NULL
+    WHEN deleted_at IS NULL THEN $4
+    ELSE deleted_by_id END
+WHERE tenant_id = current_tenant_id() AND id = $7 AND version = $8
 `
 
 type UpdateWhiteboardParams struct {
@@ -582,6 +592,7 @@ type UpdateWhiteboardParams struct {
 	DeletedAt       pgtype.Timestamptz
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
+	DeletedByType   *string
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -594,6 +605,7 @@ func (q *Queries) UpdateWhiteboard(ctx context.Context, arg UpdateWhiteboardPara
 		arg.DeletedAt,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.DeletedByType,
 		arg.ID,
 		arg.ExpectedVersion,
 	)

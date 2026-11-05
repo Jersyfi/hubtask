@@ -398,7 +398,7 @@ func (s Studio) toggle(ctx context.Context, actor appshared.ActorContext, id sha
 		next := current
 		next.DeletedAt, next.UpdatedBy, next.UpdatedAt = nil, actor.AccountID, now
 		if trash {
-			next.DeletedAt = &now
+			next.DeletedAt, next.DeletedByKind = &now, actor.Kind
 		}
 		if err := s.Boards.Update(ctx, next, current.Version); err != nil {
 			return err
