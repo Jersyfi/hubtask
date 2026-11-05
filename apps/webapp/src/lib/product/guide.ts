@@ -4,32 +4,25 @@
 /**
  * A product's empty answer links its guide and says whom to ask (user-experience.md §5.5).
  *
- * The guide is the workspace's documentation address (`docs_url`) with the product's own path;
- * where no address is set there is no link, never one to a place nobody wrote.
+ * The guide is the workspace's documentation address (`docs_url`) as resolved, its root and no
+ * path below it: how a workspace's own documentation is laid out is the workspace's, so a path
+ * Hubtask made up could lead nowhere. Where no address is set there is no link.
  */
 
-/** The path of each product's guide below the documentation address. */
-const GUIDES: Readonly<Record<string, string>> = {
-  PLANNING: 'products/plans',
-  KNOWLEDGE: 'products/pages',
-  WHITEBOARD: 'products/whiteboards',
-  SERVICE_DESK: 'products/service-desk',
-  ASSETS: 'products/assets',
-  TIME: 'products/time',
-  GOALS: 'products/goals',
-  AGENTS: 'products/agents',
-};
+/** The products whose first use links the guide. */
+const GUIDED: ReadonlySet<string> = new Set([
+  'PLANNING', 'KNOWLEDGE', 'WHITEBOARD', 'SERVICE_DESK', 'ASSETS', 'TIME', 'GOALS', 'AGENTS',
+]);
 
-/** The product's guide at the documentation address, or none where either is missing. */
+/** The documentation address for a product's guide, or none where either is missing. */
 export function guideOf(docsUrl: string | undefined, module: string): string | undefined {
-  const path = GUIDES[module];
-  if (!docsUrl || !path) return undefined;
-  return `${docsUrl.replace(/\/+$/, '')}/${path}`;
+  if (!docsUrl || !GUIDED.has(module)) return undefined;
+  return docsUrl;
 }
 
-/** Whether a module has a guide path at all. */
+/** Whether a module links the guide at all. */
 export function hasGuide(module: string): boolean {
-  return GUIDES[module] !== undefined;
+  return GUIDED.has(module);
 }
 
 /**

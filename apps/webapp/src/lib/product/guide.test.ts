@@ -10,12 +10,12 @@ import { guideOf, hasGuide, whoToAsk } from './guide.ts';
 
 // user-experience.md §5.5: every product's first use links its guide where the workspace names its
 // documentation, and none where it does not.
-test('every product has a guide below the documentation address', () => {
+test('every product links the documentation address itself, no path below it', () => {
   for (const row of PRODUCTS) {
     if (row.module === 'WORKFLOWS') continue;
     assert.ok(hasGuide(row.module), `${row.module} has no guide path`);
   }
-  assert.equal(guideOf('https://docs.example.org/', 'PLANNING'), 'https://docs.example.org/products/plans');
+  assert.equal(guideOf('https://docs.example.org/', 'PLANNING'), 'https://docs.example.org/');
   assert.equal(guideOf(undefined, 'PLANNING'), undefined, 'no address, no link');
   assert.equal(guideOf('', 'KNOWLEDGE'), undefined);
 });

@@ -429,8 +429,9 @@ product, `ProductEmpty` composes it (mockup: `patterns.html`, *Empty*):
   from a template* (the product's templates as two or three cards) where it has templates, and a
   link to the product's guide. For a reader who may not create: the same sentence, no act, and who
   can (*Ask Anna Keller or another administrator*), from the place's explain data.
-  As built: the guide is the workspace's `docs_url` with `products/<product>` (`lib/product/guide.ts`),
-  no link where `docs_url` is empty; `GET /access/explain` about oneself names up to three
+  As built: the guide is the workspace's resolved `docs_url` itself, no path below it, since the
+  documentation's layout is the workspace's (`lib/product/guide.ts`); no link where `docs_url` is
+  empty; `GET /access/explain` about oneself names up to three
   administrators of the workspace, hub or collection, and `ProductEmpty` reads it from its `place`.
 * **Filtered to nothing** (`filtered`): that the filter did it, and *Clear filters*.
 * **Settled** (`settled`): the fact, nothing to press.
