@@ -16,6 +16,8 @@
   import { engine } from '../data/engine.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { guideOf, whoToAsk } from './guide.ts';
+  import { productOf } from '../navigation.ts';
+  import { productTour } from './producttour.svelte.ts';
 
   /** One act on the empty screen: resolved label, what pressing it does. */
   interface Act {
@@ -72,11 +74,14 @@
   );
   const saysWhoCan = $derived(kind === 'unused' && create === undefined && asked !== undefined);
   const guide = $derived(kind === 'unused' && product ? guideOf(manifest.value?.legal?.docs_url, product) : undefined);
+  // The product's own tour, offered from its first empty state (user-experience.md §3.4). Not on a
+  // phone, where the head's pinned primary sits over the footnote; Help offers it there.
+  const toured = $derived(kind === 'unused' && product && !viewport.isCompact ? productOf(product) : undefined);
 </script>
 
 {#snippet actRow()}
   {#if act}
-    <Button tone={kind === 'filtered' ? 'secondary' : 'primary'} icon={kind === 'filtered' ? undefined : 'plus'} onclick={act.onclick}>{act.label}</Button>
+    <Button tone={kind === 'filtered' ? 'secondary' : 'primary'} icon={kind === 'filtered' ? undefined : 'plus'} data-tour={kind === 'filtered' ? undefined : 'product-create'} onclick={act.onclick}>{act.label}</Button>
   {/if}
 {/snippet}
 
@@ -89,6 +94,11 @@
 {#snippet footnoteLine()}
   {#if saysWhoCan}{asked}{/if}
   {#if guide}{#if saysWhoCan}{' '}{/if}<a href={guide} target="_blank" rel="noopener">{t('app.product_empty.guide')}</a>{/if}
+  {#if toured}
+    <Button tone="subtle" size="sm" icon="compass" data-product-tour={toured.module} onclick={() => void productTour.start(toured.module)}>
+      {t('app.product_tour.start', { product: t(toured.code) })}
+    </Button>
+  {/if}
 {/snippet}
 
 <EmptyState
@@ -98,5 +108,5 @@
   {icon}
   action={act ? actRow : undefined}
   secondary={offersTemplates ? templateRow : undefined}
-  footnote={saysWhoCan || guide ? footnoteLine : undefined}
+  footnote={saysWhoCan || guide || toured ? footnoteLine : undefined}
 />
