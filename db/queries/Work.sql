@@ -138,6 +138,36 @@ WHERE c.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
 ORDER BY c.order_key COLLATE "C", c.id
 LIMIT sqlc.arg('page_size');
 
+-- name: ListHubCollections :many
+-- The collections a hub's figure counts (UC-WRK-29), for a page of hubs in one statement: neither
+-- trashed nor archived - what the tree shows under each - and at most `per_hub` of each, in its
+-- manual order, so that a hub of very many collections costs one bounded read and the caller can
+-- tell from one more row that it holds more than it counts. The same columns as ListContainers,
+-- because each one's structure is resolved from them.
+WITH ranked AS (
+  SELECT c.id,
+         row_number() OVER (PARTITION BY c.parent_id ORDER BY c.order_key COLLATE "C", c.id) AS place
+    FROM container c
+   WHERE c.parent_id = ANY (sqlc.arg('hub_ids')::uuid[])
+     AND c.type = 'COLLECTION' AND c.deleted_at IS NULL AND c.archived_at IS NULL
+)
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private, c.handle, c.key_prefix
+FROM ranked r
+JOIN container c ON c.id = r.id
+LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE r.place <= sqlc.arg('per_hub')::int
+ORDER BY c.parent_id, c.order_key COLLATE "C", c.id;
+
 -- name: ListCollectionsInOrder :many
 -- Every collection a conversion could land in, across the hubs, in the order a person reads the
 -- tree: the hubs' manual order, then each hub's collections in theirs. Trashed ones are never here,

@@ -14655,7 +14655,7 @@ type CodeLinkList struct {
 	Data []CodeLink `json:"data"`
 }
 
-// CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
+// CollectionFigure What counts in a collection or a hub, as numbers and dates: the client phrases them. Every figure counts the collection's entries, a hub's those of its collections - never a person's - leaving out trashed ones and those the structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
 	// AverageSeconds FLOW - the average time those entries took from their first column to their last: from the moment each was created to the moment it was completed, in seconds. Null where none was completed.
 	AverageSeconds *float64 `json:"average_seconds,omitempty"`
@@ -15416,7 +15416,7 @@ type Container struct {
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
 	EffectiveArchived *bool `json:"effective_archived,omitempty"`
 
-	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
+	// Figure What counts in this collection, counted at the read for the reader (their day and week); absent on a trashed collection and where what counts is `NONE` or not yet counted by this server (`FLOW`). On a hub it is always `OPEN`: the open entries directly under its collections that are neither archived nor trashed, each leaving out what its own structure hides; absent on a trashed hub and where the hub's own structure counts `NONE`, and `unavailable` where one of those collections could not be counted or the hub holds more of them than one read counts.
 	Figure *CollectionFigure `json:"figure,omitempty"`
 
 	// Handle The hub's or collection's short name and stable key: the word a mail subject ("#einkauf"), a plus address and a ticket key ("EINKAUF-42") use for a collection, and the word a configuration document names a hub or a collection by. Given when the container is made, derived from its name and unique in the workspace; a rename keeps it. Mail is delivered to a collection's only.

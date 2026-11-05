@@ -3616,7 +3616,7 @@ StructureCountsClip = TypedDict("StructureCountsClip", {
 }, total=False)
 
 class CollectionFigure(TypedDict, total=False):
-    """What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered."""
+    """What counts in a collection or a hub, as numbers and dates: the client phrases them. Every figure counts the collection's entries, a hub's those of its collections - never a person's - leaving out trashed ones and those the structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered."""
     kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW"]]
     today: Required[str]
     unavailable: bool

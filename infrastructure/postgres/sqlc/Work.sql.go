@@ -1775,6 +1775,116 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 	return items, nil
 }
 
+const listHubCollections = `-- name: ListHubCollections :many
+WITH ranked AS (
+  SELECT c.id,
+         row_number() OVER (PARTITION BY c.parent_id ORDER BY c.order_key COLLATE "C", c.id) AS place
+    FROM container c
+   WHERE c.parent_id = ANY ($2::uuid[])
+     AND c.type = 'COLLECTION' AND c.deleted_at IS NULL AND c.archived_at IS NULL
+)
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, parent.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private, c.handle, c.key_prefix
+FROM ranked r
+JOIN container c ON c.id = r.id
+LEFT JOIN container parent ON parent.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE r.place <= $1::int
+ORDER BY c.parent_id, c.order_key COLLATE "C", c.id
+`
+
+type ListHubCollectionsParams struct {
+	PerHub int32
+	HubIds []pgtype.UUID
+}
+
+type ListHubCollectionsRow struct {
+	ID                   pgtype.UUID
+	TenantID             pgtype.UUID
+	Type                 ContainerType
+	ParentID             pgtype.UUID
+	Name                 string
+	Description          *string
+	Icon                 *string
+	ColorToken           *string
+	OrderKey             string
+	CompletionPolicy     string
+	Structure            string
+	AutoAssignStrategy   *string
+	AutoAssignCandidates []byte
+	AutoAssignEnabled    *bool
+	ArchivedAt           pgtype.Timestamptz
+	ParentArchivedAt     pgtype.Timestamptz
+	DeletedAt            pgtype.Timestamptz
+	TrashBatchID         pgtype.UUID
+	CreatedBy            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Version              int32
+	Private              bool
+	Handle               *string
+	KeyPrefix            *string
+}
+
+// The collections a hub's figure counts (UC-WRK-29), for a page of hubs in one statement: neither
+// trashed nor archived - what the tree shows under each - and at most `per_hub` of each, in its
+// manual order, so that a hub of very many collections costs one bounded read and the caller can
+// tell from one more row that it holds more than it counts. The same columns as ListContainers,
+// because each one's structure is resolved from them.
+func (q *Queries) ListHubCollections(ctx context.Context, arg ListHubCollectionsParams) ([]ListHubCollectionsRow, error) {
+	rows, err := q.db.Query(ctx, listHubCollections, arg.PerHub, arg.HubIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListHubCollectionsRow{}
+	for rows.Next() {
+		var i ListHubCollectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Type,
+			&i.ParentID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.ColorToken,
+			&i.OrderKey,
+			&i.CompletionPolicy,
+			&i.Structure,
+			&i.AutoAssignStrategy,
+			&i.AutoAssignCandidates,
+			&i.AutoAssignEnabled,
+			&i.ArchivedAt,
+			&i.ParentArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.Private,
+			&i.Handle,
+			&i.KeyPrefix,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPrivateHubAccesses = `-- name: ListPrivateHubAccesses :many
 SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
 FROM private_hub_access
