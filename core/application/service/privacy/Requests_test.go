@@ -6,6 +6,8 @@ package privacy
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -155,9 +157,12 @@ func TestRecordingACaseTouchesNothingOfTheSubjects(t *testing.T) {
 
 // Crossing the tenant boundary needs the credential that says so. A role says what somebody may do
 // in *this* workspace, and no role in any workspace can answer for another one.
+// UC-PRV-06 check 1.
 func TestAnInstallationWideCaseNeedsTheInstanceScope(t *testing.T) {
 	h := newHarness()
-	wide := createCommand(func(c *CreateCommand) { c.Scope = domain.ScopeInstallation })
+	wide := createCommand(func(c *CreateCommand) {
+		c.Scope, c.SubjectAccountID, c.SubjectEmail = domain.ScopeInstallation, "", "anna@example.org"
+	})
 
 	_, err := (CreateDataSubjectRequest{Cases: h.cases()}).
 		Execute(context.Background(), actor(), wide)
@@ -348,6 +353,7 @@ func TestMovingACaseBackToReceivedIsRefusedByName(t *testing.T) {
 	}
 }
 
+// UC-PRV-01 check 4: open cases by default, the closed ones when asked for.
 func TestTheListAnswersWhatIsStillOwed(t *testing.T) {
 	h := newHarness()
 	create := CreateDataSubjectRequest{Cases: h.cases()}
@@ -448,7 +454,7 @@ func descriptorNamed(t *testing.T, name string) usecase.Descriptor {
 
 // The handlers are what the three channels actually call, and where a request becomes a command.
 // Every field is asserted on the way through: a field parsed into the wrong place is a case about
-// somebody else.
+// somebody else. UC-PRV-01 check 1: the API and MCP record a case through these handlers.
 func TestTheHandlersTurnTheRequestIntoTheCase(t *testing.T) {
 	h := newHarness()
 
@@ -645,5 +651,107 @@ func TestRecordingACaseSeedsTheDeadlineWatch(t *testing.T) {
 	}
 	if watches[0].TenantID != tenantID {
 		t.Errorf("the watch is for %s", watches[0].TenantID)
+	}
+}
+
+// UC-PRV-01 check 7: recording, starting, completing and rejecting each write their own entry,
+// with the right as its legal basis and none of the note's text - the note is the person's story.
+func TestEachStepOfACaseWritesItsEntryWithoutTheNote(t *testing.T) {
+	const note = "Anna wrote twice from her private address"
+	h := newHarness()
+	create := CreateDataSubjectRequest{Cases: h.cases()}
+	update := UpdateDataSubjectRequest{Cases: h.cases()}
+	done, _ := create.Execute(context.Background(), actor(), createCommand(func(c *CreateCommand) {
+		c.Kind, c.Notes = domain.KindRectification, note
+	}))
+	refused, _ := create.Execute(context.Background(), actor(), createCommand(func(c *CreateCommand) {
+		c.Kind, c.Notes = domain.KindObjection, note
+	}))
+	for _, step := range []UpdateCommand{
+		{RequestID: done.ID, Status: domain.StatusInProgress, Notes: note},
+		{RequestID: done.ID, Status: domain.StatusCompleted},
+		{RequestID: refused.ID, Status: domain.StatusRejected, RejectionReason: "Not this workspace"},
+	} {
+		if _, err := update.Execute(context.Background(), actor(), step); err != nil {
+			t.Fatalf("moving to %s: %v", step.Status, err)
+		}
+	}
+
+	want := []struct {
+		action audit.Action
+		basis  string
+	}{
+		{RequestRecordedAction, "dsr.rectification"}, {RequestRecordedAction, "dsr.objection"},
+		{RequestStartedAction, "dsr.rectification"}, {RequestCompletedAction, "dsr.rectification"},
+		{RequestRejectedAction, "dsr.objection"},
+	}
+	if len(h.audit.entries) != len(want) {
+		t.Fatalf("%d entries were written, want %d", len(h.audit.entries), len(want))
+	}
+	for i, entry := range h.audit.entries {
+		if entry.Action != want[i].action || entry.LegalBasis != want[i].basis {
+			t.Errorf("entry %d is %s / %q, want %s / %q", i, entry.Action, entry.LegalBasis,
+				want[i].action, want[i].basis)
+		}
+		if strings.Contains(fmt.Sprintf("%+v", entry), note) {
+			t.Errorf("entry %d carries the note: %+v", i, entry)
+		}
+	}
+}
+
+// UC-PRV-01 check 8: the register and the record both ask for the administrator's line, which a
+// member does not hold (TestTheRoleMatrix); refused, the list answers nothing and nothing is written.
+func TestAMemberNeitherSeesTheRegisterNorRecordsACase(t *testing.T) {
+	h := newHarness()
+	h.authorizer.refuse = shared.ErrForbidden.WithDetail("access.not_permitted")
+
+	page, err := (ListDataSubjectRequests{Cases: h.cases()}).
+		Execute(context.Background(), actor(), ListQuery{IncludeClosed: true})
+	if !errors.Is(err, shared.ErrForbidden) || len(page.Requests) != 0 {
+		t.Fatalf("the register answered %d cases, %v", len(page.Requests), err)
+	}
+	if _, err := (CreateDataSubjectRequest{Cases: h.cases()}).
+		Execute(context.Background(), actor(), createCommand(func(*CreateCommand) {})); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("recording came back as %v", err)
+	}
+	for _, asked := range h.authorizer.requests {
+		if asked.Permission != domainservice.PermissionManageMembers {
+			t.Errorf("a step asked for %s", asked.Permission)
+		}
+	}
+	if len(h.requests.stored) != 0 || len(h.audit.entries) != 0 {
+		t.Error("a refused member left something behind")
+	}
+}
+
+// UC-PRV-07 checks 1, 3 and 4: a rectification and an objection are recorded, started and
+// completed by hand like any case; starting either runs no job and changes nothing by itself, and
+// completing writes `dsr.completed`.
+func TestARectificationAndAnObjectionAreCompletedByHand(t *testing.T) {
+	for _, kind := range []domain.Kind{domain.KindRectification, domain.KindObjection} {
+		h := newHarness()
+		recorded, err := (CreateDataSubjectRequest{Cases: h.cases()}).
+			Execute(context.Background(), actor(), createCommand(func(c *CreateCommand) { c.Kind = kind }))
+		if err != nil {
+			t.Fatalf("recording a %s: %v", kind, err)
+		}
+		update := UpdateDataSubjectRequest{Cases: h.cases()}
+		if _, err := update.Execute(context.Background(), actor(), UpdateCommand{
+			RequestID: recorded.ID, Status: domain.StatusInProgress,
+		}); err != nil {
+			t.Fatalf("starting a %s: %v", kind, err)
+		}
+		if work := queuedOf(h, queue.KindPrivacyRequest); len(work) != 0 {
+			t.Errorf("starting a %s queued %v", kind, work)
+		}
+		done, err := update.Execute(context.Background(), actor(), UpdateCommand{
+			RequestID: recorded.ID, Status: domain.StatusCompleted,
+		})
+		if err != nil || done.Status != domain.StatusCompleted {
+			t.Fatalf("completing a %s: %+v, %v", kind, done, err)
+		}
+		if last := h.audit.entries[len(h.audit.entries)-1]; last.Action != RequestCompletedAction {
+			t.Errorf("completing a %s was recorded as %s", kind, last.Action)
+		}
 	}
 }

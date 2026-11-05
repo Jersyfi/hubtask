@@ -192,8 +192,32 @@ test('chromium: an installation-wide case is listed and offers nothing here', as
   }
 });
 
+test('chromium: the register offers no installation-wide case and says whom to ask', async () => {
+  // UC-PRV-06 check 6: the form records this workspace's case only, and the page names the
+  // operator as the one who answers a request across the installation.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, writes, close } = await open(browser);
+    const note = page.getByText('Raise it with whoever runs this installation', { exact: false });
+    assert.equal(await note.count(), 1);
+    const form = page.locator('form', { hasText: 'Record a request' });
+    for (const role of ['option', 'radio', 'checkbox', 'button']) {
+      assert.equal(await form.getByRole(role, { name: /installation|everywhere/i }).count(), 0, role);
+    }
+    await form.getByLabel('Their address').fill('new@example.invalid');
+    await form.getByRole('button', { name: 'Record it' }).click();
+    for (let waited = 0; writes().length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    assert.equal(writes().length, 1);
+    assert.equal(writes()[0].body.scope ?? 'TENANT', 'TENANT');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
 test('chromium: a case is recorded with its own deadline, owed to the end of that day', async () => {
-  // UC-PRV-01 check 6: the record form names a day, and the case is owed until its last second in
+  // UC-PRV-01 checks 1 and 6: the web app records a case, and the record form names a day, and the case is owed until its last second in
   // the workspace's zone.
   const browser = await chromium.launch();
   try {

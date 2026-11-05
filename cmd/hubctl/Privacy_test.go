@@ -17,6 +17,7 @@ const oneCase = `{"id":"` + caseID + `","kind":"ERASURE","status":"RECEIVED",
   "received_at":"2026-08-27T09:00:00Z","due_at":"2026-09-26T09:00:00Z",
   "completed_at":null,"result_archive":null}`
 
+// UC-PRV-01 check 1: `hubctl dsr create` records a case with its kind, subject and note.
 func TestRaisingACaseSendsTheKindAndWhoItIsAbout(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneCase)
 
@@ -62,7 +63,7 @@ func TestACaseCarriesTheDayItArrived(t *testing.T) {
 }
 
 // A case is about somebody. Without an account or an address there is nothing to answer, and
-// saying so here costs a round trip less than letting the server say it.
+// saying so here costs a round trip less than letting the server say it (UC-PRV-01 check 1).
 func TestACaseAboutNobodyIsRefused(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneCase)
 

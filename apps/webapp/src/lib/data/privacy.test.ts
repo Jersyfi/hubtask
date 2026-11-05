@@ -47,6 +47,7 @@ function aCase(over: Partial<Request> = {}): Request {
 const MANAGER = { mayManage: true, mayDestroy: false } as const;
 const OWNER = { mayManage: true, mayDestroy: true } as const;
 
+// UC-PRV-01 check 4: the register marks overdue cases and lists open ones soonest deadline first.
 test('a deadline that has passed is overdue', () => {
   const standing = standingOf(aCase({ due_at: new Date(NOW - 1000).toISOString() }), NOW);
   assert.equal(standing, 'overdue');
@@ -75,6 +76,7 @@ test('a deadline nobody can read reports no standing rather than "overdue"', () 
   assert.equal(standingOf(aCase({ due_at: 'not a date' }), NOW), undefined);
 });
 
+// UC-PRV-01 check 4.
 test('the list is ordered by what is closest to its deadline', () => {
   const far = aCase({ id: 'far', due_at: new Date(NOW + 20 * 24 * 3600 * 1000).toISOString() });
   const near = aCase({ id: 'near', due_at: new Date(NOW + 1 * 24 * 3600 * 1000).toISOString() });

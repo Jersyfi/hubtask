@@ -38,6 +38,7 @@ func TestTheRoleMatrix(t *testing.T) {
 		{identity.RoleAdmin, service.PermissionStructure, true},
 		{identity.RoleAdmin, service.PermissionManageMembers, true},
 		{identity.RoleMember, service.PermissionStructure, false},
+		{identity.RoleMember, service.PermissionManageMembers, false}, // UC-PRV-01 check 8
 		{identity.RoleMember, service.PermissionWriteItems, true},
 		{identity.RoleMember, service.PermissionAutomation, true},
 		{identity.RoleContributor, service.PermissionAutomation, false},

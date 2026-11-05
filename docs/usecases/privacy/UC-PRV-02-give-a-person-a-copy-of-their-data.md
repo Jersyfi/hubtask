@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-09, P-11]
 state: built
 tasks: [E-10, E-11, F4-20]
-checked_by: [core/application/service/privacy/Export_test.go, test/privacy/PG3_export_test.go]
+checked_by: [core/application/service/privacy/Export_test.go, test/privacy/PG3_export_test.go, core/application/service/privacy/Perform_test.go, core/domain/model/privacy/Request_test.go]
 ---
 
 # Give a person a copy of their data
