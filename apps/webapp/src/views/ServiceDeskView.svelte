@@ -4,7 +4,7 @@
   // *Service desk* under *How we work*, where the service desk is on: the workspace's business
   // calendars (UC-SVC-01), its SLA policies (UC-SVC-02 check 1), its canned replies (UC-SVC-06
   // check 1), the portal's organisations (UC-SVC-11 check 5) and how the goals of a period stood
-  // (UC-SVC-02 check 7), as tabs.
+  // (UC-SVC-02 check 7), as the sections of the one settings shell (user-experience.md §5.4).
   //
   // **What the reader may never do is not drawn** (P-05): defining and deleting need STRUCTURE at
   // the workspace, and so does the report; a member without it reads the calendars, policies and
@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
   import {
-    EmptyState, Badge, Button, Checkbox, CheckboxGroup, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Tabs, Textarea,
+    EmptyState, Badge, Button, Checkbox, CheckboxGroup, Dialog, Disclosure, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, Switch, Textarea,
   } from '@hubtask/design-system/components';
   import DurationInput from '../lib/forms/DurationInput.svelte';
   import ZonePicker from '../lib/forms/ZonePicker.svelte';
@@ -37,6 +37,7 @@
   import { addDays, deviceZone, instantOf, todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import DraftPublish from '../lib/settings/DraftPublish.svelte';
+  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { WEEKDAYS, byPriorityOf, dayLengthOf, byPriorityText, formOf, holidaysOf, hoursOf, minutesFor, policyDefinitionOf, reportRows, textOf, withMinutes, wordsOf } from '../lib/servicedesk/desk.ts';
   import { domainsOf } from '../lib/servicedesk/organisations.ts';
   import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
@@ -281,8 +282,12 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }} />{/if}
-  <Tabs label={t('app.desk.title')} selected={current} onselect={(id) => (current = id as typeof current)}
-    tabs={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: tab, label: t(`app.desk.tab.${tab}`) }))}>
+  <!-- Every change here is a dialog's own save or a row's act, so the shell holds nothing unsaved. -->
+  <SettingsPage label={t('app.settings_page.sections', { name: t('app.desk.title') })} selected={`desk-part-${current}`}
+    onselect={(id) => (current = id.slice('desk-part-'.length) as typeof current)}
+    sections={TABS.filter((tab) => tab !== 'report' || mayShape).map((tab) => ({ id: `desk-part-${tab}`, label: t(`app.desk.tab.${tab}`) }))}>
+    <section id={`desk-part-${current}`} class="part" aria-labelledby="desk-part-heading" data-desk-part={current}>
+    <h2 id="desk-part-heading" class="heading">{t(`app.desk.tab.${current}`)}</h2>
     {#if refusal && editing === undefined}<p class="refusal" role="alert">{refusal}</p>{/if}
 
     {#if current === 'calendars'}
@@ -537,11 +542,14 @@
         </ul>
       </Stack>
     {/if}
-  </Tabs>
+    </section>
+  </SettingsPage>
 </Stack>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+  .part { display: grid; gap: var(--sp-150); }
+  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .refusal { margin: 0; color: var(--text-danger); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
   .rows li { padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }

@@ -13,7 +13,7 @@ import { ROUTES } from '../routes.ts';
 const ON_THE_SHELL = ['mail', 'voice', 'retention', 'backup', 'webhooks', 'workspace-settings', 'sign-in-settings', 'legal', 'ai'];
 
 // A product's settings, drawn as its home's last tab (§8.2), stand on the same shell.
-const PRODUCT_SETTINGS = ['TimeSettingsView', 'CmdbView'];
+const PRODUCT_SETTINGS = ['TimeSettingsView', 'CmdbView', 'ServiceDeskView'];
 
 const app = readFileSync(new URL('../../App.svelte', import.meta.url), 'utf8');
 
