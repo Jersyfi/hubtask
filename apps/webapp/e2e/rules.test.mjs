@@ -324,12 +324,17 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   // meets the credential's burst on one screen.
   const gets = seen.filter((line) => line.startsWith('GET ') && !line.endsWith('/stream'));
   assert.deepEqual(gets.filter((line, index) => gets.indexOf(line) !== index), [], 'no resource read twice on open');
-  for (const path of ['/labels', '/buckets', '/templates', '/groups', '/integrations/webhooks']) {
+  for (const path of ['/labels', '/buckets', '/templates', '/groups']) {
     assert.equal(gets.some((line) => line.includes(path)), false, `${path} is not read before a field needs it`);
   }
-  // Thirteen: the frame's own reads grew by the person's AI notice and their emergency notices,
-  // each read once per frame (PH-03, PH-05) - what this bounds is the editor's.
-  assert.ok(gets.length <= 13, `${gets.length} reads on open: ${gets.join(', ')}`);
+  // The webhooks are the administration frame's, read once for its column's figure
+  // (user-experience.md §7.10); the editor shares that read rather than asking again.
+  assert.equal(gets.filter((line) => line.includes('/integrations/webhooks')).length, 1, 'the webhooks are read once, by the frame');
+  // Sixteen: the frame's own reads grew by the person's AI notice and their emergency notices,
+  // each read once per frame (PH-03, PH-05), and the administration's by the private hubs, the
+  // webhooks and the mailboxes its column counts (user-experience.md §7.10) - what this bounds is
+  // the editor's.
+  assert.ok(gets.length <= 16, `${gets.length} reads on open: ${gets.join(', ')}`);
 
   // And the canvas meets the content region rather than standing in its padding: standing in it
   // draws a slab of one colour on a page of another, which reads as a border no other screen has.
