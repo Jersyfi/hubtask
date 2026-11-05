@@ -486,34 +486,32 @@ func (s Steward) parent(ctx context.Context, actor appshared.ActorContext, goal,
 		}
 		return err
 	}
-	var (
-		chain []shared.ID
-		below int
-	)
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		for next := parent; !next.IsZero() && len(chain) <= domain.MaxDepth; {
-			chain = append(chain, next)
-			g, err := s.Store.Goal(ctx, next)
-			if err != nil {
-				return err
-			}
-			next = g.ParentID
-		}
-		all, err := s.Store.Goals(ctx, goalrepo.GoalFilter{Max: maxGoals})
+	return s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return s.parenting(ctx, goal, parent)
+	})
+}
+
+// parenting checks, in the transaction at hand, that the parent is neither the goal nor a goal
+// under it, and that the tree stays within its depth.
+func (s Steward) parenting(ctx context.Context, goal, parent shared.ID) error {
+	var chain []shared.ID
+	for next := parent; !next.IsZero() && len(chain) <= domain.MaxDepth; {
+		chain = append(chain, next)
+		g, err := s.Store.Goal(ctx, next)
 		if err != nil {
 			return err
 		}
-		parents := make(map[shared.ID]shared.ID, len(all))
-		for _, g := range all {
-			parents[g.ID] = g.ParentID
-		}
-		below = domain.Below(goal, parents)
-		return nil
-	})
+		next = g.ParentID
+	}
+	all, err := s.Store.Goals(ctx, goalrepo.GoalFilter{Max: maxGoals})
 	if err != nil {
 		return err
 	}
-	return domain.Parenting(goal, chain, below)
+	parents := make(map[shared.ID]shared.ID, len(all))
+	for _, g := range all {
+		parents[g.ID] = g.ParentID
+	}
+	return domain.Parenting(goal, chain, domain.Below(goal, parents))
 }
 
 // period checks a goal's period exists and is open.
@@ -716,6 +714,7 @@ func (h UpdateGoal) Descriptor() usecase.Descriptor {
 			if err := s.sources(ctx, actor, f.KeyResults); err != nil {
 				return nil, err
 			}
+			reparented := f.ParentID != g.ParentID
 			g.PeriodID, g.ParentID, g.Title, g.Description, g.Status, g.KeyResults =
 				f.PeriodID, f.ParentID, f.Title, f.Description, f.Status, f.KeyResults
 			if !f.OwnerID.IsZero() {
@@ -726,6 +725,16 @@ func (h UpdateGoal) Descriptor() usecase.Descriptor {
 			if err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if moved {
 					if err := s.stillOpen(ctx, g.PeriodID); err != nil {
+						return err
+					}
+				}
+				// Checked again under the tree's lock: a move that landed since the check above -
+				// B under A while this puts A under B - would otherwise close a cycle.
+				if reparented && !g.ParentID.IsZero() {
+					if err := s.Store.LockTree(ctx); err != nil {
+						return err
+					}
+					if err := s.parenting(ctx, id, g.ParentID); err != nil {
 						return err
 					}
 				}

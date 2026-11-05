@@ -294,3 +294,40 @@ func TestTheGoalCountStaysInItsWorkspace(t *testing.T) {
 		t.Fatalf("counted %d and %d, want %d and %d", a, b, beforeA+1, beforeB)
 	}
 }
+
+// A goal move holds its workspace's tree: a second move there waits for the first to commit, and
+// a move in the workspace next door does not.
+func TestAGoalMoveHoldsTheTreeOfItsWorkspaceOnly(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewGoalRepository()
+	held := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		first <- write(ctx, t, tenantA, func(ctx context.Context) error {
+			if err := store.LockTree(ctx); err != nil {
+				return err
+			}
+			close(held)
+			time.Sleep(400 * time.Millisecond)
+			return nil
+		})
+	}()
+	<-held
+	waited := func(tenant shared.ID) time.Duration {
+		started := time.Now()
+		if err := write(ctx, t, tenant, func(ctx context.Context) error { return store.LockTree(ctx) }); err != nil {
+			t.Fatal(err)
+		}
+		return time.Since(started)
+	}
+	if next := waited(tenantB); next >= 200*time.Millisecond {
+		t.Errorf("the workspace next door waited %v for this one's tree", next)
+	}
+	if same := waited(tenantA); same < 200*time.Millisecond {
+		t.Errorf("a second move in the workspace did not wait (%v)", same)
+	}
+	if err := <-first; err != nil {
+		t.Fatal(err)
+	}
+}

@@ -40,6 +40,9 @@ type Store interface {
 	// CountGoals counts the workspace's goals and holds their ceiling to the end of the
 	// transaction, so two creates count in turn.
 	CountGoals(ctx context.Context) (int, error)
+	// LockTree holds the workspace's goals - the lock CountGoals takes - to the end of the
+	// transaction, so two moves check their parents in turn.
+	LockTree(ctx context.Context) error
 	Goal(ctx context.Context, id shared.ID) (domain.Goal, error)
 	InsertGoal(ctx context.Context, g domain.Goal, by shared.ID, at time.Time) error
 	UpdateGoal(ctx context.Context, g domain.Goal, expected int, by shared.ID, at time.Time) error

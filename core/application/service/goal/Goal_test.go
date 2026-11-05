@@ -338,6 +338,28 @@ func TestAGoalIsNoParentOfItsParent(t *testing.T) {
 	}
 }
 
+// UC-GOL-01 check 6: two moves at once - A under B while B goes under A - cannot form a cycle:
+// a move holds the tree and checks its parent again inside its write.
+func TestTwoMovesAtOnceFormNoCycle(t *testing.T) {
+	s, store, _, _ := newSteward(t)
+	p := period(t, s)
+	a := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{"period_id": p, "title": "A"})
+	b := ok(t, CreateGoal{s}.Descriptor(), ana, usecase.Input{"period_id": p, "title": "B"})
+	aID, bID := shared.MustParseID(a.String("id")), shared.MustParseID(b.String("id"))
+	// B went under A after this move's first check, before its write.
+	store.onTreeLock = func() {
+		moved := store.goals[bID]
+		moved.ParentID, moved.Version = aID, moved.Version+1
+		store.goals[bID] = moved
+	}
+	_, err := call(t, UpdateGoal{s}.Descriptor(), ana, usecase.Input{
+		"goal_id": a.String("id"), "expected_version": 1, "period_id": p, "title": "A", "parent_id": b.String("id"),
+	})
+	if code(err) != "goals.parent_cycle" {
+		t.Fatalf("the second move closed a cycle: %v (A's parent %v)", err, store.goals[aID].ParentID)
+	}
+}
+
 // UC-GOL-02 checks 1-4: a check-in sets the goal's status, confidence and reported values and
 // is kept as history; a closed period grades its goals and they take no more check-ins.
 func TestACheckInIsKeptAndAClosedPeriodGrades(t *testing.T) {
@@ -576,6 +598,8 @@ type memory struct {
 	closeOnRead bool
 	// steps logs the period locks and the goal listings, in their order.
 	steps []string
+	// onTreeLock is a move another writer committed while this one waited for the tree's lock.
+	onTreeLock func()
 }
 
 var _ goalrepo.Store = (*memory)(nil)
@@ -664,6 +688,15 @@ func (m *memory) Goal(_ context.Context, id shared.ID) (domain.Goal, error) {
 }
 
 func (m *memory) CountGoals(context.Context) (int, error) { return len(m.goals), nil }
+
+func (m *memory) LockTree(context.Context) error {
+	m.steps = append(m.steps, "lock tree")
+	if m.onTreeLock != nil {
+		m.onTreeLock()
+		m.onTreeLock = nil
+	}
+	return nil
+}
 
 func (m *memory) InsertGoal(_ context.Context, g domain.Goal, _ shared.ID, _ time.Time) error {
 	g.Version = 1

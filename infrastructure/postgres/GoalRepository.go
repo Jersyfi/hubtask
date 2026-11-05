@@ -1148,6 +1148,19 @@ func (GoalRepository) DigestSent(ctx context.Context, id shared.ID, sent *time.T
 	return nil
 }
 
+// LockTree holds the workspace's goals to the end of the transaction: the ceiling's lock, so a
+// move and a create wait for each other too.
+func (GoalRepository) LockTree(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.LockGoals(ctx); err != nil {
+		return goalError(err, "locking the goals")
+	}
+	return nil
+}
+
 // CountGoals counts the workspace's goals under their ceiling lock, held to the end of the
 // transaction.
 func (GoalRepository) CountGoals(ctx context.Context) (int, error) {
