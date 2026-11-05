@@ -50,4 +50,5 @@ meeting on no entry.
 ## Where it ends
 
 * No attendance clocking: working-time records under labour law are a different purpose.
-* Offline, only the timer is written; records are recorded, changed and removed with the server.
+* Offline, the timer and a person's own records are written (offline-sync.md, `time_record`); a
+  week is handed in and approved with the server.
