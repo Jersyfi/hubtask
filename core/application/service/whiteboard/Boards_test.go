@@ -384,6 +384,7 @@ func TestABoardIsExportedAndReadBack(t *testing.T) {
 }
 
 // A trashed board is not found and not listed; restored, it is back with its objects.
+// UC-CNV-01 check 6.
 func TestABoardGoesToTheTrashAndComesBack(t *testing.T) {
 	s, _, _ := studio(gate{})
 	scene, _ := s.sceneOf(usecase.Input{"elements": sent()})

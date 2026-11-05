@@ -41,6 +41,7 @@ func (b boardsPointing) Referencing(_ context.Context, kind string, _ shared.ID,
 // P-19 and UC-CNV-02 check 3: a whiteboard resolves to its title for a reader of its hub, and an
 // entry names the boards it is drawn on as a card - only those in a hub the reader may read
 // (P-05); a board out of reach answers its address alone.
+// UC-CNV-02 check 5.
 func TestAWhiteboardResolvesAndNamesTheEntriesItDraws(t *testing.T) {
 	ctx := context.Background()
 	h := newLinkHarness()
