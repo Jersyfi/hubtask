@@ -15,6 +15,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -396,4 +398,174 @@ func watchNotifyQueue(ctx context.Context, container *tcpostgres.PostgresContain
 		}
 	}()
 	return watch
+}
+
+// envDocuments turns S5 on (test/load/PLAN.md); HUBTASK_LOAD_DOCUMENTS_SECONDS shortens its
+// window.
+const envDocuments = "HUBTASK_LOAD_DOCUMENTS"
+
+const (
+	documentsDefaultWindow = 2 * time.Minute
+	// documentsCredentials hold the 30 writers within the per-credential cap of eight, and the
+	// fresh opener at the end on a fifth.
+	documentsCredentials = 5
+	awarenessRelayed     = "hubtask_realtime_awareness_relayed_total"
+)
+
+// DocumentsFinding is what S5 leaves behind: the writers' own report (liveload.mjs) beside what
+// the server counted over the window.
+type DocumentsFinding struct {
+	Test               string             `json:"test"`
+	RanAt              time.Time          `json:"ran_at"`
+	WindowSeconds      int                `json:"window_seconds"`
+	Writers            json.RawMessage    `json:"writers"`
+	AwarenessByOutcome map[string]float64 `json:"awareness_relayed_by_outcome"`
+	TransactionsPerS   float64            `json:"database_transactions_per_second"`
+}
+
+// S5: thirty writers on one page's live document, through the editors' own connection. Every
+// writer's document, and one opened afresh, is the same at the end, and the awareness relay
+// neither drops a message as too large nor fails.
+func TestS5LiveDocumentsWithManyWriters(t *testing.T) {
+	if os.Getenv(envDocuments) == "" {
+		t.Skip("S5 runs on request: " + envDocuments + "=1")
+	}
+	window := documentsDefaultWindow
+	if raw := os.Getenv("HUBTASK_LOAD_DOCUMENTS_SECONDS"); raw != "" {
+		seconds, err := strconv.Atoi(raw)
+		if err != nil || seconds <= 0 {
+			t.Fatalf("HUBTASK_LOAD_DOCUMENTS_SECONDS=%q is not a number of seconds", raw)
+		}
+		window = time.Duration(seconds) * time.Second
+	}
+	stack := runningStack(t)
+	defer scenario("S5")()
+	as := stack.tenants[0]
+	tokens := mintStreamTokens(t, stack.database, 0, documentsCredentials)
+	page := createPage(t, stack, as)
+
+	before := counterBy(t, stack.opsURL, awarenessRelayed, "outcome")
+	commitsBefore := databaseCommits(t, stack.database)
+	began := time.Now()
+
+	out := filepath.Join(t.TempDir(), "liveload.json")
+	ctx, cancel := context.WithTimeout(context.Background(), window+3*time.Minute)
+	defer cancel()
+	document := "ws" + strings.TrimPrefix(stack.baseURL, "http") + "/api/v1/realtime/documents/page/" + page
+	cmd := exec.CommandContext(ctx, "node", append([]string{"scripts/liveload.mjs", document, out,
+		strconv.Itoa(int(window / time.Second))}, tokens...)...)
+	cmd.Dir = filepath.Join(repositoryRoot(), "packages", "editor")
+	output, err := cmd.CombinedOutput()
+	t.Logf("the writers:\n%s", output)
+	if err != nil {
+		t.Fatalf("running the writers: %v", err)
+	}
+	elapsed := time.Since(began)
+
+	after := counterBy(t, stack.opsURL, awarenessRelayed, "outcome")
+	finding := DocumentsFinding{
+		Test: "S5 live documents with many writers", RanAt: began.UTC(), WindowSeconds: int(window / time.Second),
+		AwarenessByOutcome: map[string]float64{},
+		TransactionsPerS:   float64(databaseCommits(t, stack.database)-commitsBefore) / elapsed.Seconds(),
+	}
+	for outcome, n := range after {
+		finding.AwarenessByOutcome[outcome] = n - before[outcome]
+	}
+	raw, err := os.ReadFile(out)
+	if err != nil {
+		t.Fatalf("reading the writers' report: %v", err)
+	}
+	finding.Writers = raw
+	writeEvidence(t, "documents-s5-latest.json", finding)
+
+	var writers struct {
+		Writers    int            `json:"writers"`
+		Edits      int            `json:"edits"`
+		Unsent     int            `json:"unsent"`
+		Equal      bool           `json:"equal"`
+		FreshEqual bool           `json:"fresh_equal"`
+		Closes     map[string]int `json:"closes_by_code"`
+	}
+	if err := json.Unmarshal(raw, &writers); err != nil {
+		t.Fatalf("reading the writers' report: %v", err)
+	}
+	if !writers.Equal || !writers.FreshEqual {
+		t.Errorf("the documents differ at the end: writers equal %v, a fresh opener equal %v", writers.Equal, writers.FreshEqual)
+	}
+	if writers.Unsent > 0 {
+		t.Errorf("%d edits were never sent", writers.Unsent)
+	}
+	if len(writers.Closes) > 0 {
+		t.Errorf("connections were closed: %v", writers.Closes)
+	}
+	if writers.Edits < writers.Writers*int(window/time.Second)/2 {
+		t.Errorf("only %d edits by %d writers in %s", writers.Edits, writers.Writers, window)
+	}
+	for _, outcome := range []string{"too_large", "failed"} {
+		if finding.AwarenessByOutcome[outcome] > 0 {
+			t.Errorf("%v awareness messages relayed as %s", finding.AwarenessByOutcome[outcome], outcome)
+		}
+	}
+}
+
+// createPage switches the pages' module on for the workspace, as seedInventory the assets', writes
+// one page in its hub and answers the page's identifier.
+func createPage(t *testing.T, stack *stack, as tenant) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := psql(ctx, stack.database, fmt.Sprintf(
+		`INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, updated_at)
+		 VALUES (gen_random_uuid(), '%[1]s', 'WORKSPACE', '%[1]s', 'module.knowledge', 'true', now())
+		 ON CONFLICT (tenant_id, level, scope_id, key) DO UPDATE SET value = 'true'`, as.id)); err != nil {
+		t.Fatalf("switching the pages on: %v", err)
+	}
+	baseURL := stack.baseURL
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/hubs/"+as.hub+"/pages",
+		strings.NewReader(`{"title":"the live document run"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Authorization", "Bearer "+as.walkToken)
+	request.Header.Set("Content-Type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("creating the page: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	var created struct {
+		ID string `json:"id"`
+	}
+	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(response.Body)
+		t.Fatalf("creating the page answered %d: %s", response.StatusCode, body)
+	}
+	if err := json.NewDecoder(response.Body).Decode(&created); err != nil || created.ID == "" {
+		t.Fatalf("creating the page: %v", err)
+	}
+	return created.ID
+}
+
+// counterBy reads one counter from the server's metrics, summed by a label.
+func counterBy(t *testing.T, opsURL, name, label string) map[string]float64 {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, opsURL+"/metrics", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatalf("reading the metrics: %v", err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("the metrics answered %d", response.StatusCode)
+	}
+	values, err := harness.CounterBy(response.Body, name, label)
+	if err != nil {
+		t.Fatalf("reading the metrics: %v", err)
+	}
+	return values
 }
