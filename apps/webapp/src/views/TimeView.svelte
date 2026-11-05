@@ -365,7 +365,7 @@
     title={t('app.time.title')}
     subtitle={t('app.modules.hint_time')}
     isTitleInBar={viewport.isCompact}
-    primary={current === 'week' ? recordPrimary : undefined}
+    primary={current === 'week' || current === 'settings' ? recordPrimary : undefined}
     breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },

@@ -163,9 +163,8 @@
 </script>
 
 <Stack gap="300">
-  {#if isEmbedded}
-    {#if mayShape}<div><Button tone="primary" icon="plus" onclick={() => openKind(undefined)}>{t('app.time_settings.add_kind')}</Button></div>{/if}
-  {:else}<PageHeader
+  <!-- On the time home the head keeps the home's own create act; adding a kind is its section's. -->
+  {#if !isEmbedded}<PageHeader
     title={t('app.time_settings.title')}
     isTitleInBar={viewport.isCompact}
     breadcrumb={{
@@ -212,6 +211,9 @@
 
     <section id="time-part-kinds" class="block" aria-labelledby="time-kinds">
       <h2 id="time-kinds" class="heading">{t('app.time_settings.kinds')}</h2>
+      {#if isEmbedded && mayShape}
+        <div><Button tone="secondary" icon="plus" data-list-add onclick={() => openKind(undefined)}>{t('app.time_settings.add_kind')}</Button></div>
+      {/if}
       <Table label={t('app.time_settings.kinds')} isLabelHidden {columns}>
         {#snippet empty()}{t('app.time_settings.no_kinds')}{/snippet}
         {#each ordered as kind, i (kind.key)}

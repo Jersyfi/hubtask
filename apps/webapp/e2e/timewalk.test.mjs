@@ -287,6 +287,10 @@ test('chromium: time - a workspace without a kind of work is given the usual one
   await page.goto(`${served.origin}/time?tab=settings`);
   await page.getByRole('rowheader', { name: 'Development' }).waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('columnheader', { name: 'Key' }).count(), 0, 'a key column is drawn');
+  // One settings anatomy (§5.4): the head keeps the home's create act, and adding a kind of work
+  // is its section's own act, not a lone primary above the shell.
+  assert.equal(await page.locator('header').getByRole('button', { name: 'Record time', exact: true }).count(), 1, 'the head lost Record time on Settings');
+  assert.equal(await page.locator('#time-part-kinds').getByRole('button', { name: 'Add a kind of work' }).count(), 1, 'adding a kind is not in its section');
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
