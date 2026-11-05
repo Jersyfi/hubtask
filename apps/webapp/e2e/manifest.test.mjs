@@ -90,7 +90,10 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   const said = page.getByText('What this kind of entry can hold could not be read', { exact: false });
   await said.waitFor({ timeout: 5_000 }).catch(() => assert.fail('the column says nothing about why it is empty'));
   // The server's own sentence beside it, rather than this screen's paraphrase of a status code.
-  assert.equal(await page.locator('.unread-detail').count() >= 1, true, 'the reason the server gave is not shown');
+  // FailureNote draws it, beside the column's own sentence.
+  const reason = page.locator('.unread + .banner[data-tone="danger"]');
+  assert.equal(await reason.count(), 1, 'the reason the server gave is not shown');
+  assert.notEqual((await reason.innerText()).trim(), '', 'the reason the server gave is empty');
 
   // The mark in the bar carries the dot: there is something to read, without a count.
   const mark = markOf(page);
