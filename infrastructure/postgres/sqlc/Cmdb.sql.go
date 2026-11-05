@@ -454,7 +454,7 @@ WITH pair AS (
        LIMIT 64) s) AS n
   FROM pair p
 ), lead AS (
-  SELECT DISTINCT ON (w.lookup) w.lookup, w.name, w.value FROM width w ORDER BY w.lookup, w.n, w.name
+  SELECT DISTINCT ON (w.lookup) w.lookup, w.name, w.value FROM width w ORDER BY w.lookup, w.n
 ), hit AS (
   SELECT l.lookup, i.ci_id
   FROM lead l
