@@ -154,7 +154,7 @@ gets, so for those the sum is an upper bound.
 | S3 sync initial walk | cap 10 min | cap 20 min | not built |
 | S4 stream, 2-minute window | about 2.5 min | — | derived from the probe: its 60 s window, the streams' opening and the end within 67 s after the setup |
 | S5 live documents, 2-minute window | cap 4 min | — | not built |
-| S6 connector, three runs | cap 5 min | — | built; its trial at 6 000 devices took 54 s after the setup |
+| S6 connector, three runs | cap 5 min | — | built; its trial at 6 000 devices took 54 s after the setup, 22 s once its findings were fixed |
 | Error collection and teardown | under 1 min | under 1 min | the probe's container ended in the second its test passed |
 | **One invocation** | **about 49 min**, 19 of them measured or derived | **about 63 min**, 42.5 of them measured | |
 
@@ -213,13 +213,17 @@ machine's.
    after 60 changed 2 pages in 444 ms; no 5xx, every run `OK`. Its first trial found that 50
    pages outlast the request's 30 s: the deadline cut the run off, its pages stayed written and
    its cursor did not, and the next run walked them again - fixed (`d0ddb387f`: a run near its
-   deadline stops and keeps its cursor; runs 1 and 2 above are that). Two findings stand, so the
-   scenario fails: a page's interval is 670 ms at P50 and 1 133 ms [1 035–2 336] at P95 over 61
-   pages, over SLO-3's 300; and the third run created 13 CIs (`netbox-1`, `netbox-201`, …) and
-   updated 47 of the 60 changed - the identifier lookup (`FindCmdbIdentifiers`, `LIMIT 5000`)
-   answers every CI sharing the item's manufacturer, an identifier, and the cut drops the item's
-   own native-key and hostname rows, so a CI it already has is created again once a hub holds
-   more than 5 000 CIs of one manufacturer. Open, not fixed in this round.
+   deadline stops and keeps its cursor; runs 1 and 2 above are that). That trial found two more:
+   a page's interval was 670 ms at P50 and 1 133 ms [1 035–2 336] at P95 over 61 pages, over
+   SLO-3's 300; and the third run created 13 CIs and updated 47 of the 60 changed - the identifier
+   lookup (`FindCmdbIdentifiers`, `LIMIT 5000`) answered every CI sharing the item's manufacturer,
+   and the cut dropped the item's own native-key and hostname rows. Both fixed: each lookup (the
+   native key, then each whole rule) asks for CIs carrying all its pairs and refuses past its bound
+   rather than read a part (`d7d78fb28`), walked from its narrowest pair (`411f0e7da`). Trial again
+   on 2026-11-06 at the same dataset, 6 000 devices: run 1 50 pages in 10 493 ms, run 2 12 pages in
+   2 135 ms, run 3 after 60 changed 2 pages in 130 ms, created 0 and updated 60; a page's interval
+   206 ms at P50 and 227 ms [215–245] at P95 over 61 pages; no 5xx, every run `OK`. The scenario
+   passes at the small dataset; the 10⁶/10⁷ load has not run it.
 6. S7, per-screen bytes and settle time in `scalewalk.mjs`, the walk of all three workspaces
    under one 10-minute deadline. Built; trial with the capacity run at the default dataset,
    2026-11-05: 33 screens, each settled in 939 to 1 255 ms, no browser row; every screen fetched

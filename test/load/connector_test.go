@@ -138,6 +138,7 @@ func TestS6ConnectorReconciliation(t *testing.T) {
 		intervals = append(intervals, pageIntervals(ctx, t, stack, as, each.RunIDs)...)
 	}
 	finding.PageInterval = harness.Percentiles(intervals)
+	t.Logf("a page's interval over %d pages: %+v ms", len(intervals), finding.PageInterval)
 	finding.ThirdRunCreated = createdRefs(ctx, t, stack, as, third.RunIDs)
 	writeEvidence(t, fmt.Sprintf("connector-s6-%d.json", stack.items), finding)
 
