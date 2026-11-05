@@ -532,7 +532,6 @@ func startServer(ctx context.Context, dsn string) (string, string, int, string, 
 		"HUBTASK_TENANCY_MODE=multi",
 		"HUBTASK_LOG_LEVEL=warn",
 		"HUBTASK_UI_ENABLED=false",
-		"HUBTASK_LOAD_SHED_INFLIGHT="+strconv.Itoa(shedLimit),
 		// The rate limits are raised out of the way on purpose. They are admission control of a
 		// different kind, they are proved by their own tests, and traffic that runs into them
 		// never reaches the threshold this run is about: a 429 is a correct answer that measures
@@ -552,6 +551,7 @@ func startServer(ctx context.Context, dsn string) (string, string, int, string, 
 		"HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS=true",
 		"HUBTASK_HTTP_ALLOWED_HOSTS=127.0.0.1",
 	)
+	server.Env = append(server.Env, shedEnv(os.Getenv(envCapacity) != "")...)
 	// Kept beside the evidence, where one is named, so the run's errors outlive the process.
 	logDir := os.Getenv(envEvidence)
 	if logDir == "" {
@@ -584,6 +584,17 @@ func startServer(ctx context.Context, dsn string) (string, string, int, string, 
 		return "", "", 0, "", err
 	}
 	return url, opsURL, server.Process.Pid, serverLog, nil
+}
+
+// shedEnv is the admission threshold the server runs with: RT-6's small one, except for the
+// capacity run, which measures the read paths at the installation's default. Under shedLimit one
+// workspace's deferrable calls are capped at two in flight, so eight callers of a query would
+// measure the shedder, not the query.
+func shedEnv(capacity bool) []string {
+	if capacity {
+		return nil
+	}
+	return []string{"HUBTASK_LOAD_SHED_INFLIGHT=" + strconv.Itoa(shedLimit)}
 }
 
 // memoryLimitBytes is the ceiling the run holds the process to. 768 MiB is the chart's own limit
@@ -743,6 +754,15 @@ func writeEvidenceFile(directory, name string, finding any) (string, error) {
 
 // The walk's credential carries every scope a session does, so R3 sees what a person's web app
 // sees rather than the refusals of the load token's narrow set.
+func TestTheCapacityRunMeasuresAtTheDefaultShedThreshold(t *testing.T) {
+	if got := shedEnv(true); got != nil {
+		t.Errorf("the capacity run sets %v", got)
+	}
+	if got := shedEnv(false); len(got) != 1 || got[0] != "HUBTASK_LOAD_SHED_INFLIGHT=8" {
+		t.Errorf("RT-6's run sets %v", got)
+	}
+}
+
 func TestWalkTokenCarriesEverySessionScope(t *testing.T) {
 	array := scopeArray(catalogue.SessionScopes())
 	for _, scope := range catalogue.SessionScopes() {
