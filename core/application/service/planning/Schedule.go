@@ -205,11 +205,17 @@ func (h ApplyPlanSchedule) Execute(ctx context.Context, actor appshared.ActorCon
 				continue
 			}
 			entry := scheduled.Loaded.Entries[move.ID]
-			if _, err := h.Planner.Catalogue.Invoke(ctx, updateWorkItemName, actor, usecase.Input{
+			update := usecase.Input{
 				"item_id": move.ID.String(), "start_at": move.Start.In(zone).Format(time.RFC3339),
 				"due_at": move.Finish.In(zone).Format(time.RFC3339), "due_date_only": true,
 				"due_time_zone": zone.String(), "expected_version": entry.Version,
-			}); err != nil {
+			}
+			// A milestone is a point: one without a start is given none - only one it already
+			// has moves with it, so it never ends before it starts.
+			if entry.Milestone && entry.StartAt == nil {
+				delete(update, "start_at")
+			}
+			if _, err := h.Planner.Catalogue.Invoke(ctx, updateWorkItemName, actor, update); err != nil {
 				return err
 			}
 			out.Moved = append(out.Moved, usecase.Output{
@@ -234,7 +240,7 @@ func (h ApplyPlanSchedule) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ApplyPlanScheduleName, Permission: service.PermissionWriteItems,
 		Summary: "Applies the moves the scheduler proposes for the accepted automatic entries of a plan, all " +
-			"or none, each as UpdateWorkItem changing its start and its all-day due date. The plan is " +
+			"or none, each as UpdateWorkItem changing its start - a milestone without one keeps none - and its all-day due date. The plan is " +
 			"scheduled again first; nothing moves that the person did not accept.",
 		SideEffects: "Changes the accepted entries' dates through UpdateWorkItem (each with its own event, " +
 			"history and audit entry) and writes an audit entry for the plan.",

@@ -376,6 +376,29 @@ func TestOnlyAcceptedMovesAreApplied(t *testing.T) {
 	}
 }
 
+// UC-PLN-02 check 4: an automatic milestone that moves keeps being a point - its due date moves,
+// and it is given no start.
+func TestAMovedMilestoneIsGivenNoStart(t *testing.T) {
+	f := newFixture()
+	if _, err := (ApplyPlanSchedule{Planner: f.planner}).Execute(context.Background(), actor(), ApplyPlanScheduleCommand{
+		ScheduleQuery: ScheduleQuery{PlanID: hubID, Zone: "Europe/Berlin"}, ItemIDs: []shared.ID{build, launch},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var moved usecase.Input
+	for _, call := range f.catalogue.calls {
+		if call["item_id"] == launch.String() {
+			moved = call
+		}
+	}
+	if moved == nil {
+		t.Fatalf("the milestone did not move: %v", f.catalogue.calls)
+	}
+	if _, given := moved["start_at"]; given || moved["due_at"] == nil {
+		t.Errorf("the milestone was moved as %v, want its due date alone", moved)
+	}
+}
+
 // UC-PLN-02 check 1: a dependency takes a kind and a lag; a link nobody waits on takes none, and
 // the waiting entry's writer sets it.
 func TestADependencysTimingIsSetOnTheWaitingEnd(t *testing.T) {
