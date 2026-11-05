@@ -137,6 +137,7 @@ func TestTheMintingEntryCarriesNoCredentialAndNoName(t *testing.T) {
 // A scope nothing checks is a bound nothing applies, so the request is refused rather than
 // quietly stored - and the refusal names the field and the value, because a caller who cannot see
 // which of five scopes was wrong cannot fix it.
+// UC-INT-10 check 2.
 func TestAScopeTheCatalogueDoesNotDeclareIsRefusedByName(t *testing.T) {
 	accounts, auth, sink := newAccounts(), &authorizer{}, &auditSink{}
 	writer := tokenWriter(t, accounts, auth, sink)
@@ -166,6 +167,7 @@ func TestAScopeTheCatalogueDoesNotDeclareIsRefusedByName(t *testing.T) {
 
 // The self-service half of the split: one's own credentials need the account scope and no
 // permission, exactly as one's own preferences do.
+// UC-INT-10 check 4.
 func TestOnesOwnTokensNeedNoPermission(t *testing.T) {
 	accounts, auth, sink := newAccounts(), &authorizer{}, &auditSink{}
 	writer := tokenWriter(t, accounts, auth, sink)
@@ -192,6 +194,7 @@ func TestOnesOwnTokensNeedNoPermission(t *testing.T) {
 
 // The administered half: a service account is nothing but access, so whoever answers for access
 // administers it - and the permission is asked before the account is read.
+// UC-INT-10 check 4.
 func TestAServiceAccountsTokensNeedMemberManagement(t *testing.T) {
 	machine := domain.Account{
 		ID: serviceAccountID, TenantID: tenant, Kind: domain.AccountServiceAccount,
@@ -223,6 +226,7 @@ func TestAServiceAccountsTokensNeedMemberManagement(t *testing.T) {
 // Nobody administers a person's credentials, whatever their role. An administrator can disable
 // the account or revoke its memberships - both of which stop it acting - and cannot hold or
 // enumerate what it authenticates with.
+// UC-INT-10 check 4.
 func TestAnotherPersonsTokensAreRefusedEvenToAnAdministrator(t *testing.T) {
 	stranger := domain.Account{
 		ID: strangerID, TenantID: tenant, Kind: domain.AccountUser,
@@ -498,6 +502,7 @@ func TestTheAgentCapabilityIsRefusedWhereItIsNotDeclared(t *testing.T) {
 // UC-ID-17 check 3, the service's half: a token with an administrative scope is minted only behind
 // a fresh proof. Without one - or with one the verifier does not accept - nothing is stored and
 // nothing recorded; with one, the token is minted carrying the scope.
+// UC-INT-10 check 2.
 func TestAnAdministrativeScopeIsMintedOnlyBehindAFreshProof(t *testing.T) {
 	accounts, auth, sink := newAccounts(), &authorizer{}, &auditSink{}
 	writer := tokenWriter(t, accounts, auth, sink)

@@ -165,6 +165,7 @@ func newPollHarness(rows ...event.Envelope) *pollHarness {
 	}
 }
 
+// UC-INT-04 check 1.
 func TestAPollAnswersTheTypeItWasAskedFor(t *testing.T) {
 	wanted := emitted(now.Add(-2*time.Hour), "01936f2a-0000-7000-8000-000000000001", event.ItemCreated)
 	other := emitted(now.Add(-2*time.Hour), "01936f2a-0000-7000-8000-000000000002", event.ItemCompleted)
@@ -217,6 +218,7 @@ func TestTheCursorOfAQuietStreamDoesNotFallBehindTheWindow(t *testing.T) {
 
 // The window's near end. Rows younger than the lag are withheld from the page, and the cursor is
 // withheld with them - a cursor that had moved past an event still in flight would step over it.
+// UC-INT-04 check 6.
 func TestAPollWithholdsWhatIsYoungerThanTheLag(t *testing.T) {
 	settled := emitted(now.Add(-2*pollLag), "01936f2a-0000-7000-8000-000000000001", event.ItemCreated)
 	fresh := emitted(now.Add(-pollLag/2), "01936f2a-0000-7000-8000-000000000002", event.ItemCreated)
@@ -246,6 +248,7 @@ func TestAPollWithholdsWhatIsYoungerThanTheLag(t *testing.T) {
 }
 
 // Two polls with the returned cursor neither repeat an event nor step over one.
+// UC-INT-04 check 6.
 func TestTwoPollsWithTheCursorNeitherRepeatNorSkip(t *testing.T) {
 	var rows []event.Envelope
 	for i := range 5 {
@@ -339,6 +342,7 @@ func TestAFullPageLeavesTheCursorOnItsLastRow(t *testing.T) {
 
 // The far end of the window. A poller that missed more than the retention period has to be told
 // that it missed, or it reports a completeness it does not have.
+// UC-INT-04 check 3.
 func TestACursorOlderThanTheRetentionIsRefused(t *testing.T) {
 	h := newPollHarness()
 
@@ -370,6 +374,7 @@ func TestACursorOlderThanTheRetentionIsRefused(t *testing.T) {
 
 // Without a cursor the walk starts at the oldest event the window still covers, never at the
 // present: a caller that lost its cursor needs what is there, not a gap it cannot see.
+// UC-INT-04 check 2.
 func TestAPollWithNoCursorStartsAtTheWindow(t *testing.T) {
 	h := newPollHarness()
 
@@ -410,6 +415,7 @@ func TestTheOutboxDefaultIsReadOffTheCatalogue(t *testing.T) {
 
 // The acceptance criterion: scope enforcement is per event type, and a token holding the wrong one
 // is refused.
+// UC-INT-04 check 5.
 func TestPollingIsRefusedWithoutTheEventsOwnScope(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -463,6 +469,7 @@ func TestPollingIsRefusedWithoutTheEventsOwnScope(t *testing.T) {
 
 // A type nobody declares is refused by name. A trigger configured against a typo would otherwise
 // poll forever and report nothing wrong.
+// UC-INT-04 check 4.
 func TestAnUnknownEventTypeIsRefusedByName(t *testing.T) {
 	h := newPollHarness()
 
@@ -521,6 +528,7 @@ func TestThePageSizeIsBounded(t *testing.T) {
 }
 
 // A cursor that does not decode is the caller's mistake, and the log is not read for it.
+// UC-INT-04 check 3.
 func TestAnInvalidCursorIsRefused(t *testing.T) {
 	h := newPollHarness()
 	h.handler.Cursors = plainCursors{refuse: true}

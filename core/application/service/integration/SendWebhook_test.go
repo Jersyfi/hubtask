@@ -33,6 +33,7 @@ func storedEvent(replay bool) eventStore {
 
 // The acceptance criterion: a send delivers through the same pipeline as a subscription - the same
 // delivery table, the same job kind, the same retry discipline from there on.
+// UC-INT-02 check 5.
 func TestASendQueuesADeliveryOfTheNamedEvent(t *testing.T) {
 	h := withSubscription(t)
 	queued := &jobs{}
@@ -73,6 +74,7 @@ func TestASendQueuesADeliveryOfTheNamedEvent(t *testing.T) {
 
 // A paused subscription is somebody's deliberate hold and a disabled one is a target this system
 // concluded is unreachable: both refuse rather than queueing a delivery that will fail.
+// UC-INT-02 check 5.
 func TestASendToASubscriptionThatIsNotActiveIsRefused(t *testing.T) {
 	for _, state := range []domain.SubscriptionState{
 		domain.SubscriptionPaused, domain.SubscriptionDisabled,
@@ -97,6 +99,7 @@ func TestASendToASubscriptionThatIsNotActiveIsRefused(t *testing.T) {
 
 // backup-restore.md §8.4's first prohibition: an event a restore produced reaches no external
 // system, not even when a caller asks for it by name.
+// UC-INT-02 check 6.
 func TestAReplayedEventIsNeverSent(t *testing.T) {
 	h := withSubscription(t)
 	queued := &jobs{}

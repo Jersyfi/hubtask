@@ -97,6 +97,7 @@ func TestATargetIsCheckedForShapeAndNotForReachability(t *testing.T) {
 }
 
 // A subscription waiting for something that will never arrive looks exactly like a working one.
+// UC-INT-01 check 2.
 func TestAnEventTypeThisBuildDoesNotEmitIsRefusedByName(t *testing.T) {
 	in := validSubscription()
 	in.EventTypes = []string{string(event.ItemCreated), "de.hubtask.work.item.teleported.v1"}

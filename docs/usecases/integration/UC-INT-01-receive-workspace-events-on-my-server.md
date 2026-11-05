@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-08, P-09, P-11]
 state: built
 tasks: [G-02, G-03, F4-15, CP-04]
-checked_by: [core/application/service/integration/Webhook_test.go, core/application/service/integration/SendWebhook_test.go, test/integration/webhook_test.go, test/security/ssrf_test.go, core/application/service/integration/WebhookNarrowing_test.go, core/application/service/integration/FanOutNarrowing_test.go, test/integration/webhook_scope_test.go, apps/webapp/e2e/webhooknarrowing.test.mjs]
+checked_by: [core/application/service/integration/Webhook_test.go, core/application/service/integration/SendWebhook_test.go, test/integration/webhook_test.go, test/security/ssrf_test.go, core/application/service/integration/WebhookNarrowing_test.go, core/application/service/integration/FanOutNarrowing_test.go, test/integration/webhook_scope_test.go, apps/webapp/e2e/webhooknarrowing.test.mjs, core/domain/model/integration/WebhookSubscription_test.go]
 ---
 
 # Receive the workspace's events on my own server

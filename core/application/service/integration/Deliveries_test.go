@@ -64,6 +64,7 @@ func deadLettered(t *testing.T, h *harness) domain.WebhookDelivery {
 	return delivery
 }
 
+// UC-INT-02 check 1.
 func TestTheDeliveryLogIsPagedAndFilterable(t *testing.T) {
 	h := withSubscription(t)
 	dead := deadLettered(t, h)
@@ -121,6 +122,7 @@ func TestAnUnknownStatusFilterIsRefusedRatherThanIgnored(t *testing.T) {
 
 // The same event sent again: the identifier a subscriber deduplicates on is the one it always had,
 // and the attempt carries on so the log stays a true account.
+// UC-INT-02 check 3.
 func TestAReplayQueuesANewAttemptOfTheSameEvent(t *testing.T) {
 	h := withSubscription(t)
 	dead := deadLettered(t, h)
@@ -202,6 +204,7 @@ func TestADeliveryOfAnotherSubscriptionIsNotFound(t *testing.T) {
 
 // A subscriber cannot deploy atomically, so the old secret keeps verifying for its grace - and the
 // clock decides that, not a sleep.
+// UC-INT-03 check 1.
 func TestARotationAnswersANewSecretAndKeepsTheOldOneVerifying(t *testing.T) {
 	h := withSubscription(t)
 	before := h.store.rows[hookID]

@@ -325,6 +325,7 @@ func validCreate() CreateWebhookSubscriptionCommand {
 
 // The secret is answered once and stored sealed, under a purpose that names the row - so a
 // ciphertext lifted out of one subscription and dropped into another no longer opens.
+// UC-INT-01 check 1.
 func TestACreationAnswersTheSecretOnceAndStoresItSealed(t *testing.T) {
 	h := newHarness()
 
@@ -354,6 +355,7 @@ func TestACreationAnswersTheSecretOnceAndStoresItSealed(t *testing.T) {
 
 // Subscribing an external system to the stream and writing a rule that reacts to it are the same
 // power over the same stream.
+// UC-INT-01 check 1.
 func TestEveryWebhookOperationAsksForAutomation(t *testing.T) {
 	h := newHarness()
 
@@ -442,6 +444,7 @@ func TestAnUpdateLeavesOmittedFieldsAlone(t *testing.T) {
 
 // DISABLED is the system's conclusion from a run of failures, not a value to type. A subscription
 // somebody wants stopped is paused, and the two say different things to whoever reads the list.
+// UC-INT-01 check 7.
 func TestDisabledCannotBeSetByHandAndReEnablingIsAudited(t *testing.T) {
 	h := newHarness()
 	if _, err := (CreateWebhookSubscription{Writer: h.writer}).Execute(t.Context(), actor(), validCreate()); err != nil {

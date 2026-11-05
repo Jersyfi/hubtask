@@ -46,6 +46,7 @@ func useCaseCatalogue(t *testing.T) *usecase.Registry {
 
 // The rule arc42 §4 states: a use case is reachable through
 // REST, through MCP and as an automation action - all three, or the build is red.
+// UC-INT-10 check 6.
 func TestEveryUseCaseIsReachableThroughEveryChannel(t *testing.T) {
 	registry := useCaseCatalogue(t)
 	served := servedRoutes(t)
