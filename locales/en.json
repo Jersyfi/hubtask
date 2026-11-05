@@ -6330,6 +6330,7 @@
   "app.product_empty.ask_named": "Ask {name} or another administrator.",
   "app.product_empty.guide": "Read the guide",
   "app.product_home.trail": "Where you are among the products",
+  "app.product_home.next_release": "Next: {name} on {day}",
   "app.product_home.hubs": "In your hubs",
   "app.product_home.boards_recent": "Recently changed boards",
   "app.product_home.unused": "Nothing in {product} yet",

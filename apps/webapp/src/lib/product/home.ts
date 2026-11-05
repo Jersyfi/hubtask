@@ -253,6 +253,23 @@ export function releasesDue<R extends { readonly hub_id: string; readonly state:
     .slice(0, limit);
 }
 
+/** A hub's next release still to go out, the soonest, for its row on the plans' home (§2.2). */
+export function nextReleaseOf<R extends { readonly hub_id: string; readonly state: string; readonly release_on: string }>(
+  lists: Readonly<Record<string, readonly R[]>>,
+  hubId: string,
+): R | undefined {
+  return releasesDue({ [hubId]: lists[hubId] ?? [] }, [hubId], 1)[0];
+}
+
+/**
+ * The assets' home lists the hubs that hold an inventory (§2.2): a hub whose health answered none
+ * is left out once another holds one; one not answered yet stays, so nothing jumps away later.
+ */
+export function hubsWithAssetsFirst<H extends { readonly id: string }>(hubs: readonly H[], health: Readonly<Record<string, { readonly total: number }>>): H[] {
+  const anyHeld = hubs.some((hub) => (health[hub.id]?.total ?? 0) > 0);
+  return anyHeld ? hubs.filter((hub) => (health[hub.id]?.total ?? 1) > 0) : [...hubs];
+}
+
 /** A place a create dialog's *In:* chip offers: its id and the words it is named by. */
 export interface CreatePlace {
   readonly id: string;

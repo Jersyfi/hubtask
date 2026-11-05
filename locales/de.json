@@ -6330,6 +6330,7 @@
   "app.product_empty.ask_named": "Frag {name} oder eine andere Administratorin oder einen anderen Administrator.",
   "app.product_empty.guide": "Zur Anleitung",
   "app.product_home.trail": "Wo du bei den Produkten bist",
+  "app.product_home.next_release": "Als Nächstes: {name} am {day}",
   "app.product_home.hubs": "In deinen Hubs",
   "app.product_home.boards_recent": "Zuletzt geänderte Whiteboards",
   "app.product_home.unused": "Noch nichts in {product}",

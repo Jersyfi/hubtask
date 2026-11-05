@@ -563,3 +563,22 @@ test('chromium 1280 px: the search and the palette find portfolios, dashboards, 
   await page.locator('#search-menu').getByRole('option', { name: /Sprint Kranich/u }).waitFor({ timeout: 10_000 });
   assert.deepEqual(failures, []);
 });
+
+// §2.2: a home's hub rows say each hub's state, not its name alone - the plans' its next release,
+// the assets' its inventory - with the hub's own figure where it counts one.
+test('chromium 1280 px: the plans\' and the assets\' hub rows say each hub\'s state', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING', 'ASSETS'] });
+  t.after(close);
+  const hubs = page.getByRole('region', { name: 'In your hubs' });
+  const row = hubs.locator('li').filter({ hasText: HUB.name });
+  await row.locator('[data-hub-line]').waitFor({ timeout: 10_000 });
+  assert.match(await row.locator('[data-hub-line]').innerText(), /Autumn fixes/u);
+
+  await page.goto(`${served.origin}/assets`);
+  const assets = page.getByRole('region', { name: 'In your hubs' }).locator('li').filter({ hasText: HUB.name });
+  await assets.locator('[data-hub-line]').waitFor({ timeout: 10_000 });
+  assert.match(await assets.locator('[data-hub-line]').innerText(), /42 configuration items · 2 need attention/u);
+  assert.deepEqual(failures, []);
+});

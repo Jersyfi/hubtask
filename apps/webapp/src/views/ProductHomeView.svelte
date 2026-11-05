@@ -21,7 +21,8 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, inventorySummary, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, hubsWithAssetsFirst, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue } from '../lib/product/home.ts';
+  import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { boardsPath } from '../lib/data/whiteboards.svelte.ts';
@@ -125,6 +126,24 @@
   eachHub<CmdbHealth>('ASSETS', healthPath, (hubId, data) => (healthAt = { ...healthAt, [hubId]: data }));
   const assetHubs = $derived(module === 'ASSETS' ? hubsWith.map((hub) => hub.id) : []);
   const inventory = $derived(inventorySummary(healthAt, assetHubs));
+  /** The hubs the home lists: on the assets' home those that hold an inventory (§2.2). */
+  const hubsListed = $derived(module === 'ASSETS' ? hubsWithAssetsFirst(hubsWith, healthAt) : hubsWith);
+  /** What a hub's row says of it beside its name (§2.2): the plan's next release, the hub's inventory. */
+  function hubLine(hubId: string): string | undefined {
+    if (module === 'PLANNING') {
+      const next = nextReleaseOf(releasesAt, hubId);
+      return next ? t('app.product_home.next_release', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) }) : undefined;
+    }
+    if (module === 'ASSETS') {
+      const health = healthAt[hubId];
+      if (!health) return undefined;
+      return [
+        t('app.assets.figure_total', { count: health.total }),
+        ...(health.problems.length > 0 ? [t('app.assets.figure_wanting', { count: health.problems.length })] : []),
+      ].join(' · ');
+    }
+    return undefined;
+  }
 
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), BOARDS_SHOWN) : []);
   const hubName = (id: string) => containers.find(id)?.name ?? '';
@@ -345,12 +364,17 @@
             />
           {:else}
             <ul class="hubs">
-              {#each hubsWith as hub (hub.id)}
+              {#each hubsListed as hub (hub.id)}
                 {@const path = hubScreenOf(module, hub.id) ?? `/hubs/${hub.id}`}
+                {@const line = hubLine(hub.id)}
                 <li>
                   <ListRow href={path} onactivate={() => onnavigate(path)} label={hub.name}>
                     {#snippet leading()}<Icon name={markOf(hub)} size="sm" />{/snippet}
                     <span class="name" title={hub.name}>{hub.name}</span>
+                    {#if line}<span class="purpose" data-hub-line>{line}</span>{/if}
+                    {#snippet trailing()}
+                      {#if hub.figure && !hub.figure.unavailable}<CollectionFigure figure={hub.figure} name={hub.name} />{/if}
+                    {/snippet}
                   </ListRow>
                 </li>
               {/each}
