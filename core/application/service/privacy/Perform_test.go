@@ -5,6 +5,7 @@ package privacy
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
@@ -175,5 +176,40 @@ func TestAPayloadThatCannotBeReadFailsTheJob(t *testing.T) {
 	}
 	if in.RequestID != subjectID || in.TenantID != tenantID {
 		t.Errorf("the payload came back as %+v", in)
+	}
+}
+
+// UC-PRV-02 check 2: starting a copy writes one archive at the named target, named by the case,
+// and completes the case with where it lies.
+func TestACopyCompletesTheCaseWithItsArchive(t *testing.T) {
+	requests := newRequestStore()
+	request := startedCase(domain.KindAccess, "")
+	if err := requests.Insert(context.Background(), request); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	target := &memoryTarget{written: map[string][]byte{}}
+	performer := Performer{
+		Requests:   requests,
+		Exporter:   newExporter(target, &tenantsOf{}, &auditSink{}, &snapshotter{}),
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
+	}
+
+	done, err := performer.Perform(context.Background(), PerformInput{RequestID: request.ID, TenantID: tenantID})
+	if err != nil {
+		t.Fatalf("performing: %v", err)
+	}
+	if done.Status != domain.StatusCompleted || done.ResultArchive != ArchiveName(request.ID, now) {
+		t.Fatalf("the case came back %s with the archive %q", done.Status, done.ResultArchive)
+	}
+	if len(target.opened) != 1 || target.opened[0] != tenantID {
+		t.Errorf("the archive went to %v", target.opened)
+	}
+	for key := range target.written {
+		if !strings.HasPrefix(key, done.ResultArchive+"/") {
+			t.Errorf("the target holds %q outside the case's archive", key)
+		}
+	}
+	if requests.stored[request.ID].ResultArchive != done.ResultArchive {
+		t.Error("the case was not written back with its archive")
 	}
 }

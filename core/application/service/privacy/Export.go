@@ -129,7 +129,7 @@ func (e Exporter) Export(
 
 	if request.Scope != domain.ScopeInstallation {
 		own := scopes[0]
-		prefix := ArchiveName(own.subjectID, own.email, e.Clock.Now())
+		prefix := ArchiveName(request.ID, e.Clock.Now())
 		manifest, err := e.writeOne(ctx, actor, target, prefix, prefix, own, request)
 		if err != nil {
 			return Written{}, err
@@ -358,11 +358,8 @@ func BundleName(caseID shared.ID, at time.Time) string {
 // `hubtask-dsr-` rather than `hubtask-backup-`, and that is deliberate on both counts. It is a
 // Hubtask archive and a restore can be pointed at it by name (`archive_id`); it is **not** a backup
 // of the workspace, and the listing at a target keeps what starts with `hubtask-backup-<tenant>-`,
-// so an export never appears among the backups an operator restores from by accident.
-func ArchiveName(subjectID shared.ID, email string, at time.Time) string {
-	who := subjectID.String()
-	if who == "" {
-		who = strings.NewReplacer("@", "-at-", ".", "-").Replace(email)
-	}
-	return fmt.Sprintf("hubtask-dsr-%s-%s", who, at.UTC().Format("20060102T150405Z"))
+// so an export never appears among the backups an operator restores from by accident. It names the
+// case, never the person: the name is in the trail (rule 10).
+func ArchiveName(caseID shared.ID, at time.Time) string {
+	return fmt.Sprintf("hubtask-dsr-%s-%s", caseID.String(), at.UTC().Format("20060102T150405Z"))
 }

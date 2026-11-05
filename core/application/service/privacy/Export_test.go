@@ -7,8 +7,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -199,22 +201,44 @@ func TestADeletionMarkerAlwaysTravels(t *testing.T) {
 }
 
 // The archive is named so that a restore can be pointed at it and a backup listing never picks it
-// up by accident.
+// up by accident - and by the case, not the person (UC-PRV-02 check 2): the name lands in the
+// trail, and an address there would be personal data in an audit entry (rule 10).
 func TestAnExportIsNamedAsWhatItIs(t *testing.T) {
-	name := ArchiveName(subjectID, "", now)
+	caseID := shared.MustParseID("0192f000-0000-7000-8000-0000000000d7")
+	name := ArchiveName(caseID, now)
 
-	if got := name[:12]; got != "hubtask-dsr-" {
+	if !strings.HasPrefix(name, "hubtask-dsr-"+caseID.String()+"-") {
 		t.Errorf("the archive is named %q", name)
 	}
-	if archivePrefix := archive.Prefix(tenantID); len(name) >= len(archivePrefix) &&
-		name[:len(archivePrefix)] == archivePrefix {
+	if archivePrefix := archive.Prefix(tenantID); strings.HasPrefix(name, archivePrefix) {
 		t.Error("an export would appear among the workspace's backups")
 	}
+}
 
-	// A person with no account is named by their address, which is the only name there is.
-	byEmail := ArchiveName("", "anna@example.org", now)
-	if byEmail == name || byEmail[:12] != "hubtask-dsr-" {
-		t.Errorf("an export for somebody with no account is named %q", byEmail)
+// A person with no account is known by an address, and the archive of their copy - and the entry
+// about it - still names only the case.
+func TestAnAddressCopyIsNamedByItsCase(t *testing.T) {
+	target := &memoryTarget{written: map[string][]byte{}}
+	sink := &auditSink{}
+	caseID := shared.MustParseID("0192f000-0000-7000-8000-0000000000d8")
+
+	written, err := newExporter(target, &tenantsOf{}, sink, &snapshotter{}).
+		Export(context.Background(), actor(), domain.Request{
+			ID: caseID, Kind: domain.KindAccess, SubjectEmail: "anna@example.org", TargetID: targetID,
+		})
+	if err != nil {
+		t.Fatalf("exporting: %v", err)
+	}
+	if !strings.Contains(written.Archive, caseID.String()) || strings.Contains(written.Archive, "anna") {
+		t.Errorf("the archive is named %q", written.Archive)
+	}
+	for key := range target.written {
+		if strings.Contains(key, "anna") {
+			t.Errorf("the target holds %q", key)
+		}
+	}
+	if entry := fmt.Sprintf("%+v", sink.entries); strings.Contains(entry, "anna") {
+		t.Errorf("the trail names the address: %s", entry)
 	}
 }
 
@@ -425,6 +449,8 @@ func (o ownKudos) KudosOf(_ context.Context, accountID shared.ID, yield func(wor
 	return nil
 }
 
+// UC-PRV-02 check 6: the export writes `dsr.exported` in the workspace (a plain member cannot
+// start one: TestStartingAnExportAsksForTheAdministratorsLine).
 func TestAnExportWritesOneArchiveAndRecordsIt(t *testing.T) {
 	target := &memoryTarget{written: map[string][]byte{}}
 	sink, snapshot := &auditSink{}, &snapshotter{}
@@ -463,7 +489,8 @@ func TestAnExportWritesOneArchiveAndRecordsIt(t *testing.T) {
 
 // An installation-wide case is a loop rather than a wider query, each workspace read under its own
 // tenant context, with an entry in each - and what it writes is one archive (UC-PRV-06 check 3): one
-// object whose members are the workspaces' archives, named by the case and not the person.
+// object whose members are the workspaces' archives, named by the case and not the person. The one
+// question across workspaces is which ones the address is a member of (UC-PRV-06 check 5).
 func TestAnInstallationWideExportCollectsWorkspaceByWorkspace(t *testing.T) {
 	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000f2")
 	target := &memoryTarget{written: map[string][]byte{}}
@@ -509,6 +536,9 @@ func TestAnInstallationWideExportCollectsWorkspaceByWorkspace(t *testing.T) {
 		t.Errorf("the archive holds the workspaces %v", manifests)
 	}
 
+	if subjects.asked != 1 {
+		t.Errorf("the workspaces were asked for %d times", subjects.asked)
+	}
 	// Each archive is written under its own workspace's context - never one query across tenants.
 	if len(snapshot.scopes) != 2 ||
 		snapshot.scopes[0].TenantID != tenantID || snapshot.scopes[1].TenantID != elsewhere {
@@ -575,7 +605,8 @@ func keysOf(written map[string][]byte) []string {
 	return keys
 }
 
-// A case with no target is refused before anything is opened: an export has to be put somewhere.
+// A case with no target is refused before anything is opened: an export has to be put somewhere
+// (UC-PRV-02 check 1).
 func TestAnExportWithNoTargetIsRefused(t *testing.T) {
 	target := &memoryTarget{written: map[string][]byte{}}
 
@@ -583,8 +614,9 @@ func TestAnExportWithNoTargetIsRefused(t *testing.T) {
 		Export(context.Background(), actor(), domain.Request{
 			ID: subjectID, Kind: domain.KindAccess, SubjectAccountID: subjectID,
 		})
-	if err == nil {
-		t.Fatal("an export with nowhere to write was accepted")
+	var problem *shared.Error
+	if !errors.As(err, &problem) || problem.DetailCode != domain.CodeExportTargetRequired {
+		t.Fatalf("an export with nowhere to write came back as %v", err)
 	}
 	if len(target.opened) != 0 {
 		t.Error("a target was opened for an export that could not be written")
@@ -702,4 +734,31 @@ func (a addressMail) MailReceiptsFrom(context.Context, string) ([]repository.Mai
 
 func (a addressMail) RatingLinksTo(context.Context, string) ([]repository.RatingLink, error) {
 	return a.links, nil
+}
+
+// UC-PRV-02 check 5: access and portability produce the same archive - the same members with the
+// same data; only the occasion the trail names differs.
+func TestAccessAndPortabilityProduceTheSameArchive(t *testing.T) {
+	members := func(kind domain.Kind) map[string]string {
+		target := &memoryTarget{written: map[string][]byte{}}
+		if _, err := newExporter(target, &tenantsOf{}, &auditSink{}, &snapshotter{}).
+			Export(context.Background(), actor(), domain.Request{
+				ID: subjectID, Kind: kind, SubjectAccountID: subjectID, TargetID: targetID,
+			}); err != nil {
+			t.Fatalf("exporting %s: %v", kind, err)
+		}
+		out := map[string]string{}
+		for key, body := range target.written {
+			if strings.HasSuffix(key, ".jsonl") {
+				out[key] = string(body)
+			} else {
+				out[key] = ""
+			}
+		}
+		return out
+	}
+	access, portability := members(domain.KindAccess), members(domain.KindPortability)
+	if len(access) == 0 || !maps.Equal(access, portability) {
+		t.Errorf("access wrote %v, portability %v", access, portability)
+	}
 }
