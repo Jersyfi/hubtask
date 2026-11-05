@@ -248,6 +248,11 @@ this list with its row.
 | Final runs leftovers, functional tests | ReadPlanTolerance audited every read in exception | closed by `67dca5030` (once per baseline, migration 0373) |
 | Final runs leftovers, functional tests | A time note's length counted before NFC | no defect: nothing normalises a time note, and `char_length` counts the code points `utf8.RuneCountInString` counts |
 | Final runs leftovers, functional tests | An offline timer stop stamped before a start set by another device | open: a sync replay question, under "Needs a finding issue" in final-runs-leftovers.md |
+| Final runs leftovers, data integrity | A live document's snapshot stored without a check against the log (CheckSnapshot, Documents.Compact) | closed by `9eadc1905` (`realtime.snapshot_incomplete` for a snapshot that does not cover the held snapshot and the log up to its place, `realtime.update_unreadable` for an update the editors could not read) |
+| Final runs leftovers, data integrity | One kind's read error ended the whole first synchronisation (InitialSync) | closed by `0eed24a76` (the kind skipped and counted, `hubtask_sync_kinds_skipped_total`, A-39; named in the signed cursor and the pull's `skipped_kinds`, walked again from the delta cursor) |
+| Final runs leftovers, data integrity | A restore dropped columns the export carries | closed by `777c5b253` (a unit gate compares every restored table's columns with its import statement) |
+| Final runs leftovers, data integrity | A restore did not bring back an entry's status history | closed by `813766bc3` (`entry_status_changes` in the archive, tenant-export.md row 140, migration 0374; a NEW_TENANT round trip keeps the cycle time) |
+| Final runs leftovers, data integrity | CMDB health, software and the service map read up to 20 000 CIs per request, unmeasured | closed by `ef3de3fa3` (the bound kept and measured, `TestCmdbViewsAtTheHubCeiling`, [evidence](../../evidence/cmdb-ceiling-2026-11-05.md); domain-model.md §3.10) |
 
 ## State
 

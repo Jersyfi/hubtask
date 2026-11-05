@@ -1030,7 +1030,9 @@ reads the board's hub is told by a COMMENT notification whose subject is the boa
 
 ### 3.10 Configuration items (context: Assets, M6)
 
-A hub holds an inventory of `CI`s (at most 20,000), judged at the hub as its pages are: READ to
+A hub holds an inventory of `CI`s (at most 20,000, `MaxCIsPerHub`; health, software and the service
+map read it whole in each request - at the bound measured at P95 257, 171 and 583 ms with eight
+callers, 753 MiB resident at peak, [C1](../evidence/cmdb-ceiling-2026-11-05.md)), judged at the hub as its pages are: READ to
 read, WRITE_ITEMS to write. A CI is of a `Class` with single inheritance - the hierarchy Hubtask
 ships (hardware, computers, network and storage devices, virtual machines, virtualisation
 clusters, cloud resources, container clusters, database instances, software, the service model of business and technical

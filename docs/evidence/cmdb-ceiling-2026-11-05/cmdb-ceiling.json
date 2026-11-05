@@ -1,0 +1,55 @@
+{
+  "test": "cmdb_ceiling",
+  "ran_at": "2026-11-05T06:00:22.657616Z",
+  "hardware": "unnamed-darwin-arm64",
+  "vcpus": 14,
+  "cis": 20000,
+  "relations": 19800,
+  "paths": [
+    {
+      "name": "cmdb_health",
+      "per_second": 33.56666666666667,
+      "per_second_per_vcpu": 2.397619047619048,
+      "latency": {
+        "count": 1007,
+        "p50": 236,
+        "p95": 257,
+        "p99": 300,
+        "max": 365
+      },
+      "server_errors": 0,
+      "refused": 0
+    },
+    {
+      "name": "cmdb_software",
+      "per_second": 54.9,
+      "per_second_per_vcpu": 3.9214285714285713,
+      "latency": {
+        "count": 1647,
+        "p50": 137,
+        "p95": 171,
+        "p99": 327,
+        "max": 730
+      },
+      "server_errors": 0,
+      "refused": 0
+    },
+    {
+      "name": "cmdb_service_map",
+      "per_second": 20.166666666666668,
+      "per_second_per_vcpu": 1.4404761904761905,
+      "latency": {
+        "count": 605,
+        "p50": 357,
+        "p95": 583,
+        "p99": 860,
+        "max": 955
+      },
+      "server_errors": 0,
+      "refused": 0
+    }
+  ],
+  "peak_resident_bytes": 790085632,
+  "memory_limit_bytes": 805306368,
+  "memory_observed": true
+}

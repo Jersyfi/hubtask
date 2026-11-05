@@ -797,3 +797,11 @@ Not covered: a German account on an English browser still loads English at boot,
   answered, is how the sync engine replays a time operation (offline-sync.md), so it is not
   changed on this branch. Checked in core/domain/model/timekeeping/Timesheet.go and
   core/application/service/timekeeping/Timers.go on 2026-11-05.
+- **The CMDB views at the hub's ceiling lie above SLO-2.** At 20 000 CIs, health and the service
+  map answer at P95 257 and 583 ms with eight callers (run C1,
+  [evidence](../../evidence/cmdb-ceiling-2026-11-05.md)); software at 171 ms. Each request reads
+  the whole inventory and judges it in Go (`hubCIs`, `domain.Judge`, `Normalise`). The bound is
+  kept and holds - no server error, 753 MiB resident at peak. Bringing them under 200 ms means
+  aggregating in SQL, which rewrites the judgement's rules in SQL, or keeping the judged set
+  between requests: more than one step. Checked in core/application/service/cmdb/Views.go on
+  2026-11-05.

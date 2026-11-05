@@ -129,6 +129,7 @@ user count appears anywhere, the model appears beside it.
 | `storm_test.go` | The automation storm, and the fairness of multi-tenancy §4 asserted rather than eyeballed |
 | `guard_test.go` | The relative regression guard |
 | `capacity_test.go` | The capacity run at 10⁶ / 10⁷ entries (`make capacity`) |
+| `cmdb_test.go` | Run C1, the CMDB views of one hub at its ceiling of 20 000 CIs (`make capacity`, after the capacity run) |
 | `live_test.go` | Run L1, live updates in one workspace (`HUBTASK_LOAD_LIVE=1`) |
 
 ## Refreshing a baseline
