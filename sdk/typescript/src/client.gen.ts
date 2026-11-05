@@ -3343,8 +3343,8 @@ export class HubtaskClient {
   }
 
   /** Apply a planned configuration change */
-  applyConfig(body: NonNullable<operations["applyConfig"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["applyConfig"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/config:apply", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  applyConfig(body: NonNullable<operations["applyConfig"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string; readonly idempotencyKey?: string } = {}): Promise<operations["applyConfig"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/config:apply", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp, "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
   /** The configuration's versions */

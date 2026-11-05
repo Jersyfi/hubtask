@@ -2655,9 +2655,9 @@ class Client:
         """Propose a planned change for a person to decide"""
         return self._call("POST", "/config:propose", {}, None, {}, body, "json", "application/json", "json")
 
-    def apply_config(self, body: "ConfigApplyRequest", *, if_match: str | None = None, step_up: str | None = None) -> "ConfigApplyResult":
+    def apply_config(self, body: "ConfigApplyRequest", *, if_match: str | None = None, step_up: str | None = None, idempotency_key: str | None = None) -> "ConfigApplyResult":
         """Apply a planned configuration change"""
-        return self._call("POST", "/config:apply", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+        return self._call("POST", "/config:apply", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up, "Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def list_config_versions(self, *, query: dict[str, Any] | None = None) -> "ConfigVersionList":
         """The configuration's versions"""

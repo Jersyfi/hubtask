@@ -26940,6 +26940,9 @@ type ApplyConfigParams struct {
 
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ListContainersParams defines parameters for ListContainers.
@@ -34835,7 +34838,7 @@ type ClientInterface interface {
 
 	// ApplyConfigWithBody Apply a planned configuration change
 	//
-	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -34844,7 +34847,7 @@ type ClientInterface interface {
 
 	// ApplyConfig Apply a planned configuration change
 	//
-	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -50099,7 +50102,7 @@ func (c *Client) ReadConfigVersion(ctx context.Context, version int, reqEditors 
 
 // ApplyConfigWithBody Apply a planned configuration change
 //
-// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 //
 // Takes any type of body and a specified content type.
 //
@@ -50118,7 +50121,7 @@ func (c *Client) ApplyConfigWithBody(ctx context.Context, params *ApplyConfigPar
 
 // ApplyConfig Apply a planned configuration change
 //
-// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -77942,6 +77945,17 @@ func NewApplyConfigRequestWithBody(server string, params *ApplyConfigParams, con
 			}
 
 			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
+		}
+
+		if params.IdempotencyKey != nil {
+			var headerParam2 string
+
+			headerParam2, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam2)
 		}
 
 	}
@@ -108862,7 +108876,7 @@ type ClientWithResponsesInterface interface {
 
 	// ApplyConfigWithBodyWithResponse Apply a planned configuration change
 	//
-	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -108871,7 +108885,7 @@ type ClientWithResponsesInterface interface {
 
 	// ApplyConfigWithResponse Apply a planned configuration change
 	//
-	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+	// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -163886,7 +163900,7 @@ func (c *ClientWithResponses) ReadConfigVersionWithResponse(ctx context.Context,
 
 // ApplyConfigWithBodyWithResponse Apply a planned configuration change
 //
-// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -163901,7 +163915,7 @@ func (c *ClientWithResponses) ApplyConfigWithBodyWithResponse(ctx context.Contex
 
 // ApplyConfigWithResponse Apply a planned configuration change
 //
-// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`.
+// Applies a plan by its hash, all or nothing, against the configuration it was planned on: a configuration changed since is refused as `config.version_conflict`. A plan that hides data or changes permissions needs `acknowledge`. From an agent the plan waits for a person unless the workspace allows agents to apply, and is answered as `PROPOSED`. A plan that changes the sign-in rule (`step_up`) needs a fresh proof in `X-Hubtask-Step-Up`. A retry after a lost answer sent under the same `Idempotency-Key` is answered the earlier result rather than `config.version_conflict`.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
