@@ -160,6 +160,7 @@ func TestAnEmailIsRenderedInTheRecipientsLocale(t *testing.T) {
 
 // A reminder rides the same delivery as everything else, and gets the one pair of message codes
 // with no actor in it: nobody caused it, and a sentence naming somebody would name the clock.
+// UC-NOT-02 check 6.
 func TestAReminderIsRenderedInItsOwnWordsAndInTheRecipientsLocale(t *testing.T) {
 	fixture := delivery(t, domain.CategoryReminder, true)
 	fixture.delivery.Accounts = newAccounts(
@@ -191,6 +192,7 @@ func TestAReminderIsRenderedInItsOwnWordsAndInTheRecipientsLocale(t *testing.T) 
 
 // The acceptance criterion of data-protection.md §9: no rendered email carries item content beyond
 // the title. Not a habit but a test over the output.
+// UC-NOT-01 check 3.
 func TestNoRenderedEmailCarriesContentBeyondTheTitle(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	// The entry's notes are content this message must never carry.
@@ -215,6 +217,7 @@ func TestNoRenderedEmailCarriesContentBeyondTheTitle(t *testing.T) {
 
 // The title is switchable, and switching it off leaves a message that says something concerns you
 // and where to look.
+// UC-NOT-03 check 3.
 func TestAWithheldTitleUsesTheOtherSentence(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	quiet := domain.DefaultPreference(tenant, bert, domain.CategoryComment, domain.ChannelEmail)
@@ -276,6 +279,7 @@ func TestSwitchingOffWhileTheMessageWaitsSuppressesIt(t *testing.T) {
 
 // An installation without a mail server sends no email by its operator's decision: the record is
 // suppressed with that reason at once, rather than retried into a dead letter nothing will drain.
+// UC-NOT-05 check 2.
 func TestWithoutAMailServerTheMessageIsSuppressedNotRetried(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	fixture.delivery.WithoutMail = true
@@ -295,6 +299,8 @@ func TestWithoutAMailServerTheMessageIsSuppressedNotRetried(t *testing.T) {
 
 // SMTP down means the notification waits: the record stays pending, the error comes back, and the
 // queue's retry is what catches up (observability-reliability.md §7).
+// UC-NOT-01 check 7.
+// UC-NOT-05 check 3.
 func TestAnUnreachableServerLeavesTheNotificationWaiting(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	fixture.mailbox.err = shared.ErrUnavailable.WithDetail("dependency.unavailable")
@@ -318,6 +324,7 @@ func TestAnUnreachableServerLeavesTheNotificationWaiting(t *testing.T) {
 }
 
 // The last attempt is the queue's judgement, and the record follows it.
+// UC-NOT-01 check 7.
 func TestTheLastAttemptMarksTheRecordFailed(t *testing.T) {
 	fixture := delivery(t, domain.CategoryComment, true)
 	fixture.mailbox.err = errors.New("refused for good")
@@ -620,6 +627,7 @@ func (r subscriptionReader) Find(_ context.Context, id shared.ID) (integrationre
 // A message about a rule is rendered in the rule's own words with the rule's name
 // as its title and a link to the rule's screen; the entry is never asked for. A rule that is gone
 // leaves the withheld sentence, as an entry that is gone does.
+// UC-NOT-04 check 1.
 func TestAMessageAboutARuleNamesTheRuleAndLinksToIt(t *testing.T) {
 	ruleID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f1")
 	fixture := delivery(t, domain.CategoryIntegration, false)

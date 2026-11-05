@@ -205,6 +205,7 @@ func TestANonASCIISubjectIsEncoded(t *testing.T) {
 
 // The SMTP half of T-06's reasoning: a header separator in user content ends the header and starts
 // whatever follows it.
+// UC-NOT-05 check 4.
 func TestHeaderInjectionIsRefusedBeforeAnythingIsDialled(t *testing.T) {
 	// No server at all: a refusal that reached the network would be a refusal that came too late.
 	sender := mail.NewSMTP(env.MailConfig{
@@ -286,6 +287,7 @@ func TestARefusedRecipientDoesNotCarryTheAddressOut(t *testing.T) {
 
 // An installation that never set HUBTASK_SMTP_HOST is not broken; it is one whose notifications
 // wait. Reported as the dependency being down, which is what /meta/health says about it.
+// UC-NOT-05 check 2.
 func TestNoServerConfiguredIsADependencyThatIsDown(t *testing.T) {
 	err := mail.NewSMTP(env.MailConfig{From: "hubtask@test.invalid"}).
 		Send(context.Background(), port.Message{To: "anna@test.invalid", Subject: "Hello"})

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-11, P-12]
 state: built
 tasks: [D-02, D-03, F3-13]
-checked_by: [core/application/service/notification/RecordReminder_test.go, test/integration/reminder_firing_test.go]
+checked_by: [core/application/service/notification/RecordReminder_test.go, test/integration/reminder_firing_test.go, core/application/service/notification/DeliverNotification_test.go]
 ---
 
 # Get my reminders by mail

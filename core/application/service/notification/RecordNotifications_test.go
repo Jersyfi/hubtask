@@ -111,6 +111,7 @@ func TestTheConsumerWantsOnlyWhatConcernsSomebody(t *testing.T) {
 	}
 }
 
+// UC-NOT-01 check 1.
 func TestAnAssignmentTellsTheAssignee(t *testing.T) {
 	fixture := consumer(t, bert)
 
@@ -152,6 +153,7 @@ func TestAnAssignmentTellsTheAssignee(t *testing.T) {
 
 // The whole entry is told about a comment, and each person once: somebody who is both the assignee
 // and on the member list is one recipient, not two.
+// UC-NOT-01 check 1.
 func TestACommentTellsTheAssigneeAndTheMembersOnce(t *testing.T) {
 	fixture := consumer(t, bert, bert, carla)
 
@@ -180,6 +182,7 @@ func TestACommentTellsTheAssigneeAndTheMembersOnce(t *testing.T) {
 
 // Being told about your own comment is not news. The record is written anyway, because "why did I
 // hear nothing" deserves an answer.
+// UC-NOT-01 check 2.
 func TestSomebodyIsNotToldAboutTheirOwnAction(t *testing.T) {
 	fixture := consumer(t, anna, anna)
 
@@ -204,6 +207,7 @@ func TestSomebodyIsNotToldAboutTheirOwnAction(t *testing.T) {
 
 // The acceptance criterion: a recipient who has switched a category off receives nothing, and the
 // record says why.
+// UC-NOT-03 check 2.
 func TestSwitchingACategoryOffLeavesARecordThatSaysWhy(t *testing.T) {
 	fixture := consumer(t, bert)
 	fixture.preferences.switchOff(bert, domain.CategoryAssignment)
@@ -232,6 +236,7 @@ func TestSwitchingACategoryOffLeavesARecordThatSaysWhy(t *testing.T) {
 
 // The correction for at-least-once delivery: the second consumption writes nothing and queues
 // nothing (ADR-0007).
+// UC-NOT-01 check 8.
 func TestTheSameEventDeliveredTwiceSendsOneMessage(t *testing.T) {
 	fixture := consumer(t, bert)
 
