@@ -33,7 +33,7 @@
   import TemplatePreview from '../settings/TemplatePreview.svelte';
   import { familyMark, markOf, switchedOn, type Family } from './hubGallery.ts';
   import TemplateTakeFields from './TemplateTakeFields.svelte';
-  import { afterStarter, PURPOSES, STARTER_SETS, starterFamilies, templateStarterBody, type Purpose } from './starterSet.ts';
+  import { afterStarter, PURPOSES, purposeStarterBody, starterFamilies, templateStarterBody, type Purpose } from './starterSet.ts';
 
   interface Props {
     /** Ran after the set was made, with where to open: the template's main product, else the hub. */
@@ -165,12 +165,7 @@
   }
 
   function startPurpose(purpose: Purpose) {
-    const set = STARTER_SETS[purpose];
-    void run(`purpose:${purpose}`, {
-      hub_name: t(set.hub.name),
-      hub_preset: set.hub.preset,
-      collections: set.collections.map((each) => ({ name: t(each.name), ...(each.preset ? { preset: each.preset } : {}) })),
-    });
+    void run(`purpose:${purpose}`, purposeStarterBody(purpose, (code) => t(code)));
   }
 
   function startTemplate() {
@@ -204,6 +199,7 @@
         </TemplateGallery>
         {#if list?.status === 'loading'}<Spinner label={t('app.templates.reading')} />{/if}
       {:else if family === 'simple'}
+        <p class="hint" data-starter-samples-note>{t('app.starter.simple_samples')}</p>
         <TemplateGallery label={t('app.workspace.hub_family.simple')}>
           {#each PURPOSES as purpose (purpose)}
             {@const label = t(`app.starter.purpose.${purpose}`)}

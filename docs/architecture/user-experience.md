@@ -232,7 +232,9 @@ the workspace part's, since the hub part can only be planned once the hub exists
 After a skip, `GET /tenant` answers `starter_skipped` while the workspace holds nothing somebody
 made; Today's first steps then carry *Choose what you use Hubtask for*, which opens the same
 dialog, and `starter:apply` takes the set once more under the tenant row's lock (dismissing it
-again sends nothing).
+again sends nothing). A *Simple* set's collections carry a few sample entries in the reader's
+language (`StarterCollection.samples`), made and marked as the hub's samples in the same
+transaction, so *Remove sample entries* takes them as a template's.
 
 ### 3.3 Today, the place the app opens on
 

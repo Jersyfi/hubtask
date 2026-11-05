@@ -103,6 +103,7 @@ test('chromium: the first start - asked once, answered by one command making a h
   for (const purpose of ['MYSELF', 'HOUSEHOLD', 'CLIENTS', 'TEAM']) {
     assert.equal(await dialog.locator(`[data-starter-purpose="${purpose}"]`).count(), 1, `${purpose} is not offered`);
   }
+  assert.match(await dialog.locator('[data-starter-samples-note]').innerText(), /sample entries/, 'the sets do not say they bring sample entries');
   await dialog.locator('[data-starter-purpose="HOUSEHOLD"] button').click();
   await page.waitForURL(`**/hubs/${STARTED_HUB}`, { timeout: 10_000 });
 
@@ -112,7 +113,11 @@ test('chromium: the first start - asked once, answered by one command making a h
   assert.deepEqual(sent[0].body, {
     hub_name: 'Home',
     hub_preset: 'TASKS',
-    collections: [{ name: 'Shopping', preset: 'LIST' }, { name: 'Chores' }, { name: 'Projects', preset: 'PROJECT' }],
+    collections: [
+      { name: 'Shopping', preset: 'LIST', samples: ['Milk', 'Detergent'] },
+      { name: 'Chores', samples: ['Take out the bins', 'Water the plants'] },
+      { name: 'Projects', preset: 'PROJECT', samples: ['Paint the hallway'] },
+    ],
   });
   // Not asked again.
   await page.goto(`${served.origin}/`);

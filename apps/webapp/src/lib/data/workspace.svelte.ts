@@ -29,7 +29,12 @@ const PATH = '/tenant';
 export interface StarterSetBody {
   readonly hub_name: string;
   readonly hub_preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
-  readonly collections: readonly { readonly name: string; readonly preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' }[];
+  readonly collections: readonly {
+    readonly name: string;
+    readonly preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
+    /** Titles of sample entries made in it, marked as the hub's samples. */
+    readonly samples?: readonly string[];
+  }[];
   readonly template?: string;
   readonly answers?: Readonly<Record<string, string>>;
   readonly samples?: boolean;

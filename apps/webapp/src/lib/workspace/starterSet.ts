@@ -21,6 +21,8 @@ export interface StarterPlace {
   readonly name: string;
   /** Its preset; absent on a collection that follows its hub. */
   readonly preset?: BuiltInKey;
+  /** The catalogue codes of a collection's sample entries' titles (user-experience.md §3.2). */
+  readonly samples?: readonly string[];
 }
 
 export interface StarterSet {
@@ -29,23 +31,39 @@ export interface StarterSet {
 }
 
 const name = (key: string): string => `app.starter.name.${key}`;
+const sample = (...keys: string[]): readonly string[] => keys.map((key) => `app.starter.sample.${key}`);
 
 export const STARTER_SETS: Readonly<Record<Purpose, StarterSet>> = {
   MYSELF: {
     hub: { name: name('personal'), preset: 'TASKS' },
-    collections: [{ name: name('to_do') }, { name: name('shopping'), preset: 'LIST' }, { name: name('ideas'), preset: 'LIST' }],
+    collections: [
+      { name: name('to_do'), samples: sample('plan_week', 'dentist') },
+      { name: name('shopping'), preset: 'LIST', samples: sample('coffee', 'bread') },
+      { name: name('ideas'), preset: 'LIST', samples: sample('weekend_trip') },
+    ],
   },
   HOUSEHOLD: {
     hub: { name: name('home'), preset: 'TASKS' },
-    collections: [{ name: name('shopping'), preset: 'LIST' }, { name: name('chores') }, { name: name('projects'), preset: 'PROJECT' }],
+    collections: [
+      { name: name('shopping'), preset: 'LIST', samples: sample('milk', 'detergent') },
+      { name: name('chores'), samples: sample('bins', 'plants') },
+      { name: name('projects'), preset: 'PROJECT', samples: sample('hallway') },
+    ],
   },
   CLIENTS: {
     hub: { name: name('clients'), preset: 'PROJECT' },
-    collections: [{ name: name('first_client') }, { name: name('pipeline'), preset: 'FLOW' }],
+    collections: [
+      { name: name('first_client'), samples: sample('proposal', 'kickoff') },
+      { name: name('pipeline'), preset: 'FLOW', samples: sample('lead') },
+    ],
   },
   TEAM: {
     hub: { name: name('team'), preset: 'PROJECT' },
-    collections: [{ name: name('projects') }, { name: name('requests'), preset: 'FLOW' }, { name: name('meetings'), preset: 'TASKS' }],
+    collections: [
+      { name: name('projects'), samples: sample('launch_plan') },
+      { name: name('requests'), preset: 'FLOW', samples: sample('drive_access') },
+      { name: name('meetings'), preset: 'TASKS', samples: sample('weekly_agenda') },
+    ],
   },
 };
 
@@ -63,6 +81,23 @@ export function starterFamilies<T extends FamilyOffered>(templates: readonly T[]
 }
 
 type FamilyOffered = Parameters<typeof familyOf>[0];
+
+/**
+ * The body of a purpose's set, its words in the reader's language: the hub, its collections and
+ * their sample entries, which come along unasked as a template's do (§3.2) and go in one press.
+ */
+export function purposeStarterBody(purpose: Purpose, words: (code: string) => string): StarterSetBody {
+  const set = STARTER_SETS[purpose];
+  return {
+    hub_name: words(set.hub.name),
+    hub_preset: set.hub.preset,
+    collections: set.collections.map((each) => ({
+      name: words(each.name),
+      ...(each.preset ? { preset: each.preset } : {}),
+      ...(each.samples && each.samples.length > 0 ? { samples: each.samples.map(words) } : {}),
+    })),
+  };
+}
 
 /** The body of a set built on a template: the hub named after it, its answers, samples and acknowledgement. */
 export function templateStarterBody(
