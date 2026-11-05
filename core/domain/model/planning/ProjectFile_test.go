@@ -51,6 +51,34 @@ func TestAProjectXMLBringsItsTasksAndLinks(t *testing.T) {
 	}
 }
 
+// UC-PLN-09 check 1: a project XML saved in a Western single-byte encoding that it declares is
+// read in it - "Prüfung – Abnahme" from Windows-1252 bytes, "Café" from ISO-8859-1 -, and one in
+// an encoding nobody reads here is refused as before.
+func TestAProjectXMLInADeclaredWesternEncodingIsRead(t *testing.T) {
+	file := func(encoding string, name []byte) []byte {
+		head := `<?xml version="1.0" encoding="` + encoding + `"?><Project><Tasks>` +
+			`<Task><UID>1</UID><Name>`
+		tail := `</Name><OutlineLevel>1</OutlineLevel><Start>2026-11-02T08:00:00</Start>` +
+			`<Finish>2026-11-03T17:00:00</Finish></Task></Tasks></Project>`
+		return append(append([]byte(head), name...), tail...)
+	}
+	for encoding, want := range map[string]string{"windows-1252": "Prüfung – Abnahme", "ISO-8859-1": "Café"} {
+		name := []byte{'P', 'r', 0xfc, 'f', 'u', 'n', 'g', ' ', 0x96, ' ', 'A', 'b', 'n', 'a', 'h', 'm', 'e'}
+		if want == "Café" {
+			name = []byte{'C', 'a', 'f', 0xe9}
+		}
+		tasks, err := planning.ParseProjectFile(planning.FormatProjectXML, file(encoding, name))
+		if err != nil || len(tasks) != 1 || tasks[0].Name != want {
+			t.Errorf("%s: tasks %+v, err %v", encoding, tasks, err)
+		}
+	}
+	_, err := planning.ParseProjectFile(planning.FormatProjectXML, file("Shift_JIS", []byte("x")))
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || refusal.DetailCode != "planning.import_not_xml" {
+		t.Errorf("an encoding nobody reads: %v", err)
+	}
+}
+
 // UC-PLN-09 check 2: a CSV with a header and the predecessors column in the usual notation.
 func TestACSVBringsItsTasksAndPredecessors(t *testing.T) {
 	csv := "ID;Name;Start;Finish;Predecessors;Outline Level;Milestone\n" +

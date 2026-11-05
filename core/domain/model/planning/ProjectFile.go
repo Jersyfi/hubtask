@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -74,7 +75,7 @@ func ParseProjectFile(format FileFormat, content []byte) ([]FileTask, error) {
 		return nil, shared.ErrValidation.WithDetail("planning.import_too_large").
 			WithParams(map[string]string{"maximum": strconv.Itoa(MaxFileBytes)})
 	}
-	if !utf8.Valid(content) {
+	if !utf8.Valid(content) && (format != FormatProjectXML || !western(declaredEncoding(content))) {
 		return nil, importInvalid("planning.import_not_utf8", "")
 	}
 	var (
@@ -158,11 +159,78 @@ type projectXML struct {
 // start to start.
 var xmlKinds = map[int]DependencyKind{0: FinishToFinish, 1: FinishToStart, 2: StartToFinish, 3: StartToStart}
 
+// westernLabels are the encodings a project tool saves an XML in besides UTF-8 that are read here:
+// the labels the web reads as Windows-1252, of which ISO-8859-1 and ASCII are subsets.
+var westernLabels = []string{"windows-1252", "cp1252", "x-cp1252", "iso-8859-1", "iso8859-1", "iso_8859-1", "latin1", "l1", "us-ascii", "ascii"}
+
+func western(label string) bool {
+	return slices.Contains(westernLabels, strings.ToLower(strings.TrimSpace(label)))
+}
+
+// declaredEncoding is the encoding an XML declaration names, empty for none.
+func declaredEncoding(content []byte) string {
+	if !bytes.HasPrefix(content, []byte("<?xml")) {
+		return ""
+	}
+	end := bytes.Index(content, []byte("?>"))
+	if end < 0 {
+		return ""
+	}
+	prolog := string(content[:end])
+	at := strings.Index(prolog, "encoding=")
+	if at < 0 || at+len("encoding=") >= len(prolog) {
+		return ""
+	}
+	rest := prolog[at+len("encoding="):]
+	quote := rest[0]
+	if quote != '"' && quote != '\'' {
+		return ""
+	}
+	closing := strings.IndexByte(rest[1:], quote)
+	if closing < 0 {
+		return ""
+	}
+	return rest[1 : 1+closing]
+}
+
+// windows1252 are the code points of the bytes 0x80-0x9F; the others are ISO-8859-1's, the byte's
+// own value. An unassigned byte keeps its own value, as the web reads it.
+var windows1252 = [32]rune{
+	0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F,
+	0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178,
+}
+
+func fromWindows1252(raw []byte) string {
+	var out strings.Builder
+	out.Grow(len(raw))
+	for _, b := range raw {
+		switch {
+		case b < 0x80:
+			out.WriteByte(b)
+		case b < 0xA0:
+			out.WriteRune(windows1252[b-0x80])
+		default:
+			out.WriteRune(rune(b))
+		}
+	}
+	return out.String()
+}
+
 func parseProjectXML(content []byte) ([]FileTask, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	// The decoder resolves no external entity, and strict it refuses one it was not told of: a
 	// project file is read, never fetched from.
 	decoder.Strict = true
+	decoder.CharsetReader = func(label string, input io.Reader) (io.Reader, error) {
+		if !western(label) {
+			return nil, errors.New("an encoding not read here")
+		}
+		raw, err := io.ReadAll(input)
+		if err != nil {
+			return nil, err
+		}
+		return strings.NewReader(fromWindows1252(raw)), nil
+	}
 	var doc projectXML
 	if err := decoder.Decode(&doc); err != nil {
 		return nil, importInvalid("planning.import_not_xml", "")
