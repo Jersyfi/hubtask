@@ -454,6 +454,17 @@ func TestACommentIsItsAuthorsAndItsThreadEverybodys(t *testing.T) {
 	if err != nil || resolved.ResolvedBy != bert {
 		t.Fatalf("resolved %+v, %v", resolved, err)
 	}
+	// Taking it back repeats harmlessly - a retry whose first answer was lost; another person's
+	// take-back of a comment gone stays not found.
+	takeBack := ChangePageComment{Space: f.space}
+	for range 2 {
+		if _, err := takeBack.Execute(context.Background(), as(anna), ChangePageCommentCommand{CommentID: comment.ID, Delete: true}); err != nil {
+			t.Fatalf("taking it back: %v", err)
+		}
+	}
+	if _, err := takeBack.Execute(context.Background(), as(bert), ChangePageCommentCommand{CommentID: comment.ID, Delete: true}); code(err) != "pages.comment_not_found" {
+		t.Fatalf("got %v; want pages.comment_not_found", err)
+	}
 }
 
 // UC-DOC-02 check 1: the live document of a page is judged at its hub, as the page - opened by

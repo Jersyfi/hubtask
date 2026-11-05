@@ -213,6 +213,11 @@ func (h ChangePageComment) Execute(ctx context.Context, actor appshared.ActorCon
 	if err := h.Space.authorizeWrite(ctx, actor, page.HubID, current.ID, action, commentTarget); err != nil {
 		return domain.Comment{}, err
 	}
+	// A DELETE repeats harmlessly (api-guidelines.md): its author taking it back again - a retry
+	// whose first answer was lost - is answered as done, and nothing is written twice.
+	if current.IsDeleted() && cmd.Delete && cmd.Body == nil && cmd.Resolved == nil && current.AuthorID == actor.AccountID {
+		return current, nil
+	}
 	if current.IsDeleted() {
 		return domain.Comment{}, shared.ErrNotFound.WithDetail("pages.comment_not_found")
 	}

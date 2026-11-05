@@ -169,6 +169,13 @@ func TestACommentIsResolvedByAWriterAndChangedByItsAuthor(t *testing.T) {
 	if _, err := (DeleteWhiteboardComment{Studio: s}).Descriptor().Handler.Invoke(ctx, actor(anna), usecase.Input{"comment_id": thread["id"]}); err != nil {
 		t.Fatal(err)
 	}
+	// A retry - the first answer lost - is answered as the first: taken back, nothing written again.
+	if _, err := (DeleteWhiteboardComment{Studio: s}).Descriptor().Handler.Invoke(ctx, actor(anna), usecase.Input{"comment_id": thread["id"]}); err != nil {
+		t.Fatalf("a repeated take-back: %v", err)
+	}
+	if _, err := change.Invoke(ctx, actor(anna), usecase.Input{"comment_id": thread["id"], "resolved": false}); detail(err) != "whiteboards.comment_not_found" {
+		t.Fatalf("a comment taken back was changed: %v", err)
+	}
 	list, err := ListWhiteboardComments{Studio: s}.Descriptor().Handler.Invoke(ctx, actor(bert), usecase.Input{"whiteboard_id": board})
 	if err != nil {
 		t.Fatal(err)
