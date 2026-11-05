@@ -100,12 +100,19 @@ func (h ListCiGroups) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				cis, err := s.hubCIs(ctx, hub)
-				if err != nil {
+				members := make([]int, len(groups))
+				if err := s.eachCI(ctx, hub, func(ci domain.CI) bool {
+					for i, g := range groups {
+						if g.Filter.Matches(ci, reg.classes) {
+							members[i]++
+						}
+					}
+					return true
+				}); err != nil {
 					return err
 				}
-				for _, g := range groups {
-					data = append(data, GroupOutput(g, len(g.Members(cis, reg.classes))))
+				for i, g := range groups {
+					data = append(data, GroupOutput(g, members[i]))
 				}
 				return nil
 			})
@@ -188,11 +195,16 @@ func (h DefineCiGroup) Descriptor() usecase.Descriptor {
 					return err
 				}
 				g.Version = version + 1
-				cis, err := s.hubCIs(ctx, hub)
-				if err != nil {
+				members := 0
+				if err := s.eachCI(ctx, hub, func(ci domain.CI) bool {
+					if g.Filter.Matches(ci, reg.classes) {
+						members++
+					}
+					return true
+				}); err != nil {
 					return err
 				}
-				out = GroupOutput(g, len(g.Members(cis, reg.classes)))
+				out = GroupOutput(g, members)
 				if s.Changes != nil {
 					if err := s.Changes.Record(ctx, changelog.Change{
 						TenantID: actor.TenantID, Entity: GroupEntity, EntityID: g.ID, Op: changelog.Upsert,
@@ -243,14 +255,12 @@ func (h ListCiGroupMembers) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				cis, err := s.hubCIs(ctx, g.HubID)
-				if err != nil {
-					return err
-				}
-				for _, ci := range g.Members(cis, reg.classes) {
-					data = append(data, usecase.Output{"ci_id": ci.ID.String(), "class": ci.Class, "name": ci.Name, "stage": string(ci.Stage)})
-				}
-				return nil
+				return s.eachCI(ctx, g.HubID, func(ci domain.CI) bool {
+					if g.Filter.Matches(ci, reg.classes) {
+						data = append(data, usecase.Output{"ci_id": ci.ID.String(), "class": ci.Class, "name": ci.Name, "stage": string(ci.Stage)})
+					}
+					return true
+				})
 			})
 			return usecase.Output{"group": GroupOutput(g, len(data)), "data": data}, err
 		}),

@@ -21,22 +21,41 @@ const (
 	ReadCiImpactName   = "ReadCiImpact"
 )
 
-// hubCIs reads a hub's whole inventory, page by page.
+// inventoryPage is how many CIs one read of a hub's inventory holds.
+const inventoryPage = 1000
+
+// hubCIs reads a hub's whole inventory, page by page: for the views that judge the set as one
+// (health, software, the service map). What looks at one CI at a time uses eachCI instead.
 func (s Inventory) hubCIs(ctx context.Context, hub shared.ID) ([]domain.CI, error) {
 	var out []domain.CI
+	err := s.eachCI(ctx, hub, func(ci domain.CI) bool {
+		out = append(out, ci)
+		return true
+	})
+	return out, err
+}
+
+// eachCI hands a hub's inventory to visit one CI at a time, a page in memory at most, until visit
+// answers false or MaxCIsPerHub were handed.
+func (s Inventory) eachCI(ctx context.Context, hub shared.ID, visit func(domain.CI) bool) error {
 	var after shared.ID
-	for len(out) < domain.MaxCIsPerHub {
-		page, err := s.Store.ListCIs(ctx, hub, nil, after, 1000)
+	for seen := 0; seen < domain.MaxCIsPerHub; {
+		page, err := s.Store.ListCIs(ctx, hub, nil, after, inventoryPage)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		out = append(out, page...)
-		if len(page) < 1000 {
-			break
+		for _, ci := range page {
+			seen++
+			if !visit(ci) {
+				return nil
+			}
+		}
+		if len(page) < inventoryPage {
+			return nil
 		}
 		after = page[len(page)-1].ID
 	}
-	return out, nil
+	return nil
 }
 
 // conflictRuns is how many of a hub's latest runs a source's conflict rate is read from.

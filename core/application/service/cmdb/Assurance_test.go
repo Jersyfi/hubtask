@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"context"
+	"fmt"
 	"errors"
 	"testing"
 	"time"
@@ -134,6 +135,15 @@ func (a *assured) PutGroup(_ context.Context, g domain.Group, _ int) error {
 }
 
 func (a *assured) Groups(context.Context, shared.ID) ([]domain.Group, error) { return a.groups, nil }
+
+func (a *assured) FindGroup(_ context.Context, id shared.ID) (domain.Group, error) {
+	for _, g := range a.groups {
+		if g.ID == id {
+			return g, nil
+		}
+	}
+	return domain.Group{}, shared.ErrNotFound
+}
 
 func (a *assured) PutAsset(_ context.Context, x domain.Asset, expected int) error {
 	if a.assets[x.CIID].Version != expected {
@@ -407,5 +417,45 @@ func TestSoftwareIsCountedByItsProductAndAnAliasNamesIt(t *testing.T) {
 	}
 	if got["Visual Studio Code"] != 1 || got["mozilla firefox"] != 2 {
 		t.Errorf("products: %v", got)
+	}
+}
+
+// A group's members and a campaign's scope are read a page of the inventory at a time: the counts
+// span every page, and a campaign that has asked more than it may stops reading and is refused.
+func TestGroupsAndACampaignReadTheInventoryAPageAtATime(t *testing.T) {
+	f, _ := assuredFixture()
+	machines := domain.MaxCampaignCIs + 1500
+	for i := range machines {
+		id := shared.MustParseID(fmt.Sprintf("01936f2a-7c1e-7000-8000-1%011d", i))
+		f.m.cis[id] = domain.CI{
+			ID: id, HubID: hub, Class: "virtual_machine", Name: fmt.Sprintf("vm-%d", i),
+			Stage: domain.StageInUse, Status: domain.StatusOK, Version: 1,
+		}
+	}
+	out, err := call(t, DefineCiGroup{Inventory: f.inv}.Descriptor(), as(anna), usecase.Input{
+		"hub_id": hub.String(), "key": "machines", "name": "Machines",
+		"filter": map[string]any{"classes": []any{"virtual_machine"}},
+	})
+	if err != nil || out["members"] != machines+1 {
+		t.Fatalf("group: %v %v", out["members"], err)
+	}
+	listed, err := call(t, ListCiGroups{Inventory: f.inv}.Descriptor(), as(bert), usecase.Input{"hub_id": hub.String()})
+	if err != nil || listed["data"].([]usecase.Output)[0]["members"] != machines+1 {
+		t.Fatalf("groups: %v %v", listed["data"], err)
+	}
+	members, err := call(t, ListCiGroupMembers{Inventory: f.inv}.Descriptor(), as(bert), usecase.Input{"group_id": out["id"]})
+	if err != nil || len(members["data"].([]usecase.Output)) != machines+1 {
+		t.Fatalf("members: %v", err)
+	}
+
+	f.m.listed = 0
+	_, err = call(t, StartCiCampaign{Inventory: f.inv}.Descriptor(), as(anna), usecase.Input{
+		"hub_id": hub.String(), "name": "Every machine", "classes": []any{"virtual_machine"}, "due_on": "2026-11-30",
+	})
+	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "cmdb.campaign_too_large" {
+		t.Fatalf("a campaign over %d machines answered %v", machines, err)
+	}
+	if whole := (len(f.m.cis) + inventoryPage - 1) / inventoryPage; f.m.listed >= whole {
+		t.Errorf("the campaign read %d pages of %d, past what it may ask", f.m.listed, whole)
 	}
 }

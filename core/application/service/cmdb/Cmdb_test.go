@@ -84,6 +84,8 @@ func (hubs) Find(_ context.Context, id shared.ID) (work.Container, error) {
 
 type memory struct {
 	repository.Store
+	// listed counts the inventory pages read.
+	listed int
 	classes   []domain.Class
 	sources   []domain.Source
 	cis       map[shared.ID]domain.CI
@@ -132,6 +134,7 @@ func (m *memory) FindCI(_ context.Context, id shared.ID, _ bool) (domain.CI, err
 	return ci, nil
 }
 func (m *memory) ListCIs(_ context.Context, h shared.ID, classes []string, after shared.ID, limit int) ([]domain.CI, error) {
+	m.listed++
 	var out []domain.CI
 	for _, ci := range m.cis {
 		if ci.HubID == h && ci.ID > after && (len(classes) == 0 || slices.Contains(classes, ci.Class)) {

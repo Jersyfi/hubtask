@@ -192,15 +192,15 @@ func (h StartCiCampaign) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				cis, err := s.hubCIs(ctx, hub)
-				if err != nil {
-					return err
-				}
+				// Read until one more than a campaign may ask: past that it is refused all the same.
 				var asked []domain.Attestation
-				for _, ci := range cis {
+				if err := s.eachCI(ctx, hub, func(ci domain.CI) bool {
 					if c.InScope(ci, reg.classes) {
 						asked = append(asked, domain.Attestation{CampaignID: c.ID, CIID: ci.ID, Owner: ci.Compliance.OwnerAccount, Verdict: domain.VerdictPending})
 					}
+					return len(asked) <= domain.MaxCampaignCIs
+				}); err != nil {
+					return err
 				}
 				if len(asked) == 0 {
 					return invalid("/classes", "cmdb.campaign_asks_nothing")
