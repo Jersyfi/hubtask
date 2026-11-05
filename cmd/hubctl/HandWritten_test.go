@@ -68,6 +68,7 @@ var handWritten = map[string]string{
 	"container structure":              "draws the levels and their settings as a table",
 	"container emergency-access":       "proves the person afresh with a prompt",
 	"workspace structure":              "draws the levels and their settings as a table",
+	"workspace demo":                   "writes the showcase through many operations, each object marked as sample content",
 	"preset ls":                        "draws each preset's levels and views",
 	"quota show":                       "draws each quota with its use and approach",
 	"module ls":                        "draws each module's state and who decided it",

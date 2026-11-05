@@ -27,6 +27,13 @@ func workspaceGroup() group {
 				summary: "show or change the structure every hub and collection inherits, its locks and the default preset",
 				run:     workspaceStructure,
 			},
+			{
+				name:    "demo",
+				usage:   workspaceDemoUsage,
+				summary: "fill the workspace with the showcase, every object marked as sample content - or remove it",
+				run:     workspaceDemo,
+				waits:   true,
+			},
 		},
 	}
 }
