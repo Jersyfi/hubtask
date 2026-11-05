@@ -1544,6 +1544,13 @@ type KeptFigures interface {
 	Verify(ctx context.Context, figure KeptFigure, at time.Time) (bool, error)
 }
 
+// Milestone is when a collection or hub was last left with nothing open, and how many entries
+// created after that moment are open now (UC-WRK-29 check 4).
+type Milestone struct {
+	ReachedAt time.Time
+	OpenSince int
+}
+
 // Milestones records and reads the last moment a collection or hub was left with nothing open
 // (UC-WRK-29 check 4). Nothing open counts every entry neither archived nor trashed, at any level.
 type Milestones interface {
@@ -1558,7 +1565,7 @@ type Milestones interface {
 	// holds an open entry, and reports whether it did.
 	RecordHub(ctx context.Context, hubID shared.ID, at time.Time) (bool, error)
 	// Of answers the milestones of the given containers; a container without one is absent.
-	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]time.Time, error)
+	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]Milestone, error)
 }
 
 // Kudos keeps one person's acknowledgement of another's completion (UC-WRK-29 checks 5 and 6).

@@ -39,6 +39,21 @@ WHERE NOT EXISTS (
 ON CONFLICT (tenant_id, container_id) DO UPDATE SET reached_at = EXCLUDED.reached_at;
 
 -- name: MilestonesOf :many
--- The milestones of one page of containers.
-SELECT container_id, reached_at FROM container_milestone
-WHERE tenant_id = current_tenant_id() AND container_id = ANY(sqlc.arg('container_ids')::uuid[]);
+-- The milestones of one page of containers, each with the entries created after it that are open
+-- now, by the same "open" as above (UC-WRK-29 check 4). A container is a collection or a hub, never
+-- both, so one count reads the entries of either: directly in it, or in a collection of it.
+SELECT m.container_id, m.reached_at, ((
+  SELECT count(*) FROM work_item w
+  WHERE w.tenant_id = current_tenant_id() AND w.collection_id = m.container_id
+    AND w.is_completed = false AND w.archived_at IS NULL AND w.deleted_at IS NULL
+    AND w.created_at > m.reached_at
+) + (
+  SELECT count(*) FROM work_item w
+  JOIN container c ON c.tenant_id = w.tenant_id AND c.id = w.collection_id
+  WHERE w.tenant_id = current_tenant_id() AND c.parent_id = m.container_id
+    AND c.archived_at IS NULL AND c.deleted_at IS NULL
+    AND w.is_completed = false AND w.archived_at IS NULL AND w.deleted_at IS NULL
+    AND w.created_at > m.reached_at
+))::bigint AS open_since
+FROM container_milestone m
+WHERE m.tenant_id = current_tenant_id() AND m.container_id = ANY(sqlc.arg('container_ids')::uuid[]);

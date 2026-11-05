@@ -768,8 +768,9 @@ chip with its label hidden, kept by Enter or by leaving it and refused at the ch
 by its arrow, or carried by a mouse onto the other lane; the head says the days left and how much
 of the scope is done beside a small burndown, whose table is folded under the board. The backlog
 lists the collection's top-level entries. Not built: a finger carrying a card (it scrolls; the
-arrow is its way), and the milestone sentence *All done on … · n open since* (the milestone
-answers no count of entries added since).
+arrow is its way). A finished collection's or hub's head says *All done on … · n open since*,
+counting the open entries created after the milestone (`open_since`); the milestone stays when
+entries are added.
 
 The releases follow the same anatomy: the head says how many are planned, the next one and its day
 (or that it is late) and how many went out, with *Plan a release* its primary and *Release* and

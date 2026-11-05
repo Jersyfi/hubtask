@@ -6,7 +6,6 @@ package work
 import (
 	"context"
 	"maps"
-	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -168,15 +167,15 @@ func (h GetContainer) invoke(
 func milestonesOf(
 	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
 	milestones repository.Milestones, containers []domain.Container,
-) (map[shared.ID]time.Time, error) {
+) (map[shared.ID]repository.Milestone, error) {
 	if milestones == nil || uow == nil || len(containers) == 0 {
-		return map[shared.ID]time.Time{}, nil
+		return map[shared.ID]repository.Milestone{}, nil
 	}
 	ids := make([]shared.ID, 0, len(containers))
 	for _, container := range containers {
 		ids = append(ids, container.ID)
 	}
-	var found map[shared.ID]time.Time
+	var found map[shared.ID]repository.Milestone
 	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		found, err = milestones.Of(ctx, ids)
@@ -186,9 +185,9 @@ func milestonesOf(
 }
 
 // withMilestone adds a container's milestone to its output, where it has one.
-func withMilestone(out map[string]any, milestones map[shared.ID]time.Time, id shared.ID) map[string]any {
-	if reachedAt, reached := milestones[id]; reached {
-		out["milestone"] = map[string]any{"reached_at": reachedAt}
+func withMilestone(out map[string]any, milestones map[shared.ID]repository.Milestone, id shared.ID) map[string]any {
+	if milestone, reached := milestones[id]; reached {
+		out["milestone"] = map[string]any{"reached_at": milestone.ReachedAt, "open_since": milestone.OpenSince}
 	}
 	return out
 }

@@ -144,6 +144,9 @@ func containerResponse(out usecase.Output) openapi.Container {
 	}
 	if milestone, held := out["milestone"].(map[string]any); held {
 		container.Milestone = &openapi.ContainerMilestone{ReachedAt: timeValue(milestone["reached_at"])}
+		if openSince, counted := milestone["open_since"].(int); counted {
+			container.Milestone.OpenSince = &openSince
+		}
 	}
 	return container
 }

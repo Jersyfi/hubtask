@@ -3492,6 +3492,7 @@ class Container(TypedDict, total=False):
 
 class ContainerMilestone(TypedDict, total=False):
     reached_at: Required[str]
+    open_since: int
 
 Kudos = TypedDict("Kudos", {
     "item_id": Required[str],

@@ -25,7 +25,7 @@ The shopping list says "5 items · about €38", the household "3 due today", th
 1. The collection's setting *What counts* offers: open entries, the sum of a number field, due, the week's rhythm, progress, flow, or nothing; the head of the collection and its row in the navigation show the chosen figure.
 2. A list never shows a percentage; progress is offered only where a collection has entries with an end.
 3. The week's rhythm counts the days with something completed and never resets to zero or names a missed day.
-4. Finishing every entry of a collection or hub records a milestone shown on it with the date.
+4. Finishing every entry of a collection or hub records a milestone shown on it with the date; it stays when entries are added afterwards, and the open ones created after it are counted beside it: "All done on 2 Nov · 5 open since" (decision: the owner's sixth answers 15).
 5. A person may give *kudos* on an entry somebody else completed; the person who completed it sees who did, nobody sees counts per person.
 6. Figures about one person are shown only to that person: no administrator, auditor or report sees them; team figures count the collection, not people.
 7. The account's `celebrations` preference switches milestones, kudos and celebrations off together.

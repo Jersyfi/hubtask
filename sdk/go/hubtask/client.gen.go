@@ -15448,7 +15448,7 @@ type Container struct {
 	// KeyPrefix A collection's key prefix: the short word its entries' keys start with, "INC" in "INC-42". Given when the collection is made, derived from its name - the first three letters of one word, the initials of several - and unique in the workspace, never another collection's handle; a person may change or clear it. An entry's key is the prefix and its number where the collection has one, the handle in capitals and the number otherwise. A key in either form names the entry. Null on a hub.
 	KeyPrefix *string `json:"key_prefix,omitempty"`
 
-	// Milestone The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.
+	// Milestone The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards, which `open_since` counts; a later finish moves it. Absent until the first.
 	Milestone *ContainerMilestone `json:"milestone,omitempty"`
 	Name      string              `json:"name"`
 	OrderKey  *string             `json:"order_key,omitempty"`
@@ -15492,6 +15492,9 @@ type ContainerCreatePreset string
 
 // ContainerMilestone defines model for ContainerMilestone.
 type ContainerMilestone struct {
+	// OpenSince How many entries created after `reached_at` are open now, at any level and neither archived nor trashed; in a hub, in its collections that are neither archived nor trashed. Absent from a server that does not count them.
+	OpenSince *int `json:"open_since,omitempty"`
+
 	// ReachedAt When the completion that left nothing open reached the server.
 	ReachedAt time.Time `json:"reached_at"`
 }

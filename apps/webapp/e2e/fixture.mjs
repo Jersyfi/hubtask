@@ -765,7 +765,7 @@ function figureRoute(route, request, url, path) {
  * answers the account with its celebrations switched off.
  */
 const FINISHED_AT = '2026-10-20T16:30:00Z';
-export const FINISHED_HUB = { id: '01a0e2e0-0000-7000-8000-0000000025f1', type: 'HUB', parent_id: null, name: 'Garden', order_key: 'a3', version: 1, milestone: { reached_at: FINISHED_AT } };
+export const FINISHED_HUB = { id: '01a0e2e0-0000-7000-8000-0000000025f1', type: 'HUB', parent_id: null, name: 'Garden', order_key: 'a3', version: 1, milestone: { reached_at: FINISHED_AT, open_since: 5 } };
 export const FINISHED = { id: '01a0e2e0-0000-7000-8000-0000000025f2', type: 'COLLECTION', parent_id: FINISHED_HUB.id, name: 'Spring planting', order_key: 'a0', version: 1, milestone: { reached_at: FINISHED_AT } };
 const finishedEntry = (n, title, by) => ({
   id: `01a0e2e0-0000-7000-8000-0000000025f${n}`, type: 'TASK', title, collection_id: FINISHED.id, parent_id: null, depth: 0, order_key: `a${n}`, version: 2,

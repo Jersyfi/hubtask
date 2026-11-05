@@ -54405,7 +54405,7 @@
           },
           "milestone": {
             "$ref": "#/components/schemas/ContainerMilestone",
-            "description": "The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.\n"
+            "description": "The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards, which `open_since` counts; a later finish moves it. Absent until the first.\n"
           }
         }
       },
@@ -54419,6 +54419,11 @@
             "type": "string",
             "format": "date-time",
             "description": "When the completion that left nothing open reached the server."
+          },
+          "open_since": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many entries created after `reached_at` are open now, at any level and neither archived nor trashed; in a hub, in its collections that are neither archived nor trashed. Absent from a server that does not count them.\n"
           }
         }
       },

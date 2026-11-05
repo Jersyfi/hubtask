@@ -4003,6 +4003,7 @@
   "app.figure.unavailable": "Konnte nicht gezählt werden",
   "app.figure.as_of": "Stand {time}",
   "app.milestone.reached": "Alles erledigt am {date}",
+  "app.milestone.open_since": "{count} seitdem offen",
   "app.kudos.give": "Loben",
   "app.kudos.give_to": "{name} für das Erledigen loben",
   "app.kudos.given": "Gelobt",

@@ -32,16 +32,32 @@ func (q *Queries) LockHubMilestone(ctx context.Context, hubID pgtype.UUID) error
 }
 
 const milestonesOf = `-- name: MilestonesOf :many
-SELECT container_id, reached_at FROM container_milestone
-WHERE tenant_id = current_tenant_id() AND container_id = ANY($1::uuid[])
+SELECT m.container_id, m.reached_at, ((
+  SELECT count(*) FROM work_item w
+  WHERE w.tenant_id = current_tenant_id() AND w.collection_id = m.container_id
+    AND w.is_completed = false AND w.archived_at IS NULL AND w.deleted_at IS NULL
+    AND w.created_at > m.reached_at
+) + (
+  SELECT count(*) FROM work_item w
+  JOIN container c ON c.tenant_id = w.tenant_id AND c.id = w.collection_id
+  WHERE w.tenant_id = current_tenant_id() AND c.parent_id = m.container_id
+    AND c.archived_at IS NULL AND c.deleted_at IS NULL
+    AND w.is_completed = false AND w.archived_at IS NULL AND w.deleted_at IS NULL
+    AND w.created_at > m.reached_at
+))::bigint AS open_since
+FROM container_milestone m
+WHERE m.tenant_id = current_tenant_id() AND m.container_id = ANY($1::uuid[])
 `
 
 type MilestonesOfRow struct {
 	ContainerID pgtype.UUID
 	ReachedAt   pgtype.Timestamptz
+	OpenSince   int64
 }
 
-// The milestones of one page of containers.
+// The milestones of one page of containers, each with the entries created after it that are open
+// now, by the same "open" as above (UC-WRK-29 check 4). A container is a collection or a hub, never
+// both, so one count reads the entries of either: directly in it, or in a collection of it.
 func (q *Queries) MilestonesOf(ctx context.Context, containerIds []pgtype.UUID) ([]MilestonesOfRow, error) {
 	rows, err := q.db.Query(ctx, milestonesOf, containerIds)
 	if err != nil {
@@ -51,7 +67,7 @@ func (q *Queries) MilestonesOf(ctx context.Context, containerIds []pgtype.UUID) 
 	items := []MilestonesOfRow{}
 	for rows.Next() {
 		var i MilestonesOfRow
-		if err := rows.Scan(&i.ContainerID, &i.ReachedAt); err != nil {
+		if err := rows.Scan(&i.ContainerID, &i.ReachedAt, &i.OpenSince); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
