@@ -786,3 +786,14 @@ OWNER: ["Delegate for an absent approver (UC-SVC-10): a person who is counted at
 ===== leftovers 2 fix 6 done True
 Not covered: a German account on an English browser still loads English at boot, because the account's locale only arrives after sign-in. This was already the case before. Found but not mine: 3 tests in apps/webapp/e2e/privacy.test.mjs fail (2 writes where 1 is expected). They fail the same way with the previous source checked out, so this change did not cause them; I did not fix them. Not run: the full e2e suite (I ran about 10 files), the full pnpm test under the other two time zones (I ran the unit tests in the default time zone only), and the Go checks (nothing on the Go side changed). Pushed to origin suite/concept. Notes are added to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
 ```
+
+## Needs a finding issue
+
+- **An offline timer stop stamped before the running timer's start.** A device that stopped its
+  timer offline replays `StopTimer` with `stopped_at`; when another device started a timer after
+  that moment, the replay answers `timers.not_started` (Timer.Stop, the span from the start) and
+  the other device's timer keeps running. The refusal keeps the running timer's time safe, but the
+  device's queued stop stays refused: which timer a stale stop ends, or whether it is dropped as
+  answered, is how the sync engine replays a time operation (offline-sync.md), so it is not
+  changed on this branch. Checked in core/domain/model/timekeeping/Timesheet.go and
+  core/application/service/timekeeping/Timers.go on 2026-11-05.

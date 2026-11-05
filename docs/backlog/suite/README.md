@@ -236,6 +236,18 @@ this list with its row.
 | Sixth answers | UC-SVC-10 names the delegate rule | closed by `380a6c603` (UC-SVC-10 *Where it ends*) |
 | Sixth answers | The milestone's open-since count | closed by `e9224026a` (additive `open_since`, UC-WRK-29 check 4, user-experience.md §7.5) |
 | Sixth answers, corrections | Who trashed a page or a whiteboard; the Assets screen's register and software for readers | closed by `a2c3bf55b` (migration 0371, `/trash` names the person) and `6daba8e22` (UC-AST-12 check 5) |
+| Final runs leftovers, network failure | Mail notifications without a mail server; an SMTP 5xx marks the address; the migrator's and the platform events' advisory lock; the audit filter by request id | closed before this round: `89879a733` (suppressed, not dead-lettered), `da91f742c` (`mail_undeliverable`), `462d6208f` (key 8_010_004), `de025b626` (`audit_request_idx`, migration 0359) |
+| Final runs leftovers, functional tests | Alertmanager groups over 200, relation across hubs, review and baseline days by the reader's zone, organisation named by a policy, IDN domains, priority re-targets running goals, requester panel, whiteboard trash past 1000 and the 999/1001 and baseline 19/21 races, votes from two devices, zero bytes in page titles, automatic milestone start, Windows-1252 project XML, a release on 1970-01-01, period close past 2000 goals, goal move cycles, agent approval before the act, the hourly budget window, the draft key of 63, a retried apply | closed by the second Leftovers round: `61effe9e3`, `b21ae8089`, `34ce01439`, `9c80e27e0`, `0046e8bca`, `b2f554057`, `3c5ebf1c0`, `af6bda9e2`, `37bce0eb9`, `7fceeab31`, `9e4862ab4`, `72ec954a7`, `4c3f85f67`, `11420aea5`, `d662ee0d4`, `1d2c49146`, `c97de7b4d`, `b2d587e82`, `c16baf857`, `8d7293c02`, `3986ffc3f` (checked against the code in this round) |
+| Final runs leftovers, functional tests | A rule write and DeleteRole counting the rules naming a role | closed by `883a4a1ce` (the write holds each named custom role FOR SHARE) |
+| Final runs leftovers, functional tests | An erasure leaves `mail_undeliverable`; no data-catalog row | closed by `351b402e6` (removed whatever is kept; data-catalog.md row) |
+| Final runs leftovers, functional tests | The board's WIP warning read a left-out count as 0 | closed by `aa2dcdad1` (the cards held are the least the column has) |
+| Final runs leftovers, functional tests | A stale firing reopened a resolved alert; two repeated firings opened two entries | closed by `0fef207bd` (migration 0372 `cmdb_alert.started_at`) and `0fb6dabe1` (the entry opened under the intake's lock, in a savepoint) |
+| Final runs leftovers, functional tests | A time record's year 0001-9999 | closed by `5b522e8ef` (2000-01-01..2099-12-31, `time.day_out_of_range`, domain-model.md) |
+| Final runs leftovers, functional tests | A poll cursor dated in the future | closed by `5226a44aa` (`triggers.cursor_invalid`) |
+| Final runs leftovers, functional tests | CalDAV custom zones; TZID=Local | closed by `4af722bd9` (the document's VTIMEZONE: offsets and a yearly rule by month and weekday) and `4445c6454` |
+| Final runs leftovers, functional tests | ReadPlanTolerance audited every read in exception | closed by `67dca5030` (once per baseline, migration 0373) |
+| Final runs leftovers, functional tests | A time note's length counted before NFC | no defect: nothing normalises a time note, and `char_length` counts the code points `utf8.RuneCountInString` counts |
+| Final runs leftovers, functional tests | An offline timer stop stamped before a start set by another device | open: a sync replay question, under "Needs a finding issue" in final-runs-leftovers.md |
 
 ## State
 
