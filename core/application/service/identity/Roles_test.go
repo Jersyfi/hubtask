@@ -298,8 +298,9 @@ type namingRules map[string]int
 
 func (n namingRules) Role(_ context.Context, key string) (int, error) { return n[key], nil }
 
-// A6, A11: a person may ask about themselves without any permission; about somebody else it takes
-// MANAGE_MEMBERS or READ_CONFIGURATION, and the answer names the role that carries the asked one.
+// UC-ID-26 check 5, with the test after the next: a person may ask about themselves without any
+// permission; about somebody else it takes MANAGE_MEMBERS or READ_CONFIGURATION, and the answer
+// names the role that carries the asked one (A6, A11).
 func TestExplainAccessAnswersWhoHoldsWhatAndThroughWhichRole(t *testing.T) {
 	held := &heldBy{held: access.Held{
 		Roles:       []string{"MEMBER"},
@@ -358,8 +359,8 @@ func TestListRolesLeavesOutTheGrantsOfAPrivateHubTheCallerCannotReach(t *testing
 	}
 }
 
-// UC-ID-16: what somebody else holds inside a private hub the caller cannot reach is not found, in
-// the words a missing hub produces, and nothing is read for it.
+// UC-ID-16, UC-ID-26 check 5: what somebody else holds inside a private hub the caller cannot reach
+// is not found, in the words a missing hub produces, and nothing is read for it.
 func TestExplainAccessDoesNotLookIntoAPrivateHubTheCallerCannotReach(t *testing.T) {
 	held := &heldBy{held: access.Held{
 		Roles:   []string{"MEMBER"},
