@@ -428,6 +428,17 @@ test('chromium: a member - the list as its settings make it, and no settings pag
   const hubRows = (await hubMenu.count()) === 0 ? [] : await menuRows(page, SHAPE_HUB.name);
   assert.ok(!hubRows.some((row) => row.startsWith('Structure')), `offered ${hubRows}`);
   assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people');
+  // Each face's initials stay whole: the face drawn over it covers only its edge.
+  const covered = await page.locator('[data-opener="members"]').evaluate((button) => {
+    const faces = [...button.querySelectorAll('.avatar, .more')].map((face) => {
+      const words = document.createRange();
+      words.selectNodeContents(face);
+      return { box: face.getBoundingClientRect(), text: words.getBoundingClientRect(), name: face.textContent };
+    }).sort((a, b) => a.box.left - b.box.left);
+    return faces.slice(1).flatMap((face, i) => (faces[i].box.right > face.text.left ? [`${face.name} by ${Math.round(faces[i].box.right - face.text.left)} px`] : []));
+  });
+  assert.ok(await page.locator('[data-opener="members"] .avatar').count() >= 2, 'the head draws fewer than two faces');
+  assert.deepEqual(covered, [], 'a face covers the initials of the next');
   assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'a ⚙ to settings the member may not change');
   // The address alone does not open them either: the page says whose they are. The completion
   // policy is one of them (UC-WRK-04 check 7), offered to the owner in Workflow above.
