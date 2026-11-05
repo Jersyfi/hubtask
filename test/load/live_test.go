@@ -275,7 +275,10 @@ func allDelivered(streams []*liveStream, sent map[string]time.Time) bool {
 
 func createEntry(client *http.Client, baseURL string, as tenant, n int) (string, int) {
 	body := fmt.Sprintf(`{"collection_id":%q,"type":"TASK","title":"live n%d"}`, as.collection, n)
-	request, err := http.NewRequest(http.MethodPost, baseURL+"/api/v1/items", bytes.NewReader([]byte(body)))
+	// The client's own 30 s timeout bounds the call; the deadline says so to the linter too (rule 7).
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/items", bytes.NewReader([]byte(body)))
 	if err != nil {
 		return "", 0
 	}
