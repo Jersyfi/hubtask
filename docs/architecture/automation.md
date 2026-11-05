@@ -867,7 +867,9 @@ every refusal is the same `404`.
 | `ZABBIX` | a webhook media type posting `event_id`, `status` (`PROBLEM`/`1` fires, `RESOLVED`/`OK`/`0` resolves), `severity`, `title`, `host`, `host_name`, `host_ip` | `event_id`, else `trigger_id` | `host`, `host_name`, `host_ip` |
 | `CHECKMK` | a notification posting `host`, `service`, `state`, `notification_type`, `output`, `address` | `host/service`, or `host` | `host`, `address` |
 
-At most 200 alerts per delivery. An alert is bound to the one CI of the hub a host names by host
+At most 200 alerts per delivery: the first 200 of a larger one are taken and the rest answered as
+`truncated`, never the delivery refused whole (a sender does not resend after a `4xx`); an
+Alertmanager webhook sets `max_alerts: 200`. An alert is bound to the one CI of the hub a host names by host
 name, address or name; with the intake's collection, a firing alert opens an entry there through
 `CreateWorkItem` - the registry, as the intake's person - its notes pointing at the CI, and its
 resolution completes it (`CompleteWorkItem`), a reopening reopens it (`ReopenWorkItem`).

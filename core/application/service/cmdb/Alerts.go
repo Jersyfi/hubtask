@@ -61,6 +61,8 @@ type AlertReceipt struct {
 	// EntriesFailed counts entries that could not be opened, closed or reopened; the alert is
 	// kept regardless.
 	EntriesFailed int
+	// Truncated counts the alerts past MaxAlertsPerDelivery, left untaken.
+	Truncated int
 }
 
 // intakeNotFound is every refusal before the delivery is trusted: an unknown connector, one
@@ -82,8 +84,12 @@ func (s Connectors) DeliverAlerts(ctx context.Context, d AlertDelivery, parse Al
 	if err != nil {
 		return AlertReceipt{}, err
 	}
+	var receipt AlertReceipt
 	if len(signals) > domain.MaxAlertsPerDelivery {
-		return AlertReceipt{}, invalid("/alerts", "cmdb.alerts_too_many", "maximum", itoa(domain.MaxAlertsPerDelivery))
+		// Refusing the delivery whole would lose every alert of it: a sender does not resend after
+		// a 4xx. The first ones are taken, the rest counted.
+		receipt.Truncated = len(signals) - domain.MaxAlertsPerDelivery
+		signals = signals[:domain.MaxAlertsPerDelivery]
 	}
 	checked := make([]domain.AlertSignal, 0, len(signals))
 	for _, sig := range signals {
@@ -93,7 +99,6 @@ func (s Connectors) DeliverAlerts(ctx context.Context, d AlertDelivery, parse Al
 		}
 		checked = append(checked, sig)
 	}
-	var receipt AlertReceipt
 	for _, sig := range checked {
 		if err := s.receive(ctx, actor, c, sig, now, &receipt); err != nil {
 			return receipt, err
@@ -104,7 +109,8 @@ func (s Connectors) DeliverAlerts(ctx context.Context, d AlertDelivery, parse Al
 			audit.Change{Field: "received", Classification: audit.Open, To: receipt.Received},
 			audit.Change{Field: "opened", Classification: audit.Open, To: receipt.Opened},
 			audit.Change{Field: "resolved", Classification: audit.Open, To: receipt.Resolved},
-			audit.Change{Field: "entries_failed", Classification: audit.Open, To: receipt.EntriesFailed})
+			audit.Change{Field: "entries_failed", Classification: audit.Open, To: receipt.EntriesFailed},
+			audit.Change{Field: "truncated", Classification: audit.Open, To: receipt.Truncated})
 	})
 	return receipt, err
 }

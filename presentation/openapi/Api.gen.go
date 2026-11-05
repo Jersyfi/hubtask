@@ -13751,7 +13751,10 @@ type CiAlertReceipt struct {
 	Opened        int `json:"opened"`
 	Received      int `json:"received"`
 	Resolved      int `json:"resolved"`
-	Unchanged     int `json:"unchanged"`
+
+	// Truncated The alerts past the 200 one delivery takes, left untaken rather than the delivery refused; a webhook's `max_alerts: 200` keeps a delivery within it.
+	Truncated *int `json:"truncated,omitempty"`
+	Unchanged int  `json:"unchanged"`
 }
 
 // CiAsset defines model for CiAsset.
@@ -25241,6 +25244,7 @@ type WhiteboardExportRequest struct {
 // WhiteboardList defines model for WhiteboardList.
 type WhiteboardList struct {
 	Data []Whiteboard `json:"data"`
+	Page *PageInfo    `json:"page,omitempty"`
 }
 
 // WhiteboardMediaPlacement defines model for WhiteboardMediaPlacement.
@@ -27429,7 +27433,9 @@ type AddHubTemplatePageJSONBody struct {
 
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
 type ListWhiteboardsParams struct {
-	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
+	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
+	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
@@ -46444,6 +46450,32 @@ func (siw *ServerInterfaceWrapper) ListWhiteboards(w http.ResponseWriter, r *htt
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "trashed"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "trashed", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
 		}
 		return
 	}

@@ -106,7 +106,6 @@
   "cmdb.alert_not_found": "Der Alarm wurde nicht gefunden.",
   "cmdb.alert_status_unknown": "Ein Alarm ist ausgelöst oder behoben.",
   "cmdb.alerts_malformed": "Die Alarme ließen sich im Format des Überwachungsprogramms nicht lesen.",
-  "cmdb.alerts_too_many": "Eine Lieferung nimmt höchstens {maximum} Alarme.",
   "cmdb.connector_base_url_invalid": "Die Adresse eines Konnektors ist eine https-Adresse ohne Name, Passwort, Abfrage oder Fragment.",
   "cmdb.connector_base_url_required": "Diese Art Konnektor braucht die Adresse, von der er abruft.",
   "cmdb.connector_collection_not_in_hub": "Die Sammlung für die Einträge der Alarme muss im Hub des Konnektors liegen.",

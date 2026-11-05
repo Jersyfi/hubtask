@@ -13757,7 +13757,10 @@ type CiAlertReceipt struct {
 	Opened        int `json:"opened"`
 	Received      int `json:"received"`
 	Resolved      int `json:"resolved"`
-	Unchanged     int `json:"unchanged"`
+
+	// Truncated The alerts past the 200 one delivery takes, left untaken rather than the delivery refused; a webhook's `max_alerts: 200` keeps a delivery within it.
+	Truncated *int `json:"truncated,omitempty"`
+	Unchanged int  `json:"unchanged"`
 }
 
 // CiAsset defines model for CiAsset.
@@ -25247,6 +25250,7 @@ type WhiteboardExportRequest struct {
 // WhiteboardList defines model for WhiteboardList.
 type WhiteboardList struct {
 	Data []Whiteboard `json:"data"`
+	Page *PageInfo    `json:"page,omitempty"`
 }
 
 // WhiteboardMediaPlacement defines model for WhiteboardMediaPlacement.
@@ -27435,7 +27439,9 @@ type AddHubTemplatePageJSONBody struct {
 
 // ListWhiteboardsParams defines parameters for ListWhiteboards.
 type ListWhiteboardsParams struct {
-	Trashed *bool `form:"trashed,omitempty" json:"trashed,omitempty"`
+	Trashed *bool   `form:"trashed,omitempty" json:"trashed,omitempty"`
+	Cursor  *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit   *int    `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
@@ -36264,7 +36270,7 @@ type ClientInterface interface {
 
 	// ListWhiteboards A hub's whiteboards
 	//
-	// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+	// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. A page holds at most `limit` (1000 by default, a hub's most boards outside the trash); `page.next_cursor` continues it, null on the last page. Needs READ on the hub and the whiteboard module switched on.
 	//
 	// Corresponds with GET /hubs/{hubId}/whiteboards (the `ListWhiteboards` operationId).
 	ListWhiteboards(ctx context.Context, hubId openapi_types.UUID, params *ListWhiteboardsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -53348,7 +53354,7 @@ func (c *Client) ListTrashedPages(ctx context.Context, hubId openapi_types.UUID,
 
 // ListWhiteboards A hub's whiteboards
 //
-// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. A page holds at most `limit` (1000 by default, a hub's most boards outside the trash); `page.next_cursor` continues it, null on the last page. Needs READ on the hub and the whiteboard module switched on.
 //
 // Corresponds with GET /hubs/{hubId}/whiteboards (the `ListWhiteboards` operationId).
 func (c *Client) ListWhiteboards(ctx context.Context, hubId openapi_types.UUID, params *ListWhiteboardsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -84144,6 +84150,30 @@ func NewListWhiteboardsRequest(server string, hubId openapi_types.UUID, params *
 
 		}
 
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if encoded := queryValues.Encode(); encoded != "" {
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
@@ -110460,7 +110490,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListWhiteboardsWithResponse A hub's whiteboards
 	//
-	// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+	// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. A page holds at most `limit` (1000 by default, a hub's most boards outside the trash); `page.next_cursor` continues it, null on the last page. Needs READ on the hub and the whiteboard module switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -166576,7 +166606,7 @@ func (c *ClientWithResponses) ListTrashedPagesWithResponse(ctx context.Context, 
 
 // ListWhiteboardsWithResponse A hub's whiteboards
 //
-// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. Needs READ on the hub and the whiteboard module switched on.
+// The hub's boards without their objects, the last changed first, each with how many objects it holds; with `trashed`, the boards in the hub's trash instead. A page holds at most `limit` (1000 by default, a hub's most boards outside the trash); `page.next_cursor` continues it, null on the last page. Needs READ on the hub and the whiteboard module switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //

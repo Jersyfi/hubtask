@@ -3090,6 +3090,8 @@ var generatedCommands = []door{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
 		},
 		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "limit", Kind: "integer", Help: "", Required: false},
 			{Name: "trashed", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "title", "version"}},

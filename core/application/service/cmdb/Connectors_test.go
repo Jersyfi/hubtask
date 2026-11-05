@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"context"
+	"fmt"
 	"errors"
 	"strconv"
 	"strings"
@@ -611,5 +612,21 @@ func TestAnAlertWhoseEntryCouldNotBeOpenedOpensItAtItsNextFiring(t *testing.T) {
 	}
 	if _, err = f.c.DeliverAlerts(ctx, AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, fire); err != nil || len(f.entries.calls) != 2 {
 		t.Fatalf("and only once: %v %v", f.entries.calls, err)
+	}
+}
+
+// A delivery of more alerts than one takes is not refused whole - a monitoring program does not
+// resend after a 4xx, so every alert would be lost: the first ones are taken and the rest counted
+// as truncated (the webhook's max_alerts keeps a delivery within it).
+func TestADeliveryOfTooManyAlertsTakesTheFirstAndCountsTheRest(t *testing.T) {
+	f := newConnectorFixture()
+	id, key := intake(t, f)
+	var many []domain.AlertSignal
+	for i := 0; i < domain.MaxAlertsPerDelivery+3; i++ {
+		many = append(many, domain.AlertSignal{Key: fmt.Sprintf("k%d", i), Status: domain.AlertResolved, Title: "ok"})
+	}
+	receipt, err := f.c.DeliverAlerts(context.Background(), AlertDelivery{TenantID: tenant, ConnectorID: id, Bearer: key}, signals(many...))
+	if err != nil || receipt.Received != domain.MaxAlertsPerDelivery || receipt.Truncated != 3 {
+		t.Fatalf("a crowded delivery: %+v, %v", receipt, err)
 	}
 }

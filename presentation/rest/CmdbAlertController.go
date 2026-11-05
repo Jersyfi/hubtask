@@ -61,7 +61,7 @@ func (c *IntakeDoor) DeliverCiAlerts(
 	}
 	writeJSON(w, r, http.StatusAccepted, openapi.CiAlertReceipt{
 		Received: receipt.Received, Opened: receipt.Opened, Resolved: receipt.Resolved,
-		Unchanged: receipt.Unchanged, EntriesFailed: receipt.EntriesFailed,
+		Unchanged: receipt.Unchanged, EntriesFailed: receipt.EntriesFailed, Truncated: &receipt.Truncated,
 	})
 }
 

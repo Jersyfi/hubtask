@@ -106,7 +106,6 @@
   "cmdb.alert_not_found": "The alert was not found.",
   "cmdb.alert_status_unknown": "An alert is firing or resolved.",
   "cmdb.alerts_malformed": "The alerts could not be read in the monitoring program's format.",
-  "cmdb.alerts_too_many": "One delivery takes at most {maximum} alerts.",
   "cmdb.connector_base_url_invalid": "A connector's address is an https address without a name, password, query or fragment.",
   "cmdb.connector_base_url_required": "This kind of connector needs the address it pulls from.",
   "cmdb.connector_collection_not_in_hub": "The collection for an alert's entries has to be in the connector's hub.",

@@ -6326,6 +6326,7 @@ class CiAlertReceipt(TypedDict, total=False):
     resolved: Required[int]
     unchanged: Required[int]
     entries_failed: Required[int]
+    truncated: int
 
 class ChatBot(TypedDict, total=False):
     id: Required[str]
@@ -6710,6 +6711,7 @@ class CmdbHealth(TypedDict, total=False):
 
 class WhiteboardList(TypedDict, total=False):
     data: Required[list["Whiteboard"]]
+    page: "PageInfo"
 
 WhiteboardElement = TypedDict("WhiteboardElement", {
     "id": Required[str],
