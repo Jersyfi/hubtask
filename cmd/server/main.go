@@ -33,7 +33,6 @@ import (
 	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	idempotencyrepo "github.com/Jersyfi/hubtask/core/application/repository/idempotency"
-	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	importrepo "github.com/Jersyfi/hubtask/core/application/repository/importer"
 	streamsrepo "github.com/Jersyfi/hubtask/core/application/repository/streams"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -5527,7 +5526,6 @@ func run() error {
 	// asked for.
 	if err := applyInstanceFile(ctx, applyingInstanceFile{
 		path: cfg.InstanceFile, mode: instanceFileMode,
-		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
 		plans:      planWriter,
@@ -6375,10 +6373,9 @@ func (b backupRunsInBackground) LastSuccessPerTarget(
 type applyingInstanceFile struct {
 	path string
 	mode instancefile.Mode
-	// settings is the plain repository, used to ask whether the level is already there. `seed`
-	// turns on that question and nothing else.
-	settings identityrepository.InstanceSettings
-	write    adminservice.WriteInstanceSettings
+	// write is the level's writer over the plain repository; `seed` asks it first whether the level
+	// is already there.
+	write adminservice.WriteInstanceSettings
 	// ai offers the models the file names, through the operator's writer without its
 	// authorisation: the file is the operator's own configuration.
 	ai adminservice.InstanceAiWriter
@@ -6641,35 +6638,19 @@ func fileNamesPlatformSubscriptions(path string) bool {
 
 // applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
 func applyLevel(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
-	if applying.mode == instancefile.ModeSeed {
-		var already bool
-		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),
-			func(ctx context.Context) error {
-				level, err := applying.settings.Read(ctx)
-				if err != nil {
-					return err
-				}
-				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
-					!level.Localisation.IsZero() || !level.Quotas.IsZero() || !level.Ai.IsZero()
-				return nil
-			}); err != nil {
-			return err
-		}
-		if already {
-			slog.Info("the instance level is already set; the file seeded it once",
-				"source", applying.path)
-			return nil
-		}
-	}
-
 	// Through the use case, with the system actor: the file is a client of the API and meets every
 	// refusal the other two doors meet.
 	level, err := adminservice.InstanceLevelOf(document)
 	if err != nil {
 		return err
 	}
-	if _, err := applying.write.ExecuteAsFile(ctx, level, applying.path); err != nil {
+	written, err := applying.write.ApplyFile(ctx, level, applying.mode == instancefile.ModeSeed, applying.path)
+	if err != nil {
 		return err
+	}
+	if !written {
+		slog.Info("the instance level is already set; the file seeded it once", "source", applying.path)
+		return nil
 	}
 	slog.Info("the instance level was written from the file",
 		"source", applying.path, "mode", string(applying.mode))

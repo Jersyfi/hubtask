@@ -61,7 +61,9 @@ func TestALocalisationDefaultCannotBeLocked(t *testing.T) {
 }
 
 // A week start no level below could show is refused rather than stored: a day outside the week, and
-// a weekday no locale starts its week on, which neither an account nor a workspace can name.
+// a weekday no locale starts its week on, which neither an account nor a workspace can name. The
+// reader is the file's and the API's alike, so what one door refuses the other does (UC-INS-02
+// check 3).
 func TestAWeekStartOutsideTheThreeDaysIsRefused(t *testing.T) {
 	for _, value := range []any{float64(0), float64(8), float64(-1), float64(3), "TUESDAY", "monday"} {
 		_, err := InstanceLevelOf(map[string]any{
@@ -135,7 +137,8 @@ func TestAnUnknownQuotaIsSkippedRatherThanRefused(t *testing.T) {
 	}
 }
 
-// A file in `enforce` mode is the source, and it is rewritten at every start. A save accepted here
+// UC-INS-02 check 2: a file in `enforce` mode is the source, and it is rewritten at every start; the
+// API refuses with the file's path. A save accepted here
 // is a save the next restart silently undoes, which is worse than a refusal — the operator would
 // believe their change took.
 func TestAWriteIsRefusedWhileAFileEnforcesTheLevel(t *testing.T) {
@@ -186,6 +189,40 @@ func TestTheFileItselfMayWriteWhatTheAPIMayNot(t *testing.T) {
 	}
 	if journal.entries[0].ActorLabel != "/etc/hubtask/instance.json" {
 		t.Errorf("the journal names %q rather than the source", journal.entries[0].ActorLabel)
+	}
+}
+
+// UC-INS-02 checks 1 and 2: a file in `seed` mode is written on the first start that finds the
+// level empty and then left alone; one in `enforce` mode is written at every start.
+func TestASeedingFileIsWrittenOnceAndAnEnforcingOneAtEveryStart(t *testing.T) {
+	const source = "/etc/hubtask/instance.json"
+	level := func(minLength int) identityrepo.InstanceLevel {
+		return identityrepo.InstanceLevel{
+			Policy: identity.PolicyLayer{Patch: identity.PolicyPatch{MinLength: intOf(minLength)},
+				Locks: map[identity.PolicySwitch]bool{}},
+			Legal: identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
+		}
+	}
+	writer, settings, _ := newInstanceWriter(newRegister(operatorID))
+	write := WriteInstanceSettings{Writer: writer}
+
+	for start, want := range []bool{true, false, false} {
+		written, err := write.ApplyFile(t.Context(), level(12+start), true, source)
+		if err != nil || written != want {
+			t.Fatalf("seeding at start %d answered %v, %v - want written %v", start+1, written, err, want)
+		}
+	}
+	if got := *settings.level.Policy.Patch.MinLength; got != 12 || len(settings.writes) != 1 {
+		t.Fatalf("after three seeding starts the level reads %d from %d writes, want 12 from one", got, len(settings.writes))
+	}
+
+	for start := range 2 {
+		if written, err := write.ApplyFile(t.Context(), level(20+start), false, source); err != nil || !written {
+			t.Fatalf("enforcing at start %d answered %v, %v", start+1, written, err)
+		}
+	}
+	if got := *settings.level.Policy.Patch.MinLength; got != 21 || len(settings.writes) != 3 {
+		t.Errorf("after two enforcing starts the level reads %d from %d writes, want 21 from three", got, len(settings.writes))
 	}
 }
 

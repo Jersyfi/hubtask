@@ -159,6 +159,29 @@ func (h WriteInstanceSettings) ExecuteAsFile(
 	return h.write(ctx, appshared.ActorContext{AccountName: source}, level, 0, false)
 }
 
+// ApplyFile writes the instance file's level at start (ADR-0070 §5, UC-INS-02 checks 1 and 2): in
+// `seed` mode only when the level is still empty, so the file is written once and then left alone;
+// in `enforce` mode every time. It answers whether it wrote.
+func (h WriteInstanceSettings) ApplyFile(
+	ctx context.Context, level identityrepo.InstanceLevel, seed bool, source string,
+) (bool, error) {
+	if seed {
+		var already bool
+		if err := h.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+			stored, err := h.Writer.Settings.Read(ctx)
+			already = !stored.Policy.Patch.IsEmpty() || !stored.Legal.Links.IsEmpty() ||
+				!stored.Localisation.IsZero() || !stored.Quotas.IsZero() || !stored.Ai.IsZero()
+			return err
+		}); err != nil || already {
+			return false, err
+		}
+	}
+	if _, err := h.ExecuteAsFile(ctx, level, source); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Execute writes the level on a person's behalf, made on the version `expected` (UC-INS-09 check
 // 8). Zero means the caller named none, and the level is compared with the version read in the
 // same transaction - so two saves at once still refuse the second, as the workspace's own does.
