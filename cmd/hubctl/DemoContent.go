@@ -372,7 +372,9 @@ func (d *demo) runningSprint(ctx context.Context, collection string) string {
 			State string `json:"state"`
 		} `json:"data"`
 	}
-	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, "/collections/"+collection+"/sprints", nil, &sprints) }); err != nil {
+	if err := d.call(ctx, func(ctx context.Context) error {
+		return d.c.Get(ctx, "/collections/"+collection+"/sprints", nil, &sprints)
+	}); err != nil {
 		return ""
 	}
 	for _, s := range sprints.Data {
