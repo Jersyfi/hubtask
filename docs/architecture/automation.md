@@ -836,7 +836,10 @@ a circuit breaker per connector; 401 and 403 are `connector.unauthorised`, 429 i
 `connector.unreachable` - the run keeps the code, never the source's words (rule 10).
 
 A run is up to 50 pages, each reconciled and committed in a transaction of its own, so that no call
-holds one open; a failure keeps the cursor of the last page written. A scheduled connector is one
+holds one open; a failure keeps the cursor of the last page written. A run whose caller's deadline
+(the request's, or the job's) leaves less than twice its longest page so far, and at least two
+seconds, stops after the page it is on and keeps that cursor too: cut off by the deadline instead,
+it would keep its pages but not where they ended, and the next run would walk them again. A scheduled connector is one
 job per connector (`cmdb.connector_pull`, deduplicated by the connector), seeded by the definition
 and rescheduling itself to the connector's next moment; it runs with the rights of the person who
 last defined the connector, as an automation with the item scopes only, and switches itself off

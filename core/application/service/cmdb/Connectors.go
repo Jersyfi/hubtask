@@ -52,6 +52,11 @@ const (
 // cursor the last page reached.
 const MaxPagesPerRun = 50
 
+// minDeadlineReserve is the least of the caller's deadline a run keeps for one more page and its
+// record. A run its deadline cut off would keep its pages but not its cursor, and the next run
+// would walk them again; a run that stops short keeps both and continues there.
+const minDeadlineReserve = 2 * time.Second
+
 // intakeSecretBytes is the entropy of an alert intake's secret, a personal access token's.
 const intakeSecretBytes = 32
 
@@ -473,7 +478,12 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 	if dry {
 		pages = 1
 	}
+	var longest time.Duration
 	for did.pages < pages {
+		if did.pages > 0 && s.nearDeadline(ctx, longest) {
+			break
+		}
+		began := s.Inventory.Clock.Now()
 		page, err := s.Pullers.Pull(ctx, connectorport.Pull{
 			Connector: c.ID, Kind: c.Kind, BaseURL: c.BaseURL, Settings: c.SettingsCopy(), Hosts: c.Hosts(),
 			Credential: credential, Cursor: cursor,
@@ -498,6 +508,7 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 		}
 		add(&did.counts, run.Counts)
 		cursor = page.Cursor
+		longest = max(longest, s.Inventory.Clock.Now().Sub(began))
 		if !page.More {
 			break
 		}
@@ -556,6 +567,16 @@ func (s Connectors) pull(ctx context.Context, actor appshared.ActorContext, c do
 		return nil, err
 	}
 	return pullOutput(next, did, false), nil
+}
+
+// nearDeadline reports whether the caller's deadline leaves less than twice the longest page so far,
+// and at least minDeadlineReserve: the run stops there and keeps its cursor.
+func (s Connectors) nearDeadline(ctx context.Context, longest time.Duration) bool {
+	deadline, bounded := ctx.Deadline()
+	if !bounded {
+		return false
+	}
+	return deadline.Sub(s.Inventory.Clock.Now()) < max(minDeadlineReserve, 2*longest)
 }
 
 // runAlert keeps the hub's alert about a pull's own runs, inside the run's transaction, so the

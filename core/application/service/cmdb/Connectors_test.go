@@ -289,6 +289,38 @@ func TestAPullRunsEveryPageThroughTheReconciliationAndKeepsTheCursor(t *testing.
 	}
 }
 
+// UC-AST-07 check 3: a run whose caller's deadline is near stops after the page it is on and keeps
+// its cursor, so the next run continues there rather than walking the same pages again.
+func TestARunNearItsDeadlineStopsAndKeepsTheCursor(t *testing.T) {
+	f := newConnectorFixture()
+	id := idOf(t, f.define(t, usecase.Input{"hub_id": hub.String(), "key": "nb", "kind": "NETBOX", "source": "netbox",
+		"base_url": "https://netbox.example.org"}))
+	if _, err := call(t, SetCiConnectorCredential{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String(), "credential": "tok"}); err != nil {
+		t.Fatal(err)
+	}
+	item := func(n string) domain.Item {
+		return domain.Item{Class: "server", Name: "srv-" + n, NativeKey: n, Attributes: map[string]any{"hostname": "srv-" + n}}
+	}
+	f.src.pages = []connectorport.Page{
+		{Payload: domain.Payload{Items: []domain.Item{item("1")}}, Cursor: "c1", More: true},
+		{Payload: domain.Payload{Items: []domain.Item{item("2")}}, Cursor: "c2"},
+	}
+	// The fixture's clock stands at start: a second is left, under the reserve.
+	near, cancel := context.WithDeadline(context.Background(), start.Add(time.Second))
+	defer cancel()
+	out, err := RunCiConnector{f.c}.Descriptor().Handler.Invoke(near, as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil || out["pages"] != 1 || out["outcome"] != "OK" {
+		t.Fatalf("the run near its deadline: %v %v", out, err)
+	}
+	if c := f.store.conns[id]; c.Cursor != "c1" || c.LastOutcome != domain.ConnectorOK {
+		t.Fatalf("the cursor the page reached is not kept: %+v", c)
+	}
+	out, err = call(t, RunCiConnector{f.c}.Descriptor(), as(anna), usecase.Input{"connector_id": id.String()})
+	if err != nil || out["pages"] != 1 || f.src.cursors[1] != "c1" || len(f.m.cis) != 2 {
+		t.Fatalf("the next run does not continue there: %v %v, cursors %v", out, err, f.src.cursors)
+	}
+}
+
 // UC-AST-07 check 6.
 func TestAScheduledPullRunsAsItsDefinerWhenDue(t *testing.T) {
 	f := newConnectorFixture()
