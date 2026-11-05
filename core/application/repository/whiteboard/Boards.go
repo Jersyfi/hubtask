@@ -48,6 +48,8 @@ type Boards interface {
 	Update(ctx context.Context, board whiteboard.Board, expected int) error
 	// List answers a hub's boards without their scenes, the trashed ones or the others.
 	List(ctx context.Context, hubID shared.ID, trashed bool, limit int) ([]Summary, error)
+	// Count answers how many boards a hub holds outside the trash; it holds the hub's ceiling to
+	// the end of the transaction, so two creates count in turn.
 	Count(ctx context.Context, hubID shared.ID) (int, error)
 	// Referencing answers the boards that point at an object, at most limit.
 	Referencing(ctx context.Context, targetKind string, targetID shared.ID, limit int) ([]Pointing, error)

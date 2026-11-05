@@ -56,7 +56,8 @@ type Plans interface {
 
 // Baselines stores a plan's baselines (PLN-04).
 type Baselines interface {
-	// Count is how many baselines a plan keeps.
+	// Count is how many baselines a plan keeps; it holds the plan's ceiling to the end of the
+	// transaction, so two baselines taken at once count in turn.
 	Count(ctx context.Context, planID shared.ID) (int, error)
 	// Take writes the baseline and copies the plan's entries' dates into it at this moment, at
 	// most max; it answers how many it copied.

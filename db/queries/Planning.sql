@@ -39,6 +39,11 @@ SELECT id, dependency_kind, lag_days
 FROM entry_link
 WHERE tenant_id = current_tenant_id() AND id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: LockPlanBaselines :exec
+-- Taken before a plan's baselines are counted against their ceiling, for the rest of the
+-- transaction: two baselines taken at once count in turn.
+SELECT pg_advisory_xact_lock(hashtextextended('plan_baselines/' || sqlc.arg('plan_id')::uuid::text, 0));
+
 -- name: CountPlanBaselines :one
 SELECT count(*)::int AS baselines
 FROM plan_baseline

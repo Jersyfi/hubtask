@@ -159,7 +159,8 @@ func (r PlanningRepository) SetTiming(ctx context.Context, linkID shared.ID, tim
 // PlanningBaselines stores a plan's baselines.
 type PlanningBaselines struct{}
 
-// Count is how many baselines a plan keeps.
+// Count is how many baselines a plan keeps, under the plan's ceiling lock held to the end of the
+// transaction.
 func (PlanningBaselines) Count(ctx context.Context, planID shared.ID) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -168,6 +169,9 @@ func (PlanningBaselines) Count(ctx context.Context, planID shared.ID) (int, erro
 	key, err := uuidOf(planID)
 	if err != nil {
 		return 0, err
+	}
+	if err := queries.LockPlanBaselines(ctx, key); err != nil {
+		return 0, planningError(err, "locking a plan's baselines")
 	}
 	count, err := queries.CountPlanBaselines(ctx, key)
 	if err != nil {

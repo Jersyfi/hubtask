@@ -342,6 +342,17 @@ func (q *Queries) ListPlanEntries(ctx context.Context, arg ListPlanEntriesParams
 	return items, nil
 }
 
+const lockPlanBaselines = `-- name: LockPlanBaselines :exec
+SELECT pg_advisory_xact_lock(hashtextextended('plan_baselines/' || $1::uuid::text, 0))
+`
+
+// Taken before a plan's baselines are counted against their ceiling, for the rest of the
+// transaction: two baselines taken at once count in turn.
+func (q *Queries) LockPlanBaselines(ctx context.Context, planID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockPlanBaselines, planID)
+	return err
+}
+
 const setEntryLinkTiming = `-- name: SetEntryLinkTiming :execrows
 UPDATE entry_link SET dependency_kind = $1, lag_days = $2
 WHERE tenant_id = current_tenant_id() AND id = $3::uuid

@@ -220,7 +220,8 @@ func (WhiteboardRepository) List(ctx context.Context, hubID shared.ID, trashed b
 	})
 }
 
-// Count answers how many boards a hub holds outside the trash.
+// Count answers how many boards a hub holds outside the trash, under the hub's ceiling lock held
+// to the end of the transaction.
 func (WhiteboardRepository) Count(ctx context.Context, hubID shared.ID) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -229,6 +230,9 @@ func (WhiteboardRepository) Count(ctx context.Context, hubID shared.ID) (int, er
 	hub, err := uuidOf(hubID)
 	if err != nil {
 		return 0, err
+	}
+	if err := queries.LockHubWhiteboards(ctx, hub); err != nil {
+		return 0, boardFailed("locking the hub's boards", err)
 	}
 	count, err := queries.CountHubWhiteboards(ctx, hub)
 	if err != nil {

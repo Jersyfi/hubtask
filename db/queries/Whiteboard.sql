@@ -34,6 +34,11 @@ WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
 ORDER BY updated_at DESC, id
 LIMIT sqlc.arg('batch');
 
+-- name: LockHubWhiteboards :exec
+-- Taken before a hub's boards are counted against their ceiling, for the rest of the transaction:
+-- two creates at once count in turn, so neither passes the ceiling on the other's stale count.
+SELECT pg_advisory_xact_lock(hashtextextended('whiteboards/' || sqlc.arg('hub_id')::uuid::text, 0));
+
 -- name: CountHubWhiteboards :one
 SELECT count(*)::int FROM whiteboard
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND deleted_at IS NULL;

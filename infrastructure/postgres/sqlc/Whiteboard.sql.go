@@ -529,6 +529,17 @@ func (q *Queries) ListWhiteboardVersions(ctx context.Context, arg ListWhiteboard
 	return items, nil
 }
 
+const lockHubWhiteboards = `-- name: LockHubWhiteboards :exec
+SELECT pg_advisory_xact_lock(hashtextextended('whiteboards/' || $1::uuid::text, 0))
+`
+
+// Taken before a hub's boards are counted against their ceiling, for the rest of the transaction:
+// two creates at once count in turn, so neither passes the ceiling on the other's stale count.
+func (q *Queries) LockHubWhiteboards(ctx context.Context, hubID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, lockHubWhiteboards, hubID)
+	return err
+}
+
 const nameWhiteboardVersion = `-- name: NameWhiteboardVersion :execrows
 UPDATE whiteboard_version SET name = $1
 WHERE tenant_id = current_tenant_id() AND whiteboard_id = $2 AND seq = $3
