@@ -122,6 +122,8 @@ var PublicRoutes = map[string]bool{
 	// A page's public link, on the same trust model: the token is the whole authorisation, and
 	// the route validates it itself (UC-DOC-08).
 	http.MethodGet + " " + APIBasePath + "/public/pages/{token}": true,
+	// A picture that page draws, by the same token and only one the page holds (T-21).
+	http.MethodGet + " " + APIBasePath + "/public/pages/{token}/media/{mediaId}": true,
 	// A portfolio's roadmap opened by its public link, the same again (UC-GOL-03 check 15).
 	http.MethodGet + " " + APIBasePath + "/public/roadmaps/{token}": true,
 	// A collection's public form, the same again (UC-SVC-13): the submission is counted per
