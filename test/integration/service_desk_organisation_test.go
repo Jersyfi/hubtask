@@ -49,7 +49,7 @@ func TestOrganisationsStayInTheirWorkspace(t *testing.T) {
 	if !errors.As(err, &refusal) || refusal.DetailCode != "organisations.domain_taken" {
 		t.Errorf("a domain of another organisation: %v, want organisations.domain_taken", err)
 	}
-	changed, err := acme.Change("Acme Ltd", []string{"acme.example", "acme.test"}, true, now, text.Composing{})
+	changed, err := acme.Change("Acme Ltd", []string{"acme.example", "acme.test"}, true, now, text.Composing{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
