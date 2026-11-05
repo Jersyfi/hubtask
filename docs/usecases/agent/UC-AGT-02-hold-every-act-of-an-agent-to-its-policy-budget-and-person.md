@@ -23,7 +23,8 @@ its budget and the workspace's kill switch stop it, and every act is in its ledg
 
 *Triage* reads a ticket and proposes to move it; the move waits. Ana sees it among the agent's
 requests with what it would change, approves it, and the move happens as hers. At the hundred and
-twenty-first write of the hour the agent is told its budget renews at the full hour. During an
+twenty-first write within an hour the agent is told when its budget renews: sixty minutes after the
+oldest of those writes, never at the turn of a clock hour. During an
 incident the admin halts every agent of the workspace at once.
 
 ## How to check

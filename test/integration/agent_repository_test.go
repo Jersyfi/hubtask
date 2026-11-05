@@ -88,7 +88,7 @@ func TestAgentsStayInTheirWorkspace(t *testing.T) {
 			t.Errorf("agent = %+v %v", found, err)
 		}
 		usage, err := store.Usage(ctx, a.ID, now.Add(-time.Hour), now.Add(-24*time.Hour))
-		if err != nil || usage.ActionsLastHour != 1 || usage.TokensToday != 40 {
+		if err != nil || usage.ActionsLastHour != 1 || usage.TokensToday != 40 || !usage.FirstCounted.Equal(now) {
 			t.Errorf("usage = %+v %v", usage, err)
 		}
 		held, err := store.FindRequest(ctx, request.ID)

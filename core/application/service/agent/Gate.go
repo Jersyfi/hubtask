@@ -225,10 +225,11 @@ func heldInput(in usecase.Input) map[string]any {
 	return kept
 }
 
-// windows are the moments the budget counts from: the start of this hour, and of this day (UTC).
+// windows are the moments the budget counts from: an hour ago - a sliding hour, so no burst around
+// the turn of a clock hour spends two budgets - and the start of this day (UTC).
 func windows(now time.Time) (hour, day time.Time) {
 	now = now.UTC()
-	return now.Truncate(time.Hour), time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	return now.Add(-time.Hour), time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func haltOf(halted bool, by shared.ID, at time.Time) agentrepo.Halt {

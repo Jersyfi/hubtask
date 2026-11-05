@@ -22,7 +22,9 @@ const (
 
 // Usage is what an agent spent, as the ledger counts it at the moment of an act.
 type Usage struct {
+	// ActionsLastHour counts the acts of the last sixty minutes, FirstCounted is the oldest of them.
 	ActionsLastHour int
+	FirstCounted    time.Time
 	TokensToday     int64
 	// RunsNow counts its jobs still running (Job.Running).
 	RunsNow int
@@ -39,7 +41,7 @@ type Situation struct {
 	ModelRevision int
 	ModelRetired  bool
 	Usage         Usage
-	// HourEnds is when the hour the acts are counted in renews.
+	// HourEnds is when the oldest counted act leaves the last sixty minutes and frees a place.
 	HourEnds time.Time
 }
 

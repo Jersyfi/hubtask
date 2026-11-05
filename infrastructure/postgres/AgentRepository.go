@@ -353,7 +353,11 @@ func (AgentRepository) Usage(ctx context.Context, agent shared.ID, hourFrom, day
 	if err != nil {
 		return domain.Usage{}, agentError(err, "counting an agent's acts")
 	}
-	return domain.Usage{ActionsLastHour: int(row.Actions), TokensToday: row.Tokens, NotifiedLastHour: int(row.Notified)}, nil
+	usage := domain.Usage{ActionsLastHour: int(row.Actions), TokensToday: row.Tokens, NotifiedLastHour: int(row.Notified)}
+	if row.FirstCounted.Valid {
+		usage.FirstCounted = row.FirstCounted.Time
+	}
+	return usage, nil
 }
 
 func (AgentRepository) ListActions(ctx context.Context, agent shared.ID, before *time.Time, limit int) ([]domain.Action, error) {

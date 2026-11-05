@@ -173,8 +173,12 @@ func (d Desk) situation(ctx context.Context, a domain.Agent) (domain.Situation, 
 	if usage.RunsNow, err = d.Store.RunningJobs(ctx, a.ID, now.Add(-domain.JobLease)); err != nil {
 		return domain.Situation{}, err
 	}
+	renews := now.Add(time.Hour)
+	if !usage.FirstCounted.IsZero() {
+		renews = usage.FirstCounted.Add(time.Hour)
+	}
 	return domain.Situation{
-		Halted: halt.Halted, ModelRevision: revision, ModelRetired: retired, Usage: usage, HourEnds: hour.Add(time.Hour),
+		Halted: halt.Halted, ModelRevision: revision, ModelRetired: retired, Usage: usage, HourEnds: renews,
 	}, nil
 }
 

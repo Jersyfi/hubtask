@@ -179,6 +179,9 @@ func (s *store) Usage(_ context.Context, agent shared.ID, hourFrom, dayFrom time
 		}
 		if !a.At.Before(hourFrom) && a.Class != domain.ClassRead && a.Decision != domain.DecisionRefused {
 			u.ActionsLastHour++
+			if u.FirstCounted.IsZero() || a.At.Before(u.FirstCounted) {
+				u.FirstCounted = a.At
+			}
 		}
 		if !a.At.Before(dayFrom) {
 			u.TokensToday += a.Tokens
@@ -484,6 +487,37 @@ func TestTheGateHoldsAnAgentToItsGovernance(t *testing.T) {
 	if _, err := (DecideAgentRequest{Desk: f.desk}).Descriptor().Handler.Invoke(context.Background(), person(admin),
 		usecase.Input{"request_id": requestID.String(), "approve": true}); code(err) != "agents.request_decided" {
 		t.Fatalf("a second approval performed it again: %v", err)
+	}
+}
+
+// UC-AGT-02 check 7: the hour is the last sixty minutes, not the clock hour, so an agent cannot
+// spend two hours' budgets around the turn of an hour; it renews when its oldest counted act ages out.
+func TestTheBudgetCountsTheLastSixtyMinutes(t *testing.T) {
+	f := newFixture()
+	a := f.register(t, usecase.Input{
+		"kind": "EXTERNAL", "policy": map[string]any{"reversible": "ALLOW"}, "budget": map[string]any{"actions_per_hour": float64(1)},
+	})
+	f.live(t, a)
+	write := usecase.Descriptor{Name: "UpdateWorkItem"}
+	actor := appshared.ActorContext{Kind: appshared.ActorAIAgent, TenantID: tenantID, AccountID: a.AccountID}
+	run := func(at time.Time) error {
+		desk := f.desk
+		desk.Clock = clock.Fixed(at)
+		next := usecase.HandlerFunc(func(context.Context, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
+			return usecase.Output{}, nil
+		})
+		_, err := Gate{Desk: desk}.Wrap(nil)(write, next).Invoke(context.Background(), actor, usecase.Input{})
+		return err
+	}
+	if err := run(noon.Add(59*time.Minute + 30*time.Second)); err != nil {
+		t.Fatalf("the hour's one write: %v", err)
+	}
+	err := run(noon.Add(time.Hour + 30*time.Second))
+	if code(err) != "agents.budget_spent" || shared.AsError(err).Params["renews_at"] != "2026-11-02T13:59:30Z" {
+		t.Fatalf("a second write a minute later, past the clock hour: %v", err)
+	}
+	if err := run(noon.Add(2*time.Hour - 29*time.Second)); err != nil {
+		t.Fatalf("a write once the first aged out: %v", err)
 	}
 }
 
