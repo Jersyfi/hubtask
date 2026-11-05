@@ -102,15 +102,27 @@ func (r FigureReader) Count(
 	if len(requests) == 0 {
 		return figures
 	}
+	return r.countRequests(ctx, actor, uow, requests, structures, r.window(actor))
+}
 
+// window is the reader's day and week now.
+func (r FigureReader) window(actor appshared.ActorContext) domain.FigureWindow {
 	location := time.UTC
 	if actor.TimeZone != "" {
 		if loaded, err := time.LoadLocation(actor.TimeZone); err == nil {
 			location = loaded
 		}
 	}
-	window := domain.NewFigureWindow(r.Clock.Now(), location, actor.WeekStart)
+	return domain.NewFigureWindow(r.Clock.Now(), location, actor.WeekStart)
+}
 
+// countRequests counts the requests in the window, from what is kept where it still answers; each
+// request's collection has its structure in structures.
+func (r FigureReader) countRequests(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	requests []domain.FigureRequest, structures map[shared.ID]domain.EffectiveStructure, window domain.FigureWindow,
+) map[shared.ID]domain.CollectionFigure {
+	figures := map[shared.ID]domain.CollectionFigure{}
 	bounded, cancel := context.WithTimeout(ctx, figureDeadline)
 	defer cancel()
 	var offered []domain.FigureRequest

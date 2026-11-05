@@ -31,9 +31,9 @@ import (
 )
 
 // What counts in a collection, through every door against PostgreSQL (UC-WRK-29 checks 1-3): the
-// figure on the collection's read over REST and MCP, none on a hub or a trashed collection, and the
-// refusal of progress for a list on REST, MCP and an automation action. The production wiring below
-// the adapters; the clock fixed on Thursday 22 October 2026, 12:00 in Berlin.
+// figure on the collection's read over REST and MCP, a hub's from its collections, none on a trashed
+// collection, and the refusal of progress for a list on REST, MCP and an automation action. The
+// production wiring below the adapters; the clock fixed on Thursday 22 October 2026, 12:00 in Berlin.
 
 var figureMoment = time.Date(2026, 10, 22, 10, 0, 0, 0, time.UTC)
 
@@ -59,6 +59,7 @@ func figureCatalogue(t *testing.T) *usecase.Registry {
 	figures := work.FigureReader{
 		Figures: postgres.NewFigureRepository(), Clock: fixed, Profiles: postgres.NewCapabilityProfileRepository(),
 	}
+	hubFigures := work.HubFigureReader{Collections: containers, Structure: resolver, Figures: figures}
 	writer := work.ContainerWriter{
 		Containers: containers, Authorizer: authoriser, Events: postgres.NewOutbox(jobQueue(t)),
 		Changes: postgres.NewChangeLog(), Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,
@@ -74,11 +75,11 @@ func figureCatalogue(t *testing.T) *usecase.Registry {
 		}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authoriser, UnitOfWork: unitOfWork,
-			Structure: resolver, Figures: figures,
+			Structure: resolver, Figures: figures, HubFigures: hubFigures,
 		}.Descriptor(),
 		work.ListContainers{
 			Containers: containers, Authorizer: authoriser, Reader: authoriser, UnitOfWork: unitOfWork,
-			Structure: resolver, Figures: figures,
+			Structure: resolver, Figures: figures, HubFigures: hubFigures,
 		}.Descriptor(),
 		work.SetContainerStructure{
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
@@ -179,14 +180,36 @@ func TestACollectionsReadAnswersWhatCountsOnEveryDoor(t *testing.T) {
 		t.Errorf("the household's figure %v", got)
 	}
 
-	// The hub level: no figure on a hub.
+	// The hub level and the hub's read: the open top-level entries of its collections summed - the
+	// project's task, the list's two, the household's two; the trashed collection's none
+	// (user-experience.md §2.5).
 	_, hubs := restGet(ctx, t, registry, "/containers?type=HUB&page_size=200")
 	hubRows, _ := hubs["data"].([]any)
+	var hubFigure map[string]any
 	for _, row := range hubRows {
-		if container, _ := row.(map[string]any); container["figure"] != nil {
-			t.Errorf("a hub answered a figure: %v", container["figure"])
+		if container, _ := row.(map[string]any); container["id"] == hub {
+			hubFigure = figureIn(container)
 		}
 	}
+	if hubFigure["kind"] != "OPEN" || hubFigure["open"] != 5.0 || hubFigure["today"] != "2026-10-22" {
+		t.Errorf("the hub's row answered %v", hubFigure)
+	}
+	if code, body := restGet(ctx, t, registry, "/containers/"+hub); code != http.StatusOK || figureIn(body)["open"] != 5.0 {
+		t.Errorf("the hub's read answered %d %v", code, body["figure"])
+	}
+
+	// Another workspace asking for this hub's collections reads none (row level security).
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	inTenant(t, unitOfWork, tenantA, func(ctx context.Context) error {
+		found, err := containerRepo().CollectionsOfHubs(ctx, []shared.ID{shared.MustParseID(hub)}, 10)
+		if err != nil {
+			return err
+		}
+		if len(found) != 0 {
+			t.Errorf("tenant A read tenant B's collections: %v", found)
+		}
+		return nil
+	})
 
 	// A trashed collection read by its id: no figure.
 	if code, body := restGet(ctx, t, registry, "/containers/"+trashed); code != http.StatusOK || body["figure"] != nil {

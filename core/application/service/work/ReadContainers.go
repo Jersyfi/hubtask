@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -56,6 +57,8 @@ type GetContainer struct {
 	Structure StructureResolver
 	// Figures counts what counts in a collection, after the structure (UC-WRK-29).
 	Figures FigureReader
+	// HubFigures counts a hub's figure from its collections. A build without it answers none.
+	HubFigures HubFigureReader
 	// Milestones answers when the container was last finished (UC-WRK-29 check 4). A build
 	// without it answers none.
 	Milestones repository.Milestones
@@ -147,6 +150,7 @@ func (h GetContainer) invoke(
 		return nil, err
 	}
 	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, []domain.Container{container}, structures)
+	maps.Copy(figures, h.HubFigures.Count(ctx, actor, h.UnitOfWork, []domain.Container{container}, structures))
 	milestones, err := milestonesOf(ctx, actor, h.UnitOfWork, h.Milestones, []domain.Container{container})
 	if err != nil {
 		return nil, err
@@ -200,6 +204,8 @@ type ListContainers struct {
 	Structure StructureResolver
 	// Figures counts what counts in each collection of the page, one statement per kind on it.
 	Figures FigureReader
+	// HubFigures counts each hub's figure on the hub level, its collections in one statement.
+	HubFigures HubFigureReader
 	// Milestones answers when each container of the page was last finished, in one statement.
 	Milestones repository.Milestones
 }
@@ -373,6 +379,7 @@ func (h ListContainers) invoke(
 		return nil, err
 	}
 	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, page.Containers, structures)
+	maps.Copy(figures, h.HubFigures.Count(ctx, actor, h.UnitOfWork, page.Containers, structures))
 	milestones, err := milestonesOf(ctx, actor, h.UnitOfWork, h.Milestones, page.Containers)
 	if err != nil {
 		return nil, err

@@ -832,6 +832,8 @@ func run() error {
 		Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles,
 		Kept: keptFigures, Jobs: jobs,
 	}
+	// A hub's figure: the open entries of its collections, each counted as above.
+	hubFigures := work.HubFigureReader{Collections: containers, Structure: structures, Figures: figures}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
 	entryTypes := postgres.NewEntryTypeRepository()
@@ -3331,14 +3333,15 @@ func run() error {
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
-			Structure: structures, Figures: figures, Milestones: milestones,
+			Structure: structures, Figures: figures, HubFigures: hubFigures, Milestones: milestones,
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
 		// may see rather than refused outright (ReadContainers.Execute).
 		work.ListContainers{
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
+			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, HubFigures: hubFigures,
+			Milestones: milestones,
 		}.Descriptor(),
 		work.ListPresets{
 			Profiles: profiles, Presets: presets, Installation: installationPresets, UnitOfWork: unitOfWork,

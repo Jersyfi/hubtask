@@ -178,6 +178,14 @@ type Move struct {
 	ExpectedVersion int
 }
 
+// HubCollections reads the collections a hub's figure counts (UC-WRK-29): of each hub named, at
+// most perHub of those neither trashed nor archived, in their manual order, keyed by hub. A caller
+// that asks for one more than it counts tells from the answer that a hub holds more. Like List, it
+// judges no permission.
+type HubCollections interface {
+	CollectionsOfHubs(ctx context.Context, hubIDs []shared.ID, perHub int) (map[shared.ID][]work.Container, error)
+}
+
 // Containers stores hubs and collections.
 type Containers interface {
 	// Find returns the container, or ErrNotFound if it does not exist *for this tenant*. The two

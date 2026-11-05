@@ -252,7 +252,12 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   marked `unavailable` on that read and counted once more beside it, under a deadline of its own and
   one at a time per figure, and kept: the next read answers from it instead of paying the deadline
   again. Until such a late count answers within the read's deadline, a read that finds the figure
-  changed marks it at once and hands it to the late count rather than counting it itself. The workspace's `figure.recount` folds the
+  changed marks it at once and hands it to the late count rather than counting it itself. A hub's
+  read and the hub level answer the hub's figure, always `OPEN`: each of its collections that is
+  neither archived nor trashed counted as its own `OPEN` figure (its hidden entries left out, a kept
+  count answering as above) and summed; none where the hub's own structure counts `NONE`, and
+  `unavailable` where one of them could not be counted or the hub holds more than 500
+  (`HubFigureReader`) - never a sum of some. The workspace's `figure.recount` folds the
   recorded changes, drops what no read can be answered from and recounts the kept counts, writing
   the fresh count over one a write outside the workspace's context left wrong
   (`hubtask_figure_drift_total`). `FLOW` counts the top-level entries completed in the seven days up to the read, the average

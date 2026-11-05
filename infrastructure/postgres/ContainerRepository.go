@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -132,6 +133,41 @@ func (r ContainerRepository) List(
 			return security.At(last.OrderKey, last.ID)
 		})
 	return page, nil
+}
+
+// CollectionsOfHubs reads the collections each hub's figure counts, at most perHub of each, in one
+// statement (ListHubCollections).
+func (r ContainerRepository) CollectionsOfHubs(
+	ctx context.Context, hubIDs []shared.ID, perHub int,
+) (map[shared.ID][]work.Container, error) {
+	found := map[shared.ID][]work.Container{}
+	if len(hubIDs) == 0 || perHub <= 0 {
+		return found, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hubs, err := optionalUUIDs(hubIDs...)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListHubCollections(ctx, sqlc.ListHubCollectionsParams{
+		HubIds: hubs, PerHub: int32(min(perHub, math.MaxInt32)), //nolint:gosec // bounded just before
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the hubs' collections: %w", err))
+	}
+	for _, row := range rows {
+		container, err := containerFrom(sqlc.FindContainerRow(row))
+		if err != nil {
+			return nil, err
+		}
+		found[container.ParentID] = append(found[container.ParentID], container)
+	}
+	return found, nil
 }
 
 // LastOrderKey returns the highest rank at one level, or the empty string when the level is empty.

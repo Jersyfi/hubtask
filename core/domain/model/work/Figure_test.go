@@ -162,3 +162,46 @@ func TestTheFlowLooksBackARollingWeek(t *testing.T) {
 		}
 	}
 }
+
+// A hub's figure is the open entries of its collections summed (user-experience.md §2.5): a
+// collection that could not be counted makes the hub's unavailable rather than smaller, and the
+// oldest kept count among them is the moment the sum is as of.
+func TestAHubFigureSumsItsCollectionsOpenEntries(t *testing.T) {
+	window := NewFigureWindow(time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC), time.UTC, "MONDAY")
+	earlier := time.Date(2026, 11, 5, 9, 59, 30, 0, time.UTC)
+	latest := time.Date(2026, 11, 5, 9, 59, 50, 0, time.UTC)
+	open := func(n int) CollectionFigure {
+		return CollectionFigure{Kind: FigureOpen, Today: window.Today, Counts: FigureCounts{Open: n}}
+	}
+	cases := []struct {
+		name        string
+		collections []CollectionFigure
+		open        int
+		unavailable bool
+		asOf        time.Time
+	}{
+		{"no collections count nought", nil, 0, false, time.Time{}},
+		{"the open entries summed", []CollectionFigure{open(3), open(0), open(9)}, 12, false, time.Time{}},
+		{"one uncounted collection makes it unavailable",
+			[]CollectionFigure{open(3), {Kind: FigureOpen, Today: window.Today, Unavailable: true}}, 0, true, time.Time{}},
+		{"the oldest kept count is the moment",
+			[]CollectionFigure{open(1).AsOf(latest), open(2), open(4).AsOf(earlier)}, 7, false, earlier},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			figure := HubFigure(window, c.collections)
+			if figure.Kind != FigureOpen || figure.Today != window.Today {
+				t.Fatalf("kind %q today %q, want OPEN on %s", figure.Kind, figure.Today, window.Today)
+			}
+			if figure.Unavailable != c.unavailable || figure.Counts.Open != c.open {
+				t.Fatalf("open %d unavailable %v, want %d %v", figure.Counts.Open, figure.Unavailable, c.open, c.unavailable)
+			}
+			if !figure.CountedAt.Equal(c.asOf) {
+				t.Fatalf("as of %v, want %v", figure.CountedAt, c.asOf)
+			}
+		})
+	}
+	if figure := HubUnavailableFigure(window); !figure.Unavailable || figure.Kind != FigureOpen {
+		t.Fatalf("an uncountable hub answers %+v", figure)
+	}
+}
