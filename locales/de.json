@@ -2032,6 +2032,7 @@
   "config.db_pool_invalid": "{variable} liegt außerhalb des gültigen Bereichs. Die minimale Poolgröße darf die maximale nicht übersteigen.",
   "config.duration_invalid": "{variable} muss eine Dauer sein, etwa 30s, 5m oder 1h30m.",
   "config.limit_invalid": "{variable} muss größer als null sein.",
+  "config.range_invalid": "{variable} muss zwischen {minimum} und {maximum} liegen.",
   "config.rate_limit_invalid": "{variable} muss mindestens 1 sein. Null würde jede Anfrage blockieren.",
   "config.storage_kind_invalid": "{variable} muss entweder local oder s3 sein.",
   "config.storage_path_missing": "{variable} ist nicht gesetzt, obwohl lokaler Speicher eingerichtet ist.",

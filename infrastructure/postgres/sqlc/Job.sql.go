@@ -285,11 +285,20 @@ const countOpenJobKeys = `-- name: CountOpenJobKeys :one
 SELECT count(*)::bigint FROM job
 WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
   AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+  AND ($2::int <= 1
+    OR mod(mod(hashtext(tenant_id::text), $2::int) + $2::int,
+           $2::int) = $3::int)
 `
 
-// How many open jobs of one kind OpenJobKeys could answer, beyond any limit.
-func (q *Queries) CountOpenJobKeys(ctx context.Context, kind string) (int64, error) {
-	row := q.db.QueryRow(ctx, countOpenJobKeys, kind)
+type CountOpenJobKeysParams struct {
+	Kind       string
+	ShardCount int32
+	ShardIndex int32
+}
+
+// How many open jobs of one kind OpenJobKeys could answer for the shard, beyond any limit.
+func (q *Queries) CountOpenJobKeys(ctx context.Context, arg CountOpenJobKeysParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countOpenJobKeys, arg.Kind, arg.ShardCount, arg.ShardIndex)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -859,13 +868,18 @@ SELECT open_key.tenant_id, open_key.dedupe_key FROM (
   FROM job
   WHERE kind = $1 AND state IN ('PENDING', 'RUNNING')
     AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+    AND ($2::int <= 1
+      OR mod(mod(hashtext(tenant_id::text), $2::int) + $2::int,
+             $2::int) = $3::int)
 ) AS open_key
 ORDER BY open_key.turn, open_key.created_at, open_key.id
-LIMIT $2
+LIMIT $4
 `
 
 type OpenJobKeysParams struct {
 	Kind       string
+	ShardCount int32
+	ShardIndex int32
 	LimitCount int32
 }
 
@@ -877,9 +891,15 @@ type OpenJobKeysRow struct {
 // The workspace and key of each open job of one kind, by turns: every workspace's oldest before
 // any workspace's second, so a limit below the total leaves no workspace out while another holds
 // several (mail.mailbox_poll, keyed by the mailbox: the things that live now). No payload: the
-// caller loads each under its own workspace.
+// caller loads each under its own workspace. With shard_count above one, only the workspaces whose
+// hash falls on shard_index: the shards split the workspaces, each wholly in one.
 func (q *Queries) OpenJobKeys(ctx context.Context, arg OpenJobKeysParams) ([]OpenJobKeysRow, error) {
-	rows, err := q.db.Query(ctx, openJobKeys, arg.Kind, arg.LimitCount)
+	rows, err := q.db.Query(ctx, openJobKeys,
+		arg.Kind,
+		arg.ShardCount,
+		arg.ShardIndex,
+		arg.LimitCount,
+	)
 	if err != nil {
 		return nil, err
 	}

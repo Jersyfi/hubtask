@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"log/slog"
+	"sync"
 	"time"
 
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
@@ -18,19 +19,22 @@ import (
 
 // MailboxHolds is the application's side of the watch: which mailboxes live, and one hold of one.
 type MailboxHolds interface {
-	Targets(ctx context.Context, limit int) ([]mailservice.WatchTarget, error)
-	// Wanted is how many mailboxes' reads live, beyond the limit.
-	Wanted(ctx context.Context) (int64, error)
+	Targets(ctx context.Context, shard queue.Shard, limit int) ([]mailservice.WatchTarget, error)
+	// Wanted is how many of the shard's mailboxes' reads live, beyond the limit.
+	Wanted(ctx context.Context, shard queue.Shard) (int64, error)
 	Hold(ctx context.Context, target mailservice.WatchTarget, hold time.Duration) (string, error)
 }
 
 // MailboxWatchSignals is the slice of the metrics adapter the watch uses.
 type MailboxWatchSignals interface {
-	// MailboxWatchesHeld is how many mailboxes this process holds open now.
-	MailboxWatchesHeld(ctx context.Context, held int64)
-	// MailboxWatchesUnheld is how many mailboxes the limit leaves to the minute's read - A-38's
-	// number: those workspaces lose the arrival in seconds, and nothing else says so.
-	MailboxWatchesUnheld(ctx context.Context, unheld int64)
+	// MailboxWatchesHeld is how many of the shard's mailboxes this process holds open now.
+	MailboxWatchesHeld(ctx context.Context, shard int, held int64)
+	// MailboxWatchesUnheld is how many of the shard's mailboxes the limit leaves to the minute's
+	// read - A-38's number: those workspaces lose the arrival in seconds, and nothing else says so.
+	MailboxWatchesUnheld(ctx context.Context, shard int, unheld int64)
+	// MailboxWatchShards is how many shards the watch is split into and how many this process
+	// leads: a shard no process leads is A-38's too.
+	MailboxWatchShards(ctx context.Context, shards, led int64)
 	// MailboxWatchEnded counts one hold by what it came to (mailservice.Watch*).
 	MailboxWatchEnded(ctx context.Context, outcome string)
 }
@@ -56,9 +60,10 @@ const (
 	mailboxWatchPace = 50 * time.Millisecond
 )
 
-// MailboxWatch holds the connected IMAP mailboxes open (IDLE) so mail reaches the desk in seconds
-// (UC-JUM-11 check 10). One process of the installation holds them all, by an advisory lock of
-// its own - two would sign every mailbox in twice and providers count connections. Everything it
+// MailboxWatch holds the connected IMAP mailboxes of one shard of the workspaces open (IDLE) so mail
+// reaches the desk in seconds (UC-JUM-11 check 10). One process of the installation holds a shard,
+// by an advisory lock of the shard's own - two would sign every mailbox in twice and providers
+// count connections; Seats bound how many shards one process leads, so they spread over workers. Everything it
 // does is an acceleration: a hold that fails, a lost lock or a stopped process leave the minute's
 // read, which never depends on it. Between a lost lock and the former holder's next tick both may
 // hold a mailbox; that costs a connection, never a message, since a wake is the read's dedupe key.
@@ -69,6 +74,10 @@ type MailboxWatch struct {
 	Holds      MailboxHolds
 	Leadership queue.Leadership
 	Signals    MailboxWatchSignals
+	// Shard is the part of the workspaces this watch holds; the zero shard is all of them.
+	Shard queue.Shard
+	// Seats, shared by a process's watches, bound how many shards it leads. Nil: no bound.
+	Seats *MailboxWatchSeats
 	// SchemaBehind stands the watch by while the database lacks migrations this build needs.
 	SchemaBehind func(ctx context.Context) bool
 	// Tick, Hold, Limit, Rest, Retry, Backoff, Ceiling, Release and Pace default to the constants
@@ -77,6 +86,48 @@ type MailboxWatch struct {
 	Limit                                                    int
 	// unsure is shared by the copies withDefaults hands out: since when the lock could not be asked.
 	unsure *time.Time
+	// seated, shared the same way, says this watch holds one of the Seats.
+	seated *bool
+}
+
+// MailboxWatchSeats bound how many shards' locks one process leads at once: without a bound the
+// first worker to start would take every shard, and a second would only stand by.
+type MailboxWatchSeats struct {
+	mu          sync.Mutex
+	most, taken int
+}
+
+// NewMailboxWatchSeats bounds a process to most shards; most below one is one.
+func NewMailboxWatchSeats(most int) *MailboxWatchSeats {
+	return &MailboxWatchSeats{most: max(most, 1)}
+}
+
+func (s *MailboxWatchSeats) take() bool {
+	if s == nil {
+		return true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.taken >= s.most {
+		return false
+	}
+	s.taken++
+	return true
+}
+
+func (s *MailboxWatchSeats) give() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.taken = max(s.taken-1, 0)
+}
+
+func (s *MailboxWatchSeats) held() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return int64(s.taken)
 }
 
 type mailboxHolder struct {
@@ -99,6 +150,7 @@ func (m MailboxWatch) Run(ctx context.Context) {
 		released, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingTimeout)
 		defer cancel()
 		_ = m.Leadership.Release(released)
+		m.unseat()
 	}()
 	for {
 		m.tick(ctx, holders)
@@ -128,6 +180,9 @@ func (m MailboxWatch) withDefaults() MailboxWatch {
 	if m.unsure == nil {
 		m.unsure = new(time.Time)
 	}
+	if m.seated == nil {
+		m.seated = new(bool)
+	}
 	return m
 }
 
@@ -147,12 +202,17 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 		return
 	}
 	*m.unsure = time.Time{}
+	m.shards(ctx, leading)
 	if !leading {
 		m.stopAll(ctx, holders)
 		m.held(ctx, holders)
+		if m.Signals != nil {
+			// The leader says what it leaves; a former one says nothing stale.
+			m.Signals.MailboxWatchesUnheld(ctx, m.Shard.Index, 0)
+		}
 		return
 	}
-	targets, err := m.Holds.Targets(bounded, m.Limit)
+	targets, err := m.Holds.Targets(bounded, m.Shard, m.Limit)
 	if err != nil {
 		// The holds that run keep running: a database that does not answer a list for a minute
 		// is no reason to drop mailboxes that are held fine.
@@ -160,8 +220,8 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 		return
 	}
 	if m.Signals != nil {
-		if total, err := m.Holds.Wanted(bounded); err == nil {
-			m.Signals.MailboxWatchesUnheld(ctx, max(total-int64(len(targets)), 0))
+		if total, err := m.Holds.Wanted(bounded, m.Shard); err == nil {
+			m.Signals.MailboxWatchesUnheld(ctx, m.Shard.Index, max(total-int64(len(targets)), 0))
 		}
 	}
 	wanted := make(map[mailservice.WatchTarget]bool, len(targets))
@@ -200,17 +260,50 @@ func (m MailboxWatch) tick(ctx context.Context, holders map[mailservice.WatchTar
 func (m MailboxWatch) leading(ctx context.Context) (leading, known bool) {
 	if m.SchemaBehind != nil && m.SchemaBehind(ctx) {
 		_ = m.Leadership.Release(ctx)
+		m.unseat()
 		return false, true
 	}
 	leading, err := m.Leadership.Confirm(ctx)
 	if err == nil && !leading {
-		leading, err = m.Leadership.Acquire(ctx)
+		m.unseat()
+		// A process at its bound does not ask: the shard is left to a worker with a seat free.
+		if m.Seats.take() {
+			leading, err = m.Leadership.Acquire(ctx)
+			if err == nil && leading {
+				*m.seated = true
+			} else {
+				m.Seats.give()
+			}
+		}
 	}
 	if err != nil {
 		slog.WarnContext(ctx, "the mailbox watch's lock could not be asked", slog.String("error", shared.AsError(err).Code))
 		return false, false
 	}
 	return leading, true
+}
+
+// unseat gives back this watch's seat, if it holds one.
+func (m MailboxWatch) unseat() {
+	if m.seated != nil && *m.seated {
+		*m.seated = false
+		m.Seats.give()
+	}
+}
+
+// shards reports the split and how many shards this process leads.
+func (m MailboxWatch) shards(ctx context.Context, leading bool) {
+	if m.Signals == nil {
+		return
+	}
+	led := int64(0)
+	switch {
+	case m.Seats != nil:
+		led = m.Seats.held()
+	case leading:
+		led = 1
+	}
+	m.Signals.MailboxWatchShards(ctx, int64(max(m.Shard.Count, 1)), led)
 }
 
 // slot is when the n-th sign-in of a tick starts: n paces on, at a random point within its pace.
@@ -334,5 +427,5 @@ func (m MailboxWatch) held(ctx context.Context, holders map[mailservice.WatchTar
 			live++
 		}
 	}
-	m.Signals.MailboxWatchesHeld(ctx, int64(live))
+	m.Signals.MailboxWatchesHeld(ctx, m.Shard.Index, int64(live))
 }

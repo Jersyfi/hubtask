@@ -47,12 +47,12 @@ type WatchTarget struct {
 	MailboxID shared.ID
 }
 
-// Targets answers up to limit mailboxes whose read lives.
-func (w WatchMailbox) Targets(ctx context.Context, limit int) ([]WatchTarget, error) {
+// Targets answers up to limit mailboxes of the shard's workspaces whose read lives.
+func (w WatchMailbox) Targets(ctx context.Context, shard queue.Shard, limit int) ([]WatchTarget, error) {
 	var keys []queue.OpenKey
 	err := w.Boxes.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
 		var err error
-		keys, err = w.Keys.OpenKeys(ctx, queue.KindMailboxPoll, limit)
+		keys, err = w.Keys.OpenKeys(ctx, queue.KindMailboxPoll, shard, limit)
 		return err
 	})
 	if err != nil {
@@ -69,13 +69,13 @@ func (w WatchMailbox) Targets(ctx context.Context, limit int) ([]WatchTarget, er
 	return out, nil
 }
 
-// Wanted is how many mailboxes' reads live, beyond any limit: what a watch holding fewer leaves to
-// the minute's read.
-func (w WatchMailbox) Wanted(ctx context.Context) (int64, error) {
+// Wanted is how many mailboxes of the shard's workspaces have a living read, beyond any limit:
+// what a watch holding fewer leaves to the minute's read.
+func (w WatchMailbox) Wanted(ctx context.Context, shard queue.Shard) (int64, error) {
 	var wanted int64
 	err := w.Boxes.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
 		var err error
-		wanted, err = w.Keys.OpenKeyCount(ctx, queue.KindMailboxPoll)
+		wanted, err = w.Keys.OpenKeyCount(ctx, queue.KindMailboxPoll, shard)
 		return err
 	})
 	return wanted, err

@@ -186,6 +186,7 @@
   "config.db_pool_invalid": "{variable} is outside the valid range. The minimum pool size cannot exceed the maximum.",
   "config.duration_invalid": "{variable} must be a duration such as 30s, 5m or 1h30m.",
   "config.limit_invalid": "{variable} must be greater than zero.",
+  "config.range_invalid": "{variable} must be between {minimum} and {maximum}.",
   "config.rate_limit_invalid": "{variable} must be at least 1. Zero would block every request.",
   "config.storage_kind_invalid": "{variable} must be either local or s3.",
   "config.storage_path_missing": "{variable} is not set, although local storage is configured.",

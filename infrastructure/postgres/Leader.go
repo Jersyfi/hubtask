@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
@@ -30,6 +31,16 @@ const SchedulerLock LockKey = 8_010_001
 // no mailbox is signed in twice for it. Its own number: 8_010_002 is the migrator's and 8_010_004
 // the installation events', and a lock held for as long as a worker leads would stop either.
 const MailboxWatchLock LockKey = 8_010_003
+
+// MailboxWatchShardLock is the lock of one shard of the mailbox watch. Shard 0 keeps
+// MailboxWatchLock, so a release before the shards and one with them, side by side during a
+// rolling update, never both hold the one shard there was; the others take 8_011_001 onwards.
+func MailboxWatchShardLock(shard int) LockKey {
+	if shard <= 0 || shard >= env.MaxMailboxWatchShards {
+		return MailboxWatchLock
+	}
+	return LockKey(8_011_000 + shard)
+}
 
 // Leader is leadership as a PostgreSQL advisory lock held on one connection.
 //

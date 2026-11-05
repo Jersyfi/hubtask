@@ -12,6 +12,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -5404,19 +5405,25 @@ func run() error {
 
 	if cfg.HasRole(envport.RoleWorker) {
 
-		// The connected IMAP mailboxes held open (IDLE) by one worker of the installation, so mail
-		// reaches the desk in seconds; the minute's read above stays whatever happens here. Its lock
-		// holds one connection of the background pool on that worker.
-		mailboxWatch := worker.MailboxWatch{
-			Holds: mailservice.WatchMailbox{
-				Boxes: mailBoxes, Watcher: mailboxadapter.IMAP{Guard: outboundGuard}, Keys: jobs,
-			},
-			Leadership:   postgres.NewLeader(backgroundPool, postgres.MailboxWatchLock),
-			Signals:      metrics,
-			SchemaBehind: schemaBehind,
-			Limit:        cfg.Mail.WatchLimit,
+		// The connected IMAP mailboxes held open (IDLE), each shard of the workspaces by one worker,
+		// so mail reaches the desk in seconds; the minute's read above stays whatever happens here.
+		// Each shard this worker leads holds one connection of the background pool for its lock.
+		shards := max(cfg.Mail.WatchShards, 1)
+		seats := worker.NewMailboxWatchSeats(cmp.Or(cfg.Mail.WatchShardsPerWorker, shards))
+		for shard := range shards {
+			mailboxWatch := worker.MailboxWatch{
+				Holds: mailservice.WatchMailbox{
+					Boxes: mailBoxes, Watcher: mailboxadapter.IMAP{Guard: outboundGuard}, Keys: jobs,
+				},
+				Leadership:   postgres.NewLeader(backgroundPool, postgres.MailboxWatchShardLock(shard)),
+				Signals:      metrics,
+				SchemaBehind: schemaBehind,
+				Limit:        cfg.Mail.WatchLimit,
+				Shard:        queueport.Shard{Index: shard, Count: shards},
+				Seats:        seats,
+			}
+			background = append(background, start(ctx, "worker.mailbox_watch", mailboxWatch.Run))
 		}
-		background = append(background, start(ctx, "worker.mailbox_watch", mailboxWatch.Run))
 
 		// Seeded by every worker that starts; the dedupe key keeps it one job. A failure costs a
 		// pass, not the start: the next worker to start seeds it again.

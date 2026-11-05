@@ -98,6 +98,9 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// Lowercase, as every address on it is compared.
 			InboundDomain: strings.ToLower(strings.TrimSpace(get("HUBTASK_MAIL_INBOUND_DOMAIN", ""))),
 			WatchLimit:    getInt("HUBTASK_MAILBOX_WATCH_LIMIT", 1000),
+			WatchShards:   getInt("HUBTASK_MAILBOX_WATCH_SHARDS", 1),
+			// Zero: as many as there are shards, so one worker alone holds every one.
+			WatchShardsPerWorker: getInt("HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER", 0),
 		},
 		Voice: env.VoiceConfig{AlexaSkillIDs: listOf(get("HUBTASK_ALEXA_SKILL_IDS", ""))},
 		AI: env.AIConfig{
@@ -395,6 +398,13 @@ func configError(detailCode, variable string) *shared.Error {
 		WithParams(map[string]string{"variable": variable})
 }
 
+// rangeError is a variable outside minimum..maximum.
+func rangeError(variable string, minimum, maximum int) *shared.Error {
+	return configError("config.range_invalid", variable).WithParams(map[string]string{
+		"variable": variable, "minimum": strconv.Itoa(minimum), "maximum": strconv.Itoa(maximum),
+	})
+}
+
 func validate(cfg env.Config) error {
 	var errs []error
 
@@ -586,6 +596,13 @@ func validateStorage(s env.StorageConfig) []error {
 func validateMail(m env.MailConfig) []error {
 	if m.WatchLimit < 0 {
 		return []error{configError("config.limit_invalid", "HUBTASK_MAILBOX_WATCH_LIMIT")}
+	}
+	if m.WatchShards < 1 || m.WatchShards > env.MaxMailboxWatchShards {
+		return []error{rangeError("HUBTASK_MAILBOX_WATCH_SHARDS", 1, env.MaxMailboxWatchShards)}
+	}
+	// Zero is the default, as many as the shards.
+	if m.WatchShardsPerWorker < 0 || m.WatchShardsPerWorker > m.WatchShards {
+		return []error{rangeError("HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER", 1, m.WatchShards)}
 	}
 	var errs []error
 	if m.Host == "" {

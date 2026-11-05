@@ -233,7 +233,8 @@ WHERE duty.kind = 'media.scan'
 -- The workspace and key of each open job of one kind, by turns: every workspace's oldest before
 -- any workspace's second, so a limit below the total leaves no workspace out while another holds
 -- several (mail.mailbox_poll, keyed by the mailbox: the things that live now). No payload: the
--- caller loads each under its own workspace.
+-- caller loads each under its own workspace. With shard_count above one, only the workspaces whose
+-- hash falls on shard_index: the shards split the workspaces, each wholly in one.
 -- name: OpenJobKeys :many
 SELECT open_key.tenant_id, open_key.dedupe_key FROM (
   SELECT tenant_id, dedupe_key::text AS dedupe_key, created_at, id,
@@ -241,15 +242,21 @@ SELECT open_key.tenant_id, open_key.dedupe_key FROM (
   FROM job
   WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
     AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+    AND (sqlc.arg('shard_count')::int <= 1
+      OR mod(mod(hashtext(tenant_id::text), sqlc.arg('shard_count')::int) + sqlc.arg('shard_count')::int,
+             sqlc.arg('shard_count')::int) = sqlc.arg('shard_index')::int)
 ) AS open_key
 ORDER BY open_key.turn, open_key.created_at, open_key.id
 LIMIT sqlc.arg('limit_count');
 
--- How many open jobs of one kind OpenJobKeys could answer, beyond any limit.
+-- How many open jobs of one kind OpenJobKeys could answer for the shard, beyond any limit.
 -- name: CountOpenJobKeys :one
 SELECT count(*)::bigint FROM job
 WHERE kind = sqlc.arg('kind') AND state IN ('PENDING', 'RUNNING')
-  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL;
+  AND tenant_id IS NOT NULL AND dedupe_key IS NOT NULL
+  AND (sqlc.arg('shard_count')::int <= 1
+    OR mod(mod(hashtext(tenant_id::text), sqlc.arg('shard_count')::int) + sqlc.arg('shard_count')::int,
+           sqlc.arg('shard_count')::int) = sqlc.arg('shard_index')::int);
 
 -- What a caller polls, and the only two statements here that are asked on somebody's behalf
 -- rather than by a worker. They therefore carry the tenant condition themselves - the job table

@@ -878,9 +878,16 @@ type OpenKey struct {
 // The listing goes by turns - every workspace's oldest before any workspace's second - so that a
 // limit below the total leaves no workspace out while another is listed several times.
 type OpenKeys interface {
-	OpenKeys(ctx context.Context, kind Kind, limit int) ([]OpenKey, error)
-	// OpenKeyCount is how many OpenKeys could answer, beyond any limit.
-	OpenKeyCount(ctx context.Context, kind Kind) (int64, error)
+	OpenKeys(ctx context.Context, kind Kind, shard Shard, limit int) ([]OpenKey, error)
+	// OpenKeyCount is how many OpenKeys could answer for the shard, beyond any limit.
+	OpenKeyCount(ctx context.Context, kind Kind, shard Shard) (int64, error)
+}
+
+// Shard is one of Count parts the workspaces are split into by a hash of their identifier, each
+// workspace wholly in one, so several workers can share what one would hold. A Count of one or
+// less is every workspace.
+type Shard struct {
+	Index, Count int
 }
 
 // Leadership is the "exactly one" of ADR-0008: the scheduler role may run in several replicas so

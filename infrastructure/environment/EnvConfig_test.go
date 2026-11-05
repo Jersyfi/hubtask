@@ -283,6 +283,9 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "hooks.example.org/path", "config.allowed_host_invalid"},
 		{"HUBTASK_LOAD_SHED_INFLIGHT", "-1", "config.load_shed_invalid"},
 		{"HUBTASK_LOAD_SHED_RETRY_AFTER", "0s", "config.duration_invalid"},
+		{"HUBTASK_MAILBOX_WATCH_SHARDS", "0", "config.range_invalid"},
+		{"HUBTASK_MAILBOX_WATCH_SHARDS", "65", "config.range_invalid"},
+		{"HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER", "2", "config.range_invalid"},
 	}
 
 	for _, tc := range cases {

@@ -397,6 +397,12 @@ type MailConfig struct {
 	// open at once, one per workspace before any workspace's second; the rest are read every
 	// minute. Zero is the default of a thousand.
 	WatchLimit int
+	// WatchShards is HUBTASK_MAILBOX_WATCH_SHARDS: how many parts the workspaces are split into,
+	// each held by one worker under a lock of its own (1 to 64, default 1: one worker holds all).
+	WatchShards int
+	// WatchShardsPerWorker is HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER: how many shards one worker
+	// leads at most, so they spread over the workers (1 to WatchShards, default WatchShards).
+	WatchShardsPerWorker int
 	// InboundKey is HUBTASK_MAIL_INBOUND_KEY, what the inbound service presents on the route.
 	InboundKey secret.Secret
 	// OAuth are the installation's own OAuth apps for connected mailboxes (ADR-0094), by provider
@@ -540,6 +546,9 @@ func (c CORSConfig) AllowsAnyOrigin() bool {
 
 // CORSWildcard is the one value that stands for every origin.
 const CORSWildcard = "*"
+
+// MaxMailboxWatchShards bounds HUBTASK_MAILBOX_WATCH_SHARDS; the shards' locks are a range of their own.
+const MaxMailboxWatchShards = 64
 
 // MaxOutboundRedirects bounds the configured redirect budget. A chain longer than this is not a
 // site that moved, it is a chain being used to walk a request somewhere it may not go (T-07).

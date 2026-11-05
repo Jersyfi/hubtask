@@ -249,6 +249,8 @@ var leftAtDefault = map[string]string{
 	"HUBTASK_STREAM_PER_TENANT":               "tuning",
 	"HUBTASK_STREAM_PER_PROCESS":              "tuning",
 	"HUBTASK_MAILBOX_WATCH_LIMIT":             "tuning",
+	"HUBTASK_MAILBOX_WATCH_SHARDS":            "tuning: a compose stack runs one worker",
+	"HUBTASK_MAILBOX_WATCH_SHARDS_PER_WORKER": "tuning: a compose stack runs one worker",
 	"HUBTASK_MAX_BODY_BYTES":                  "tuning",
 	"HUBTASK_HTTP_TIMEOUT":                    "tuning",
 	"HUBTASK_HTTP_CONNECT_TIMEOUT":            "tuning",

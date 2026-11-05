@@ -55,6 +55,8 @@ type Metrics struct {
 	jobsPurged        metric.Int64Counter
 	mailboxesHeld     metric.Int64Gauge
 	mailboxesUnheld   metric.Int64Gauge
+	mailboxShards     metric.Int64Gauge
+	mailboxShardsLed  metric.Int64Gauge
 	mailboxHolds      metric.Int64Counter
 	auditHeld         metric.Int64Gauge
 	auditDefaultAged  metric.Int64Gauge
@@ -384,16 +386,29 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 	if m.mailboxesHeld, err = meter.Int64Gauge(
 		namespace+"_mailbox_watches_held",
 		metric.WithDescription("Connected IMAP mailboxes this process holds open to hear of new mail at once. "+
-			"Zero on every process but the one holding the watch's lock."),
+			"By shard; zero on every process but the one holding that shard's lock."),
 	); err != nil {
 		return fmt.Errorf("held mailboxes gauge: %w", err)
 	}
 	if m.mailboxesUnheld, err = meter.Int64Gauge(
 		namespace+"_mailbox_watches_unheld",
 		metric.WithDescription("Connected IMAP mailboxes the watch's limit leaves to the minute's read. "+
-			"Written by the process holding the watch's lock."),
+			"By shard, written by the process holding that shard's lock."),
 	); err != nil {
 		return fmt.Errorf("unheld mailboxes gauge: %w", err)
+	}
+	if m.mailboxShards, err = meter.Int64Gauge(
+		namespace+"_mailbox_watch_shards",
+		metric.WithDescription("How many shards the mailbox watch splits the workspaces into, as this process is configured."),
+	); err != nil {
+		return fmt.Errorf("mailbox watch shards gauge: %w", err)
+	}
+	if m.mailboxShardsLed, err = meter.Int64Gauge(
+		namespace+"_mailbox_watch_shards_led",
+		metric.WithDescription("How many of the mailbox watch's shards this process leads. Summed over the workers, "+
+			"less than the shards leaves the rest to the minute's read."),
+	); err != nil {
+		return fmt.Errorf("mailbox watch shards led gauge: %w", err)
 	}
 	if m.mailboxHolds, err = meter.Int64Counter(
 		namespace+"_mailbox_watch_holds_total",
@@ -1225,14 +1240,22 @@ func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
 	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
 }
 
-// MailboxWatchesHeld is how many mailboxes this process holds open now.
-func (m *Metrics) MailboxWatchesHeld(ctx context.Context, held int64) {
-	m.mailboxesHeld.Record(ctx, held)
+// MailboxWatchesHeld is how many of a shard's mailboxes this process holds open now.
+func (m *Metrics) MailboxWatchesHeld(ctx context.Context, shard int, held int64) {
+	m.mailboxesHeld.Record(ctx, held, metric.WithAttributes(attribute.Int("shard", shard)))
 }
 
-// MailboxWatchesUnheld is how many mailboxes the watch's limit leaves to the minute's read (A-38).
-func (m *Metrics) MailboxWatchesUnheld(ctx context.Context, unheld int64) {
-	m.mailboxesUnheld.Record(ctx, unheld)
+// MailboxWatchesUnheld is how many of a shard's mailboxes the watch's limit leaves to the
+// minute's read (A-38).
+func (m *Metrics) MailboxWatchesUnheld(ctx context.Context, shard int, unheld int64) {
+	m.mailboxesUnheld.Record(ctx, unheld, metric.WithAttributes(attribute.Int("shard", shard)))
+}
+
+// MailboxWatchShards is how many shards the watch is split into and how many this process leads
+// (A-38: a shard nobody leads leaves its mailboxes to the minute's read).
+func (m *Metrics) MailboxWatchShards(ctx context.Context, shards, led int64) {
+	m.mailboxShards.Record(ctx, shards)
+	m.mailboxShardsLed.Record(ctx, led)
 }
 
 // MailboxWatchEnded counts one hold of a mailbox by what it came to, a closed set of five.

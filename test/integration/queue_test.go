@@ -629,7 +629,7 @@ func TestOpenKeysNameEachLivingJobsWorkspaceAndKey(t *testing.T) {
 	var keys []queue.OpenKey
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
 		var err error
-		keys, err = jobQueue(t).OpenKeys(ctx, kind, 10)
+		keys, err = jobQueue(t).OpenKeys(ctx, kind, queue.Shard{}, 10)
 		return err
 	}); err != nil {
 		t.Fatalf("listing: %v", err)
@@ -749,10 +749,10 @@ func TestOpenKeysTakeTurnsByWorkspace(t *testing.T) {
 	var count int64
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
 		var err error
-		if keys, err = jobQueue(t).OpenKeys(ctx, kind, 2); err != nil {
+		if keys, err = jobQueue(t).OpenKeys(ctx, kind, queue.Shard{}, 2); err != nil {
 			return err
 		}
-		count, err = jobQueue(t).OpenKeyCount(ctx, kind)
+		count, err = jobQueue(t).OpenKeyCount(ctx, kind, queue.Shard{})
 		return err
 	}); err != nil {
 		t.Fatalf("listing: %v", err)
@@ -763,5 +763,65 @@ func TestOpenKeysTakeTurnsByWorkspace(t *testing.T) {
 	}
 	if count != 4 {
 		t.Errorf("open key count = %d, want 4", count)
+	}
+}
+
+// The shards split the workspaces: each workspace's keys are answered by exactly one shard, whole,
+// and the shards' counts add up to every open key.
+func TestTheShardsSplitTheOpenKeysByWorkspace(t *testing.T) {
+	ctx := context.Background()
+	kind := queue.Kind("test.shards." + freshID(t).String())
+	now := queueClock.Now()
+	tenants := make([]shared.ID, 8)
+	for i := range tenants {
+		tenants[i] = freshID(t)
+		// A dedupe key is the queue's, across workspaces: each mailbox's own.
+		for _, key := range []string{"first", "second"} {
+			request := queue.Request{Kind: kind, TenantID: tenants[i], DedupeKey: key + "." + tenants[i].String(), RunAt: now}
+			if err := systemWrite(ctx, t, func(ctx context.Context) error {
+				_, err := jobQueue(t).Enqueue(ctx, request)
+				return err
+			}); err != nil {
+				t.Fatalf("enqueueing: %v", err)
+			}
+		}
+	}
+	const shards = 3
+	seen := map[shared.ID]int{}
+	var total int64
+	for index := range shards {
+		shard := queue.Shard{Index: index, Count: shards}
+		var keys []queue.OpenKey
+		var count int64
+		if err := systemWrite(ctx, t, func(ctx context.Context) error {
+			var err error
+			if keys, err = jobQueue(t).OpenKeys(ctx, kind, shard, 100); err != nil {
+				return err
+			}
+			count, err = jobQueue(t).OpenKeyCount(ctx, kind, shard)
+			return err
+		}); err != nil {
+			t.Fatalf("listing shard %d: %v", index, err)
+		}
+		if int64(len(keys)) != count {
+			t.Errorf("shard %d lists %d keys and counts %d", index, len(keys), count)
+		}
+		total += count
+		inShard := map[shared.ID]int{}
+		for _, key := range keys {
+			inShard[key.TenantID]++
+		}
+		for tenant, n := range inShard {
+			if n != 2 {
+				t.Errorf("shard %d holds %d of a workspace's two keys", index, n)
+			}
+			if _, twice := seen[tenant]; twice {
+				t.Errorf("a workspace is in shard %d and shard %d", seen[tenant], index)
+			}
+			seen[tenant] = index
+		}
+	}
+	if total != int64(2*len(tenants)) || len(seen) != len(tenants) {
+		t.Errorf("the shards answer %d keys of %d workspaces, want %d of %d", total, len(seen), 2*len(tenants), len(tenants))
 	}
 }

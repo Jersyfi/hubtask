@@ -28,9 +28,11 @@ func (s *idleServer) Watch(_ context.Context, connection mailboxport.Connection,
 
 type openKeys []queue.OpenKey
 
-func (k openKeys) OpenKeyCount(context.Context, queue.Kind) (int64, error) { return int64(len(k)), nil }
+func (k openKeys) OpenKeyCount(context.Context, queue.Kind, queue.Shard) (int64, error) {
+	return int64(len(k)), nil
+}
 
-func (k openKeys) OpenKeys(_ context.Context, kind queue.Kind, _ int) ([]queue.OpenKey, error) {
+func (k openKeys) OpenKeys(_ context.Context, kind queue.Kind, _ queue.Shard, _ int) ([]queue.OpenKey, error) {
 	if kind != queue.KindMailboxPoll {
 		return nil, nil
 	}
@@ -101,7 +103,7 @@ func TestTheTargetsAreTheMailboxesWhoseReadLives(t *testing.T) {
 		{TenantID: tenant, DedupeKey: "not an id"},
 		{DedupeKey: boxID.String()},
 	}}
-	targets, err := watch.Targets(context.Background(), 10)
+	targets, err := watch.Targets(context.Background(), queue.Shard{}, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

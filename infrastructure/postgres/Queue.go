@@ -428,13 +428,33 @@ func (q Queue) UnsettledDuties(ctx context.Context, kind queue.Kind) (int, error
 // maxOpenKeys bounds one listing of open jobs' keys.
 const maxOpenKeys = 10_000
 
-// OpenKeyCount counts the open jobs of one kind OpenKeys could answer.
-func (q Queue) OpenKeyCount(ctx context.Context, kind queue.Kind) (int64, error) {
+// maxShards bounds how many parts a listing splits the workspaces into: a count beyond it is read
+// as one, every workspace, rather than as parts nothing leads.
+const maxShards = 1024
+
+func shardCount(s queue.Shard) int32 {
+	if s.Count <= 1 || s.Count > maxShards || s.Index < 0 || s.Index >= s.Count {
+		return 1
+	}
+	return int32(s.Count) //nolint:gosec // G115: bounded by maxShards above
+}
+
+func shardIndex(s queue.Shard) int32 {
+	if shardCount(s) == 1 {
+		return 0
+	}
+	return int32(s.Index) //nolint:gosec // G115: below the count, bounded by maxShards
+}
+
+// OpenKeyCount counts the open jobs of one kind OpenKeys could answer for the shard.
+func (q Queue) OpenKeyCount(ctx context.Context, kind queue.Kind, shard queue.Shard) (int64, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return 0, err
 	}
-	count, err := queries.CountOpenJobKeys(ctx, string(kind))
+	count, err := queries.CountOpenJobKeys(ctx, sqlc.CountOpenJobKeysParams{
+		Kind: string(kind), ShardCount: shardCount(shard), ShardIndex: shardIndex(shard),
+	})
 	if err != nil {
 		return 0, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -446,7 +466,7 @@ func (q Queue) OpenKeyCount(ctx context.Context, kind queue.Kind) (int64, error)
 // OpenKeys answers the workspace and dedupe key of up to limit open jobs of one kind, by turns -
 // each workspace's oldest first: for a kind with one job per thing while it lives, the things
 // that live now.
-func (q Queue) OpenKeys(ctx context.Context, kind queue.Kind, limit int) ([]queue.OpenKey, error) {
+func (q Queue) OpenKeys(ctx context.Context, kind queue.Kind, shard queue.Shard, limit int) ([]queue.OpenKey, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
@@ -454,7 +474,9 @@ func (q Queue) OpenKeys(ctx context.Context, kind queue.Kind, limit int) ([]queu
 	if limit <= 0 || limit > maxOpenKeys {
 		limit = maxOpenKeys
 	}
-	rows, err := queries.OpenJobKeys(ctx, sqlc.OpenJobKeysParams{Kind: string(kind), LimitCount: int32(limit)})
+	rows, err := queries.OpenJobKeys(ctx, sqlc.OpenJobKeysParams{
+		Kind: string(kind), ShardCount: shardCount(shard), ShardIndex: shardIndex(shard), LimitCount: int32(limit),
+	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").

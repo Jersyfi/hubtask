@@ -11,6 +11,7 @@ import (
 
 	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 var (
@@ -40,13 +41,13 @@ func newHolds(targets ...mailservice.WatchTarget) *holds {
 	}
 }
 
-func (h *holds) Targets(context.Context, int) ([]mailservice.WatchTarget, error) {
+func (h *holds) Targets(context.Context, queue.Shard, int) ([]mailservice.WatchTarget, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return append([]mailservice.WatchTarget(nil), h.targets...), nil
 }
 
-func (h *holds) Wanted(context.Context) (int64, error) {
+func (h *holds) Wanted(context.Context, queue.Shard) (int64, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return max(h.wanted, int64(len(h.targets))), nil
@@ -91,15 +92,22 @@ type watchSignals struct {
 	held   []int64
 	unheld []int64
 	ended  map[string]int
+	led    []int64
 }
 
-func (s *watchSignals) MailboxWatchesUnheld(_ context.Context, unheld int64) {
+func (s *watchSignals) MailboxWatchShards(_ context.Context, _, led int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.led = append(s.led, led)
+}
+
+func (s *watchSignals) MailboxWatchesUnheld(_ context.Context, _ int, unheld int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.unheld = append(s.unheld, unheld)
 }
 
-func (s *watchSignals) MailboxWatchesHeld(_ context.Context, held int64) {
+func (s *watchSignals) MailboxWatchesHeld(_ context.Context, _ int, held int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.held = append(s.held, held)
@@ -405,4 +413,51 @@ func TestTheSignInsOfATickArePaced(t *testing.T) {
 	if spread := latest.Sub(earliest); spread < watch.Pace {
 		t.Errorf("three sign-ins %s apart, want at least a pace (%s)", spread, watch.Pace)
 	}
+}
+
+// Each shard has its own lock, and a process leads at most its seats: with one seat each, two
+// processes split two shards rather than the first taking both, and a seat given back lets the
+// process take the shard nobody leads.
+func TestTheShardsSpreadOverTheProcessesBySeat(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	locks := []*lock{{}, {}}
+	h := newHolds(boxOne)
+	seatsA, seatsB := NewMailboxWatchSeats(1), NewMailboxWatchSeats(1)
+	watch := func(name string, shard int, seats *MailboxWatchSeats) MailboxWatch {
+		w := fastWatch(h, &leadership{lock: locks[shard], name: name}, &watchSignals{})
+		w.Shard, w.Seats = queue.Shard{Index: shard, Count: 2}, seats
+		return w
+	}
+	a0, a1 := watch("a", 0, seatsA), watch("a", 1, seatsA)
+	b0, b1 := watch("b", 0, seatsB), watch("b", 1, seatsB)
+	held := func() map[mailservice.WatchTarget]*mailboxHolder { return map[mailservice.WatchTarget]*mailboxHolder{} }
+	heldA0, heldA1, heldB0, heldB1 := held(), held(), held(), held()
+
+	a0.tick(ctx, heldA0)
+	a1.tick(ctx, heldA1)
+	b0.tick(ctx, heldB0)
+	b1.tick(ctx, heldB1)
+	if !locks[0].held("a") || !locks[1].held("b") {
+		t.Fatalf("the shards are led by %q and %q, want a and b", locks[0].holder, locks[1].holder)
+	}
+	if seatsA.held() != 1 || seatsB.held() != 1 {
+		t.Errorf("seats taken a=%d b=%d", seatsA.held(), seatsB.held())
+	}
+
+	// A's connection drops shard 0's lock: B is at its bound and leaves it, A takes it again.
+	locks[0].cut()
+	b0.tick(ctx, heldB0)
+	if locks[0].held("b") {
+		t.Error("a process past its seats took a second shard")
+	}
+	a0.tick(ctx, heldA0)
+	if !locks[0].held("a") || seatsA.held() != 1 {
+		t.Errorf("the seat given back was not taken again: owner %q, seats %d", locks[0].holder, seatsA.held())
+	}
+	stop := func(holders map[mailservice.WatchTarget]*mailboxHolder) { a0.stopAll(ctx, holders) }
+	stop(heldA0)
+	stop(heldA1)
+	stop(heldB0)
+	stop(heldB1)
 }
