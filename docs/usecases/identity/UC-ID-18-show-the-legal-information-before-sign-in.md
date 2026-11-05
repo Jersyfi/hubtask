@@ -7,7 +7,7 @@ deployments: [D1, D4, D5, D6]
 serves: [P-06, P-07, P-10, P-12]
 state: built
 tasks: [SI-12, SI-14, SI-16, SC-09, SC-07]
-checked_by: [core/domain/model/identity/LegalLinks_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, core/application/service/admin/AccessibilityWarning_test.go, docs/evidence/SC-15-D1-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
+checked_by: [core/domain/model/identity/LegalLinks_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/helpdetails.test.mjs, core/application/service/admin/AccessibilityWarning_test.go, docs/evidence/SC-15-D1-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 
 # Show the legal information people are owed before they sign in
@@ -37,6 +37,8 @@ the footer is empty.
    link points to.
 5. With nothing set anywhere, the footer shows no accessibility link either.
 6. Links open as top-level navigation in a new tab and load nothing into the page.
+7. A workspace's support contact and documentation, set by the workspace or the installation above
+   it, show in *Help* and never in the sign-in footer.
 
 ## Where it ends
 

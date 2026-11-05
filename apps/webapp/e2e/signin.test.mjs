@@ -951,7 +951,7 @@ test('no provider button when the rules name none', async () => {
   }
 });
 
-// UC-ID-18 checks 4 and 5: the footer's links are the operator's, labelled neutrally whatever they
+// UC-ID-18 checks 4, 5 and 7: the footer's links are the operator's, labelled neutrally whatever they
 // point at, and a link nobody set is not shown - the accessibility link included, which does not fall
 // back to hubtask.eu.
 test('the footer shows only the links that were set, with neutral labels', async () => {
@@ -965,6 +965,8 @@ test('the footer shows only the links that were set, with neutral labels', async
         imprint_url: 'https://op.example/imprint', privacy_url: 'https://op.example/privacy',
         terms_url: 'https://op.example/terms', accessibility_url: 'https://op.example/a11y',
       }, ['Imprint', 'Privacy', 'Terms', 'Accessibility']],
+      // UC-ID-18 check 7: the support contact and the documentation are Help's, never the footer's.
+      [{ imprint_url: 'https://op.example/imprint', support_url: 'mailto:help@op.example', docs_url: 'https://op.example/docs' }, ['Imprint']],
     ]) {
       const context = await browser.newContext();
       await context.route('**/api/v1/**', async (route) => {
@@ -979,6 +981,7 @@ test('the footer shows only the links that were set, with neutral labels', async
       const links = await page.locator('footer a').allTextContents();
       assert.deepEqual(links.map((text) => text.trim()), expected);
       assert.equal(await page.locator('footer a[href*="hubtask.eu"]').count(), 0, 'the footer points at hubtask.eu');
+      assert.equal(await page.locator('footer a[href^="mailto:"], footer a[href*="/docs"]').count(), 0, 'the footer shows the support contact or the documentation');
       await context.close();
     }
   } finally {

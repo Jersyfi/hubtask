@@ -34,7 +34,8 @@ approved week and records a correction of -30 minutes in the open week.
    reason of at most 500 characters, which stays out of the audit trail.
 3. An approved record never changes; a correction is a new record of signed minutes on a day of an
    open week, naming the record it corrects, and a record that may still change answers
-   `time.correction_not_needed`.
+   `time.correction_not_needed`; a correction that would take away more than the record and its
+   corrections still hold answers `time.correction_below_zero`.
 4. Whoever approves time at the workspace sets the last locked day; no record on or before it is
    written, changed or removed (`time.period_locked`), and a locked record is corrected like an
    approved one.

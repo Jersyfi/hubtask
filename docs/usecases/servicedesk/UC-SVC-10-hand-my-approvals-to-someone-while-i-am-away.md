@@ -28,3 +28,5 @@ Mehmet is on leave for two weeks and hands his approvals to Lena from Monday to 
 ## Where it ends
 
 * A delegation is set on the person's own profile, *While I am away*; one person decides for each person away at a time.
+* A delegate who is also counted at the same level in their own right fills one seat there, not
+  two: one person fills one seat per level, so four eyes hold.
