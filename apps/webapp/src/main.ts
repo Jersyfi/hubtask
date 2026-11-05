@@ -37,6 +37,11 @@ import { t } from './lib/i18n/i18n.svelte.ts';
 import { toast } from './lib/frame/toasts.svelte.ts';
 import { currentEntry } from './lib/frame/chunkfailure.ts';
 import { crashDetails, isNoise, newReference } from './lib/frame/crash.ts';
+import { holdFragmentCredentials } from './lib/signin/fragmentToken.ts';
+
+// Before anything can send a request: a credential a mail linked in the fragment leaves the address
+// (UC-ID-07 check 2), and its screen takes it from where it is held.
+holdFragmentCredentials();
 
 // Before the first paint: the stylesheet deliberately renders nothing sensible without
 // `data-theme` (ADR-0029), and this is the call that sets it - from what this device kept, else

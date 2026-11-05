@@ -535,6 +535,38 @@ test('an invitation under a factor rule continues into the setup and opens the s
   }
 });
 
+// UC-ID-07 check 2: the invitation token leaves the address bar before the first request - the
+// page notes the address at every request it makes, and none of them still carries the token.
+test('the invitation token is out of the address bar before the first request', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.addInitScript(() => {
+    const seen = [];
+    Object.defineProperty(window, '__addressesAtRequests', { value: seen });
+    const original = window.fetch.bind(window);
+    window.fetch = (...args) => { seen.push(location.href + ' -> ' + String(args[0]?.url ?? args[0])); return original(...args); };
+  });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/invitations:inspect')) {
+      return route.fulfill({ json: { workspace_name: 'Contoso', email: 'bert@contoso.example' } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByLabel(/New password/).waitFor();
+    const addresses = await page.evaluate(() => window.__addressesAtRequests);
+    assert.ok(addresses.length > 0, 'the card made no request at all');
+    for (const address of addresses) assert.doesNotMatch(address, /invitation-token/, `a request left from ${address}`);
+    assert.doesNotMatch(page.url(), /invitation-token/);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // The pending credential lives five minutes, and a newcomer may first have to install an
 // authenticator: at zero the card returns to step one with the invited address in its field, and
 // signing in with the password just chosen meets the setup again.
