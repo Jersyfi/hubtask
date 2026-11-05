@@ -166,3 +166,17 @@ func TestATableExportsAsATable(t *testing.T) {
 		t.Errorf("a lone pipe line became something else:\n%s", out)
 	}
 }
+
+// A formula exports as its TeX, marked as one; a line of `$$` that never closes stays text, so a
+// price in a sentence is never swallowed as a formula.
+func TestAFormulaExportsAsItsTeX(t *testing.T) {
+	out := HTMLFile(newPage(t, "Maths", "$$\na < b^2\n$$\n\nIt costs $5.\n\n$$\nnever closed"))
+	for _, want := range []string{"<pre class=\"math\"><code>a &lt; b^2</code></pre>", "<p>It costs $5.</p>", "<p>$$ never closed</p>"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the HTML lacks %q:\n%s", want, out)
+		}
+	}
+	if _, err := DOCXFile(newPage(t, "Maths", "$$\na^2\n$$\n")); err != nil {
+		t.Fatal(err)
+	}
+}

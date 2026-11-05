@@ -52,7 +52,7 @@ func (f Format) Binary() bool { return f == FormatDOCX }
 
 // block is one block of a body, as the editor writes it (packages/editor, markdown.ts).
 type block struct {
-	kind    string // heading, paragraph, item, quote, code, rule, reference, open, close, toc, children, embed, table
+	kind    string // heading, paragraph, item, quote, code, math, rule, reference, open, close, toc, children, embed, table
 	level   int    // a heading's level, an item's depth
 	ordered bool
 	number  int
@@ -100,6 +100,14 @@ func blocks(body string) []block {
 				code = append(code, lines[i])
 			}
 			out = append(out, block{kind: "code", text: strings.Join(code, "\n")})
+		case trimmed == "$$" && closesMath(lines[i+1:]):
+			// A formula: the editor writes its TeX between two lines of `$$`. The export carries the
+			// TeX as it is - no formula is typeset on the server.
+			var tex []string
+			for i++; i < len(lines) && strings.TrimSpace(lines[i]) != "$$"; i++ {
+				tex = append(tex, lines[i])
+			}
+			out = append(out, block{kind: "math", text: strings.TrimSpace(strings.Join(tex, "\n"))})
 		case headingLine.MatchString(line):
 			m := headingLine.FindStringSubmatch(line)
 			out = append(out, block{kind: "heading", level: len(m[1]), text: m[2]})
@@ -168,6 +176,16 @@ func tableCells(line string) []string {
 		}
 	}
 	return append(cells, strings.TrimSpace(cell.String()))
+}
+
+// closesMath says whether a line of `$$` follows; one that never closes stays text.
+func closesMath(rest []string) bool {
+	for _, line := range rest {
+		if strings.TrimSpace(line) == "$$" {
+			return true
+		}
+	}
+	return false
 }
 
 func startsBlock(line string) bool {
@@ -299,6 +317,8 @@ func htmlFile(page Page, view *PublicView) string {
 			out.WriteString("<blockquote><p>" + view.spans(spans(b.text)) + "</p></blockquote>\n")
 		case "code":
 			out.WriteString("<pre><code>" + html.EscapeString(b.text) + "</code></pre>\n")
+		case "math":
+			out.WriteString("<pre class=\"math\"><code>" + html.EscapeString(b.text) + "</code></pre>\n")
 		case "rule":
 			out.WriteString("<hr>\n")
 		case "table":
@@ -447,7 +467,7 @@ func DOCXFile(page Page) (string, error) {
 			paragraph("", "", spans(b.text), 0)
 		case "quote":
 			paragraph("Quote", "", spans(b.text), 1)
-		case "code":
+		case "code", "math":
 			for _, line := range strings.Split(b.text, "\n") {
 				paragraph("", "", []span{{text: line, code: true}}, 1)
 			}
