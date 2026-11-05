@@ -70,7 +70,7 @@
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor, fieldName, valueText } from '../lib/data/customfields.ts';
-  import { hasForm, panelRows } from '../lib/data/entryforms.ts';
+  import { hasForm, panelRows, triageKeys } from '../lib/data/entryforms.ts';
   import { droppedBy, entryTypes, entryTypesOffered, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
   import { actsAsDesk } from '../lib/portal/portal.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
@@ -457,6 +457,11 @@
       return definition ? [{ ...row, definition }] : [];
     }),
   );
+
+  // A desk entry's triage under its head (user-experience.md §5.6), not folded among the details.
+  const triage = $derived(isDeskEntry ? triageKeys(itemForm, fieldRows.map((row) => row.key)) : []);
+  const triageRows = $derived(fieldRows.filter((row) => triage.includes(row.key)));
+  const detailFieldRows = $derived(fieldRows.filter((row) => !triage.includes(row.key)));
 
   /** The due date as the row says it - the same words `DueMark` draws. */
   const dueValue = $derived(
@@ -1159,8 +1164,9 @@
         <div class="cover-stripe" data-token={item.cover.color_token} aria-hidden="true"></div>
       {/if}
       <div class="title-row">
-        <!-- Completing the entry from its own page: the same control the row has, the same write. -->
-        {#if isChangeable}
+        <!-- Completing the entry from its own page: the same control the row has, the same write.
+             Not where a workflow runs: its status decides completion (D-02). -->
+        {#if isChangeable && !hasWorkflow}
           <Checkbox
             label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}
             isLabelHidden
@@ -1315,6 +1321,11 @@
         {#if isDeskEntry}
           {#key item.id}<EntrySla itemId={item.id} />{/key}
         {/if}
+        {#if triageRows.length > 0 && carries('CUSTOM_FIELDS')}
+          <div class="rows triage" role="group" aria-label={t('app.item.triage')} data-entry-triage>
+            {#each triageRows as row (row.definition.id)}{@render fieldRow(row, false)}{/each}
+          </div>
+        {/if}
         <!-- The description first in the main column, as the concept draws it: a box that reads
              as text, one quiet line while empty (concept round 2, §4). -->
           {#if !isTypeKnown}
@@ -1346,6 +1357,11 @@
             <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
           {/if}
 
+        {#if isDeskEntry}
+          <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7),
+               before what sits under it. -->
+          {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
+        {/if}
         {#if !isTypeKnown}
           <!-- What a type holds is the manifest's answer too, so "nothing sits under this" is
                not something this screen may say before it has one. -->
@@ -1382,10 +1398,6 @@
           {#key item.id}<EntryTimer itemId={item.id} onnavigate={(path) => onnavigate?.(path)} />{/key}
         {/if}
         <!-- The approvals its steps opened and their trail, where the service desk is on (UC-SVC-09 check 4). -->
-        {#if isDeskEntry}
-          <!-- Who raised it, their organisation and their other open requests (UC-SVC-03 check 7). -->
-          {#key item.id}<RequesterPanel {item} onnavigate={(path) => onnavigate?.(path)} />{/key}
-        {/if}
         {#if modulesOn.includes('SERVICE_DESK')}
           {#key item.id}<EntryApprovals itemId={item.id} />{/key}
         {/if}
@@ -1556,20 +1568,24 @@
               </DetailRow>
             {/if}
             {#if carries('CUSTOM_FIELDS')}
-              {#each fieldRows as row (row.definition.id)}
-                {@const definition = row.definition}
-                {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-                {#if row.opens}<h3 class="form-section" data-form-section>{row.opens}</h3>{/if}
-                <DetailRow
-                  id={`field-${definition.key}`}
-                  label={row.required ? t('app.entry_forms.required_label', { name: fieldName(definition) }) : fieldName(definition)}
-                  value={valueText(definition, held, fieldReading)}
-                  isReadOnly={!isWritable || row.readOnly}
-                >
-                  <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
-                </DetailRow>
-              {/each}
+              {#each detailFieldRows as row (row.definition.id)}{@render fieldRow(row, true)}{/each}
             {/if}
+  {/if}
+{/snippet}
+
+{#snippet fieldRow(row: (typeof fieldRows)[number], opensSection: boolean)}
+  {#if item}
+    {@const definition = row.definition}
+    {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
+    {#if opensSection && row.opens}<h3 class="form-section" data-form-section>{row.opens}</h3>{/if}
+    <DetailRow
+      id={`field-${definition.key}`}
+      label={row.required ? t('app.entry_forms.required_label', { name: fieldName(definition) }) : fieldName(definition)}
+      value={valueText(definition, held, fieldReading)}
+      isReadOnly={!isWritable || row.readOnly}
+    >
+      <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
+    </DetailRow>
   {/if}
 {/snippet}
 
@@ -1756,6 +1772,8 @@
   }
 
   .rows { display: flex; flex-direction: column; padding: 0 var(--sp-100) var(--sp-100); }
+  .triage { flex-direction: row; flex-wrap: wrap; gap: var(--sp-100); padding: 0; }
+  .triage > :global(*) { flex: 1 1 var(--layout-barsearch-side); min-inline-size: 0; }
 
   /* Folded: the fields with nothing set are out of the way until *More fields* is pressed. */
   .rows[data-folded] > :global(.detail[data-empty]) { display: none; }

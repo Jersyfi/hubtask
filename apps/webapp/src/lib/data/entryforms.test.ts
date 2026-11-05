@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import type { EntryForm, EntryFormState } from '@hubtask/sync-engine';
 
 import {
-  OPT_IN_CHANNELS, addableKeys, channelIn, panelRows, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
+  OPT_IN_CHANNELS, addableKeys, channelIn, panelRows, triageKeys, draftOfForm, formOfDraft, groupsOf, hasForm, moveField, refusalsByField, removeField,
   conditionOf, pickOf, removeSection, standingOf, unfilled, unfoldedIn, validationWords,
 } from './entryforms.ts';
 
@@ -186,4 +186,15 @@ test('UX-4: a field\'s condition is picked as field, comparison and value, the e
   assert.deepEqual(pickOf(''), { field: '', op: 'is', value: '' });
   assert.equal(pickOf('actor.role == "AGENT"'), undefined);
   assert.equal(pickOf('entry.custom_fields.a == "x" && entry.custom_fields.b == "y"'), undefined);
+});
+
+// user-experience.md §5.6: a desk entry's triage fields sit under its head - the fields of the form's
+// triage section, and impact, urgency and priority where the form places them nowhere else.
+test('the triage keys are the triage section\'s and the three named fields', () => {
+  const form: EntryForm = {
+    sections: [{ key: 'request', name: 'Request' }, { key: 'triage', name: 'Sichtung' }],
+    fields: [{ key: 'notes', section: 'request' }, { key: 'custom_fields.impact', section: 'triage' }, { key: 'custom_fields.responding_group', section: 'triage' }],
+  } as EntryForm;
+  assert.deepEqual(triageKeys(form, ['impact', 'responding_group', 'urgency', 'browser']), ['impact', 'responding_group', 'urgency']);
+  assert.deepEqual(triageKeys(undefined, ['priority', 'size']), ['priority']);
 });

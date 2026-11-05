@@ -7655,6 +7655,7 @@
   "app.level.depth_exceeded": "“{level}” cannot sit that deep. At most {maximum, plural, one {# level is} other {# levels are}} allowed here.",
   "app.level.type_unsupported": "This workspace does not offer “{level}”.",
   "app.item.no_children": "Nothing sits under this entry yet.",
+  "app.item.triage": "Triage",
   "app.item.details": "Details",
   "app.item.type_unread": "What this kind of entry can hold could not be read, so its fields are not shown. The mark beside your account, at the top, can ask again.",
   "app.pane.close": "Close the pane",

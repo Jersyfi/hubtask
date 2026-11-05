@@ -253,3 +253,52 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
   assert.deepEqual(plans, [''], 'the ITIL plan was not asked for the workspace once');
   assert.deepEqual(walk.errors(), []);
 });
+
+// A desk entry's detail by type (user-experience.md §5.6): its triage fields directly under the head,
+// above the notes and not folded among the details; no done checkbox where its workflow decides
+// completion (D-02); who raised it before what sits under it.
+test('chromium: service desk - a request shows its triage under the head, no done checkbox, the requester before its parts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const desk = deskBackend();
+  const form = {
+    sections: [{ key: 'request', name: 'Request' }, { key: 'triage', name: 'Triage' }],
+    fields: [{ key: 'title', section: 'request', required: true }, { key: 'notes', section: 'request' }, { key: 'custom_fields.priority', section: 'triage' }],
+    channels: [{ channel: 'PORTAL' }],
+  };
+  const shape = {
+    statuses: [{ key: 'new', name: 'New', category: 'TODO', color_token: 'slate' }, { key: 'resolved', name: 'Resolved', category: 'DONE', color_token: 'green' }],
+    initial: 'new', steps: [{ key: 'resolve', name: 'Resolve', from: ['new'], to: 'resolved' }],
+  };
+  const answer = (method, path, query, body) => {
+    if (path === '/entry-types' && method === 'GET') {
+      return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], form, version: 1 }] } };
+    }
+    if (path === `/items/${REQUEST.id}` && method === 'GET') return { json: { ...REQUEST, created_by: OTHER.id, entry_type: 'request', status: 'new' } };
+    if (path === `/items/${REQUEST.id}/steps` && method === 'GET') return { json: { workflow: 'requests', status: 'new', steps: [{ key: 'resolve', name: 'Resolve', to: 'resolved', asks: [] }] } };
+    if (path === '/workflows' && method === 'GET') {
+      return { json: { data: [{ key: 'requests', system: false, name: 'Requests', published: shape, draft: null, published_at: '2026-10-30T09:00:00Z', version: 1 }], scheme: [{ container_id: COLLECTION.id, entry_type: null, workflow: 'requests' }] } };
+    }
+    if (path === '/entry-types/request/form:evaluate' && method === 'POST') return { json: { fields: {} } };
+    return desk(method, path, query, body);
+  };
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+  const triage = page.locator('[data-entry-triage]');
+  await triage.waitFor({ timeout: 10_000 });
+  assert.equal(await triage.getByText('Priority').count(), 1, 'the priority is not among the triage fields');
+  assert.equal(await page.locator('aside.details').getByText('Priority').count(), 0, 'the priority is still among the details');
+  const before = (first, second) => page.evaluate(([a, b]) => {
+    const x = document.querySelector(a);
+    const y = document.querySelector(b);
+    return Boolean(x && y && x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }, [first, second]);
+  assert.ok(await before('[data-entry-triage]', '.notes-field'), 'the triage is not above the notes');
+  assert.equal(await page.locator('.head').getByRole('checkbox').count(), 0, 'a done checkbox is drawn where the workflow decides');
+  await page.locator('[data-requester-panel]').waitFor({ timeout: 10_000 });
+  assert.ok(await before('[data-requester-panel]', '[data-tour="levels"]'), 'what sits under it comes before who raised it');
+});

@@ -158,6 +158,18 @@ export function panelRows(
   return rows;
 }
 
+/** The fields §5.6 names as a desk entry's triage, where a form places them in no triage section. */
+const TRIAGE_FIELDS: readonly string[] = ['impact', 'urgency', 'priority'];
+
+/**
+ * The custom fields a desk entry shows under its head (user-experience.md §5.6): those of the
+ * form's section keyed `triage`, and impact, urgency and priority wherever they are.
+ */
+export function triageKeys(form: EntryForm | undefined, keys: readonly string[]): readonly string[] {
+  const inSection = new Set((form?.fields ?? []).filter((field) => field.section === 'triage').map((field) => customKeyOf(field.key)));
+  return keys.filter((key) => inSection.has(key) || TRIAGE_FIELDS.includes(key));
+}
+
 /** A field problem's path as a form key: `/custom_fields/size` is `custom_fields.size`. */
 export function formKeyOfPath(path: string): string {
   return path.replace(/^\//, '').split('/').join('.');
