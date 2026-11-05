@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -177,4 +177,30 @@ test('a home\'s create act offers the place holding most of the product first, t
   assert.deepEqual(placesByUse(places, { general: 0, it: 12, hr: 3 }).map((p) => p.id), ['it', 'hr', 'general']);
   assert.deepEqual(placesByUse(places, { general: 0, hr: 0 }).map((p) => p.id), ['general', 'it', 'hr']);
   assert.deepEqual(placesByUse(places, undefined).map((p) => p.id), ['general', 'it', 'hr']);
+});
+
+// user-experience.md §5.2: a create dialog's *In:* chip offers the hubs where the product is on and
+// the reader may write - never one whose answer is still out, never one the workspace has it off for.
+test('the place chip offers the hubs where the product is on and the reader may write', () => {
+  const hubs = [{ id: 'general', name: 'General' }, { id: 'it', name: 'IT' }, { id: 'hr', name: 'HR' }, { id: 'new', name: 'New' }];
+  const onAt = { general: ['KNOWLEDGE', 'ASSETS'], it: ['KNOWLEDGE', 'ASSETS'], hr: ['ASSETS'] };
+  const mayWrite = (path: { hubId: string }) => (path.hubId === 'general' ? undefined : path.hubId !== 'hr');
+  const of = (module: string, workspaceOn: readonly string[] | undefined) =>
+    placesToCreate({ module, level: 'HUB', hubs, workspaceOn, onAt, collectionsOf: () => [], mayWrite }).map((place) => place.id);
+  assert.deepEqual(of('KNOWLEDGE', ['KNOWLEDGE', 'ASSETS']), ['it']);
+  assert.deepEqual(of('ASSETS', ['KNOWLEDGE', 'ASSETS']), ['it']);
+  assert.deepEqual(of('ASSETS', ['KNOWLEDGE']), []);
+});
+
+test('the place chip of a product made at a collection offers the collections, named with their hub', () => {
+  const places = placesToCreate({
+    module: 'PLANNING',
+    level: 'COLLECTION',
+    hubs: [{ id: 'dev', name: 'Development' }, { id: 'ops', name: 'Operations' }],
+    workspaceOn: ['PLANNING'],
+    onAt: { dev: ['PLANNING'], ops: [] },
+    collectionsOf: (hubId) => (hubId === 'dev' ? [{ id: 'app', name: 'App' }, { id: 'web', name: 'Web' }] : [{ id: 'run', name: 'Run' }]),
+    mayWrite: (path) => path.collectionId !== 'web',
+  });
+  assert.deepEqual(places, [{ id: 'app', label: 'Development › App' }]);
 });

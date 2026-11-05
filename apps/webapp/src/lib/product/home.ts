@@ -8,6 +8,7 @@
  */
 
 import { PRODUCTS, type ProductRow } from '../navigation.ts';
+import { modulesHere } from '../data/modules.ts';
 
 export interface HomeTab {
   readonly id: string;
@@ -250,4 +251,37 @@ export function releasesDue<R extends { readonly hub_id: string; readonly state:
     .filter((release) => release.state === 'PLANNED')
     .sort((a, b) => (a.release_on < b.release_on ? -1 : a.release_on > b.release_on ? 1 : 0))
     .slice(0, limit);
+}
+
+/** A place a create dialog's *In:* chip offers: its id and the words it is named by. */
+export interface CreatePlace {
+  readonly id: string;
+  readonly label: string;
+}
+
+/**
+ * The places a product's create dialog offers in its *In:* chip (user-experience.md §5.2): the
+ * hubs where the product is on - never wider than the workspace's set - or, for a product made at a
+ * collection, those hubs' collections, each only where the reader may write. A place whose answer
+ * is still out is left out rather than offered, so a choice is never refused after it is made.
+ */
+export function placesToCreate(options: {
+  readonly module: string;
+  readonly level: 'HUB' | 'COLLECTION';
+  readonly hubs: readonly { readonly id: string; readonly name: string }[];
+  readonly workspaceOn: readonly string[] | undefined;
+  /** Each hub's own modules, once it has answered. */
+  readonly onAt: Readonly<Record<string, readonly string[]>>;
+  readonly collectionsOf: (hubId: string) => readonly { readonly id: string; readonly name: string }[];
+  /** Whether the reader may write at a place; `undefined` while the answer is out. */
+  readonly mayWrite: (path: { readonly hubId: string; readonly collectionId?: string }) => boolean | undefined;
+}): CreatePlace[] {
+  const { module, level, hubs, workspaceOn, onAt, collectionsOf, mayWrite } = options;
+  const on = hubs.filter((hub) => onAt[hub.id] !== undefined && (modulesHere(workspaceOn, onAt[hub.id]) as readonly string[]).includes(module));
+  if (level === 'HUB') return on.filter((hub) => mayWrite({ hubId: hub.id }) === true).map((hub) => ({ id: hub.id, label: hub.name }));
+  return on.flatMap((hub) =>
+    collectionsOf(hub.id)
+      .filter((collection) => mayWrite({ hubId: hub.id, collectionId: collection.id }) === true)
+      .map((collection) => ({ id: collection.id, label: `${hub.name} › ${collection.name}` })),
+  );
 }
