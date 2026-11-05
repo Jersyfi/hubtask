@@ -26,7 +26,7 @@
 
   import { cataloguePath, deskLogoPath, myRequestsPath, organisationRequestsPath, portal } from '../lib/data/portal.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { resource } from '../lib/data/resource.svelte.ts';
+  import { resource, resourceWhen } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -45,12 +45,15 @@
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
 
   const catalogue = untrack(() => resource<RequestCatalogue>(cataloguePath(collectionId)));
-  // The desk's team holds no REQUEST at its own portal: its desk is the collection's own read and
-  // the logo's, which the team holds (UC-SVC-05 check 9).
-  const isTeam = $derived(catalogue.state.status === 'failed' && isTeamView(catalogue.state.error));
+  // The desk's team holds no REQUEST at its own portal: the catalogue answers it by READ with
+  // `may_raise` false, and nothing that only a requester reads is asked for it. A server that
+  // still refuses the team is answered from the collection's own read and the logo's (check 9).
+  const isRefusedTeam = $derived(catalogue.state.status === 'failed' && isTeamView(catalogue.state.error));
+  const mayRaise = $derived(catalogue.state.status === 'ready' && catalogue.state.data.may_raise !== false);
+  const isTeam = $derived(isRefusedTeam || (catalogue.state.status === 'ready' && !mayRaise));
   let teamLogo = $state<ReturnType<typeof resource<DeskLogo>> | undefined>(undefined);
   $effect(() => {
-    if (!isTeam) return;
+    if (!isRefusedTeam) return;
     return untrack(() => {
       teamLogo ??= resource<DeskLogo>(deskLogoPath(collectionId));
       return containers.openSingle(collectionId);
@@ -59,14 +62,14 @@
   const desk = $derived(
     catalogue.state.status === 'ready'
       ? catalogue.state.data.desk
-      : isTeam ? teamDeskOf(containers.find(collectionId), teamLogo?.state.status === 'ready' ? teamLogo.state.data.logo_media_id : null) : undefined,
+      : isRefusedTeam ? teamDeskOf(containers.find(collectionId), teamLogo?.state.status === 'ready' ? teamLogo.state.data.logo_media_id : null) : undefined,
   );
   // The desk's own logo, drawn from the download target the server answers (check 9); until it
   // arrives, or where the reader may not have it, the icon and the colour stand.
   const logoUrl = $derived(media.coverUrl(deskLogoOf(desk), Date.now()));
   const head = $derived(deskHead(desk, { title: t('app.portal.title'), intro: t('app.portal.intro') }));
   $effect(() => page.entitle(head.title));
-  const mine = untrack(() => resource<PortalRequestPage>(myRequestsPath(collectionId)));
+  const mine = resourceWhen<PortalRequestPage>(() => (mayRaise ? myRequestsPath(collectionId) : undefined));
   const asked = untrack(() => resource<ApprovalList>(myApprovalsPath));
   const waiting = $derived(asked.state.status === 'ready' ? asked.state.data.data : []);
   // The reader's approvals come a page at a time; the rest are decided on their own screen.
@@ -233,7 +236,9 @@
 
   <!-- Asked only of somebody who manages the workspace's members: a requester's portal would
        otherwise ask, and be refused, at every opening. -->
-  {#if holdsHere('MANAGE_MEMBERS') === true}<PublicFormPanel {collectionId} />{/if}
+  {#if holdsHere('MANAGE_MEMBERS') === true && catalogue.state.status !== 'idle' && catalogue.state.status !== 'loading'}
+    <PublicFormPanel {collectionId} hasForm={catalogue.state.status === 'ready' ? catalogue.state.data.has_public_form : undefined} />
+  {/if}
   {#if holdsHere('STRUCTURE') === true && desk}<DeskLogoPanel {collectionId} hasLogo={deskLogoOf(desk) !== undefined} />{/if}
 
   {#if !isTeam}<section aria-labelledby="portal-mine">

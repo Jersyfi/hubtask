@@ -10,6 +10,7 @@
 import type { PublicFormMinted, PublicLinksPolicy } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { cataloguePath } from './portal.svelte.ts';
 import type { submissionOf } from './publicforms.ts';
 
 export const publicFormsPolicyPath = '/public-forms:policy';
@@ -20,12 +21,12 @@ export const publicForms = {
   /** Makes the collection's public form, replacing its link, and answers the token - once. */
   make(collectionId: string): Promise<PublicFormMinted> {
     return engine.mutate<PublicFormMinted>('POST', publicFormPath(collectionId), undefined, {
-      invalidates: [publicFormPath(collectionId)],
+      invalidates: [publicFormPath(collectionId), cataloguePath(collectionId)],
     });
   },
 
   remove(collectionId: string): Promise<unknown> {
-    return engine.mutate<unknown>('DELETE', publicFormPath(collectionId), undefined, { invalidates: [publicFormPath(collectionId)] });
+    return engine.mutate<unknown>('DELETE', publicFormPath(collectionId), undefined, { invalidates: [publicFormPath(collectionId), cataloguePath(collectionId)] });
   },
 
   /** Allows or forbids public forms in the workspace, inside what the plan leaves. */

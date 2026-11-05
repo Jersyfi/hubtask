@@ -29,20 +29,32 @@ const KINDS = [
 ];
 const ARTICLE = { page_id: '01a0e2e0-0000-7000-8000-0000000041a1', title: 'When the VPN drops', icon: '', excerpt: 'Restart the «VPN» client', content_language: null, updated_at: '2026-11-01T09:00:00Z' };
 
-async function portal(browser, { width, scheme, kinds, team = false, permissions = ['READ', 'MANAGE_MEMBERS'], logo = null }) {
+// `team` is the desk's team, which the catalogue answers with `may_raise` false; `refusedTeam` is
+// a server that still refuses it the catalogue. Either refuses it its own requests, as the server
+// does, and the collection has no public form.
+async function portal(browser, { width, scheme, kinds, team = false, refusedTeam = false, permissions = ['READ', 'MANAGE_MEMBERS'], logo = null }) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
   forgetUnstubbed();
   const raised = [];
+  const asked = [];
+  team ||= refusedTeam;
   await context.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    asked.push(`${route.request().method()} ${path}`);
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_access: false, portals: [{ collection_id: DESK, name: 'IT help' }] } });
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: team ? permissions : [] } });
     if (path === '/memberships') return route.fulfill({ json: { ...PAGE, data: [], grantable_roles: [] } });
     if (path === `/containers/${DESK}/desk-logo`) return route.fulfill({ json: { collection_id: DESK, logo_media_id: logo } });
     if (path === `/containers/${DESK}`) return route.fulfill({ json: { id: DESK, type: 'COLLECTION', name: 'IT help', description: 'Ask the IT team.', parent_id: null, icon: null, color_token: null, order_key: 'a0', version: 1, private: false, handle: 'ithelp', key_prefix: 'IH', created_at: '2026-11-01T09:00:00Z', updated_at: '2026-11-01T09:00:00Z' } });
-    if (path === '/request-catalogue' && team) return route.fulfill({ status: 403, json: { type: 'about:blank', title: 'Forbidden', status: 403, code: 'forbidden' } });
-    if (path === '/request-catalogue') return route.fulfill({ json: { desk: { name: 'IT help', description: 'Ask the IT team.', icon: null, color_token: null, logo_media_id: null }, data: kinds } });
+    const refused = { status: 403, json: { type: 'about:blank', title: 'Forbidden', status: 403, code: 'forbidden' } };
+    if (path === '/request-catalogue' && refusedTeam) return route.fulfill(refused);
+    if (path === '/request-catalogue') {
+      const manages = team && permissions.includes('MANAGE_MEMBERS') ? { has_public_form: false } : {};
+      return route.fulfill({ json: { desk: { name: 'IT help', description: 'Ask the IT team.', icon: null, color_token: null, logo_media_id: logo }, data: kinds, may_raise: !team, ...manages } });
+    }
+    if (path === '/requests' && team) return route.fulfill(refused);
+    if (path === `/collections/${DESK}/public-form` && route.request().method() === 'GET') return route.fulfill({ status: 404, json: { status: 404, code: 'errors.not_found', detail_code: 'public_forms.link_not_found' } });
     if (path === '/requests' && route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
       raised.push(body);
@@ -61,7 +73,7 @@ async function portal(browser, { width, scheme, kinds, team = false, permissions
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/portal/${DESK}`);
-  return { page, failures, raised, close: () => context.close() };
+  return { page, failures, raised, asked, close: () => context.close() };
 }
 
 async function noSidewaysScroll(page, label) {
@@ -113,20 +125,23 @@ test('chromium 375 px, light: a portal that offers nothing says so', async (t) =
 test('chromium: the desk\'s team sees its portal as the team, with the way to invite requesters', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true });
+  const { page, failures, asked, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
+  await page.waitForLoadState('networkidle');
+  // Nothing a requester alone may read is asked: the console holds no refusal or 404.
+  assert.deepEqual(asked.filter((each) => each === 'GET /requests' || each === `GET /collections/${DESK}/public-form`), []);
   await page.getByRole('button', { name: 'Invite requesters' }).click();
   await page.waitForURL('**/administration/people', { timeout: 10_000 });
   assert.deepEqual(failures, []);
 });
 
-// UC-SVC-05 check 9: the team is refused the requester catalogue, so its head and the logo panel
-// are drawn from the collection and the logo read the team holds - not left empty.
+// UC-SVC-05 check 9: where a server refuses the team the requester catalogue, its head and the logo
+// panel are drawn from the collection and the logo read the team holds - not left empty.
 test('chromium: the team that shapes the desk sees its name and sets its logo at the portal', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true, permissions: ['READ', 'STRUCTURE'], logo: null });
+  const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], refusedTeam: true, permissions: ['READ', 'STRUCTURE'], logo: null });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
   await page.getByRole('heading', { name: 'IT help', level: 1 }).waitFor({ timeout: 10_000 });

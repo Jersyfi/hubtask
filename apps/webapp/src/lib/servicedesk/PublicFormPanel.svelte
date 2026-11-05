@@ -12,19 +12,21 @@
 
   import { publicFormAddress } from '../data/publicforms.ts';
   import { publicFormPath, publicForms, publicFormsPolicyPath } from '../data/publicforms.svelte.ts';
-  import { resource } from '../data/resource.svelte.ts';
+  import { resource, resourceWhen } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
-  const { collectionId }: { collectionId: string } = $props();
+  // `hasForm` is the catalogue's word on whether there is one; false reads nothing, since the
+  // link's read would answer 404 and the browser log it.
+  const { collectionId, hasForm }: { collectionId: string; hasForm?: boolean } = $props();
 
-  const link = untrack(() => resource<PublicForm>(publicFormPath(collectionId)));
+  const link = resourceWhen<PublicForm>(() => (hasForm === false ? undefined : publicFormPath(collectionId)));
   const policy = untrack(() => resource<PublicLinksPolicy>(publicFormsPolicyPath));
   const allowed = $derived(policy.state.status === 'ready' && policy.state.data.allowed);
   const held = $derived(link.state.status === 'ready' ? link.state.data : undefined);
   // A refusal other than "it has none" means the reader may not manage it: the panel stays away.
-  const absent = $derived(link.state.status === 'failed' && link.state.error.detailCode === 'public_forms.link_not_found');
+  const absent = $derived(hasForm === false || (link.state.status === 'failed' && link.state.error.detailCode === 'public_forms.link_not_found'));
 
   let madeAddress = $state<string | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
