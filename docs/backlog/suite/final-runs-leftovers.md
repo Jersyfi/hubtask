@@ -804,4 +804,7 @@ Not covered: a German account on an English browser still loads English at boot,
   kept and holds - no server error, 753 MiB resident at peak. Bringing them under 200 ms means
   aggregating in SQL, which rewrites the judgement's rules in SQL, or keeping the judged set
   between requests: more than one step. Checked in core/application/service/cmdb/Views.go on
-  2026-11-05.
+  2026-11-05. The second round's C1 (the same evening,
+  [evidence](../../evidence/second-round-2026-11-05.md)) measured P95 248, 152 and 390 ms and a
+  peak of 796 MiB resident - over the run's `GOMEMLIMIT` of 768 MiB, the plan's bar, and under
+  the chart's 1 GiB: the same whole-inventory read, so the same fix.

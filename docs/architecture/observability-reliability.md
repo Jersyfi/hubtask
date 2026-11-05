@@ -392,6 +392,18 @@ kept nothing, both fixed and measured again by R2 at 8 ms P95. The board by comp
 count over the hub read every entry they covered (430 and 974 ms P95 in the 1.2-million-entry
 workspace); a board grouped by a field whose type names its values is now read per column and
 the count from `wi_completion_idx` alone (migration 0318), measured again at 10 and 128 ms P95.
+**The second round ran on 2026-11-05** ([evidence](../evidence/second-round-2026-11-05.md),
+`test/load/PLAN.md` "Results of the second round"): at 10⁶ and 10⁷ every read path held P95
+under 200 ms without a server error, the hub's level beside writers 11 to 13 ms and the writes 21
+to 24 ms, the server at 209 MiB resident; in the 1.2-million-entry workspace the count over the hub
+(P95 119 ms) and the web app's board (47 ms) no longer kept pace with eight callers at 400 a second
+(71.8 and 199.1 answers a second). A device's first synchronisation of that workspace walked
+2 451 pages, 1.2 GB, in 42 s, page P95 17 ms; its one-response snapshot ended at the 512 MiB
+budget without a cursor, as §3.1 of offline-sync.md intends. Live delivery to 64 streams held
+P95 302 ms; 30 writers on one live document ended equal once two faults were fixed (a socket cut
+at the request timeout, a ping that stalled a busy connection). The CMDB views at the hub's ceiling
+peaked at 796 MiB resident, over the 768 MiB `GOMEMLIMIT` of the run, and health and the service
+map at P95 248 and 390 ms, over SLO-2. A connector's reconciliation at volume is *not measured*.
 
 ### 13.3 Partitioning of the entries
 

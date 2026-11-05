@@ -1,0 +1,76 @@
+{
+  "test": "S5 live documents with many writers",
+  "ran_at": "2026-11-05T21:35:06.764846Z",
+  "window_seconds": 120,
+  "writers": {
+    "test": "S5 live documents with many writers",
+    "writers": 30,
+    "window_ms": 120001,
+    "edits": 3570,
+    "cursors": 35400,
+    "unsent": 0,
+    "awareness_seen": 835575,
+    "equal": true,
+    "fresh_equal": true,
+    "length": 27640,
+    "closes_by_code": {
+      "1008": 35
+    },
+    "first_closes": [
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40092
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40093
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40097
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40097
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40099
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40101
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40102
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40116
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40116
+      },
+      {
+        "code": 1008,
+        "reason": "realtime.idle",
+        "at_ms": 40117
+      }
+    ]
+  },
+  "awareness_relayed_by_outcome": {
+    "local": 31772
+  },
+  "database_transactions_per_second": 281.34021242757706
+}

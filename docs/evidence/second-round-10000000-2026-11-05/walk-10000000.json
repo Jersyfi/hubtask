@@ -1,0 +1,322 @@
+{
+  "test": "S7 bundle per route",
+  "ran_at": "2026-11-05T22:29:37.305729Z",
+  "deadline_seconds": 600,
+  "workspaces": [
+    {
+      "rank": 0,
+      "items": 1222737,
+      "screens": [
+        {
+          "screen": "/",
+          "settled_ms": 1141,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/hubs/?",
+          "settled_ms": 1006,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/collections/?",
+          "settled_ms": 1262,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/plans",
+          "settled_ms": 945,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/pages",
+          "settled_ms": 1003,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/whiteboards",
+          "settled_ms": 961,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/desk",
+          "settled_ms": 1018,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/assets",
+          "settled_ms": 1012,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/time",
+          "settled_ms": 958,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/goals",
+          "settled_ms": 1009,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/agents",
+          "settled_ms": 960,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "items": 244547,
+      "screens": [
+        {
+          "screen": "/",
+          "settled_ms": 1063,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/hubs/?",
+          "settled_ms": 1011,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/collections/?",
+          "settled_ms": 1011,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/plans",
+          "settled_ms": 951,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/pages",
+          "settled_ms": 1010,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/whiteboards",
+          "settled_ms": 961,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/desk",
+          "settled_ms": 1008,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/assets",
+          "settled_ms": 964,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/time",
+          "settled_ms": 1012,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/goals",
+          "settled_ms": 1000,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/agents",
+          "settled_ms": 1006,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        }
+      ]
+    },
+    {
+      "rank": 7,
+      "items": 152842,
+      "screens": [
+        {
+          "screen": "/",
+          "settled_ms": 1059,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/hubs/?",
+          "settled_ms": 1003,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/collections/?",
+          "settled_ms": 999,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/plans",
+          "settled_ms": 1010,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/pages",
+          "settled_ms": 1011,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/whiteboards",
+          "settled_ms": 1013,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/desk",
+          "settled_ms": 960,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/assets",
+          "settled_ms": 1009,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/time",
+          "settled_ms": 1009,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/goals",
+          "settled_ms": 1011,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        },
+        {
+          "screen": "/agents",
+          "settled_ms": 962,
+          "script_bytes": 8013602,
+          "script_gzip_bytes": 2246158,
+          "style_bytes": 770481,
+          "style_gzip_bytes": 198224,
+          "files": 472
+        }
+      ]
+    }
+  ]
+}

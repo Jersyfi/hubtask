@@ -1,0 +1,61 @@
+{
+  "test": "cmdb_ceiling",
+  "ran_at": "2026-11-05T21:23:23.111401Z",
+  "hardware": "workstation (Apple M4 Max, 14 cores, 36 GB)",
+  "vcpus": 14,
+  "cis": 20000,
+  "relations": 19800,
+  "paths": [
+    {
+      "name": "cmdb_health",
+      "per_second": 33.96666666666667,
+      "per_second_per_vcpu": 2.4261904761904765,
+      "latency": {
+        "count": 1019,
+        "p50": 235,
+        "p95": 248,
+        "p95_low": 247,
+        "p95_high": 250,
+        "p99": 256,
+        "max": 358
+      },
+      "server_errors": 0,
+      "refused": 0
+    },
+    {
+      "name": "cmdb_software",
+      "per_second": 56.2,
+      "per_second_per_vcpu": 4.014285714285714,
+      "latency": {
+        "count": 1686,
+        "p50": 142,
+        "p95": 152,
+        "p95_low": 151,
+        "p95_high": 152,
+        "p99": 157,
+        "max": 226
+      },
+      "server_errors": 0,
+      "refused": 0
+    },
+    {
+      "name": "cmdb_service_map",
+      "per_second": 21.8,
+      "per_second_per_vcpu": 1.5571428571428572,
+      "latency": {
+        "count": 654,
+        "p50": 365,
+        "p95": 390,
+        "p95_low": 386,
+        "p95_high": 398,
+        "p99": 429,
+        "max": 614
+      },
+      "server_errors": 0,
+      "refused": 0
+    }
+  ],
+  "peak_resident_bytes": 835059712,
+  "memory_limit_bytes": 805306368,
+  "memory_observed": true
+}

@@ -1,0 +1,44 @@
+{
+  "test": "S3 sync initial walk",
+  "ran_at": "2026-11-05T22:30:16.125514Z",
+  "workspace_items": 1222737,
+  "cap_seconds": 1200,
+  "snapshot": {
+    "status": 200,
+    "records": 543127,
+    "bytes": 536870315,
+    "first_byte_ms": 39,
+    "cursor_received": false,
+    "malformed_lines": 0,
+    "held_ms": 7976
+  },
+  "pages": {
+    "pages": 2451,
+    "records": 1225170,
+    "bytes": 1203118468,
+    "total_ms": 41635,
+    "page_latency_ms": {
+      "count": 2451,
+      "p50": 16,
+      "p95": 17,
+      "p95_low": 17,
+      "p95_high": 17,
+      "p99": 18,
+      "max": 69
+    },
+    "pages_over_bar": 0,
+    "by_status": {
+      "200": 2451
+    },
+    "ended": true
+  },
+  "narrowed_snapshot": {
+    "status": 200,
+    "records": 543127,
+    "bytes": 536870315,
+    "first_byte_ms": 25,
+    "cursor_received": false,
+    "malformed_lines": 0,
+    "held_ms": 7911
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "test": "S5 live documents with many writers",
+  "ran_at": "2026-11-05T21:42:06.672217Z",
+  "window_seconds": 120,
+  "writers": {
+    "test": "S5 live documents with many writers",
+    "writers": 30,
+    "window_ms": 120003,
+    "edits": 3570,
+    "cursors": 35430,
+    "unsent": 0,
+    "awareness_seen": 995697,
+    "equal": true,
+    "fresh_equal": true,
+    "length": 27640,
+    "closes_by_code": {},
+    "first_closes": []
+  },
+  "awareness_relayed_by_outcome": {
+    "local": 35461
+  },
+  "database_transactions_per_second": 304.31838528266314
+}

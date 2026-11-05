@@ -1,0 +1,431 @@
+{
+  "test": "capacity",
+  "ran_at": "2026-11-05T21:06:57.807943Z",
+  "hardware": "workstation (Apple M4 Max, 14 cores, 36 GB)",
+  "vcpus": 14,
+  "dataset": {
+    "tenants": 200,
+    "items": 1000000
+  },
+  "tenants": [
+    {
+      "rank": 0,
+      "items": 170124,
+      "paths": [
+        {
+          "name": "list_collection",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 8,
+            "p95": 8,
+            "p95_low": 8,
+            "p95_high": 8,
+            "p99": 10,
+            "max": 16
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "query_open_by_due",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 7,
+            "p95": 8,
+            "p95_low": 8,
+            "p95_high": 8,
+            "p99": 9,
+            "max": 18
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_by_completion",
+          "per_second": 399.96666666666664,
+          "per_second_per_vcpu": 28.569047619047616,
+          "latency": {
+            "count": 11999,
+            "p50": 9,
+            "p95": 11,
+            "p95_low": 10,
+            "p95_high": 11,
+            "p99": 12,
+            "max": 23
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_of_the_web_app",
+          "per_second": 399.6333333333333,
+          "per_second_per_vcpu": 28.545238095238094,
+          "latency": {
+            "count": 11989,
+            "p50": 15,
+            "p95": 17,
+            "p95_low": 17,
+            "p95_high": 17,
+            "p99": 22,
+            "max": 34
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "count_hub_by_completion",
+          "per_second": 373.5,
+          "per_second_per_vcpu": 26.678571428571427,
+          "latency": {
+            "count": 11205,
+            "p50": 20,
+            "p95": 25,
+            "p95_low": 25,
+            "p95_high": 25,
+            "p99": 27,
+            "max": 37
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "hub_level",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 8,
+            "p95": 8,
+            "p95_low": 8,
+            "p95_high": 8,
+            "p99": 10,
+            "max": 20
+          },
+          "server_errors": 0,
+          "refused": 0
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "items": 34024,
+      "paths": [
+        {
+          "name": "list_collection",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 8,
+            "p95": 8,
+            "p95_low": 8,
+            "p95_high": 8,
+            "p99": 10,
+            "max": 15
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "query_open_by_due",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 7,
+            "p95": 9,
+            "p95_low": 9,
+            "p95_high": 9,
+            "p99": 10,
+            "max": 15
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_by_completion",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 10,
+            "p95": 11,
+            "p95_low": 11,
+            "p95_high": 11,
+            "p99": 13,
+            "max": 22
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_of_the_web_app",
+          "per_second": 399.9,
+          "per_second_per_vcpu": 28.564285714285713,
+          "latency": {
+            "count": 11997,
+            "p50": 13,
+            "p95": 14,
+            "p95_low": 14,
+            "p95_high": 14,
+            "p99": 17,
+            "max": 29
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "count_hub_by_completion",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 8,
+            "p95": 8,
+            "p95_low": 8,
+            "p95_high": 8,
+            "p99": 9,
+            "max": 15
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "hub_level",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 7,
+            "p95": 8,
+            "p95_low": 8,
+            "p95_high": 8,
+            "p99": 10,
+            "max": 16
+          },
+          "server_errors": 0,
+          "refused": 0
+        }
+      ]
+    },
+    {
+      "rank": 7,
+      "items": 21265,
+      "paths": [
+        {
+          "name": "list_collection",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 8,
+            "p95": 9,
+            "p95_low": 9,
+            "p95_high": 9,
+            "p99": 10,
+            "max": 15
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "query_open_by_due",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 8,
+            "p95": 9,
+            "p95_low": 9,
+            "p95_high": 9,
+            "p99": 11,
+            "max": 17
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_by_completion",
+          "per_second": 400,
+          "per_second_per_vcpu": 28.571428571428573,
+          "latency": {
+            "count": 12000,
+            "p50": 10,
+            "p95": 11,
+            "p95_low": 11,
+            "p95_high": 11,
+            "p99": 13,
+            "max": 19
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "board_of_the_web_app",
+          "per_second": 399.96666666666664,
+          "per_second_per_vcpu": 28.569047619047616,
+          "latency": {
+            "count": 11999,
+            "p50": 12,
+            "p95": 14,
+            "p95_low": 14,
+            "p95_high": 14,
+            "p99": 19,
+            "max": 28
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "count_hub_by_completion",
+          "per_second": 400.03333333333336,
+          "per_second_per_vcpu": 28.573809523809526,
+          "latency": {
+            "count": 12001,
+            "p50": 7,
+            "p95": 7,
+            "p95_low": 7,
+            "p95_high": 7,
+            "p99": 8,
+            "max": 20
+          },
+          "server_errors": 0,
+          "refused": 0
+        },
+        {
+          "name": "hub_level",
+          "per_second": 399.1333333333333,
+          "per_second_per_vcpu": 28.50952380952381,
+          "latency": {
+            "count": 11974,
+            "p50": 8,
+            "p95": 10,
+            "p95_low": 10,
+            "p95_high": 10,
+            "p99": 17,
+            "max": 31
+          },
+          "server_errors": 0,
+          "refused": 0
+        }
+      ]
+    }
+  ],
+  "mixed": [
+    {
+      "rank": 0,
+      "items": 170124,
+      "reads": {
+        "name": "hub_level_under_writes",
+        "per_second": 399.8666666666667,
+        "per_second_per_vcpu": 28.561904761904763,
+        "latency": {
+          "count": 11996,
+          "p50": 9,
+          "p95": 11,
+          "p95_low": 11,
+          "p95_high": 11,
+          "p99": 15,
+          "max": 30
+        },
+        "server_errors": 0,
+        "refused": 0
+      },
+      "writes": {
+        "name": "create_entry",
+        "per_second": 40,
+        "per_second_per_vcpu": 2.857142857142857,
+        "latency": {
+          "count": 1200,
+          "p50": 19,
+          "p95": 22,
+          "p95_low": 22,
+          "p95_high": 24,
+          "p99": 30,
+          "max": 41
+        },
+        "server_errors": 0,
+        "refused": 0
+      }
+    },
+    {
+      "rank": 4,
+      "items": 34024,
+      "reads": {
+        "name": "hub_level_under_writes",
+        "per_second": 400,
+        "per_second_per_vcpu": 28.571428571428573,
+        "latency": {
+          "count": 12000,
+          "p50": 9,
+          "p95": 11,
+          "p95_low": 11,
+          "p95_high": 11,
+          "p99": 14,
+          "max": 24
+        },
+        "server_errors": 0,
+        "refused": 0
+      },
+      "writes": {
+        "name": "create_entry",
+        "per_second": 39.833333333333336,
+        "per_second_per_vcpu": 2.8452380952380953,
+        "latency": {
+          "count": 1195,
+          "p50": 19,
+          "p95": 21,
+          "p95_low": 21,
+          "p95_high": 22,
+          "p99": 30,
+          "max": 205
+        },
+        "server_errors": 0,
+        "refused": 0
+      }
+    },
+    {
+      "rank": 7,
+      "items": 21265,
+      "reads": {
+        "name": "hub_level_under_writes",
+        "per_second": 399.93333333333334,
+        "per_second_per_vcpu": 28.566666666666666,
+        "latency": {
+          "count": 11998,
+          "p50": 10,
+          "p95": 13,
+          "p95_low": 13,
+          "p95_high": 13,
+          "p99": 17,
+          "max": 30
+        },
+        "server_errors": 0,
+        "refused": 0
+      },
+      "writes": {
+        "name": "create_entry",
+        "per_second": 40,
+        "per_second_per_vcpu": 2.857142857142857,
+        "latency": {
+          "count": 1200,
+          "p50": 20,
+          "p95": 24,
+          "p95_low": 24,
+          "p95_high": 24,
+          "p99": 32,
+          "max": 44
+        },
+        "server_errors": 0,
+        "refused": 0
+      }
+    }
+  ],
+  "peak_resident_bytes": 219463680,
+  "memory_limit_bytes": 805306368,
+  "memory_observed": true
+}

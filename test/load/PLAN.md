@@ -25,12 +25,16 @@ and has run:
 | R2 (twice) | R1 + R3 again on the fixes | no server error, no browser row; 24 cancelled figure statements left | 42.5 min (the second), 2026-11-01 |
 | L1 | 64 change streams under 10 writes a second, default dataset (40 000 entries) | [evidence](../../docs/evidence/live-l1-2026-11-05.md): passes | 5 min 19 s (319 s), 2026-11-05 |
 | C1 | One hub at the CMDB ceiling (20 000 CIs, 19 800 relations), default dataset: health, software and the service map | [evidence](../../docs/evidence/cmdb-ceiling-2026-11-05.md): no server error, peak 753 MiB resident; P95 257, 171 and 583 ms | 2 min 33 s (153 s), 2026-11-05 |
+| S10⁶ | The second round at 10⁶: S1, S2, S7, C1, S4, S5, S3 in one invocation, S5 again twice after two fixes | [evidence](../../docs/evidence/second-round-2026-11-05.md): S5 failed twice and passed on the fixes; C1's memory over its bar; no log finding | 26 min (1 562 s) and S5's reruns 305 s and 299 s, 2026-11-05 |
+| S10⁷ | The second round at 10⁷: S1, S2, S7, S3 | the same evidence: passes; no log finding, 23 expected rows | 46 min 45 s (2 804 s), 2026-11-05 |
 
 What has **not** run: the first synchronisation of a large workspace, live documents with many
 writers, a connector's reconciliation under volume, the bundle per route, a drain (L2), the small
 host's footprint (F1), backup and export at size (B1), and L1 at 10⁶ beyond a 60-second probe.
 The second round below closes the first four, which the owner's word of 2026-10-31 names, and keeps L2, F1 and B1 where
-they were (not built, each its own probe once it is).
+they were (not built, each its own probe once it is). It ran on 2026-11-05 (rows S10⁶ and S10⁷
+above): the first synchronisation, live documents, the bundle per route and L1 at 10⁶ for its
+two-minute window ran; a connector's reconciliation (S6) did not, as it is not built.
 
 ## The second round
 
@@ -216,6 +220,42 @@ machine's.
 
 None of these is load; each is proven by its own unit test and a run at the default dataset
 (about a minute) before the round starts.
+
+### Results of the second round (2026-11-05)
+
+Ran on the owner's workstation (Apple M4 Max, 14 cores, 36 GB; Docker VM 7.9 GB) on the owner's
+word (accepted.md, "The owner's word on the second performance round"); every figure is from
+[the evidence](../../docs/evidence/second-round-2026-11-05.md) and its JSON. Milliseconds;
+P95 with its 95 % band; "largest" is the largest credentialled workspace (170 124 entries at 10⁶,
+1 222 737 at 10⁷).
+
+| # | Size | Throughput | P50 / P95 [band] / P99 | Peak resident | Bar |
+|---|---|---|---|---|---|
+| S1 | 10⁶ | 373.5 to 400 a second per path | every path P95 7 to 25; the largest: page 8/8 [8–8]/10, by due 7/8 [8–8]/9, board 9/11 [10–11]/12, the web app's board 15/17 [17–17]/22, count over the hub 20/25 [25–25]/27 (373.5/s), level 8/8 [8–8]/10 | 209 MiB (S1 and S2) | passes |
+| S1 | 10⁷ | 400 a second, but the largest's count over the hub 71.8 and the web app's board 199.1 | the largest: page 8/9 [8–9]/11, by due 8/9 [9–9]/12, board 9/10 [10–10]/12, the web app's board 39/47 [47–48]/52, count 110/119 [119–119]/122, level 8/8 [8–8]/10 | 209 MiB (S1 and S2) | passes SLO-2; the web app's board and the count over the hub over twice their 10⁶ P95 at every rank - explained by entries ×7.2, not fixed |
+| S2 | 10⁶ | reads 399.9 to 400, writes 39.8 to 40 a second | reads P95 11 to 13, writes P95 21 to 24; the largest: reads 9/11 [11–11]/15, writes 19/22 [22–24]/30 | in S1's | passes |
+| S2 | 10⁷ | the same | reads P95 11 to 12, writes P95 22; the largest: reads 9/11 [11–11]/15, writes 19/22 [22–24]/30 | in S1's | passes |
+| S3 | 10⁶ | 426 pages in 6 402 ms | pages 15/16 [16–17]/20, max 42; the snapshot 212 641 records, 198 MB, held 2 734 ms, with its cursor | not measured | passes |
+| S3 | 10⁷ | 2 451 pages in 41 635 ms, 1 225 170 records, 1.2 GB | pages 16/17 [17–17]/18, max 69; both snapshots ended at the 512 MiB budget without the cursor (543 127 records, held about 8 s), by design | not measured | passes |
+| S4 | 10⁶ | 1 200 writes, 76 800 deliveries in 120 s; 1 096 transactions a second | writes 20/60 [58–62]/69; delivery 185/302 [302–302]/314, max 329; none late or missing; NOTIFY queue 0 | not measured | passes |
+| S5 | 10⁶ | 3 570 edits, 35 430 cursors in 120 s; 304 transactions a second | - (it records outcomes, not latencies) | not measured | failed twice, fixed (`b01afe7fc`, `ba349641d`), then passes: documents equal, no edit unsent, no connection closed, 35 461 relayed `local` |
+| S6 | - | - | - | - | **did not run**: not built (item 5 above) |
+| S7 | 10⁶, 10⁷ | 33 screens each | settled in 949 to 1 260 (10⁶) and 945 to 1 262 (10⁷) | not measured | passes; every screen fetched the whole precache, 472 files, 2 246 158 script and 198 224 style gzip bytes |
+| C1 | 10⁶ | 34.0, 56.2, 21.8 a second | health 235/248 [247–250]/256, software 142/152 [151–152]/157, service map 365/390 [386–398]/429 | **796 MiB, over** `GOMEMLIMIT` 768 MiB | no 5xx; memory over its bar; health's and the service map's P95 over SLO-2 |
+
+The two S5 findings: the live document route inherited the request timeout and every socket
+closed at 30 s (`b01afe7fc`); the connection's ping was awaited on its own loop, so a client that
+kept sending stalled it until the write bound and was closed as idle at 40 s (`ba349641d`). The
+trial of 20 s could see neither. No other row was collected: the server's log and PostgreSQL's
+held no finding at either size; at 10⁷ the expected rows were 14 + 9 cancelled figure counts.
+
+Over a target and not fixed: C1's resident memory (796 MiB against 768 MiB; 753 MiB in the
+morning's run) and C1's P95 over SLO-2, both of the whole-inventory judgement already named a
+finding (final-runs-leftovers.md, "Needs a finding issue"); the 10⁷ throughput of the count over
+the hub and the web app's board in the largest workspace. Measured durations replace the caps:
+the 10⁶ invocation took 26 min (setup 3 min 8 s, S1 and S2 15 min 45 s, S7 40 s, C1 2 min 16 s,
+S4 2 min 1 s, S5 2 min 1 s, S3 12 s), the 10⁷ one 46 min 45 s (setup 29 min 23 s, S1 and S2
+15 min 45 s, S7 39 s, S3 58 s). Go ran S3 after S4 and S5 (file order), not before them.
 
 ## Kept from the first round, not built
 
