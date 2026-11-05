@@ -20,6 +20,8 @@ import type { Node as PmNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 
+import { blockLibraries } from './libraries.ts';
+
 /** The colours a diagram is drawn in. */
 export interface DiagramColours {
   readonly paper: string;
@@ -83,12 +85,12 @@ let lowlight: Promise<Lowlight> | undefined;
 let mermaid: Promise<typeof import('mermaid').default> | undefined;
 
 function loadLowlight(): Promise<Lowlight> {
-  lowlight ??= import('lowlight').then((module) => module.createLowlight(module.common));
+  lowlight ??= blockLibraries.lowlight().then((module) => module.createLowlight(module.common));
   return lowlight;
 }
 
 function loadMermaid(colours: DiagramColours | undefined) {
-  mermaid ??= import('mermaid').then((module) => {
+  mermaid ??= blockLibraries.mermaid().then((module) => {
     module.default.initialize({
       startOnLoad: false,
       securityLevel: 'strict',
@@ -215,12 +217,14 @@ export const CodeBlocks = Extension.create<CodeDrawing>({
           try {
             const { svg } = await engine.render(`page-diagram-${++sequence}`, text);
             keep(text, { src: diagramSource(svg, options.diagramColours?.().paper) });
-          } catch {
-            keep(text, { error: true });
+          } catch (error) {
+            // A part of Mermaid that could not be fetched (offline) is no fault of the text: it is
+            // drawn again on the next change instead of being marked broken.
+            if (!(error instanceof TypeError)) keep(text, { error: true });
           }
         }
       } catch {
-        for (const text of texts) keep(text, { error: true });
+        mermaid = undefined;
       }
       redraw();
     };

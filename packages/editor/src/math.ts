@@ -12,7 +12,9 @@
 
 import { Node, mergeAttributes, type Editor } from '@tiptap/core';
 
+import { blockLibraries } from './libraries.ts';
 import { texOf } from './markdown.ts';
+
 
 /** The words the formula block draws: its label and the line shown for TeX KaTeX cannot read. */
 export interface MathWords {
@@ -25,7 +27,7 @@ let katex: Promise<Katex> | undefined;
 
 /** KaTeX, loaded once, on demand. */
 export function loadKatex(): Promise<Katex> {
-  katex ??= import('katex').then((module) => module.default);
+  katex ??= blockLibraries.katex().then((module) => module.default);
   return katex;
 }
 

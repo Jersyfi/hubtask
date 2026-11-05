@@ -6,7 +6,8 @@
   "description": "A page's block editor: the accepted ProseMirror core (TipTap, MIT parts only) over a Yjs live document, its connection in the server's framing, and the Markdown projection a page saves beside it.",
   "license": "Apache-2.0",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./libraries": "./src/libraries.ts"
   },
   "files": [
     "src"

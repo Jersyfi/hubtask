@@ -24,6 +24,7 @@ export { EMOJI_SHORTCODES, EmojiShortcodes, emojiOf, shortcodeAt } from './emoji
 export { CodeBlocks, diagramSource, highlight, runsOf } from './code.ts';
 export type { CodeDrawing, CodeRun, DiagramColours } from './code.ts';
 export { MathBlock, loadKatex, mathMarkup } from './math.ts';
+export { blockLibraries } from './libraries.ts';
 export { findPassage, selectedWords } from './passages.ts';
 export type { Passage, PassageRange } from './passages.ts';
 export { Doc } from 'yjs';
