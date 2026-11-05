@@ -66,6 +66,16 @@ var capacityPaths = []capacityPath{
 			return `{"scope":{"container_id":"` + as.collection + `"},` +
 				`"group_by":{"field":"is_completed","limit_per_group":50}}`
 		}},
+	// The web app's own board, byte for byte as apps/webapp/src/lib/data sends it: the columns are
+	// found through the index (migration 0364), the exact count still reads the collection. The seed
+	// files no entry into a column, so every entry stands in the one page without a value.
+	{name: "board_of_the_web_app", method: http.MethodPost,
+		path: func(tenant) string { return "/api/v1/items:query" },
+		body: func(as tenant) string {
+			return `{"scope":{"container_id":"` + as.collection + `","include_descendants":false},` +
+				`"include_archived":true,"group_by":{"field":"bucket_id","limit_per_group":50},` +
+				`"sort":[{"field":"order_key","dir":"ASC"}],"expand":["labels"],"count":"exact"}`
+		}},
 	{name: "count_hub_by_completion", method: http.MethodPost,
 		path: func(tenant) string { return "/api/v1/items:aggregate" },
 		body: func(as tenant) string {
