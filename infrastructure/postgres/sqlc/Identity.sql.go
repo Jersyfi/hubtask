@@ -536,7 +536,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 const findAccount = `-- name: FindAccount :one
 
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at, avatar_media_id
+  celebrations, onboarding_completed_at, avatar_media_id, products_seen
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -555,6 +555,7 @@ type FindAccountRow struct {
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
 	AvatarMediaID         pgtype.UUID
+	ProductsSeen          []string
 }
 
 // ============================== Accounts ==============================
@@ -578,6 +579,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.Celebrations,
 		&i.OnboardingCompletedAt,
 		&i.AvatarMediaID,
+		&i.ProductsSeen,
 	)
 	return i, err
 }
@@ -1940,8 +1942,9 @@ UPDATE account SET
   week_start = $3,
   celebrations = $4,
   onboarding_completed_at = $5,
-  updated_at = $6
-WHERE id = $7 AND deleted_at IS NULL
+  products_seen = $6::text[],
+  updated_at = $7
+WHERE id = $8 AND deleted_at IS NULL
 `
 
 type UpdateAccountPreferencesParams struct {
@@ -1950,6 +1953,7 @@ type UpdateAccountPreferencesParams struct {
 	WeekStart             *string
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
+	ProductsSeen          []string
 	UpdatedAt             pgtype.Timestamptz
 	ID                    pgtype.UUID
 }
@@ -1963,6 +1967,7 @@ func (q *Queries) UpdateAccountPreferences(ctx context.Context, arg UpdateAccoun
 		arg.WeekStart,
 		arg.Celebrations,
 		arg.OnboardingCompletedAt,
+		arg.ProductsSeen,
 		arg.UpdatedAt,
 		arg.ID,
 	)

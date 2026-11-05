@@ -60,11 +60,15 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 	}
 	account, err := accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName,
 		row.Status, row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
-	if err != nil || !row.AvatarMediaID.Valid {
+	if err != nil {
 		return account, err
 	}
-	// Read by Find alone: it is what every projection of an account reads through, and the other
-	// lookups serve sign-in, which draws no picture.
+	// Read by Find alone, as the picture is: it is what every projection of an account and the
+	// preferences' write read through, and the other lookups serve sign-in.
+	account.ProductsSeen = row.ProductsSeen
+	if !row.AvatarMediaID.Valid {
+		return account, nil
+	}
 	account.AvatarMediaID, err = idFrom(row.AvatarMediaID)
 	return account, err
 }
@@ -358,6 +362,7 @@ func (r AccountRepository) UpdatePreferences(
 		WeekStart:             optionalText(account.WeekStart),
 		Celebrations:          account.Celebrations,
 		OnboardingCompletedAt: optionalTimestamp(account.OnboardingCompletedAt),
+		ProductsSeen:          productsSeenOf(account.ProductsSeen),
 		UpdatedAt:             timestampOf(at),
 		ID:                    id,
 	})
@@ -436,6 +441,14 @@ func (r AccountRepository) SetAvatar(
 		return shared.ErrNotFound.WithDetail("accounts.not_found")
 	}
 	return nil
+}
+
+// productsSeenOf is the column's value: never NULL, which the column refuses.
+func productsSeenOf(seen []string) []string {
+	if seen == nil {
+		return []string{}
+	}
+	return seen
 }
 
 // accountFrom rebuilds an account from its columns. Shared by both lookups, so the two cannot

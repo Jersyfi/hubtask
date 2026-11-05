@@ -7850,4 +7850,8 @@ CREATE POLICY tenant_isolation ON mail_undeliverable
 GRANT SELECT, INSERT, UPDATE, DELETE ON mail_undeliverable TO hubtask_app;
 ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
 
+-- Migration 0376: the products whose first-visit mark the person has seen.
+ALTER TABLE account ADD COLUMN products_seen text[] NOT NULL DEFAULT '{}',
+  ADD CONSTRAINT account_products_seen_bound CHECK (cardinality(products_seen) <= 9);
+
 COMMIT;

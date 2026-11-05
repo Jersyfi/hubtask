@@ -361,6 +361,7 @@ type Account struct {
 	TermsAgreedAt         pgtype.Timestamptz
 	AvatarMediaID         pgtype.UUID
 	ExternalID            *string
+	ProductsSeen          []string
 }
 
 type AccountGroup struct {

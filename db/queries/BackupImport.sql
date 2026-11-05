@@ -79,6 +79,7 @@ INSERT INTO account (
   id,
   celebrations,
   onboarding_completed_at,
+  products_seen,
   redemption_token_hash,
   redemption_expires_at,
   password_set_at,
@@ -108,6 +109,8 @@ SELECT
   r.id,
   r.celebrations,
   r.onboarding_completed_at,
+  -- An archive from before migration 0376 carries none: nobody has seen a mark yet.
+  coalesce(r.products_seen, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
   r.password_set_at,
@@ -139,6 +142,7 @@ FROM jsonb_populate_record(
 ON CONFLICT (id) DO UPDATE SET
   celebrations = EXCLUDED.celebrations,
   onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+  products_seen = EXCLUDED.products_seen,
   redemption_token_hash = EXCLUDED.redemption_token_hash,
   redemption_expires_at = EXCLUDED.redemption_expires_at,
   password_set_at = EXCLUDED.password_set_at,
