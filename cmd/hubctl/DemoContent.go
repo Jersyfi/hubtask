@@ -43,13 +43,25 @@ func (d *demo) run(ctx context.Context) {
 	d.cmdb(ctx, desk, deskFresh)
 	d.wiki(ctx, scrum.hub, desk.hub, classic.hub)
 	d.whiteboards(ctx, scrum, kanban)
-	d.timeTracking(ctx, scrum)
+	d.timeTracking(ctx, scrum, classic, desk)
 	d.goals(ctx, scrum, kanban, classic, desk)
 }
 
 // take plans a template and applies exactly that plan, as the gallery takes it.
 func (d *demo) take(ctx context.Context, key, hub string, samples bool) {
 	body := map[string]any{}
+	if key == "itil_service_desk" && hub == "" {
+		// The desk's groups where the workspace has them by the names seed-demo.sh gives them.
+		answers := map[string]any{}
+		for answer, group := range map[string]string{"first_group": "Service Desk – 1st Level", "cab_group": "Change Advisory Board"} {
+			if id := d.groups[group]; id != "" {
+				answers[answer] = id
+			}
+		}
+		if len(answers) > 0 {
+			body["answers"] = answers
+		}
+	}
 	if hub != "" {
 		body["hub_id"] = hub
 	}
@@ -139,8 +151,9 @@ func (d *demo) steps(ctx context.Context, item string, keys ...string) {
 	}
 }
 
-func (d *demo) comment(ctx context.Context, item, body string, internal bool) {
-	if d.write(ctx, "comment", "POST", "/items/"+item+"/comments", map[string]any{"body": body, "internal": internal}) != nil {
+// comment is a speaker's comment on an entry; speaker names the person of seed-demo.sh who says it.
+func (d *demo) comment(ctx context.Context, speaker, item, body string, internal bool) {
+	if d.say(ctx, speaker, "comment", "POST", "/items/"+item+"/comments", map[string]any{"body": body, "internal": internal}) != nil {
 		d.counts["comments"]++
 	}
 }
@@ -214,8 +227,8 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 	}
 	if loginFresh {
 		d.steps(ctx, login, "plan", "start")
-		d.comment(ctx, login, "Android 13 kann Passkeys nur mit Google Play Services ≥ 23.x – sollen wir das als Mindestversion festlegen?", false)
-		d.comment(ctx, login, "Yes, let's require it; the share of Android 13 without current Play Services is under 2 % in our analytics.", false)
+		d.comment(ctx, "Mehmet Yılmaz", login, "Android 13 kann Passkeys nur mit Google Play Services ≥ 23.x – sollen wir das als Mindestversion festlegen?", false)
+		d.comment(ctx, "Amelia Hughes", login, "Yes, let's require it; the share of Android 13 without current Play Services is under 2 % in our analytics.", false)
 	}
 
 	offline, fresh := d.entry(ctx, "scrum.offline", app, "Offline mode: orders placed without a connection are queued and sent once the phone is back online", entryOptions{
@@ -247,7 +260,7 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 		notes: "Reproduzierbar auf Pixel 8, Android 15. Stacktrace im Crash-Reporter: `NullPointerException in DeepLinkRouter.resolve`."})
 	if fresh {
 		d.steps(ctx, bug1, "plan", "start")
-		d.comment(ctx, bug1, "Seen on iOS too? I could not reproduce it on an iPhone 15 with iOS 18.1.", false)
+		d.comment(ctx, "Sofia Rossi", bug1, "Seen on iOS too? I could not reproduce it on an iPhone 15 with iOS 18.1.", false)
 		d.link(ctx, bug1, login, "blocks")
 		d.link(ctx, offline, darkmode, "depends_on")
 	}
@@ -276,8 +289,8 @@ func (d *demo) scrum(ctx context.Context) demoHub {
 		d.steps(ctx, platform[1], "plan", "start")
 		d.steps(ctx, platform[4], "plan", "start", "review", "finish")
 		d.link(ctx, platform[3], platform[1], "blocks")
-		d.comment(ctx, platform[1], "Wir sollten die Wiederholungen im Audit sichtbar machen, sonst fragt der Support jedes Mal nach.", false)
-		d.comment(ctx, platform[0], "Draft of the limits: 600 requests/minute per key, burst 1200. @Lukas please sanity-check before Friday.", false)
+		d.comment(ctx, "Lukas Brandt", platform[1], "Wir sollten die Wiederholungen im Audit sichtbar machen, sonst fragt der Support jedes Mal nach.", false)
+		d.comment(ctx, "Amelia Hughes", platform[0], "Draft of the limits: 600 requests/minute per key, burst 1200. @Lukas please sanity-check before Friday.", false)
 	}
 
 	// Sprints: one finished, one running, one planned; estimates in points.
@@ -353,10 +366,10 @@ func (d *demo) kanban(ctx context.Context) demoHub {
 		{"Pressemitteilung zur Version 4.2 abstimmen (Freigabe durch Geschäftsführung)", "", priya, []string{"pull"}},
 		{"Short video: setting up a Kanban board in under two minutes", "Social", jonas, nil},
 	}
-	comments := []string{
-		"Freigabe der Stadtwerke liegt vor, Zitat von Frau Albers ist abgestimmt.",
-		"Webinar dates: 19 and 26 November, both 10:00 CET.",
-		"Bildschirme für die Messe sind bestellt, Lieferung KW 46. Das Karussell ist live, 1.240 Impressionen am ersten Tag.",
+	comments := [][2]string{
+		{"Priya Natarajan", "Freigabe der Stadtwerke liegt vor, Zitat von Frau Albers ist abgestimmt."},
+		{"Sofia Rossi", "Webinar dates: 19 and 26 November, both 10:00 CET."},
+		{"Jonas Weber", "Bildschirme für die Messe sind bestellt, Lieferung KW 46. Das Karussell ist live, 1.240 Impressionen am ersten Tag."},
 	}
 	for i, c := range cards {
 		id, made := d.entry(ctx, fmt.Sprintf("kanban.card%d", i), board, c.title, entryOptions{
@@ -364,7 +377,7 @@ func (d *demo) kanban(ctx context.Context) demoHub {
 		if made {
 			d.steps(ctx, id, c.walk...)
 			if i < len(comments) {
-				d.comment(ctx, id, comments[i], false)
+				d.comment(ctx, comments[i][0], id, comments[i][1], false)
 			}
 		}
 		out.entries = append(out.entries, id)
@@ -459,7 +472,7 @@ func (d *demo) classic(ctx context.Context) demoHub {
 		}
 	}
 	if issue, made := d.entry(ctx, "classic.access", risks, "Zufahrt für Schwerlastverkehr während der Bauphase ungeklärt", entryOptions{entryType: "issue", assignee: lukas}); made {
-		d.comment(ctx, issue, "Termin mit dem Bezirksamt Hamburg-Mitte am Donnerstag, 10 Uhr. Unterlagen liegen im Wiki.", false)
+		d.comment(ctx, "Lukas Brandt", issue, "Termin mit dem Bezirksamt Hamburg-Mitte am Donnerstag, 10 Uhr. Unterlagen liegen im Wiki.", false)
 	}
 	if cr, made := d.entry(ctx, "classic.pv", risks, "Änderungsantrag: zusätzliche Photovoltaik auf Halle B (420 kWp)", entryOptions{entryType: "change_request",
 		notes: "Mehrkosten ca. 380.000 €, Amortisation laut Gutachten nach 7,5 Jahren."}); made {
@@ -483,6 +496,9 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 	if fresh {
 		// After the collections: the template's sample incidents land in the hub's first one.
 		d.take(ctx, "itil_service_desk", h, true)
+		if cab := d.groups["Change Advisory Board"]; cab != "" {
+			d.write(ctx, "cab role", "POST", "/role-grants", map[string]any{"role": "cab_member", "scope_type": "HUB", "scope_id": h, "group_id": cab})
+		}
 		for _, o := range []struct {
 			key, name, domain string
 			shares            bool
@@ -494,20 +510,26 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 		}
 	}
 	mehmet, sofia := d.who("Mehmet Yılmaz"), d.who("Sofia Rossi")
-	// The portal's requests, raised here by the person running the showcase as the portal raises them.
-	requests := []struct{ kind, title, notes string }{
-		{"incident", "Seit dem Update lässt sich das Kundenportal in Firefox nicht mehr öffnen",
+	// The portal's requests: raised by seed-demo.sh's requesters under --voices, otherwise entered
+	// by the person running the showcase, as the desk enters a call.
+	requests := []struct{ requester, kind, title, notes string }{
+		{"Hannah Albers", "incident", "Seit dem Update lässt sich das Kundenportal in Firefox nicht mehr öffnen",
 			"Fehlermeldung: »Die Verbindung wurde zurückgesetzt«. In Edge funktioniert es. Betroffen sind alle 14 Arbeitsplätze im Kundenzentrum."},
-		{"service_request", "Neuer Zugang für Auszubildende ab 1. Dezember (3 Personen)", "Bitte Zugänge mit Rolle »Sachbearbeitung« anlegen."},
-		{"incident", "Delivery notes are printed without the barcode since this morning",
+		{"Felix Hartmann", "service_request", "Neuer Zugang für Auszubildende ab 1. Dezember (3 Personen)", "Bitte Zugänge mit Rolle »Sachbearbeitung« anlegen."},
+		{"Grace O'Neill", "incident", "Delivery notes are printed without the barcode since this morning",
 			"Warehouse 2 in Felixstowe. Printer model Zebra ZT411, the test page prints fine."},
-		{"service_request", "Lizenz für das Planungswerkzeug auf eine weitere Person übertragen", ""},
+		{"Hannah Albers", "service_request", "Lizenz für das Planungswerkzeug auf eine weitere Person übertragen", ""},
 	}
 	raised := make([]string, len(requests))
 	for i, r := range requests {
 		var made bool
-		raised[i], made = d.object(ctx, fmt.Sprintf("entry.desk.request%d", i), "ENTRY", "portal requests", "/requests",
-			map[string]any{"collection_id": desk, "entry_type": r.kind, "title": r.title, "notes": r.notes})
+		body := map[string]any{"collection_id": desk, "entry_type": r.kind, "title": r.title, "notes": r.notes}
+		if d.voices {
+			raised[i], made = d.spokenObject(ctx, r.requester, fmt.Sprintf("entry.desk.request%d", i), "ENTRY", "portal requests", "/requests", body)
+		} else {
+			body["type"] = "TASK"
+			raised[i], made = d.object(ctx, fmt.Sprintf("entry.desk.request%d", i), "ENTRY", "portal requests", "/items", body)
+		}
 		if !made || raised[i] == "" {
 			continue
 		}
@@ -520,14 +542,18 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 				d.write(ctx, "triage "+f[0], "PUT", "/items/"+raised[i]+"/custom-fields/"+f[0], map[string]any{"value": f[1]})
 			}
 			d.steps(ctx, raised[i], "start")
-			d.comment(ctx, raised[i], "Danke für die Meldung – wir sehen das auch intern. Ein Zertifikat der Zwischen-CA fehlt in der Kette, wir tauschen es heute bis 14 Uhr.", false)
-			d.comment(ctx, raised[i], "Intern: betrifft auch das Partnerportal, Problem-Ticket angelegt.", true)
+			d.comment(ctx, "Mehmet Yılmaz", raised[i], "Danke für die Meldung – wir sehen das auch intern. Ein Zertifikat der Zwischen-CA fehlt in der Kette, wir tauschen es heute bis 14 Uhr.", false)
+			d.comment(ctx, "Mehmet Yılmaz", raised[i], "Intern: betrifft auch das Partnerportal, Problem-Ticket angelegt.", true)
+			if d.voices {
+				d.say(ctx, r.requester, "requester reply", "POST", "/requests/"+raised[i]+"/comments",
+					map[string]any{"body": "Vielen Dank, wir warten ab und melden uns, falls es danach nicht geht."})
+			}
 		case 2:
 			if sofia != nil {
 				d.write(ctx, "assign", "POST", "/items/"+raised[i]+":assign", map[string]any{"account_id": sofia})
 			}
 			d.steps(ctx, raised[i], "start", "resolve")
-			d.comment(ctx, raised[i], "The label template lost its barcode field in last night's update; restored it, please try again.", false)
+			d.comment(ctx, "Sofia Rossi", raised[i], "The label template lost its barcode field in last night's update; restored it, please try again.", false)
 		}
 	}
 	for i, inc := range []struct {
@@ -660,7 +686,7 @@ func (d *demo) wiki(ctx context.Context, scrum, desk, classic string) {
 			if image := d.upload(ctx, "bausteine.png", png(320, 180, [3]byte{37, 99, 235})); image != "" {
 				d.write(ctx, "page image", "POST", "/pages/"+arch+"/media", map[string]any{"media_id": image})
 			}
-			d.write(ctx, "page comment", "POST", "/pages/"+arch+"/comments", map[string]any{"body": "Could we add the sequence diagram for the passkey sign-in here?"})
+			d.say(ctx, "Amelia Hughes", "page comment", "POST", "/pages/"+arch+"/comments", map[string]any{"body": "Could we add the sequence diagram for the passkey sign-in here?"})
 		}
 		d.page(ctx, "scrum.onboarding", scrum, map[string]any{
 			"title":     "Onboarding for new developers – laptop, accounts, first pull request in your first three days",
@@ -671,7 +697,7 @@ func (d *demo) wiki(ctx context.Context, scrum, desk, classic string) {
 		})
 		if ritual, fresh := d.page(ctx, "scrum.rituals", scrum, map[string]any{"title": "Team-Rituale: Daily, Refinement, Review, Retro", "parent_id": root,
 			"body": "| Termin | Wann | Dauer |\n|---|---|---|\n| Daily | täglich 9:15 | 15 min |\n| Refinement | Mi 14:00 | 60 min |\n| Review | letzter Sprinttag 13:00 | 45 min |\n| Retro | letzter Sprinttag 14:00 | 60 min |"}); fresh {
-			d.write(ctx, "page comment", "POST", "/pages/"+ritual+"/comments", map[string]any{"body": "Retro ab Dezember bitte remote – die Hälfte des Teams ist im Homeoffice."})
+			d.say(ctx, "Lukas Brandt", "page comment", "POST", "/pages/"+ritual+"/comments", map[string]any{"body": "Retro ab Dezember bitte remote – die Hälfte des Teams ist im Homeoffice."})
 		}
 	}
 	if kb, _ := d.page(ctx, "desk.knowledge", desk, map[string]any{"title": "Wissensdatenbank Service Desk", "icon": "💡",
@@ -725,7 +751,7 @@ func (d *demo) whiteboards(ctx context.Context, scrum, kanban demoHub) {
 		}
 	}
 	if retro, fresh := d.board(ctx, "scrum.retro", scrum.hub, "Retro Sprint 23", elements); fresh {
-		d.write(ctx, "whiteboard comment", "POST", "/whiteboards/"+retro+"/comments", map[string]any{"body": "Let's look at the flaky tests together on Thursday.", "element_id": "s4"})
+		d.say(ctx, "Sofia Rossi", "whiteboard comment", "POST", "/whiteboards/"+retro+"/comments", map[string]any{"body": "Let's look at the flaky tests together on Thursday.", "element_id": "s4"})
 	}
 	d.board(ctx, "scrum.flow", scrum.hub, "Anmeldefluss mit Passkey (Entwurf)", []any{
 		map[string]any{"id": "start", "kind": "SHAPE", "shape": "ELLIPSE", "x": 0, "y": 0, "width": 160, "height": 70, "text": "Kunde öffnet App"},
@@ -745,49 +771,48 @@ func (d *demo) whiteboards(ctx context.Context, scrum, kanban demoHub) {
 	d.board(ctx, "kanban.expo", kanban.hub, "Brainstorming IT-Expo Köln", notes)
 }
 
-// timeTracking records the person's own time over two weeks, as seed-demo.py records the first
-// person's: last week handed in, this week's days so far recorded. The kinds of work, absences
-// and rates are the workspace's, written with the first week.
-func (d *demo) timeTracking(ctx context.Context, scrum demoHub) {
+// demoTime is one person's two weeks, as seed-demo.py records them.
+type demoTime struct {
+	person, workType string
+	entries          []string
+}
+
+// timeTracking records two weeks of time: last week handed in, this week's days so far recorded.
+// Signed in alone, the person records the first plan as their own; under --voices each person of
+// seed-demo.sh records their own and the signed-in person approves two of the weeks after.
+// The kinds of work, absences and rates are the workspace's, written with the first week.
+func (d *demo) timeTracking(ctx context.Context, scrum, classic, desk demoHub) {
 	for _, w := range []struct {
 		key, name string
 		billable  bool
 	}{{"development", "Entwicklung", true}, {"meeting", "Abstimmung & Meetings", false}, {"support", "Support", true}, {"planning", "Planung", true}} {
 		d.write(ctx, "work type "+w.key, "PUT", "/time-work-types/"+w.key, map[string]any{"name": w.name, "billable": w.billable})
 	}
-	entries := first(scrum.entries, 0, 2)
-	if len(entries) == 0 || entries[0] == "" {
-		return
+	plans := []demoTime{{"", "development", first(scrum.entries, 0, 2)}}
+	if d.voices {
+		plans = []demoTime{
+			{"Amelia Hughes", "development", first(scrum.entries, 0, 2)},
+			{"Mehmet Yılmaz", "support", append(first(scrum.entries, 2, 4), first(desk.entries, 0, 1)...)},
+			{"Sofia Rossi", "development", first(scrum.entries, 1, 3)},
+			{"Priya Natarajan", "planning", first(classic.entries, 1, 4)},
+		}
 	}
 	lastMonday := d.monday(-7)
 	freshWeek := false
-	minutes := []int{90, 150, 45, 210, 120}
-	notes := []string{"Implementierung", "Code review", "Pairing session", "Tests und Dokumentation", "Abstimmung mit dem Fachbereich"}
-	for day := range 5 {
-		for n, entry := range entries {
-			if entry == "" {
-				continue
-			}
-			_, made := d.object(ctx, fmt.Sprintf("time.last.d%d.e%d", day, n), "TIME_RECORD", "time records", "/time-records", map[string]any{
-				"entry_id": entry, "work_type": "development", "day": d.date(lastMonday + day), "minutes": minutes[(day+n)%5],
-				"note": notes[(day*2+n)%5], "billable": true, "zone": "Europe/Berlin"})
-			freshWeek = freshWeek || made
+	for _, plan := range plans {
+		if d.recordWeeks(ctx, plan, lastMonday) {
+			freshWeek = true
 		}
-		_, made := d.object(ctx, fmt.Sprintf("time.last.d%d.daily", day), "TIME_RECORD", "time records", "/time-records", map[string]any{
-			"work_type": "meeting", "day": d.date(lastMonday + day), "minutes": 30, "note": "Daily", "zone": "Europe/Berlin"})
-		freshWeek = freshWeek || made
-	}
-	thisMonday := d.monday(0)
-	for day := 0; thisMonday+day <= 0 && day < 5; day++ {
-		d.object(ctx, "time.this."+strings.ReplaceAll(d.date(thisMonday+day), "-", ""), "TIME_RECORD", "time records", "/time-records",
-			map[string]any{"entry_id": entries[0], "work_type": "development", "day": d.date(thisMonday + day), "minutes": 120,
-				"note": "Weiterarbeit", "zone": "Europe/Berlin"})
 	}
 	if !freshWeek {
 		return
 	}
-	if d.write(ctx, "timesheet", "POST", "/timesheets/"+d.date(lastMonday)+":submit", nil) != nil {
-		d.counts["timesheets submitted"]++
+	if d.voices {
+		for _, name := range []string{"Amelia Hughes", "Mehmet Yılmaz"} {
+			if id := d.who(name); id != nil {
+				d.later(ctx, "approve "+name, "POST", "/timesheets/"+d.date(lastMonday)+":approve", map[string]any{"account_id": id})
+			}
+		}
 	}
 	if sofia := d.who("Sofia Rossi"); sofia != nil {
 		d.write(ctx, "absence", "POST", "/time-absences", map[string]any{"account_id": sofia, "from": d.date(10), "to": d.date(14), "kind": "LEAVE"})
@@ -803,6 +828,52 @@ func (d *demo) timeTracking(ctx context.Context, scrum demoHub) {
 			d.write(ctx, "cost rate", "POST", "/cost-rates", map[string]any{"account_id": id, "hour_minor": r.rate, "currency": "EUR", "from": d.date(-365)})
 		}
 	}
+	if len(plans[0].entries) > 0 && plans[0].entries[0] != "" {
+		d.say(ctx, "Amelia Hughes", "timer", "POST", "/timer:start",
+			map[string]any{"entry_id": plans[0].entries[0], "work_type": "development", "note": "Passkey-Fehlerfälle"})
+	}
+}
+
+// recordWeeks records one plan's two weeks and hands the first in; it answers whether anything
+// was made.
+func (d *demo) recordWeeks(ctx context.Context, plan demoTime, lastMonday int) bool {
+	entries := plan.entries
+	if len(entries) == 0 || entries[0] == "" {
+		return false
+	}
+	prefix := "time."
+	if plan.person != "" {
+		prefix = "time." + strings.ToLower(strings.Fields(plan.person)[0]) + "."
+	}
+	fresh := false
+	minutes := []int{90, 150, 45, 210, 120}
+	notes := []string{"Implementierung", "Code review", "Pairing session", "Tests und Dokumentation", "Abstimmung mit dem Fachbereich"}
+	record := func(key string, body map[string]any) {
+		if _, made := d.spokenObject(ctx, plan.person, prefix+key, "TIME_RECORD", "time records", "/time-records", body); made {
+			fresh = true
+		}
+	}
+	for day := range 5 {
+		for n, entry := range entries {
+			if entry == "" {
+				continue
+			}
+			record(fmt.Sprintf("last.d%d.e%d", day, n), map[string]any{
+				"entry_id": entry, "work_type": plan.workType, "day": d.date(lastMonday + day), "minutes": minutes[(day+n)%5],
+				"note": notes[(day*2+n)%5], "billable": true, "zone": "Europe/Berlin"})
+		}
+		record(fmt.Sprintf("last.d%d.daily", day), map[string]any{
+			"work_type": "meeting", "day": d.date(lastMonday + day), "minutes": 30, "note": "Daily", "zone": "Europe/Berlin"})
+	}
+	thisMonday := d.monday(0)
+	for day := 0; thisMonday+day <= 0 && day < 5; day++ {
+		record("this."+strings.ReplaceAll(d.date(thisMonday+day), "-", ""), map[string]any{"entry_id": entries[0],
+			"work_type": plan.workType, "day": d.date(thisMonday + day), "minutes": 120, "note": "Weiterarbeit", "zone": "Europe/Berlin"})
+	}
+	if fresh && d.say(ctx, plan.person, "timesheet", "POST", "/timesheets/"+d.date(lastMonday)+":submit", nil) != nil {
+		d.counts["timesheets submitted"]++
+	}
+	return fresh
 }
 
 func first(ids []string, from, to int) []string {
@@ -826,21 +897,21 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 			map[string]any{"title": "Average first response time (hours)", "kind": "NUMBER", "start": 9, "target": 2, "current": 4.5, "unit": "h"},
 			map[string]any{"title": "Passkey-Anmeldung live", "kind": "BINARY", "start": 0, "target": 1, "current": 0},
 		}})
-	appGoal, appFresh := d.goal(ctx, "app", map[string]any{"period_id": period, "title": "App rating of 4.6 stars or better in both stores",
+	appGoal, appFresh := d.goal(ctx, "company.app", map[string]any{"period_id": period, "title": "App rating of 4.6 stars or better in both stores",
 		"owner_id": amelia, "parent_id": company, "status": "AT_RISK", "hub_id": scrum.hub,
 		"key_results": []any{map[string]any{"title": "Crash-free sessions", "kind": "PERCENT", "start": 97.1, "target": 99.5, "current": 98.2, "unit": "%"}}})
-	d.goal(ctx, "desk", map[string]any{"period_id": period, "title": "Keine P1-Störung länger als vier Stunden offen",
+	d.goal(ctx, "company.desk", map[string]any{"period_id": period, "title": "Keine P1-Störung länger als vier Stunden offen",
 		"owner_id": mehmet, "parent_id": company, "status": "ON_TRACK", "hub_id": desk.hub})
 	build, buildFresh := d.goal(ctx, "build", map[string]any{"period_id": period, "title": "Logistikzentrum im Zeit- und Kostenrahmen (± 5 %)",
 		"owner_id": priya, "status": "OFF_TRACK", "hub_id": classic.hub})
 	if appFresh && len(scrum.entries) >= 3 {
 		d.write(ctx, "goal entries", "POST", "/goals/"+appGoal+"/entries", map[string]any{"entry_ids": scrum.entries[:3]})
-		d.write(ctx, "check-in", "POST", "/goals/"+appGoal+"/check-ins", map[string]any{"status": "AT_RISK", "confidence": 5,
+		d.say(ctx, "Amelia Hughes", "check-in", "POST", "/goals/"+appGoal+"/check-ins", map[string]any{"status": "AT_RISK", "confidence": 5,
 			"note": "The push-link crash costs us; fix is in Sprint 24."})
 	}
 	if buildFresh && len(classic.entries) >= 4 {
 		d.write(ctx, "goal entries", "POST", "/goals/"+build+"/entries", map[string]any{"entry_ids": classic.entries[:4]})
-		d.write(ctx, "check-in", "POST", "/goals/"+build+"/check-ins", map[string]any{"status": "OFF_TRACK", "confidence": 3,
+		d.say(ctx, "Priya Natarajan", "check-in", "POST", "/goals/"+build+"/check-ins", map[string]any{"status": "OFF_TRACK", "confidence": 3,
 			"note": "Stahlpreise +11 %, Lieferverzug 3 Wochen. Gegenmaßnahmen im Lenkungskreis."})
 	}
 	if companyFresh {
@@ -872,7 +943,7 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 				digital = append(digital, it)
 			}
 		}
-		d.object(ctx, "portfolio.digital", "PORTFOLIO", "portfolios", "/portfolios", map[string]any{"name": "Digital customer experience",
+		d.object(ctx, "portfolio.strategy.digital", "PORTFOLIO", "portfolios", "/portfolios", map[string]any{"name": "Digital customer experience",
 			"owner_id": amelia, "parent_id": portfolio, "status": "ON_TRACK", "items": digital})
 	}
 

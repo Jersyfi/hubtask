@@ -8,6 +8,7 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"maps"
@@ -19,19 +20,21 @@ import (
 
 const (
 	workspaceSamplesPath = workspacePath + "/samples"
-	workspaceDemoUsage   = "--workspace <short> [--remove]"
+	workspaceDemoUsage   = "--workspace <short> [--voices] [--remove]"
 	// demoBudget bounds the whole showcase; each call keeps the CLI's own timeout (rule 7).
 	demoBudget = 30 * time.Minute
 )
 
-// workspaceDemo fills the credential's workspace with the showcase (user-experience.md §3.6) -
-// the content scripts/seed-demo.sh writes, as the signed-in person - and marks every object it
-// makes as sample content. A run again makes only what no mark holds yet; --remove takes it all
-// away in one act.
+// workspaceDemo fills the credential's workspace with the showcase (user-experience.md §3.6) as
+// the signed-in person and marks every object it makes as sample content. A run again makes only
+// what no mark holds yet; --remove takes it all away in one act. With --voices, what other people
+// of scripts/seed-demo.sh say - their comments, time and check-ins, a requester's request - is
+// not written but answered in order under `voices`, for seed-demo.sh to write as each of them.
 func workspaceDemo(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "workspace", "demo", workspaceDemoUsage)
 	short := flags.String("workspace", "", "the workspace's short name, as a guard against filling the wrong one")
 	remove := flags.Bool("remove", false, "remove the whole showcase instead")
+	voices := flags.Bool("voices", false, "answer what other people say instead of writing it as the signed-in person")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -44,8 +47,8 @@ func workspaceDemo(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	d := &demo{cli: cli, c: client, held: map[string]string{}, people: map[string]string{}, counts: map[string]int{},
-		today: time.Now().UTC().Truncate(24 * time.Hour)}
+	d := &demo{cli: cli, c: client, held: map[string]string{}, people: map[string]string{}, groups: map[string]string{},
+		counts: map[string]int{}, voices: *voices, today: time.Now().UTC().Truncate(24 * time.Hour)}
 	var workspace map[string]any
 	if err := d.call(ctx, func(ctx context.Context) error { return client.Get(ctx, workspacePath, nil, &workspace) }); err != nil {
 		return err
@@ -71,6 +74,7 @@ func workspaceDemo(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	d.run(ctx)
+	d.flush(ctx)
 	rows := make([][]string, 0, len(d.counts)+len(d.refused))
 	for _, kind := range slices.Sorted(maps.Keys(d.counts)) {
 		rows = append(rows, []string{kind, fmt.Sprint(d.counts[kind])})
@@ -78,7 +82,10 @@ func workspaceDemo(ctx context.Context, cli *CLI, args []string) error {
 	for _, refusal := range d.refused {
 		rows = append(rows, []string{"refused", refusal})
 	}
-	if err := cli.Emit(map[string]any{"made": d.counts, "refused": d.refused, "marked": len(d.held)},
+	if d.voices {
+		rows = append(rows, []string{"voices", fmt.Sprint(len(d.spoken))})
+	}
+	if err := cli.Emit(map[string]any{"made": d.counts, "refused": d.refused, "marked": len(d.held), "voices": d.spoken},
 		Table{Columns: []string{"what", "count"}, Rows: rows}); err != nil {
 		return err
 	}
@@ -94,9 +101,33 @@ type demo struct {
 	c       *Client
 	held    map[string]string // mark key -> object id
 	people  map[string]string // display name -> account id, where the workspace has the person
+	groups  map[string]string // group name -> id, where the workspace has the group
 	counts  map[string]int
 	refused []string
 	today   time.Time
+	voices  bool
+	spoken  []demoVoice
+	pending []demoMark
+}
+
+// demoVoice is one write left to its speaker; "" is the signed-in person, whose write waits for
+// a voice before it. `{voice:N}` in its path or body stands for the identifier voice N made.
+type demoVoice struct {
+	Speaker string    `json:"speaker"`
+	What    string    `json:"what"`
+	Method  string    `json:"method"`
+	Path    string    `json:"path"`
+	Body    any       `json:"body,omitempty"`
+	Mark    *demoMark `json:"mark,omitempty"`
+}
+
+// demoMark is a mark to write once the object is made, or, for a versioned kind, once the
+// showcase's own follow-ups have moved its version.
+type demoMark struct {
+	Key  string `json:"key"`
+	Kind string `json:"kind"`
+	ID   string `json:"-"`
+	Read string `json:"-"`
 }
 
 func (d *demo) call(ctx context.Context, fn func(context.Context) error) error {
@@ -118,6 +149,17 @@ func (d *demo) load(ctx context.Context) error {
 	}
 	for _, s := range listed.Samples {
 		d.held[s.Key] = s.ObjectID
+	}
+	var groups struct {
+		Data []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, "/groups", nil, &groups) }); err == nil {
+		for _, g := range groups.Data {
+			d.groups[g.Name] = g.ID
+		}
 	}
 	var members struct {
 		Data []struct {
@@ -168,8 +210,22 @@ func (d *demo) fail(what string, err error) {
 // object makes one object and marks it under key, or answers the object a mark holds already;
 // fresh says this run made it, so that what belongs to it is written once.
 func (d *demo) object(ctx context.Context, key, kind, label, path string, body map[string]any) (string, bool) {
+	return d.spokenObject(ctx, "", key, kind, label, path, body)
+}
+
+// spokenObject is object, made by speaker where --voices leaves it to them.
+func (d *demo) spokenObject(ctx context.Context, speaker, key, kind, label, path string, body map[string]any) (string, bool) {
 	if id, held := d.held[key]; held {
 		return id, false
+	}
+	if d.voices && (speaker != "" || waits(path, body)) {
+		d.counts[label]++
+		mark := &demoMark{Key: key, Kind: kind}
+		if kind == "TIME_RECORD" && speaker != "" {
+			// Another person's time is theirs alone (T-04): nobody else could remove it.
+			mark = nil
+		}
+		return d.queue(demoVoice{Speaker: speaker, What: key, Method: "POST", Path: path, Body: compact(body), Mark: mark}), true
 	}
 	var out map[string]any
 	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Post(ctx, path, compact(body), &out) }); err != nil {
@@ -184,9 +240,71 @@ func (d *demo) object(ctx context.Context, key, kind, label, path string, body m
 		d.refused = append(d.refused, key+": the answer named no identifier")
 		return "", false
 	}
-	d.mark(ctx, key, kind, id, out["version"])
+	if read, versioned := versionedSample[kind]; versioned {
+		// The showcase's own check-ins and updates move the version; it is marked after them.
+		d.pending = append(d.pending, demoMark{Key: key, Kind: kind, ID: id, Read: read + id})
+		d.held[key] = id
+	} else {
+		d.mark(ctx, key, kind, id, out["version"])
+	}
 	d.counts[label]++
 	return id, true
+}
+
+// versionedSample names where an object deleted only at its marked version is read.
+var versionedSample = map[string]string{"GOAL": "/goals/", "PORTFOLIO": "/portfolios/", "DASHBOARD": "/dashboards/"}
+
+// flush marks the versioned objects at the version they stand at now; under --voices, once the
+// voices have been written (a MARK voice: read the path, mark what it answers).
+func (d *demo) flush(ctx context.Context) {
+	for _, m := range d.pending {
+		if d.voices {
+			d.queue(demoVoice{What: "mark " + m.Key, Method: "MARK", Path: m.Read, Mark: &demoMark{Key: m.Key, Kind: m.Kind}})
+			continue
+		}
+		var now map[string]any
+		if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, m.Read, nil, &now) }); err != nil {
+			d.fail("mark "+m.Key, err)
+			delete(d.held, m.Key)
+			continue
+		}
+		delete(d.held, m.Key)
+		d.mark(ctx, m.Key, m.Kind, m.ID, now["version"])
+	}
+	d.pending = nil
+}
+
+func (d *demo) queue(v demoVoice) string {
+	d.spoken = append(d.spoken, v)
+	return fmt.Sprintf("{voice:%d}", len(d.spoken)-1)
+}
+
+// waits reports whether a write names what a voice before it is still to make.
+func waits(path string, body any) bool {
+	if strings.Contains(path, "{voice:") {
+		return true
+	}
+	raw, err := json.Marshal(body)
+	return err == nil && strings.Contains(string(raw), "{voice:")
+}
+
+// say is a write by speaker: left to them under --voices, written by the signed-in person
+// otherwise.
+func (d *demo) say(ctx context.Context, speaker, what, method, path string, body any) map[string]any {
+	if d.voices && speaker != "" {
+		d.queue(demoVoice{Speaker: speaker, What: what, Method: method, Path: path, Body: body})
+		return map[string]any{}
+	}
+	return d.write(ctx, what, method, path, body)
+}
+
+// later is the signed-in person's write that has to follow the voices before it.
+func (d *demo) later(ctx context.Context, what, method, path string, body any) map[string]any {
+	if d.voices {
+		d.queue(demoVoice{What: what, Method: method, Path: path, Body: body})
+		return map[string]any{}
+	}
+	return d.write(ctx, what, method, path, body)
 }
 
 func (d *demo) mark(ctx context.Context, key, kind, id string, version any) {
@@ -203,6 +321,10 @@ func (d *demo) mark(ctx context.Context, key, kind, id string, version any) {
 
 // write is one write that belongs to an object made in this run: a step, a link, a comment.
 func (d *demo) write(ctx context.Context, what, method, path string, body any) map[string]any {
+	if d.voices && waits(path, body) {
+		d.queue(demoVoice{What: what, Method: method, Path: path, Body: body})
+		return map[string]any{}
+	}
 	var out map[string]any
 	err := d.call(ctx, func(ctx context.Context) error {
 		switch method {

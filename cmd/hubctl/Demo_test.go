@@ -63,6 +63,9 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 			s.periods = append(s.periods, period)
 			s.creates = append(s.creates, path)
 			answer(period)
+		case r.Method == http.MethodGet && (strings.HasPrefix(path, "/goals/") || strings.HasPrefix(path, "/dashboards/")):
+			// The showcase's own check-ins moved it on since it was made at version 1.
+			answer(map[string]any{"id": strings.Split(path, "/")[2], "version": 3})
 		case r.Method == http.MethodGet:
 			answer(map[string]any{"data": []any{}, "version": 0})
 		case strings.HasSuffix(path, ":plan"):
@@ -113,6 +116,9 @@ func TestTheShowcaseMarksWhatItMakesAndMakesItOnce(t *testing.T) {
 				t.Errorf("%s has no trash and was marked without its version", key)
 			}
 		}
+		if (m["kind"] == "GOAL" || m["kind"] == "DASHBOARD") && m["version"] != float64(3) {
+			t.Errorf("%s was marked at %v, not at the version its follow-ups left it at", key, m["version"])
+		}
 	}
 	made := len(s.creates)
 
@@ -127,5 +133,53 @@ func TestTheShowcaseMarksWhatItMakesAndMakesItOnce(t *testing.T) {
 	code, _, errOut = invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht", "--remove")
 	if code != exitOK || s.removed != 1 {
 		t.Errorf("remove: exit %d, %d removals, %s", code, s.removed, errOut)
+	}
+}
+
+// With --voices, what other people say is left to them in order - their comments and a
+// requester's request - and the signed-in person's writes that wait for one follow it.
+func TestTheShowcaseLeavesOtherPeoplesWordsToThem(t *testing.T) {
+	s := serveShowcase(t)
+	code, out, errOut := invoke(t, s.env(), "", "--json", "workspace", "demo", "--workspace", "nordlicht", "--voices")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	for _, path := range s.creates {
+		if strings.HasSuffix(path, "/comments") || path == "/requests" || path == "/time-records" {
+			t.Errorf("%s was written by the signed-in person", path)
+		}
+	}
+	var answer struct {
+		Voices []demoVoice `json:"voices"`
+	}
+	if err := json.Unmarshal([]byte(out), &answer); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	speakers, requests, waiting, marks := map[string]bool{}, 0, 0, 0
+	for i, v := range answer.Voices {
+		speakers[v.Speaker] = true
+		if v.Path == "/requests" {
+			requests++
+			if v.Mark == nil || v.Speaker == "" {
+				t.Errorf("voice %d: a request without its requester or mark: %+v", i, v)
+			}
+		}
+		if v.Speaker == "" && strings.Contains(v.Path, "{voice:") {
+			waiting++
+		}
+		if v.Method == "MARK" {
+			marks++
+		}
+		if v.Path == "/time-records" && v.Mark != nil {
+			t.Errorf("voice %d: another person's time is marked, which nobody else could remove", i)
+		}
+	}
+	for _, who := range []string{"Mehmet Yılmaz", "Amelia Hughes", "Hannah Albers", "Priya Natarajan"} {
+		if !speakers[who] {
+			t.Errorf("%s says nothing: %v", who, speakers)
+		}
+	}
+	if requests != 4 || waiting == 0 || marks < 4 {
+		t.Errorf("%d requests, %d waiting writes, %d marks after the voices", requests, waiting, marks)
 	}
 }
