@@ -291,7 +291,8 @@ func waitFor(t *testing.T, within time.Duration, what string, condition func() b
 
 // The acceptance criterion in one test: with SMTP down the notification stays queued, the health
 // report says the feature is degraded, and the queue catches up on its own when the server
-// returns - without anything being restarted.
+// returns - without anything being restarted. With mail configured, the invitation arrives by mail
+// (UC-ID-14 check 3).
 func TestANotificationSurvivesAMailServerOutage(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

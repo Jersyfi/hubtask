@@ -213,6 +213,7 @@ type signInAccounts struct {
 
 	redemption    map[string]repository.RedemptionAccount
 	minted        []domain.Token
+	mintedUntil   []time.Time
 	redeemChanged bool
 	redeemedHash  string
 
@@ -257,9 +258,10 @@ func (s *signInAccounts) FindForSignIn(_ context.Context, email string) (reposit
 }
 
 func (s *signInAccounts) SetRedemptionToken(
-	_ context.Context, _ shared.ID, presented domain.Token, _, _ time.Time,
+	_ context.Context, _ shared.ID, presented domain.Token, expiresAt, _ time.Time,
 ) (bool, error) {
 	s.minted = append(s.minted, presented)
+	s.mintedUntil = append(s.mintedUntil, expiresAt)
 	return s.redeemChanged, nil
 }
 
@@ -1064,6 +1066,10 @@ func TestMintRedemptionTokenAnswersOnceAndStoresAHash(t *testing.T) {
 	}
 	if len(accounts.minted) != 1 || accounts.minted[0].Secret() != token.Reveal() {
 		t.Errorf("stored %v, want the presented token handed to the adapter", accounts.minted)
+	}
+	// UC-ID-14 check 3: the mailed link works for the fourteen days the mail states.
+	if want := now.Add(14 * 24 * time.Hour).UTC(); len(accounts.mintedUntil) != 1 || !accounts.mintedUntil[0].Equal(want) {
+		t.Errorf("redeemable until %v, want %v", accounts.mintedUntil, want)
 	}
 
 	// An account no longer waiting answers the empty secret, and the mail composes the plain link.
