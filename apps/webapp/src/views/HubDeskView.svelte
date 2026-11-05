@@ -2,9 +2,17 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A hub's *Desk* tab (user-experience.md §2.4): the handler's queues across the hub's desk
-  // collections, then the desks themselves. A hub with no desk says how a collection becomes one.
+  // collections, then the desks themselves. A hub with no desk says how a collection becomes one
+  // and offers whoever shapes the hub the ITIL desk's plan at its *Products*; anyone else is told
+  // whom to ask (UX-5, §5.5).
   import { untrack } from 'svelte';
-  import { EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
+  import ProductEmpty from '../lib/product/ProductEmpty.svelte';
+  import { ITIL_TEMPLATE } from '../lib/servicedesk/desk.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { entryTypes } from '../lib/data/entrytypes.svelte.ts';
@@ -30,6 +38,11 @@
     return untrack(() => containers.openLevel(at));
   });
   $effect(() => untrack(() => entryTypes.open()));
+  $effect(() => {
+    const at = hubId;
+    return untrack(() => people.open({ hubId: at }));
+  });
+  const mayShape = $derived(holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
 
   // A refused read of the types reads as no desk: what the reader cannot read offers no portal.
   const typesStatus = $derived(entryTypes.state?.status);
@@ -70,7 +83,17 @@
   {#if isReading}
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {:else if desks.length === 0}
-    <EmptyState kind="unused" icon="inbox" title={t('app.desk_queues.none')} description={t('app.desk_queues.none_body')} />
+    <ProductEmpty
+      kind="unused"
+      icon="inbox"
+      product="SERVICE_DESK"
+      place={{ type: 'HUB', id: hubId }}
+      title={t('app.desk_queues.none')}
+      description={t('app.desk_queues.none_body')}
+      create={mayShape
+        ? { label: t('app.desk.itil_defaults'), onclick: () => onnavigate(`/hubs/${encodeURIComponent(hubId)}/settings/modules?template=${ITIL_TEMPLATE}`) }
+        : undefined}
+    />
   {:else}
     <DeskQueues desks={{ [hubId]: desks.map((desk) => desk.id) }} {onnavigate} />
     <section aria-labelledby="hub-desks">

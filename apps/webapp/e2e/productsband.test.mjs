@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { PERMISSIONS, fallback } from './fixture.mjs';
+import { PERMISSIONS, ROLES, fallback } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -76,7 +76,7 @@ const CIS = [{ id: '01a0e2e0-0000-7000-8000-000000000901', hub_id: HUB.id, class
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
 /** The API at the network edge, with the workspace's modules and the hub's own. */
-function stubFor({ modulesOn, hubModules }) {
+function stubFor({ modulesOn, hubModules, deskless = false, role }) {
   return async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -88,7 +88,7 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
     if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
     if (path.endsWith('/api/v1/meta/capabilities')) {
-      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn } });
+      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn, ...(role ? { roles: ROLES } : {}) } });
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
     if (path.endsWith('/api/v1/agents')) return route.fulfill({ json: { data: AGENTS } });
@@ -107,7 +107,11 @@ function stubFor({ modulesOn, hubModules }) {
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/releases`)) return route.fulfill({ json: { data: RELEASES } });
     if (path.endsWith('/api/v1/pages:search')) return route.fulfill({ json: { data: [{ id: PAGES[0].id, hub_id: HUB.id, parent_id: null, title: 'Onboarding guide', icon: null, excerpt: 'Your first «release» week', rank: 1, updated_at: PAGES[0].updated_at }] } });
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [], page: { next_cursor: null, has_more: false } } });
-    if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: TYPES } });
+    if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: deskless ? TYPES.map(({ form, ...type }) => type) : TYPES } });
+    if (role && path.endsWith('/api/v1/memberships')) {
+      const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }] : [];
+      return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
+    }
     const sla = /\/api\/v1\/items\/01a0e2e0-0000-7000-8000-0000000006(\d\d)\/sla$/.exec(path);
     if (sla) return route.fulfill({ json: { data: GOALS[sla[1]] ?? [] } });
     if (path.endsWith('/api/v1/accounts:resolve')) return route.fulfill({ json: { data: [{ id: ACCOUNT.id, display_name: ACCOUNT.display_name }] } });
@@ -386,6 +390,18 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// UX-5, §5.5: a hub with no desk yet offers whoever shapes it the ITIL desk's plan at its Products.
+test('chromium 1280 px: a hub with no desk offers the ITIL desk to whoever shapes it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}/desk`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskless: true, role: 'OWNER' });
+  t.after(close);
+  await page.getByText('This hub has no desk yet').waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Start from the ITIL defaults' }).click();
+  await page.waitForFunction(() => location.pathname.endsWith('/settings/modules') && location.search === '?template=itil_service_desk', null, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
 
 // A handler with nothing of their own opens on the first queue that holds a request, not on an
 // empty *Mine* while requests wait unassigned.

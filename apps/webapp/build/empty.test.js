@@ -71,6 +71,7 @@ const PRODUCT_VIEWS = [
   'PortalView.svelte',
   'PublicRoadmapView.svelte',
   'AgentsView.svelte',
+  'HubDeskView.svelte',
 ];
 
 test('every product screen draws its empty answer through ProductEmpty', () => {
