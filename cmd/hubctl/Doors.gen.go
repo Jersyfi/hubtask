@@ -1771,7 +1771,7 @@ var generatedCommands = []door{
 			{Name: "organisationKey", Kind: "string", Help: "", Required: true},
 		},
 		Body: []doorParam{
-			{Name: "domains", Kind: "strings", Help: "Mail domains such as `example.org`, small letters, without `@`", Required: true},
+			{Name: "domains", Kind: "strings", Help: "Mail domains such as `example.org`, small letters, without `@`; one typed in its own letters …", Required: true},
 			{Name: "name", Kind: "string", Help: "", Required: true},
 			{Name: "shares_requests", Kind: "boolean", Help: "", Required: false},
 		},

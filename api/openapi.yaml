@@ -30458,7 +30458,7 @@ components:
           minItems: 1
           maxItems: 20
           items: { type: string, maxLength: 253 }
-          description: Mail domains such as `example.org`, small letters, without `@`.
+          description: Mail domains such as `example.org`, small letters, without `@`; one typed in its own letters (`müller.de`) is kept in the form the DNS holds it in (`xn--mller-kva.de`).
         shares_requests: { type: boolean, default: false }
     RequesterOrganisationList:
       type: object

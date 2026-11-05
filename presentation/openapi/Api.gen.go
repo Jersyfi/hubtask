@@ -22197,7 +22197,7 @@ type RequesterOrganisation struct {
 
 // RequesterOrganisationDefine defines model for RequesterOrganisationDefine.
 type RequesterOrganisationDefine struct {
-	// Domains Mail domains such as `example.org`, small letters, without `@`.
+	// Domains Mail domains such as `example.org`, small letters, without `@`; one typed in its own letters (`müller.de`) is kept in the form the DNS holds it in (`xn--mller-kva.de`).
 	Domains        []string `json:"domains"`
 	Name           string   `json:"name"`
 	SharesRequests *bool    `json:"shares_requests,omitempty"`
