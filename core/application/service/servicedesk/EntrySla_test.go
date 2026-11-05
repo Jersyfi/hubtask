@@ -105,8 +105,8 @@ func TestTheReportAsksStructureAndABoundedPeriod(t *testing.T) {
 	}
 }
 
-// UC-SVC-01 checks 1 and 2: a calendar is defined under a key and defined again replaces it; a
-// replacement of a newer one is refused.
+// UC-SVC-01 check 1: a calendar is defined under a key and defined again replaces it; a
+// replacement of a newer one is refused. Check 2's running clock is not asserted here.
 func TestACalendarIsDefinedAndReplaced(t *testing.T) {
 	store := &memoryCalendars{}
 	authorizer := &gate{allow: true}
