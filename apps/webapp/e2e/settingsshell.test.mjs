@@ -55,6 +55,9 @@ test('chromium: the shell lists the sections, counts a change and asks before a 
   await routed(context);
   try {
     await page.goto(`${served.origin}/administration`);
+    // The client's router takes the link only once it is up; before that the browser loads the
+    // address itself, and the back below would be a page load the guard never sees.
+    await page.locator('main h1').first().waitFor({ timeout: 15_000 });
     await follow(page, '/administration/mail');
     const shell = page.locator('[data-settings-page]');
     await shell.waitFor({ timeout: 15_000 });
