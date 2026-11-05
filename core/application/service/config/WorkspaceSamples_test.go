@@ -174,6 +174,17 @@ func TestASampleItsStateHoldsIsKeptAndTheRestRemoved(t *testing.T) {
 	}
 }
 
+// An entry its hub took into the trash already is gone with it, not kept.
+func TestAnEntryTrashedWithItsHubCountsAsRemoved(t *testing.T) {
+	f, w := showcaseFixture()
+	w.marks["entry.login"] = domain.SampleMark{Key: "entry.login", Kind: domain.SampleEntry, ObjectID: showcaseEntry}
+	w.answer["TrashWorkItem"] = shared.ErrConflict.WithDetail("items.collection_trashed")
+	out := invoke(t, RemoveWorkspaceSamples{f.desk}.Descriptor(), person, usecase.Input{})
+	if out["removed"] != 1 || len(out["kept"].([]any)) != 0 || len(w.marks) != 0 {
+		t.Errorf("answered %v, marks %v", out, w.marks)
+	}
+}
+
 // A refusal of anything but a missing, changed or held object ends the act: nothing is half removed.
 func TestARemovalRefusedOtherwiseEndsTheWholeAct(t *testing.T) {
 	f, w := showcaseFixture()

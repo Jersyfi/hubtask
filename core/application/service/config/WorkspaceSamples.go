@@ -234,6 +234,8 @@ func (d Desk) removeSample(ctx context.Context, actor appshared.ActorContext, m 
 		return "", nil
 	case errors.Is(err, shared.ErrVersionConflict):
 		return "config.sample_changed", nil
+	case errors.Is(err, shared.ErrConflict) && shared.AsError(err).DetailCode == "items.collection_trashed":
+		return "", nil // gone with the hub or collection trashed before it
 	case errors.Is(err, shared.ErrConflict):
 		// Held by its own state, such as time in a week handed in: kept, the refusal's code named.
 		if code := shared.AsError(err).DetailCode; code != "" {
