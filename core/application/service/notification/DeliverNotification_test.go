@@ -964,3 +964,29 @@ func TestAStoppedConnectionIsSaidInItsOwnWords(t *testing.T) {
 		})
 	}
 }
+
+type replyAddresses struct{ address string }
+
+func (r replyAddresses) ReplyAddress(context.Context, shared.ID, shared.ID) (string, error) {
+	return r.address, nil
+}
+
+// UC-JUM-10 check 1: a message about an entry asks for the entry's address as its Reply-To; one
+// about no entry, or of a category nobody answers, carries none.
+func TestAMessageAboutAnEntryAnswersToItsAddress(t *testing.T) {
+	deliver := DeliverNotification{Replies: replyAddresses{address: "familie+web-42@in.example.test"}}
+	about := domain.Notification{TenantID: tenant, ItemID: itemID, Category: domain.CategoryComment}
+	if got := deliver.replyTo(context.Background(), about); got != "familie+web-42@in.example.test" {
+		t.Errorf("a comment about an entry answers to %q", got)
+	}
+	noEntry := about
+	noEntry.ItemID = ""
+	if got := deliver.replyTo(context.Background(), noEntry); got != "" {
+		t.Errorf("a message about no entry answers to %q", got)
+	}
+	membership := about
+	membership.Category = domain.CategoryMembership
+	if got := deliver.replyTo(context.Background(), membership); got != "" {
+		t.Errorf("a membership message answers to %q", got)
+	}
+}

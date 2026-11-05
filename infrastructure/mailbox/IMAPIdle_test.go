@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// UC-JUM-11 check 10.
 func TestAnArrivalEndsTheIdleAtOnce(t *testing.T) {
 	server := newServer("pw")
 	server.idle, server.announce = true, true
@@ -52,6 +53,7 @@ func TestAQuietMailboxIsHeldForTheHoldAndLetGo(t *testing.T) {
 	}
 }
 
+// UC-JUM-11 check 10.
 func TestAServerWithoutIdleIsSaidSo(t *testing.T) {
 	_, err := newServer("pw").reader().Watch(context.Background(), connectionFor("pw", ""), time.Minute)
 	if shared.AsError(err).DetailCode != "mail.mailbox_idle_unsupported" {

@@ -133,6 +133,7 @@ func (d *addressedDoor) Deliver(
 	}, nil
 }
 
+// UC-JUM-12 check 7.
 func TestTheInboundRouteTakesOnlyTheKey(t *testing.T) {
 	door := &addressedDoor{}
 	controller := NewRestController()

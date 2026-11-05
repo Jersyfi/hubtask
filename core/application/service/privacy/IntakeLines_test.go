@@ -138,6 +138,7 @@ func intakeLines() *lineStore {
 // Third answers 2 (UC-PRV-01): a case by address removes the intake's "From:" line from the
 // entry's notes and its comments through the ordinary edits, as the account that filed them; a
 // comment that held nothing else is deleted; somebody else's line stays.
+// UC-JUM-12 check 8.
 func TestAnErasureByAddressRemovesTheIntakesFromLine(t *testing.T) {
 	h := newErasureHarness()
 	lines, entries := intakeLines(), &entryCatalogue{}
@@ -173,6 +174,7 @@ func TestAnErasureByAddressRemovesTheIntakesFromLine(t *testing.T) {
 
 // Where the filer may no longer edit, the owner running the erasure does; a workspace hold keeps
 // the lines.
+// UC-JUM-12 check 8.
 func TestAnIntakeLineFallsBackToTheEraserAndAHoldKeepsIt(t *testing.T) {
 	h := newErasureHarness()
 	entries := &entryCatalogue{refuseFiler: true}
@@ -202,6 +204,7 @@ func TestAnIntakeLineFallsBackToTheEraserAndAHoldKeepsIt(t *testing.T) {
 
 // REQUESTER expiry: the lines of the batch's addresses go first; one nobody may edit any more is
 // left without stopping the pass.
+// UC-JUM-12 check 8.
 func TestExpiryRemovesTheIntakeLinesAndARefusalDoesNotStopIt(t *testing.T) {
 	lines := intakeLines()
 	lines.expired = []string{"kunde@shop.test"}

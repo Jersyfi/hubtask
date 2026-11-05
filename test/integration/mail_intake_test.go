@@ -39,6 +39,7 @@ func handleOf(ctx context.Context, t *testing.T, tenant, collection shared.ID) s
 	return found.Handle
 }
 
+// UC-JUM-12 check 1.
 func TestEveryCollectionGetsAHandleAndEveryEntryANumber(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -218,6 +219,7 @@ func TestACollectionsKeyPrefixNamesItsEntriesInItsWorkspaceOnly(t *testing.T) {
 	}
 }
 
+// UC-JUM-11 check 2: a name another workspace holds is refused.
 func TestTheSettingsNameOneWorkspaceOnTheDomain(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -277,6 +279,7 @@ func TestTheSettingsNameOneWorkspaceOnTheDomain(t *testing.T) {
 	}
 }
 
+// UC-JUM-11 check 5.
 func TestAMessageIsReceivedOnceAndForgottenAfterItsPeriod(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -3,7 +3,8 @@
 
 // One key format everywhere (user-experience.md §5.6): a list row, a board card, the entry's panel
 // and the collection's settings read the key one way - the prefix and the number where the collection has
-// a prefix, the handle in capitals where it has none - and the settings change the prefix.
+// a prefix, the handle in capitals where it has none - and the settings change the prefix
+// (UC-JUM-12 check 1).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

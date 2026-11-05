@@ -148,6 +148,7 @@ func fastWatch(h *holds, l *leadership, signals *watchSignals) MailboxWatch {
 	}.withDefaults()
 }
 
+// UC-JUM-11 check 10: one server of the installation holds a mailbox, and another takes over.
 func TestOneInstanceHoldsEachMailboxAndAStandbyTakesOver(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

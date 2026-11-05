@@ -144,12 +144,15 @@ func configFor(s *server) env.MailConfig {
 	}
 }
 
+// UC-JUM-10 check 1: a notification about an entry carries its address as Reply-To and Hubtask's
+// own notification header.
 func TestAMessageReachesTheServer(t *testing.T) {
 	smtpServer := newServer(t)
 	sender := mail.NewSMTP(configFor(smtpServer))
 
 	err := sender.Send(context.Background(), port.Message{
 		To:      "anna@test.invalid",
+		ReplyTo: "familie+web-42@in.example.test",
 		Subject: "Anna commented on Review the quote",
 		Body:    "Anna wrote on “Review the quote”.\nhttps://hub.test.invalid/items/1",
 	})
@@ -170,6 +173,8 @@ func TestAMessageReachesTheServer(t *testing.T) {
 		"Content-Type: text/plain; charset=utf-8",
 		// RFC 3834: so that an out-of-office reply does not bounce around a notification.
 		"Auto-Submitted: auto-generated",
+		"Reply-To: familie+web-42@in.example.test",
+		port.NotificationHeader + ": 1",
 		"https://hub.test.invalid/items/1",
 	} {
 		if !strings.Contains(message, want) {

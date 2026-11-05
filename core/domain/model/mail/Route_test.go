@@ -13,6 +13,7 @@ var (
 	operator = Door{Domain: "in.hubtask.app", Workspace: "familie-meier"}
 )
 
+// UC-JUM-12 check 2: a key or a handle in either form, in the subject or on the address.
 func TestTheSubjectRoutesThroughEveryDoor(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -91,6 +92,7 @@ func TestAKeyIsWrittenInCapitals(t *testing.T) {
 
 // One key format (user-experience.md §5.6): the prefix where the collection has one, the handle
 // in capitals where it has none.
+// UC-JUM-12 check 1.
 func TestAKeyReadsWithItsPrefixWhereTheCollectionHasOne(t *testing.T) {
 	for _, tc := range []struct {
 		key  Key

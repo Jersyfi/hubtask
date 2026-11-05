@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
 state: built
 tasks: []
-checked_by: [core/application/service/mail/Settings_test.go, core/application/service/mail/Mailboxes_test.go, core/domain/model/mail/Settings_test.go, core/domain/model/mail/Mailbox_test.go, infrastructure/mailbox/IMAP_test.go, infrastructure/mailbox/IMAPIdle_test.go, core/application/service/mail/Watch_test.go, presentation/worker/MailboxWatch_test.go, infrastructure/mailbox/JMAP_test.go, infrastructure/mailbox/Graph_test.go, infrastructure/mailbox/OAuth_test.go, core/application/service/mail/OAuth_test.go, core/domain/model/mail/OAuth_test.go, test/integration/mail_intake_test.go, apps/webapp/e2e/mail.test.mjs]
+checked_by: [core/application/service/mail/Settings_test.go, core/application/service/mail/Mailboxes_test.go, core/domain/model/mail/Settings_test.go, core/domain/model/mail/Mailbox_test.go, infrastructure/mailbox/IMAP_test.go, infrastructure/mailbox/IMAPIdle_test.go, core/application/service/mail/Watch_test.go, presentation/worker/MailboxWatch_test.go, infrastructure/mailbox/JMAP_test.go, infrastructure/mailbox/Graph_test.go, infrastructure/mailbox/OAuth_test.go, core/application/service/mail/OAuth_test.go, core/domain/model/mail/OAuth_test.go, test/integration/mail_intake_test.go, apps/webapp/e2e/mail.test.mjs, core/domain/model/lifecycle/Retention_test.go]
 ---
 
 # Set up the mail intake

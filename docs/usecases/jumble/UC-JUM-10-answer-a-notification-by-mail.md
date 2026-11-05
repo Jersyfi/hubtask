@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11]
 state: built
 tasks: []
-checked_by: [core/application/service/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go]
+checked_by: [core/application/service/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go, infrastructure/mail/SMTP_test.go, core/application/service/notification/DeliverNotification_test.go]
 ---
 
 # Answer a notification by mail

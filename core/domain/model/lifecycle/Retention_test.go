@@ -167,3 +167,10 @@ func TestARowIsRemovableAfterTheLaterOfThePeriodAndTheWindow(t *testing.T) {
 		})
 	}
 }
+
+// UC-JUM-11 check 5: the mail intake's log is kept thirty days unless a rule says otherwise.
+func TestTheMailLogIsKeptThirtyDays(t *testing.T) {
+	if got := defaultFor(t, lifecycle.KindMailReceipt).RetainDays; got != 30 {
+		t.Errorf("the mail log is kept %d days, want 30", got)
+	}
+}

@@ -39,6 +39,7 @@ func (k openKeys) OpenKeys(_ context.Context, kind queue.Kind, _ queue.Shard, _ 
 	return k, nil
 }
 
+// UC-JUM-11 check 10: an announced arrival is read at once; the minute's read stays.
 func TestAnArrivalPullsTheMailboxsReadForward(t *testing.T) {
 	b, store, _, jobs := boxes(&authorizer{})
 	if _, err := (ConnectMailbox{Boxes: b}).Descriptor().Handler.Invoke(context.Background(), person,
