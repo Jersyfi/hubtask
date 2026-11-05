@@ -23268,6 +23268,17 @@ type SignInCompletion struct {
 	Signature *string `json:"signature,omitempty"`
 }
 
+// SignInDetail defines model for SignInDetail.
+type SignInDetail struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// AuthenticatorApp True while a confirmed authenticator app stands. An enrolment begun and never confirmed is no factor; a passkey is not counted here, because a reset leaves it.
+	AuthenticatorApp bool `json:"authenticator_app"`
+
+	// Email The address the person is mailed by; null for a managed account, which signs in with a sign-in name.
+	Email *openapi_types.Email `json:"email"`
+}
+
 // SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
 type SignInMethod string
 
@@ -26420,6 +26431,11 @@ type ResolveAccountsJSONBody struct {
 	Ids []openapi_types.UUID `json:"ids"`
 }
 
+// ReadSignInDetailsJSONBody defines parameters for ReadSignInDetails.
+type ReadSignInDetailsJSONBody struct {
+	Ids []openapi_types.UUID `json:"ids"`
+}
+
 // CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
 type CreateInstanceBackupTargetParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -29300,6 +29316,9 @@ type InviteAccountJSONRequestBody = AccountInvite
 // ResolveAccountsJSONRequestBody defines body for ResolveAccounts for application/json ContentType.
 type ResolveAccountsJSONRequestBody ResolveAccountsJSONBody
 
+// ReadSignInDetailsJSONRequestBody defines body for ReadSignInDetails for application/json ContentType.
+type ReadSignInDetailsJSONRequestBody ReadSignInDetailsJSONBody
+
 // CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
 type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
@@ -30916,6 +30935,9 @@ type ServerInterface interface {
 	// ResolveAccounts The names behind many account identifiers at once
 	// (POST /accounts:resolve)
 	ResolveAccounts(w http.ResponseWriter, r *http.Request)
+	// ReadSignInDetails The address and the second factor of each of many people
+	// (POST /accounts:sign-in-details)
+	ReadSignInDetails(w http.ResponseWriter, r *http.Request)
 	// ListInstanceAiProviders The AI models this installation offers every workspace
 	// (GET /admin/ai-providers)
 	ListInstanceAiProviders(w http.ResponseWriter, r *http.Request)
@@ -34206,6 +34228,20 @@ func (siw *ServerInterfaceWrapper) ResolveAccounts(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResolveAccounts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadSignInDetails operation middleware
+func (siw *ServerInterfaceWrapper) ReadSignInDetails(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadSignInDetails(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -61790,6 +61826,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/me/avatar", wrapper.SetOwnAvatar)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:resolve", wrapper.ResolveAccounts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invitation-deliveries", wrapper.ReadInvitationDeliveries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:sign-in-details", wrapper.ReadSignInDetails)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:reset-second-factor", wrapper.ResetSecondFactor)

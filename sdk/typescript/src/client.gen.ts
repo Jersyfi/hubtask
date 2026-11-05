@@ -2030,6 +2030,11 @@ export class HubtaskClient {
     return this.call("POST", "/accounts:invitation-deliveries", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The address and the second factor of each of many people */
+  readSignInDetails(body: NonNullable<operations["readSignInDetails"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["readSignInDetails"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts:sign-in-details", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The name behind an account identifier */
   getAccount(accountId: string, options: CallOptions = {}): Promise<operations["getAccount"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

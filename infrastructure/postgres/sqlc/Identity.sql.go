@@ -1901,6 +1901,45 @@ func (q *Queries) SharedItemsInCollection(ctx context.Context, arg SharedItemsIn
 	return items, nil
 }
 
+const signInDetails = `-- name: SignInDetails :many
+SELECT a.id, a.email,
+  EXISTS (SELECT 1 FROM account_mfa m
+          WHERE m.account_id = a.id AND m.confirmed_at IS NOT NULL)::boolean AS authenticator_app
+FROM account a
+WHERE a.id = ANY($1::uuid[])
+  AND a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+ORDER BY a.id
+`
+
+type SignInDetailsRow struct {
+	ID               pgtype.UUID
+	Email            *string
+	AuthenticatorApp bool
+}
+
+// The people list's address and authenticator app per person (POST /accounts:sign-in-details).
+// People only, and not an erased one: a service account has neither, an erased one has nothing
+// left to show. Row level security bounds it to the transaction's tenant.
+func (q *Queries) SignInDetails(ctx context.Context, accountIds []pgtype.UUID) ([]SignInDetailsRow, error) {
+	rows, err := q.db.Query(ctx, signInDetails, accountIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SignInDetailsRow{}
+	for rows.Next() {
+		var i SignInDetailsRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.AuthenticatorApp); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const spendAccountPending = `-- name: SpendAccountPending :execrows
 UPDATE auth_pending SET consumed_at = $1
 WHERE account_id = $2 AND consumed_at IS NULL

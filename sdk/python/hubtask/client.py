@@ -1627,6 +1627,10 @@ class Client:
         """How the last mail to each of many accounts went"""
         return self._call("POST", "/accounts:invitation-deliveries", {}, None, {}, body, "json", "application/json", "json")
 
+    def read_sign_in_details(self, body: dict[str, Any]) -> dict[str, Any]:
+        """The address and the second factor of each of many people"""
+        return self._call("POST", "/accounts:sign-in-details", {}, None, {}, body, "json", "application/json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")

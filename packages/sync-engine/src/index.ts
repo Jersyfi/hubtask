@@ -556,6 +556,7 @@ export type {
   ErasureKept,
   ErasureLine,
   InvitationDelivery,
+  SignInDetail,
   ErasurePreview,
   RetentionDataKind,
   RetentionPolicy,

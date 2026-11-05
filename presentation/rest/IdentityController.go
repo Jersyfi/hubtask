@@ -130,6 +130,17 @@ func invitationDeliveryResponse(out usecase.Output) openapi.InvitationDelivery {
 	return delivery
 }
 
+// signInDetailResponse maps one person's address and authenticator app.
+func signInDetailResponse(out usecase.Output) openapi.SignInDetail {
+	detail := openapi.SignInDetail{AccountId: uuidValue(out.String("account_id"))}
+	detail.AuthenticatorApp, _ = out["authenticator_app"].(bool)
+	if email := out.String("email"); email != "" {
+		address := openapi_types.Email(email)
+		detail.Email = &address
+	}
+	return detail
+}
+
 // accountSummaryResponse maps the narrower projection. Built from its own four fields rather than
 // from `accountResponse` with members cleared: a mapping that starts from everything and removes
 // what must not travel leaks the next field somebody adds to the wider one.

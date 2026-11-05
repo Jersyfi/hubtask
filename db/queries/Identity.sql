@@ -609,6 +609,18 @@ WHERE a.id = ANY(sqlc.arg('account_ids')::uuid[])
       WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
         AND r.subject_account_id = a.id));
 
+-- name: SignInDetails :many
+-- The people list's address and authenticator app per person (POST /accounts:sign-in-details).
+-- People only, and not an erased one: a service account has neither, an erased one has nothing
+-- left to show. Row level security bounds it to the transaction's tenant.
+SELECT a.id, a.email,
+  EXISTS (SELECT 1 FROM account_mfa m
+          WHERE m.account_id = a.id AND m.confirmed_at IS NOT NULL)::boolean AS authenticator_app
+FROM account a
+WHERE a.id = ANY(sqlc.arg('account_ids')::uuid[])
+  AND a.kind = 'USER' AND a.status <> 'ANONYMIZED' AND a.deleted_at IS NULL
+ORDER BY a.id;
+
 -- ========================== Personal access tokens ==========================
 -- The tenant is never a parameter here either: row level security bounds every statement to the
 -- tenant of the running transaction, which is what makes a token of another workspace invisible

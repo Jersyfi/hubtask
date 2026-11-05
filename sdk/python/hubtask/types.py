@@ -4967,6 +4967,11 @@ class InvitationDelivery(TypedDict, total=False):
     params: dict[str, Any]
     category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA"]
 
+class SignInDetail(TypedDict, total=False):
+    account_id: Required[str]
+    email: Required[str | None]
+    authenticator_app: Required[bool]
+
 class ErasurePreview(TypedDict, total=False):
     mode: Required["ErasureMode"]
     kept: Required[list["ErasureKept"]]

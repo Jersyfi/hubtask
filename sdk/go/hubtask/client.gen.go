@@ -23274,6 +23274,17 @@ type SignInCompletion struct {
 	Signature *string `json:"signature,omitempty"`
 }
 
+// SignInDetail defines model for SignInDetail.
+type SignInDetail struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// AuthenticatorApp True while a confirmed authenticator app stands. An enrolment begun and never confirmed is no factor; a passkey is not counted here, because a reset leaves it.
+	AuthenticatorApp bool `json:"authenticator_app"`
+
+	// Email The address the person is mailed by; null for a managed account, which signs in with a sign-in name.
+	Email *openapi_types.Email `json:"email"`
+}
+
 // SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
 type SignInMethod string
 
@@ -26426,6 +26437,11 @@ type ResolveAccountsJSONBody struct {
 	Ids []openapi_types.UUID `json:"ids"`
 }
 
+// ReadSignInDetailsJSONBody defines parameters for ReadSignInDetails.
+type ReadSignInDetailsJSONBody struct {
+	Ids []openapi_types.UUID `json:"ids"`
+}
+
 // CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
 type CreateInstanceBackupTargetParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -29306,6 +29322,9 @@ type InviteAccountJSONRequestBody = AccountInvite
 // ResolveAccountsJSONRequestBody defines body for ResolveAccounts for application/json ContentType.
 type ResolveAccountsJSONRequestBody ResolveAccountsJSONBody
 
+// ReadSignInDetailsJSONRequestBody defines body for ReadSignInDetails for application/json ContentType.
+type ReadSignInDetailsJSONRequestBody ReadSignInDetailsJSONBody
+
 // CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
 type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
@@ -31682,6 +31701,34 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
 	ResolveAccounts(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadSignInDetailsWithBody The address and the second factor of each of many people
+	//
+	// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+	// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+	// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+	// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+	// resets their factor. A service account, an identifier of no person in this workspace and
+	// an erased account are left out of the answer rather than refused.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+	ReadSignInDetailsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadSignInDetails The address and the second factor of each of many people
+	//
+	// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+	// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+	// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+	// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+	// resets their factor. A service account, an identifier of no person in this workspace and
+	// an erased account are left out of the answer rather than refused.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+	ReadSignInDetails(ctx context.Context, body ReadSignInDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceAiProviders The AI models this installation offers every workspace
 	//
@@ -43287,6 +43334,54 @@ func (c *Client) ResolveAccountsWithBody(ctx context.Context, contentType string
 // Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
 func (c *Client) ResolveAccounts(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveAccountsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadSignInDetailsWithBody The address and the second factor of each of many people
+//
+// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+// resets their factor. A service account, an identifier of no person in this workspace and
+// an erased account are left out of the answer rather than refused.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+func (c *Client) ReadSignInDetailsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadSignInDetailsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadSignInDetails The address and the second factor of each of many people
+//
+// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+// resets their factor. A service account, an identifier of no person in this workspace and
+// an erased account are left out of the answer rather than refused.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+func (c *Client) ReadSignInDetails(ctx context.Context, body ReadSignInDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadSignInDetailsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -66815,6 +66910,46 @@ func NewResolveAccountsRequestWithBody(server string, contentType string, body i
 	}
 
 	operationPath := fmt.Sprintf("/accounts:resolve")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadSignInDetailsRequest calls the generic ReadSignInDetails builder with application/json body
+func NewReadSignInDetailsRequest(server string, body ReadSignInDetailsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReadSignInDetailsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewReadSignInDetailsRequestWithBody constructs an http.Request for the ReadSignInDetails method, with any body, and a specified content type
+func NewReadSignInDetailsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts:sign-in-details")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -105801,6 +105936,34 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts:resolve (the `ResolveAccounts` operationId).
 	ResolveAccountsWithResponse(ctx context.Context, body ResolveAccountsJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveAccountsResult, error)
 
+	// ReadSignInDetailsWithBodyWithResponse The address and the second factor of each of many people
+	//
+	// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+	// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+	// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+	// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+	// resets their factor. A service account, an identifier of no person in this workspace and
+	// an erased account are left out of the answer rather than refused.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+	ReadSignInDetailsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadSignInDetailsResult, error)
+
+	// ReadSignInDetailsWithResponse The address and the second factor of each of many people
+	//
+	// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+	// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+	// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+	// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+	// resets their factor. A service account, an identifier of no person in this workspace and
+	// an erased account are left out of the answer rather than refused.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+	ReadSignInDetailsWithResponse(ctx context.Context, body ReadSignInDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReadSignInDetailsResult, error)
+
 	// ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
 	//
 	// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
@@ -118540,6 +118703,58 @@ func (r ResolveAccountsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResolveAccountsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadSignInDetailsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []SignInDetail `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadSignInDetailsResult) GetJSON200() *struct {
+	Data []SignInDetail `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadSignInDetailsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadSignInDetailsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadSignInDetailsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadSignInDetailsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadSignInDetailsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -158888,6 +159103,46 @@ func (c *ClientWithResponses) ResolveAccountsWithResponse(ctx context.Context, b
 	return ParseResolveAccountsResult(rsp)
 }
 
+// ReadSignInDetailsWithBodyWithResponse The address and the second factor of each of many people
+//
+// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+// resets their factor. A service account, an identifier of no person in this workspace and
+// an erased account are left out of the answer rather than refused.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+func (c *ClientWithResponses) ReadSignInDetailsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReadSignInDetailsResult, error) {
+	rsp, err := c.ReadSignInDetailsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadSignInDetailsResult(rsp)
+}
+
+// ReadSignInDetailsWithResponse The address and the second factor of each of many people
+//
+// For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+// is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+// removes. What `AccountSummary` leaves out on purpose, because every member may read that
+// one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+// resets their factor. A service account, an identifier of no person in this workspace and
+// an erased account are left out of the answer rather than refused.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts:sign-in-details (the `ReadSignInDetails` operationId).
+func (c *ClientWithResponses) ReadSignInDetailsWithResponse(ctx context.Context, body ReadSignInDetailsJSONRequestBody, reqEditors ...RequestEditorFn) (*ReadSignInDetailsResult, error) {
+	rsp, err := c.ReadSignInDetails(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadSignInDetailsResult(rsp)
+}
+
 // ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
 //
 // A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
@@ -178306,6 +178561,41 @@ func ParseResolveAccountsResult(rsp *http.Response) (*ResolveAccountsResult, err
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest struct {
 			Data []AccountSummary `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadSignInDetailsResult parses an HTTP response from a ReadSignInDetailsWithResponse call
+func ParseReadSignInDetailsResult(rsp *http.Response) (*ReadSignInDetailsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadSignInDetailsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []SignInDetail `json:"data"`
 		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err

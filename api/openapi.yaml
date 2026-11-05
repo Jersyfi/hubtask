@@ -10376,6 +10376,50 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts:sign-in-details:
+    post:
+      tags: [identity]
+      operationId: readSignInDetails
+      x-hubtask-rest: generated
+      x-hubtask-rest-list: data
+      x-hubtask-rest-answer: signInDetailResponse
+      summary: The address and the second factor of each of many people
+      description: |
+        For the people list's rows: for up to 200 accounts, the mail address a person signs in and
+        is mailed by, and whether an authenticator app stands - the factor *Reset second factor*
+        removes. What `AccountSummary` leaves out on purpose, because every member may read that
+        one; this one asks `MANAGE_MEMBERS` at the workspace, the right that invites people and
+        resets their factor. A service account, an identifier of no person in this workspace and
+        an erased account are left out of the answer rather than refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The people named, with their address and second factor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SignInDetail" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -38173,6 +38217,23 @@ components:
           description: >
             What the mail told the person, where it was recorded as a notification. Absent for an
             invitation that is still queued to be recorded.
+
+    SignInDetail:
+      type: object
+      required: [account_id, email, authenticator_app]
+      properties:
+        account_id: { type: string, format: uuid }
+        email:
+          type: [string, "null"]
+          format: email
+          description: >
+            The address the person is mailed by; null for a managed account, which signs in with a
+            sign-in name.
+        authenticator_app:
+          type: boolean
+          description: >
+            True while a confirmed authenticator app stands. An enrolment begun and never confirmed
+            is no factor; a passkey is not counted here, because a reset leaves it.
 
     ErasurePreview:
       type: object

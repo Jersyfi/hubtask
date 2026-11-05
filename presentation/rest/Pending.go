@@ -79,6 +79,10 @@ func (pending) ReadInvitationDeliveries(w http.ResponseWriter, r *http.Request) 
 	notAvailable(w, r)
 }
 
+func (pending) ReadSignInDetails(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }

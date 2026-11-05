@@ -547,6 +547,7 @@ var restDoors = map[string]restDoor{
 	"readRelease":                       {UseCase: "ReadRelease", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readServiceMap":                    {UseCase: "ReadServiceMap", Status: 200, Query: []string{"service_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSettingsCatalogue":             {UseCase: "ReadSettingsCatalogue", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readSignInDetails":                 {UseCase: "ReadSignInDetails", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSpaceDrafts":                   {UseCase: "ReadSpaceDrafts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSprint":                        {UseCase: "ReadSprint", Status: 200, Query: []string{"calendar", "zone"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readSprintBacklog":                 {UseCase: "ReadSprintBacklog", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4299,6 +4300,12 @@ func (c *RestController) ReadServiceMap(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.SettingsCatalogue
 	c.door(w, r, restDoors["readSettingsCatalogue"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ReadSignInDetails answers POST /accounts:sign-in-details by the generated mapping.
+func (c *RestController) ReadSignInDetails(w http.ResponseWriter, r *http.Request) {
+	var body openapi.ReadSignInDetailsJSONRequestBody
+	c.door(w, r, restDoors["readSignInDetails"], usecase.Input{}, nil, &body, answerData(signInDetailResponse))
 }
 
 // ReadSpaceDrafts answers GET /hubs/{hubId}/page-drafts by the generated mapping.

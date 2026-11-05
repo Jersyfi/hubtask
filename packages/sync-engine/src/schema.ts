@@ -601,6 +601,8 @@ export type ErasurePreview = components['schemas']['ErasurePreview'];
 export type ErasureLine = components['schemas']['ErasureLine'];
 /** How the last invitation mail to one account went, for the people list's row. */
 export type InvitationDelivery = components['schemas']['InvitationDelivery'];
+/** A person's address and whether an authenticator app stands, for an administrator's people list. */
+export type SignInDetail = components['schemas']['SignInDetail'];
 
 /**
  * How a workspace signs its people in through its own provider, and how that is set.
