@@ -141,6 +141,7 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 		kept := hits[:0]
 		for _, hit := range hits {
 			if readers[hit.ID].Admits(actor.AccountID) {
+				hit.Excerpt = domain.PlainExcerpt(hit.Excerpt)
 				kept = append(kept, hit)
 			}
 		}

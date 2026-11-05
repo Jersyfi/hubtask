@@ -247,7 +247,7 @@ func (h SuggestArticles) Execute(ctx context.Context, actor appshared.ActorConte
 		for _, hit := range hits {
 			out = append(out, usecase.Output{
 				"page_id": hit.PageID.String(), "title": hit.Title, "icon": hit.Icon,
-				"excerpt": hit.Excerpt, "content_language": nilIfEmpty(hit.ContentLanguage), "updated_at": hit.UpdatedAt,
+				"excerpt": domain.PlainExcerpt(hit.Excerpt), "content_language": nilIfEmpty(hit.ContentLanguage), "updated_at": hit.UpdatedAt,
 			})
 		}
 		return err

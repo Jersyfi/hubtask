@@ -17,11 +17,14 @@ import (
 )
 
 // searcher is an index other than the page store, recording the spaces it was handed.
-type searcher struct{ spaces []shared.ID }
+type searcher struct {
+	spaces  []shared.ID
+	excerpt string
+}
 
 func (s *searcher) Search(_ context.Context, q repository.PageQuery) ([]repository.Hit, error) {
 	s.spaces = q.HubIDs
-	return []repository.Hit{{ID: "0192f000-0000-7000-8000-0000000009aa"}}, nil
+	return []repository.Hit{{ID: "0192f000-0000-7000-8000-0000000009aa", Excerpt: s.excerpt}}, nil
 }
 
 // The search port answers a page search, handed only the spaces the reader may read (F-9).
@@ -34,6 +37,18 @@ func TestAPageSearchAsksTheSearchPortWithTheReadableSpaces(t *testing.T) {
 	}
 	if !slices.Equal(index.spaces, []shared.ID{hub}) {
 		t.Errorf("the port was handed %v, want only the shared hub", index.spaces)
+	}
+}
+
+// A hit's passage reaches the reader as words: the body's Markdown is not shown (UC-DOC-01/3).
+func TestAPageHitsPassageIsWords(t *testing.T) {
+	index := &searcher{excerpt: "**Teilnehmende:** Anna\n\n## «Beschlüsse»\n| 45 min |"}
+	hits, err := (SearchPages{Space: newFixture().space, Searcher: index}).Execute(context.Background(), as(bert), SearchPagesQuery{Text: "budget"})
+	if err != nil || len(hits) != 1 {
+		t.Fatalf("the search answered %+v, %v", hits, err)
+	}
+	if want := "Teilnehmende: Anna «Beschlüsse» 45 min"; hits[0].Excerpt != want {
+		t.Errorf("the passage reads %q, want %q", hits[0].Excerpt, want)
 	}
 }
 
