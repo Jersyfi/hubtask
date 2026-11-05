@@ -6176,6 +6176,7 @@ ConfigurationItem = TypedDict("ConfigurationItem", {
     "location_id": str | None,
     "protection": Required["CiOwnProtection"],
     "effective_protection": "CiProtection",
+    "has_asset": bool,
     "review_due": str | None,
     "quantity": Required[int],
     "last_seen_at": str | None,

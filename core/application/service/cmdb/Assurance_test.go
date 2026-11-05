@@ -426,6 +426,30 @@ func TestAnAssetLeadsItsCIsStageToItsDisposal(t *testing.T) {
 	}
 }
 
+// A CI's single read says whether it has an asset record, so its screen asks for the record only
+// where the read would find one.
+func TestACIsReadSaysWhetherItHasAnAsset(t *testing.T) {
+	f, _ := assuredFixture()
+	read := ReadCi{Inventory: f.inv}.Descriptor()
+	before, err := call(t, read, as(anna), usecase.Input{"ci_id": host.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before["has_asset"] != false {
+		t.Errorf("has_asset before registering = %v, want false", before["has_asset"])
+	}
+	if _, err := call(t, RegisterCiAsset{Inventory: f.inv}.Descriptor(), as(anna), usecase.Input{"ci_id": host.String(), "asset_tag": "INV-0043"}); err != nil {
+		t.Fatal(err)
+	}
+	after, err := call(t, read, as(anna), usecase.Input{"ci_id": host.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after["has_asset"] != true {
+		t.Errorf("has_asset after registering = %v, want true", after["has_asset"])
+	}
+}
+
 // UC-AST-13 checks 1-2: software is counted by its folded product, an alias names it.
 func TestSoftwareIsCountedByItsProductAndAnAliasNamesIt(t *testing.T) {
 	f, _ := assuredFixture()

@@ -68830,6 +68830,10 @@
           "effective_protection": {
             "$ref": "#/components/schemas/CiProtection"
           },
+          "has_asset": {
+            "type": "boolean",
+            "description": "Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.\n"
+          },
           "review_due": {
             "type": [
               "string",

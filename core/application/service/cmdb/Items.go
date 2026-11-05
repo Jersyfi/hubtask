@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -141,6 +142,16 @@ func (h ReadCi) Descriptor() usecase.Descriptor {
 					return err
 				}
 				out = CIOutput(ci, &effective)
+				if h.Inventory.Assurance != nil {
+					switch _, err := h.Inventory.Assurance.FindAsset(ctx, id); {
+					case err == nil:
+						out["has_asset"] = true
+					case errors.Is(err, shared.ErrNotFound):
+						out["has_asset"] = false
+					default:
+						return err
+					}
+				}
 				rels := make([]usecase.Output, 0, len(relations))
 				for _, r := range relations {
 					rels = append(rels, RelationOutput(r))

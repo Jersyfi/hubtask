@@ -41195,6 +41195,11 @@ components:
         location_id: { type: [string, "null"], format: uuid }
         protection: { $ref: "#/components/schemas/CiOwnProtection" }
         effective_protection: { $ref: "#/components/schemas/CiProtection" }
+        has_asset:
+          type: boolean
+          description: >
+            Given on a single read: whether it has an asset record. False means
+            `GET /cis/{ciId}/asset` answers not found.
         review_due: { type: [string, "null"], format: date }
         quantity: { type: integer }
         last_seen_at: { type: [string, "null"], format: date-time }

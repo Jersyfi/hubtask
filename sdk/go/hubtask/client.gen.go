@@ -15398,15 +15398,18 @@ type ConfigurationItem struct {
 	Decision *CiDecision `json:"decision,omitempty"`
 
 	// EffectiveProtection A protection need per confidentiality, integrity and availability.
-	EffectiveProtection *CiProtection       `json:"effective_protection,omitempty"`
-	HubId               openapi_types.UUID  `json:"hub_id"`
-	Id                  openapi_types.UUID  `json:"id"`
-	LastSeenAt          *time.Time          `json:"last_seen_at,omitempty"`
-	LocationId          *openapi_types.UUID `json:"location_id,omitempty"`
-	MergedInto          *openapi_types.UUID `json:"merged_into,omitempty"`
-	Name                string              `json:"name"`
-	OwnerAccountId      *openapi_types.UUID `json:"owner_account_id,omitempty"`
-	OwnerGroupId        *openapi_types.UUID `json:"owner_group_id,omitempty"`
+	EffectiveProtection *CiProtection `json:"effective_protection,omitempty"`
+
+	// HasAsset Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.
+	HasAsset       *bool               `json:"has_asset,omitempty"`
+	HubId          openapi_types.UUID  `json:"hub_id"`
+	Id             openapi_types.UUID  `json:"id"`
+	LastSeenAt     *time.Time          `json:"last_seen_at,omitempty"`
+	LocationId     *openapi_types.UUID `json:"location_id,omitempty"`
+	MergedInto     *openapi_types.UUID `json:"merged_into,omitempty"`
+	Name           string              `json:"name"`
+	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
+	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
 	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
 	Protection CiOwnProtection         `json:"protection"`
