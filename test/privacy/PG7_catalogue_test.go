@@ -16,7 +16,8 @@ import (
 )
 
 // PG-7: the data catalogue is consistent with the schema - every table with personal content is
-// recorded (data-protection.md §10, ADR-0018 decision 2).
+// recorded (data-protection.md §10, ADR-0018 decision 2; UC-PRV-08 check 1, with the rows' cells
+// in PG7_rows_test.go).
 //
 // The decisive one, with PG-2. `data-protection.md` says why in as many words: these two "prevent
 // the data catalogue from drifting away from the code and stop deletion paths being forgotten when

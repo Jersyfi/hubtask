@@ -744,7 +744,8 @@ jobs:
       # PG-2 and PG-7, the privacy gates that need a migrated database: the erasure sweeping every
       # storage location, and the schema reconciled against the data catalogue. On every pull
       # request rather than only in the nightly, so that a table merged without a catalogue row is
-      # caught by the run that reviews it. Here, because this job already starts its database
+      # caught by the run that reviews it (UC-PRV-08 check 5: `data` is a job ci-required needs).
+      # Here, because this job already starts its database
       # through Testcontainers; the half without a database stays in `security`.
       - run: make gate-privacy-full
 

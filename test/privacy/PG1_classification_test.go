@@ -20,7 +20,8 @@ import (
 // direction that cannot be taken back - a title written into the trail is a copy no deletion
 // reaches (audit.md §4).
 //
-// So this is what PG-1 checks: no `Change` literal anywhere in the source omits `Classification`.
+// So this is what PG-1 checks: no `Change` literal anywhere in the source omits `Classification`
+// (UC-PRV-08 check 3).
 // It is a build-time rule rather than a review habit, which is the whole point of a gate; the port
 // masks an unclassified field at run time as well, for the case where something builds one from a
 // variable.
