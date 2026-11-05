@@ -17,6 +17,9 @@ export async function reveal(control) {
  * fields* until somebody asks, so a walk that fills one asks first, as a person does.
  */
 export async function unfoldFields(page) {
+  // The toggle is drawn with the rows, once the entry's type is read; looked for before that, it
+  // is not there and every row stays folded. A page without details waits the bound and goes on.
+  await page.locator('[data-detail], .more-fields').first().waitFor({ state: 'attached', timeout: 15_000 }).catch(() => undefined);
   const toggle = page.locator('.more-fields[aria-expanded="false"]');
   await page.waitForTimeout(100);
   for (const each of await toggle.all()) await each.click();
