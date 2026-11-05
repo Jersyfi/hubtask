@@ -721,3 +721,68 @@ first triage had confirmed in the code:
 - An address refused for good (SMTP 5xx) is never marked undeliverable.
 - The migrator and the platform-event numbering share advisory lock 8_010_002.
 - The audit filter by request_id has no index.
+
+## What the second Leftovers round left open (2026-11-05)
+
+Each batch's last report, verbatim. Note: "the 10^7 run needs the owner's host" is wrong; it runs on the
+workstation (accepted.md, third answers, item 9).
+
+```
+===== leftovers 2 fix 1.3 done False
+Not run or not verified: make verify; the whole integration and e2e suites; and any walk against a running server. Nobody has applied a real shipped template through starter:apply end to end yet: the integration test uses a fake template taker and the config unit test uses the config fakes. The starter screenshots (stored in the session scratchpad) come from the e2e stubs only.
+
+Found and not fixed: apps/webapp/e2e/engines.test.mjs 'a limit set by the plan says so...' (the administration/quotas chip) fails in Chromium, Firefox and WebKit. It fails the same way with this session's TourGuide change reverted, and this session touched no quotas code. Its cause was not traced.
+
+Gaps left in finding 1:
+- Today's 'Choose what you use Hubtask for' after a skip is not built, because starter:apply refuses once the question was closed (named in user-experience.md §3.2 'As built').
+- The plan shown in words is only the workspace part's, because the hub part can only be planned once the hub exists; one acknowledge covers both parts.
+
+Gaps from finding 7 still stand. 'Or their groups queue' is not built. Rows across hubs are nearest first within each hub only: WorkItem does not carry sla_due, so a merge across hubs would need each entry's SLA read.
+
+Still open and not started:
+- 2 [high] The seeded UI walk: full and empty, desktop and phone, light and dark, Firefox and WebKit, with axe.
+- 6 [medium] Editor blocks: math, Mermaid, highlighted code, emoji picker. This needs katex, mermaid, lowlight and emojibase-data installed at pinned versions; nothing was installed this session.
+- 8 [medium] Product tours and the first-visit CoachMark. The products-seen list touches about 20 files across the stack: migration, schema.sql, the Identity, IdentityProvider and BackupImport queries, the identity domain Account, UpdateAccountPreferences, InviteAccount output, IdentityRepository and IdentityProviderRepository, IdentityController, two contract schemas, the webapp, and backup round-trip tests. That is too much for what is left of this context.
+===== leftovers 2 fix 2.3 done False
+The branch is pushed to origin suite/concept at e1dae74c0 and the tree is clean. make check is green and the notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md. I handed over at this point because of context size.
+
+Still open (each checked against the code):
+- Finding 5: People rows still show only the invitation mail, not a person's other mail.
+- Finding 6: `hubctl workspace demo` is not built. It needs a sample mark outside entries first: domain, migration and contract. The capacity run that proves the R3 walk was not run.
+- Finding 7 is not started: archiving entry_status_change touches the archive format, the restore order, the trigger's synthetic row, OVERRIDING SYSTEM VALUE for the GENERATED ALWAYS seq, and tenant-export.md.
+- One trash: the hubs' own page and whiteboard trash lists still exist and are not yet links into /trash narrowed by kind.
+- One trash: who trashed a page or board is not recorded on the row, so those trash rows name nobody.
+
+Not run: make verify, the webapp tests in the other two time zones, any e2e test, the whole integration suite, a walk in the running app, and the capacity run. None of the new UI (trash filter, Copy invitation link, erasure mode note lines) was seen in a browser. The German wording is mine and was not reviewed by a native speaker.
+OWNER: ["Remove the per-hub trash endpoints GET /hubs/{hubId}/trashed-pages and the whiteboards' trashed listing in favour of /trash?kind=PAGE|WHITEBOARD. Proposal: deprecate them now and remove them in the next major. Removing an operation is the owner's decision.", 'Record who trashed a page or a whiteboard (deleted_by_type/deleted_by_id columns, expand-only migration). Proposal: add them so /trash can name the person, as it already does for entries and containers.']
+===== leftovers 2 fix 3.3 done False
+Not done:
+(1) Load runs L2, L3, L4 and F1 are not built.
+(2) The 10^7 capacity run, now including the board path, needs the owner's host. Not run.
+(3) 644 checks of built use cases are still cited by no test. To list them, temporarily print from checkBuiltCitations in tools/checkdocs/usecases.go.
+(4) The stored_bytes and object-count quotas, not built. I judged them bigger than one step again: new quota names, the contract enum, the settings catalogue, admin screens, a counter migration with backfill, and counts in each repository. Live document updates should stay out of a per-workspace day counter.
+(5) Not checked: whether erasing an account clears its mail_undeliverable row, which holds the address. Today it is deleted only when the account row itself is deleted or the person clears the mark. The table also has no row in docs/privacy/data-catalog.md.
+(6) Known side effect of the bounded count: when a count is left out, the board's WIP-limit warning reads the missing count as 0.
+
+Checks run: go build ./...; make generate and make api-client; make gate-docs; make gate-architecture; make check (green at 7c3c5eb9e); the query integration tests (Testcontainers); the identity, locales, archive and postgres unit tests; webapp build, typecheck and lint; e2e for signin, invitationlink, terms, managedaddress and the new settings test.
+Not run: make verify, the full integration suite, the full e2e suite, a browser walk.
+Notes are appended to .git/suite-pr-notes.md.
+===== leftovers 2 fix 4.2 done True
+Finding 8 is only partly done. CMDB health (ReadCmdbHealth, which calls domain.Judge), software (Normalise) and the service map still read a hub's whole inventory in each request, capped at MaxCIsPerHub (20 000). They judge the inventory as one set, so moving them to SQL aggregation would mean rewriting domain.Judge's rules in SQL. That is more than one step and was not done. One extra commit: I wanted to amend the CMDB test's gofmt fix into its commit, but the force-push was denied, so the formatting is its own commit (c2cd2b595). make check is green at HEAD 892344230, which equals origin/suite/concept. Not run: make verify, the full integration and e2e suites, the webapp unit tests in the other two time zones, and a browser walk against a real server. Neither the hub figure nor the place settings change has been shown to the owner in the running app. Notes are appended to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+===== leftovers 2 fix 5.3 done False
+Not done:
+(a) Finding 6, CalDAV custom zone: an Outlook-style custom zone is still refused. The proposal is to map Windows zone names to IANA zones with an embedded CLDR windowsZones table, or to read the VTIMEZONE the client sends.
+(b) Finding 6, a stale firing reopening a resolved alert: still open. It needs a stored signal time (an expand-only migration) that is compared with the alert's resolution.
+(c) Finding 6, the year range of time records (0001-9999): still not bounded. The previous worker chose not to invent a bound, and I did not choose one either.
+(d) Finding 7, offline editing of a page opened while offline: this changes the sync protocol and needs a `finding` issue. I did not open one, because posting to GitHub needs the user's go-ahead.
+(e) Recurring templates are not in the intake door count. I did not check whether an occurrence's copy goes through the type's form.
+
+Checks run: go build ./...; the tests of every touched package (config, knowledge, servicedesk, goal, planning, cmdb, whiteboard, rest, mcp, catalogue, cmd/server, locales); go vet with the integration tag; three integration tests against PostgreSQL (TestAGoalMoveHoldsTheTreeOfItsWorkspaceOnly and two organisation tests); make generate; make api-client; webapp typecheck and lint; the configreach and whiteboards node tests; packages/whiteboard tests, typecheck and lint; make check, green at 3c5ebf1c0.
+
+Not run: make verify, the full integration and e2e suites, and any walk in the running app. The intake lines and the requester panel have not been seen in a browser.
+
+Everything is pushed to origin suite/concept and the notes are appended to .git/suite-pr-notes.md.
+OWNER: ["Delegate for an absent approver (UC-SVC-10): a person who is counted at a level themselves and is also the delegate of an absent approver can decide only for themselves. Proposal: one decision fills one seat; deciding for the absent approver is a separate, explicit 'on behalf of' choice, so one person never fills two seats with a single act (four-eyes). This changes what an approver observes, so it is the owner's decision."]
+===== leftovers 2 fix 6 done True
+Not covered: a German account on an English browser still loads English at boot, because the account's locale only arrives after sign-in. This was already the case before. Found but not mine: 3 tests in apps/webapp/e2e/privacy.test.mjs fail (2 writes where 1 is expected). They fail the same way with the previous source checked out, so this change did not cause them; I did not fix them. Not run: the full e2e suite (I ran about 10 files), the full pnpm test under the other two time zones (I ran the unit tests in the default time zone only), and the Go checks (nothing on the Go side changed). Pushed to origin suite/concept. Notes are added to /Users/jeromewinkel/Dev/hubtask-repo/.git/suite-pr-notes.md.
+```
