@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-12]
 state: built
 tasks: [G-10, F4-12, E-07]
-checked_by: [core/application/service/jumble/Settlements_test.go, test/integration/jumble_test.go]
+checked_by: [core/application/service/jumble/Settlements_test.go, test/integration/jumble_test.go, core/application/service/lifecycle/RunRetention_test.go]
 ---
 
 # Dismiss what does not need doing

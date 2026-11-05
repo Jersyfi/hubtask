@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-10, P-12]
 state: built
 tasks: [G-10, F4-12, G-13]
-checked_by: [core/application/service/jumble/Entries_test.go, test/integration/jumble_test.go, apps/webapp/e2e/workspacereach.test.mjs, apps/webapp/e2e/capture.test.mjs]
+checked_by: [core/application/service/jumble/Entries_test.go, test/integration/jumble_test.go, apps/webapp/e2e/workspacereach.test.mjs, apps/webapp/e2e/capture.test.mjs, core/domain/model/jumble/Entry_test.go]
 ---
 
 # Jot something down before deciding what it is

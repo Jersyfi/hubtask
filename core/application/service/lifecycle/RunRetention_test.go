@@ -820,7 +820,7 @@ func TestTheConsumptionRecordsAreSweptWithTheirEvents(t *testing.T) {
 }
 
 // The JUMBLE_ENTRY class of data-retention.md §3: ninety days from the arrival, swept by the same
-// job that empties the trash.
+// job that empties the trash (UC-JUM-06 check 4).
 func TestAPassSweepsTheJumbleAtNinetyDays(t *testing.T) {
 	h := newRunHarness()
 	h.inbox.rows = []inboxRow{
@@ -898,7 +898,8 @@ func TestAPassWithoutTheSuggestionStoreStillRuns(t *testing.T) {
 
 // An entry that became a work item is that item's provenance: `origin_jumble_id` points at it, and
 // an item claiming an origin nobody can read is worse than an inbox that kept one message. What
-// ages out is what was never converted, which is what the statement itself decides.
+// ages out is what was never converted, which is what the statement itself decides (UC-JUM-06
+// check 4).
 func TestAConvertedEntryNeverAgesOut(t *testing.T) {
 	h := newRunHarness()
 	ancient := now.Add(-400 * 24 * time.Hour)
@@ -923,7 +924,7 @@ func TestAConvertedEntryNeverAgesOut(t *testing.T) {
 // Where this kind parts company with the notification history and the outbox: an entry is somebody's
 // work that nobody has filed yet, so a tenant-wide hold reaches it (data-retention.md §4.1). The
 // entries are counted as blocked rather than passed over in silence, so a run that removed nothing
-// says why.
+// says why (UC-JUM-06 check 5).
 func TestATenantWideHoldStopsTheJumbleSweep(t *testing.T) {
 	h := newRunHarness()
 	h.holds.holds = domain.Holds{{ID: holdID, Scope: domain.HoldTenant, Reason: "Litigation"}}

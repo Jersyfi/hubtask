@@ -100,7 +100,7 @@ func TestAJumbleEntrySurvivesTheRowWhole(t *testing.T) {
 }
 
 // The settlement is one statement with the state guard in the WHERE: two conversions racing
-// produce one item and one refusal, never two items.
+// produce one item and one refusal, never two items (UC-JUM-05 check 6).
 func TestASettlementDecidesExactlyOnce(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -316,6 +316,8 @@ func TestAnOriginIsRecordedOnceAndInsideTheTenant(t *testing.T) {
 // The intake credential against the real database: minting replaces in one statement, the
 // lookup answers only under the tenant the token names, and the hash store never says more than a
 // moment.
+// UC-JUM-02 checks 3 and 5: the replaced address stops in the same statement, and another
+// workspace never opens with it.
 func TestTheIntakeTokenRotatesAndStaysInsideItsTenant(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -390,7 +392,7 @@ func bytesOf(fill byte) []byte {
 
 // The retention sweep against a real database (data-retention.md §3): what was never
 // converted ages out, what became a work item stays, and one tenant's cutoff never reaches
-// another tenant's inbox (gate SG-3, RE-8).
+// another tenant's inbox (gate SG-3, RE-8; UC-JUM-06 checks 4 and 6).
 func TestTheJumbleSweepTakesWhatWasNeverConverted(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -419,6 +421,20 @@ func TestTheJumbleSweepTakesWhatWasNeverConverted(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("settling: %v", err)
 	}
+	// Dismissed is not converted: it ages out as an undecided entry does.
+	dismissed := seedJumbleEntry(ctx, t, tenantA, func(in *domain.NewEntryInput) {
+		in.Now = longAgo
+	})
+	closed, err := dismissed.Dismiss(time.Now().UTC().Truncate(time.Microsecond))
+	if err != nil {
+		t.Fatalf("dismissing: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := jumbleRepo().Settle(ctx, closed)
+		return err
+	}); err != nil {
+		t.Fatalf("settling the dismissal: %v", err)
+	}
 	// The other tenant's entry, as expired as the first: RE-8 is about a cutoff that stops at the
 	// boundary, and an entry inside the period would prove nothing about one.
 	elsewhere := seedJumbleEntry(ctx, t, tenantB, func(in *domain.NewEntryInput) {
@@ -438,14 +454,16 @@ func TestTheJumbleSweepTakesWhatWasNeverConverted(t *testing.T) {
 		t.Fatalf("sweeping: %v", err)
 	}
 
-	if due != 1 || removed != 1 {
-		t.Errorf("%d due and %d removed, want the one entry nobody converted", due, removed)
+	if due != 2 || removed != 2 {
+		t.Errorf("%d due and %d removed, want the two entries nobody converted", due, removed)
 	}
-	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
-		_, err := jumbleRepo().Find(ctx, expired.ID)
-		return err
-	}); !errors.Is(err, shared.ErrNotFound) {
-		t.Errorf("the expired entry answered %v, want gone", err)
+	for _, gone := range []shared.ID{expired.ID, dismissed.ID} {
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := jumbleRepo().Find(ctx, gone)
+			return err
+		}); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the expired entry answered %v, want gone", err)
+		}
 	}
 	for _, kept := range []shared.ID{fresh.ID, converted.ID} {
 		if err := read(ctx, t, tenantA, func(ctx context.Context) error {

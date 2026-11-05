@@ -189,7 +189,18 @@ secrets
 
 // The bounds, each with its own code: "too big" and "too many" send whoever is looking to two
 // different places, and neither of them is the answer for a payload nobody can parse.
+// UC-JUM-03 check 4: each bound refuses with the code that names it, and the bounds an intake runs
+// with by default are the ones the use case names.
 func TestTheBoundsRefuseWithTheirOwnCodes(t *testing.T) {
+	t.Run("the default bounds", func(t *testing.T) {
+		if intake.DefaultMaxMailParts != 100 || intake.DefaultMaxMailDepth != 4 ||
+			intake.DefaultMaxMailAttachments != 20 || intake.DefaultMaxMailAttachmentSize != 10<<20 {
+			t.Errorf("the defaults are %d parts, depth %d, %d files of %d bytes",
+				intake.DefaultMaxMailParts, intake.DefaultMaxMailDepth,
+				intake.DefaultMaxMailAttachments, intake.DefaultMaxMailAttachmentSize)
+		}
+	})
+
 	t.Run("an attachment over its bound", func(t *testing.T) {
 		raw := multipartMail(t, "mixed", "--b\r\n"+
 			"Content-Type: application/octet-stream\r\n"+
@@ -407,6 +418,7 @@ func expectCode(t *testing.T, err error, want string) {
 
 // The seam between the two halves: a payload the parser could not read still reaches the
 // use case, and one that broke a bound does not.
+// UC-JUM-03 check 3: a payload nobody can parse is delivered as its bytes, not refused.
 func TestTheIntakeDeliversWhatItCouldParseAndWhatItCouldNot(t *testing.T) {
 	t.Run("an ordinary mail arrives parsed", func(t *testing.T) {
 		sink := &recordingDeliverer{}

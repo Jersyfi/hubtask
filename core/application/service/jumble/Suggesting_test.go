@@ -6,6 +6,8 @@ package jumble
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -13,10 +15,12 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// Asking queues and answers; it does not wait, and it changes nothing. Everything else follows.
+// Asking queues and answers; it does not wait, and it changes nothing. It asks the right to write,
+// and the trail holds the ask without the entry's content (UC-JUM-07 checks 2, 7 and 9).
 func TestAskingQueuesAQuestionAndChangesNothing(t *testing.T) {
 	ask, jobs, h := suggester(true)
 	entry := seedEntry(t, h, "Call the customer back")
@@ -52,10 +56,20 @@ func TestAskingQueuesAQuestionAndChangesNothing(t *testing.T) {
 	if stored := h.store.rows[entry.ID]; stored.Status != domain.StatusNew {
 		t.Errorf("asking settled the entry: %q", stored.Status)
 	}
+	if len(h.auth.requests) == 0 || h.auth.requests[0].Permission != service.PermissionWriteItems {
+		t.Errorf("asked %+v, want the right to write", h.auth.requests)
+	}
+	if len(h.sink.entries) != 1 || h.sink.entries[0].Action != EntrySuggestionAskedAction {
+		t.Fatalf("audited %+v", h.sink.entries)
+	}
+	if trail := fmt.Sprintf("%+v", h.sink.entries[0]); strings.Contains(trail, "Call the customer back") ||
+		strings.Contains(trail, "Order #42") {
+		t.Errorf("the trail carries the entry's content: %s", trail)
+	}
 }
 
 // Two proposals rather than one refusal: a duplicate suggestion is a record somebody dismisses,
-// where a duplicate conversion would be an item somebody has to delete.
+// where a duplicate conversion would be an item somebody has to delete (UC-JUM-07 check 8).
 func TestAskingTwiceIsAllowed(t *testing.T) {
 	ask, jobs, h := suggester(true)
 	entry := seedEntry(t, h, "Call the customer back")
@@ -107,26 +121,31 @@ func TestAWorkspaceWithoutAiIsRefusedBeforeAnythingIsQueued(t *testing.T) {
 }
 
 // An entry somebody has already decided about is not asked about: the proposal would be one nobody
-// can take, which is an inbox of noise rather than a feature.
+// can take, which is an inbox of noise rather than a feature (UC-JUM-07 check 6).
 func TestASettledEntryIsNotAskedAbout(t *testing.T) {
-	ask, jobs, h := suggester(true)
-	entry := seedEntry(t, h, "Call the customer back")
-	settled := h.store.rows[entry.ID]
-	settled.Status = domain.StatusDismissed
-	h.store.rows[entry.ID] = settled
+	for _, status := range []domain.Status{domain.StatusDismissed, domain.StatusProcessed} {
+		ask, jobs, h := suggester(true)
+		entry := seedEntry(t, h, "Call the customer back")
+		settled := h.store.rows[entry.ID]
+		settled.Status = status
+		h.store.rows[entry.ID] = settled
 
-	err := ask.Execute(context.Background(), actor(), entry.ID)
-	if !errors.Is(err, shared.ErrConflict) {
-		t.Fatalf("the answer was %v, want a conflict", err)
-	}
-	if len(jobs.queued) != 0 {
-		t.Error("a settled entry had a question queued for it")
+		err := ask.Execute(context.Background(), actor(), entry.ID)
+		if !errors.Is(err, shared.ErrConflict) {
+			t.Fatalf("%s: the answer was %v, want a conflict", status, err)
+		}
+		if code := shared.AsError(err).DetailCode; code != "jumble.entry_already_settled" {
+			t.Errorf("%s: detail code %s", status, code)
+		}
+		if len(jobs.queued) != 0 {
+			t.Errorf("%s: a settled entry had a question queued for it", status)
+		}
 	}
 }
 
 // Nothing is queued and nothing is learned unless the actor may act (rule 2). The availability
 // question comes after the permission check, so it cannot become a way to find out what an
-// installation has configured.
+// installation has configured (UC-JUM-07 check 7).
 func TestAnUnauthorisedActorLearnsNothing(t *testing.T) {
 	ask, jobs, h := suggester(true)
 	availability := ask.AI.(*availabilityDouble)
