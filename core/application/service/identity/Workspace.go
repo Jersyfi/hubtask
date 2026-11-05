@@ -85,6 +85,8 @@ type WorkspaceWriter struct {
 // and answered by the work context, like WorkspaceStructureReader.
 type StarterReader interface {
 	StarterOffered(ctx context.Context, actor appshared.ActorContext) (bool, error)
+	// StarterSkipped answers whether the question was skipped while nothing was made since.
+	StarterSkipped(ctx context.Context, actor appshared.ActorContext) (bool, error)
 }
 
 // WorkspaceStructureReader answers the workspace's own structure, its locks and the preset a new
@@ -138,12 +140,20 @@ func (w WorkspaceWriter) answer(
 		out["structure"] = structure
 	}
 	out["starter_offered"] = false
+	out["starter_skipped"] = false
 	if w.Starter != nil {
 		offered, err := w.Starter.StarterOffered(ctx, actor)
 		if err != nil {
 			return nil, err
 		}
 		out["starter_offered"] = offered
+		if !offered {
+			skipped, err := w.Starter.StarterSkipped(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			out["starter_skipped"] = skipped
+		}
 	}
 	return out, nil
 }

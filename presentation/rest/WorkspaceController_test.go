@@ -116,6 +116,22 @@ func TestTheWorkspaceAnswersWhetherTheStarterIsOffered(t *testing.T) {
 	}
 }
 
+// A skipped first start travels as starter_skipped, so Today can offer it again.
+func TestTheWorkspaceAnswersWhetherTheStarterWasSkipped(t *testing.T) {
+	for _, skipped := range []bool{true, false} {
+		out := storedWorkspace()
+		out["starter_skipped"] = skipped
+		recorder := workspaceRequest(t, &catalogue{out: out}, http.MethodGet, "", "")
+		var body map[string]any
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decoding: %v", err)
+		}
+		if got, held := body["starter_skipped"]; !held || got != skipped {
+			t.Errorf("starter_skipped = %v (held %v), want %v", got, held, skipped)
+		}
+	}
+}
+
 // The anchoring target is read on the workspace - null where anchoring is off, the
 // identifier where it is on - and written nowhere but PUT /audit/anchoring.
 func TestTheWorkspaceAnswersItsAnchoringTarget(t *testing.T) {
