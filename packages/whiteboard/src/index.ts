@@ -21,9 +21,9 @@ export { Facilitation, MAX_TIMER, MAX_VOTES_PER_PERSON } from './facilitation.ts
 export type { Timer, Voting } from './facilitation.ts';
 export { pdfOfJpeg } from './pdf.ts';
 export {
-  MAX_ZOOM, MIN_ZOOM, bounds, box, center, connectorPath, culled, ends, fit, hit, inside, labelPoint, outline, snap, toBoard,
+  MAX_ZOOM, MIN_ZOOM, bounds, box, center, connectorPath, corners, culled, ends, fit, hit, inside, labelPoint, outline, snap, toBoard,
   visibleBox, withinFrame, zoomAt,
 } from './geometry.ts';
 export type { Box, Point, Viewport } from './geometry.ts';
-export { linkHost, lines, outlinePath, toSvg } from './svg.ts';
-export type { CardWords, Colours, PictureOptions } from './svg.ts';
+export { linkHost, lines, outlinePath, shapeWords, toSvg } from './svg.ts';
+export type { CardWords, Colours, PictureOptions, ShapeWords } from './svg.ts';

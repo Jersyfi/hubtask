@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { connectorPath, culled, ends, fit, hit, toSvg, withinFrame, zoomAt, type Element } from '../src/index.ts';
+import { connectorPath, culled, ends, fit, hit, shapeWords, toSvg, withinFrame, zoomAt, type Element } from '../src/index.ts';
 
 const a: Element = { id: 'a', kind: 'STICKY', x: 0, y: 0, width: 100, height: 100 };
 const b: Element = { id: 'b', kind: 'SHAPE', x: 300, y: 0, width: 100, height: 100 };
@@ -90,4 +90,36 @@ test('a picture is drawn from its upload, a file as its name, and one out of rea
   assert.match(svg, /The site/);
   assert.match(svg, /plan\.pdf/);
   assert.match(svg, /Not available/);
+});
+
+test('a connector leaves an ellipse or a diamond at its outline, not at its box', () => {
+  const diamond: Element = { id: 'd', kind: 'SHAPE', shape: 'DIAMOND', x: 0, y: 0, width: 120, height: 120 };
+  const ellipse: Element = { id: 'e', kind: 'SHAPE', shape: 'ELLIPSE', x: 0, y: 0, width: 120, height: 120 };
+  const far: Element = { id: 'f', kind: 'STICKY', x: 300, y: 300, width: 120, height: 120 };
+  const right: Element = { id: 'r', kind: 'STICKY', x: 300, y: 0, width: 120, height: 120 };
+  const diagonal = (from: string, to: string): Element => ({ id: 'c', kind: 'CONNECTOR', from, to, x: 0, y: 0, width: 0, height: 0 });
+  const [onDiamond] = ends(diagonal('d', 'f'), new Map([diamond, far].map((e) => [e.id, e])));
+  assert.deepEqual(onDiamond, { x: 90, y: 90 }, 'on the diamond\'s edge, not its box\'s empty corner');
+  const [corner] = ends(diagonal('d', 'r'), new Map([diamond, right].map((e) => [e.id, e])));
+  assert.deepEqual(corner, { x: 120, y: 60 }, 'straight across, from the diamond\'s corner');
+  const [onEllipse] = ends(diagonal('e', 'f'), new Map([ellipse, far].map((e) => [e.id, e])));
+  assert.ok(Math.abs(onEllipse.x - (60 + 60 / Math.SQRT2)) < 0.01 && Math.abs(onEllipse.y - onEllipse.x) < 0.01, JSON.stringify(onEllipse));
+});
+
+test('a shape\'s words stand centred inside its outline', () => {
+  const diamond: Element = { id: 'd', kind: 'SHAPE', shape: 'DIAMOND', x: 0, y: 0, width: 220, height: 140 };
+  const placed = shapeWords(diamond, 'Passkey vorhanden?', 14);
+  assert.equal(placed.x, 110, 'centred across');
+  assert.ok(placed.width <= 110, `inside the diamond's middle: ${placed.width}`);
+  for (const row of placed.rows) assert.ok(row.text.length * 14 * 0.55 <= placed.width, `"${row.text}" fits ${placed.width}`);
+  const first = placed.rows[0]?.y ?? 0;
+  const last = placed.rows.at(-1)?.y ?? 0;
+  assert.ok(first > 40 && last < 100, `centred down: ${first}..${last}`);
+  const ellipse: Element = { id: 'e', kind: 'SHAPE', shape: 'ELLIPSE', x: 0, y: -360, width: 180, height: 90 };
+  const begin = shapeWords(ellipse, 'Kunde öffnet App', 14);
+  assert.equal(begin.x, 90);
+  assert.ok(begin.width <= 180 / Math.SQRT2, `${begin.width}`);
+  assert.ok(begin.rows.length >= 1 && begin.rows.every((r) => r.y > -360 + 20 && r.y < -360 + 80), JSON.stringify(begin.rows));
+  const svg = toSvg([{ ...ellipse, text: 'Kunde öffnet App' }], { title: 't', colours: { paper: 'p', ink: 'i', line: 'l', surface: 's', label: () => undefined }, unavailable: '-', margin: 0 });
+  assert.match(svg, /text-anchor="middle">Kunde/);
 });

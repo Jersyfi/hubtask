@@ -91,6 +91,52 @@ export function lines(text: string, width: number, size: number): string[] {
   return out;
 }
 
+/** A shape's words as they are drawn: centred in its outline, broken to fit and cut to its height. */
+export interface ShapeWords {
+  /** The centre each row is anchored at. */
+  x: number;
+  /** The width the rows are broken to. */
+  width: number;
+  /** Each row and its baseline. */
+  rows: { y: number; text: string }[];
+}
+
+/**
+ * Where a shape's words stand: in the largest box its outline holds around the middle - for an
+ * ellipse the inscribed rectangle, for a diamond its middle half - so no row runs over an edge.
+ */
+export function shapeWords(e: Element, text: string, size: number): ShapeWords {
+  const { x, y, width: w, height: h } = e;
+  let inner = { left: x + 12, top: y + 6, width: w - 24, height: h - 12 };
+  switch (e.kind === 'SHAPE' ? e.shape ?? 'RECTANGLE' : 'RECTANGLE') {
+    case 'ELLIPSE':
+      inner = { left: x + (w - w / Math.SQRT2) / 2 + 4, top: y + (h - h / Math.SQRT2) / 2, width: w / Math.SQRT2 - 8, height: h / Math.SQRT2 };
+      break;
+    case 'DIAMOND':
+      inner = { left: x + w / 4 + 4, top: y + h / 4, width: w / 2 - 8, height: h / 2 };
+      break;
+    case 'TRIANGLE':
+      inner = { left: x + w / 4 + 4, top: y + h / 2, width: w / 2 - 8, height: h / 2 - 4 };
+      break;
+    case 'PARALLELOGRAM': {
+      const slant = Math.min(w / 4, h / 2);
+      inner = { left: x + slant + 4, top: y + 6, width: w - 2 * slant - 8, height: h - 12 };
+      break;
+    }
+  }
+  const width = Math.max(size, inner.width);
+  const step = size * 1.3;
+  const room = Math.max(1, Math.floor(inner.height / step));
+  const shown = lines(text, width, size).slice(0, room);
+  const top = inner.top + (inner.height - shown.length * step) / 2;
+  const n = (value: number) => Math.round(value * 10) / 10;
+  return {
+    x: n(inner.left + inner.width / 2),
+    width: n(width),
+    rows: shown.map((row, i) => ({ y: n(top + step * i + size), text: row })),
+  };
+}
+
 function words(text: string, x: number, y: number, width: number, size: number, fill: string, anchor = 'start'): string {
   const rows = lines(text, width, size);
   return rows
@@ -179,7 +225,12 @@ export function toSvg(elements: readonly Element[], options: PictureOptions): st
       }
       default:
         parts.push(`<path d="${outlinePath(e)}" fill="${fill}" stroke="${e.kind === 'SHAPE' ? colours.ink : 'none'}"/>`);
-        if (e.text) parts.push(words(e.text, e.x + 12, e.y + 4, e.width - 24, 14, colours.ink));
+        if (e.text && e.kind === 'SHAPE') {
+          const placed = shapeWords(e, e.text, 14);
+          for (const row of placed.rows) {
+            parts.push(`<text x="${placed.x}" y="${row.y}" font-size="14" fill="${colours.ink}" text-anchor="middle">${escape(row.text)}</text>`);
+          }
+        } else if (e.text) parts.push(words(e.text, e.x + 12, e.y + 4, e.width - 24, 14, colours.ink));
     }
   }
   const arrow = (id: string, orient: string) =>

@@ -52,6 +52,10 @@ test('the minimap shows the whole board with the viewport, and takes the viewpor
   assert.ok(map.view.width <= 200 && map.view.left === 0);
   const moved = fromMinimap(map, view, { x: 200, y: 150 });
   assert.ok(moved.x > 3000 && moved.y > 2000, 'the far corner is reached');
+  const shaped = minimap([{ id: 'e', kind: 'SHAPE', shape: 'ELLIPSE', x: 0, y: 0, width: 200, height: 100 }, { id: 'd', kind: 'SHAPE', shape: 'DIAMOND', x: 0, y: 200, width: 100, height: 100 }], view, { width: 200, height: 150 });
+  assert.match(shaped.boxes[0]?.path ?? '', / A /, 'an ellipse is drawn as an ellipse');
+  assert.match(shaped.boxes[1]?.path ?? '', /^M [\d.]+ 0?[\d.]* L /, 'a diamond as a diamond');
+  assert.doesNotMatch(shaped.boxes[1]?.path ?? '', / H /);
 });
 
 test('a selection with its group and connectors is copied and pasted with new identifiers (UC-CNV-04 check 4)', () => {

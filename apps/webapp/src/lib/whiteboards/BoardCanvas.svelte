@@ -30,7 +30,7 @@
   } from '@hubtask/sync-engine';
   import {
     Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, align, bounds, box, connectorPath, copy, culled,
-    elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, readCopied, snap, strokePath,
+    elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, shapeWords, readCopied, snap, strokePath,
     strokesOf, template, toBoard, toSvg, touches, withGroups, withinFrame, zoomAt,
     type Element, type ElementKind, type Guide, type Pen, type Point, type Shape, type TemplateName, type Viewport,
   } from '@hubtask/whiteboard';
@@ -1327,7 +1327,12 @@
         {:else}
           <g class={`object ${e.kind.toLowerCase()}`} class:chosen={selected.includes(e.id)} class:locked={e.locked}>
             {#if e.kind !== 'TEXT'}<path d={outlinePath(e)} style:fill={e.kind === 'STICKY' || e.color_token ? fillOf(e) : undefined} />{/if}
-            {#if editing !== e.id}
+            {#if editing !== e.id && e.kind === 'SHAPE'}
+              {@const placed = shapeWords(e, e.text ?? '', 14)}
+              {#each placed.rows as row, i (i)}
+                <text x={placed.x} y={row.y} text-anchor="middle" class="words">{row.text}</text>
+              {/each}
+            {:else if editing !== e.id}
               {#each lines(e.text ?? '', e.width - 24, 14).slice(0, Math.max(1, Math.floor((e.height - 12) / 18))) as row, i (i)}
                 <text x={e.x + 12} y={e.y + 24 + i * 18} class="words">{row}</text>
               {/each}
@@ -1455,7 +1460,7 @@
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
         <svg class="minimap" role="img" aria-label={t('app.whiteboards.minimap')} viewBox={`0 0 ${MAP.width} ${MAP.height}`} onclick={mapClick}>
           {#each map.boxes as b (b.id)}
-            <rect class={`mini ${b.kind.toLowerCase()}`} x={b.left} y={b.top} width={b.width} height={b.height} />
+            <path class={`mini ${b.kind.toLowerCase()}`} d={b.path} />
           {/each}
           <rect class="mini-view" x={map.view.left} y={map.view.top} width={map.view.width} height={map.view.height} />
         </svg>

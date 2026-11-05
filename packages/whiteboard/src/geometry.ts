@@ -30,7 +30,31 @@ export function center(e: Element): Point {
   return { x: e.x + e.width / 2, y: e.y + e.height / 2 };
 }
 
-/** Where the line from an object's centre toward a point leaves its box. */
+/**
+ * The corners of a shape whose outline is straight-edged but not its box, in drawing order;
+ * undefined for a box, a rounded box and an ellipse. The same corners `outlinePath` draws.
+ */
+export function corners(e: Element): Point[] | undefined {
+  if (e.kind !== 'SHAPE') return undefined;
+  const { x, y, width: w, height: h } = e;
+  switch (e.shape) {
+    case 'DIAMOND':
+      return [{ x: x + w / 2, y }, { x: x + w, y: y + h / 2 }, { x: x + w / 2, y: y + h }, { x, y: y + h / 2 }];
+    case 'TRIANGLE':
+      return [{ x: x + w / 2, y }, { x: x + w, y: y + h }, { x, y: y + h }];
+    case 'PARALLELOGRAM': {
+      const slant = Math.min(w / 4, h / 2);
+      return [{ x: x + slant, y }, { x: x + w, y }, { x: x + w - slant, y: y + h }, { x, y: y + h }];
+    }
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Where the line from an object's centre toward a point leaves its outline: the ellipse's or the
+ * polygon's of a shape drawn so, the box's of everything else.
+ */
 export function outline(e: Element, toward: Point): Point {
   const c = center(e);
   const dx = toward.x - c.x;
@@ -38,8 +62,30 @@ export function outline(e: Element, toward: Point): Point {
   if (dx === 0 && dy === 0) return c;
   const halfW = Math.abs(e.width) / 2;
   const halfH = Math.abs(e.height) / 2;
-  const scale = Math.min(dx === 0 ? Infinity : halfW / Math.abs(dx), dy === 0 ? Infinity : halfH / Math.abs(dy));
-  return { x: c.x + dx * scale, y: c.y + dy * scale };
+  let scale = Math.min(dx === 0 ? Infinity : halfW / Math.abs(dx), dy === 0 ? Infinity : halfH / Math.abs(dy));
+  if (e.kind === 'SHAPE' && e.shape === 'ELLIPSE' && halfW > 0 && halfH > 0) {
+    scale = 1 / Math.sqrt((dx / halfW) ** 2 + (dy / halfH) ** 2);
+  } else {
+    const points = corners(e);
+    if (points) {
+      // The nearest crossing of the ray c + t·d with an edge; the centre lies inside each polygon.
+      let nearest = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i] as Point;
+        const q = points[(i + 1) % points.length] as Point;
+        const ex = q.x - p.x;
+        const ey = q.y - p.y;
+        const denominator = dx * ey - dy * ex;
+        if (denominator === 0) continue;
+        const t = ((p.x - c.x) * ey - (p.y - c.y) * ex) / denominator;
+        const u = ((p.x - c.x) * dy - (p.y - c.y) * dx) / denominator;
+        if (t > 0 && u >= 0 && u <= 1) nearest = Math.min(nearest, t);
+      }
+      if (Number.isFinite(nearest)) scale = nearest;
+    }
+  }
+  const n = (value: number) => Math.round(value * 1000) / 1000;
+  return { x: n(c.x + dx * scale), y: n(c.y + dy * scale) };
 }
 
 /**

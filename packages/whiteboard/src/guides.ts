@@ -9,6 +9,7 @@
 
 import { bounds, box, type Box, type Point, type Viewport } from './geometry.ts';
 import type { Element } from './scene.ts';
+import { outlinePath } from './svg.ts';
 
 /** A guide drawn while moving: a vertical line at `x` or a horizontal line at `y`, between two ends. */
 export type Guide = { axis: 'x'; at: number; from: number; to: number } | { axis: 'y'; at: number; from: number; to: number };
@@ -67,8 +68,8 @@ export interface Minimap {
   scale: number;
   /** The board point at the minimap's top-left corner. */
   origin: Point;
-  /** Each object's box on the minimap, connectors and strokes aside. */
-  boxes: { id: string; kind: Element['kind']; left: number; top: number; width: number; height: number }[];
+  /** Each object's box on the minimap, connectors and strokes aside, and its outline there. */
+  boxes: { id: string; kind: Element['kind']; left: number; top: number; width: number; height: number; path: string }[];
   /** The viewport on the minimap. */
   view: { left: number; top: number; width: number; height: number };
 }
@@ -87,7 +88,10 @@ export function minimap(elements: readonly Element[], view: Viewport, size: { wi
   });
   return {
     scale, origin,
-    boxes: elements.filter((e) => e.kind !== 'CONNECTOR').map((e) => ({ id: e.id, kind: e.kind, ...place(box(e)) })),
+    boxes: elements.filter((e) => e.kind !== 'CONNECTOR').map((e) => {
+      const at = place(box(e));
+      return { id: e.id, kind: e.kind, ...at, path: outlinePath({ ...e, x: at.left, y: at.top, width: at.width, height: at.height }) };
+    }),
     view: place(seen),
   };
 }
