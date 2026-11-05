@@ -441,6 +441,7 @@
   "organisations.domains_required": "An organisation needs at least one mail domain.",
   "organisations.domains_too_many": "An organisation has at most 20 mail domains.",
   "organisations.identity_incomplete": "This installation is misconfigured and could not create that organisation.",
+  "organisations.in_use": "SLA policies name the organisation {key} ({policies}). Take it out of them first.",
   "organisations.key_malformed": "A key starts with a letter and holds only lower-case letters, digits and underscores.",
   "organisations.key_taken": "The workspace already has an organisation {key}.",
   "organisations.name_invalid": "An organisation's name is one line of at most 120 characters.",

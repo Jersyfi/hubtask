@@ -333,6 +333,7 @@
   "organisations.domains_required": "Eine Organisation braucht mindestens eine Mail-Domain.",
   "organisations.domains_too_many": "Eine Organisation hat höchstens 20 Mail-Domains.",
   "organisations.identity_incomplete": "Diese Installation ist falsch eingerichtet und konnte die Organisation nicht anlegen.",
+  "organisations.in_use": "SLA-Richtlinien nennen die Organisation {key} ({policies}). Nimm sie zuerst dort heraus.",
   "organisations.key_malformed": "Ein Schlüssel beginnt mit einem Buchstaben und enthält nur Kleinbuchstaben, Ziffern und Unterstriche.",
   "organisations.key_taken": "Der Arbeitsbereich hat schon eine Organisation {key}.",
   "organisations.name_invalid": "Der Name einer Organisation ist eine Zeile mit höchstens 120 Zeichen.",

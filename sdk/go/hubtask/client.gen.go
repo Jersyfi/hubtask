@@ -39733,7 +39733,7 @@ type ClientInterface interface {
 
 	// DeleteRequesterOrganisation Delete an organisation
 	//
-	// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+	// Deletes the organisation; its people keep their own requests and see only those again. One an SLA policy names is refused with `organisations.in_use` and the number of those policies: change the policies first. Needs STRUCTURE at the workspace.
 	//
 	// Corresponds with DELETE /requester-organisations/{organisationKey} (the `DeleteRequesterOrganisation` operationId).
 	DeleteRequesterOrganisation(ctx context.Context, organisationKey string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -60837,7 +60837,7 @@ func (c *Client) ListRequesterOrganisations(ctx context.Context, reqEditors ...R
 
 // DeleteRequesterOrganisation Delete an organisation
 //
-// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+// Deletes the organisation; its people keep their own requests and see only those again. One an SLA policy names is refused with `organisations.in_use` and the number of those policies: change the policies first. Needs STRUCTURE at the workspace.
 //
 // Corresponds with DELETE /requester-organisations/{organisationKey} (the `DeleteRequesterOrganisation` operationId).
 func (c *Client) DeleteRequesterOrganisation(ctx context.Context, organisationKey string, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -114284,7 +114284,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteRequesterOrganisationWithResponse Delete an organisation
 	//
-	// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+	// Deletes the organisation; its people keep their own requests and see only those again. One an SLA policy names is refused with `organisations.in_use` and the number of those policies: change the policies first. Needs STRUCTURE at the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -172812,7 +172812,7 @@ func (c *ClientWithResponses) ListRequesterOrganisationsWithResponse(ctx context
 
 // DeleteRequesterOrganisationWithResponse Delete an organisation
 //
-// Deletes the organisation; its people keep their own requests and see only those again. Needs STRUCTURE at the workspace.
+// Deletes the organisation; its people keep their own requests and see only those again. One an SLA policy names is refused with `organisations.in_use` and the number of those policies: change the policies first. Needs STRUCTURE at the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 //

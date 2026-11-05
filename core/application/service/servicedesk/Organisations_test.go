@@ -232,3 +232,28 @@ func TestAPolicyNamesOrganisationsTheWorkspaceHolds(t *testing.T) {
 		t.Errorf("output %v", out["organisations"])
 	}
 }
+
+// UC-SVC-11: an organisation a policy names is not deleted - the policy would measure nobody and
+// every later edit of it would be refused - but answered organisations.in_use with the count.
+func TestAnOrganisationAPolicyNamesIsNotDeleted(t *testing.T) {
+	store := &organisationStore{rows: map[string]domain.Organisation{"acme": {Key: "acme"}, "initech": {Key: "initech"}}}
+	desk := Desk{
+		Organisations: store, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{},
+		Clock: at(monday), IDs: &seqIDs{}, Text: text.Composing{},
+		Policies: policyStore{rows: []domain.SLAPolicy{
+			{Key: "key_accounts", Organisations: []string{"acme"}},
+			{Key: "gold", Organisations: []string{"initech", "acme"}},
+		}},
+	}
+	err := DeleteRequesterOrganisation{Desk: desk}.Execute(context.Background(), reader(), "acme")
+	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "organisations.in_use" || refusal.Params["policies"] != "2" {
+		t.Fatalf("an organisation two policies name: %v", err)
+	}
+	if _, held := store.rows["acme"]; !held {
+		t.Fatal("the organisation was deleted")
+	}
+	desk.Policies = policyStore{}
+	if err := (DeleteRequesterOrganisation{Desk: desk}).Execute(context.Background(), reader(), "initech"); err != nil {
+		t.Fatalf("an organisation nobody names: %v", err)
+	}
+}

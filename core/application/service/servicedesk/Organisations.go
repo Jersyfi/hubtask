@@ -6,6 +6,8 @@ package servicedesk
 import (
 	"context"
 	"errors"
+	"slices"
+	"strconv"
 	"strings"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -214,6 +216,9 @@ func (h DeleteRequesterOrganisation) Execute(ctx context.Context, actor appshare
 		if err != nil {
 			return err
 		}
+		if err := h.Desk.organisationStillNamed(ctx, key); err != nil {
+			return err
+		}
 		if err := h.Desk.Organisations.Delete(ctx, key); err != nil {
 			return err
 		}
@@ -222,11 +227,34 @@ func (h DeleteRequesterOrganisation) Execute(ctx context.Context, actor appshare
 	})
 }
 
+// organisationStillNamed refuses an organisation a policy names: the policy would then measure
+// nobody and refuse every later edit as naming an unknown organisation.
+func (d Desk) organisationStillNamed(ctx context.Context, key string) error {
+	if d.Policies == nil {
+		return nil
+	}
+	policies, err := d.Policies.List(ctx)
+	if err != nil {
+		return err
+	}
+	naming := 0
+	for _, p := range policies {
+		if slices.Contains(p.Organisations, key) {
+			naming++
+		}
+	}
+	if naming > 0 {
+		return shared.ErrConflict.WithDetail("organisations.in_use").
+			WithParams(map[string]string{"key": key, "policies": strconv.Itoa(naming)})
+	}
+	return nil
+}
+
 // Descriptor is the catalogue entry.
 func (h DeleteRequesterOrganisation) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name:        DeleteRequesterOrganisationName,
-		Summary:     "Deletes a portal organisation. Its people keep their own requests and see only those again.",
+		Summary:     "Deletes a portal organisation. Its people keep their own requests and see only those again. One an SLA policy names is refused with organisations.in_use.",
 		SideEffects: "Deletes the organisation and writes an audit entry.",
 		TokenScope:  deskWrite,
 		Input: []usecase.Field{

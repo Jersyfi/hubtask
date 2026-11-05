@@ -3837,7 +3837,8 @@ paths:
       summary: Delete an organisation
       description: >
         Deletes the organisation; its people keep their own requests and see only those again.
-        Needs STRUCTURE at the workspace.
+        One an SLA policy names is refused with `organisations.in_use` and the number of those
+        policies: change the policies first. Needs STRUCTURE at the workspace.
       responses:
         "204":
           description: Deleted
