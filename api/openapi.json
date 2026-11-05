@@ -23332,7 +23332,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "dataSubjectRequestResponse",
         "summary": "Record a right somebody has exercised",
-        "description": "Opens the case with its statutory deadline - thirty days from receipt unless the caller\nnames a different one, because the period is a legal matter and an installation may have\nto answer sooner. Nothing is collected, exported or erased by this call: what happens next\nis the controller's decision, taken by moving the case to `IN_PROGRESS`.\n\n`RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:\na deadline somebody is answerable for is worth recording whether or not the work needs a special path.\n",
+        "description": "Opens the case with its statutory deadline - one calendar month from the day of receipt\nunless the caller names a different one, because the period is a legal matter and an\ninstallation may have to answer sooner. Nothing is collected, exported or erased by this\ncall: what happens next is the controller's decision, taken by moving the case to\n`IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because\nan account identifier names somebody in one workspace only.\n\n`RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:\na deadline somebody is answerable for is worth recording whether or not the work needs a special path.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"

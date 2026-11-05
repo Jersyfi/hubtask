@@ -15889,10 +15889,12 @@ paths:
       x-hubtask-rest-answer: dataSubjectRequestResponse
       summary: Record a right somebody has exercised
       description: |
-        Opens the case with its statutory deadline - thirty days from receipt unless the caller
-        names a different one, because the period is a legal matter and an installation may have
-        to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-        is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+        Opens the case with its statutory deadline - one calendar month from the day of receipt
+        unless the caller names a different one, because the period is a legal matter and an
+        installation may have to answer sooner. Nothing is collected, exported or erased by this
+        call: what happens next is the controller's decision, taken by moving the case to
+        `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+        an account identifier names somebody in one workspace only.
 
         `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
         a deadline somebody is answerable for is worth recording whether or not the work needs a special path.

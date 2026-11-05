@@ -39486,10 +39486,12 @@ type ClientInterface interface {
 
 	// CreateDataSubjectRequestWithBody Record a right somebody has exercised
 	//
-	// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-	// names a different one, because the period is a legal matter and an installation may have
-	// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-	// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+	// Opens the case with its statutory deadline - one calendar month from the day of receipt
+	// unless the caller names a different one, because the period is a legal matter and an
+	// installation may have to answer sooner. Nothing is collected, exported or erased by this
+	// call: what happens next is the controller's decision, taken by moving the case to
+	// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+	// an account identifier names somebody in one workspace only.
 	//
 	// `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 	// a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -39501,10 +39503,12 @@ type ClientInterface interface {
 
 	// CreateDataSubjectRequest Record a right somebody has exercised
 	//
-	// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-	// names a different one, because the period is a legal matter and an installation may have
-	// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-	// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+	// Opens the case with its statutory deadline - one calendar month from the day of receipt
+	// unless the caller names a different one, because the period is a legal matter and an
+	// installation may have to answer sooner. Nothing is collected, exported or erased by this
+	// call: what happens next is the controller's decision, taken by moving the case to
+	// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+	// an account identifier names somebody in one workspace only.
 	//
 	// `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 	// a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -60197,10 +60201,12 @@ func (c *Client) ListDataSubjectRequests(ctx context.Context, params *ListDataSu
 
 // CreateDataSubjectRequestWithBody Record a right somebody has exercised
 //
-// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-// names a different one, because the period is a legal matter and an installation may have
-// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+// Opens the case with its statutory deadline - one calendar month from the day of receipt
+// unless the caller names a different one, because the period is a legal matter and an
+// installation may have to answer sooner. Nothing is collected, exported or erased by this
+// call: what happens next is the controller's decision, taken by moving the case to
+// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+// an account identifier names somebody in one workspace only.
 //
 // `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 // a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -60222,10 +60228,12 @@ func (c *Client) CreateDataSubjectRequestWithBody(ctx context.Context, params *C
 
 // CreateDataSubjectRequest Record a right somebody has exercised
 //
-// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-// names a different one, because the period is a legal matter and an installation may have
-// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+// Opens the case with its statutory deadline - one calendar month from the day of receipt
+// unless the caller names a different one, because the period is a legal matter and an
+// installation may have to answer sooner. Nothing is collected, exported or erased by this
+// call: what happens next is the controller's decision, taken by moving the case to
+// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+// an account identifier names somebody in one workspace only.
 //
 // `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 // a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -114247,10 +114255,12 @@ type ClientWithResponsesInterface interface {
 
 	// CreateDataSubjectRequestWithBodyWithResponse Record a right somebody has exercised
 	//
-	// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-	// names a different one, because the period is a legal matter and an installation may have
-	// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-	// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+	// Opens the case with its statutory deadline - one calendar month from the day of receipt
+	// unless the caller names a different one, because the period is a legal matter and an
+	// installation may have to answer sooner. Nothing is collected, exported or erased by this
+	// call: what happens next is the controller's decision, taken by moving the case to
+	// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+	// an account identifier names somebody in one workspace only.
 	//
 	// `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 	// a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -114262,10 +114272,12 @@ type ClientWithResponsesInterface interface {
 
 	// CreateDataSubjectRequestWithResponse Record a right somebody has exercised
 	//
-	// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-	// names a different one, because the period is a legal matter and an installation may have
-	// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-	// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+	// Opens the case with its statutory deadline - one calendar month from the day of receipt
+	// unless the caller names a different one, because the period is a legal matter and an
+	// installation may have to answer sooner. Nothing is collected, exported or erased by this
+	// call: what happens next is the controller's decision, taken by moving the case to
+	// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+	// an account identifier names somebody in one workspace only.
 	//
 	// `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 	// a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -172729,10 +172741,12 @@ func (c *ClientWithResponses) ListDataSubjectRequestsWithResponse(ctx context.Co
 
 // CreateDataSubjectRequestWithBodyWithResponse Record a right somebody has exercised
 //
-// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-// names a different one, because the period is a legal matter and an installation may have
-// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+// Opens the case with its statutory deadline - one calendar month from the day of receipt
+// unless the caller names a different one, because the period is a legal matter and an
+// installation may have to answer sooner. Nothing is collected, exported or erased by this
+// call: what happens next is the controller's decision, taken by moving the case to
+// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+// an account identifier names somebody in one workspace only.
 //
 // `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 // a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
@@ -172750,10 +172764,12 @@ func (c *ClientWithResponses) CreateDataSubjectRequestWithBodyWithResponse(ctx c
 
 // CreateDataSubjectRequestWithResponse Record a right somebody has exercised
 //
-// Opens the case with its statutory deadline - thirty days from receipt unless the caller
-// names a different one, because the period is a legal matter and an installation may have
-// to answer sooner. Nothing is collected, exported or erased by this call: what happens next
-// is the controller's decision, taken by moving the case to `IN_PROGRESS`.
+// Opens the case with its statutory deadline - one calendar month from the day of receipt
+// unless the caller names a different one, because the period is a legal matter and an
+// installation may have to answer sooner. Nothing is collected, exported or erased by this
+// call: what happens next is the controller's decision, taken by moving the case to
+// `IN_PROGRESS`. A case of `INSTALLATION` scope names the person by `subject_email`, because
+// an account identifier names somebody in one workspace only.
 //
 // `RECTIFICATION` is accepted as a tracked case although a correction is an ordinary write:
 // a deadline somebody is answerable for is worth recording whether or not the work needs a special path.
