@@ -63,7 +63,7 @@ function inboxBackend() {
 test('chromium: approvals - an agent\'s held act approved in the one inbox, and the approvals paged by cursor - without an error', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'AGENTS'], answer: inboxBackend() });
+  const walk = await productWalk(browser, { modules: ['WORKFLOWS', 'SERVICE_DESK', 'AGENTS'], answer: inboxBackend() });
   t.after(walk.close);
   const { page } = walk;
   const asked = [];
