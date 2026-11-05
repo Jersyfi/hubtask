@@ -86,6 +86,28 @@ for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]
   }
 }
 
+// WCAG 4.1.2: every tab names a panel that exists, and the gate holding its own controls is a group
+// whose head selects it, never a button around buttons.
+test('chromium: the new-rule editor\'s tabs point at what exists and no control holds another', { timeout: 60_000 }, async () => {
+  const browser = await chromium.launch();
+  const { page, close } = await openEditor(browser, 1280, { ai: false });
+  try {
+    const dangling = await page.evaluate(() => [...document.querySelectorAll('[aria-controls]')]
+      .flatMap((each) => (each.getAttribute('aria-controls') ?? '').split(/\s+/u).filter(Boolean).filter((id) => !document.getElementById(id)).map((id) => `${each.textContent?.trim()} -> ${id}`)));
+    assert.deepEqual(dangling, []);
+    const nested = await page.evaluate(() => [...document.querySelectorAll('[role="button"], button, a[href]')]
+      .filter((each) => each.querySelector('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"]), [role="button"]'))
+      .map((each) => each.className || each.tagName));
+    assert.deepEqual(nested, []);
+    await page.locator('[data-card="gate"]').getByRole('button', { name: /Only when/ }).focus();
+    await page.keyboard.press('Enter');
+    await page.locator('[data-card="gate"].selected').waitFor({ timeout: 5_000 });
+  } finally {
+    await close();
+    await browser.close();
+  }
+});
+
 test('chromium: without AI the editor offers nothing to describe a rule with', { timeout: 60_000 }, async () => {
   const browser = await chromium.launch();
   const { page, failures, close } = await openEditor(browser, 1280, { ai: false });
