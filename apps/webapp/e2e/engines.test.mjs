@@ -25,7 +25,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium, firefox, webkit } from 'playwright';
 
-import { COLLECTION, ITEMS, stub as fixtureStub } from './fixture.mjs';
+import { ARRAYS, COLLECTION, ITEMS, stub as fixtureStub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -73,6 +73,8 @@ async function stub(route) {
   }
   // A bare list, as the contract answers it - not a page: the create dialog reads it.
   if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
+  // The reads the contract answers as a bare array: an envelope there is no list to the client.
+  if (ARRAYS.has(url.pathname.replace(/^.*\/api\/v1/, ''))) return route.fulfill({ json: [] });
   return route.fulfill({ json: EMPTY_PAGE });
 }
 

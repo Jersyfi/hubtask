@@ -1351,7 +1351,7 @@ export function fallback(route, request, path) {
  * One list, because the mistake is one mistake: every walk that wrote its own had the same three
  * wrong. A walk that visits the administration meets most of them without ever naming one.
  */
-const ARRAYS = new Set([
+export const ARRAYS = new Set([
   '/quotas', '/groups', '/retention-policies', '/oauth/clients', '/oauth/grants',
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
