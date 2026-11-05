@@ -711,6 +711,44 @@ test('chromium: 1280 px — under a requiring rule the authenticator is replaced
   await page.getByText('Your authenticator is replaced.', { exact: false }).first().waitFor();
 });
 
+// UC-ID-06 check 1: every open session is listed with its device and last use, the current one
+// marked. UC-ID-06 check 3: once the session is ended, its next request fails and the card says
+// "Your session ended." rather than a refusal.
+test('chromium: every session is listed, this one marked, and an ended one says so on its next request', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let ended = false;
+  await context.route('**/api/v1/**', async (route) => {
+    if (ended) return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', status: 401, request_id: 'req_e2e' } });
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions') return route.fulfill({ json: SESSIONS });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/sessions`);
+  await page.getByText('Safari on iPhone').waitFor();
+
+  const row = async (client) => (await page.locator('tr', { hasText: client }).innerText()).replace(/\s+/g, ' ');
+  for (const client of ['Firefox on Linux', 'Safari on iPhone', 'Chrome on macOS']) {
+    assert.equal(await page.locator('tr', { hasText: client }).count(), 1, `${client} is not listed once`);
+  }
+  assert.match(await row('Chrome on macOS'), /This device/);
+  assert.doesNotMatch(await row('Firefox on Linux'), /This device/);
+  assert.doesNotMatch(await row('Firefox on Linux'), /Not used since/, 'a used session shows no last use');
+  assert.match(await row('Safari on iPhone'), /Not used since/);
+
+  ended = true;
+  await page.reload();
+  await page.getByText('Your session ended.').waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('alert').count(), 0, 'an ended session is told as a refusal');
+});
+
 // UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.
 test('chromium: 1280 px — every session says how it was opened', async (t) => {
   const browser = await chromium.launch();
