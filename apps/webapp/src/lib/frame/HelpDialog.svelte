@@ -17,14 +17,19 @@
   import { recentReferences, supportDetails } from '../support.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { toast } from './toasts.svelte.ts';
+  import { productOf } from '../navigation.ts';
 
   interface Props {
     isOpen: boolean;
     /** Starts the tour again, once this has closed. */
     ontour: () => void;
+    /** The product whose home is open, whose own tour is offered beside (user-experience.md §3.4). */
+    product?: string;
+    onproducttour?: (module: string) => void;
   }
 
-  let { isOpen = $bindable(false), ontour }: Props = $props();
+  let { isOpen = $bindable(false), ontour, product, onproducttour }: Props = $props();
+  const productRow = $derived(product ? productOf(product) : undefined);
 
   const SCOPES: readonly Scope[] = ['everywhere', 'palette', 'list', 'selection'];
 
@@ -84,6 +89,11 @@
     // After the dialog has returned focus: the tour's first step takes it from there.
     queueMicrotask(ontour);
   }
+
+  function takeProductTour(module: string) {
+    isOpen = false;
+    queueMicrotask(() => onproducttour?.(module));
+  }
 </script>
 
 <Dialog title={t('app.help.label')} dismissLabel={t('app.palette.close')} bind:isOpen isWide>
@@ -129,13 +139,19 @@
         </dl>
       </section>
     {/each}
-    <div>
+    <div class="tours">
       <Button icon="compass" onclick={takeTour}>{t('app.help.tour_again')}</Button>
+      {#if productRow && onproducttour}
+        <Button icon="compass" data-product-tour={productRow.module} onclick={() => takeProductTour(productRow.module)}>
+          {t('app.product_tour.start', { product: t(productRow.code) })}
+        </Button>
+      {/if}
     </div>
   </Stack>
 </Dialog>
 
 <style>
+  .tours { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .group {
     margin: 0 0 var(--sp-050);
     font-size: var(--fs-075);

@@ -46,6 +46,9 @@
   import ViewAsBanner from './ViewAsBanner.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
   import TourGuide from './TourGuide.svelte';
+  import ProductTourGuide from './ProductTourGuide.svelte';
+  import { productTour } from '../product/producttour.svelte.ts';
+  import { homeModuleOf } from '../product/producttour.ts';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
   import { page } from './page.svelte.ts';
@@ -756,7 +759,8 @@
     <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} onnavigate={go} />
   {/if}
   {#if isHelpOpen}
-    <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
+    <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()}
+      product={homeModuleOf(route.name, PRODUCTS)} onproducttour={(module) => void productTour.start(module)} />
     <UnsentChangesDialog count={unsentCount} onClose={() => (unsentCount = 0)} />
   {/if}
   {#if isAskOpen && asking !== undefined && actor.account}
@@ -771,6 +775,7 @@
   <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
     <TourGuide path={route.path} {onnavigate} />
+    <ProductTourGuide routeName={route.name} {onnavigate} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a

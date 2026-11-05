@@ -228,7 +228,7 @@ class TourStore {
 }
 
 /** The element a step points at, once the route has drawn it - or nothing after the attempts. */
-async function arrival(selector: string): Promise<HTMLElement | null> {
+export async function arrival(selector: string): Promise<HTMLElement | null> {
   for (let attempt = 0; attempt < ARRIVAL_ATTEMPTS; attempt += 1) {
     const element = document.querySelector<HTMLElement>(selector);
     if (element && element.getClientRects().length > 0) return element;
