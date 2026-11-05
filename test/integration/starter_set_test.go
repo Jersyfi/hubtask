@@ -174,6 +174,11 @@ func (r *templateTaker) TakeForWorkspace(context.Context, appshared.ActorContext
 	return nil
 }
 
+func (r *templateTaker) TakeWorkspacePartOnce(context.Context, appshared.ActorContext, work.StarterTemplate) error {
+	r.steps = append(r.steps, "workspace")
+	return nil
+}
+
 func (r *templateTaker) TakeForHub(_ context.Context, _ appshared.ActorContext, _ work.StarterTemplate, hub shared.ID) error {
 	r.steps = append(r.steps, "hub")
 	r.hub = hub
@@ -364,5 +369,51 @@ func TestASkipIsReadInItsOwnWorkspaceOnly(t *testing.T) {
 	}
 	if _, _, err := apply.Execute(ctx, second, teamSet("Projects")); err != nil {
 		t.Errorf("the second workspace's set answered %v", err)
+	}
+}
+
+// A hub made from a template (user-experience.md §5.2) is one transaction with the template's
+// parts: a refused hub part leaves no hub behind, and the retry makes exactly one that took both.
+func TestAHubFromATemplateLandsWholeOrNotAtAll(t *testing.T) {
+	ctx := context.Background()
+	create := work.CreateHubFromTemplate{Containers: starterSetDesk(t).Containers}
+	tenant, owner := freshWorkspace(ctx, t, "OWNER")
+	cmd := work.CreateHubFromTemplateCommand{Name: "Support", Template: work.StarterTemplate{Key: "itil_service_desk"}}
+
+	create.Templates = &templateTaker{refuseOnHub: true}
+	if _, _, err := create.Execute(ctx, owner, cmd); err == nil {
+		t.Fatal("a hub whose template's hub part was refused was made")
+	}
+	if n := containersOf(ctx, t, tenant); n != 0 {
+		t.Errorf("a refused template left %d containers behind", n)
+	}
+
+	taking := &templateTaker{}
+	create.Templates = taking
+	hub, _, err := create.Execute(ctx, owner, cmd)
+	if err != nil {
+		t.Fatalf("the hub from a template answered %v", err)
+	}
+	if len(taking.steps) != 2 || taking.steps[0] != "workspace" || taking.steps[1] != "hub" || taking.hub != hub.ID {
+		t.Errorf("the template was taken as %v into %s, want the workspace part, then the hub part into %s", taking.steps, taking.hub, hub.ID)
+	}
+	if n := containersOf(ctx, t, tenant); n != 1 {
+		t.Errorf("%d containers, want the one hub", n)
+	}
+}
+
+// A member who may not shape the workspace is refused before anything is taken.
+func TestAMemberMayNotMakeAHubFromATemplate(t *testing.T) {
+	ctx := context.Background()
+	taking := &templateTaker{}
+	create := work.CreateHubFromTemplate{Containers: starterSetDesk(t).Containers, Templates: taking}
+	tenant, _ := freshWorkspace(ctx, t, "OWNER")
+	member := personIn(ctx, t, tenant, "MEMBER")
+	_, _, err := create.Execute(ctx, member, work.CreateHubFromTemplateCommand{Name: "Support", Template: work.StarterTemplate{Key: "itil_service_desk"}})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("a member answered %v, want forbidden", err)
+	}
+	if len(taking.steps) != 0 || containersOf(ctx, t, tenant) != 0 {
+		t.Errorf("a refused member took %v", taking.steps)
 	}
 }

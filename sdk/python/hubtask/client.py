@@ -2759,6 +2759,10 @@ class Client:
         """POST /containers"""
         return self._call("POST", "/containers", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def create_hub_from_template(self, body: "HubFromTemplate", *, idempotency_key: str | None = None) -> "Container":
+        """Creates a hub from a template of the catalogue"""
+        return self._call("POST", "/containers:from-template", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def get_container(self, container_id: str) -> "Container":
         """GET /containers/{containerId}"""
         return self._call("GET", "/containers/{containerId}", {"containerId": container_id}, None, {}, None, "none", None, "json")

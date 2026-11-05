@@ -5,6 +5,7 @@ package config
 
 import (
 	"context"
+	"slices"
 
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -22,6 +23,7 @@ type StarterTemplates struct{ Desk Desk }
 var (
 	_ work.StarterTemplates = StarterTemplates{}
 	_ work.StarterBaseline  = StarterTemplates{}
+	_ work.HubTemplates     = StarterTemplates{}
 )
 
 // Baseline records the workspace, and the hub the first start made if any, as the start left them,
@@ -88,8 +90,43 @@ func (s StarterTemplates) take(ctx context.Context, actor appshared.ActorContext
 	return err
 }
 
+// TakeWorkspacePartOnce applies the template's workspace part for a hub made from it, where the
+// workspace has not taken the template: one it took stays at the version it took, since making a
+// hub is no upgrade. A template without a hub part is refused, as its hub's plan refuses it.
+func (s StarterTemplates) TakeWorkspacePartOnce(ctx context.Context, actor appshared.ActorContext, take work.StarterTemplate) error {
+	found, err := s.newest(ctx, actor, take.Key)
+	if err != nil {
+		return err
+	}
+	if !found.ForHubs() {
+		return refused("config.template_not_for_hubs", "/template", map[string]string{"template": take.Key})
+	}
+	if len(found.Document) == 0 {
+		return nil
+	}
+	var taken bool
+	err = s.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		uses, err := s.Desk.Store.TemplateUses(ctx, "")
+		taken = slices.ContainsFunc(uses, func(u domain.TemplateUse) bool { return u.TemplateKey == take.Key })
+		return err
+	})
+	if err != nil || taken {
+		return err
+	}
+	return s.take(ctx, actor, take, "")
+}
+
 // forHubs answers whether the newest version of the template has a hub part.
 func (s StarterTemplates) forHubs(ctx context.Context, actor appshared.ActorContext, key string) (bool, error) {
+	found, err := s.newest(ctx, actor, key)
+	if err != nil {
+		return false, err
+	}
+	return found.ForHubs(), nil
+}
+
+// newest is the newest version of the template, Hubtask's presets included.
+func (s StarterTemplates) newest(ctx context.Context, actor appshared.ActorContext, key string) (*domain.Template, error) {
 	var found *domain.Template
 	err := s.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		templates, err := s.Desk.Store.ListTemplates(ctx)
@@ -109,10 +146,10 @@ func (s StarterTemplates) forHubs(ctx context.Context, actor appshared.ActorCont
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if found == nil {
-		return false, domain.ErrTemplateUnknown(key)
+		return nil, domain.ErrTemplateUnknown(key)
 	}
-	return found.ForHubs(), nil
+	return found, nil
 }

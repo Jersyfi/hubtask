@@ -3273,6 +3273,9 @@ func run() error {
 		work.ApplyStarter{
 			Starter: starterKept, Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
 		}.Descriptor(),
+		work.CreateHubFromTemplate{
+			Containers: createContainer, Templates: configservice.StarterTemplates{Desk: configDesk},
+		}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

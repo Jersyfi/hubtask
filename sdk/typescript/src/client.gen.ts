@@ -3472,6 +3472,11 @@ export class HubtaskClient {
     return this.call("POST", "/containers", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Creates a hub from a template of the catalogue */
+  createHubFromTemplate(body: NonNullable<operations["createHubFromTemplate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["createHubFromTemplate"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/containers:from-template", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** GET /containers/{containerId} */
   getContainer(containerId: string, options: CallOptions = {}): Promise<operations["getContainer"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/containers/{containerId}", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

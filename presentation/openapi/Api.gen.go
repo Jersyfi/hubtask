@@ -17524,6 +17524,27 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
+// HubFromTemplate defines model for HubFromTemplate.
+type HubFromTemplate struct {
+	// Acknowledge True once the person has seen that the template's plan hides data or changes permissions; required when it does, as on `POST /config:apply`.
+	Acknowledge *bool `json:"acknowledge,omitempty"`
+
+	// Answers The template's questions answered, by key; an open question takes its default.
+	Answers *map[string]string `json:"answers,omitempty"`
+
+	// ColorToken One of the ten label colours, as on `POST /containers`.
+	ColorToken  *string `json:"color_token,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
+	Name        string  `json:"name"`
+
+	// Samples True takes the template's sample entries into the hub, marked and removable at once.
+	Samples *bool `json:"samples,omitempty"`
+
+	// Template A template of the catalogue (`GET /config/templates`) with a hub part, by its key.
+	Template string `json:"template"`
+}
+
 // HubPrivacy defines model for HubPrivacy.
 type HubPrivacy struct {
 	// Private true to make the hub private, false to share it again.
@@ -27263,6 +27284,12 @@ type UnarchiveContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CreateHubFromTemplateParams defines parameters for CreateHubFromTemplate.
+type CreateHubFromTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SetCostRateJSONBody defines parameters for SetCostRate.
 type SetCostRateJSONBody struct {
 	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
@@ -29666,6 +29693,9 @@ type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 // AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
 type AiSummarizeContainerJSONRequestBody = AiSummaryAsk
 
+// CreateHubFromTemplateJSONRequestBody defines body for CreateHubFromTemplate for application/json ContentType.
+type CreateHubFromTemplateJSONRequestBody = HubFromTemplate
+
 // SetCostRateJSONRequestBody defines body for SetCostRate for application/json ContentType.
 type SetCostRateJSONRequestBody SetCostRateJSONBody
 
@@ -31726,6 +31756,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:unarchive)
 	UnarchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UnarchiveContainerParams)
+	// CreateHubFromTemplate Creates a hub from a template of the catalogue
+	// (POST /containers:from-template)
+	CreateHubFromTemplate(w http.ResponseWriter, r *http.Request, params CreateHubFromTemplateParams)
 	// ListCostRates The hourly cost rates
 	// (GET /cost-rates)
 	ListCostRates(w http.ResponseWriter, r *http.Request)
@@ -43488,6 +43521,47 @@ func (siw *ServerInterfaceWrapper) UnarchiveContainer(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UnarchiveContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateHubFromTemplate operation middleware
+func (siw *ServerInterfaceWrapper) CreateHubFromTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateHubFromTemplateParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateHubFromTemplate(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -61978,6 +62052,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/presets/{presetId}", wrapper.ChangePreset)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers", wrapper.ListContainers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers:from-template", wrapper.CreateHubFromTemplate)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}", wrapper.TrashContainer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)

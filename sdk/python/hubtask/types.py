@@ -3528,6 +3528,16 @@ class StarterSet(TypedDict, total=False):
     samples: bool
     acknowledge: bool
 
+class HubFromTemplate(TypedDict, total=False):
+    name: Required[str]
+    description: str | None
+    icon: str | None
+    color_token: str | None
+    template: Required[str]
+    answers: dict[str, Any]
+    samples: bool
+    acknowledge: bool
+
 class StarterCollection(TypedDict, total=False):
     name: Required[str]
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None

@@ -17530,6 +17530,27 @@ type HttpRequestCall struct {
 // HttpRequestCallMethod defines model for HttpRequestCall.Method.
 type HttpRequestCallMethod string
 
+// HubFromTemplate defines model for HubFromTemplate.
+type HubFromTemplate struct {
+	// Acknowledge True once the person has seen that the template's plan hides data or changes permissions; required when it does, as on `POST /config:apply`.
+	Acknowledge *bool `json:"acknowledge,omitempty"`
+
+	// Answers The template's questions answered, by key; an open question takes its default.
+	Answers *map[string]string `json:"answers,omitempty"`
+
+	// ColorToken One of the ten label colours, as on `POST /containers`.
+	ColorToken  *string `json:"color_token,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Icon        *string `json:"icon,omitempty"`
+	Name        string  `json:"name"`
+
+	// Samples True takes the template's sample entries into the hub, marked and removable at once.
+	Samples *bool `json:"samples,omitempty"`
+
+	// Template A template of the catalogue (`GET /config/templates`) with a hub part, by its key.
+	Template string `json:"template"`
+}
+
 // HubPrivacy defines model for HubPrivacy.
 type HubPrivacy struct {
 	// Private true to make the hub private, false to share it again.
@@ -27269,6 +27290,12 @@ type UnarchiveContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CreateHubFromTemplateParams defines parameters for CreateHubFromTemplate.
+type CreateHubFromTemplateParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SetCostRateJSONBody defines parameters for SetCostRate.
 type SetCostRateJSONBody struct {
 	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
@@ -29671,6 +29698,9 @@ type ReorderContainerJSONRequestBody ReorderContainerJSONBody
 
 // AiSummarizeContainerJSONRequestBody defines body for AiSummarizeContainer for application/json ContentType.
 type AiSummarizeContainerJSONRequestBody = AiSummaryAsk
+
+// CreateHubFromTemplateJSONRequestBody defines body for CreateHubFromTemplate for application/json ContentType.
+type CreateHubFromTemplateJSONRequestBody = HubFromTemplate
 
 // SetCostRateJSONRequestBody defines body for SetCostRate for application/json ContentType.
 type SetCostRateJSONRequestBody SetCostRateJSONBody
@@ -35402,6 +35432,24 @@ type ClientInterface interface {
 	//
 	// Makes the container writable again. A collection that was archived in its own right stays archived when its hub is unarchived - unarchiving restores what was archived, not what was merely covered by it. Idempotent.
 	UnarchiveContainer(ctx context.Context, containerId ContainerId, params *UnarchiveContainerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateHubFromTemplateWithBody Creates a hub from a template of the catalogue
+	//
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+	CreateHubFromTemplateWithBody(ctx context.Context, params *CreateHubFromTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateHubFromTemplate Creates a hub from a template of the catalogue
+	//
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+	CreateHubFromTemplate(ctx context.Context, params *CreateHubFromTemplateParams, body CreateHubFromTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCostRates The hourly cost rates
 	//
@@ -51239,6 +51287,44 @@ func (c *Client) AiSummarizeContainer(ctx context.Context, containerId Container
 // Makes the container writable again. A collection that was archived in its own right stays archived when its hub is unarchived - unarchiving restores what was archived, not what was merely covered by it. Idempotent.
 func (c *Client) UnarchiveContainer(ctx context.Context, containerId ContainerId, params *UnarchiveContainerParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUnarchiveContainerRequest(c.Server, containerId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateHubFromTemplateWithBody Creates a hub from a template of the catalogue
+//
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+func (c *Client) CreateHubFromTemplateWithBody(ctx context.Context, params *CreateHubFromTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateHubFromTemplateRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateHubFromTemplate Creates a hub from a template of the catalogue
+//
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+func (c *Client) CreateHubFromTemplate(ctx context.Context, params *CreateHubFromTemplateParams, body CreateHubFromTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateHubFromTemplateRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -80058,6 +80144,61 @@ func NewUnarchiveContainerRequest(server string, containerId ContainerId, params
 			}
 
 			req.Header.Set("If-Match", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCreateHubFromTemplateRequest calls the generic CreateHubFromTemplate builder with application/json body
+func NewCreateHubFromTemplateRequest(server string, params *CreateHubFromTemplateParams, body CreateHubFromTemplateJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateHubFromTemplateRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateHubFromTemplateRequestWithBody constructs an http.Request for the CreateHubFromTemplate method, with any body, and a specified content type
+func NewCreateHubFromTemplateRequestWithBody(server string, params *CreateHubFromTemplateParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers:from-template")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
 	}
@@ -109736,6 +109877,24 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	UnarchiveContainerWithResponse(ctx context.Context, containerId ContainerId, params *UnarchiveContainerParams, reqEditors ...RequestEditorFn) (*UnarchiveContainerResult, error)
 
+	// CreateHubFromTemplateWithBodyWithResponse Creates a hub from a template of the catalogue
+	//
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+	CreateHubFromTemplateWithBodyWithResponse(ctx context.Context, params *CreateHubFromTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateHubFromTemplateResult, error)
+
+	// CreateHubFromTemplateWithResponse Creates a hub from a template of the catalogue
+	//
+	// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+	CreateHubFromTemplateWithResponse(ctx context.Context, params *CreateHubFromTemplateParams, body CreateHubFromTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHubFromTemplateResult, error)
+
 	// ListCostRatesWithResponse The hourly cost rates
 	//
 	// Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
@@ -132296,6 +132455,61 @@ func (r UnarchiveContainerResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UnarchiveContainerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// CreateHubFromTemplateResult201Headers the declared response headers of an HTTP 201 response for CreateHubFromTemplate
+type CreateHubFromTemplateResult201Headers struct {
+	ETag *string
+}
+
+type CreateHubFromTemplateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Container
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateHubFromTemplateResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateHubFromTemplateResult) GetJSON201() *Container {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateHubFromTemplateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateHubFromTemplateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateHubFromTemplateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateHubFromTemplateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateHubFromTemplateResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -165300,6 +165514,36 @@ func (c *ClientWithResponses) UnarchiveContainerWithResponse(ctx context.Context
 	return ParseUnarchiveContainerResult(rsp)
 }
 
+// CreateHubFromTemplateWithBodyWithResponse Creates a hub from a template of the catalogue
+//
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+func (c *ClientWithResponses) CreateHubFromTemplateWithBodyWithResponse(ctx context.Context, params *CreateHubFromTemplateParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateHubFromTemplateResult, error) {
+	rsp, err := c.CreateHubFromTemplateWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateHubFromTemplateResult(rsp)
+}
+
+// CreateHubFromTemplateWithResponse Creates a hub from a template of the catalogue
+//
+// Makes a hub and takes the template's parts into it in one transaction: the template's workspace part first where the workspace has not taken the template, then the hub, then its hub part - each as `POST /config:apply` with `template` applies it, under the same checks; the modules it needs come on. A refused part refuses the whole: no hub is left. A template without a hub part is refused with `config.template_not_for_hubs`. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change the workspace's shape. The answer is the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers:from-template (the `CreateHubFromTemplate` operationId).
+func (c *ClientWithResponses) CreateHubFromTemplateWithResponse(ctx context.Context, params *CreateHubFromTemplateParams, body CreateHubFromTemplateJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateHubFromTemplateResult, error) {
+	rsp, err := c.CreateHubFromTemplate(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateHubFromTemplateResult(rsp)
+}
+
 // ListCostRatesWithResponse The hourly cost rates
 //
 // Of a person or of a role, in a currency's minor unit, from a day to a day or on. What a person earns is read by nobody without MANAGE_COSTS or MANAGE_MEMBERS at the workspace.
@@ -187907,6 +188151,52 @@ func ParseUnarchiveContainerResult(rsp *http.Response) (*UnarchiveContainerResul
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseCreateHubFromTemplateResult parses an HTTP response from a CreateHubFromTemplateWithResponse call
+func ParseCreateHubFromTemplateResult(rsp *http.Response) (*CreateHubFromTemplateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateHubFromTemplateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Container
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateHubFromTemplateResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil

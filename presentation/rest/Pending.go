@@ -1739,6 +1739,10 @@ func (pending) ApplyStarter(w http.ResponseWriter, r *http.Request, _ openapi.Ap
 	notAvailable(w, r)
 }
 
+func (pending) CreateHubFromTemplate(w http.ResponseWriter, r *http.Request, _ openapi.CreateHubFromTemplateParams) {
+	notAvailable(w, r)
+}
+
 // AI where its subject is (UC-AI-04 checks 7 and 9).
 func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)

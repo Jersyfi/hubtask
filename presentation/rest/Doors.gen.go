@@ -139,6 +139,7 @@ var restDoors = map[string]restDoor{
 	"createEntryType":                   {UseCase: "CreateEntryType", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createGoal":                        {UseCase: "CreateGoal", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createGroup":                       {UseCase: "CreateGroup", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/groups/{id}", NullClears: false, Integers: []string(nil)},
+	"createHubFromTemplate":             {UseCase: "CreateHubFromTemplate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{id}", NullClears: false, Integers: []string(nil)},
 	"createIdentityProvider":            {UseCase: "ConfigureIdentityProvider", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"position"}},
 	"createInstallationPreset":          {UseCase: "CreateInstallationPreset", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createInstanceAiProvider":          {UseCase: "ConfigureInstanceAiProvider", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1615,6 +1616,12 @@ func (c *RestController) CreateGoal(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) CreateGroup(w http.ResponseWriter, r *http.Request, params openapi.CreateGroupParams) {
 	var body openapi.CreateGroupJSONRequestBody
 	c.door(w, r, restDoors["createGroup"], usecase.Input{}, params, &body, answerBy(groupResponse))
+}
+
+// CreateHubFromTemplate answers POST /containers:from-template by the generated mapping.
+func (c *RestController) CreateHubFromTemplate(w http.ResponseWriter, r *http.Request, params openapi.CreateHubFromTemplateParams) {
+	var body openapi.CreateHubFromTemplateJSONRequestBody
+	c.door(w, r, restDoors["createHubFromTemplate"], usecase.Input{}, params, &body, answerBy(containerResponse))
 }
 
 // CreateIdentityProvider answers POST /identity-providers by the generated mapping.

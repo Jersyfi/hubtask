@@ -432,6 +432,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `container.archived` | ArchiveContainer | `container` | INFO | Every time |
 | `container.created` | CreateContainer | `container` | INFO | Every time |
+| `container.created` | CreateHubFromTemplate | `container` | INFO | Every time |
 | `container.deleted` | TrashContainer | `container` | NOTICE | Every time |
 | `container.emergency_access_opened` | OpenPrivateHub | `container` | NOTICE | Every time |
 | `container.emergency_accesses_read` | ListPrivateHubAccesses | `container` | INFO | When refused |

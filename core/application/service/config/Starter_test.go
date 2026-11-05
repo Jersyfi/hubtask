@@ -120,3 +120,43 @@ func TestAStarterSwitchesOnTheModulesItsTemplateNeeds(t *testing.T) {
 		t.Errorf("the module is off %v, the workflows %v", f.world.workflowsOff, f.world.workflows)
 	}
 }
+
+// user-experience.md §5.2: a hub made from a template takes the template's workspace part only
+// where the workspace has not taken it - a second hub from it is no upgrade -, and a template
+// without a hub part is refused before anything is made.
+func TestAHubFromATemplateTakesItsWorkspacePartOnce(t *testing.T) {
+	f := hubFixture()
+	invoke(t, PublishConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{
+		"key": "desk", "name": "Desk",
+		"document":     map[string]any{"types": map[string]any{"incident": map[string]any{"level": "TASK", "name": "Incident"}}},
+		"hub_document": map[string]any{"scheme": map[string]any{"every_type": map[string]any{"workflow": "service"}}},
+	})
+	starter := StarterTemplates{Desk: f.desk}
+	take := work.StarterTemplate{Key: "desk", Acknowledge: true}
+	for range 2 {
+		if err := starter.TakeWorkspacePartOnce(t.Context(), person, take); err != nil {
+			t.Fatalf("the workspace part: %v", err)
+		}
+	}
+	var workspaceUses int
+	for _, use := range f.store.uses {
+		if use.HubID == "" {
+			workspaceUses++
+		}
+	}
+	if workspaceUses != 1 || f.world.types["incident"] == nil {
+		t.Errorf("uses %+v, types %v: want the workspace part taken once", f.store.uses, f.world.types)
+	}
+
+	invoke(t, PublishConfigTemplate{f.desk}.Descriptor(), person, usecase.Input{
+		"key": "register", "name": "Register",
+		"document": map[string]any{"types": map[string]any{"vendor": map[string]any{"level": "TASK", "name": "Vendor"}}},
+	})
+	err := starter.TakeWorkspacePartOnce(t.Context(), person, work.StarterTemplate{Key: "register"})
+	if refusals := refusalsIn(err); len(refusals) != 1 || refusals[0].Code != "config.template_not_for_hubs" {
+		t.Errorf("a template without a hub part: %v", err)
+	}
+	if f.world.types["vendor"] != nil {
+		t.Error("a template without a hub part took its workspace part")
+	}
+}

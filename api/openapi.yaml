@@ -18982,6 +18982,43 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers:from-template:
+    post:
+      tags: [containers]
+      operationId: createHubFromTemplate
+      x-hubtask-rest: generated
+      x-hubtask-rest-answer: containerResponse
+      x-hubtask-rest-location: /containers/{id}
+      summary: Creates a hub from a template of the catalogue
+      description: >
+        Makes a hub and takes the template's parts into it in one transaction: the template's
+        workspace part first where the workspace has not taken the template, then the hub, then its
+        hub part - each as `POST /config:apply` with `template` applies it, under the same checks;
+        the modules it needs come on. A refused part refuses the whole: no hub is left. A template
+        without a hub part is refused with `config.template_not_for_hubs`. Sent with an
+        `Idempotency-Key`, a repeat after a lost answer replays the hub. Needs the right to change
+        the workspace's shape. The answer is the hub.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HubFromTemplate"
+      responses:
+        "201":
+          description: The hub was made and took the template; the answer is the hub
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -33564,6 +33601,34 @@ components:
             takes the template's hub part - as `POST /config:apply` with `template` would, under the
             same checks: the modules it needs come on, a refused plan refuses the whole set. Omitted,
             the set is hubs and collections on presets alone.
+        answers:
+          type: object
+          additionalProperties: { type: string }
+          description: The template's questions answered, by key; an open question takes its default.
+        samples:
+          type: boolean
+          description: True takes the template's sample entries into the hub, marked and removable at once.
+        acknowledge:
+          type: boolean
+          description: >
+            True once the person has seen that the template's plan hides data or changes
+            permissions; required when it does, as on `POST /config:apply`.
+
+    HubFromTemplate:
+      type: object
+      required: [name, template]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"] }
+        icon: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: One of the ten label colours, as on `POST /containers`.
+        template:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: A template of the catalogue (`GET /config/templates`) with a hub part, by its key.
         answers:
           type: object
           additionalProperties: { type: string }

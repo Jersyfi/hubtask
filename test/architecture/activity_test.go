@@ -36,7 +36,7 @@ var workManagementTargets = map[string]bool{
 // reason travels with the use case, and the decision travels through this gate.
 var exemptUseCases = []string{
 	"ArchiveContainer", "AutoAssignWorkItem", "BulkUpdateWorkItems", "ClearEntryEstimate", "CreateBucket",
-	"CreateContainer", "CreateLabel",
+	"CreateContainer", "CreateHubFromTemplate", "CreateLabel",
 	"DeleteBucket", "DeleteComment", "DeleteLabel", "EditComment", "EmptyTrash", "GiveKudos",
 	"MergeWorkItems",
 	"MoveContainer", "NotifyAccount", "NotifyGroup", "NotifyRole",
