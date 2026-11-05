@@ -125,7 +125,7 @@ async function capturesIntoJumble(page) {
   const dialog = page.getByRole('dialog', { name: 'Capture' });
   await dialog.getByRole('textbox').fill('Call the plumber');
   await page.waitForTimeout(300);
-  const into = (await dialog.textContent()).includes('Into the inbox');
+  const into = (await dialog.textContent()).includes('Into the workspace\'s shared inbox');
   await page.keyboard.press('Escape');
   return into;
 }

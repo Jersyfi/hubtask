@@ -224,7 +224,8 @@ test('chromium: without a collection the jumble, and its Undo dismisses (check 4
   await land(page, '/search');
   await page.keyboard.press('q');
   await fieldOf(page).fill('Call the plumber tomorrow');
-  assert.ok((await dialogOf(page).textContent()).includes('Into the inbox'));
+  // UC-WRK-26 check 4: the prompt says the jumble is the workspace's, read by all who read it.
+  assert.ok((await dialogOf(page).textContent()).includes('Into the workspace\'s shared inbox, which everyone who can read the workspace sees.'));
   // The jumble decides nothing: no chip for the day.
   assert.equal(await dialogOf(page).getByRole('list', { name: 'Recognised' }).count(), 0);
   await page.keyboard.press('Enter');

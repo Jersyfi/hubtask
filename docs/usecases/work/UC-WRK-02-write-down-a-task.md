@@ -47,6 +47,8 @@ same on their phone in the groceries list; an agent does it through MCP; a scrip
 
 * No Markdown rendering of notes — deliberately (`apps/webapp/src/lib/people/CommentPanel.svelte`
   says why); a later decision may add it.
-* Capturing something that does not yet belong anywhere is the jumble's use case, not this one.
+* Capturing something that does not yet belong anywhere is the jumble's use case, not this one;
+  the capture field says such an entry goes into the workspace's shared inbox, which everyone who
+  can read the workspace sees.
 * Creating from mail, a webhook or an import is covered by those contexts.
 * What a person with a read-only role sees is [UC-WRK-22](./UC-WRK-22-work-within-what-my-role-allows.md).
