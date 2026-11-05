@@ -114,8 +114,11 @@
   .mark {
     position: fixed;
     z-index: var(--z-dialog);
-    /* Rule 4: as wide as its words up to a limit, never a fixed width. */
-    max-width: 36ch;
+    /* Rule 4: as wide as its words up to a limit, never a fixed width. `max-content` keeps that
+       width where the anchored area beside a target at the screen's end is narrower, so the mark
+       turns (`flip-inline`) instead of being squeezed into the strip. */
+    width: max-content;
+    max-width: min(36ch, calc(100vw - var(--sp-200) * 2));
     /* Never taller than the screen: the words scroll, the buttons stay. */
     display: flex;
     flex-direction: column;

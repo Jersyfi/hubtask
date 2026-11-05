@@ -342,3 +342,28 @@ test('chromium: time - the running timer names its entry in the head and opens i
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+// The product's first mark keeps the width of its words where its target ends the head: it turns to
+// end at the create act instead of squeezing into the strip beside it (user-experience.md §3.4).
+test('chromium: time - the first visit\'s mark at the head\'s create act keeps its width', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { products_seen: _seen, ...newcomer } = ACCOUNT;
+  const backend = timeBackend();
+  const answer = (method, path, query, body) =>
+    (path === '/accounts/me' || path === `/accounts/${ACCOUNT.id}`) && method === 'GET' ? { json: newcomer } : backend(method, path, query, body);
+  const walk = await productWalk(browser, { modules: ['TIME'], answer });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/time`);
+  const mark = page.getByRole('dialog').filter({ hasText: /Step \d of 3/u });
+  await mark.waitFor({ timeout: 15_000 });
+  assert.equal(await page.locator('header.head .primary button[data-hbt-spotlit]').count(), 1, 'the mark does not point at the head\'s create act');
+  const box = await mark.boundingBox();
+  const fontSize = await mark.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+  assert.ok(box && box.width >= fontSize * 20, `the mark is squeezed to ${box?.width}px`);
+  assert.ok(box.x >= 0 && box.x + box.width <= 1280, 'the mark runs off the screen');
+  const next = await mark.getByRole('button', { name: 'Next' }).boundingBox();
+  const done = await mark.getByRole('button', { name: 'Got it' }).boundingBox();
+  assert.ok(next && done && Math.abs(next.y - done.y) < 2, 'the mark\'s buttons are not on one row');
+});
