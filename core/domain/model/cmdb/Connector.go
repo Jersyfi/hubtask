@@ -451,6 +451,9 @@ type Alert struct {
 	LastAt     time.Time
 	ResolvedAt *time.Time
 	Count      int
+	// StartedAt is when the program says the current episode began (its signal's At); nil where
+	// no signal said so. A signal of an earlier episode changes nothing.
+	StartedAt *time.Time
 }
 
 // AlertChange is what a signal did to an alert.
@@ -475,20 +478,30 @@ func Receive(a Alert, s AlertSignal, now time.Time) (Alert, AlertChange) {
 		next.Severity = s.Severity
 	}
 	next.LastAt = now
+	// Before the episode the alert is in: a retry or a late resolution of one that is over.
+	earlier := s.At != nil && a.StartedAt != nil && s.At.Before(*a.StartedAt)
 	switch {
 	case a.ID.IsZero() && s.Status == AlertResolved:
 		return a, AlertUnchanged
 	case a.ID.IsZero():
-		next.Key, next.Status, next.FirstAt, next.Count = s.Key, AlertFiring, now, 1
+		next.Key, next.Status, next.FirstAt, next.Count, next.StartedAt = s.Key, AlertFiring, now, 1, s.At
 		return next, AlertOpened
-	case s.Status == AlertResolved && a.Status == AlertResolved:
+	case s.Status == AlertResolved && (a.Status == AlertResolved || earlier):
 		return a, AlertUnchanged
 	case s.Status == AlertResolved:
 		next.Status, next.ResolvedAt = AlertResolved, &now
 		return next, AlertClosed
+	case a.Status == AlertResolved && (earlier || s.At != nil && a.StartedAt != nil && s.At.Equal(*a.StartedAt)):
+		return a, AlertUnchanged
 	case a.Status == AlertResolved:
 		next.Status, next.ResolvedAt, next.Count = AlertFiring, nil, a.Count+1
+		if s.At != nil {
+			next.StartedAt = s.At
+		}
 		return next, AlertReopened
+	}
+	if s.At != nil && (a.StartedAt == nil || s.At.After(*a.StartedAt)) {
+		next.StartedAt = s.At
 	}
 	next.Count = a.Count + 1
 	return next, AlertRepeated

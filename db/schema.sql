@@ -5794,6 +5794,7 @@ CREATE TABLE cmdb_alert (
   last_at       timestamptz NOT NULL,
   resolved_at   timestamptz,
   count         integer NOT NULL DEFAULT 1 CHECK (count >= 1),
+  started_at    timestamptz,  -- 0372: when the program says the current episode began
   UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, connector_id, dedup_key),
   CONSTRAINT cmdb_alert_connector_fkey FOREIGN KEY (tenant_id, connector_id)

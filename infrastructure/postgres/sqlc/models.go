@@ -1073,6 +1073,7 @@ type CmdbAlert struct {
 	LastAt      pgtype.Timestamptz
 	ResolvedAt  pgtype.Timestamptz
 	Count       int32
+	StartedAt   pgtype.Timestamptz
 }
 
 type CmdbAsset struct {

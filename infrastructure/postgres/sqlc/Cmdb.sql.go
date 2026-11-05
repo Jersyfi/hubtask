@@ -140,7 +140,7 @@ func (q *Queries) DropCmdbRelationsOfCi(ctx context.Context, ciID pgtype.UUID) e
 
 const findCmdbAlert = `-- name: FindCmdbAlert :one
 SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
-  resolved_at, count
+  resolved_at, count, started_at
 FROM cmdb_alert
 WHERE tenant_id = current_tenant_id() AND connector_id = $1 AND dedup_key = $2
 FOR UPDATE
@@ -165,6 +165,7 @@ type FindCmdbAlertRow struct {
 	LastAt      pgtype.Timestamptz
 	ResolvedAt  pgtype.Timestamptz
 	Count       int32
+	StartedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) FindCmdbAlert(ctx context.Context, arg FindCmdbAlertParams) (FindCmdbAlertRow, error) {
@@ -184,6 +185,7 @@ func (q *Queries) FindCmdbAlert(ctx context.Context, arg FindCmdbAlertParams) (F
 		&i.LastAt,
 		&i.ResolvedAt,
 		&i.Count,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -684,7 +686,7 @@ func (q *Queries) InsertCmdbRun(ctx context.Context, arg InsertCmdbRunParams) er
 
 const listCmdbAlerts = `-- name: ListCmdbAlerts :many
 SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
-  resolved_at, count
+  resolved_at, count, started_at
 FROM cmdb_alert
 WHERE tenant_id = current_tenant_id() AND hub_id = $1
   AND ($2::text IS NULL OR status = $2)
@@ -712,6 +714,7 @@ type ListCmdbAlertsRow struct {
 	LastAt      pgtype.Timestamptz
 	ResolvedAt  pgtype.Timestamptz
 	Count       int32
+	StartedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) ListCmdbAlerts(ctx context.Context, arg ListCmdbAlertsParams) ([]ListCmdbAlertsRow, error) {
@@ -737,6 +740,7 @@ func (q *Queries) ListCmdbAlerts(ctx context.Context, arg ListCmdbAlertsParams) 
 			&i.LastAt,
 			&i.ResolvedAt,
 			&i.Count,
+			&i.StartedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1675,13 +1679,14 @@ func (q *Queries) OpenCmdbDuplicate(ctx context.Context, arg OpenCmdbDuplicatePa
 
 const putCmdbAlert = `-- name: PutCmdbAlert :exec
 INSERT INTO cmdb_alert (id, tenant_id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id,
-  first_at, last_at, resolved_at, count)
+  first_at, last_at, resolved_at, count, started_at)
 VALUES ($1, current_tenant_id(), $2, $3, $4,
   $5, $6, $7, $8, $9,
-  $10, $11, $12, $13)
+  $10, $11, $12, $13, $14)
 ON CONFLICT (tenant_id, connector_id, dedup_key) DO UPDATE SET
   status = excluded.status, severity = excluded.severity, title = excluded.title, ci_id = excluded.ci_id,
-  entry_id = excluded.entry_id, last_at = excluded.last_at, resolved_at = excluded.resolved_at, count = excluded.count
+  entry_id = excluded.entry_id, last_at = excluded.last_at, resolved_at = excluded.resolved_at, count = excluded.count,
+  started_at = excluded.started_at
 `
 
 type PutCmdbAlertParams struct {
@@ -1698,6 +1703,7 @@ type PutCmdbAlertParams struct {
 	LastAt      pgtype.Timestamptz
 	ResolvedAt  pgtype.Timestamptz
 	Count       int32
+	StartedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) PutCmdbAlert(ctx context.Context, arg PutCmdbAlertParams) error {
@@ -1715,6 +1721,7 @@ func (q *Queries) PutCmdbAlert(ctx context.Context, arg PutCmdbAlertParams) erro
 		arg.LastAt,
 		arg.ResolvedAt,
 		arg.Count,
+		arg.StartedAt,
 	)
 	return err
 }

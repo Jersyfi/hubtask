@@ -358,24 +358,25 @@ WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
 -- name: FindCmdbAlert :one
 SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
-  resolved_at, count
+  resolved_at, count, started_at
 FROM cmdb_alert
 WHERE tenant_id = current_tenant_id() AND connector_id = sqlc.arg('connector_id') AND dedup_key = sqlc.arg('dedup_key')
 FOR UPDATE;
 
 -- name: PutCmdbAlert :exec
 INSERT INTO cmdb_alert (id, tenant_id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id,
-  first_at, last_at, resolved_at, count)
+  first_at, last_at, resolved_at, count, started_at)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('connector_id'), sqlc.arg('dedup_key'),
   sqlc.arg('status'), sqlc.arg('severity'), sqlc.arg('title'), sqlc.narg('ci_id'), sqlc.narg('entry_id'),
-  sqlc.arg('first_at'), sqlc.arg('last_at'), sqlc.narg('resolved_at'), sqlc.arg('count'))
+  sqlc.arg('first_at'), sqlc.arg('last_at'), sqlc.narg('resolved_at'), sqlc.arg('count'), sqlc.narg('started_at'))
 ON CONFLICT (tenant_id, connector_id, dedup_key) DO UPDATE SET
   status = excluded.status, severity = excluded.severity, title = excluded.title, ci_id = excluded.ci_id,
-  entry_id = excluded.entry_id, last_at = excluded.last_at, resolved_at = excluded.resolved_at, count = excluded.count;
+  entry_id = excluded.entry_id, last_at = excluded.last_at, resolved_at = excluded.resolved_at, count = excluded.count,
+  started_at = excluded.started_at;
 
 -- name: ListCmdbAlerts :many
 SELECT id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id, first_at, last_at,
-  resolved_at, count
+  resolved_at, count, started_at
 FROM cmdb_alert
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))

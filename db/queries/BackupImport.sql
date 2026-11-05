@@ -2844,9 +2844,9 @@ DELETE FROM cmdb_connector;
 
 -- name: ImportCmdbAlert :execrows
 INSERT INTO cmdb_alert (id, tenant_id, hub_id, connector_id, dedup_key, status, severity, title, ci_id, entry_id,
-  first_at, last_at, resolved_at, count)
+  first_at, last_at, resolved_at, count, started_at)
 SELECT r.id, r.tenant_id, r.hub_id, r.connector_id, r.dedup_key, r.status, r.severity, r.title, r.ci_id, r.entry_id,
-  r.first_at, r.last_at, r.resolved_at, r.count
+  r.first_at, r.last_at, r.resolved_at, r.count, r.started_at
 FROM jsonb_populate_record(
   NULL::cmdb_alert,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2859,7 +2859,8 @@ ON CONFLICT (id) DO UPDATE SET
   entry_id = EXCLUDED.entry_id,
   last_at = EXCLUDED.last_at,
   resolved_at = EXCLUDED.resolved_at,
-  count = EXCLUDED.count
+  count = EXCLUDED.count,
+  started_at = EXCLUDED.started_at
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsCmdbAlert :one

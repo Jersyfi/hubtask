@@ -258,7 +258,7 @@ func alertOf(r sqlc.ListCmdbAlertsRow) (cmdb.Alert, error) {
 		ID: k.of(r.ID), HubID: k.of(r.HubID), Connector: k.of(r.ConnectorID), Key: r.DedupKey,
 		Status: cmdb.AlertStatus(r.Status), Severity: r.Severity, Title: r.Title, CI: k.of(r.CiID),
 		Entry: k.of(r.EntryID), FirstAt: timeFrom(r.FirstAt), LastAt: timeFrom(r.LastAt),
-		ResolvedAt: optionalTime(r.ResolvedAt), Count: int(r.Count),
+		ResolvedAt: optionalTime(r.ResolvedAt), Count: int(r.Count), StartedAt: optionalTime(r.StartedAt),
 	}
 	return a, k.err
 }
@@ -291,7 +291,8 @@ func (CmdbConnectorRepository) PutAlert(ctx context.Context, a cmdb.Alert) error
 		ID: k.of(a.ID), HubID: k.of(a.HubID), ConnectorID: k.of(a.Connector), DedupKey: a.Key,
 		Status: string(a.Status), Severity: a.Severity, Title: a.Title, CiID: k.opt(a.CI), EntryID: k.opt(a.Entry),
 		FirstAt: timestampOf(a.FirstAt), LastAt: timestampOf(a.LastAt), ResolvedAt: optionalTimestamp(a.ResolvedAt),
-		Count: int32(a.Count), //nolint:gosec // a count of deliveries
+		Count:     int32(a.Count), //nolint:gosec // a count of deliveries
+		StartedAt: optionalTimestamp(a.StartedAt),
 	}
 	if k.err != nil {
 		return k.err

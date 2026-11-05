@@ -219,10 +219,11 @@ func TestAConnectorAndItsAlertsStayInTheirWorkspace(t *testing.T) {
 	hub, _, vm := seedCIs(ctx, t)
 	repo := postgres.NewCmdbConnectorRepository()
 	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	started := at.Add(-time.Hour)
 	conn := cmdb.Connector{ID: freshID(t), HubID: hub, Key: fmt.Sprintf("am_%d", fixtureCounter.Add(1)), Kind: cmdb.ConnectorAlertmanager,
 		Source: "alerts", Settings: map[string]string{}, Enabled: true, RunAs: authorA, CreatedAt: at, UpdatedAt: at, Version: 1}
 	alert := cmdb.Alert{ID: freshID(t), HubID: hub, Connector: conn.ID, Key: "disk", Status: cmdb.AlertFiring,
-		Title: "disk full", CI: vm, FirstAt: at, LastAt: at, Count: 1}
+		Title: "disk full", CI: vm, FirstAt: at, LastAt: at, Count: 1, StartedAt: &started}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := repo.PutConnector(ctx, conn, 0); err != nil {
 			return err
@@ -245,7 +246,7 @@ func TestAConnectorAndItsAlertsStayInTheirWorkspace(t *testing.T) {
 			t.Errorf("connector %+v, %v", read, err)
 		}
 		found, err := repo.FindAlert(ctx, conn.ID, "disk")
-		if err != nil || found.CI != vm || found.Title != "disk full" {
+		if err != nil || found.CI != vm || found.Title != "disk full" || found.StartedAt == nil || !found.StartedAt.Equal(started) {
 			t.Errorf("alert %+v, %v", found, err)
 		}
 		return nil

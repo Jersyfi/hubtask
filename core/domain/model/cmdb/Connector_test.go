@@ -261,3 +261,28 @@ func TestAConnectorPointedAtAnotherSourceStartsFromTheBeginning(t *testing.T) {
 		t.Fatalf("another region is another source: %q %v", other.Cursor, err)
 	}
 }
+
+// A firing the program sends again after the alert resolved - a retry crossing the resolution -
+// carries the start of the episode that resolved and reopens nothing; a new episode starts later.
+func TestAStaleFiringAfterTheResolutionReopensNothing(t *testing.T) {
+	started := now.Add(-time.Hour)
+	fire := AlertSignal{Key: "k", Status: AlertFiring, At: &started}
+	a, _ := Receive(Alert{}, fire, now)
+	a.ID = id("08")
+	if a.StartedAt == nil || !a.StartedAt.Equal(started) {
+		t.Fatalf("the episode's start is kept: %+v", a.StartedAt)
+	}
+	a, _ = Receive(a, AlertSignal{Key: "k", Status: AlertResolved, At: &started}, now.Add(time.Minute))
+	if stale, change := Receive(a, fire, now.Add(2*time.Minute)); change != AlertUnchanged || stale.Status != AlertResolved {
+		t.Fatalf("a stale firing: %v %+v", change, stale)
+	}
+	again := now.Add(90 * time.Second)
+	reopened, change := Receive(a, AlertSignal{Key: "k", Status: AlertFiring, At: &again}, now.Add(3*time.Minute))
+	if change != AlertReopened || !reopened.StartedAt.Equal(again) {
+		t.Fatalf("a new episode: %v %+v", change, reopened)
+	}
+	// A late resolution of the episode before resolves nothing of the new one.
+	if kept, change := Receive(reopened, AlertSignal{Key: "k", Status: AlertResolved, At: &started}, now.Add(4*time.Minute)); change != AlertUnchanged || kept.Status != AlertFiring {
+		t.Fatalf("a stale resolution: %v %+v", change, kept)
+	}
+}
