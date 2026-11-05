@@ -200,6 +200,17 @@ export function recentPages<P extends PageRow>(lists: Readonly<Record<string, re
 }
 
 /**
+ * How many of a hub's pages changed on or after `from` (§7.9's *3 pages changed this week*), the
+ * day each changed read in the reader's zone; the space's content only, as the home lists it.
+ */
+export function pagesChangedSince(pages: readonly PageRow[], from: string, dayOf: (iso: string) => string | undefined): number {
+  return pages.filter((page) => {
+    const day = isContent(page) ? dayOf(page.updated_at) : undefined;
+    return day !== undefined && day >= from;
+  }).length;
+}
+
+/**
  * The pages waiting for the reader's review (§2.2): those the reader answers for whose
  * verification has run out (UC-DOC's `due_for_review`), the longest unchanged first.
  */

@@ -912,6 +912,14 @@ breaches, the sprint's or the plan's state), the hub's recent activity, and, whe
 one line per product (*3 pages changed this week*, *Sprint 42 · 6 days left*). The dashed card
 creating a collection stays.
 
+As built (`HubProductLines`): above the cards, a line for *Plan* (the running sprint ending
+soonest and its days left, then the next release; *No sprint running, no release planned* where
+neither is), *Pages* (the content pages changed since the reader's week began, in the reader's
+zone) and *Assets* (the inventory's total and what needs attention), each leading to its screen
+and drawn only once its read answered. Not built: the whiteboards' line (their read is paged, so a
+count would be one page's), the desk's (its queues' breaches are on their collection cards), time
+and goals, and the hub's recent activity.
+
 ### 7.10 Integrations
 
 What Hubtask tells and lets in from outside — webhooks and chat rooms, mail, voice assistants, the

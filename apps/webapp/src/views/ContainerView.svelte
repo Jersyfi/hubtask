@@ -97,6 +97,7 @@
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
+  import HubProductLines from '../lib/workspace/HubProductLines.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { boardShapeIn, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
@@ -1415,6 +1416,8 @@
     {/if}
 
     {#if container.type === 'HUB'}
+      <!-- One line per product on here (user-experience.md §7.9), above the collections it is about. -->
+      <HubProductLines hubId={container.id} {modulesOn} collectionIds={collections.map((each) => each.id)} />
       {#if collections.length === 0}
         <!-- §4.1: say what this place is for, and offer the one action. An archived hub keeps it in
              its place with the page's reason as a bubble, as the head's own actions do

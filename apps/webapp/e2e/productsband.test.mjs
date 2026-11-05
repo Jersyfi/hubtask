@@ -435,6 +435,27 @@ test('chromium 1280 px: the plans\' home lists the sprints running and says each
   assert.deepEqual(failures, []);
 });
 
+// §7.9: a hub's overview says one line per product on there - the running sprint and the next
+// release, the pages changed this week, the inventory - each leading to where it is about.
+test('chromium 1280 px: a hub\'s overview says one line per product on there', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['PLANNING', 'KNOWLEDGE', 'ASSETS', 'WHITEBOARD'] });
+  t.after(close);
+  const lines = page.getByRole('list', { name: 'What the products say here' });
+  await lines.locator('[data-product-line="assets"]').waitFor({ timeout: 10_000 });
+  await lines.locator('[data-product-line="plan"]').waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'pages', 'assets']);
+  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /Plan\s+Sprint Kranich · (Its last day has passed|\d+ days? left) · Next: Autumn fixes on /);
+  assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/collections/${SCRUM.id}/sprints`);
+  // Every page of the fixture changed before this week began, the template included.
+  assert.match(await lines.locator('[data-product-line="pages"]').innerText(), /Pages\s+No page changed this week/);
+  assert.equal(await lines.locator('[data-product-line="pages"] a').getAttribute('href'), `/hubs/${HUB.id}/pages`);
+  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /42 configuration items · 2 need attention/);
+  await noSidewaysScroll(page, 'hub overview');
+  assert.deepEqual(failures, []);
+});
+
 // §5.1/§5.2: the plans' head carries its primary create act, as every product home does: *Plan a
 // sprint* leads to a collection's sprints, the other collections in its menu.
 test('chromium 1280 px: the plans\' home leads its create act to a collection\'s sprints', async (t) => {

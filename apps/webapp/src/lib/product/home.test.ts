@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -241,4 +241,23 @@ test('the assets home counts the inventory by class across hubs, the most held f
     { class: 'firewall', total: 2, hubs: [{ hubId: 'h2', total: 2 }] },
   ]);
   assert.deepEqual(inventoryByClass(healths, ['h3']), []);
+});
+
+test('a hub\'s overview counts the pages changed since the week began, its content only (§7.9)', () => {
+  const row = (updated_at: string, more: Record<string, unknown> = {}) => ({ hub_id: 'h', updated_at, owner_id: null, template: false, archived: false, due_for_review: false, trashed_at: null, daily_for: null, ...more });
+  const pages = [
+    row('2026-11-02T08:00:00Z'),
+    row('2026-11-01T23:30:00Z'),
+    row('2026-11-04T08:00:00Z', { template: true }),
+    row('2026-11-04T08:00:00Z', { trashed_at: '2026-11-04T09:00:00Z' }),
+    row('2026-11-04T08:00:00Z', { daily_for: 'a' }),
+    row('2026-10-30T08:00:00Z'),
+  ];
+  const utc = (iso: string) => iso.slice(0, 10);
+  assert.equal(pagesChangedSince(pages, '2026-11-02', utc), 1);
+  // Sunday 23:30 in Greenwich is already Monday in Berlin.
+  const berlin = (iso: string) => new Date(Date.parse(iso) + 3_600_000).toISOString().slice(0, 10);
+  assert.equal(pagesChangedSince(pages, '2026-11-02', berlin), 2);
+  assert.equal(pagesChangedSince(pages, '2026-11-02', () => undefined), 0);
+  assert.equal(pagesChangedSince([], '2026-11-02', utc), 0);
 });
