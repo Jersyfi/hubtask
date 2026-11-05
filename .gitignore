@@ -40,7 +40,10 @@ sdk/typescript/dist/
 
 # Tools
 /.tools/
-coverage.*
+# The coverage profiles gate-unit writes; a wider pattern also matched Coverage.go on macOS.
+coverage.out
+coverage.*.out
+coverage.html
 /tmp/
 # scripts/gate-selftest.sh writes its violating packages here and removes them again; the entry
 # is the safety net for a hard abort.
