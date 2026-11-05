@@ -435,3 +435,51 @@ test('chromium: a member - the list as its settings make it, and no settings pag
   assert.equal(await page.locator('[data-structure-panel]').count(), 0);
   assert.deepEqual(failures, []);
 });
+
+// A place's settings are drawn by the one settings shell (user-experience.md §5.4, §5.7): the
+// sections listed at the start, the save bar once something changed, and a move away asking
+// before it drops the change - for a hub and for a collection alike.
+for (const place of [
+  { kind: 'hub', path: () => `/hubs/${SHAPE_HUB.id}`, name: () => SHAPE_HUB.name },
+  { kind: 'collection', path: () => `/collections/${SHAPES.list.id}`, name: () => SHAPES.list.name },
+]) {
+  test(`chromium: a ${place.kind}'s settings have the shell's sections, save bar and leave guard`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await as(browser, 'OWNER');
+    t.after(() => context.close());
+
+    await page.goto(`${served.origin}${place.path()}`);
+    await page.getByRole('heading', { name: place.name(), level: 1 }).waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(600);
+    await openSettings(page, place.name());
+    const shell = page.locator('[data-structure-tabs] [data-settings-page]');
+    await shell.waitFor({ timeout: 10_000 });
+    const sections = shell.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
+    assert.ok((await sections.count()) >= 2, 'the sections are listed');
+
+    const general = page.getByRole('region', { name: 'General' });
+    const name = general.getByRole('textbox').first();
+    await name.waitFor({ timeout: 5_000 });
+    await name.fill(`${place.name()} renamed`);
+    const bar = page.getByRole('region', { name: 'Unsaved changes' });
+    await bar.getByText('1 change').waitFor({ timeout: 5_000 });
+
+    // A move away asks; staying keeps the screen and the change.
+    const settingsPath = new URL(page.url()).pathname;
+    await page.evaluate(() => {
+      const link = document.createElement('a');
+      link.href = '/';
+      document.body.append(link);
+      link.click();
+      link.remove();
+    });
+    const question = page.getByRole('dialog', { name: 'Leave without saving?' });
+    await question.waitFor({ timeout: 5_000 });
+    await question.getByRole('button', { name: 'Stay' }).last().click();
+    await question.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(new URL(page.url()).pathname, settingsPath);
+    await bar.getByText('1 change').waitFor();
+    assert.deepEqual(failures, []);
+  });
+}

@@ -44,6 +44,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import ViewSectionsAsFile from '../settings/ViewSectionsAsFile.svelte';
+  import SettingsPage from '../settings/SettingsPage.svelte';
   import { placePart } from '../settings/asFile.ts';
   import {
     SETTINGS,
@@ -92,12 +93,12 @@
   const { isOpen, container, mayShapeWorkspace = false, mayShapeHere = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
 
   /** On a phone the sections are one row that scrolls: the open one is always brought into it. */
-  let sectionList = $state<HTMLElement | null>(null);
+  let shell = $state<HTMLElement | null>(null);
   $effect(() => {
     void tab;
-    const list = sectionList;
-    if (!list) return;
-    queueMicrotask(() => list.querySelector<HTMLElement>('a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+    const root = shell;
+    if (!root) return;
+    queueMicrotask(() => root.querySelector<HTMLElement>('[data-settings-sections] a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
   });
   // One section list for every place (user-experience.md §5.7): the structure's settings spread over
   // the sections they belong to, in the level's fixed order; one draft and one save bar hold them.
@@ -811,30 +812,22 @@
   {/if}
 {/snippet}
 
-<div class="page" data-structure-tabs>
-  <nav class="sections" aria-label={t('app.structure.tabs_label')}>
-    <ul bind:this={sectionList}>
-      {#each sections as each (each.id)}
-        <li>
-          <a
-            href={hrefOf(each.id)}
-            aria-current={openSection === each.id ? 'page' : undefined}
-            onclick={(event) => {
-              event.preventDefault();
-              onsection(each.id);
-            }}>{each.label}</a
-          >
-        </li>
-      {/each}
-    </ul>
-  </nav>
-  <div class="section">
+<!-- The one settings shell (user-experience.md §5.4, §5.7): the place's sections one at a time,
+     each at its own address, and the leave guard holding the structure's unsaved draft. -->
+<div data-structure-tabs bind:this={shell}>
+  <SettingsPage
+    label={t('app.structure.tabs_label')}
+    sections={sections.map((each) => ({ id: each.id, label: each.label, href: hrefOf(each.id) }))}
+    selected={openSection}
+    onselect={onsection}
+    changes={changeCount}
+  >
     {#if fileHub}<div class="file"><ViewSectionsAsFile {...placePart(isHub, container.handle ?? undefined)} hubId={fileHub} /></div>{/if}
     {#if isGroup(openSection)}
       {@render settingsBody(openSection)}
     {/if}
     {@render [...before, ...tabs].find((each) => each.id === openSection)?.body()}
-  </div>
+  </SettingsPage>
 </div>
 
 {#if narrowing}
@@ -872,60 +865,5 @@
   .hub-types li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
   .hub-types .source { color: var(--text-secondary); font-size: var(--fs-100); margin-inline-end: auto; }
 
-  /* The sections at the start and the open one beside them, as the administration draws its
-     areas. On a phone they are tabs above the section: one line that scrolls sideways, the open
-     one underlined - the way the capture dialog's tabs look - never buttons wrapping into rows. */
-  .page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-300); }
-  .sections { min-width: 0; }
-  .sections ul {
-    display: flex;
-    gap: var(--sp-050);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    overflow-x: auto;
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    scrollbar-width: none;
-  }
-  .sections li { flex: none; }
-  .sections a {
-    display: flex;
-    align-items: center;
-    padding: var(--sp-100) var(--sp-150);
-    border-block-end: var(--bw-ring) solid transparent;
-    color: var(--text-secondary);
-    font-size: var(--fs-100);
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .sections a:hover { color: var(--text-primary); }
-  .sections a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(var(--sp-025) * -1); }
-  /* Rule 3: the open section is announced by `aria-current` and marked, not by colour alone. */
-  .sections a[aria-current='page'] {
-    border-block-end-color: var(--accent-primary);
-    color: var(--text-primary);
-    font-weight: var(--fw-semibold);
-  }
-  .section { min-width: 0; }
-
-  /* From `medium` the list stands at the start as rows of the navigation column, as the
-     administration's areas do (§13 G2). */
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width >= 600px) {
-    .page { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
-    .sections ul { flex-direction: column; overflow-x: visible; border-block-end: 0; }
-    .sections a {
-      padding-block: var(--density-row-block);
-      border-block-end: 0;
-      border-radius: var(--r-md);
-    }
-    .sections a:hover { background: var(--bg-surface-hover); }
-    .sections a[aria-current='page'] {
-      background: var(--bg-surface-pressed);
-      font-weight: var(--fw-medium);
-      box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
-    }
-    :global([dir='rtl']) .sections a[aria-current='page'] { box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary); }
-  }
   .file { display: flex; justify-content: flex-end; }
 </style>
