@@ -500,7 +500,7 @@ func checkVerifiedCitations(root string, cases []useCase) []string {
 // uncitedBuiltAtMost bounds the checks of built use cases that no file in their checked_by cites.
 // `built` allows them (docs/usecases/README.md), but the number only falls: a use case whose last
 // check gets cited moves to verified, and the bound is lowered with it.
-const uncitedBuiltAtMost = 466
+const uncitedBuiltAtMost = 462
 
 // checkBuiltCitations holds the uncited checks of built use cases to uncitedBuiltAtMost exactly.
 func checkBuiltCitations(root string, cases []useCase) []string {

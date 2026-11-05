@@ -432,6 +432,8 @@ func TestAnAgentIsRegisteredAsADraftOnItsOwnAccount(t *testing.T) {
 
 // UC-AGT-02 checks 1, 3 and 4: a draft's acts are refused; a live agent's read runs as the person
 // it acts for with its scopes narrowed; a write waits for a person and is recorded with its input.
+// UC-AGT-01 check 4: a draft's acts are refused agents.not_active; approved and put live by
+// ActivateAgent, it acts.
 func TestTheGateHoldsAnAgentToItsGovernance(t *testing.T) {
 	f := newFixture()
 	a := f.register(t, usecase.Input{"scopes": []any{"items:read", "items:write"}})

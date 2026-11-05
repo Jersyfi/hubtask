@@ -159,6 +159,8 @@ func TestAChangedModelStopsTheAgentUntilApprovedAgain(t *testing.T) {
 	}
 }
 
+// UC-AGT-01 check 5: whatever lets an agent do more takes it back to a draft; a smaller budget does
+// not.
 func TestAWiderAgentGoesBackToDraft(t *testing.T) {
 	a := valid()
 	a, _ = a.Approve("admin", 0, at)
@@ -177,6 +179,19 @@ func TestAWiderAgentGoesBackToDraft(t *testing.T) {
 	looser.Policy.Reversible = RuleAllow
 	if got := a.Changed(looser); got.Status != StatusDraft {
 		t.Fatalf("a looser policy kept the approval: %s", got.Status)
+	}
+	for name, change := range map[string]func(*Agent){
+		"another model":      func(n *Agent) { n.ModelID = "another" },
+		"a lower bar":        func(n *Agent) { n.MinAccuracy = a.MinAccuracy - 1 },
+		"another owner":      func(n *Agent) { n.OwnerID = "someone-else" },
+		"another kind":       func(n *Agent) { n.Kind = KindExternal },
+		"another risk class": func(n *Agent) { n.RiskClass = RiskLimited },
+	} {
+		next := a
+		change(&next)
+		if got := a.Changed(next); got.Status != StatusDraft || got.ApprovedAt != nil {
+			t.Errorf("%s kept the approval: %+v", name, got)
+		}
 	}
 }
 
