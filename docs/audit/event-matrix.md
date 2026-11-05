@@ -347,6 +347,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.sandbox_written` | WriteConfigSandbox | `configuration` | INFO | Every time |
 | `config.template_page_added` | AddHubTemplatePage | `configuration` | INFO | Every time |
 | `config.template_published` | PublishConfigTemplate | `configuration` | INFO | Every time |
+| `config.workspace_sample_marked` | MarkWorkspaceSample | `configuration` | INFO | Every time |
+| `config.workspace_samples_removed` | RemoveWorkspaceSamples | `configuration` | NOTICE | Every time |
 
 ## Dashboard
 
@@ -767,6 +769,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | ListHubTemplatePages | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | ListSampleEntries | `` |  | When refused |
+| `` | ListWorkspaceSamples | `` |  | When refused |
 | `` | LocateConnectorReturn | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
 | `` | ReadConfigSchema | `` |  | When refused |
