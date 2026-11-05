@@ -87,6 +87,20 @@ writes the slowest plan per sqlc query to `plans-<items>.json`. Such a run diagn
 measures, since every statement is instrumented. A PostgreSQL error row is named by the query its
 statement ran, as `(in ListWorkItems)`.
 
+## The live runs
+
+Run L1 of [PLAN.md](./PLAN.md), live updates in one workspace, skips unless `HUBTASK_LOAD_LIVE`
+is set: the largest workspace gets eight more credentials, each holds eight change streams, and
+ten entries a second are written for five minutes (`HUBTASK_LOAD_LIVE_SECONDS` shortens it). It
+records each stream's delay per entry, the writes' latency, the database's transactions a second
+and the NOTIFY queue's peak into `live-l1-latest.json`, and fails on any refused stream, a write
+P95 past 300 ms, a record later than 30 s or missing, or the queue past half full.
+
+```sh
+HUBTASK_LOAD_LIVE=1 HUBTASK_LOAD_EVIDENCE_DIR=$PWD/load-evidence \
+  go test -tags=load -run '^TestL1LiveUpdatesInOneWorkspace$' -timeout=40m -v ./test/load/
+```
+
 ## The release tier, step by step
 
 ```bash
@@ -115,6 +129,7 @@ user count appears anywhere, the model appears beside it.
 | `storm_test.go` | The automation storm, and the fairness of multi-tenancy §4 asserted rather than eyeballed |
 | `guard_test.go` | The relative regression guard |
 | `capacity_test.go` | The capacity run at 10⁶ / 10⁷ entries (`make capacity`) |
+| `live_test.go` | Run L1, live updates in one workspace (`HUBTASK_LOAD_LIVE=1`) |
 
 ## Refreshing a baseline
 
