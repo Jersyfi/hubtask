@@ -1145,10 +1145,10 @@ figure its own head shows (UC-WRK-29); one column on `compact`.
 `/hubs/:id/settings/:section`, in the administration's shape — the sections as a list at the start,
 the open one beside it, each at its own address. The sections are one list in one order
 (`user-experience.md` §5.7; `lib/workspace/placeSections.ts`, its test pinning the order per level):
-a collection's *General · Template · Types & forms · Fields · Labels · Entry templates · Workflow ·
-Views · Rules · People*, a hub's *General · Products · Template · Types & forms · Workflow · Views ·
+a collection's *General · Templates and presets · Types & forms · Fields · Labels · Entry templates · Workflow ·
+Views · Rules · People*, a hub's *General · Products · Templates and presets · Types & forms · Workflow · Views ·
 Rules*, its working hours, code and chat, and *People*. *General* is the edit dialog's fields in
-place. The structure's preset and settings are spread over *Template* (the preset), *Types &
+place. The structure's preset and settings are spread over *Templates and presets* (the preset), *Types &
 forms* (levels, fields, entry types), *Workflow* (completion, a hub's workflows), *Views* (views,
 what counts, capture, success) and *Rules* (the automation behaviours, above a collection's rules),
 held by one draft and one save bar: each setting with its `SourceChip`, a reset where the value is
@@ -1166,11 +1166,11 @@ on screen, renaming, sharing or deleting a view, exporting the list as it is fil
 calendar subscriptions; the page menu carries none of them.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
-*Template* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
+*Templates and presets* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
 the installation's, the workspace's, yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
 unavailable with its reason while the save bar holds changes; its dialog offers *For me*, *For the
 workspace* (only to a reader who may shape the workspace) and *Replace* a preset the reader may
-change. The workspace's presets have their own administration view, *Presets*: each to rename or
+change. The workspace's presets have their own administration view, *Templates and presets*: each to rename or
 withdraw — the default's *Withdraw* unavailable with its reason —, the preset a new hub starts
 from, and the whole settings locked for every hub and collection, a lock from the installation or
 the plan unavailable with where it comes from; an installation preset is never offered as the

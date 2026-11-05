@@ -497,10 +497,12 @@ refuses a `*.empty` or `*_none` message code rendered outside `EmptyState` in `v
 ### 5.7 A place's settings
 
 Hub and collection settings draw from **one section list** (`configuration/ui.md` §1: General ·
-Template · Types & forms · Workflow · Views · Rules · People), filtered by what the level may
-configure, shared blocks read-only with *Make a copy here*. A hub's module switches and its
-templates are separate sections (*Products*, *Template*). Entry templates are called *Entry
-templates*, so *Templates* means one thing. A test pins the section order per level.
+Templates and presets · Types & forms · Workflow · Views · Rules · People), filtered by what the
+level may configure, shared blocks read-only with *Make a copy here*. A hub's module switches and
+its templates are separate sections (*Products*, *Templates and presets*). Both words stay
+(`design-system.md`); the section and the administration's page that lists them read *Templates
+and presets*, so a person looking for either word finds it. Entry templates are called *Entry templates*,
+so a template of entries means one thing. A test pins the section order per level.
 
 ### 5.8 Refusals and failures
 

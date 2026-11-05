@@ -87,7 +87,7 @@ async function openPanel(page, collection) {
   await page.getByRole('heading', { name: collection.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   await page.waitForTimeout(600);
   await openSettings(page, collection.name);
-  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Template', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: 'Templates and presets', exact: true }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;
@@ -202,7 +202,7 @@ test("chromium: the workspace's Presets - rename, withdraw, the default kept, th
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/administration/presets`);
-  await page.getByRole('heading', { name: 'Templates', level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { name: 'Templates and presets', level: 1 }).first().waitFor({ timeout: 15_000 });
   const shop = page.locator(`[data-preset="${SHOP.id}"]`);
   await shop.waitFor({ timeout: 10_000 });
   assert.equal(await page.locator(`[data-preset="${CLIENT.id}"]`).count(), 0, "a person's own preset is among the workspace's");

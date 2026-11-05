@@ -3,7 +3,7 @@
 
 /**
  * A hub's and a collection's settings as one section list (user-experience.md §5.7): General ·
- * Template · Types & forms · Workflow · Views · Rules · People, filtered to what the level
+ * Templates and presets · Types & forms · Workflow · Views · Rules · People, filtered to what the level
  * configures, with a level's own sections (a hub's products, a collection's labels) at a fixed
  * place among them. The structure's settings are spread over the sections they belong to; one
  * draft and one save bar still hold them all.

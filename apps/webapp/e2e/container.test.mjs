@@ -142,14 +142,14 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   const sections = page.getByRole('navigation', { name: 'Parts of the structure' });
   // The sections arrive with the place's modules: read them once the last one stands.
   await sections.getByRole('link', { name: 'People' }).waitFor({ timeout: 5_000 });
-  assert.deepEqual((await sections.getByRole('link').allTextContents()).map((each) => each.trim()), ['General', 'Template', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'People']);
+  assert.deepEqual((await sections.getByRole('link').allTextContents()).map((each) => each.trim()), ['General', 'Templates and presets', 'Types & forms', 'Fields', 'Labels', 'Entry templates', 'Workflow', 'Views', 'Rules', 'People']);
   assert.equal(await sections.getByRole('link', { name: 'General' }).getAttribute('aria-current'), 'page');
   // *General* is the edit dialog's fields, in place.
   await page.getByRole('region', { name: 'General' }).getByRole('textbox', { name: 'Collection name' }).waitFor({ timeout: 5_000 });
 
   for (const [section, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Entry templates', 'Templates'], ['Rules', 'Policies'], ['People', 'People']]) {
     await sections.getByRole('link', { name: section }).click();
-    await page.getByRole('region', { name: part }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
+    await page.getByRole('region', { name: part, exact: true }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${section} draws no ${part}`));
     assert.equal(await sections.getByRole('link', { name: section }).getAttribute('aria-current'), 'page');
   }
   assert.match(page.url(), /\/settings\/people$/u);
@@ -273,7 +273,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(
     (await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').allTextContents()).map((each) => each.trim()),
-    ['General', 'Products', 'Template', 'Types & forms', 'Workflow', 'Views', 'Rules', 'Code', 'Chat', 'People'],
+    ['General', 'Products', 'Templates and presets', 'Types & forms', 'Workflow', 'Views', 'Rules', 'Code', 'Chat', 'People'],
   );
   await page.goBack();
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });

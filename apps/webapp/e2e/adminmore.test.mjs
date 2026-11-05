@@ -56,7 +56,7 @@ test('chromium: a workspace of one folds the advanced rows under More, and More 
   assert.equal(await visible(nav, 'Limits'), true, 'a group folds two rows or none');
   assert.equal(await visible(nav, 'Voice assistants'), false);
   assert.equal(await visible(nav, 'Link types'), false);
-  assert.equal(await visible(nav, 'Templates'), true, 'Templates stays where a newcomer starts');
+  assert.equal(await visible(nav, 'Templates and presets'), true, 'Templates and presets stays where a newcomer starts');
   await nav.getByText('More', { exact: true }).last().click();  // the connections' More
   await nav.getByText('Voice assistants', { exact: true }).waitFor();
 });

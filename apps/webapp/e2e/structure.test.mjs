@@ -89,7 +89,7 @@ async function toSection(page, section) {
   await page.locator('[data-structure-panel]').waitFor({ timeout: 5_000 });
 }
 
-async function openPanel(page, name, section = 'Template') {
+async function openPanel(page, name, section = 'Templates and presets') {
   await openSettings(page, name);
   await toSection(page, section);
   return page.locator('[data-structure-panel]');
@@ -199,7 +199,7 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   await panel.locator('[data-reset-pending]').waitFor();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
-  await toSection(page, 'Template');
+  await toSection(page, 'Templates and presets');
   await panel.getByRole('combobox', { name: 'Preset' }).selectOption('PROJECT');
   assert.ok((await panel.locator('[data-setting="preset"]').textContent()).includes('Project replaces the settings below'));
   await page.getByRole('button', { name: 'Save', exact: true }).click();
@@ -398,7 +398,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
 
   // A preset under the lock: sent as itself, the locked value kept and said.
   // List offers fewer levels, so it is previewed first and confirmed with the default, Hide.
-  await toSection(page, 'Template');
+  await toSection(page, 'Templates and presets');
   await panel.getByRole('combobox', { name: 'Preset' }).selectOption('LIST');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.getByRole('dialog', { name: 'Show less?' }).getByRole('button', { name: 'Hide and save' }).click();
