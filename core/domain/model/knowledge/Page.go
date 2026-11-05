@@ -232,7 +232,8 @@ func CheckTitle(raw string, form text.Normalizer) (string, error) {
 		return "", invalid("/title", "pages.title_empty")
 	case utf8.RuneCountInString(title) > MaxTitleLength:
 		return "", invalid("/title", "pages.title_too_long").WithParams(map[string]string{"maximum": "200"})
-	case strings.ContainsAny(title, "\r\n"):
+	// The database stores no zero byte; refused here, the write is not answered as an outage.
+	case strings.ContainsAny(title, "\r\n\x00"):
 		return "", invalid("/title", "pages.title_malformed")
 	}
 	return title, nil
@@ -256,7 +257,7 @@ func CheckBody(raw string, form text.Normalizer) (string, error) {
 
 func checkIcon(raw string) (string, error) {
 	icon := strings.TrimSpace(raw)
-	if utf8.RuneCountInString(icon) > MaxIconLength || strings.ContainsAny(icon, "\r\n") {
+	if utf8.RuneCountInString(icon) > MaxIconLength || strings.ContainsAny(icon, "\r\n\x00") {
 		return "", invalid("/icon", "pages.icon_malformed")
 	}
 	return icon, nil

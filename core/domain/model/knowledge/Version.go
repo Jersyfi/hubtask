@@ -57,7 +57,7 @@ func CheckVersionName(raw string, form text.Normalizer) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if utf8.RuneCountInString(name) > MaxVersionName || strings.ContainsAny(name, "\r\n") {
+	if utf8.RuneCountInString(name) > MaxVersionName || strings.ContainsAny(name, "\r\n\x00") {
 		return "", invalid("/name", "pages.version_name_malformed").WithParams(map[string]string{"maximum": "120"})
 	}
 	return name, nil

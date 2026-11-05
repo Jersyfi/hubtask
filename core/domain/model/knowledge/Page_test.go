@@ -53,6 +53,8 @@ func TestAPageIsCheckedWhenMade(t *testing.T) {
 		{name: "two lines", title: "a\nb", want: "pages.title_malformed"},
 		{name: "a large body", title: "x", body: strings.Repeat("x", MaxBodyBytes+1), want: "pages.body_too_large"},
 		{name: "a zero byte", title: "x", body: "a\x00b", want: "pages.body_malformed"},
+		{name: "a zero byte in the title", title: "a\x00b", want: "pages.title_malformed"},
+		{name: "a zero byte in the icon", title: "x", icon: "\x00", want: "pages.icon_malformed"},
 		{name: "a long icon", title: "x", icon: strings.Repeat("x", 17), want: "pages.icon_malformed"},
 		{name: "a language", title: "x", language: "de-AT"},
 		{name: "a bad language", title: "x", language: "not a tag", want: "pages.language_malformed"},
