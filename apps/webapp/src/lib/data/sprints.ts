@@ -42,14 +42,21 @@ export function estimateText(estimate: Estimate | null | undefined): string {
   return estimate.unit === 'HOURS' ? `${estimate.value}h` : String(estimate.value);
 }
 
-/** One line of the burndown as SVG points in a box of the given width and height. */
+/**
+ * One line of the burndown as SVG points in a box of the given width and height, `inset` from its
+ * top and bottom so a stroke on either edge is drawn whole.
+ */
 export function burndownLine(
   points: readonly BurndownPoint[], key: 'remaining' | 'ideal' | 'scope', days: number, top: number, width: number, height: number,
+  inset = 0,
 ): string {
   if (points.length === 0 || days <= 0 || top <= 0) return '';
   const step = days > 1 ? width / (days - 1) : 0;
+  const room = height - 2 * inset;
+  // A day past the sprint's last or a value past the top stays on the frame's edge, never beyond.
   return points
-    .map((point, i) => `${round(i * step)},${round(height - (point[key] / top) * height)}`)
+    .slice(0, days)
+    .map((point, i) => `${round(i * step)},${round(inset + room - (Math.min(Math.max(point[key], 0), top) / top) * room)}`)
     .join(' ');
 }
 

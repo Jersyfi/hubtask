@@ -249,6 +249,17 @@ for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], 
     assert.match(words, /6 days left · 3 of your entries/u, words);
     await sprint.getByRole('img', { name: /^Burndown: 8 points left/u }).waitFor({ timeout: 10_000 });
     assert.match((await sprint.textContent()) ?? '', /12 of 20 points done/u);
+    // The chart says its axes - the top value and nothing, the first and the last day - and its
+    // lines stay inside the frame, a line along the top included.
+    const axis = (await sprint.locator('[data-burndown]').innerText()).replace(/\s+/gu, ' ');
+    const said = (date) => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' }).format(Date.parse(`${date}T00:00:00Z`));
+    for (const word of ['20', '0', said(SPRINT.start_on), said(SPRINT.end_on)]) assert.ok(axis.includes(word), `the axis does not say ${word}: ${axis}`);
+    const inside = await sprint.locator('svg polyline:not(.axis)').evaluateAll((lines) => lines.every((line) => {
+      const frame = line.ownerSVGElement.getBoundingClientRect();
+      const box = line.getBoundingClientRect();
+      return box.top >= frame.top + 1 && box.bottom <= frame.bottom - 1;
+    }));
+    assert.ok(inside, 'a burndown line touches the edge of its frame');
 
     for (const read of ['desk', 'pages', 'sprints']) assert.ok(asked.includes(read), `${read} was not read`);
     const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));

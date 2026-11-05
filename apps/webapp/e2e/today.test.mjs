@@ -145,6 +145,11 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   const titles = await mine.locator('a[href^="/items/"]').allTextContents();
   assert.deepEqual(titles.map((title) => title.trim()), [PAST.title, TODAYS.title, LATER.title], 'the bands hold the entries out of order');
 
+  // A title keeps the room to be read beside its hub and collection: where both do not fit, the
+  // place goes under the title rather than squeezing it to a few words.
+  const room = await mine.locator('[data-entry-row] .content').evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().width)));
+  assert.ok(room.length > 0 && room.every((width) => width >= 200), `a title is squeezed: ${room}`);
+
   // A list's entry is the list's tile, not a row (check 2).
   assert.equal(await mine.getByText(LISTED.title).count(), 0, 'a list entry is listed one by one');
 

@@ -38,6 +38,16 @@ test('the burndown is laid out across the sprint', () => {
   assert.equal(burndownTop(s, points), 12);
   assert.equal(burndownLine(points, 'remaining', 5, 10, 400, 100), '0,0 100,50');
   assert.equal(burndownLine([], 'remaining', 5, 10, 400, 100), '');
+  // Inset, a line at the top or the bottom keeps its whole stroke inside the frame, and a value
+  // past the top or more days than the sprint has never leave it.
+  assert.equal(burndownLine(points, 'remaining', 5, 10, 400, 100, 4), '0,4 100,50');
+  const over = [...points, { day: '2026-11-04', remaining: 20, scope: 20, ideal: -2 }, ...Array.from({ length: 4 }, (_, i) => ({ day: `2026-11-0${5 + i}`, remaining: 0, scope: 0, ideal: 0 }))];
+  for (const key of ['remaining', 'ideal'] as const) {
+    for (const pair of burndownLine(over, key, 5, 10, 400, 100, 4).split(' ')) {
+      const [x, y] = pair.split(',').map(Number);
+      assert.ok(x !== undefined && y !== undefined && x >= 0 && x <= 400 && y >= 4 && y <= 96, `${key} ${pair} leaves the frame`);
+    }
+  }
 });
 
 // UC-PLN-06 checks 3 and 7: only a planned sprint takes the unfinished; the running one opens.
