@@ -27,6 +27,9 @@ import (
 // missing from this list is authenticated, never the reverse.
 var PublicRoutes = map[string]bool{
 	http.MethodGet + " " + APIBasePath + "/meta/capabilities": true,
+	// The installation's own WebSocket probe (`security: []`): its health check opens it through the
+	// public address with no credential, and it closes at once, reading and writing nothing.
+	http.MethodGet + " " + APIBasePath + "/realtime/probe": true,
 	// Sign-in, refresh and redemption are how a credential is obtained, so there is none to
 	// demand yet: the password, the refresh token and the redemption token travel in the body and
 	// are the whole of what authenticates the call (security.md §5). Each route verifies

@@ -63,6 +63,7 @@ func serveAuthenticated(
 	mux := NewMux()
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/meta/capabilities", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/realtime/probe", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/mail/inbound", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/code-intake/{tenantId}/{hookId}", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/cmdb/alert-intake/{tenantId}/{connectorId}", func(http.ResponseWriter, *http.Request) {})
@@ -108,6 +109,17 @@ func TestAPublicRouteIsServedWithoutACredential(t *testing.T) {
 	}
 	if actor.IsAuthenticated() {
 		t.Error("an anonymous request produced an authenticated actor")
+	}
+}
+
+// The installation's own probe opens a socket through its public address with no credential
+// (infrastructure/health.RealtimeProbe): refused here, it reads as a proxy that drops WebSockets
+// while live editing works for every signed-in person.
+func TestTheRealtimeProbeIsServedWithoutACredential(t *testing.T) {
+	auth := &authenticator{}
+	response, actor, reached := serveAuthenticated(t, auth, request(t, "/realtime/probe"))
+	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
+		t.Fatalf("the probe was refused or authenticated: status %d, reached %v", response.Code, reached)
 	}
 }
 
