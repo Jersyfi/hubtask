@@ -40,6 +40,8 @@
   import MentionDialog from '../entries/MentionDialog.svelte';
   import BoardView from '../whiteboards/BoardView.svelte';
   import PagePicture from './PagePicture.svelte';
+  import EmojiPicker from './EmojiPicker.svelte';
+  import { pictureColours } from '../data/whiteboards.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { formatDay } from '../i18n/datetime.ts';
@@ -88,6 +90,8 @@
   let isAddingBlock = $state(false);
   let embedAddress = $state('');
   let statusLabel = $state('');
+  let mathSource = $state('');
+  let isPickingEmoji = $state(false);
   let isMakingTask = $state(false);
   let taskLine = $state<TaskLine | undefined>(undefined);
 
@@ -153,6 +157,8 @@
     words: (key) => t(`app.pages.block_${key}`),
     // The origins the interface's policy frames; any other embed stays a link card.
     frames: () => manifest.value?.frame_sources ?? [],
+    // A diagram is a picture, drawn in the colours an exported whiteboard takes.
+    diagramColours: () => pictureColours(),
   };
 
   let resolving = 0;
@@ -375,6 +381,7 @@
     isAddingBlock = false;
     embedAddress = '';
     statusLabel = '';
+    mathSource = '';
     changed(markdownOf(editor));
   }
 
@@ -413,6 +420,7 @@
       <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
       <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
       <Button size="sm" tone="subtle" icon="plus" onclick={() => (isAddingBlock = !isAddingBlock)}>{t('app.pages.tool_block')}</Button>
+      <Button size="sm" tone="subtle" onclick={() => (isPickingEmoji = !isPickingEmoji)}>{t('app.pages.tool_emoji')}</Button>
       <UploadField
           variant="button"
           size="sm"
@@ -447,7 +455,12 @@
       <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'toc' })}>{t('app.pages.block_toc')}</button></li>
       <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'children' })}>{t('app.pages.block_child_pages')}</button></li>
       <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'date', date: today() })}>{t('app.pages.block_date')}</button></li>
+      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'diagram', source: 'graph TD\n  A --> B' })}>{t('app.pages.block_diagram_add')}</button></li>
     </ul>
+    <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'math', latex: mathSource }); }}>
+      <input type="text" bind:value={mathSource} spellcheck="false" placeholder={t('app.pages.block_math_source')} aria-label={t('app.pages.block_math_source')} />
+      <Button size="sm" tone="subtle" type="submit" disabledReason={mathSource.trim() === '' ? t('app.pages.block_math_source') : undefined}>{t('app.pages.block_math_add')}</Button>
+    </form>
     <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'status', label: statusLabel, tone: 'info' }); }}>
       <input type="text" bind:value={statusLabel} maxlength="40" placeholder={t('app.pages.block_status_label')} aria-label={t('app.pages.block_status_label')} />
       <Button size="sm" tone="subtle" type="submit" disabledReason={statusLabel.trim() === '' ? t('app.pages.block_status_label') : undefined}>{t('app.pages.block_status')}</Button>
@@ -457,6 +470,9 @@
       <Button size="sm" tone="subtle" type="submit" disabledReason={embedAddress.trim() === '' ? t('app.pages.block_embed_address') : undefined}>{t('app.pages.block_embed_add')}</Button>
     </form>
   </div>
+{/if}
+{#if isPickingEmoji}
+  <EmojiPicker onpick={(emoji) => { if (editor && insertWikiBlock(editor, { kind: 'emoji', emoji })) changed(markdownOf(editor)); }} />
 {/if}
 {#if isMakingTask}
   <ul class="choices" aria-label={t('app.pages.task_in')}>
@@ -587,6 +603,36 @@
     border-radius: var(--r-md);
   }
   /* A table: as wide as its words, scrolled sideways on a narrow screen rather than squeezed. */
+  .editor :global(.page-math) {
+    margin-block: var(--sp-100);
+    padding: var(--sp-100);
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+  }
+  .editor :global(.page-math__formula) { overflow-x: auto; font-size: var(--fs-300); }
+  .editor :global(.page-math__formula--error) { color: var(--text-danger); font-size: var(--fs-075); }
+  .editor :global(.page-math__source) {
+    inline-size: 100%;
+    margin-block-start: var(--sp-050);
+    padding: var(--sp-050);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+    resize: vertical;
+  }
+  .editor :global(.page-diagram) { margin-block: var(--sp-100); margin-inline: 0; overflow-x: auto; }
+  .editor :global(.page-diagram__picture) { display: block; max-inline-size: 100%; border-radius: var(--r-md); }
+  .editor :global(.page-diagram--error) { color: var(--text-danger); font-size: var(--fs-075); }
+  /* A language's colours from the text tokens alone: a code colour tells no status (design-system.md §6). */
+  .editor :global(.hljs-keyword), .editor :global(.hljs-built_in), .editor :global(.hljs-selector-tag) { color: var(--text-brand); font-weight: var(--fw-semibold); }
+  .editor :global(.hljs-string), .editor :global(.hljs-regexp), .editor :global(.hljs-number), .editor :global(.hljs-literal) { color: var(--text-success); }
+  .editor :global(.hljs-comment), .editor :global(.hljs-quote), .editor :global(.hljs-meta) { color: var(--text-secondary); font-style: italic; }
+  .editor :global(.hljs-title), .editor :global(.hljs-section), .editor :global(.hljs-name) { color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .editor :global(.hljs-type), .editor :global(.hljs-attr), .editor :global(.hljs-attribute), .editor :global(.hljs-symbol) { color: var(--text-brand); }
+  .editor :global(.hljs-deletion) { color: var(--text-secondary); text-decoration: line-through; }
   .editor :global(.tableWrapper) { margin-block: var(--sp-100); overflow-x: auto; }
   .editor :global(.page-table) { border-collapse: collapse; min-inline-size: 50%; }
   .editor :global(.page-table th),

@@ -6,6 +6,8 @@
 // loaded only inside its screen would be missing offline until it had been opened once
 // (offline-sync.md §13).
 
+import { blockLibraries } from '@hubtask/editor/libraries';
+
 /** A place's settings: the work of a place draws none of them. */
 export const settingsParts = {
   StructurePanel: () => import('../workspace/StructurePanel.svelte'),
@@ -32,6 +34,12 @@ export const entryParts = {
   CoverPanel: () => import('../media/CoverPanel.svelte'),
 };
 
+/** What a page's blocks load on demand: the emoji picker's sets and the editor's libraries. */
+export const emojiSets = {
+  de: () => import('emojibase-data/de/compact.json'),
+  en: () => import('emojibase-data/en/compact.json'),
+};
+
 /** The frame and the work's own screens: the doors before sign-in draw none of them. */
 export const loadFrame = () => import('./AppFrame.svelte');
 export const workViews = {
@@ -42,5 +50,5 @@ export const workViews = {
 
 /** Every part's loader, for the precache. */
 export function partLoaders(): (() => Promise<unknown>)[] {
-  return [...Object.values(settingsParts), ...Object.values(entryParts)];
+  return [...Object.values(settingsParts), ...Object.values(entryParts), ...Object.values(emojiSets), ...Object.values(blockLibraries)];
 }
