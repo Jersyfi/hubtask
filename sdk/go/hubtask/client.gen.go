@@ -25818,6 +25818,9 @@ type Workspace struct {
 	// StarterOffered Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, nobody has made a hub, collection or entry beyond what the workspace was created with, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.
 	StarterOffered *bool `json:"starter_offered,omitempty"`
 
+	// StarterSkipped Whether the first start's question was skipped while the workspace still holds nothing somebody made, and the reader may change the workspace's shape: a client then offers to choose what the workspace is used for again, and `POST /tenant/starter:apply` takes the set once more.
+	StarterSkipped *bool `json:"starter_skipped,omitempty"`
+
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 	Status WorkspaceStatus `json:"status"`
 
@@ -40951,7 +40954,7 @@ type ClientInterface interface {
 
 	// ApplyStarterWithBody Answers the first start's question with its starter set
 	//
-	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -40960,7 +40963,7 @@ type ClientInterface interface {
 
 	// ApplyStarter Answers the first start's question with its starter set
 	//
-	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -63216,7 +63219,7 @@ func (c *Client) PreviewModuleReach(ctx context.Context, module Module, params *
 
 // ApplyStarterWithBody Answers the first start's question with its starter set
 //
-// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -63235,7 +63238,7 @@ func (c *Client) ApplyStarterWithBody(ctx context.Context, params *ApplyStarterP
 
 // ApplyStarter Answers the first start's question with its starter set
 //
-// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -115630,7 +115633,7 @@ type ClientWithResponsesInterface interface {
 
 	// ApplyStarterWithBodyWithResponse Answers the first start's question with its starter set
 	//
-	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -115639,7 +115642,7 @@ type ClientWithResponsesInterface interface {
 
 	// ApplyStarterWithResponse Answers the first start's question with its starter set
 	//
-	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+	// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -174856,7 +174859,7 @@ func (c *ClientWithResponses) PreviewModuleReachWithResponse(ctx context.Context
 
 // ApplyStarterWithBodyWithResponse Answers the first start's question with its starter set
 //
-// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -174871,7 +174874,7 @@ func (c *ClientWithResponses) ApplyStarterWithBodyWithResponse(ctx context.Conte
 
 // ApplyStarterWithResponse Answers the first start's question with its starter set
 //
-// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
+// Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

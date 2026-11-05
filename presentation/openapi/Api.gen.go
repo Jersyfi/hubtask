@@ -25812,6 +25812,9 @@ type Workspace struct {
 	// StarterOffered Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, nobody has made a hub, collection or entry beyond what the workspace was created with, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.
 	StarterOffered *bool `json:"starter_offered,omitempty"`
 
+	// StarterSkipped Whether the first start's question was skipped while the workspace still holds nothing somebody made, and the reader may change the workspace's shape: a client then offers to choose what the workspace is used for again, and `POST /tenant/starter:apply` takes the set once more.
+	StarterSkipped *bool `json:"starter_skipped,omitempty"`
+
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 	Status WorkspaceStatus `json:"status"`
 

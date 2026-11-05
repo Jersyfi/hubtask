@@ -579,6 +579,7 @@ class Workspace(TypedDict, total=False):
     sign_in_policy: "SignInPolicy"
     structure: "WorkspaceStructure"
     starter_offered: bool
+    starter_skipped: bool
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
 

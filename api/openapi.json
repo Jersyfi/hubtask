@@ -25052,7 +25052,7 @@
         "x-hubtask-rest-answer": "containerResponse",
         "x-hubtask-rest-location": "/containers/{id}",
         "summary": "Answers the first start's question with its starter set",
-        "description": "Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered or skipped, or once the workspace holds anything somebody made. The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.\n",
+        "description": "Creates the starter set - a hub and its collections, each on its preset, and with `template` that template's workspace and hub parts - and closes the first start, in one transaction: either all of it lands or nothing does. Sent with an `Idempotency-Key`, a repeat after a lost answer replays the hub instead of making a second set. Refused with `workspace.starter_closed` once the first start was answered, or once the workspace holds anything somebody made; a skipped first start takes the set while the workspace holds nothing somebody made (`starter_skipped`). The names are the client's, in the reader's language; everything made is an ordinary hub and collection. Needs the right to change the workspace's shape. The answer is the hub.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -38107,6 +38107,11 @@
             "type": "boolean",
             "readOnly": true,
             "description": "Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, nobody has made a hub, collection or entry beyond what the workspace was created with, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.\n"
+          },
+          "starter_skipped": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether the first start's question was skipped while the workspace still holds nothing somebody made, and the reader may change the workspace's shape: a client then offers to choose what the workspace is used for again, and `POST /tenant/starter:apply` takes the set once more.\n"
           },
           "hosts": {
             "type": "array",
