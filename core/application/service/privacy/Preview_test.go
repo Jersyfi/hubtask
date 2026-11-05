@@ -162,8 +162,9 @@ func TestEveryKindTheEraserHandlesHasALineInThePreview(t *testing.T) {
 		"Assignments": {"ASSIGNMENTS"}, "Comments": {"COMMENTS"}, "Intake": {"INTAKE"}, "Media": {"MEDIA"},
 		"Writings":       {"PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS"},
 		"AccountRemoved": {"ACCOUNT"}, "AccountAnonymised": {"ACCOUNT"}, "AccountKept": {"ACCOUNT"},
-		// Not kinds: the mode the erasure ran in, and what the holds kept, which `kept` answers.
-		"Mode": nil, "Kept": nil,
+		// Not kinds: the mode the erasure ran in, and what the holds kept, which `kept` answers; the
+		// switched-off integrations moved to another owner are the workspace's, not the person's.
+		"Mode": nil, "Kept": nil, "Reowned": nil, "ReownedTo": nil,
 	}
 	rig := newPreviewRig(t)
 	request := erasureCase("")

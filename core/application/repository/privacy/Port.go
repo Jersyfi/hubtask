@@ -250,6 +250,12 @@ type Erasure interface {
 	// IntegrationsRunningAs counts the switched-on integrations that act as the person, asked
 	// before a full deletion for the reason AutomationsRunningAs is.
 	IntegrationsRunningAs(ctx context.Context, accountID shared.ID) (IntegrationsAs, error)
+	// ReownSwitchedOffIntegrations moves the switched-off connectors and code hooks that run as
+	// `from`, and `from`'s retired agents, to `to`; they stay off.
+	ReownSwitchedOffIntegrations(ctx context.Context, from, to shared.ID, at time.Time) (IntegrationsAs, error)
+	// IntegrationsNaming counts every connector, code hook and agent that still names the account,
+	// switched on or off.
+	IntegrationsNaming(ctx context.Context, accountID shared.ID) (IntegrationsAs, error)
 
 	// RevokeCredentials removes every token, calendar feed and sync device of the person, and ends
 	// an invitation nobody accepted at the given moment. Called in both modes: an anonymised account

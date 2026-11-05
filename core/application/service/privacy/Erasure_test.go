@@ -40,8 +40,11 @@ type erasureStore struct {
 	runningRules int
 	// personalRules are the person's own rules, which go with them before the count above.
 	personalRules int
-	// integrations act as the person.
+	// integrations act as the person; switchedOff are their switched-off connectors and hooks and
+	// retired agents, which a full deletion moves to reownedTo.
 	integrations repository.IntegrationsAs
+	switchedOff  repository.IntegrationsAs
+	reownedTo    shared.ID
 	intakeGone   int
 	intakeFreed  int
 	// contributions are the person's rows on entries, and where each entry is.
@@ -87,6 +90,54 @@ func (e *erasureStore) ReleaseIntake(context.Context, shared.ID) (int, error) {
 
 func (e *erasureStore) IntegrationsRunningAs(context.Context, shared.ID) (repository.IntegrationsAs, error) {
 	return e.integrations, nil
+}
+
+func (e *erasureStore) ReownSwitchedOffIntegrations(_ context.Context, _, to shared.ID, _ time.Time) (repository.IntegrationsAs, error) {
+	moved := e.switchedOff
+	e.switchedOff, e.reownedTo = repository.IntegrationsAs{}, to
+	return moved, nil
+}
+
+func (e *erasureStore) IntegrationsNaming(context.Context, shared.ID) (repository.IntegrationsAs, error) {
+	return repository.IntegrationsAs{
+		Connectors: e.integrations.Connectors + e.switchedOff.Connectors,
+		Hooks:      e.integrations.Hooks + e.switchedOff.Hooks,
+		Agents:     e.integrations.Agents + e.switchedOff.Agents,
+	}, nil
+}
+
+// A full deletion moves the switched-off integrations and retired agents to another owner, who is
+// named in the trail, and they stay off; with nobody to take them it is refused instead.
+func TestAFullDeletionMovesSwitchedOffIntegrationsToAnotherOwner(t *testing.T) {
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+	harness := newErasureHarness()
+	harness.storage.switchedOff = repository.IntegrationsAs{Connectors: 1, Hooks: 1, Agents: 2}
+	eraser := harness.eraser()
+	eraser.Owners = &ownersOf{accounts: []shared.ID{subjectID, other}}
+	if _, err := eraser.Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete)); err != nil {
+		t.Fatalf("erasing: %v", err)
+	}
+	if harness.storage.reownedTo != other || !harness.storage.deleted {
+		t.Errorf("moved to %q, deleted %v; want the other owner and the account gone", harness.storage.reownedTo, harness.storage.deleted)
+	}
+	trail := map[string]any{}
+	for field, change := range harness.audit.entries[len(harness.audit.entries)-1].Changes {
+		trail[field] = change.(map[string]any)["to"]
+	}
+	if trail["reowned_agents"] != 2 || trail["reowned_connectors"] != 1 || trail["reowned_to"] != other.String() {
+		t.Errorf("the trail says %v", trail)
+	}
+
+	alone := newErasureHarness()
+	alone.storage.switchedOff = repository.IntegrationsAs{Hooks: 1}
+	_, err := alone.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+	if problem := shared.AsError(err); problem == nil || problem.DetailCode != domain.CodeErasureBlockedByIntegration ||
+		problem.Params["hooks"] != "1" {
+		t.Fatalf("with no other owner: %v", err)
+	}
+	if alone.storage.deleted {
+		t.Error("the account was deleted while a hook still names it")
+	}
 }
 
 // A full deletion is refused while an integration acts as the person, with how many of each, and

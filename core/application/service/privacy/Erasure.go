@@ -143,6 +143,19 @@ type Erased struct {
 	AccountKept       bool
 	// Kept is what each legal hold kept, empty when none kept anything.
 	Kept []domain.Kept
+	// Reowned is the switched-off integrations moved to ReownedTo, another owner of the workspace.
+	Reowned   repository.IntegrationsAs
+	ReownedTo shared.ID
+}
+
+// integrationsBlock is the refusal while integrations still act as, or name, the person.
+func integrationsBlock(acting repository.IntegrationsAs) error {
+	return shared.ErrConflict.
+		WithDetail(domain.CodeErasureBlockedByIntegration).
+		WithParams(map[string]string{
+			"connectors": strconv.Itoa(acting.Connectors), "hooks": strconv.Itoa(acting.Hooks),
+			"agents": strconv.Itoa(acting.Agents),
+		})
 }
 
 // Erase carries out the case's erasure, as far as no legal hold keeps it.
@@ -217,12 +230,27 @@ func (e Eraser) erase(
 				return err
 			}
 			if acting.Any() {
-				return shared.ErrConflict.
-					WithDetail(domain.CodeErasureBlockedByIntegration).
-					WithParams(map[string]string{
-						"connectors": strconv.Itoa(acting.Connectors), "hooks": strconv.Itoa(acting.Hooks),
-						"agents": strconv.Itoa(acting.Agents),
-					})
+				return integrationsBlock(acting)
+			}
+			// The switched-off ones move to another owner of the workspace and stay off: deleting
+			// them is not the erasure's decision, and left pointing at nobody the foreign keys
+			// refuse the deletion (data-protection.md §4).
+			if next, found, err := otherOwner(ctx, e.Owners, subject); err != nil {
+				return err
+			} else if found {
+				if erased.Reowned, err = e.Erasure.ReownSwitchedOffIntegrations(ctx, subject, next, now); err != nil {
+					return err
+				}
+				if erased.Reowned.Any() {
+					erased.ReownedTo = next
+				}
+			}
+			left, err := e.Erasure.IntegrationsNaming(ctx, subject)
+			if err != nil {
+				return err
+			}
+			if left.Any() {
+				return integrationsBlock(left)
 			}
 		}
 
@@ -598,6 +626,14 @@ func (e Eraser) record(
 		{Field: "intake", Classification: audit.Open, To: erased.Intake},
 		{Field: "media", Classification: audit.Open, To: erased.Media},
 		{Field: "account", Classification: audit.Open, To: accountOutcome(erased)},
+	}
+	if erased.Reowned.Any() {
+		changes = append(changes,
+			audit.Change{Field: "reowned_connectors", Classification: audit.Open, To: erased.Reowned.Connectors},
+			audit.Change{Field: "reowned_hooks", Classification: audit.Open, To: erased.Reowned.Hooks},
+			audit.Change{Field: "reowned_agents", Classification: audit.Open, To: erased.Reowned.Agents},
+			audit.Change{Field: "reowned_to", Classification: audit.Open, To: erased.ReownedTo.String()},
+		)
 	}
 	changes = append(changes, extra...)
 	if pending := pendingParts(erased.Kept); len(pending) > 0 {

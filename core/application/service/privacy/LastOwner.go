@@ -45,3 +45,24 @@ func keepsAnOwner(ctx context.Context, owners identityrepo.Owners, subject share
 	}
 	return nil
 }
+
+// otherOwner answers the workspace's oldest owner grant held by somebody other than the subject,
+// who takes over what an erasure must not leave pointing at nobody.
+func otherOwner(ctx context.Context, owners identityrepo.Owners, subject shared.ID) (shared.ID, bool, error) {
+	if owners == nil {
+		return "", false, nil
+	}
+	if err := owners.LockOwners(ctx); err != nil {
+		return "", false, err
+	}
+	paths, err := owners.OwnerPaths(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	for _, path := range paths {
+		if path.AccountID != subject {
+			return path.AccountID, true, nil
+		}
+	}
+	return "", false, nil
+}

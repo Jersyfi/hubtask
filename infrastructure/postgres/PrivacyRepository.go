@@ -859,6 +859,46 @@ func (r PrivacyRepository) IntegrationsRunningAs(
 	}, nil
 }
 
+// ReownSwitchedOffIntegrations moves the switched-off integrations of one account to another.
+func (r PrivacyRepository) ReownSwitchedOffIntegrations(
+	ctx context.Context, from, to shared.ID, at time.Time,
+) (repository.IntegrationsAs, error) {
+	queries, fromID, err := r.accountQuery(ctx, from)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	toID, err := uuidOf(to)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	row, err := queries.ReownSwitchedOffIntegrations(ctx, sqlc.ReownSwitchedOffIntegrationsParams{
+		ToAccount: toID, FromAccount: fromID, Now: timestampOf(at),
+	})
+	if err != nil {
+		return repository.IntegrationsAs{}, erasureFailed("moving the switched-off integrations of an account", err)
+	}
+	return repository.IntegrationsAs{
+		Connectors: int(row.Connectors), Hooks: int(row.Hooks), Agents: int(row.Agents),
+	}, nil
+}
+
+// IntegrationsNaming counts every integration that still names the account.
+func (r PrivacyRepository) IntegrationsNaming(
+	ctx context.Context, accountID shared.ID,
+) (repository.IntegrationsAs, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return repository.IntegrationsAs{}, err
+	}
+	row, err := queries.IntegrationsNamingAccount(ctx, id)
+	if err != nil {
+		return repository.IntegrationsAs{}, erasureFailed("counting the integrations that name an account", err)
+	}
+	return repository.IntegrationsAs{
+		Connectors: int(row.Connectors), Hooks: int(row.Hooks), Agents: int(row.Agents),
+	}, nil
+}
+
 // OrphanedMedia answers the uploads nothing points at any more.
 func (r PrivacyRepository) OrphanedMedia(
 	ctx context.Context, accountID shared.ID,

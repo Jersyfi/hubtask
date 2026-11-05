@@ -1220,6 +1220,31 @@ func (q *Queries) InsertRecoveredErasureCase(ctx context.Context, arg InsertReco
 	return result.RowsAffected(), nil
 }
 
+const integrationsNamingAccount = `-- name: IntegrationsNamingAccount :one
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.run_as = $1)::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.run_as = $1)::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = $1)::int AS agents
+`
+
+type IntegrationsNamingAccountRow struct {
+	Connectors int32
+	Hooks      int32
+	Agents     int32
+}
+
+// Every connector, hook and agent that still names the account, switched on or off: what a full
+// deletion must have moved before the account row goes (0369's foreign keys refuse it otherwise).
+func (q *Queries) IntegrationsNamingAccount(ctx context.Context, accountID pgtype.UUID) (IntegrationsNamingAccountRow, error) {
+	row := q.db.QueryRow(ctx, integrationsNamingAccount, accountID)
+	var i IntegrationsNamingAccountRow
+	err := row.Scan(&i.Connectors, &i.Hooks, &i.Agents)
+	return i, err
+}
+
 const integrationsRunningAs = `-- name: IntegrationsRunningAs :one
 SELECT
   (SELECT count(*) FROM cmdb_connector c
@@ -1717,6 +1742,48 @@ func (q *Queries) ReleaseIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const reownSwitchedOffIntegrations = `-- name: ReownSwitchedOffIntegrations :one
+WITH connectors AS (
+  UPDATE cmdb_connector c SET run_as = $1, updated_at = $2, version = c.version + 1
+  WHERE c.tenant_id = current_tenant_id() AND NOT c.enabled AND c.run_as = $3
+  RETURNING 1
+), hooks AS (
+  UPDATE code_hook h SET run_as = $1, updated_at = $2
+  WHERE h.tenant_id = current_tenant_id() AND NOT h.enabled AND h.run_as = $3
+  RETURNING 1
+), agents AS (
+  UPDATE agent a SET owner_id = $1, updated_at = $2, version = a.version + 1
+  WHERE a.tenant_id = current_tenant_id() AND a.status = 'RETIRED' AND a.owner_id = $3
+  RETURNING 1
+)
+SELECT (SELECT count(*) FROM connectors)::int AS connectors,
+       (SELECT count(*) FROM hooks)::int AS hooks,
+       (SELECT count(*) FROM agents)::int AS agents
+`
+
+type ReownSwitchedOffIntegrationsParams struct {
+	ToAccount   pgtype.UUID
+	Now         pgtype.Timestamptz
+	FromAccount pgtype.UUID
+}
+
+type ReownSwitchedOffIntegrationsRow struct {
+	Connectors int32
+	Hooks      int32
+	Agents     int32
+}
+
+// Before a full deletion: the switched-off connectors and code hooks that would run as the person
+// and their retired agents move to another owner of the workspace, and stay off - an erasure does
+// not decide to delete the workspace's integrations, nor to switch one on (data-protection.md §4).
+// Each updated row's version moves, so an editor's stale write is refused.
+func (q *Queries) ReownSwitchedOffIntegrations(ctx context.Context, arg ReownSwitchedOffIntegrationsParams) (ReownSwitchedOffIntegrationsRow, error) {
+	row := q.db.QueryRow(ctx, reownSwitchedOffIntegrations, arg.ToAccount, arg.Now, arg.FromAccount)
+	var i ReownSwitchedOffIntegrationsRow
+	err := row.Scan(&i.Connectors, &i.Hooks, &i.Agents)
+	return i, err
 }
 
 const restrictedPeople = `-- name: RestrictedPeople :many

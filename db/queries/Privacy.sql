@@ -303,6 +303,39 @@ SELECT
      WHERE a.tenant_id = current_tenant_id() AND a.owner_id = sqlc.arg('account_id')
        AND a.status <> 'RETIRED')::int AS agents;
 
+-- name: ReownSwitchedOffIntegrations :one
+-- Before a full deletion: the switched-off connectors and code hooks that would run as the person
+-- and their retired agents move to another owner of the workspace, and stay off - an erasure does
+-- not decide to delete the workspace's integrations, nor to switch one on (data-protection.md §4).
+-- Each updated row's version moves, so an editor's stale write is refused.
+WITH connectors AS (
+  UPDATE cmdb_connector c SET run_as = sqlc.arg('to_account'), updated_at = sqlc.arg('now'), version = c.version + 1
+  WHERE c.tenant_id = current_tenant_id() AND NOT c.enabled AND c.run_as = sqlc.arg('from_account')
+  RETURNING 1
+), hooks AS (
+  UPDATE code_hook h SET run_as = sqlc.arg('to_account'), updated_at = sqlc.arg('now')
+  WHERE h.tenant_id = current_tenant_id() AND NOT h.enabled AND h.run_as = sqlc.arg('from_account')
+  RETURNING 1
+), agents AS (
+  UPDATE agent a SET owner_id = sqlc.arg('to_account'), updated_at = sqlc.arg('now'), version = a.version + 1
+  WHERE a.tenant_id = current_tenant_id() AND a.status = 'RETIRED' AND a.owner_id = sqlc.arg('from_account')
+  RETURNING 1
+)
+SELECT (SELECT count(*) FROM connectors)::int AS connectors,
+       (SELECT count(*) FROM hooks)::int AS hooks,
+       (SELECT count(*) FROM agents)::int AS agents;
+
+-- name: IntegrationsNamingAccount :one
+-- Every connector, hook and agent that still names the account, switched on or off: what a full
+-- deletion must have moved before the account row goes (0369's foreign keys refuse it otherwise).
+SELECT
+  (SELECT count(*) FROM cmdb_connector c
+     WHERE c.tenant_id = current_tenant_id() AND c.run_as = sqlc.arg('account_id'))::int AS connectors,
+  (SELECT count(*) FROM code_hook h
+     WHERE h.tenant_id = current_tenant_id() AND h.run_as = sqlc.arg('account_id'))::int AS hooks,
+  (SELECT count(*) FROM agent a
+     WHERE a.tenant_id = current_tenant_id() AND a.owner_id = sqlc.arg('account_id'))::int AS agents;
+
 -- name: DeleteAccount :execrows
 -- The mode that takes the person with them. The cascades of `0001_init` do the rest: memberships,
 -- group memberships, item memberships, tokens, calendar feeds, sync devices, consents and
