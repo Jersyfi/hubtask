@@ -155,6 +155,7 @@ test('chromium: 1280 px — a selection moved to the trash comes back as one ato
   await page.locator(`[data-row="${child.id}"] a`).first().click({ modifiers: ['ControlOrMeta'] });
   await page.locator(`[data-row="${parent.id}"] a`).first().click({ modifiers: ['ControlOrMeta'] });
   await page.getByRole('combobox', { name: 'Do this' }).selectOption({ label: 'Move to the trash' });
+  // UC-WRK-08 check 2: the bulk trash asks nothing and offers Undo.
   await undoAfterEightSeconds(page, async () => {
     await page.getByRole('button', { name: 'Apply' }).click();
     assert.equal(await page.getByRole('dialog').count(), 0, 'the trash asked first');

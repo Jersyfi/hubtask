@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12, P-13]
 state: built
 tasks: [C-11, F3-11, F10-10]
-checked_by: [test/integration/bulk_and_duplicate_test.go, core/application/service/work/BulkUpdateWorkItems_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrymenu.test.mjs]
+checked_by: [test/integration/bulk_and_duplicate_test.go, core/application/service/work/BulkUpdateWorkItems_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/undo.test.mjs]
 ---
 
 # Change many entries at once
@@ -32,8 +32,8 @@ script does the same with one request of up to 500 operations.
    Ctrl/Cmd-click on a row; while it is on, rows carry a checkbox, the page head shows the count and
    the verbs, and `Escape` ends it. Outside the mode no row draws a selection box.
 2. The verbs are: complete, reopen, add a label, remove a label, assign to one person, move to a
-   collection of the same hub, set the column, and move to the trash — the last after a
-   confirmation.
+   collection of the same hub, set the column, and move to the trash — the last at once, offering
+   *Undo* as [UC-WRK-28](./UC-WRK-28-act-on-an-entry-the-same-way-everywhere.md) check 3 does.
 3. Each entry is changed exactly as if it had been changed on its own: with its own permission
    check, its own history entry and its own event.
 4. The answer lists a result per entry; a partly successful bulk is not reported as a failure, and
