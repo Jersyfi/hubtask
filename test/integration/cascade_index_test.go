@@ -48,7 +48,6 @@ var unindexedCascades = map[string]bool{
 	"membership.membership_group_id_fkey":                                  true,
 	"notification.notification_actor_id_fkey":                              true,
 	"notification.notification_private_hub_access_id_fkey":                 true,
-	"notification.notification_recipient_id_fkey":                          true,
 	"notification.notification_rule_id_fkey":                               true,
 	"notification.notification_subscription_id_fkey":                       true,
 	"oauth_code.oauth_code_grant_fkey":                                     true,
