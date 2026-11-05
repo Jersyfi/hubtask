@@ -359,12 +359,17 @@ func checkUseCaseIndex(root string, cases []useCase) []string {
 	return problems
 }
 
-// ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`.
-var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,? check (\d+)\b)`)
+// ucCheckReference is a citation of one check: `UC-ID-12/4`, or `UC-ID-12 check 4`, the words
+// wrapped onto the next comment line or not.
+var ucCheckReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3})(?:/(\d+)\b|:?,?` + wrap + `check (\d+)\b)`)
+
+// wrap is the space between a use case and its check: one, or a line break into the next line of
+// the same comment.
+const wrap = `(?: |\n[ \t]*(?://|\*|#) ?)`
 
 // ucChecksReference is a citation of several checks in one list: `UC-WRK-32 checks 2, 3 and 6`,
 // or `UC-WRK-30 checks 1-4`.
-var ucChecksReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3}):?,? checks (\d+(?:[-–]\d+)?(?:(?:,| and|, and) \d+(?:[-–]\d+)?)*)\b`)
+var ucChecksReference = regexp.MustCompile(`\b(UC-[A-Z]{2,3}-\d{2,3}):?,?` + wrap + `checks (\d+(?:[-–]\d+)?(?:(?:,| and|, and) \d+(?:[-–]\d+)?)*)\b`)
 
 // listedChecks answers the check numbers a list names, a range counted whole.
 func listedChecks(list string) []int {
