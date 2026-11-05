@@ -128,6 +128,7 @@ func orphan(id shared.ID) repository.Orphan {
 	return repository.Orphan{ID: id, StorageKey: "media/" + tenantID.String() + "/" + id.String()}
 }
 
+// UC-MED-03 check 2.
 func TestAPassReclaimsTheBytesTheRowAndWritesTheJournal(t *testing.T) {
 	handler, records, bytes, journal, published := reconcilingHarness()
 	records.orphans = []repository.Orphan{orphan(mintedID)}

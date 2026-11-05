@@ -414,6 +414,7 @@ func staged(records *objects, bytesOf *store, claimed string, declared int64, bo
 	return object
 }
 
+// UC-MED-01 check 3.
 func TestConfirmingSealsTheObjectWithWhatTheBytesTurnedOutToBe(t *testing.T) {
 	handler, records, bytesOf, judge, trail := confirmHarness(1 << 20)
 	staged(records, bytesOf, "image/jpeg", int64(len(pngBytes)), pngBytes)
@@ -471,6 +472,7 @@ func TestConfirmingTwiceYieldsOneObject(t *testing.T) {
 	}
 }
 
+// UC-MED-01 check 2.
 func TestAConfirmationHoldsTheSizeAgainstWhatWasDeclared(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -515,6 +517,7 @@ func TestConfirmingWithoutBytesSaysSo(t *testing.T) {
 
 // A refused guard is a refused confirmation, and the object stays PENDING - which is what keeps
 // "nothing unjudged is ever attached" true (T-11).
+// UC-MED-01 check 3.
 func TestAGuardRefusalStopsTheConfirmation(t *testing.T) {
 	handler, records, bytesOf, judge, _ := confirmHarness(1 << 20)
 	staged(records, bytesOf, "text/html", int64(len(pngBytes)), pngBytes)
@@ -618,6 +621,7 @@ func TestTheContentRouteRefusesToOverwriteASealedObject(t *testing.T) {
 	}
 }
 
+// UC-MED-01 check 10.
 func TestNothingUnjudgedIsEverServed(t *testing.T) {
 	handler, records, bytesOf, _ := contentHarness()
 	staged(records, bytesOf, "image/png", int64(len(pngBytes)), pngBytes)

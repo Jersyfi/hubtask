@@ -57,6 +57,7 @@ func TestAConfirmationScansTheWholeFile(t *testing.T) {
 }
 
 // A malicious file is refused by name and its bytes removed: nothing is sealed.
+// UC-MED-01 check 10.
 func TestAConfirmationRefusesAMaliciousFile(t *testing.T) {
 	handler, records, bytesOf, _, _ := confirmHarness(1 << 20)
 	handler.Scanner = &scanner{verdict: storage.Verdict{Malicious: true, Signature: "Eicar-Test-Signature"}}
@@ -73,6 +74,7 @@ func TestAConfirmationRefusesAMaliciousFile(t *testing.T) {
 
 // A scanner that cannot answer holds the file instead of refusing it or passing it, and asks for
 // the scan to run again.
+// UC-MED-01 check 10.
 func TestAConfirmationHoldsAFileTheScannerCouldNotAnswerFor(t *testing.T) {
 	handler, records, bytesOf, _, _ := confirmHarness(1 << 20)
 	jobs := &enqueued{}
@@ -97,6 +99,7 @@ func TestAConfirmationHoldsAFileTheScannerCouldNotAnswerFor(t *testing.T) {
 
 // The scan job settles what it can: clean READY, malicious INFECTED with its bytes gone, and while
 // the scanner stays down it leaves the rest held and says so.
+// UC-MED-01 check 10.
 func TestTheScanJobSettlesTheHeldFiles(t *testing.T) {
 	records, bytesOf := newObjects(), newStore()
 	for i, id := range []shared.ID{"0192f000-0000-7000-8000-0000000000b1", "0192f000-0000-7000-8000-0000000000b2"} {

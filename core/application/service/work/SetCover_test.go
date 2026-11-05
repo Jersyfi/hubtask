@@ -196,6 +196,7 @@ func TestAnImageCoverRaisesTheReferenceCount(t *testing.T) {
 	}
 }
 
+// UC-MED-02 check 5.
 func TestReplacingAnImageCoverMovesBothCounters(t *testing.T) {
 	h := newCoverHarness(t)
 	h.withItem(domain.ItemTask, &domain.Cover{Kind: domain.CoverImage, MediaID: pictureID})
@@ -214,6 +215,7 @@ func TestReplacingAnImageCoverMovesBothCounters(t *testing.T) {
 	}
 }
 
+// UC-MED-02 check 6.
 func TestClearingAnImageCoverLowersTheReferenceCount(t *testing.T) {
 	h := newCoverHarness(t)
 	h.withItem(domain.ItemTask, &domain.Cover{Kind: domain.CoverImage, MediaID: pictureID})
@@ -275,6 +277,7 @@ func TestTheSameCoverAgainWritesNothing(t *testing.T) {
 	}
 }
 
+// UC-MED-02 check 6.
 func TestClearingAnEntryWithNoCoverWritesNothing(t *testing.T) {
 	h := newCoverHarness(t)
 	h.withItem(domain.ItemTask, nil)
@@ -289,6 +292,7 @@ func TestClearingAnEntryWithNoCoverWritesNothing(t *testing.T) {
 	}
 }
 
+// UC-MED-02 check 2.
 func TestAnImageTheMediaContextWillNotStandBehindIsRefused(t *testing.T) {
 	cases := []struct {
 		name   string
