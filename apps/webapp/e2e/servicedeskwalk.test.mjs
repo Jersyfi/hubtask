@@ -199,6 +199,26 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
 
 // §7.4: an empty calendars section offers the ITIL defaults to whoever may shape the workspace,
 // which open the ITIL template's plan at the templates - shown in words before anything changes.
+// user-experience.md §5.12: on a phone a requester's other request with a long title wraps
+// inside the panel rather than widening the page.
+test('chromium: service desk - 390 px, a requester\'s long other request scrolls nothing sideways', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const desk = deskBackend();
+  const long = { ...OTHER_REQUEST, title: 'Drucker im zweiten Obergeschoss druckt seit Montag nur noch leere Seiten und meldet einen Papierstau im Fach drei' };
+  const answer = (method, path, query, body) => (path === '/search' && method === 'POST' && JSON.stringify(body?.filter ?? {}).includes('created_by')
+    ? { json: { ...PAGE, data: [REQUEST, long] } }
+    : desk(method, path, query, body));
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer, width: 390, height: 844 });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  await page.getByRole('region', { name: 'Requester' }).getByRole('link', { name: long.title }).waitFor({ timeout: 10_000 });
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
+});
+
 test('chromium: service desk - an empty section starts from the ITIL defaults through the template\'s plan', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

@@ -73,5 +73,5 @@
   .who, .label { margin: 0; }
   .label, .organisation { color: var(--text-secondary); }
   .others { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-025); }
-  .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name { overflow-wrap: anywhere; }
 </style>
