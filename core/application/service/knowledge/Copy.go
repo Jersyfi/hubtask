@@ -29,10 +29,9 @@ type CopyPageCommand struct {
 
 // CopyPage writes a new page in the same space from a page (UC-DOC-01 check 8): its body, icon and
 // language. It is a page written by the copier, so it is CreatePage's write - its permission, its
-// bounds, its first version and its trail - and nothing of the page's history, comments,
-// restrictions, shares or public links comes with it. A picture the body shows stays readable to
-// whoever may read a page holding it, so a copy of a restricted page shows its pictures to the
-// people the restriction admits alone.
+// bounds, its first version and its trail - and nothing of the page's history, comments, shares or
+// public links comes with it. A restricted page's copy keeps the people the source admits, its own
+// restriction and those above it together, wherever it is put; the copier may lift it.
 type CopyPage struct{ Space Space }
 
 // Execute copies the page.
@@ -55,10 +54,25 @@ func (h CopyPage) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 	if title == "" {
 		title = source.Title
 	}
+	var readers domain.Readers
+	if err := h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		all, err := h.Space.Pages.Readers(ctx, []shared.ID{source.ID})
+		readers = all[source.ID]
+		return err
+	}); err != nil {
+		return domain.Page{}, err
+	}
+	var restriction []shared.ID
+	if readers.Restricted {
+		// Refused rather than copied open where the copier is not among the people admitted.
+		if restriction, err = domain.CheckRestriction(readers.Accounts, actor.AccountID); err != nil {
+			return domain.Page{}, err
+		}
+	}
 	body := source.Body
 	return CreatePage(h).Execute(ctx, actor, CreatePageCommand{
 		HubID: source.HubID, ParentID: parent, Title: title, Body: &body, Icon: source.Icon,
-		ContentLanguage: source.ContentLanguage,
+		ContentLanguage: source.ContentLanguage, Restriction: restriction,
 	})
 }
 
@@ -67,8 +81,9 @@ func (h CopyPage) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: CopyPageName, Permission: service.PermissionWriteItems,
 		Summary: "Copies a page within its space: a new page with its body, icon and language, beside " +
-			"it or under the page named, titled as given or as the page. Versions, comments, " +
-			"restrictions, shares and public links are not copied, and the copy is no template.",
+			"it or under the page named, titled as given or as the page. A restricted page's copy is " +
+			"restricted to the same people, which the copier may lift; versions, comments, shares and " +
+			"public links are not copied, and the copy is no template.",
 		SideEffects: "Writes the new page, its first version and an audit entry, as writing a page does.",
 		TokenScope:  pagesWrite,
 		Input: []usecase.Field{

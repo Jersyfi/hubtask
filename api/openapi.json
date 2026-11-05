@@ -32665,7 +32665,7 @@
         "x-hubtask-rest-location": "/pages/{id}",
         "x-hubtask-cli": "page copy",
         "summary": "Copy a page",
-        "description": "Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no \"Copy of\". Needs READ on the page and WRITE_ITEMS on the hub.\n",
+        "description": "Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no \"Copy of\". Needs READ on the page and WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": false,
           "content": {

@@ -48,6 +48,9 @@ type CreatePageCommand struct {
 	// Subpages are written beneath the new page in the same write: Hubtask's own space templates,
 	// whose words the client writes in the reader's language (rule 8, UC-DOC-05 check 6).
 	Subpages []Subpage
+	// Restriction, when not nil, restricts the new page to these people in the same write: a copy
+	// of a restricted page is never readable to more people, not even for a moment.
+	Restriction []shared.ID
 }
 
 // Subpage is one page of a tree written at once, with the pages under it.
@@ -166,6 +169,13 @@ func (h CreatePage) Execute(ctx context.Context, actor appshared.ActorContext, c
 		}
 		if page, err = h.Space.write(ctx, actor, page, unpublished, now); err != nil {
 			return err
+		}
+		if cmd.Restriction != nil {
+			page.Restricted = true
+			if err := h.Space.Pages.Restrict(ctx, page, cmd.Restriction, page.Version); err != nil {
+				return err
+			}
+			page.Version++
 		}
 		return h.Space.writeSubpages(ctx, actor, page, plan, now)
 	})

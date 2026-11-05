@@ -6,6 +6,8 @@ package knowledge
 import (
 	"context"
 	"testing"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // UC-DOC-01 check 8: a copy is a new page of the same space with the page's body, beside it or
@@ -38,5 +40,36 @@ func TestAPageIsCopiedWithinItsSpace(t *testing.T) {
 	hidden := f.create(t, anna, private, "", "Notes", "mine")
 	if _, err := (CopyPage{Space: f.space}).Execute(context.Background(), as(bert), CopyPageCommand{PageID: hidden.ID}); err == nil {
 		t.Error("Bert copied a page of Anna's private hub")
+	}
+}
+
+// UC-DOC-01 check 8: a restricted page's copy keeps the people the source admits - its own
+// restriction and those above it - wherever it is put, and the copier may lift it.
+func TestACopyOfARestrictedPageKeepsItsRestriction(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture()
+	root := f.create(t, anna, hub, "", "Handbook", "")
+	page := f.create(t, anna, hub, root.ID, "Salaries", "Band A")
+	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(anna), RestrictPageCommand{PageID: root.ID, AccountIDs: []shared.ID{anna, bert}}); err != nil {
+		t.Fatal(err)
+	}
+
+	copied, err := (CopyPage{Space: f.space}).Execute(ctx, as(bert), CopyPageCommand{PageID: page.ID, ParentGiven: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	readers, _ := f.store.Readers(ctx, []shared.ID{copied.ID})
+	if !copied.Restricted || !readers[copied.ID].Restricted || readers[copied.ID].Admits(carla) ||
+		!readers[copied.ID].Admits(anna) || !readers[copied.ID].Admits(bert) {
+		t.Errorf("a copy at the top of the space reads to %+v", readers[copied.ID])
+	}
+
+	if _, err := (RestrictPage{Space: f.space}).Execute(ctx, as(bert), RestrictPageCommand{
+		PageID: copied.ID, Lift: true,
+	}); err != nil {
+		t.Errorf("the copier could not lift the copy's restriction: %v", err)
+	}
+	if readers, _ := f.store.Readers(ctx, []shared.ID{copied.ID}); readers[copied.ID].Restricted {
+		t.Error("the lifted copy is still restricted")
 	}
 }

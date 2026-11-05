@@ -38645,7 +38645,7 @@ type ClientInterface interface {
 
 	// CopyPageWithBody Copy a page
 	//
-	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -38654,7 +38654,7 @@ type ClientInterface interface {
 
 	// CopyPage Copy a page
 	//
-	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -58539,7 +58539,7 @@ func (c *Client) RestorePageVersion(ctx context.Context, pageId PageId, seq int,
 
 // CopyPageWithBody Copy a page
 //
-// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -58558,7 +58558,7 @@ func (c *Client) CopyPageWithBody(ctx context.Context, pageId PageId, contentTyp
 
 // CopyPage Copy a page
 //
-// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -113137,7 +113137,7 @@ type ClientWithResponsesInterface interface {
 
 	// CopyPageWithBodyWithResponse Copy a page
 	//
-	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -113146,7 +113146,7 @@ type ClientWithResponsesInterface interface {
 
 	// CopyPageWithResponse Copy a page
 	//
-	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+	// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -170939,7 +170939,7 @@ func (c *ClientWithResponses) RestorePageVersionWithResponse(ctx context.Context
 
 // CopyPageWithBodyWithResponse Copy a page
 //
-// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -170954,7 +170954,7 @@ func (c *ClientWithResponses) CopyPageWithBodyWithResponse(ctx context.Context, 
 
 // CopyPageWithResponse Copy a page
 //
-// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. Its versions, comments, restrictions, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
+// Writes a new page in the same space with the page's body, icon and language, at the end of the siblings under `parent_id` - beside the page when omitted, at the top of the space when null. A restricted page's copy is restricted to the same people, wherever it is put, and the copier may lift that; its versions, comments, shares and public links are not copied, and the copy is no template. The title is the page's unless one is given: the server invents no "Copy of". Needs READ on the page and WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
