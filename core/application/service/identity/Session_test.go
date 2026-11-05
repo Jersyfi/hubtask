@@ -529,6 +529,40 @@ func TestASignInSeedsTheWorkspacesRetentionSweep(t *testing.T) {
 	}
 }
 
+// UC-ID-01 check 4: a suspended account - its password right or wrong - and a service account,
+// which signs in by no password (identity.md §15), answer what a wrong password answers.
+func TestASuspendedAccountAndAServiceAccountAnswerAsAWrongPassword(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.withAccount("bert@example.org", "correct horse battery")
+	_, wrong := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+		Email: "bert@example.org", Password: secret.New("a wrong password!"),
+	})
+
+	for name, change := range map[string]func(*repository.SignInAccount){
+		"suspended":       func(a *repository.SignInAccount) { a.Account.Status = domain.AccountDisabled },
+		"service account": func(a *repository.SignInAccount) { a.Account.Kind = domain.AccountServiceAccount },
+	} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newSessionFixture(now)
+			fixture.withAccount("bert@example.org", "correct horse battery")
+			held := fixture.accounts.byEmail["bert@example.org"]
+			change(&held)
+			fixture.accounts.byEmail["bert@example.org"] = held
+
+			_, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+				Email: "bert@example.org", Password: secret.New("correct horse battery"),
+			})
+			if err == nil || wrong == nil || err.Error() != wrong.Error() {
+				t.Errorf("the right password answered %v, a wrong one %v", err, wrong)
+			}
+			if len(fixture.sessions.inserted) != 0 {
+				t.Error("a session was opened")
+			}
+		})
+	}
+}
+
+// UC-ID-01 check 4: a wrong password and an address without an account are one answer.
 func TestWrongPasswordAndNoAccountAreOneAnswer(t *testing.T) {
 	fixture := newSessionFixture(now)
 	fixture.withAccount("bert@example.org", "correct horse battery")

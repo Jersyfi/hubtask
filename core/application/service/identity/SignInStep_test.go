@@ -159,14 +159,13 @@ func TestEveryoneReachesAPersonAndNotAServiceAccount(t *testing.T) {
 	held.Account.Kind = domain.AccountServiceAccount
 	service.session.accounts.byEmail["bot@example.org"] = held
 
+	// A service account signs in by no password (identity.md §15, UC-ID-17 check 4), so it never
+	// reaches the step: refused as a wrong password, with no challenge.
 	answer, err := SignIn{Writer: service.session.writer}.Execute(t.Context(), SignInCommand{
 		Email: "bot@example.org", Password: secret.New("a long enough passphrase"),
 	})
-	if err != nil {
-		t.Fatalf("signing in: %v", err)
-	}
-	if answer.Challenge != nil {
-		t.Errorf("a service account was asked for an authenticator: %v", answer.Challenge.Methods)
+	if err == nil || err.Error() != domain.ErrSignInFailed().Error() || answer.Challenge != nil {
+		t.Errorf("a service account answered (%+v, %v), want the wrong-password refusal", answer, err)
 	}
 }
 

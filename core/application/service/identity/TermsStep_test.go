@@ -268,11 +268,13 @@ func TestServiceAccountsAndRefreshesNeverMeetTheTerms(t *testing.T) {
 	robot.Account.Kind = domain.AccountServiceAccount
 	fixture.accounts.byEmail["robot@example.org"] = robot
 
+	// A service account signs in by no password at all (identity.md §15, UC-ID-17 check 4): it is
+	// answered as a wrong password, before any step.
 	result, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
 		Email: "robot@example.org", Password: secret.New("correct horse battery"),
 	})
-	if err != nil || result.Pair == nil {
-		t.Fatalf("a service account answered (%+v, %v), want the pair", result, err)
+	if err == nil || err.Error() != domain.ErrSignInFailed().Error() || result.Pair != nil || result.Challenge != nil {
+		t.Fatalf("a service account answered (%+v, %v), want the wrong-password refusal", result, err)
 	}
 
 	// A person's session refreshed with the terms still unagreed: a rotation, not a step.
