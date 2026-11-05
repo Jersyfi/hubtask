@@ -578,6 +578,13 @@ type OutboundConfig struct {
 	// webhook into a port scanner of the host network. A self-hoster with an internal target
 	// on the same LAN is the one legitimate reason to turn it on, and it warns when set.
 	AllowPrivateNetworks bool
+	// CAFile names a PEM file of further roots that outbound calls through GuardedClient trust,
+	// beside the system's (security.md §10): a self-hoster's private CA. Empty adds none; the
+	// system roots are never replaced.
+	CAFile string
+	// CARoots is CAFile's content, read once when the configuration is loaded; nil where none is
+	// named or it could not be read, which the validation refuses.
+	CARoots []byte
 }
 
 // MetricsConfig covers what a metric may say about a tenant.

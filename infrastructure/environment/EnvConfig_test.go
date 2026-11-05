@@ -4,8 +4,12 @@
 package environment
 
 import (
+	"bytes"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -281,6 +285,7 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		{"HUBTASK_HTTP_MAX_REDIRECTS", "50", "config.redirects_invalid"},
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "https://hooks.example.org", "config.allowed_host_invalid"},
 		{"HUBTASK_HTTP_ALLOWED_HOSTS", "hooks.example.org/path", "config.allowed_host_invalid"},
+		{"HUBTASK_HTTP_CA_FILE", "/nowhere/such/roots.pem", "config.http_ca_file_unreadable"},
 		{"HUBTASK_LOAD_SHED_INFLIGHT", "-1", "config.load_shed_invalid"},
 		{"HUBTASK_LOAD_SHED_RETRY_AFTER", "0s", "config.duration_invalid"},
 		{"HUBTASK_MAILBOX_WATCH_SHARDS", "0", "config.range_invalid"},
@@ -1043,5 +1048,39 @@ func TestAnUnreadableRestoreDrillRecordIsWarned(t *testing.T) {
 		if got := hasWarning(New("v", "c").Warnings(cfg), "config.restore_drill_record_unreadable"); got != tc.want {
 			t.Errorf("%s: warned %v, want %v", name, got, tc.want)
 		}
+	}
+}
+
+// HUBTASK_HTTP_CA_FILE (security.md §10): a file without one certificate refuses the start, one
+// with a certificate is read once into the configuration, and none named adds nothing.
+func TestTheOutboundRootsFileIsReadOnceAndRefusedWithoutACertificate(t *testing.T) {
+	withRequiredSecrets(t)
+	junk := filepath.Join(t.TempDir(), "junk.pem")
+	if err := os.WriteFile(junk, []byte("not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HUBTASK_HTTP_CA_FILE", junk)
+	_, err := load(t)
+	assertCode(t, err, "config.http_ca_file_invalid")
+
+	server := httptest.NewTLSServer(http.NotFoundHandler())
+	defer server.Close()
+	roots := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	good := filepath.Join(t.TempDir(), "roots.pem")
+	if err := os.WriteFile(good, roots, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HUBTASK_HTTP_CA_FILE", good)
+	cfg, err := load(t)
+	if err != nil {
+		t.Fatalf("a file of one certificate was refused: %v", err)
+	}
+	if !bytes.Equal(cfg.Outbound.CARoots, roots) || cfg.Outbound.CAFile != good {
+		t.Errorf("the roots were not read: %q from %q", cfg.Outbound.CARoots, cfg.Outbound.CAFile)
+	}
+
+	t.Setenv("HUBTASK_HTTP_CA_FILE", "")
+	if cfg, err = load(t); err != nil || cfg.Outbound.CARoots != nil {
+		t.Errorf("no file named still added roots: %v, %q", err, cfg.Outbound.CARoots)
 	}
 }

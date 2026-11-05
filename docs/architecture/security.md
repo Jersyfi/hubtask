@@ -283,7 +283,10 @@ Rules trigger HTTP calls and agents write, so:
    ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md)); no primitive executes arbitrary code.
 2. **`run_as` is the permission boundary** (T-08), not the triggering user.
 3. **Outbound calls only through `GuardedClient`** (T-07), plus a network egress allowlist in
-   provider operation. The object store, an operator-configured endpoint in the database DSN's trust
+   provider operation. It trusts the system's roots; an installation setting,
+   `HUBTASK_HTTP_CA_FILE`, adds the roots of a PEM file beside them - a self-hoster's private CA -
+   for these calls only, never replacing the system's, and a file that is unreadable or holds no
+   certificate refuses the start. The object store, an operator-configured endpoint in the database DSN's trust
    class, may use its own client, listed in the architecture test's exceptions, with deadlines,
    refused redirects, the breaker and the bulkhead.
 4. **A causality bound** against loops and amplification (T-09).

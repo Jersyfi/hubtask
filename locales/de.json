@@ -2048,6 +2048,8 @@
   "config.locale_invalid": "{variable} muss ein BCP-47-Sprachtag sein, etwa en, de-AT oder pt-BR.",
   "config.redirects_invalid": "{variable} muss zwischen 0 und {maximum} liegen. Eine längere Kette ist keine umgezogene Seite.",
   "config.allowed_host_invalid": "{variable} nimmt Hostnamen, keine URLs. {value} enthält ein Schema oder einen Pfad.",
+  "config.http_ca_file_unreadable": "{variable} nennt eine Datei, die dieser Prozess nicht lesen kann. Nenne eine lesbare PEM-Datei mit Zertifikaten oder lass es leer.",
+  "config.http_ca_file_invalid": "{variable} nennt eine Datei ohne PEM-Zertifikat. Nenne eine Datei mit einem oder mehreren Zertifikaten oder lass es leer.",
   "config.timezone_unknown": "{variable} muss eine IANA-Zeitzone sein, etwa Europe/Berlin. {value} ist keine.",
   "config.locale_dir_missing": "{variable} nennt {value}, und das ist kein Verzeichnis, das dieser Prozess lesen kann. Entferne die Variable oder lass sie auf das Verzeichnis mit den Katalogdateien zeigen.",
   "config.locale_file_invalid": "{variable} enthält eine Datei, die dieser Prozess nicht als Katalog lesen kann: {file}. Ein Katalog ist <tag>.json, eine flache Zuordnung von Meldungscodes zu Sätzen.",

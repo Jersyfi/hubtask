@@ -6,6 +6,8 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -72,6 +74,7 @@ func NewGuardedClient(cfg env.OutboundConfig, guard *Guard) *GuardedClient {
 
 	c.client = &http.Client{
 		Transport: &http.Transport{
+			TLSClientConfig:       tlsConfig(cfg.CARoots),
 			DialContext:           dialer.DialContext,
 			TLSHandshakeTimeout:   cfg.ConnectTimeout,
 			ResponseHeaderTimeout: cfg.Timeout,
@@ -87,6 +90,20 @@ func NewGuardedClient(cfg env.OutboundConfig, guard *Guard) *GuardedClient {
 		CheckRedirect: c.checkRedirect,
 	}
 	return c
+}
+
+// tlsConfig adds the operator's roots to the system's (security.md §10); nil, the default, where
+// none are named. Added, never replacing: a private CA must not cost the public ones.
+func tlsConfig(roots []byte) *tls.Config {
+	if len(roots) == 0 {
+		return nil
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	pool.AppendCertsFromPEM(roots)
+	return &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
 }
 
 // WithObserver returns a copy that reports the duration of every call. The composition root

@@ -9,6 +9,7 @@
 package environment
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -173,6 +174,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			MaxRedirects:         getInt("HUBTASK_HTTP_MAX_REDIRECTS", 3),
 			AllowedHosts:         getList("HUBTASK_HTTP_ALLOWED_HOSTS"),
 			AllowPrivateNetworks: getBool("HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS", false),
+			CAFile:               get("HUBTASK_HTTP_CA_FILE", ""),
+			CARoots:              readOptional(get("HUBTASK_HTTP_CA_FILE", "")),
 		},
 		Queue: env.QueueConfig{
 			PollInterval:      getDuration("HUBTASK_QUEUE_POLL_INTERVAL", 2*time.Second),
@@ -742,6 +745,17 @@ func validateOutbound(o env.OutboundConfig) []error {
 				"maximum":  strconv.Itoa(env.MaxOutboundRedirects),
 			}))
 	}
+	// A root that cannot be read or holds no certificate refuses the start: running on without it
+	// would fail every call to the private CA's hosts later, one by one, with nothing saying why.
+	if o.CAFile != "" {
+		if o.CARoots == nil {
+			errs = append(errs, configError("config.http_ca_file_unreadable", "HUBTASK_HTTP_CA_FILE").
+				WithParams(map[string]string{"variable": "HUBTASK_HTTP_CA_FILE"}))
+		} else if !x509.NewCertPool().AppendCertsFromPEM(o.CARoots) {
+			errs = append(errs, configError("config.http_ca_file_invalid", "HUBTASK_HTTP_CA_FILE").
+				WithParams(map[string]string{"variable": "HUBTASK_HTTP_CA_FILE"}))
+		}
+	}
 	for _, host := range o.AllowedHosts {
 		// A scheme or a path in the allowlist means somebody expected URL matching. Silently
 		// ignoring it would leave the operator believing a target is allowed when it is not.
@@ -1118,4 +1132,17 @@ func listOf(raw string) []string {
 		}
 	}
 	return out
+}
+
+// readOptional reads a file the operator names, nil for none or one that cannot be read; the
+// validation says which.
+func readOptional(path string) []byte {
+	if path == "" {
+		return nil
+	}
+	content, err := os.ReadFile(path) //nolint:gosec // G304: the operator names the file
+	if err != nil {
+		return nil
+	}
+	return content
 }
