@@ -167,6 +167,34 @@ test('chromium: a configuration item refined to a narrower class asks for the at
   assert.deepEqual(failures, []);
 });
 
+// A configuration item whose read says it has no asset record is not asked for one: the 404 that
+// read would answer is logged by the browser however the screen takes it.
+test('chromium: a configuration item without an asset record asks for none', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const asked = [];
+  await context.route('**/api/v1/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/cmdb/classes')) return route.fulfill({ json: { data: [SERVER_CLASS, BLADE_CLASS] } });
+    if (path.endsWith(`/cis/${SERVER.id}`) && route.request().method() === 'GET') return route.fulfill({ json: { ...SERVER, has_asset: false } });
+    if (path.endsWith(`/cis/${SERVER.id}/impact`)) return route.fulfill({ json: { ci_id: SERVER.id, direction: 'DOWNSTREAM', reached: [], services: [] } });
+    if (path.endsWith(`/cis/${SERVER.id}/asset`)) {
+      asked.push(path);
+      return route.fulfill({ status: 404, json: { code: 'cmdb.asset_not_found', status: 404 } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => { sessionStorage.setItem('hubtask.bearer', 'e2e-bearer'); sessionStorage.setItem('hubtask.refresh', 'e2e-refresh'); });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/cis/${SERVER.id}`);
+  await page.locator('[data-ci-asset] .meta').waitFor({ timeout: 5_000 });
+  await page.waitForLoadState('networkidle');
+  assert.deepEqual(asked, [], 'the asset record was asked for although the CI has none');
+});
+
 // A new connector asks for its program's settings, none of which it holds yet.
 test('chromium: a new connector asks for its program settings', async (t) => {
   const browser = await chromium.launch();

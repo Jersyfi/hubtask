@@ -10,7 +10,6 @@
   // once a holder or a stockroom is named; disposing asks for the method and the certificate's
   // reference before it is sent. A disposed asset is kept and offers no move.
 
-  import { untrack } from 'svelte';
   import { Badge, Button, Dialog, Input, Select, Spinner, Stack, type SelectOption } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiAsset, CiClass, ConfigurationItem, WorkItem } from '@hubtask/sync-engine';
@@ -22,7 +21,7 @@
     type AssetDraft, type AssetState, type DisposalMethod,
   } from '../data/cmdb.svelte.ts';
   import { people } from '../data/people.svelte.ts';
-  import { resource } from '../data/resource.svelte.ts';
+  import { resourceWhen } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -38,10 +37,11 @@
 
   const { ci, classes, hubCis, mayWrite }: Props = $props();
 
-  // Keyed on the CI by its caller.
-  const read = resource<CiAsset>(untrack(() => ciAssetPath(ci.id)));
+  // Keyed on the CI by its caller. Read only where the CI's own read does not say it has none: a
+  // 404 is logged by the browser however this part takes it.
+  const read = resourceWhen<CiAsset>(() => (ci.has_asset === false ? undefined : ciAssetPath(ci.id)));
   const asset = $derived(read.state.status === 'ready' ? read.state.data : undefined);
-  const none = $derived(read.state.status === 'failed' && read.state.error.status === 404);
+  const none = $derived(ci.has_asset === false || (read.state.status === 'failed' && read.state.error.status === 404));
   const failure = $derived(read.state.status === 'failed' && !none ? renderProblem(read.state.error, messages).message : undefined);
 
   const of = (kind: string) =>
