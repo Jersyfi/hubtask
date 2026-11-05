@@ -229,12 +229,13 @@ this list with its row.
 | Sixth answers | Held uploads never released unscanned (security.md §7) | closed by `ff8769099` (security.md §7) |
 | Sixth answers | A copied page keeps its restriction | closed by `602777ba2` (UC-DOC-01 check 8) |
 | Sixth answers | Withheld minutes hidden under three people | closed by `3621eec30` (UC-TIM-04 check 3, additive `withheld_minutes_hidden`) |
-| Sixth answers | View as ends when the viewer loses MANAGE_MEMBERS | open: build it (accepted.md, sixth answers, item 9) |
+| Sixth answers | View as ends when the viewer loses MANAGE_MEMBERS | closed by `6e9f7b0ac` (UC-ID-29 check 3, identity.md §25) |
 | Sixth answers | UC-TIM-03 and UC-ID-18 wording | closed by `380a6c603` (UC-TIM-03 check 3, UC-ID-18 check 7) |
-| Sixth answers | A requester's intake line stripped from pages on erasure or expiry | open: build it (accepted.md, sixth answers, item 11) |
-| Sixth answers | Per-hub trash listings deprecated | open: build it (accepted.md, sixth answers, item 13) |
+| Sixth answers | A requester's intake line stripped from pages on erasure or expiry | closed by `a95c06854` (UC-PRV-01 check 13, data-protection.md §4); open: an editor open at that moment can write the old document back |
+| Sixth answers | Per-hub trash listings deprecated | closed by `5e10c6cce` (`deprecated` with `x-replaced-by: [listTrash]`, the manifest's additive `in`, api-guidelines.md); the web app still reads both until its trash lists link to `/trash` |
 | Sixth answers | UC-SVC-10 names the delegate rule | closed by `380a6c603` (UC-SVC-10 *Where it ends*) |
-| Sixth answers | The milestone's open-since count | open: build it (accepted.md, sixth answers, item 15) |
+| Sixth answers | The milestone's open-since count | closed by `e9224026a` (additive `open_since`, UC-WRK-29 check 4, user-experience.md §7.5) |
+| Sixth answers, corrections | Who trashed a page or a whiteboard; the Assets screen's register and software for readers | closed by `a2c3bf55b` (migration 0371, `/trash` names the person) and `6daba8e22` (UC-AST-12 check 5) |
 
 ## State
 
