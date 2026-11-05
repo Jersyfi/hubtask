@@ -59,6 +59,9 @@ config:
   jobTimeout: 60s
   # One pass of a backup, restore, export or import; its lease is kept alive while it runs.
   longJobTimeout: 6h
+  # How many jobs one worker process runs at once (deployment.md §6); each holds a background
+  # pool connection, so it stays below the pool's size minus three.
+  queueConcurrency: 4
   # The egress allowlist for outbound calls - webhooks, AI, OIDC. Mandatory in provider
   # operation (T-07); empty raises a warning in /meta/health rather than failing the start.
   egressAllowedHosts: []
@@ -390,6 +393,10 @@ prometheusRules:
     # A-12's point-in-time recovery half. Reads the database operator's metrics, so it is rendered
     # only where this chart owns the database.
     pitr: true
+  # A-42's budget in bytes: the size the database's plan or volume allows. Recorded as
+  # hubtask:db_size_budget_bytes beside the release's namespace (which scopes A-41 to this
+  # release's volumes); 0 records none, and A-42 stays silent.
+  databaseSizeBudget: 0
 
 # The Grafana dashboards, as ConfigMaps a sidecar imports. One per dashboard, so that a change to
 # one does not re-import the others. Never hand-edited in a user interface: the file is the source.
