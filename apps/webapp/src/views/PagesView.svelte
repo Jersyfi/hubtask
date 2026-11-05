@@ -14,7 +14,7 @@
 
   import { untrack } from 'svelte';
   import {
-    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, SearchField, Select, Spinner, Stack, Switch,
+    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, SearchField, Select, Spinner, Stack, Switch,
     TemplateCard, TemplateGallery, Textarea, VisuallyHidden,
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
@@ -518,13 +518,32 @@
 
 </script>
 
-{#if hubId}<PlaceStrip placeId={hubId} current="pages" {onnavigate} />{/if}
+{#if hubId}
+  <!-- The head every hub tab carries (UX-2): the trail to the hub and the tab's title, above the
+       strip; an open page's title is the content's own heading under it. -->
+  <PageHeader
+    title={t('app.pages.title')}
+    isTitleInBar={viewport.isCompact}
+    primary={mayWrite ? { label: t('app.pages.new'), icon: 'plus', onclick: () => startCreate() } : undefined}
+    breadcrumb={hub
+      ? {
+          trail: [
+            { id: 'place', label: hub.name, href: `/hubs/${hubId}` },
+            current ? { id: 'pages', label: t('app.pages.title'), href: `/hubs/${hubId}/pages` } : { id: 'pages', label: t('app.pages.title') },
+          ],
+          label: t('app.pages.trail'),
+          expandLabel: t('app.admin.expand_trail'),
+          onnavigate: (id) => onnavigate(id === 'place' ? `/hubs/${hubId}` : `/hubs/${hubId}/pages`),
+        }
+      : undefined}
+  />
+  <PlaceStrip placeId={hubId} current="pages" {onnavigate} />
+{/if}
 <div class="space">
   <nav class="tree" aria-label={t('app.pages.tree', { hub: hub?.name ?? '' })}>
     <Stack gap="100">
       <Inline justify="between" align="center">
-        <!-- The screen's one h1 until a page is open; then the page's title is. -->
-        <svelte:element this={current ? 'h2' : 'h1'} class="heading">{t('app.pages.title')}</svelte:element>
+        <svelte:element this={hubId ? 'h2' : 'h1'} class="heading">{t('app.pages.title')}</svelte:element>
         <Inline gap="050" align="center">
           {#if treeFolds}
             <Button size="sm" tone="subtle" icon={isTreeOpen ? 'chevron-up' : 'chevron-down'} aria-expanded={isTreeOpen} data-tree-toggle onclick={() => (isTreeOpen = !isTreeOpen)}>
@@ -676,21 +695,21 @@
     {:else}
       {#key current.id}
         <Stack gap="150">
-          <Breadcrumb
-            label={t('app.pages.breadcrumb')}
-            expandLabel={t('app.pages.breadcrumb_more')}
-            trail={[
-              ...(hub ? [{ id: `hub:${hub.id}`, label: hub.name, href: `/hubs/${hub.id}/pages` }] : []),
-              ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
-            ]}
-          />
+          <!-- The hub is the head's trail; this one names only the pages above. -->
+          {#if current.ancestors.length > 0}
+            <Breadcrumb
+              label={t('app.pages.breadcrumb')}
+              expandLabel={t('app.pages.breadcrumb_more')}
+              trail={current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` }))}
+            />
+          {/if}
           <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
                comments' toggle, sharing, and the rest in the page's menu. -->
           <div class="head" data-page-head>
             {#if current.writable}
               <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
                    heading is read, the field is what is seen: the title appears once. -->
-              <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
+              <VisuallyHidden as="h2">{current.title}</VisuallyHidden>
               <textarea
                 class="title"
                 rows="1"
@@ -701,7 +720,7 @@
                 onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
               ></textarea>
             {:else}
-              <h1 class="title">{current.title}</h1>
+              <h2 class="title">{current.title}</h2>
             {/if}
             <Inline gap="100" align="center">
               {#if present.length > 0}

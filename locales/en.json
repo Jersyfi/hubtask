@@ -9544,6 +9544,7 @@
   "app.pages.none_open": "Open a page",
   "app.pages.none_open_hint": "Choose a page from the tree, or write a new one.",
   "app.pages.breadcrumb": "Where this page is",
+  "app.pages.trail": "Where the pages are",
   "app.pages.breadcrumb_more": "Show the pages above",
   "app.pages.page_title": "Title",
   "app.pages.is_template": "Template",

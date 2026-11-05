@@ -136,6 +136,36 @@ test('a full space opens on its home page, with one head row and comments beside
   }
 });
 
+// One anatomy (UX-2): the hub's Pages tab carries the head every hub tab carries - the trail to the
+// hub and the tab's title above the tab strip, with the new page as its primary - on the space and
+// on an open page, and the screen keeps one h1.
+test('the pages tab draws the hub tab head above the tab strip, on the space and on a page', async () => {
+  const browser = await chromium.launch();
+  try {
+    for (const rows of [[], FULL]) {
+      const { page, failures, close } = await opened(browser, rows);
+      await page.goto(`${served.origin}/hubs/${HUB.id}/pages`);
+      if (rows.length > 0) await page.waitForURL(`**/pages/${HOME.id}`, { timeout: 15_000 });
+      const head = page.locator('header.head').filter({ has: page.locator('h1') });
+      await head.waitFor({ timeout: 15_000 });
+      assert.equal(await head.getByRole('link', { name: HUB.name }).count(), 1, 'the head has no trail to the hub');
+      assert.equal(await head.getByRole('heading', { level: 1, name: 'Pages' }).count(), 1, 'the head has no title');
+      assert.equal(await head.getByRole('button', { name: 'New page' }).count(), 1, 'the head has no primary');
+      const above = await head.evaluate((element) => {
+        const tabs = document.querySelector('nav.strip[aria-label="House"]') ?? document.querySelector('.space');
+        return Boolean(tabs && element.compareDocumentPosition(tabs) & Node.DOCUMENT_POSITION_FOLLOWING);
+      });
+      assert.ok(above, 'the head is not above the tab strip and the space');
+      if (rows.length > 0) await page.locator('[data-page-head]').getByLabel('Title').waitFor({ timeout: 10_000 });
+      assert.equal(await page.locator('h1').count(), 1, 'the screen has more or less than one h1');
+      assert.deepEqual(failures, []);
+      await close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('a public link is made from a preview of what it shows and leaves out', async () => {
   const browser = await chromium.launch();
   try {
