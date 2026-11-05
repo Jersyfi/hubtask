@@ -156,6 +156,12 @@ The report's shape is the `/meta/health` schema in `api/openapi.yaml`. Its `warn
 installation is missing, each a code with a severity, never free text (`Warnings` in
 `infrastructure/environment/EnvConfig.go`).
 
+Hubtask creates no backup target or schedule by itself. While an active workspace has no enabled
+backup target, or no successful backup in the last 7 days, the report warns
+`backup.workspaces_without_backup` (`warn`, with the two counts and the days), counted across
+workspaces through the `installation_backup_gaps` door with numbers only; the installation's own
+targets and runs cover every workspace (UC-BAK-01 check 11).
+
 ---
 
 ## 6. Resilience patterns

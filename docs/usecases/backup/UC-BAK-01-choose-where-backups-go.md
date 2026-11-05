@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-06, P-08, P-09, P-11, P-12]
 state: built
 tasks: [E-03, E-04, F4-16]
-checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs, apps/webapp/src/lib/data/backup.test.ts]
+checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs, apps/webapp/src/lib/data/backup.test.ts, apps/webapp/src/lib/administration/firststeps.test.ts, infrastructure/health/Backlogs_test.go, test/integration/managed_doors_test.go]
 ---
 
 # Choose where the workspace's backups go
@@ -51,6 +51,10 @@ workspace may add its own targets only if the operator has allowed it.
 10. Every kind the installation can talk to — local, S3, SFTP and WebDAV — can be added in the web
     app, through the API, with `hubctl backup target add` and through MCP, with every field the
     kind needs.
+11. Hubtask creates no target or schedule by itself. In a workspace that may add its own targets
+    and has none, the administration overview's first steps show "Backups: none yet — choose where
+    they go"; `/meta/health` warns `backup.workspaces_without_backup` while an active workspace has
+    no enabled backup target or no successful backup in the last 7 days.
 
 ## Where it ends
 

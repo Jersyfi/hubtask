@@ -153,6 +153,7 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 	scanningOff := r.scanningOff
 	r.mu.RUnlock()
 	rep.Warnings = append(rep.Warnings, heldUploads(rep.Backlogs, scanningOff)...)
+	rep.Warnings = append(rep.Warnings, missingBackups(rep.Backlogs)...)
 
 	for _, source := range sources {
 		rep.Warnings = append(rep.Warnings, source(ctx)...)

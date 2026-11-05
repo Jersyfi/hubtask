@@ -91,7 +91,16 @@ type Backlogs struct {
 	// HeldUploadOldestSeconds how long the oldest of them has been - a warning, not a figure.
 	HeldUploadWorkspaces    int64
 	HeldUploadOldestSeconds float64
+	// BackupWithoutTarget counts the active workspaces no enabled backup target covers, and
+	// BackupWithoutRecent those with no successful backup in BackupStaleDays - a warning, not a
+	// figure (UC-BAK-01).
+	BackupWithoutTarget int64
+	BackupWithoutRecent int64
 }
+
+// BackupStaleDays is how long a workspace may go without a successful backup before the health
+// report warns.
+const BackupStaleDays = 7
 
 type Warning struct {
 	Code     string

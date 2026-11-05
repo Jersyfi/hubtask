@@ -323,6 +323,45 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
+	// The backup warning (UC-BAK-01 check 11): workspaces without a target or a recent backup are
+	// counted across workspaces through the door (0368), as the application role reads them.
+	t.Run("the backup gaps count every workspace", func(t *testing.T) {
+		gaps := func() (withoutTarget, withoutRecent int64) {
+			t.Helper()
+			if err := app.QueryRow(ctx, `SELECT without_target, without_recent FROM installation_backup_gaps(7)`).
+				Scan(&withoutTarget, &withoutRecent); err != nil {
+				t.Fatalf("installation_backup_gaps: %v", err)
+			}
+			return withoutTarget, withoutRecent
+		}
+		targetBefore, recentBefore := gaps()
+		if targetBefore < 2 || recentBefore < 2 {
+			t.Fatalf("before any backup %d without a target, %d without a recent backup; want both workspaces", targetBefore, recentBefore)
+		}
+		for _, statement := range []string{
+			`INSERT INTO backup_target (id, tenant_id, name, kind) VALUES
+			 ('01936f2a-7c1e-7000-8000-000000145691', '` + tenantA + `', 'Door A folder', 'LOCAL')`,
+			`INSERT INTO backup_run (id, target_id, tenant_id, trigger, mode, status, finished_at) VALUES
+			 ('01936f2a-7c1e-7000-8000-000000145692', '01936f2a-7c1e-7000-8000-000000145691', '` + tenantA + `',
+			  'MANUAL', 'FULL', 'SUCCEEDED', now() - interval '2 days'),
+			 ('01936f2a-7c1e-7000-8000-000000145693', '01936f2a-7c1e-7000-8000-000000145691', '` + tenantA + `',
+			  'MANUAL', 'FULL', 'SUCCEEDED', now() - interval '9 days')`,
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding: %v", err)
+			}
+		}
+		if target, recent := gaps(); target != targetBefore-1 || recent != recentBefore-1 {
+			t.Errorf("after A's backup %d without a target, %d without a recent backup; want %d and %d",
+				target, recent, targetBefore-1, recentBefore-1)
+		}
+		var direct int
+		one(t, `SELECT count(*) FROM backup_target`, &direct)
+		if direct != 0 {
+			t.Errorf("without a workspace the application read %d backup targets", direct)
+		}
+	})
+
 	// The owner's policies name the owner and nobody else: the application, reading the same tables
 	// directly with no workspace set, still sees nothing.
 	t.Run("the application role is still bounded", func(t *testing.T) {

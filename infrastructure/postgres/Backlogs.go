@@ -57,6 +57,11 @@ func (b Backlogs) Read(ctx context.Context) (health.Backlogs, error) {
 			return backlogFailed("the held uploads", err)
 		}
 		out.HeldUploadWorkspaces, out.HeldUploadOldestSeconds = held.Workspaces, held.OldestSeconds
+		gaps, err := queries.InstallationBackupGaps(ctx, health.BackupStaleDays)
+		if err != nil {
+			return backlogFailed("the workspaces without a backup", err)
+		}
+		out.BackupWithoutTarget, out.BackupWithoutRecent = gaps.WithoutTarget, gaps.WithoutRecent
 		return nil
 	})
 	return out, err

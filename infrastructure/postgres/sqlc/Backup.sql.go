@@ -641,6 +641,25 @@ func (q *Queries) InsertBackupTarget(ctx context.Context, arg InsertBackupTarget
 	return err
 }
 
+const installationBackupGaps = `-- name: InstallationBackupGaps :one
+SELECT without_target::bigint AS without_target, without_recent::bigint AS without_recent
+FROM installation_backup_gaps($1::integer)
+`
+
+type InstallationBackupGapsRow struct {
+	WithoutTarget int64
+	WithoutRecent int64
+}
+
+// The health report's backup warning, across workspaces through the door (0368): how many active
+// workspaces have no enabled target, and how many no successful backup in the given days. Numbers.
+func (q *Queries) InstallationBackupGaps(ctx context.Context, staleDays int32) (InstallationBackupGapsRow, error) {
+	row := q.db.QueryRow(ctx, installationBackupGaps, staleDays)
+	var i InstallationBackupGapsRow
+	err := row.Scan(&i.WithoutTarget, &i.WithoutRecent)
+	return i, err
+}
+
 const lastSuccessfulBackupPerTarget = `-- name: LastSuccessfulBackupPerTarget :many
 SELECT target_id, max(COALESCE(finished_at, started_at))::timestamptz AS last_success_at
 FROM backup_run

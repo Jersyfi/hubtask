@@ -14,6 +14,7 @@ const owner: FirstStepFacts = {
   hasMailbox: false,
   hasSignIn: false,
   hasNightlyBackup: true,
+  hasBackupTarget: true,
   mayAddBackupTarget: true,
   hasSupportContact: false,
 };
@@ -43,6 +44,14 @@ test('the mailbox step is the service desk\'s', () => {
 test('the backup step is left out where the operator keeps the backups', () => {
   const steps = firstSteps({ ...owner, hasNightlyBackup: false, mayAddBackupTarget: false });
   assert.equal(steps.steps.some((step) => step.id === 'backup'), false, 'a step the workspace may never tick is not drawn');
+});
+
+test('a workspace with no backup target is told that no backup is made yet', () => {
+  const none = firstSteps({ ...owner, hasNightlyBackup: false, hasBackupTarget: false }).steps.find((step) => step.id === 'backup');
+  assert.equal(none?.label, 'backup_none', 'the step says "Backups: none yet - choose where they go"');
+  assert.equal(none?.isDone, false);
+  const unscheduled = firstSteps({ ...owner, hasNightlyBackup: false, hasBackupTarget: true }).steps.find((step) => step.id === 'backup');
+  assert.equal(unscheduled?.label, 'backup', 'with a target the step asks for a schedule');
 });
 
 test('the card waits for every fact a shown step needs', () => {

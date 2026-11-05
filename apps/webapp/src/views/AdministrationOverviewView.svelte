@@ -165,6 +165,7 @@
     ),
     hasNightlyBackup: factOf(backup.schedules.status, () =>
       backup.schedules.status === 'ready' && backup.schedules.data.some((schedule) => schedule.enabled !== false)),
+    hasBackupTarget: factOf(backup.targets.status, () => targets.length > 0),
     mayAddBackupTarget: manifest.value?.features?.backup_targets === true,
     hasSupportContact: manifest.value === undefined ? undefined : Boolean(manifest.value.legal?.support_url),
   }));

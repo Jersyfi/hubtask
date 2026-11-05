@@ -27,11 +27,11 @@
     {#each steps.steps as step (step.id)}
       <li data-step={step.id} data-done={step.isDone ? '' : undefined}>
         <span class="tick" aria-hidden="true">{#if step.isDone}<Icon name="check" size="sm" />{/if}</span>
-        <span class="text">{t(`app.first_steps.${step.id}`)}</span>
+        <span class="text">{t(`app.first_steps.${step.label}`)}</span>
         {#if step.isDone}
           <span class="quiet">{t('app.first_steps.done')}</span>
         {:else}
-          <a href={step.page}>{t(`app.first_steps.${step.id}_act`)}</a>
+          <a href={step.page}>{t(`app.first_steps.${step.label}_act`)}</a>
         {/if}
       </li>
     {/each}

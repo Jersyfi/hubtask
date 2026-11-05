@@ -22,6 +22,9 @@ const (
 	UploadsHeldCode = "media.uploads_held"
 	// UploadsHeldUnscannedCode is the same with scanning switched off: nothing will release them.
 	UploadsHeldUnscannedCode = "media.uploads_held_without_scanner"
+	// BackupMissingCode is the report's warning while an active workspace has no backup target or
+	// no successful backup in port.BackupStaleDays: Hubtask creates neither by itself (UC-BAK-01).
+	BackupMissingCode = "backup.workspaces_without_backup"
 
 	// backlogsEvery is how old a count may be before a report starts the next one.
 	backlogsEvery = time.Minute
@@ -53,6 +56,18 @@ func heldUploads(counted port.Backlogs, scanningOff bool) []port.Warning {
 	return []port.Warning{{Code: code, Severity: severity, Params: map[string]string{
 		"workspaces":     strconv.FormatInt(counted.HeldUploadWorkspaces, 10),
 		"oldest_minutes": strconv.FormatInt(int64(counted.HeldUploadOldestSeconds/60), 10),
+	}}}
+}
+
+// missingBackups is the warning while any active workspace has no target or no recent backup.
+func missingBackups(counted port.Backlogs) []port.Warning {
+	if counted.BackupWithoutTarget <= 0 && counted.BackupWithoutRecent <= 0 {
+		return nil
+	}
+	return []port.Warning{{Code: BackupMissingCode, Severity: "warn", Params: map[string]string{
+		"without_target": strconv.FormatInt(counted.BackupWithoutTarget, 10),
+		"without_recent": strconv.FormatInt(counted.BackupWithoutRecent, 10),
+		"days":           strconv.Itoa(port.BackupStaleDays),
 	}}}
 }
 

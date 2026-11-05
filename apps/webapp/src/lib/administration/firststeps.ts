@@ -26,6 +26,9 @@ export interface FirstStepFacts {
   readonly hasMailbox: Fact;
   readonly hasSignIn: Fact;
   readonly hasNightlyBackup: Fact;
+  /** Whether the workspace names a backup target yet: without one the step says that no backup
+   * is made at all, since Hubtask creates no target or schedule by itself. */
+  readonly hasBackupTarget: Fact;
   /** Whether this workspace may add a backup target of its own (the manifest's `backup_targets`):
    * where the operator keeps the backups, the step could never be ticked. */
   readonly mayAddBackupTarget: boolean;
@@ -37,6 +40,8 @@ export interface FirstStep {
   readonly isDone: boolean;
   /** Where the step is done. */
   readonly page: string;
+  /** The message key's suffix the step is said with: its id, or a variant of it. */
+  readonly label: string;
 }
 
 export interface FirstSteps {
@@ -52,12 +57,14 @@ const STEPS: readonly {
   readonly page: string;
   readonly fact: (facts: FirstStepFacts) => Fact;
   readonly applies?: (facts: FirstStepFacts) => boolean;
+  readonly label?: (facts: FirstStepFacts) => string;
 }[] = [
   { id: 'invite', permission: 'MANAGE_MEMBERS', page: '/administration/people', fact: (facts) => facts.hasSeveralPeople },
   { id: 'products', permission: 'STRUCTURE', page: '/administration/modules', fact: (facts) => facts.hasModuleOn },
   { id: 'mailbox', permission: 'AUTOMATION', page: '/administration/mail', fact: (facts) => facts.hasMailbox, applies: (facts) => facts.isDeskOn },
   { id: 'signin', permission: 'STRUCTURE', page: '/administration/sign-in', fact: (facts) => facts.hasSignIn },
-  { id: 'backup', permission: 'DELETE_CONTAINER', page: '/administration/backup', fact: (facts) => facts.hasNightlyBackup, applies: (facts) => facts.mayAddBackupTarget },
+  { id: 'backup', permission: 'DELETE_CONTAINER', page: '/administration/backup', fact: (facts) => facts.hasNightlyBackup, applies: (facts) => facts.mayAddBackupTarget,
+    label: (facts) => (facts.hasBackupTarget === false ? 'backup_none' : 'backup') },
   { id: 'support', permission: 'STRUCTURE', page: '/administration/legal', fact: (facts) => facts.hasSupportContact },
 ];
 
@@ -67,7 +74,7 @@ export function firstSteps(facts: FirstStepFacts): FirstSteps {
   const isSettled = read.every(({ fact }) => fact !== undefined);
   const steps = read
     .filter(({ fact }) => fact !== null && fact !== undefined)
-    .map(({ step, fact }) => ({ id: step.id, isDone: fact === true, page: step.page }));
+    .map(({ step, fact }) => ({ id: step.id, isDone: fact === true, page: step.page, label: step.label?.(facts) ?? step.id }));
   return { isSettled, steps, done: steps.filter((step) => step.isDone).length };
 }
 

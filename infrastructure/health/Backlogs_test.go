@@ -6,6 +6,7 @@ package health
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -109,5 +110,36 @@ func TestHeldUploadsAppearInTheReport(t *testing.T) {
 		if w.Code == UploadsHeldCode {
 			t.Errorf("nothing held, and the report warns %+v", w)
 		}
+	}
+}
+
+func TestAWorkspaceWithoutABackupIsWarnedAbout(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		counts port.Backlogs
+		warned bool
+	}{
+		{"every workspace backed up this week", port.Backlogs{}, false},
+		{"a workspace with no target", port.Backlogs{BackupWithoutTarget: 1, BackupWithoutRecent: 1}, true},
+		{"a target but no backup in seven days", port.Backlogs{BackupWithoutRecent: 3}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			registry := startedRegistry()
+			registry.SetBacklogs(func(context.Context) (port.Backlogs, error) { return tc.counts, nil })
+			registry.SampleBacklogs(context.Background())
+			var warned *port.Warning
+			for _, w := range registry.Report(context.Background()).Warnings {
+				if w.Code == BackupMissingCode {
+					warned = &w
+				}
+			}
+			if (warned != nil) != tc.warned {
+				t.Fatalf("warned %+v, want %v", warned, tc.warned)
+			}
+			if warned != nil && (warned.Severity != "warn" || warned.Params["days"] != "7" ||
+				warned.Params["without_recent"] != strconv.FormatInt(tc.counts.BackupWithoutRecent, 10)) {
+				t.Errorf("warning = %+v", warned)
+			}
+		})
 	}
 }
