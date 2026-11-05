@@ -572,8 +572,10 @@
   {:else}
     <!-- The scroller is what a left or right arrow moves through, and it scrolls in the writing
          direction by itself: `overflow-x` follows `direction`, so a right-to-left timeline starts
-         at its own beginning without a second rule. -->
-    <div class="scroller">
+         at its own beginning without a second rule. It takes focus, so a keyboard reaches what
+         is scrolled out of view where no bar inside is a control (WCAG 2.1.1). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="scroller" tabindex="0">
       {#if drawn.length > 0}
         <!-- Unsized and overflowing: it draws in the scroller's coordinates from its own corner. -->
         <svg class="arrows" bind:this={canvas} aria-hidden="true" focusable="false">
@@ -797,6 +799,7 @@
   /* Positioned, so it is the containing block of what it scrolls: an absolutely positioned
      descendant of an unpositioned scroller overflows the page instead. */
   .scroller { position: relative; overflow-x: auto; padding-block-end: var(--sp-050); container-type: inline-size; }
+  .scroller:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   /* `max-content`, so the box is exactly as wide as the columns in it. A grid that filled its
      container would leave the tracks at their own width inside a wider box, and every measurement

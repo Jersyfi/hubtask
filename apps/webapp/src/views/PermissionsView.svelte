@@ -222,7 +222,9 @@
       <Stack gap="100">
         <h3 class="sub" id="setting-writers">{t('app.access.settings_title')}</h3>
         <p class="quiet small">{t('app.access.settings_intro')}</p>
-        <div class="scroll">
+        <!-- Wider than a phone, it scrolls; it takes focus so a keyboard can scroll it (WCAG 2.1.1). -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <div class="scroll" role="region" aria-labelledby="setting-writers" tabindex="0">
           <table data-testid="setting-writers">
             <thead>
               <tr>
@@ -265,6 +267,7 @@
   .mono { font-family: var(--font-mono); }
 
   .scroll { overflow-x: auto; }
+  .scroll:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   table { width: 100%; border-collapse: collapse; font-size: var(--fs-075); }
 
