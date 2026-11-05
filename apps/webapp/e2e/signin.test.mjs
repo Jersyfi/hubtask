@@ -117,6 +117,36 @@ test('the card is reached, filled and submitted from the keyboard alone', async 
   }
 });
 
+// UC-ID-01 checks 1 and 7: no app bar, navigation or account menu, the host beside the wordmark,
+// and nothing sent until the button.
+test('the signed-out card stands alone and sends nothing by itself', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = [];
+  const stub = stubFor({ answer: refused });
+  const { browser, page } = await open(origin, async (route) => {
+    if (route.request().url().endsWith('/auth/sessions')) sent.push(route.request().method());
+    return stub(route);
+  });
+  try {
+    assert.equal(await page.getByRole('navigation').count(), 0, 'a navigation is drawn');
+    assert.equal(await page.getByRole('banner').count(), 0, 'an app bar is drawn');
+    assert.equal(await page.getByRole('button', { name: /account/i }).count(), 0, 'an account menu is drawn');
+    assert.equal(await page.getByText('to contoso.hubtask.eu').count(), 1);
+    const address = page.locator('input[autocomplete="username webauthn"]');
+    assert.equal(await address.count(), 1);
+    await address.fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('a-long-enough-password');
+    await page.waitForTimeout(500);
+    assert.deepEqual(sent, [], 'the card sent itself');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.locator('[role="alert"]').waitFor();
+    assert.deepEqual(sent, ['POST']);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 test('the eye shows the password and says which state it is in', async () => {
   const { origin, close } = await serve(DIST);
   const { browser, page } = await open(origin, stubFor({ answer: refused }));
@@ -127,6 +157,8 @@ test('the eye shows the password and says which state it is in', async () => {
     assert.equal(await eye.getAttribute('aria-pressed'), 'false');
     await eye.click();
     assert.equal(await page.locator('input[autocomplete="current-password"]').getAttribute('type'), 'text');
+    // UC-ID-01 check 3: shown and hidden without changing it.
+    assert.equal(await page.locator('input[autocomplete="current-password"]').inputValue(), 'a-long-enough-password');
     const hide = page.getByRole('button', { name: 'Hide password' });
     assert.equal(await hide.getAttribute('aria-pressed'), 'true');
     await hide.click();
@@ -151,8 +183,10 @@ test('a refusal is one sentence, and it is announced rather than only drawn', as
     assert.match(text, /Sign-in failed/);
     // T-02: nothing on the screen says which half was wrong.
     assert.ok(!/address .*(unknown|not found)/i.test(text), text);
-    // The password is out of the field, and out of the DOM with it.
+    // The password is out of the field, and out of the DOM with it - and the field has the focus
+    // (UC-ID-01 check 4).
     assert.equal(await page.locator('input[autocomplete="current-password"]').inputValue(), '');
+    await page.waitForFunction(() => document.activeElement?.getAttribute('autocomplete') === 'current-password');
   } finally {
     await browser.close();
     await close();
