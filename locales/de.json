@@ -11979,6 +11979,7 @@
   "app.consent.scope.config_apply_role_groups": "Festlegen, welche Gruppen die Rollen der Konfiguration halten, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_roles": "Rollen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_fields": "Felder der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_collection_attributes": "Schlüsselpräfixe der Sammlungen aus der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_business_calendars": "Geschäftskalender der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_requester_organisations": "Portal-Organisationen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_reply_templates": "Antwortvorlagen der Konfiguration anwenden, ohne deren eigenen Bereich",

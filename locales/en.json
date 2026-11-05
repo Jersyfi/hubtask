@@ -11979,6 +11979,7 @@
   "app.consent.scope.config_apply_role_groups": "Apply which groups hold the configuration's roles without their own permission scope",
   "app.consent.scope.config_apply_roles": "Apply the configuration's roles without their own permission scope",
   "app.consent.scope.config_apply_fields": "Apply the configuration's fields without their own permission scope",
+  "app.consent.scope.config_apply_collection_attributes": "Apply the configuration's collection key prefixes without their own permission scope",
   "app.consent.scope.config_apply_business_calendars": "Apply the configuration's business calendars without their own permission scope",
   "app.consent.scope.config_apply_requester_organisations": "Apply the configuration's portal organisations without their own permission scope",
   "app.consent.scope.config_apply_reply_templates": "Apply the configuration's reply templates without their own permission scope",
