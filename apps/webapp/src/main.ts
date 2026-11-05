@@ -31,7 +31,7 @@ import './app.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { manifest } from './lib/data/capabilities.svelte.ts';
-import { startLocale } from './lib/i18n/i18n.svelte.ts';
+import { messages, startLocale } from './lib/i18n/i18n.svelte.ts';
 import { device } from './lib/device.svelte.ts';
 import { t } from './lib/i18n/i18n.svelte.ts';
 import { toast } from './lib/frame/toasts.svelte.ts';
@@ -86,4 +86,10 @@ function tell(error: unknown, message?: string): void {
 window.addEventListener('unhandledrejection', (event) => tell(event.reason));
 window.addEventListener('error', (event) => tell(event.error, event.message));
 
-mount(App, { target: root });
+// The first paint waits for the reader's catalogue, a chunk of its own, so that it is in their
+// language rather than in humanised codes - but not for longer than a slow connection takes: then
+// it paints with what there is, and the sentences replace it when the chunk arrives.
+const CATALOGUE_WAIT_MS = 4_000;
+void Promise.race([messages.ready, new Promise((resolve) => setTimeout(resolve, CATALOGUE_WAIT_MS))]).finally(() =>
+  mount(App, { target: root }),
+);

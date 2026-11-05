@@ -3,8 +3,8 @@
 
 // What the first screen downloads, held to a budget. The doors (sign-in, setup, an invitation, a
 // reset) draw from the entry and the chunks index.html preloads; the frame, the work's screens and
-// the editor (yjs, the block editor) load after sign-in. The source catalogue is the text of every
-// screen and is counted apart: it grows with the product, the code around it must not.
+// the editor (yjs, the block editor) load after sign-in. The catalogues are chunks loaded on demand
+// (`chunks.test.js`) and are not counted: they grow with the product, the code around it must not.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const built = fs.existsSync(path.join(DIST, 'index.html'));
 
-/** The gzip bytes the first screen may cost, the source catalogue apart. */
+/** The gzip bytes the first screen may cost. */
 const INITIAL_BUDGET = 200_000;
 
 function initialFiles() {
@@ -27,7 +27,7 @@ function initialFiles() {
 }
 
 test('the first screen stays within its budget', { skip: !built && 'no build in dist/' }, () => {
-  const files = initialFiles().filter((file) => !/\/en-[^/]*\.js$/.test(file));
+  const files = initialFiles();
   const bytes = files.reduce((sum, file) => sum + zlib.gzipSync(fs.readFileSync(path.join(DIST, file))).length, 0);
   assert.ok(bytes <= INITIAL_BUDGET, `the first screen costs ${bytes} gzip bytes, over the budget of ${INITIAL_BUDGET}`);
 });

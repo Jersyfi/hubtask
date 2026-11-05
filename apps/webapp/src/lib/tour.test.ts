@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import german from '../../../../locales/de.json' with { type: 'json' };
 
-import { SOURCE } from './i18n/catalogue.ts';
+import { SOURCE } from './i18n/source.ts';
 import { startsAt, stepsFor } from './tour.ts';
 
 test('the layouts step names every layout a collection may offer, the timeline too', () => {

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SOURCE } from '../i18n/catalogue.ts';
+import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { guideOf, hasGuide, whoToAsk } from './guide.ts';
 

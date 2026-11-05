@@ -173,15 +173,15 @@ Forbidden:
 * **A monorepo build orchestrator** (Nx, Turborepo, Bazel): pnpm workspaces plus the `Makefile`.
 
 One reach out of a member is deliberate: **the catalogues under `locales/`**, which
-`apps/webapp/src/lib/i18n/catalogue.ts` reads — `en.json` imported as the source, the others through
-`import.meta.glob('locales/*.json')`, one lazy chunk each, none in the initial bundle. The source is
-the product's single catalogue of display text ([i18n-l10n.md](./i18n-l10n.md) §3) and sits at the
-root because the Go binary embeds it. The lint allows exactly `locales/<name>.json` from that one
-module, so anything else — `locales/Embed.go` included — is still refused, and its selftest plants
-both.
+`apps/webapp/src/lib/i18n/catalogue.ts` reads — every one, the source `en.json` included, through
+`import.meta.glob('locales/*.json')`, one lazy chunk each, none in the initial bundle; `source.ts`
+beside it imports `en.json` for the tests alone. The source is the product's single catalogue of
+display text ([i18n-l10n.md](./i18n-l10n.md) §3) and sits at the root because the Go binary embeds
+it. The lint allows exactly `locales/<name>.json`, so anything else — `locales/Embed.go` included —
+is still refused, and its selftest plants both.
 
 The web app's first screen is held to a budget: the entry and the chunks `index.html` preloads cost
-at most 200,000 gzip bytes, the source catalogue apart, and carry no part of the editor (yjs, the
+at most 200,000 gzip bytes and carry no part of the editor (yjs, the
 block editor) - `apps/webapp/build/budget.test.js`, run after the build in CI. The doors draw from
 the entry alone; the frame and the work's screens (`lib/frame/parts.ts`) load once somebody is
 signed in, the editor when a document is opened.

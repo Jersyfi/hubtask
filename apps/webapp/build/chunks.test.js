@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The other catalogues are loaded, not bundled (`i18n-l10n.md` §3).
+// The catalogues are loaded, not bundled (`i18n-l10n.md` §3).
 //
 // `import.meta.glob` over `locales/*.json` gives one chunk per file and none of them in the
 // initial bundle - which is a promise about what Vite emits, so it is checked against what Vite
@@ -47,4 +47,19 @@ test('the German catalogue is a chunk of its own, outside the initial bundle', {
   assert.ok(!initialChunks.has(`assets/${german}`), `the German chunk is in the initial bundle: ${[...initialChunks].join(', ')}`);
   assert.ok(sources.some((source) => source.includes(`import(\`./${german}\`)`) || source.includes(`import("./${german}")`)), 'the initial bundle does not load the German chunk on demand');
   assert.ok(sources.every((source) => !source.includes(`from"./${german}"`) && !source.includes(`from "./${german}"`)), 'the initial bundle imports the German chunk statically');
+});
+
+// The source catalogue is loaded too, not bundled: a German reader reads `de.json` whole and
+// should not also download every English sentence before the first screen.
+test('the English catalogue is a chunk of its own, outside the initial bundle', { skip: !built && 'no build in dist/' }, () => {
+  const html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
+  const initial = [
+    ...[...html.matchAll(/<script[^>]*\ssrc="\/?([^"]+)"/g)].map((m) => m[1]),
+    ...[...html.matchAll(/<link[^>]*rel="modulepreload"[^>]*href="\/?([^"]+)"/g)].map((m) => m[1]),
+  ];
+  assert.ok(!initial.some((file) => /\/en-[^/]*\.js$/.test(file)), `the English chunk is loaded up front: ${initial.join(', ')}`);
+  const english = fs.readdirSync(path.join(DIST, 'assets')).find((file) => /^en-[^.]*\.js$/.test(file));
+  assert.ok(english, 'no chunk for locales/en.json was emitted');
+  const entry = fs.readFileSync(path.join(DIST, initial[0]), 'utf8');
+  assert.ok(!entry.includes('Please sign in.'), 'the entry carries the English sentences');
 });

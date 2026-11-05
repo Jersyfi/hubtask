@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SOURCE } from './i18n/catalogue.ts';
+import { SOURCE } from './i18n/source.ts';
 import GERMAN from '../../../../locales/de.json' with { type: 'json' };
 import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, MORE_CODE, PRODUCTS, TRASH, account, administration, administrationFor, bar, currentDestination, firstScreen, installationPlace, instanceSection, primary, products, workspaceBand, type SectionGroup } from './navigation.ts';
 import { ROUTES, movedTo } from './routes.ts';

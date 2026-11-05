@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyDocumentLocale, directionOf, fallbackChain, languageName, resolveLocale, scriptOf } from './locale.ts';
+import { applyDocumentLocale, directionOf, fallbackChain, languageName, platformDirection, resolveLocale, scriptOf } from './locale.ts';
 
 const supported = [
   { locale: 'en', direction: 'ltr' as const },
@@ -70,4 +70,10 @@ test('a language is named in its own words and in the reader’s, and by its tag
   assert.equal(languageName('en', 'en'), 'English');
   // A tag the platform cannot name is shown as itself, which is what the select showed before.
   assert.equal(languageName('x-private', 'en'), 'x-private');
+});
+
+test('before the manifest, the platform says which way a locale runs', () => {
+  assert.equal(platformDirection('de'), 'ltr');
+  assert.equal(platformDirection('ar'), 'rtl');
+  assert.equal(platformDirection('not a tag'), 'ltr');
 });

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SOURCE } from '../i18n/catalogue.ts';
+import { SOURCE } from '../i18n/source.ts';
 import { DEFAULT_KINDS, owesDefaultKinds } from './kinds.ts';
 
 // user-experience.md §4: the workspace's kinds of work are there on first use, so the timer starts.

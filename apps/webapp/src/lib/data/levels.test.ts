@@ -11,11 +11,11 @@ import type { StructureSettings } from '@hubtask/sync-engine';
 
 import german from '../../../../../locales/de.json' with { type: 'json' };
 
-import { SOURCE } from '../i18n/catalogue.ts';
+import { SOURCE } from '../i18n/source.ts';
 import { createMessages } from '../i18n/messages.ts';
 import { levelName, levelRefusal, levelWords } from './levels.ts';
 
-const english = createMessages({ locale: 'en' });
+const english = createMessages({ locale: 'en', catalogues: [SOURCE] });
 const deutsch = createMessages({ locale: 'de', catalogues: [german, SOURCE] });
 const t = english.t;
 

@@ -2,25 +2,18 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The catalogue, read where it lives.
+ * The catalogues, read where they live.
  *
- * `locales/en.json` is the one source (`i18n-l10n.md` §3) and it sits at the repository root
- * because the Go binary embeds it — `locales/Embed.go` exists for exactly the same reason this
- * import climbs five directories: a catalogue that is copied is a catalogue that is forgotten, and
- * the two halves of the product would then disagree about what a code says.
+ * `locales/` is the one source (`i18n-l10n.md` §3) and it sits at the repository root because the
+ * Go binary embeds it - `locales/Embed.go` exists for the same reason the paths below climb five
+ * directories: a catalogue that is copied is a catalogue that is forgotten.
  *
- * That is this task's decision, out of the three it was offered. A **build-time import** rather
- * than a package that owns the read, because there is one consumer today and a package is a
- * manifest, a CI matrix entry, a filter and a dependency edge for a file with no logic in it;
- * rather than a Vite alias, because an alias is the same path written in two configuration files
- * that can drift. The path is ugly on purpose, and it appears exactly once: everything else in the
- * client imports the catalogue from here.
- *
- * When a second client renders codes — the website does not — this module is what becomes
- * `packages/i18n`, and nothing that imports it has to change.
+ * Every catalogue is a chunk loaded on first use, the source included: the source is about a
+ * quarter of a megabyte compressed, and a reader of a complete translation never needs it. Until
+ * a catalogue arrives a code renders as `humanise` makes it - the boot waits for the first one
+ * (`main.ts`), so that is what a failed load shows, never a blank. Tests read the source through
+ * `source.ts`.
  */
-
-import english from '../../../../../locales/en.json' with { type: 'json' };
 
 /** One locale's messages, by code. */
 export type Catalogue = Readonly<Record<string, string>>;
@@ -35,7 +28,7 @@ export const SOURCE_LOCALE = 'en';
  */
 const METADATA_PREFIX = '_';
 
-function withoutMetadata(entries: Readonly<Record<string, string>>): Catalogue {
+export function withoutMetadata(entries: Readonly<Record<string, string>>): Catalogue {
   const messages: Record<string, string> = {};
   for (const [code, message] of Object.entries(entries)) {
     if (!code.startsWith(METADATA_PREFIX)) messages[code] = message;
@@ -43,21 +36,17 @@ function withoutMetadata(entries: Readonly<Record<string, string>>): Catalogue {
   return messages;
 }
 
-/** The source catalogue: `locales/en.json`, minus its notes to translators. */
-export const SOURCE: Catalogue = withoutMetadata(english);
-
 /**
- * The other catalogues, lazily (`i18n-l10n.md` §3).
+ * The catalogues, lazily (`i18n-l10n.md` §3).
  *
  * `import.meta.glob` over the same directory: one chunk per file, none of them in the initial
- * bundle, loaded when the resolved locale is not the source. Not a `fetch` of `/locales/<tag>.json`
+ * bundle, loaded when the resolved locale asks for it. Not a `fetch` of `/locales/<tag>.json`
  * - the server serves no such route and `connect-src` names none - and not a second copy under
- * `apps/`, which `i18n-l10n.md` §6 line 1 forbids by name. The path is the same ugly climb as
- * the source's, and it appears exactly twice in this file.
+ * `apps/`, which `i18n-l10n.md` §6 line 1 forbids by name.
  *
  * Outside Vite - the tests, the residue render - `import.meta.glob` does not exist and the call
- * throws, and then there are no chunks: the source renders, which is what happens for a missing
- * file too. The call is made rather than tested for, because Vite rewrites the *call* at build
+ * throws, and then there are no chunks: codes render humanised, which is what happens for a
+ * missing file too. The call is made rather than tested for, because Vite rewrites the *call* at build
  * time and knows nothing of a `typeof` beside it.
  */
 function chunksOf(): Record<string, () => Promise<unknown>> {
@@ -82,9 +71,19 @@ function chunkFor(locale: string): (() => Promise<unknown>) | undefined {
   return undefined;
 }
 
+/** The locales this build carries a catalogue for, the source always among them. */
+export function bundledLocales(): string[] {
+  const locales = new Set([SOURCE_LOCALE]);
+  for (const key of Object.keys(chunks)) {
+    const match = /\/locales\/([^/]+)\.json$/.exec(key);
+    if (match?.[1]) locales.add(match[1]);
+  }
+  return [...locales];
+}
+
 /** Whether this build carries a catalogue for the locale, without loading it. */
 export function hasCatalogue(locale: string): boolean {
-  return locale === SOURCE_LOCALE || chunkFor(locale) !== undefined;
+  return chunkFor(locale) !== undefined;
 }
 
 /**
@@ -95,7 +94,6 @@ export function hasCatalogue(locale: string): boolean {
  * development, and nowhere else.
  */
 export async function loadCatalogue(locale: string): Promise<Catalogue | undefined> {
-  if (locale === SOURCE_LOCALE) return SOURCE;
   const load = chunkFor(locale);
   if (!load) return undefined;
   const entries = (await load()) as Readonly<Record<string, string>>;

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 
 import german from '../../../../../locales/de.json' with { type: 'json' };
 
-import { SOURCE } from './catalogue.ts';
+import { SOURCE } from './source.ts';
 import { createMessages } from './messages.ts';
 
 const ITEM_TYPES = ['TASK', 'WORK_PACKAGE', 'ACTIVITY', 'MILESTONE'];
@@ -52,7 +52,7 @@ for (const locale of ['en', 'de']) {
 }
 
 test('a message about a type of container names it in words', () => {
-  const messages = createMessages({ locale: 'en' });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE] });
   for (const type of CONTAINER_TYPES) {
     for (const parent of CONTAINER_TYPES) {
       const sentence = messages.t('containers.parent_type_invalid', { type, parent_type: parent });
@@ -63,7 +63,7 @@ test('a message about a type of container names it in words', () => {
 });
 
 test('the words read as sentences', () => {
-  const messages = createMessages({ locale: 'en' });
+  const messages = createMessages({ locale: 'en', catalogues: [SOURCE] });
   assert.equal(messages.t('items.parent_type_invalid', { item_type: 'TASK', parent_type: 'ACTIVITY' }), 'A task cannot sit in an activity.');
   assert.equal(messages.t('items.depth_exceeded', { item_type: 'ACTIVITY', maximum: '1' }), 'An activity cannot sit that deep. At most 1 level is allowed here.');
   assert.equal(messages.t('items.type_unsupported', { item_type: 'WORK_PACKAGE' }), 'This workspace does not offer work packages.');

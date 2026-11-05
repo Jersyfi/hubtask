@@ -19,7 +19,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SOURCE, SOURCE_LOCALE, patternFor } from './catalogue.ts';
+import { SOURCE_LOCALE, patternFor } from './catalogue.ts';
+import { SOURCE } from './source.ts';
 import { format, parse } from './format.ts';
 
 test('the catalogue is the one at the repository root, and it is not empty', () => {

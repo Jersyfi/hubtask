@@ -29,7 +29,7 @@ The product UI in the browser, embedded into the binary and wrapped by the shell
   `[partial: ci:node; open: a device preference written to the replica]`
 * **No sentence in a component.** A component calls `t('code', params)`; the application's own
   strings are `app.*` codes in `locales/en.json`. No second catalogue: `src/lib/i18n/catalogue.ts`
-  is the one reader of that file. A failure becomes words in `lib/problem.ts` only — a component
+  is the one reader of that file at run time, and `source.ts` the one for tests. A failure becomes words in `lib/problem.ts` only — a component
   that read `error.code` itself would be a second place a sentence could appear. `[owner]`
 * **No `fetch`, no IndexedDB, no `EventSource`.** Every request goes through
   `@hubtask/sync-engine` (see its `AGENTS.md`); this app supplies paths, not transport. `[owner]`

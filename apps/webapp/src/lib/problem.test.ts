@@ -8,9 +8,10 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { formatDateTime } from './i18n/datetime.ts';
 import { createMessages } from './i18n/messages.ts';
+import { SOURCE } from './i18n/source.ts';
 import { isNoSuchObject, isObjectId, renderProblem, renderRefusal } from './problem.ts';
 
-const messages = createMessages({ locale: 'en', onProblem: () => {} });
+const messages = createMessages({ locale: 'en', catalogues: [SOURCE], onProblem: () => {} });
 
 test('the specific code wins over the category it falls into', () => {
   const rendered = renderProblem(
