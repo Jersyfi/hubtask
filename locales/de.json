@@ -5807,6 +5807,7 @@
   "app.search.language_mine": "Deine eigene Sprache",
   "app.search.searching": "Wird gesucht",
   "app.search.found": "Gefundene Einträge: {count}.",
+  "app.search.found_any": "Gefundene Ergebnisse: {count}.",
   "app.search.none": "Nichts passt auf diese Wörter.",
   "app.search.kinds": "Was gezeigt wird",
   "app.search.kind.all": "Alles",

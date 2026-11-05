@@ -33,3 +33,13 @@ export function nameMatches(name: string, words: string): boolean {
   const held = fold(name);
   return wanted.every((word) => held.includes(word));
 }
+
+/**
+ * What the search says it found: entries by that word where they are all it found, otherwise the
+ * results of every kind together.
+ */
+export function foundWords(entries: number, others: number): { code: string; params: Record<string, number> } {
+  if (entries + others === 0) return { code: 'app.search.none', params: {} };
+  if (others === 0) return { code: 'app.search.found', params: { count: entries } };
+  return { code: 'app.search.found_any', params: { count: entries + others } };
+}

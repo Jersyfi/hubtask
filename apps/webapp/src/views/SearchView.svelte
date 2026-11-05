@@ -45,7 +45,7 @@
   import FilterBar from '../lib/search/FilterBar.svelte';
   import SearchLine from '../lib/search/SearchLine.svelte';
   import OtherHits from '../lib/search/OtherHits.svelte';
-  import { kindsOffered, shows, type SearchKind } from '../lib/search/kinds.ts';
+  import { foundWords, kindsOffered, shows, type SearchKind } from '../lib/search/kinds.ts';
 
   import type { BulkOperation, BulkResult, WorkItem } from '@hubtask/sync-engine';
 
@@ -346,8 +346,8 @@
   // The other kinds count too: "nothing matches" while pages match would be a wrong answer.
   $effect(() => {
     if (search.status !== 'done') return;
-    const found = (shows(shownKind, 'entries') ? search.hits.length : 0) + otherCount;
-    announcer.say(found === 0 ? t('app.search.none') : t('app.search.found', { count: found }));
+    const words = foundWords(shows(shownKind, 'entries') ? search.hits.length : 0, otherCount);
+    announcer.say(t(words.code, words.params));
   });
 
   const failure = $derived(search.error ? renderProblem(search.error, messages) : undefined);
