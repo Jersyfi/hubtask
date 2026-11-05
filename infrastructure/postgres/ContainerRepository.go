@@ -153,7 +153,7 @@ func (r ContainerRepository) CollectionsOfHubs(
 		return nil, err
 	}
 	rows, err := queries.ListHubCollections(ctx, sqlc.ListHubCollectionsParams{
-		HubIds: hubs, PerHub: int32(min(perHub, math.MaxInt32)), //nolint:gosec // bounded just before
+		HubIds: hubs, PerHub: int32(min(perHub, math.MaxInt32)),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
