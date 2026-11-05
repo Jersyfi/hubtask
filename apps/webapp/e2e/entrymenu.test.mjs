@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { CHILDREN, COLLECTION, ITEMS, signedIn, stub } from './fixture.mjs';
+import { ARCHIVED, CHILDREN, COLLECTION, GROCERIES, ITEMS, signedIn, stub } from './fixture.mjs';
 import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -382,5 +382,97 @@ test('chromium: 1280 px — Move to another collection and Duplicate ask first a
     await page.keyboard.press('Escape');
     await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 5_000 });
   }
+  assert.deepEqual(failures, []);
+});
+
+// UC-WRK-06 checks 5 and 6: *Move to another collection* offers the collections the reader can
+// see that are neither archived nor the current one, and what the destination could not keep is
+// listed by kind once the move is answered.
+test('chromium: 1280 px — a move elsewhere offers the other open collections and lists what it left behind by kind', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
+  t.after(() => context.close());
+  const entry = ITEMS[2];
+  // The hub's collections, an archived one among them as a listing that includes archived ones
+  // answers it: the picker leaves it out itself.
+  await page.route(new RegExp(`/api/v1/containers\\?.*parent_id=${COLLECTION.parent_id}`), (route) => route.fulfill({
+    json: { data: [COLLECTION, GROCERIES, { ...ARCHIVED, effective_archived: true }], page: { next_cursor: null, has_more: false } },
+  }));
+  const moves = [];
+  await page.route(new RegExp(`/api/v1/items/${entry.id}:move$`), (route) => moves.push(route.request().postDataJSON()) && route.fulfill({
+    json: {
+      item: { ...entry, collection_id: GROCERIES.id, version: entry.version + 1 },
+      dropped_references: [
+        { item_id: entry.id, kind: 'LABEL', id: '01a0e2e0-0000-7000-8000-0000000009a1', code: 'labels.not_in_collection' },
+        { item_id: entry.id, kind: 'BUCKET', id: '01a0e2e0-0000-7000-8000-0000000009a2', code: 'buckets.not_in_collection' },
+      ],
+    },
+  }));
+  const trigger = page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first();
+  await trigger.waitFor({ timeout: 15_000 });
+  await reveal(trigger);
+  await page.getByRole('menuitem', { name: 'Move to another collection' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor({ timeout: 5_000 });
+  await dialog.locator("select option").nth(1).waitFor({ state: "attached", timeout: 10_000 }).catch(async () => assert.fail(`the dialog reads ${(await dialog.innerHTML()).slice(0, 1500)}`));
+  const offered = (await dialog.locator('select option').allTextContents()).map((each) => each.trim());
+  assert.ok(offered.some((each) => each.endsWith(GROCERIES.name)), `the open collection is not offered: ${offered}`);
+  assert.ok(!offered.some((each) => each.endsWith(COLLECTION.name)), `the current collection is offered: ${offered}`);
+  assert.ok(!offered.some((each) => each.endsWith(ARCHIVED.name)), `an archived collection is offered: ${offered}`);
+  await dialog.locator('select').selectOption({ label: offered.find((each) => each.endsWith(GROCERIES.name)) });
+  await dialog.getByRole('button', { name: 'Move', exact: true }).click();
+  const left = page.getByText(`Moving ${entry.title} left some things behind:`);
+  await left.waitFor({ timeout: 5_000 });
+  const listed = (await page.locator('.dropped li strong').allTextContents()).map((each) => each.trim());
+  assert.deepEqual(listed, ['Label', 'Column']);
+  assert.equal(moves.length, 1, 'not one move was sent');
+  assert.equal(moves[0].target_collection_id, GROCERIES.id);
+  assert.equal(moves[0].target_parent_id, null, "the entry does not arrive at the top level");
+  assert.deepEqual(failures, []);
+});
+
+// UC-WRK-07 checks 2 and 5: *Duplicate* offers a title (the original's when left empty), the
+// subtree, and the collections of the same hub; what the destination cannot hold is listed by kind.
+test('chromium: 1280 px — Duplicate offers a title, the subtree and the hub\'s collections, and lists what it left behind by kind', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
+  t.after(() => context.close());
+  const entry = ITEMS[2];
+  await page.route(new RegExp(`/api/v1/containers\\?.*parent_id=${COLLECTION.parent_id}`), (route) => route.fulfill({
+    json: { data: [COLLECTION, GROCERIES], page: { next_cursor: null, has_more: false } },
+  }));
+  const copies = [];
+  await page.route(new RegExp(`/api/v1/items/${entry.id}:duplicate$`), (route) => copies.push(route.request().postDataJSON()) && route.fulfill({
+    status: 201,
+    json: {
+      item: { ...entry, id: '01a0e2e0-0000-7000-8000-0000000009b1', collection_id: GROCERIES.id, version: 1 },
+      copied: 1,
+      dropped_references: [
+        { item_id: entry.id, kind: 'LABEL', id: '01a0e2e0-0000-7000-8000-0000000009a1', code: 'labels.not_in_collection' },
+        { item_id: entry.id, kind: 'ASSIGNEE', id: '01a0e2e0-0000-7000-8000-0000000009a3', code: 'items.assignee_cannot_see_item' },
+      ],
+    },
+  }));
+  const trigger = page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first();
+  await trigger.waitFor({ timeout: 15_000 });
+  await reveal(trigger);
+  await page.getByRole('menuitem', { name: 'Duplicate' }).click();
+  const dialog = page.getByRole('dialog', { name: `Duplicate ${entry.title}` });
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('textbox', { name: 'Title of the copy' }).inputValue(), '');
+  await dialog.getByText('The original’s is kept when this is left empty.').waitFor();
+  assert.equal(await dialog.getByRole('checkbox', { name: 'Copy everything under it too' }).isChecked(), false);
+  const select = dialog.getByRole('combobox', { name: 'Into which collection' });
+  await select.locator('option').nth(2).waitFor({ state: 'attached', timeout: 10_000 });
+  const offered = (await select.locator('option').allTextContents()).map((each) => each.trim());
+  assert.deepEqual(offered, ['Beside the original', COLLECTION.name, GROCERIES.name]);
+  await dialog.getByRole('checkbox', { name: 'Copy everything under it too' }).check();
+  await select.selectOption(GROCERIES.id);
+  await dialog.getByRole('button', { name: 'Duplicate', exact: true }).click();
+  await dialog.getByText(`The copy of ${entry.title} could not carry these over:`).waitFor({ timeout: 5_000 });
+  assert.deepEqual((await dialog.locator('.dropped li strong').allTextContents()).map((each) => each.trim()), ['Label', 'Assignee']);
+  assert.deepEqual(copies, [{ include_subtree: true, target_collection_id: GROCERIES.id, target_parent_id: null }]);
   assert.deepEqual(failures, []);
 });

@@ -4,11 +4,14 @@
 package work
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -648,6 +651,36 @@ func TestACopyAsksToReadTheSourceAndToWriteTheDestination(t *testing.T) {
 			t.Errorf("a refusal would be recorded as %q", request.Action)
 		}
 	}
+}
+
+// UC-WRK-07 check 7: whoever may read the entry but not create entries in the destination is
+// refused, and nothing is written - no row, no event, no change, no history.
+func TestACopyWithoutTheRightToCreateThereWritesNothing(t *testing.T) {
+	h := newDuplicateHarness(t)
+	permission := &authorizer{}
+	h.handler.Authorizer = writeRefused{permission}
+	original := h.withTask()
+
+	_, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{
+		ItemID: original.ID, TargetCollectionID: farCollectionID, ParentGiven: true,
+	})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the copy answered %v, want forbidden", err)
+	}
+	if len(h.items.copies) != 0 || len(h.events.appended) != 0 || len(h.changes.recorded) != 0 || len(h.history.entries) != 0 {
+		t.Errorf("a refused copy wrote %d rows, %d events, %d changes, %d history steps",
+			len(h.items.copies), len(h.events.appended), len(h.changes.recorded), len(h.history.entries))
+	}
+}
+
+// writeRefused permits every question but writing entries.
+type writeRefused struct{ *authorizer }
+
+func (w writeRefused) Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error {
+	if request.Permission == service.PermissionWriteItems {
+		return shared.ErrForbidden
+	}
+	return w.authorizer.Authorize(ctx, actor, request)
 }
 
 // A role that writes only what is assigned to it copies onto itself: the entries the copy produces

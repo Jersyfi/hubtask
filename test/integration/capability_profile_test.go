@@ -64,8 +64,13 @@ func TestTheSystemProfilesAreReadableWithoutATenant(t *testing.T) {
 	profiles := profilesIn(ctx, t, persistence.InstallationScope())
 
 	for _, itemType := range []work.ItemType{work.ItemTask, work.ItemWorkPackage, work.ItemActivity} {
-		if _, found := profiles[itemType]; !found {
+		profile, found := profiles[itemType]
+		if !found {
 			t.Errorf("no system profile for %s", itemType)
+		}
+		// UC-WRK-04 check 1: every entry type carries completion.
+		if !profile.Allows(work.CapabilityCompletion) {
+			t.Errorf("the system %s profile carries no completion", itemType)
 		}
 	}
 	task := profiles[work.ItemTask]

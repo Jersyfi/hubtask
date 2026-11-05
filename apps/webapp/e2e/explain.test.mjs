@@ -136,6 +136,7 @@ for (const width of WIDTHS) {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures } = await as(browser, width, 'OWNER');
+    await withNotes(page, ARCHIVED_ENTRY);
     await page.goto(`${served.origin}/items/${ARCHIVED_ENTRY.id}`);
     const note = page.locator('main [role="note"]');
     await note.waitFor({ timeout: 15_000 });
@@ -148,6 +149,7 @@ for (const width of WIDTHS) {
     assert.equal(await page.locator('main').getByText('nothing on it can be changed').filter({ visible: true }).count(), 1);
     const title = page.getByLabel('Title', { exact: false }).first();
     if ((await title.count()) > 0) assert.equal(await title.getAttribute('title'), null, 'the title still carries the reason as a tooltip');
+    await readOnlyTitleAndNotes(page);
 
     // The completion box says done or not done and names the notice.
     const box = page.getByRole('checkbox', { name: `Mark ${ARCHIVED_ENTRY.title} as done` });
@@ -166,9 +168,11 @@ for (const width of WIDTHS) {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures } = await as(browser, width, 'OWNER');
+    await withNotes(page, IN_ARCHIVED);
     await page.goto(`${served.origin}/items/${IN_ARCHIVED.id}`);
     await page.waitForFunction(() => document.querySelector('main [role="note"]')?.textContent?.includes('This collection is archived'), undefined, { timeout: 15_000 });
     assert.equal(await page.locator('main [role="note"]').getByRole('button').count(), 0, 'an Unarchive is offered that the collection would refuse');
+    await readOnlyTitleAndNotes(page);
 
     const viewer = await as(browser, width, 'VIEWER');
     await viewer.page.goto(`${served.origin}/items/${ITEMS[0].id}`);
@@ -182,6 +186,28 @@ for (const width of WIDTHS) {
     assert.deepEqual(failures, []);
     assert.deepEqual(viewer.failures, []);
   });
+}
+
+/** Notes that look like markup, kept as typed: a read-only entry shows notes only when it has some. */
+const NOTES = '**Not bold**, <b>not a tag</b>\n  - and two spaces kept';
+
+async function withNotes(page, entry) {
+  await page.route(new RegExp(`/api/v1/items/${entry.id}(\\?.*)?$`), (route) => route.request().method() === 'GET'
+    ? route.fulfill({ json: { ...entry, notes: NOTES } })
+    : route.fallback());
+}
+
+/**
+ * The entry's title and notes are drawn and refuse typing (UC-WRK-02 check 6), and the notes read
+ * exactly as typed, markup characters and spaces included (UC-WRK-02 check 4).
+ */
+async function readOnlyTitleAndNotes(page) {
+  for (const name of ['Title', 'Notes']) {
+    const field = page.getByRole('textbox', { name, exact: true }).first();
+    await field.waitFor({ timeout: 10_000 });
+    assert.equal(await field.evaluate((el) => el.readOnly), true, `the ${name.toLowerCase()} can be typed in`);
+  }
+  assert.equal(await page.getByRole('textbox', { name: 'Notes', exact: true }).inputValue(), NOTES);
 }
 
 /** A collection's template and a workspace-wide one, and one private saved view. */

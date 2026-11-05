@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12, P-13]
 state: built
 tasks: [C-11, F3-11, F10-10]
-checked_by: [test/integration/bulk_and_duplicate_test.go, core/application/service/work/BulkUpdateWorkItems_test.go, apps/webapp/e2e/container.test.mjs]
+checked_by: [test/integration/bulk_and_duplicate_test.go, core/application/service/work/BulkUpdateWorkItems_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrymenu.test.mjs]
 ---
 
 # Change many entries at once

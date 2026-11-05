@@ -6,7 +6,8 @@
 // Every case below hands the reader a different manifest and expects a different answer. That is
 // the acceptance criterion rather than a convenience — `domain-model.md` §2's extension example (a
 // new type `MILESTONE` is a profile entry and no code change) is only true if no answer here is
-// reachable without the manifest saying so.
+// reachable without the manifest saying so. The child types and each type's fields come from the
+// capabilities the server publishes (UC-WRK-03 check 7).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

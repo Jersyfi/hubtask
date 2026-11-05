@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12]
 state: built
 tasks: [C-11, F3-11]
-checked_by: [test/integration/bulk_and_duplicate_test.go, test/integration/copy_test.go, core/application/service/work/DuplicateWorkItem_test.go, apps/webapp/e2e/subtreeviews.test.mjs]
+checked_by: [test/integration/bulk_and_duplicate_test.go, test/integration/copy_test.go, core/application/service/work/DuplicateWorkItem_test.go, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/e2e/entrymenu.test.mjs]
 ---
 
 # Duplicate a task

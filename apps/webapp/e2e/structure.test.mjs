@@ -429,7 +429,8 @@ test('chromium: a member - the list as its settings make it, and no settings pag
   assert.ok(!hubRows.some((row) => row.startsWith('Structure')), `offered ${hubRows}`);
   assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people');
   assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'a ⚙ to settings the member may not change');
-  // The address alone does not open them either: the page says whose they are.
+  // The address alone does not open them either: the page says whose they are. The completion
+  // policy is one of them (UC-WRK-04 check 7), offered to the owner in Workflow above.
   await page.goto(`${served.origin}/collections/${SHAPES.list.id}/settings/structure`);
   await page.getByText('Only someone who may change how this place is set up sees its settings.').waitFor({ timeout: 15_000 });
   assert.equal(await page.locator('[data-structure-panel]').count(), 0);

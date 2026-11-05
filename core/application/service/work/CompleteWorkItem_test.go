@@ -569,7 +569,8 @@ func TestARollUpSaysSoInTheHistoryOfTheEntriesAbove(t *testing.T) {
 }
 
 // Reopening is the same walk in the other direction, and the history says which way it went - a
-// verb that covered both would leave a reader unable to tell a completion from its undoing.
+// verb that covered both would leave a reader unable to tell a completion from its undoing. Each
+// verb is its own sentence: UC-WRK-04 check 3.
 func TestReopeningRecordsItsOwnVerb(t *testing.T) {
 	h := newCompletionHarness(domain.CompletionManual)
 	h.alreadyDone(activityID)
@@ -581,6 +582,9 @@ func TestReopeningRecordsItsOwnVerb(t *testing.T) {
 
 	if step := h.history.only(t); step.Verb != activity.ItemReopened {
 		t.Errorf("the history recorded %s, want %s", step.Verb, activity.ItemReopened)
+	}
+	if activity.ItemReopened.MessageCode() == activity.ItemCompleted.MessageCode() {
+		t.Errorf("reopening and completing read as the same sentence %q", activity.ItemReopened.MessageCode())
 	}
 }
 

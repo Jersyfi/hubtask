@@ -221,6 +221,10 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   await pick.click();
   const bar = page.locator('.bar[data-active]');
   await bar.waitFor({ timeout: 5_000 });
+  // UC-WRK-08 check 1: while the mode is on, rows carry a checkbox and the bar the count and the
+  // verbs; the ways in by a long press and by Ctrl or Cmd-click are walked in entrymenu.test.mjs.
+  await bar.getByText('1 selected').waitFor({ timeout: 5_000 });
+  assert.equal(await bar.getByRole('combobox', { name: 'Do this' }).count(), 1, 'the bar offers no verbs');
   const boxes = await page.evaluate(() => {
     const bulk = document.querySelector('.bar[data-active]').getBoundingClientRect();
     const bottom = document.querySelector('nav[aria-label="Sections"]').getBoundingClientRect();

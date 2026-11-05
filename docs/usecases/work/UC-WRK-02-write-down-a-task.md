@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-10, P-12, P-13]
 state: built
 tasks: [B-03, B-04, B-05, F2-09, F10-12, F10-17, M-07]
-checked_by: [test/integration/create_work_item_test.go, test/integration/work_item_test.go, test/integration/update_test.go, apps/webapp/e2e/entry.test.mjs, core/domain/model/work/Item_test.go, core/application/service/work/UpdateWorkItem_test.go]
+checked_by: [test/integration/create_work_item_test.go, test/integration/work_item_test.go, test/integration/update_test.go, apps/webapp/e2e/entry.test.mjs, core/domain/model/work/Item_test.go, core/application/service/work/UpdateWorkItem_test.go, apps/webapp/e2e/explain.test.mjs]
 ---
 
 # Write down a task
