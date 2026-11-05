@@ -57,6 +57,7 @@ func presser() appshared.ActorContext {
 // "Now" is a job rather than an inline run: the actions are writes performed as the `run_as`
 // account, and a request that held the connection open while a rule restructured a hub would let
 // its own timeout decide how much of the rule happened.
+// UC-AUT-03 checks 1 and 3.
 func TestTriggeringARuleQueuesARunThatNamesWhoPressedIt(t *testing.T) {
 	h := newTrigger(manualRule())
 
@@ -94,6 +95,7 @@ func TestTriggeringARuleQueuesARunThatNamesWhoPressedIt(t *testing.T) {
 // The permission is the plain one at the rule's scope, not the composition check writing one needs.
 // Pressing the button changes nothing about what the rule may do - that was decided when it was
 // written and is decided again, per action, when it runs (automation.md §2.1).
+// UC-AUT-03 check 5.
 func TestTriggeringAsksTheAutomationPermissionAtTheRulesScope(t *testing.T) {
 	rule := manualRule()
 	rule.Scope = domain.Scope{Type: domain.ScopeHub, ID: hubID}

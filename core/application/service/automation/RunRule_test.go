@@ -441,6 +441,7 @@ func TestTheIdempotencyKeyDistinguishesTwoActionsOfOneKind(t *testing.T) {
 }
 
 // A chain that reaches the limit aborts, does nothing, and says which of the two things happened.
+// UC-AUT-07 check 1.
 func TestARunAtTheDepthLimitAbortsAndActsOnNothing(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}
@@ -468,6 +469,7 @@ func TestARunAtTheDepthLimitAbortsAndActsOnNothing(t *testing.T) {
 }
 
 // The throttle holds a rule to its bound, and does it before the conditions are asked.
+// UC-AUT-07 check 3.
 func TestTheThrottleHoldsARuleToItsBound(t *testing.T) {
 	rule := enabledRule()
 	rule.Throttle = domain.Throttle{MaxRunsPerHour: 10}
@@ -1525,6 +1527,7 @@ func (b *tenantBudgetFake) AutomationRuns(context.Context, string, time.Time) (b
 	return b.allowed, nil
 }
 
+// UC-AUT-07 check 3.
 func TestTheTenantBudgetThrottlesTheWholeWorkspace(t *testing.T) {
 	rule := enabledRule()
 	rule.Actions = []domain.Action{{Kind: "ADD_LABEL"}}

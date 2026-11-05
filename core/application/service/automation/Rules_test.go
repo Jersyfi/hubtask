@@ -384,6 +384,7 @@ func fieldCodes(t *testing.T, err error) map[string]string {
 	return found
 }
 
+// UC-AUT-01 check 1.
 func TestARuleIsWrittenSwitchedOffAndAudited(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -420,6 +421,7 @@ func TestARuleIsWrittenSwitchedOffAndAudited(t *testing.T) {
 
 // The composition rule, in the shape the task names it: a member with automation rights and nothing
 // else must not write a rule that does what they may not.
+// UC-AUT-01 check 4.
 func TestAWriterCannotLaunderARightThroughAServiceAccount(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleMember)
@@ -501,6 +503,7 @@ func TestTheRuleGuardrailIsTheAgentsAlone(t *testing.T) {
 
 // The general form of the same leak, and the half no list of scopes could close: you cannot make a
 // rule act as an account that can do more at the scope than you can.
+// UC-AUT-01 check 3.
 func TestARuleMayNotRunAsAnAccountThatOutranksItsWriter(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleMember)
@@ -529,6 +532,7 @@ func TestARuleMayRunAsAnAccountThatDoesNotOutrankItsWriter(t *testing.T) {
 
 // Acting as a colleague is impersonation, and no amount of automation permission is a grant of it -
 // not even an owner's.
+// UC-AUT-01 check 3.
 func TestARuleMayNotRunAsAnotherPerson(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -560,6 +564,7 @@ func TestARuleMayRunAsItsWriter(t *testing.T) {
 	}
 }
 
+// UC-AUT-01 check 3.
 func TestADisabledServiceAccountIsRefused(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -650,6 +655,7 @@ func TestARequiredParameterIsNotDemandedAtWriteTime(t *testing.T) {
 	}
 }
 
+// UC-AUT-01 check 2.
 func TestThePermissionIsAskedAtTheRulesOwnScope(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -672,6 +678,7 @@ func TestThePermissionIsAskedAtTheRulesOwnScope(t *testing.T) {
 	}
 }
 
+// UC-AUT-01 check 2.
 func TestAWriterWithoutTheAutomationPermissionIsRefused(t *testing.T) {
 	h := newHarness()
 	h.auth.refuse = true
@@ -686,6 +693,7 @@ func TestAWriterWithoutTheAutomationPermissionIsRefused(t *testing.T) {
 	}
 }
 
+// UC-AUT-01 check 1.
 func TestEnablingAndDisablingAreSeparateAndSeparatelyAudited(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -732,6 +740,7 @@ func TestEnablingAndDisablingAreSeparateAndSeparatelyAudited(t *testing.T) {
 
 // Switching a rule on is what makes its actions happen, so it needs the rights writing them did -
 // and asked again, because the writer's may have narrowed since.
+// UC-AUT-01 check 6.
 func TestEnablingReChecksTheCompositionRule(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -755,6 +764,7 @@ func TestEnablingReChecksTheCompositionRule(t *testing.T) {
 
 // Stopping a rule is taking a power away, and somebody who may manage rules here should never be
 // unable to stop one.
+// UC-AUT-01 check 8.
 func TestDisablingNeedsOnlyTheAutomationPermission(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)
@@ -863,6 +873,7 @@ func TestAnEditWithAStaleVersionIsAConflict(t *testing.T) {
 
 // The deletion is soft, and removing a rule takes a power away rather than granting one - so it
 // asks for the plain permission and not the composition rule.
+// UC-AUT-01 check 8.
 func TestDeletingIsSoftAndNeedsOnlyTheAutomationPermission(t *testing.T) {
 	h := newHarness()
 	h.roleOf(writerID, identity.RoleOwner)

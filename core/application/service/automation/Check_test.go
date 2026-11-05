@@ -141,6 +141,7 @@ func TestACheckRecordsWhatItFindsAndLeavesAnAttentionRuleRunning(t *testing.T) {
 // A rule that cannot run - an action kind this version does not serve, an account that cannot
 // act, an event type nobody publishes, a condition that does not compile - is BROKEN, switched
 // off once, audited with the reason, counted, and its author told through the streak's path.
+// UC-AUT-08 check 3.
 func TestABrokenRuleIsSwitchedOffOnceAndItsAuthorTold(t *testing.T) {
 	for name, shape := range map[string]struct {
 		change func(*domain.Rule)
@@ -312,6 +313,7 @@ func TestTheSweepChecksEveryRuleOfTheTenant(t *testing.T) {
 
 // A deletion of anything a rule may name seeds one check for its tenant - deduplicated, so that a
 // bulk deletion is one job - and nothing else is written by the subscriber.
+// UC-AUT-08 check 2.
 func TestADeletionSeedsOneCheckForItsTenant(t *testing.T) {
 	jobs := &queued{}
 	subscriber := CheckOnDeletion{Jobs: jobs}

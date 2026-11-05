@@ -132,6 +132,7 @@ func dueChanged() event.Envelope {
 }
 
 // The first half of the acceptance: a relative-date rule owes its moment at the offset.
+// UC-AUT-04 check 5.
 func TestARelativeDateRuleOwesItsMomentAtTheOffset(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 	h := newDates([]domain.Rule{relativeRule(domain.AnchorDueDate, "-PT24H")}, dueItem(&due))
@@ -160,6 +161,7 @@ func TestARelativeDateRuleOwesItsMomentAtTheOffset(t *testing.T) {
 
 // The test that matters: the moment moves when the anchor does. A system that worked the
 // moment out at firing time would have to look at every entry in the workspace to find out.
+// UC-AUT-04 check 5.
 func TestTheMomentMovesWhenTheDueDateMoves(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 	item := dueItem(&due)
@@ -193,6 +195,7 @@ func TestTheMomentMovesWhenTheDueDateMoves(t *testing.T) {
 
 // The third half of the acceptance: an anchor that was cleared owes nothing. A row left behind
 // would fire at a deadline that no longer exists.
+// UC-AUT-04 check 6.
 func TestAClearedAnchorOwesNothing(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 	item := dueItem(&due)
@@ -218,6 +221,7 @@ func TestAClearedAnchorOwesNothing(t *testing.T) {
 
 // An entry in the trash and an entry that is gone both owe nothing: a rule that escalated a deleted
 // entry's deadline would act on something its author had thrown away.
+// UC-AUT-04 check 6.
 func TestAnEntryThatIsGoneOwesNothing(t *testing.T) {
 	due := now.Add(72 * time.Hour)
 
