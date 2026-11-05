@@ -12034,6 +12034,7 @@
   "app.approvals.mine_none_body": "When a step asks for your approval, it appears here.",
   "app.approvals.section_acts": "Agents' acts ({count})",
   "app.approvals.section_entries": "Steps of entries",
+  "app.approvals.agent_requests_link": "Every request of your agents, decided ones too: You → Agents → Waiting for a person",
   "app.approvals.load_more": "Show more - {shown} shown",
   "app.approvals.load_more_failed": "The next approvals could not be loaded. Try again.",
   "app.approvals.entry_title": "Approvals",

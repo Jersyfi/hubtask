@@ -12034,6 +12034,7 @@
   "app.approvals.mine_none_body": "Wenn ein Schritt deine Freigabe braucht, erscheint er hier.",
   "app.approvals.section_acts": "Aktionen von Agenten ({count})",
   "app.approvals.section_entries": "Schritte von Einträgen",
+  "app.approvals.agent_requests_link": "Alle Anfragen deiner Agenten, auch entschiedene: Du → Agenten → Wartet auf eine Person",
   "app.approvals.load_more": "Mehr zeigen – {shown} angezeigt",
   "app.approvals.load_more_failed": "Die nächsten Freigaben konnten nicht geladen werden. Bitte erneut versuchen.",
   "app.approvals.entry_title": "Freigaben",

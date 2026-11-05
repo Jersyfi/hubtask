@@ -85,6 +85,10 @@
 
 <Stack gap="300">
   <PageHeader title={t('app.approvals.mine_title')} subtitle={t('app.approvals.mine_subtitle')} isTitleInBar={viewport.isCompact} />
+  {#if countsActs}
+    <!-- The agents' acts have a second place, with the decided ones too (accepted: two places stay). -->
+    <p class="quiet" data-agent-requests><a href="/profile/agents?tab=requests">{t('app.approvals.agent_requests_link')}</a></p>
+  {/if}
   {#if failure}
     <FailureState problem={failure} onRetry={() => void list.refresh()} />
   {:else if !rows}
@@ -123,6 +127,7 @@
 </Stack>
 
 <style>
+  .quiet { margin: 0; color: var(--text-secondary); }
   .heading { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); }
 </style>

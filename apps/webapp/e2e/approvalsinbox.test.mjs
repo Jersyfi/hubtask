@@ -75,6 +75,9 @@ test('chromium: approvals - an agent\'s held act approved in the one inbox, and 
   await page.goto(`${served.origin}/approvals`);
   const acts = page.locator('[data-kind="agent_acts"]');
   await acts.getByRole('heading', { name: 'Agents\' acts (1)' }).waitFor({ timeout: 5_000 });
+  const requestsLink = page.locator('[data-agent-requests] a');
+  assert.equal(await requestsLink.getAttribute('href'), '/profile/agents?tab=requests',
+    'with agents on, the inbox links to Profile - Agents - Requests');
   const held = acts.locator('[data-held-act="AddComment"]');
   await held.getByText('Triage helper').waitFor();
   await held.getByText('Add an internal comment to an entry').waitFor();
