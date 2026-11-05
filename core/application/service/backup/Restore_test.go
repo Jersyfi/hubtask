@@ -366,6 +366,7 @@ func TestStartingARestoreWritesTheRunAndEnqueuesTheJob(t *testing.T) {
 // A destructive mode demands a step-up, which every caller can satisfy. An unwired or unavailable
 // verifier refuses rather than permits: fail closed is the seam's own rule, and this is the test
 // that keeps it.
+// UC-BAK-05 check 2.
 func TestADestructiveModeWithoutAProofIsRefusedNotPermitted(t *testing.T) {
 	h := newStartHarness(t)
 	h.stepUp.available = false
@@ -388,6 +389,7 @@ func TestADestructiveModeWithoutAProofIsRefusedNotPermitted(t *testing.T) {
 }
 
 // And the other refusal, which is the caller's to fix: the workspace's name, typed.
+// UC-BAK-05 check 2.
 func TestADestructiveModeIsRefusedWithoutTheTypedName(t *testing.T) {
 	h := newStartHarness(t)
 	h.stepUp.available, h.stepUp.satisfied = true, true
@@ -526,6 +528,7 @@ func TestAWorkspaceMemberCannotRestoreIntoANewOrEveryWorkspace(t *testing.T) {
 }
 
 // §8.3 has one restore at a time, and the refusal belongs where the caller can read it.
+// UC-BAK-05 check 7.
 func TestASecondRestoreIsRefusedWhileOneIsRunning(t *testing.T) {
 	h := newStartHarness(t)
 	h.restores.running = true

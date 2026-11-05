@@ -237,6 +237,7 @@ func TestStartingABackupIsAudited(t *testing.T) {
 
 // A refusal rather than a quiet promotion to a full run: a caller that asked for an incremental
 // and silently got a full one has been told nothing about how long it will take.
+// UC-BAK-03 check 2.
 func TestAnIncrementalWithNoParentIsRefused(t *testing.T) {
 	h := newHarness()
 	enabledTarget(t, h)

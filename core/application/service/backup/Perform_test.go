@@ -355,6 +355,7 @@ func TestAnUnencryptedTargetWritesNoKeyAndNoCipher(t *testing.T) {
 
 // A second run at a target that is already being backed up is refused, and refused without writing
 // anything: the lock is what stops two archives being written at one moment.
+// UC-BAK-03 check 2.
 func TestASecondRunAtABusyTargetIsRefused(t *testing.T) {
 	h := newPerformHarness(t)
 	h.runs.claimed = false

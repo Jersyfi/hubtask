@@ -1184,6 +1184,7 @@ func TestANewTenantRestoreIntoALivingTenantIsRefused(t *testing.T) {
 // An archive from a newer schema is refused before anything is read. A restore migrates upwards and
 // cannot go the other way, and guessing which columns a later migration added is how a restore
 // writes a row that is silently wrong.
+// UC-BAK-05 check 7.
 func TestAnArchiveFromANewerSchemaIsRefused(t *testing.T) {
 	h := newApplyHarness(t, containerRows)
 	applier := h.applier()

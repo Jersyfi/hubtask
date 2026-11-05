@@ -343,6 +343,7 @@ func TestATargetThatCannotBecomeAConnectionIsRefusedBeforeItIsStored(t *testing.
 	}
 }
 
+// UC-BAK-01 check 2.
 func TestAKindThisBuildCannotTalkToIsRefusedByName(t *testing.T) {
 	h := newHarness()
 	cmd := command()
@@ -363,6 +364,7 @@ func TestAKindThisBuildCannotTalkToIsRefusedByName(t *testing.T) {
 
 // The switch backup-restore.md §2 names. It has no meaning in single-tenant operation, where the
 // tenant's owner is the person running the installation.
+// UC-BAK-01 check 7.
 func TestATenantMayNotConfigureATargetUnlessTheOperatorSaysSo(t *testing.T) {
 	h := newHarness()
 	h.config = env.Config{Tenancy: env.TenancyMulti}
@@ -453,6 +455,7 @@ func TestCreatingATargetIsInTheTrailAndTheCredentialIsNot(t *testing.T) {
 
 // An acknowledged insecure target records who accepted it, because "somebody ticked a box" is not
 // an answer to "who decided this".
+// UC-BAK-01 check 6.
 func TestAnAcknowledgedTargetRecordsWhatWasAccepted(t *testing.T) {
 	h := newHarness()
 	cmd := command()

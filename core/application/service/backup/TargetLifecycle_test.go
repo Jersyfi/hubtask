@@ -23,6 +23,7 @@ func deletion(h *harness, schedules *scheduleStore) Writer {
 // A target a schedule still names is refused, with the schedules named. Deleting it silently
 // would disarm a backup that runs every night, and the disarming would be discovered by whoever
 // needed the archive.
+// UC-BAK-01 check 8.
 func TestATargetASchedulePointsAtIsNotRemoved(t *testing.T) {
 	h := newHarness()
 	h.targets.stored = append(h.targets.stored, domain.Target{ID: targetID, Name: "Off-site bucket"})

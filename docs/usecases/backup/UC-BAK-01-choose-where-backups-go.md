@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-06, P-08, P-09, P-11, P-12]
 state: built
 tasks: [E-03, E-04, F4-16]
-checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs, apps/webapp/src/lib/data/backup.test.ts, apps/webapp/src/lib/administration/firststeps.test.ts, infrastructure/health/Backlogs_test.go, test/integration/managed_doors_test.go]
+checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs, apps/webapp/src/lib/data/backup.test.ts, apps/webapp/src/lib/administration/firststeps.test.ts, infrastructure/health/Backlogs_test.go, test/integration/managed_doors_test.go, infrastructure/backupstorage/SFTPStore_test.go, core/domain/model/backup/Target_test.go]
 ---
 
 # Choose where the workspace's backups go

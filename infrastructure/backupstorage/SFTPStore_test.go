@@ -52,6 +52,7 @@ func sftpStore(t *testing.T, spec port.Spec) (*backupstorage.SFTPStore, error) {
 // no switch: a target is created through an API, possibly by somebody who is not the operator, and
 // a first connection that accepted whatever answered is one an attacker only has to be present
 // for once.
+// UC-BAK-01 check 3.
 func TestATargetWithNoHostKeyIsRefused(t *testing.T) {
 	_, err := sftpStore(t, sftpSpec(func(spec *port.Spec) {
 		delete(spec.Config, "host_key")
