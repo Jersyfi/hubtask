@@ -72,7 +72,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { moreInHubtask } from '../lib/product/home.ts';
   import { products } from '../lib/navigation.ts';
-  import { productTemplates } from '../lib/product/templates.ts';
+  import { tryTemplateOf } from '../lib/product/templates.ts';
   import { afterCreating } from '../lib/workspace/hubGallery.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
@@ -362,7 +362,7 @@
   });
   let tryingWith = $state<string | undefined>(undefined);
   function tryProduct(product: { readonly module: string; readonly path: string }): void {
-    const template = creation === 'shared' || creation === 'private' ? productTemplates(catalogue, product.module, 1)[0] : undefined;
+    const template = creation === 'shared' || creation === 'private' ? tryTemplateOf(catalogue, product.module) : undefined;
     if (!template) {
       onnavigate?.(product.path);
       return;

@@ -9,6 +9,7 @@
 
 import { PRODUCTS } from '../navigation.ts';
 import { hubScreenOf } from './home.ts';
+import { familyOf, type Family } from '../workspace/hubGallery.ts';
 
 interface Offered {
   readonly key: string;
@@ -44,8 +45,26 @@ const MAIN_FIRST = ['SERVICE_DESK', 'ASSETS', 'PLANNING', 'GOALS', 'KNOWLEDGE', 
  * the hub's screen of it where a hub took it; undefined where it brings no product of its own.
  */
 export function afterTaking(template: Pick<Offered, 'document'>, hubId?: string): string | undefined {
-  const main = MAIN_FIRST.find((module) => template.document?.modules?.[module.toLowerCase()]?.switch === 'ON');
+  const main = mainOf(template);
   if (!main) return undefined;
   if (hubId) return hubScreenOf(main, hubId) ?? `/hubs/${encodeURIComponent(hubId)}`;
   return PRODUCTS.find((row) => row.module === main)?.path;
+}
+
+/** The family a product's own templates stand in, where it has one. */
+const FAMILY_OF_PRODUCT: Readonly<Record<string, Family>> = { SERVICE_DESK: 'service', PLANNING: 'projects', GOALS: 'programmes' };
+
+/**
+ * The template *Try it* takes for a product (user-experience.md §3.3): one whose main product it
+ * is, from the product's own family first; none where no template is mainly for it, and the
+ * product's home with its switch is offered instead.
+ */
+export function tryTemplateOf<T extends Offered>(templates: readonly T[], module: string): T | undefined {
+  const family = FAMILY_OF_PRODUCT[module];
+  const mainly = productTemplates(templates, module, templates.length).filter((each) => mainOf(each) === module);
+  return mainly.find((each) => family !== undefined && familyOf(each as Parameters<typeof familyOf>[0]) === family) ?? mainly[0];
+}
+
+function mainOf(template: Pick<Offered, 'document'>): string | undefined {
+  return MAIN_FIRST.find((module) => template.document?.modules?.[module.toLowerCase()]?.switch === 'ON');
 }

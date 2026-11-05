@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { afterTaking, productTemplates } from './templates.ts';
+import { afterTaking, productTemplates, tryTemplateOf } from './templates.ts';
 
 const of = (key: string, modules: Record<string, string>, origin = 'HUBTASK', hub = true) => ({
   key,
@@ -44,4 +44,22 @@ test('a taken template opens its main product\'s home', () => {
   assert.equal(afterTaking(template({ workflows: 'ON', planning: 'ON' })), '/plans');
   assert.equal(afterTaking(template({ workflows: 'ON' })), undefined, 'no product of its own: the page stays');
   assert.equal(afterTaking(template({ service_desk: 'OFF' })), undefined);
+});
+
+// user-experience.md §3.3: *Try it* takes the template the product is mainly for - never one that
+// only brings it beside another (a project's pages, a process's desk) - from the product's own
+// family first; where none is mainly for it, the product's home and its switch.
+test('Try it takes the template a product is mainly for', () => {
+  const on = (...modules: string[]) => Object.fromEntries(modules.map((each) => [each, { switch: 'ON' }]));
+  const catalogue = [
+    { key: 'approvals', origin: 'HUBTASK', document: { modules: on('workflows', 'service_desk') }, hub_document: {} },
+    { key: 'classic_project', origin: 'HUBTASK', document: { modules: on('workflows', 'planning', 'knowledge') }, hub_document: {} },
+    { key: 'customer_support', origin: 'HUBTASK', document: { modules: on('workflows', 'service_desk') }, hub_document: {} },
+    { key: 'it_asset_register', origin: 'HUBTASK', document: { modules: on('workflows') } },
+  ];
+  assert.equal(tryTemplateOf(catalogue, 'SERVICE_DESK')?.key, 'customer_support');
+  assert.equal(tryTemplateOf(catalogue, 'PLANNING')?.key, 'classic_project');
+  assert.equal(tryTemplateOf(catalogue, 'KNOWLEDGE'), undefined);
+  assert.equal(tryTemplateOf(catalogue, 'ASSETS'), undefined);
+  assert.equal(tryTemplateOf(catalogue, 'WORKFLOWS'), undefined);
 });
