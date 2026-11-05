@@ -26,6 +26,7 @@ func aiInput() domain.NewAiProviderInput {
 	}
 }
 
+// UC-AI-03 check 1: configuring a provider gives no consent; it is off until somebody switches it on.
 func TestAValidProviderIsAccepted(t *testing.T) {
 	configured, err := domain.NewAiProvider(aiInput())
 	if err != nil {

@@ -65,7 +65,7 @@ func TestASuggestionNamesTheAgentThatAsked(t *testing.T) {
 	}
 }
 
-// The whole of ai-first.md §1.3, from the producer's side: an entry whose body issues an
+// UC-AI-04 check 1, and the whole of ai-first.md §1.3 from the producer's side: an entry whose body issues an
 // instruction produces a suggestion and no action, and the instruction never leaves the system
 // prompt's place.
 func TestAnEntryThatIssuesInstructionsProducesASuggestionAndNoAction(t *testing.T) {

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-09, P-14]
 state: built
 tasks: [J-01, J-17]
-checked_by: [core/application/service/suggestion/Suggestions_test.go]
+checked_by: [core/application/service/suggestion/Suggestions_test.go, apps/webapp/e2e/aioff.test.mjs, core/application/service/suggestion/Actions_test.go, infrastructure/ai/Resolver_test.go, core/application/service/integration/AiSource_test.go]
 ---
 
 # Use all of Hubtask with AI switched off

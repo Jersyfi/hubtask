@@ -38,6 +38,7 @@ import (
 // It runs in `make gate-privacy` and needs no database: the refusal is the application layer's,
 // which is where every authorisation and every rule of this kind lives (rule 2, ADR-0005).
 
+// UC-AI-02 check 3: refused unless the operator allowed such transfers, and the refusal says so.
 func TestPG8AThirdCountryProviderIsRefusedWithoutTheConfirmation(t *testing.T) {
 	writer, _ := aiWriter(false)
 

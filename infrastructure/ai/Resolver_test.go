@@ -19,9 +19,9 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/ai"
 )
 
-// Three of the four answers are the provider that refuses, and the fourth is the only one that
-// opens a key. Which means an unconsenting workspace's credential is never decrypted on the way to
-// deciding not to use it.
+// UC-AI-01 check 3 and UC-AI-03 check 3: without a provider, switched off or without consent the
+// answer is the provider that refuses, and nothing is sent. Only the fourth opens a key, so an
+// unconsenting workspace's credential is never decrypted on the way to deciding not to use it.
 func TestOnlyAConfiguredAndConsentingWorkspaceGetsAProvider(t *testing.T) {
 	for _, testCase := range []struct {
 		name      string

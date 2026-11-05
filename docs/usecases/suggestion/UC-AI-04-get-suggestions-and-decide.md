@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6]
 serves: [P-03, P-11, P-14]
 state: built
 tasks: [J-03, J-04, J-05, J-06, J-07, UX-19]
-checked_by: [core/application/service/suggestion/Producing_test.go, core/application/service/suggestion/Actions_test.go, core/application/service/suggestion/Duplicates_test.go, core/application/service/suggestion/FindDuplicatesByTitle_test.go, core/application/service/integration/ReadAiBudgetState_test.go, core/application/service/job/Job_test.go, apps/webapp/src/lib/data/aiplaces.test.ts, test/integration/ai_suggestions_paths_test.go, test/integration/ai_reading_aids_test.go, test/integration/duplicates_by_title_test.go, test/integration/ai_stop_test.go, test/integration/ai_budget_state_test.go, apps/webapp/e2e/aiask.test.mjs, apps/webapp/e2e/aiplaces.test.mjs]
+checked_by: [core/application/service/suggestion/Producing_test.go, core/application/service/suggestion/Actions_test.go, core/application/service/suggestion/Duplicates_test.go, core/application/service/suggestion/FindDuplicatesByTitle_test.go, core/application/service/integration/ReadAiBudgetState_test.go, core/application/service/job/Job_test.go, apps/webapp/src/lib/data/aiplaces.test.ts, test/integration/ai_suggestions_paths_test.go, test/integration/ai_reading_aids_test.go, test/integration/duplicates_by_title_test.go, test/integration/ai_stop_test.go, test/integration/ai_budget_state_test.go, apps/webapp/e2e/aiask.test.mjs, apps/webapp/e2e/aiplaces.test.mjs, core/application/service/suggestion/Suggestions_test.go]
 ---
 
 # Get suggestions and decide on each one

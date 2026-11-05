@@ -45,6 +45,7 @@ async function open(browser, routes = {}) {
   return { page, sent, close: () => context.close() };
 }
 
+// UC-AI-02 check 4: the provider's declaration is shown where the workspace consents.
 test('chromium: the consent names who receives the content and where', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -281,4 +282,40 @@ test('chromium: the AI sections open at their address and an unsaved consent is 
     link.remove();
   });
   await page.waitForURL('**/administration/voice', { timeout: 5_000 });
+});
+
+// UC-AI-02 checks 1 and 2, the screen's part: the stored provider is changed and removed here, the
+// key never comes back - the field stays empty and says a key is stored - and a change that does not
+// retype the key sends none, so the sealed one is kept.
+test('chromium: the provider is changed and removed on the screen, and its key is never shown', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const writes = [];
+  const { page, close } = await open(browser, {
+    '/ai-provider': (route, request) => {
+      if (request.method() === 'GET') return route.fulfill({ json: ownProvider });
+      writes.push({ method: request.method(), body: request.method() === 'PUT' ? request.postDataJSON() : undefined });
+      return request.method() === 'DELETE' ? route.fulfill({ status: 204 }) : route.fulfill({ json: { ...ownProvider, ...request.postDataJSON(), has_api_key: true, version: 2 } });
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/ai`);
+  const key = page.getByLabel(/^API key/);
+  await key.waitFor({ timeout: 15_000 });
+  assert.equal(await key.inputValue(), '', 'the stored key came back into the field');
+  assert.match(await page.locator('main').textContent() ?? '', /A key is stored\./);
+
+  const model = page.getByLabel(/^Model for proposals/);
+  await model.fill('chat-large');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  for (let i = 0; i < 50 && writes.length === 0; i++) await page.waitForTimeout(100);
+  assert.equal(writes[0]?.method, 'PUT');
+  assert.equal(writes[0].body.completion_model, 'chat-large');
+  assert.ok(!('api_key' in writes[0].body), `a change without a new key sent one: ${JSON.stringify(writes[0].body)}`);
+
+  await page.getByRole('button', { name: 'Remove the provider', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove it', exact: true }).click();
+  for (let i = 0; i < 50 && writes.length < 2; i++) await page.waitForTimeout(100);
+  assert.equal(writes[1]?.method, 'DELETE', 'the removal reached no DELETE');
 });
