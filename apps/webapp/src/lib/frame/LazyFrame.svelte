@@ -7,7 +7,7 @@
   import type { Snippet } from 'svelte';
   import type { Resolution } from '../router.ts';
   import { settle } from './chunkfailure.ts';
-  import { loadFrame } from './screens.ts';
+  import { loadFrame } from './parts.ts';
   import ChunkFailed from './ChunkFailed.svelte';
 
   type Props = {

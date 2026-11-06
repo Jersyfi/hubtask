@@ -29,7 +29,7 @@
   import WorkspaceAddressView from './WorkspaceAddressView.svelte';
   import WorkspaceSettingsView from './WorkspaceSettingsView.svelte';
   import LazyView from '../lib/frame/LazyView.svelte';
-  import { ruleViews } from '../lib/frame/screens.ts';
+  import { ruleViews } from '../lib/frame/parts.ts';
   import type { Resolution } from '../lib/router.ts';
 
   // The rules' screens are the profile's too, which the Android build ships (`parts.ts`).

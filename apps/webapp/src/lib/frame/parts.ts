@@ -40,6 +40,23 @@ export const emojiSets = {
   en: () => import('emojibase-data/en/compact.json'),
 };
 
+/** The frame and the work's own screens: the doors before sign-in draw none of them. */
+export const loadFrame = () => import('./AppFrame.svelte');
+export const workViews = {
+  TodayView: () => import('../../views/TodayView.svelte'),
+  ItemView: () => import('../../views/ItemView.svelte'),
+  ContainerView: () => import('../../views/ContainerView.svelte'),
+};
+
+/**
+ * The rules' screens: the profile's own rules and the administration's, so one chunk the area
+ * module asks for too rather than binding it in, which the Android build would leave out.
+ */
+export const ruleViews = {
+  RulesView: () => import('../../views/RulesView.svelte'),
+  RuleEditorView: () => import('../../views/RuleEditorView.svelte'),
+};
+
 /** Every part's loader, for the precache. */
 export function partLoaders(): (() => Promise<unknown>)[] {
   return [...Object.values(settingsParts), ...Object.values(entryParts), ...Object.values(emojiSets), ...Object.values(blockLibraries)];
