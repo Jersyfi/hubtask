@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 
 import { afterTaking, productTemplates, tryTemplateOf } from './templates.ts';
 
@@ -62,4 +63,19 @@ test('Try it takes the template a product is mainly for', () => {
   assert.equal(tryTemplateOf(catalogue, 'KNOWLEDGE'), undefined);
   assert.equal(tryTemplateOf(catalogue, 'ASSETS'), undefined);
   assert.equal(tryTemplateOf(catalogue, 'WORKFLOWS'), undefined);
+});
+
+// user-experience.md §3.3 and configuration.md §9: Pages and Assets each have a shipped template
+// they are mainly for, so *Try it* takes the Team wiki and the Configuration items rather than the
+// product's bare home.
+test('Try it finds a shipped template for Pages and for Assets', () => {
+  const folder = new URL('../../../../../core/application/service/config/shipped/', import.meta.url);
+  const catalogue = readdirSync(folder).filter((name) => name.endsWith('.json')).sort().map((name) => {
+    const shipped = JSON.parse(readFileSync(new URL(name, folder), 'utf8')) as {
+      key: string; document: { modules?: Record<string, { switch?: string }> }; hub?: unknown;
+    };
+    return { key: shipped.key, origin: 'HUBTASK', document: shipped.document, hub_document: shipped.hub ?? null };
+  });
+  assert.equal(tryTemplateOf(catalogue, 'KNOWLEDGE')?.key, 'team_wiki');
+  assert.equal(tryTemplateOf(catalogue, 'ASSETS')?.key, 'configuration_items');
 });

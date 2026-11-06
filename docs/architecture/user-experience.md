@@ -214,6 +214,9 @@ portfolio*. Today's four purposes are the first two families and the plain team 
   question offers *Create a group* inline.
 * Afterwards the app opens **the home of the template's main product** (the desk's queue for a
   service template, the space's first page for a docs template), with its first-visit mark.
+* *Knowledge and docs* and *Assets and registers* each have a template the product is mainly for:
+  *Team wiki* among the team templates and *Configuration items* among the registers
+  (`configuration.md` §9).
 * *Skip* and dismissing still close the question for good; Today's first steps then carry
   *Choose what you use Hubtask for* (§3.3), which opens the same dialog.
 * A new workspace still starts with no module on (UC-INS-21 check 1): a module comes on only
@@ -263,7 +266,8 @@ see (one in use, where nothing is on the reader, shows *In use here* instead: it
 products, each leading there): *Choose what you use Hubtask for*
 (where the starter was skipped), *Create a hub*, *Capture*, *Invite*, and **More in Hubtask**: a
 strip of the switched-off products, each with a one-line value and *Try it*, which takes the
-matching template through §3.2's dialog — for holders of `STRUCTURE` only; nobody else sees a
+matching template through §3.2's dialog (*Pages* takes the *Team wiki*, *Assets* the
+*Configuration items*) — for holders of `STRUCTURE` only; nobody else sees a
 product they cannot switch on. The strip can be dismissed for good.
 
 ### 3.4 Tours

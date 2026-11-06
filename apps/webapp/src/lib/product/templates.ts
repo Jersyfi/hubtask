@@ -52,7 +52,9 @@ export function afterTaking(template: Pick<Offered, 'document'>, hubId?: string)
 }
 
 /** The family a product's own templates stand in, where it has one. */
-const FAMILY_OF_PRODUCT: Readonly<Record<string, Family>> = { SERVICE_DESK: 'service', PLANNING: 'projects', GOALS: 'programmes' };
+const FAMILY_OF_PRODUCT: Readonly<Record<string, Family>> = {
+  SERVICE_DESK: 'service', PLANNING: 'projects', GOALS: 'programmes', KNOWLEDGE: 'teams', ASSETS: 'registers',
+};
 
 /**
  * The template *Try it* takes for a product (user-experience.md §3.3): one whose main product it
