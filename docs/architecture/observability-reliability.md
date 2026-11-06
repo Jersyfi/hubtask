@@ -403,7 +403,9 @@ budget without a cursor, as §3.1 of offline-sync.md intends. Live delivery to 6
 P95 302 ms; 30 writers on one live document ended equal once two faults were fixed (a socket cut
 at the request timeout, a ping that stalled a busy connection). The CMDB views at the hub's ceiling
 peaked at 796 MiB resident, over the 768 MiB `GOMEMLIMIT` of the run, and health and the service
-map at P95 248 and 390 ms, over SLO-2. A connector's reconciliation at volume is *not measured*.
+map at P95 248 and 390 ms, over SLO-2. A connector's reconciliation at volume is *not measured*. Every
+ceiling the code enforces stands beside the largest size measured in
+[support-matrix.md](./support-matrix.md) §9.
 
 ### 13.3 Partitioning of the entries
 
