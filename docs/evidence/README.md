@@ -56,9 +56,10 @@ a real server, because the fixture agrees with whatever the client sends.
 product, through the product's own operations (REST, never SQL): eight people with roles and three
 groups; the Scrum, Kanban, classic project and ITIL templates taken; stories, cards, deliverables,
 risks and incidents with types, fields, links, statuses and comments; sprints, releases, a Gantt
-plan with dependencies, milestones and a baseline; portal requests from two organisations, SLAs and
-an approved change; CIs with relations and a service; wiki pages with versions and an image;
-whiteboards; time records and timesheets; goals, portfolios and dashboards; two registered agents.
+plan with dependencies, milestones and a baseline; portal requests from two organisations, two
+portal articles, SLAs, an approved change and one waiting for the CAB, a macro's run; CIs with
+relations and a service; wiki pages with versions and an image; whiteboards; time records and
+timesheets; goals, portfolios and dashboards; two registered agents.
 `--empty` makes a workspace with nothing in it beside, with its first start and tour. It needs a
 multi-workspace installation (`HUBTASK_TENANCY_MODE=multi`), `HUBTASK_ADMIN_TOKEN` from
 `scripts/dev-workspace.sh --bootstrap`, `HUBTASK_DEMO_PASSWORD` (every demo person's password, not
@@ -70,6 +71,58 @@ scripts/seed-demo.sh --api http://localhost:8080 --slug nordlicht
 scripts/seed-demo.sh --api http://localhost:8080 --slug leer --empty
 make demo DEMO_SLUG=nordlicht        # the same, through make; DEMO_EMPTY=1 for --empty
 ```
+
+**The whole demo on one machine**, from a checkout to a filled workspace in about a minute: a
+database of its own beside the dev one (which collects e2e workspaces), the built web app inside
+the server binary, and every secret generated into `$DEMO/env.sh`, outside the repository. In bash
+or zsh, from the checkout's root:
+
+```bash
+DEMO=$HOME/.cache/hubtask-demo; mkdir -p "$DEMO"/{bin,storage,backups,state}
+corepack pnpm --filter @hubtask/webapp build && cp -R apps/webapp/dist/. presentation/webui/dist/
+for b in server migrate hubctl; do go build -o "$DEMO/bin/$b" "./cmd/$b"; done
+rm -rf presentation/webui/dist/assets presentation/webui/dist/favicon.svg
+git checkout presentation/webui/dist/index.html          # the committed placeholder back
+printf 'services:\n  postgres:\n    ports: !override\n      - "127.0.0.1:55432:5432"\n' > "$DEMO/port.yaml"
+docker compose -p hubtask-demo -f deploy/docker/compose.dev.yaml -f "$DEMO/port.yaml" up -d --wait postgres
+cat > "$DEMO/env.sh" <<EOF
+export HUBTASK_DB_APP_PASSWORD=$(openssl rand -hex 16) HUBTASK_SECRET_KEY=$(openssl rand -base64 32)
+export HUBTASK_ENCRYPTION_KEYS=k1 HUBTASK_ENCRYPTION_KEY_K1=$(openssl rand -base64 32)
+export HUBTASK_DB_DSN="postgres://hubtask_app:\$HUBTASK_DB_APP_PASSWORD@127.0.0.1:55432/hubtask?sslmode=disable"
+export HUBTASK_BASE_URL=http://localhost:8080 HUBTASK_HTTP_ADDR=127.0.0.1:8080 HUBTASK_OPS_ADDR=127.0.0.1:9090
+export HUBTASK_TENANCY_MODE=multi HUBTASK_ROLES=api,worker,scheduler,automation HUBTASK_LOG_FORMAT=json
+export HUBTASK_STORAGE_KIND=local HUBTASK_STORAGE_LOCAL_PATH=$DEMO/storage HUBTASK_BACKUP_LOCAL_PATH=$DEMO/backups
+export HUBTASK_RESTORE_DRILL_RECORD_FILE=$DEMO/state/last_success_unix
+export HUBTASK_RATE_LIMIT_BURST=600 HUBTASK_RATE_LIMIT_TENANT_BURST=2000
+export HUBTASK_DEMO_PASSWORD=$(openssl rand -base64 30 | tr -dc 'A-Za-z0-9' | cut -c1-18)
+EOF
+. "$DEMO/env.sh"
+HUBTASK_DB_DSN="postgres://hubtask:hubtask-dev@127.0.0.1:55432/hubtask?sslmode=disable" "$DEMO/bin/migrate" up
+nohup "$DEMO/bin/server" > "$DEMO/server.log" 2>&1 & echo $! > "$DEMO/server.pid"
+curl -sf --retry 30 --retry-connrefused -o /dev/null http://localhost:8080/api/v1/meta/capabilities
+code=$(LC_ALL=C grep -ao '[A-Z0-9]\{4\}-[A-Z0-9]\{4\}-[A-Z0-9]\{4\}' "$DEMO/server.log" | head -1)
+HUBTASK_SETUP_CODE=$code scripts/dev-workspace.sh --bootstrap | grep -o 'HUBTASK_ADMIN_TOKEN=.*' \
+  | sed 's/^/export /' >> "$DEMO/env.sh"
+. "$DEMO/env.sh"; HUBTASK_HUBCTL="$DEMO/bin/hubctl" scripts/seed-demo.sh --slug nordlicht
+```
+
+Open **http://nordlicht.localhost:8080/** (in multi mode a workspace is its subdomain) and sign in
+with the generated `HUBTASK_DEMO_PASSWORD` (`grep DEMO_PASSWORD "$DEMO/env.sh"`), one address per
+role:
+
+| Role | Sign-in |
+|---|---|
+| Owner: every product, the administration included | `owner@nordlicht.example.org` |
+| Administrator; a change waits for him and Priya in the CAB's approvals | `lukas.brandt@nordlicht.example.org` |
+| Member | `amelia.hughes@nordlicht.example.org` (also `mehmet.yilmaz@`, `sofia.rossi@`, `priya.natarajan@`) |
+| Contributor, viewer, auditor | `jonas.weber@`, `clara.neumann@`, `thomas.becker@nordlicht.example.org` |
+| Portal requester | `hannah.albers@stadtwerke-lueneburg.example` (also `felix.hartmann@` there, `grace.oneill@nordwind-logistics.example`) |
+
+The installation's operator is `owner@example.org` of the workspace `demo`
+(http://demo.localhost:8080/), with the same password. Stop it all with
+`kill $(cat "$DEMO/server.pid")` and
+`docker compose -p hubtask-demo -f deploy/docker/compose.dev.yaml down` (`-v` for a fresh
+database), and wait until the process is gone before starting the next one (below).
 
 One server per database: two both run the worker, and a job landing on the one whose local storage
 lacks the bytes fails with `media.object_missing`. Stop the old server before starting a rebuilt
