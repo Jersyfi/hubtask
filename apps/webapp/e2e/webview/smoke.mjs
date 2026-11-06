@@ -325,6 +325,19 @@ async function crashDetails() {
   return until('the copied details', () => session.script('return window.__walkCrash ?? null;'), 5_000);
 }
 
+/** The bundle's text around each of the first two frames of a crash's details. */
+async function codeAt(details) {
+  const frames = [...String(details ?? '').matchAll(/^frame: .*?@(\S+):(\d+):(\d+)$/gm)].slice(0, 2);
+  const out = [];
+  for (const [, url, line, column] of frames) {
+    const text = await session.script(`return fetch(${JSON.stringify(url)}).then((r) => r.text());`);
+    const row = String(text).split('\n')[Number(line) - 1] ?? '';
+    const at = Number(column) - 1;
+    out.push(`${url}:${line}:${column}\n${row.slice(Math.max(0, at - 400), at)} <<HERE>> ${row.slice(at, at + 200)}`);
+  }
+  return out.join('\n\n');
+}
+
 async function items({ token, collection }) {
   const page = await json('GET', `/items?collection_id=${collection.id}`, { token });
   return page.data ?? page.items ?? [];
@@ -354,7 +367,11 @@ async function explain() {
     // A broken screen's own details - the failure's kind and frames, never its message (crash.ts):
     // what "Copy details" would hand support, caught from the clipboard. No engine's driver here
     // reads the console of WebKitGTK, so this is how a crash there names its place in the code.
-    say('the broken screen\'s details', await crashDetails().catch((error) => `(unreadable: ${error.message})`));
+    const details = await crashDetails().catch((error) => `(unreadable: ${error.message})`);
+    say('the broken screen\'s details', details);
+    // The bundle CI built is gone with the runner, and a local build hashes differently: the code
+    // at the first frames, read from the page itself, is what places the failure in the source.
+    say('the code at the failing frames', await codeAt(details).catch((error) => `(unreadable: ${error.message})`));
     say('the page\'s console', await session.log()
       .then((entries) => entries.map((entry) => `${entry.level} ${entry.message}`).join('\n'))
       .catch((error) => `(unreadable: ${error.message})`));
