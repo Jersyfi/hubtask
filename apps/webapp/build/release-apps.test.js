@@ -173,9 +173,12 @@ test('the pointer hands the updater the manifest with its signature, and one tha
   assert.deepEqual(signatureProblems(dir, 'v0.9.0', key.line), ['update.json is missing']);
 });
 
-test('the shell trusts the recorded update key, and its placeholder stops a release', () => {
+test('the shell trusts the recorded update key and no other', () => {
   const shell = JSON.parse(fs.readFileSync(path.join(repository, 'apps', 'webapp', 'src-tauri', 'tauri.conf.json'), 'utf8'));
-  // Until the owner creates the key (§9 reads `pending`), the shell names a placeholder.
+  const document = fs.readFileSync(path.join(repository, 'docs', 'architecture', 'versioning-release.md'), 'utf8');
+  const recorded = recordedKeys(document);
+  assert.deepEqual(shellKeyProblems(shell, recorded.updateKey), []);
+  assert.ok(document.includes(`| Update key ID | \`${keyId(recorded.updateKey)}\` |`), 'the recorded key ID is not the update key\'s');
   assert.deepEqual(shellKeyProblems(shell, SIGNER_KEY), ["tauri.conf.json's updater does not name the update key versioning-release.md §9 records"]);
   const file = Buffer.from(`untrusted comment: minisign public key: 2A3CA2CCEC3EE143\n${SIGNER_KEY}\n`).toString('base64');
   const trusting = { plugins: { updater: { ...shell.plugins.updater, pubkey: file } } };

@@ -186,9 +186,9 @@ owner creates each once, on a machine of their own, and nobody else holds them.
 
 | Key | Recorded |
 |---|---|
-| APK signing certificate, SHA-256 | `pending` |
-| Update public key | `pending` |
-| Update key ID | `pending` |
+| APK signing certificate, SHA-256 | `D8:24:E1:C4:EE:3E:D8:AD:80:5C:20:D2:AA:66:A0:6C:A6:52:FF:C0:2F:31:6F:67:5A:7C:44:3C:56:55:D2:B1` |
+| Update public key | `RWSITl2G4Mtfh1kBs3mdpJ4Jhoo5IkZRdDHLklafJzEhTEjTlbNUh7bB` |
+| Update key ID | `875FCBE0865D4E88` |
 
 **How the desktop updater reads a release.** Tauri's updater checks a package's signature, not
 the manifest's, so its endpoint is `update.json`: the newest release's manifest (`latest.json`) as
@@ -204,8 +204,8 @@ to nobody.
 `release.yml` reads the first two rows (`apps/webapp/build/release-apps.js`): it publishes no APK
 whose certificate is not the recorded one, and no app or `latest.json` whose signature does not
 hold under the recorded update key, and none whose shell (`tauri.conf.json`) names another key
-than the recorded one. While a row says `pending`, a release stops before it publishes anything;
-until then the shell names a placeholder no release accepts. The download page shows the same values (milestone `0.9.5`).
+than the recorded one. While a row says `pending`, a release stops before it publishes anything.
+The download page shows the same values (milestone `0.9.5`).
 
 **Creating them, once.**
 
@@ -232,8 +232,11 @@ until then the shell names a placeholder no release accepts. The download page s
 4. The table above, in a pull request: the certificate's SHA-256, the public key and its ID. In
    the same pull request `plugins.updater.pubkey` in `apps/webapp/src-tauri/tauri.conf.json`
    becomes the content of `hubtask-update.key.pub` (the base64 the signer writes).
-5. Both files and both passwords on two offline media kept in two places; then the files are
-   deleted from the machine that made them.
+5. Both files and both passwords in the owner's password manager, one entry per key holding its
+   files, its password and its public values; each file is read back and compared before the copy
+   on the machine that made it is deleted. The manager keeps its copies off that machine, so losing
+   the machine loses no key; its recovery kit is kept offline, because losing the manager's account
+   would lose both keys (the owner's decision of 2026-10-31, in place of two offline media).
 
 **What a lost or leaked key costs.**
 
