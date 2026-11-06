@@ -7813,7 +7813,7 @@ paths:
       tags: [automation]
       operationId: listRuleRuns
       x-hubtask-cli: "rule runs"
-      x-hubtask-cli-columns: [id, rule_id, status, started_at, error_code]
+      x-hubtask-cli-columns: [id, rule_id, trigger, status, started_at, error_code]
       x-hubtask-rest: generated
       x-hubtask-rest-answer: runResponse
       summary: What the rules have done

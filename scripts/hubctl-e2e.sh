@@ -1660,7 +1660,7 @@ expect_contains "auth status" "$status" '"signed_in": true'
 
 # The session the person is holding, seen from the listing that exists to show it, and the walls
 # the workspace is inside.
-expect_contains "session ls" "$(owner session ls)" "yes"
+expect_contains "session ls" "$(owner session ls)" "true"
 expect_contains "quota show" "$(owner quota show)" "items"
 
 echo "--- and the second workspace, invisible ---"

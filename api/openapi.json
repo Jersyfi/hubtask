@@ -13074,6 +13074,7 @@
         "x-hubtask-cli-columns": [
           "id",
           "rule_id",
+          "trigger",
           "status",
           "started_at",
           "error_code"

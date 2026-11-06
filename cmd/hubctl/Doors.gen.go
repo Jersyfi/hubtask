@@ -2595,7 +2595,7 @@ var generatedCommands = []door{
 			{Name: "to", Kind: "string", Help: "The end of the window, exclusive, on `started_at`", Required: false},
 			{Name: "trigger", Kind: "string", Help: "Narrow to one way of starting", Required: false},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "rule_id", "status", "started_at", "error_code"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "rule_id", "trigger", "status", "started_at", "error_code"}},
 	{Group: "rule", Verb: "show", OperationID: "getRule", Method: "GET", Path: "/automation/rules/{ruleId}", Summary: "One rule, as it stands",
 		PathParams: []doorParam{
 			{Name: "ruleId", Kind: "uuid", Help: "", Required: true},
