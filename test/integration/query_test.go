@@ -1068,12 +1068,14 @@ func TestAListOperatorTakesItsWholeArrayAsOneParameter(t *testing.T) {
 func TestABoardWhoseCountOutlastsItsBudgetIsAnsweredWithoutIt(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
-	const entries = 60_000
+	const entries = 10_000
+	// The entries carry their numbers, as a bulk load does: a drawn number rewrites the counter row
+	// per entry (migration 0296). Ten thousand still outlast a millisecond's count.
 	if _, err := adminPool(ctx, t).Exec(ctx, `
 		INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key,
-		                       content_language, created_by)
+		                       content_language, created_by, number)
 		SELECT id, $1, $2, 'TASK', '/' || id || '/', 0, 'Entry ' || g, 'a' || lpad(g::text, 6, '0'),
-		       'en', $3
+		       'en', $3, g
 		FROM (SELECT gen_random_uuid() AS id, g FROM generate_series(1, $4::int) g) s`,
 		tenantA.String(), collection.String(), authorA.String(), entries); err != nil {
 		t.Fatalf("seeding the entries: %v", err)
