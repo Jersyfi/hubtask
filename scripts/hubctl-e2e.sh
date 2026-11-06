@@ -817,7 +817,8 @@ expect_contains "backup run --follow" "$run" "SUCCEEDED"
 archives="$(hubctl backup ls --target "$TARGET_ID")"
 ARCHIVE="$(printf '%s\n' "$archives" | awk 'NR==2 {print $1}')"
 [ -n "$ARCHIVE" ] || { echo "FAILED: nothing is lying at the target: $archives"; exit 1; }
-expect_contains "backup ls" "$archives" "yes"
+# The sixth column is COMPLETE: whether checksums.txt is there.
+expect_contains "backup ls, complete" "$(printf '%s\n' "$archives" | awk 'NR==2 {print $6}')" "true"
 
 verified="$(hubctl backup verify "$BACKUP_ID" --follow --wait 5m)"
 expect_contains "backup verify" "$verified" "ok"

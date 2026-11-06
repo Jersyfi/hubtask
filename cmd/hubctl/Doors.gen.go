@@ -565,7 +565,7 @@ var generatedCommands = []door{
 			{Name: "refresh", Kind: "boolean", Help: "Bypass the cache and read again", Required: false},
 			{Name: "tenant_id", Kind: "uuid", Help: "", Required: false},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"archive_id", "path", "created_at", "mode", "size_bytes"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"path", "created_at", "mode", "item_count", "size_bytes", "complete", "encrypted"}},
 	{Group: "backup", Verb: "schedule add", OperationID: "createBackupSchedule", Method: "POST", Path: "/backup-schedules", Summary: "Create a backup schedule",
 		Body: []doorParam{
 			{Name: "enabled", Kind: "boolean", Help: "", Required: false},

@@ -14901,11 +14901,13 @@
         "operationId": "listBackupsAtTarget",
         "x-hubtask-cli": "backup ls",
         "x-hubtask-cli-columns": [
-          "archive_id",
           "path",
           "created_at",
           "mode",
-          "size_bytes"
+          "item_count",
+          "size_bytes",
+          "complete",
+          "encrypted"
         ],
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-answer": "backupArchiveResponse",
