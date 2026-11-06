@@ -646,10 +646,16 @@ func workflowDescriptor(name, summary, sideEffects, scope string, readOnly bool,
 // ListWorkflows reads the workspace's workflows and its scheme.
 type ListWorkflows struct{ Desk Desk }
 
-// Execute answers the workflows and the scheme. Any member may read them: a board draws its
-// columns from them.
+// Execute answers the workflows and the scheme. Any member may read them - a board draws its
+// columns from them -, no requester.
 func (h ListWorkflows) Execute(ctx context.Context, actor appshared.ActorContext) (domain.Workflows, []domain.WorkflowScheme, error) {
 	if err := actor.RequireScope(typesRead); err != nil {
+		return nil, nil, err
+	}
+	// Any member's, never a requester's (access.Request.AnyMember).
+	if err := h.Desk.Authorizer.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: WorkflowsReadAction, TokenScope: typesRead, TargetType: WorkflowTarget,
+	}); err != nil {
 		return nil, nil, err
 	}
 	var (

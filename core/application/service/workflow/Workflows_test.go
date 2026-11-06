@@ -5,6 +5,7 @@ package workflow_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -331,5 +332,27 @@ func TestUsingAWorkflowTellsTheChangeLogTheScheme(t *testing.T) {
 	}
 	if len(stored) != 1 || stored[0].Payload["key"] != work.SystemWorkflowKey || stored[0].Payload["version"] != 1 {
 		t.Fatalf("the shipped workflow's first row was recorded as %+v", stored)
+	}
+}
+
+// The entry types and the workflows are the workspace's vocabulary, which any member reads - a role
+// on one hub is enough - and no requester: the portal answers a requester's own requests and the
+// types it offers, never the team's configuration (UC-SVC-05).
+func TestARequesterReadsNeitherTheTypesNorTheWorkflows(t *testing.T) {
+	ctx := context.Background()
+	f := newDesk()
+	f.auth.refuse = true
+
+	if _, err := (workflow.ListEntryTypes{Registry: f.registry}).Execute(ctx, actor()); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("the entry types = %v, want the refusal", err)
+	}
+	if !f.auth.request.AnyMember || f.auth.request.Action != workflow.EntryTypesReadAction {
+		t.Errorf("the entry types asked %+v, want any member", f.auth.request)
+	}
+	if _, _, err := (workflow.ListWorkflows{Desk: f.desk}).Execute(ctx, actor()); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("the workflows = %v, want the refusal", err)
+	}
+	if !f.auth.request.AnyMember || f.auth.request.Action != workflow.WorkflowsReadAction {
+		t.Errorf("the workflows asked %+v, want any member", f.auth.request)
 	}
 }

@@ -328,6 +328,12 @@ func (h ListEntryTypes) Execute(ctx context.Context, actor appshared.ActorContex
 	if err := actor.RequireScope(typesRead); err != nil {
 		return nil, err
 	}
+	// Any member's, never a requester's (access.Request.AnyMember): the portal offers its types itself.
+	if err := h.Registry.Authorizer.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: EntryTypesReadAction, TokenScope: typesRead, TargetType: EntryTypeTarget,
+	}); err != nil {
+		return nil, err
+	}
 	var registry domain.EntryTypes
 	err := h.Registry.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		read, err := h.Registry.Read(ctx)

@@ -132,10 +132,15 @@ func LinkTypeOutput(t domain.LinkType) usecase.Output {
 // ListLinkTypes reads the workspace's link types.
 type ListLinkTypes struct{ Registry LinkTypeRegistry }
 
-// Execute answers every type, archived ones included and marked. Any member may read it: every
-// link drawn offers from it.
+// Execute answers every type, archived ones included and marked. Any member may read it - every
+// link drawn offers from it -, no requester (access.Request.AnyMember).
 func (h ListLinkTypes) Execute(ctx context.Context, actor appshared.ActorContext) (domain.LinkTypes, error) {
 	if err := actor.RequireScope(itemsRead); err != nil {
+		return nil, err
+	}
+	if err := h.Registry.Authorizer.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: LinkTypesReadAction, TokenScope: itemsRead, TargetType: linkTypeTarget,
+	}); err != nil {
 		return nil, err
 	}
 	var registry domain.LinkTypes

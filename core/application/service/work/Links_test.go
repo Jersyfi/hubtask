@@ -619,3 +619,18 @@ func TestARestrictedPageReferenceResolvesForThePeopleItNames(t *testing.T) {
 		t.Errorf("a page restricted to the reader resolves to %+v, %v", resolved[0], err)
 	}
 }
+
+// The link types are the workspace's vocabulary, which any member reads and no requester
+// (UC-SVC-05): the read asks the authoriser's member question.
+func TestARequesterReadsNoLinkTypes(t *testing.T) {
+	h := newLinkHarness()
+	h.authorizer.err = shared.ErrForbidden.WithDetail("access.not_permitted")
+	registry := LinkTypeRegistry{Types: h.types, Authorizer: h.authorizer, Audit: h.audit, UnitOfWork: h.uow}
+
+	if _, err := (ListLinkTypes{Registry: registry}).Execute(context.Background(), linkActor()); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the link types = %v, want the refusal", err)
+	}
+	if asked := h.authorizer.requests[len(h.authorizer.requests)-1]; !asked.AnyMember || asked.Action != LinkTypesReadAction {
+		t.Errorf("asked %+v, want any member", asked)
+	}
+}
