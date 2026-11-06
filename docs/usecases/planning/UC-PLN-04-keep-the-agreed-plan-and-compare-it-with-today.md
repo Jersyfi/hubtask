@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18]
 state: verified
 tasks: []
-checked_by: [core/application/service/notification/RecordPlanException_test.go, core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, core/domain/model/planning/Tolerance_test.go, core/application/service/planning/Tolerances_test.go, core/application/service/privacy/Carried_test.go, core/application/service/config/Coverage_test.go, apps/webapp/e2e/plan.test.mjs, apps/webapp/src/lib/frame/toasts.test.ts]
+checked_by: [core/application/service/notification/RecordPlanException_test.go, core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, core/domain/model/planning/Tolerance_test.go, core/application/service/planning/Tolerances_test.go, core/application/service/privacy/Carried_test.go, core/application/service/config/Coverage_test.go, apps/webapp/e2e/plan.test.mjs, apps/webapp/src/lib/frame/toasts.test.ts, core/application/service/planning/ReleaseDoors_test.go]
 ---
 
 # Keep the agreed plan and compare it with today
