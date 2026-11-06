@@ -14,6 +14,7 @@
 
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { AddressAnswer } from './change.ts';
   import type { MainAddressMove } from './owndomain.ts';
 
@@ -58,7 +59,7 @@
     }
     failure = cause instanceof TransportError
       ? renderProblem(cause, messages)
-      : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      : { message: messages.t('app.something_went_wrong'), fields: new Map(), isServerFault: true };
   }
 
   async function confirm(): Promise<void> {
@@ -100,7 +101,7 @@
           {t(`app.instance.address_lockout_${who}_${lockout.reason}`)}
         </Banner>
       {:else if failure}
-        <Banner tone="danger" title={failure.message} />
+        <FailureNote problem={failure} />
       {/if}
       <dl class="fromto">
         <dt>{t('app.instance.address_now')}</dt>

@@ -15,6 +15,7 @@
 
   import { Button, EmptyState, Logo, Stack } from '@hubtask/design-system/components';
 
+  import FailureNote from '../lib/frame/FailureNote.svelte';
   import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
@@ -23,13 +24,13 @@
   import { grantOrder, grantUse, initialsOf } from '../lib/data/grants.ts';
   import { formatLongDay, formatTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
+  import { renderProblem, type RenderedProblem } from '../lib/problem.ts';
 
   const account = $derived(actor.account);
 
   $effect(() => untrack(() => consent.openGrants()));
 
-  let failure = $state<string | undefined>(undefined);
+  let failure = $state<RenderedProblem | undefined>(undefined);
 
   const rows = $derived(grantOrder(consent.grants));
 
@@ -64,7 +65,7 @@
     try {
       await consent.withdraw(grantId);
     } catch (error) {
-      failure = renderProblem(error as never, messages).message;
+      failure = renderProblem(error as never, messages);
     }
   }
 </script>
@@ -78,10 +79,10 @@
     <Stack gap="200">
       <p class="prose">{t('app.grants.intro')}</p>
 
-      {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+      {#if failure}<FailureNote problem={failure} />{/if}
 
       {#if rows.length === 0}
-        <p class="prose">{t('app.grants.none')}</p>
+        <EmptyState kind="unused" title={t('app.grants.none')} />
       {:else}
         <ul class="list" aria-label={t('app.grants.title')}>
           {#each rows as grant (grant.id)}
@@ -123,7 +124,6 @@
 <style>
   .prose { margin: 0; max-inline-size: 72ch; color: var(--text-secondary); }
 
-  .failure { margin: 0; color: var(--text-danger); }
 
   .list {
     display: flex;

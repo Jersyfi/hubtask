@@ -14,6 +14,7 @@
   import AppWorkspaces from '../frame/AppWorkspaces.svelte';
   import { appWorkspaces } from '../data/appworkspaces.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
   import SignInCard from './SignInCard.svelte';
   import { appSignIn } from './appsignin.svelte.ts';
 
@@ -72,7 +73,7 @@
     lead={t(session.endedNotice ? 'app.app_sign_in.ended_lead' : 'app.app_sign_in.signed_out_lead', { name })}
     hostLine={known.host}
   >
-    {#if error}<Banner tone="danger">{error}</Banner>{/if}
+    {#if error}<FailureNote problem={error} />{/if}
     <!-- Each a step of the card's own rhythm, as drawn: two answers, not a group of two. -->
     <Button
       tone="primary"

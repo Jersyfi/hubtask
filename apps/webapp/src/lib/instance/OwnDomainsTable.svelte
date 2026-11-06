@@ -18,6 +18,7 @@
   import { formatLongDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem, type RenderedProblem } from '../problem.ts';
+  import FailureNote from '../frame/FailureNote.svelte';
 
   $effect(() => untrack(() => instance.openOwnDomains()));
 
@@ -116,7 +117,7 @@
         : t('app.instance.own_domain_block_cost')}
     </Banner>
     {#if failure && !failure.fields.get('/reason')}
-      <Banner tone="danger" title={failure.message} />
+      <FailureNote problem={failure} />
     {/if}
     <Input
       label={t('app.instance.own_domain_reason')}
