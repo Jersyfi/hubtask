@@ -44,7 +44,9 @@ test('the Android build puts the page that names the web app where the two areas
   for (const area of [...LEFT_OUT_AREAS, IN_WEB_APP]) {
     assert.ok(existsSync(new URL(`../../${area}`, import.meta.url)), `${area} exists`);
   }
-  for (const area of LEFT_OUT_AREAS) assert.ok(root.includes(`from '${area}';`), `App.svelte imports ${area} as written`);
+  // Loaded on the first visit, by the specifier the build redirects: `resolveId` is asked for a
+  // dynamic import as for a static one.
+  for (const area of LEFT_OUT_AREAS) assert.ok(root.includes(`import('${area}')`), `App.svelte imports ${area} as written`);
 });
 
 test('every target\'s implementation exists, and the seam imports the browser\'s as written', () => {

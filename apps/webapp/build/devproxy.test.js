@@ -11,7 +11,9 @@ import assert from 'node:assert/strict';
 import config from '../vite.config.ts';
 
 test('the dev proxy forwards the API and its WebSocket upgrade', () => {
-  const api = config.server?.proxy?.['/api'];
+  // The configuration is chosen by the build's mode (`platform/target.ts`); the dev server is `serve`.
+  const served = typeof config === 'function' ? config({ mode: 'development', command: 'serve' }) : config;
+  const api = served.server?.proxy?.['/api'];
   assert.equal(typeof api, 'object');
   assert.equal(api.ws, true);
   assert.equal(api.changeOrigin, false);
