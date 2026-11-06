@@ -290,8 +290,9 @@ test('chromium: a pending deletion is called off with one press, until the remov
   assert.equal(await rowOffers(leaving, 'Suspend'), 1);
 });
 
-// UC-INS-07 check 4: in single mode the one workspace is the installation - no *New workspace*,
-// and no *Suspend* or *Delete* either, which the server refuses there. In multi mode all three are
+// UC-INS-07 check 4, UC-INS-20 check 6: in single mode the one workspace is the installation - no
+// *New workspace*, so nothing about assigned hosts, and no *Suspend* or *Delete* either, which the
+// server refuses there. In multi mode all three are
 // there; *Resume* and *Cancel deletion* are the way back in both.
 test('chromium: single mode offers no new workspace, no suspension and no deletion', async (t) => {
   const browser = await chromium.launch();
@@ -521,7 +522,8 @@ test('chromium: a short name taken meanwhile is refused at the field of New work
 // workspace's host and offers the short name as optional, made from the host where it is left
 // empty. A host already in the table is said while it is typed and nothing is sent; one the server
 // refuses is said at the field with its own reason; no DNS is asked. With subdomains the dialog
-// asks for the short name as before, and no longer says it cannot be changed.
+// asks for the short name as before, and no longer says it cannot be changed; no host is asked
+// (UC-INS-20 check 6).
 test('chromium: New workspace asks for the host where the installation assigns hosts', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
