@@ -25,7 +25,7 @@ func namedGroup(t *testing.T, id shared.ID, name string) domain.Group {
 	return group
 }
 
-// Any member reads the groups: no permission question is asked, only the credential's scope.
+// Any member reads the groups: the authoriser's member question, not a permission along a path.
 func TestTheGroupsAreListedForAnyMemberWithTheScope(t *testing.T) {
 	groups := newGroups(
 		namedGroup(t, groupID, "Leads"),
@@ -46,16 +46,36 @@ func TestTheGroupsAreListedForAnyMemberWithTheScope(t *testing.T) {
 	}
 }
 
+// The scope is judged by the authoriser, which records the refusal (audit.md §4), rather than
+// refused quietly before it is asked; without one the scope still refuses first.
 func TestACredentialWithoutTheScopeListsNoGroups(t *testing.T) {
 	groups := newGroups(namedGroup(t, groupID, "Leads"))
+	members := &authorizer{refuse: shared.ErrForbidden.WithDetail("access.insufficient_scope")}
 
-	_, err := ListGroups{Members: &authorizer{}, Groups: groups, UnitOfWork: &unitOfWork{}}.
+	_, err := ListGroups{Members: members, Groups: groups, UnitOfWork: &unitOfWork{}}.
 		Execute(t.Context(), admin(), ListGroupsQuery{})
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("got %v, want the scope refusal", err)
 	}
 	if groups.listedPage.Size != 0 {
 		t.Error("the list was read for a credential that may not read it")
+	}
+	_, err = GetGroup{Members: members, Groups: groups, UnitOfWork: &unitOfWork{}}.Execute(t.Context(), admin(), groupID)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("reading got %v, want the scope refusal", err)
+	}
+	if len(members.requests) != 2 {
+		t.Fatalf("the authoriser was asked %d times, want once per read, so it records the refusal", len(members.requests))
+	}
+	for _, request := range members.requests {
+		if request.TokenScope != membersRead || request.Action != GroupReadAction {
+			t.Errorf("asked %+v, want members:read for group.read", request)
+		}
+	}
+
+	_, err = ListGroups{Groups: groups, UnitOfWork: &unitOfWork{}}.Execute(t.Context(), admin(), ListGroupsQuery{})
+	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "access.insufficient_scope" {
+		t.Errorf("without the authoriser got %v, want the scope refusal", err)
 	}
 }
 

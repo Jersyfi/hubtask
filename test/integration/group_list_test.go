@@ -203,4 +203,21 @@ func TestTheGroupsAreAMembersAndNotARequesters(t *testing.T) {
 		requester.String()); n != 2 {
 		t.Errorf("%d refusals of the requester recorded, want two", n)
 	}
+
+	// A credential without members:read is refused for its scope, and that refusal is recorded
+	// as any other read's is (audit.md §4).
+	unscoped := as(tenantA, member)
+	unscoped.Scopes = []string{"items:read"}
+	if _, err := list.Execute(ctx, unscoped, identityservice.ListGroupsQuery{}); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "access.insufficient_scope" {
+		t.Errorf("listing without the scope = %v, want access.insufficient_scope", err)
+	}
+	if _, err := get.Execute(ctx, unscoped, group.ID); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "access.insufficient_scope" {
+		t.Errorf("reading without the scope = %v, want access.insufficient_scope", err)
+	}
+	if n := countIn(ctx, t, `SELECT count(*) FROM audit_log WHERE actor_id = $1 AND tenant_id = $2 AND action = 'group.read'
+		AND outcome = 'DENIED'`, member.String(), tenantA.String()); n != 2 {
+		t.Errorf("%d scope refusals of the member recorded, want two", n)
+	}
 }

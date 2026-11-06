@@ -47,12 +47,13 @@ type ListGroups struct {
 	UnitOfWork persistence.UnitOfWork
 }
 
-// authorizeGroupRead is the question both group reads ask: the scope, then any member.
+// authorizeGroupRead is the question both group reads ask: the scope, then any member. The
+// authoriser judges the scope too, so a refusal for it is recorded (audit.md §4).
 func authorizeGroupRead(ctx context.Context, actor appshared.ActorContext, members Authorizer) error {
-	if err := actor.RequireScope(membersRead); err != nil {
-		return err
-	}
 	if members == nil {
+		if err := actor.RequireScope(membersRead); err != nil {
+			return err
+		}
 		return shared.ErrForbidden.WithDetail("access.not_permitted").
 			WithParams(map[string]string{"permission": string(service.PermissionRead)})
 	}
