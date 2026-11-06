@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
 state: built
 tasks: []
-checked_by: [core/application/service/knowledge/Pages_test.go, test/integration/page_repository_test.go, core/application/service/work/Links_test.go, packages/editor/test/markdown.test.ts]
+checked_by: [core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, core/application/service/work/Links_test.go, packages/editor/test/markdown.test.ts]
 ---
 
 # Link pages and entries and see what links here

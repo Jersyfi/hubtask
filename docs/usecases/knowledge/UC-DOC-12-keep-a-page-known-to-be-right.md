@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05]
 state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/Review_test.go, core/application/service/notification/RecordPageReview_test.go]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/PageDoors_test.go, core/application/service/knowledge/Review_test.go, core/application/service/notification/RecordPageReview_test.go]
 ---
 
 # Keep a page known to be right
