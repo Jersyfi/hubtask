@@ -6,12 +6,15 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -24,12 +27,26 @@ const MaxResolvedAccounts = 200
 
 // ResolveAccounts answers "who are these" in one read, so that a member list or a feed naming a
 // hundred people costs one request and not a hundred - which a client's rate limit would refuse in
-// part, leaving people shown as "Somebody". GetAccount's rules, unchanged: no permission beyond
-// the token's scope, the tenant bounded by the transaction wrapper, the same narrow projection.
-// An identifier that does not resolve is left out rather than refused.
+// part, leaving people shown as "Somebody". GetAccount's rules, unchanged: another account's name
+// asks for any member (access.Request.AnyMember), one's own is answered to everybody, the tenant
+// bounded by the transaction wrapper, the same narrow projection. An identifier that does not
+// resolve is left out rather than refused.
 type ResolveAccounts struct {
+	// Members asks whether the reader is a member of the workspace; nil refuses another account.
+	Members    Authorizer
 	Accounts   repository.Accounts
 	UnitOfWork persistence.UnitOfWork
+}
+
+// authorizeOthers is GetAccount's question for another account's name: any member.
+func (h ResolveAccounts) authorizeOthers(ctx context.Context, actor appshared.ActorContext) error {
+	if h.Members == nil {
+		return shared.ErrForbidden.WithDetail("access.not_permitted").
+			WithParams(map[string]string{"permission": string(service.PermissionRead)})
+	}
+	return h.Members.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: AccountReadAction, TokenScope: accountsRead, TargetType: accountTarget,
+	})
 }
 
 // Execute answers the accounts behind the identifiers that resolve, each once.
@@ -48,6 +65,11 @@ func (h ResolveAccounts) Execute(
 		return nil, shared.ErrValidation.
 			WithDetail("accounts.too_many").WithParams(map[string]string{"maximum": "200"}).
 			WithFields(shared.FieldError{Path: "/ids", Code: "accounts.too_many"})
+	}
+	if slices.ContainsFunc(accountIDs, func(id shared.ID) bool { return id != actor.AccountID }) {
+		if err := h.authorizeOthers(ctx, actor); err != nil {
+			return nil, err
+		}
 	}
 
 	var found []domain.Account
@@ -81,7 +103,8 @@ func (h ResolveAccounts) Descriptor() usecase.Descriptor {
 		Name: ResolveAccountsName,
 		Summary: "Reads the names behind up to 200 account identifiers at once, as GetAccount " +
 			"does for one: the display name, the kind and the status. An identifier that does " +
-			"not resolve in this workspace is left out of the answer.",
+			"not resolve in this workspace is left out of the answer. A requester is no member and " +
+			"resolves only their own.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  accountsRead,
 		ReadOnly:    true,
