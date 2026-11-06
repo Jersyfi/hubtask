@@ -832,9 +832,17 @@ type ExplainAccess struct {
 	// them (G2); nil explains every account by its own decision alone.
 	Agents AgentFinder
 	// Administration and Accounts name who administers the workspace, a hub or a collection, on a question about
-	// oneself (user-experience.md §5.5); nil names nobody.
+	// oneself (user-experience.md §5.5), to a member of the workspace (Members) - never to a
+	// requester, who knows the team only as "the team" (UC-SVC-05); any nil names nobody.
 	Administration AdministratorReader
 	Accounts       AccountReader
+	Members        MemberReader
+}
+
+// MemberReader answers the authoriser's member question (access.Request.AnyMember) without
+// recording anything (access.Service.Permits).
+type MemberReader interface {
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
 }
 
 // AgentFinder answers the agent acting as an account, ErrNotFound for any other account.
@@ -938,8 +946,12 @@ func (h ExplainAccess) Execute(
 func (h ExplainAccess) administrators(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, scope domain.Scope,
 ) ([]NamedAccount, error) {
-	if h.Administration == nil || h.Accounts == nil || accountID != actor.AccountID || scope.Type == domain.ScopeItem {
+	if h.Administration == nil || h.Accounts == nil || h.Members == nil || accountID != actor.AccountID ||
+		scope.Type == domain.ScopeItem {
 		return nil, nil
+	}
+	if isMember, err := h.Members.Permits(ctx, actor, access.Request{AnyMember: true}); err != nil || !isMember {
+		return nil, err
 	}
 	path := pathTo(scope)
 	if scope.Type == domain.ScopeCollection && h.Containers != nil {

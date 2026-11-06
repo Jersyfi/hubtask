@@ -439,6 +439,35 @@ func (a administration) Administrators(context.Context, []domain.Scope) ([]share
 
 type namedAccounts map[shared.ID]domain.Account
 
+// member answers the authoriser's member question (access.Request.AnyMember) with itself.
+type member bool
+
+func (m member) Permits(_ context.Context, _ appshared.ActorContext, request access.Request) (bool, error) {
+	return bool(m) && request.AnyMember, nil
+}
+
+// A requester asking about themselves is told what they hold and nobody's name: the portal shows the
+// team as "the team" (UC-SVC-05), and whom to ask is a member's answer. Without the member question
+// nobody is named.
+func TestExplainAccessNamesNobodyToARequester(t *testing.T) {
+	ben := shared.ID("01936f2a-7c1e-7000-8000-0000000000c2")
+	for name, members := range map[string]MemberReader{"a requester": member(false), "no member question": nil} {
+		explain := ExplainAccess{
+			Roles:          rolesWith(newRoleStore(), &authorizer{}, &auditSink{}, &heldBy{}),
+			Members:        members,
+			Administration: administration{ben},
+			Accounts:       namedAccounts{ben: {DisplayName: "Ben Ott", Status: domain.AccountActive}},
+		}
+		got, err := explain.Execute(t.Context(), admin(), shared.ID(""), domain.CollectionScope(hubID), "", "")
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if len(got.Administrators) != 0 {
+			t.Errorf("%s was told %v", name, got.Administrators)
+		}
+	}
+}
+
 func (n namedAccounts) Find(_ context.Context, id shared.ID) (domain.Account, error) {
 	if account, ok := n[id]; ok {
 		return account, nil
@@ -453,6 +482,7 @@ func TestExplainAccessNamesWhomToAskAtAPlace(t *testing.T) {
 		shared.ID("01936f2a-7c1e-7000-8000-0000000000c4"), shared.ID("01936f2a-7c1e-7000-8000-0000000000c5")
 	explain := ExplainAccess{
 		Roles:          rolesWith(newRoleStore(), &authorizer{}, &auditSink{}, &heldBy{}),
+		Members:        member(true),
 		Administration: administration{ben, cleo, dan, eve, invitedID},
 		Accounts: namedAccounts{
 			ben:  {DisplayName: "Ben Ott", Status: domain.AccountActive},

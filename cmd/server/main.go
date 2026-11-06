@@ -2884,7 +2884,7 @@ func run() error {
 		identity.RevokeRoleGrant{Roles: customRoles}.Descriptor(),
 		identity.ExplainAccess{
 			Roles: customRoles, Containers: containers, Items: items, Entries: authorizer, Agents: agentStore,
-			Administration: postgres.NewMembershipRepository(), Accounts: accounts,
+			Administration: postgres.NewMembershipRepository(), Accounts: accounts, Members: authorizer,
 		}.Descriptor(),
 		identity.ListGroups{Members: authorizer, Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetGroup{Members: authorizer, Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
