@@ -48,6 +48,10 @@ A-1 … A-10). Building the suite's products on that shape would grow a second s
    of 2026-10-28, overriding concept mode's default split into several pull requests). Nothing enters the `0.9.5`
    scope window; the suite starts with `1.1.0`.
 
+   > **Amended 2026-11-06 (the owner's word, [accepted.md](../backlog/suite/accepted.md), eighth
+   > answers).** The suite enters `main` as `0.9.2`, before the `0.9.5` scope window, with what it
+   > leaves open; the rule is in [roadmap.md](../roadmap.md).
+
 ## Alternatives
 
 * **Stay a task manager** and polish the personal and team deployments — safer, a small market, no

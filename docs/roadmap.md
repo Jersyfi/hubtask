@@ -247,9 +247,9 @@ Prerequisites for `1.0.0`:
 20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
 21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
-### After `1.0.0`: the suite
+### `0.9.2`: the suite
 
-From `1.1.0` on, Hubtask grows into a work suite (the owner's word of 2026-10-28,
+Hubtask grows into a work suite (the owner's word of 2026-10-28,
 [ADR-0098](./adr/ADR-0098-the-suite-and-its-foundation.md)): ten products, each a module a
 workspace switches on ([P-17](./vision/principles.md#p-17-depth-is-switched-on-and-starts-from-a-default-that-works)),
 on a foundation that changes first. It is built in concept mode on one integration branch, step by
@@ -259,10 +259,11 @@ app; the running plan with every step's state is
 [`products.md`](./backlog/suite/products.md) and the foundation in
 [`foundation.md`](./backlog/suite/foundation.md).
 
-**Nothing of it enters the `0.9.5` scope window** (rule 4 above): none of it is a prerequisite of
-`1.0.0`, and none of it is released before `1.1.0`. SAML and SCIM
-([`security.md`](./architecture/security.md)) arrive with it, and every other requirement that
-arrives after the window closes waits for `1.1.0` as before.
+**It enters `main` as `0.9.2`**, before the `0.9.5` scope window opens (the owner's word of
+2026-11-06, [`accepted.md`](./backlog/suite/accepted.md), eighth answers), with what it leaves
+open; `0.9.5`'s coverage report covers its use cases as well. SAML and SCIM
+([`security.md`](./architecture/security.md)) arrive with it; every other requirement that arrives
+after the window closes waits for `1.1.0` as before.
 
 | Stage | Steps | What it brings |
 |---|---|---|

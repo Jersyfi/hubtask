@@ -360,3 +360,36 @@ each keeps data safest and changes least. Item 4 touches `docs/vision/` and stay
 15. **The capture prompt** says what capture does: the entry goes to the workspace's shared inbox
     (domain-model: read under READ at the workspace). Wording only. Where it goes: locales,
     UC-WRK-02.
+
+## The owner's eighth answers — 2026-11-06
+
+The owner, on the open points of the suite's pull request: "Ich akzeptiere die Vorschläge so wie
+geliefert", and: everything of the suite goes to `main` with what is still open, under a version
+between the closed milestones and the open ones, once the tests and CI checks it added are cut to
+what is required.
+
+1. **The version: `0.9.2`.** The newest release is `v0.9.1` (milestone `0.9.0`, closed); the open
+   milestones are `0.9.5`, `1.0.0` and `2.0.0`. The suite enters `main` as milestone `0.9.2`,
+   before the `0.9.5` scope window, which answers the S-00 notes' question about the freeze: the
+   owner's word replaces "after `1.0.0`". `0.9.5`'s coverage report therefore covers the suite's
+   use cases too. Where it goes: roadmap.md ("After `1.0.0`: the suite" becomes the suite in
+   `0.9.2`), the GitHub milestone `0.9.2`.
+2. **What stays open goes to `main` open.** Every row the pull request lists under "What stays
+   open" and every gap row of README.md keeps its state; none is built for the merge.
+3. **The proposals are decided as proposed**, each built in its own later change: the per-hub
+   trash listings deprecated now and removed in the next major; who trashed a page or a whiteboard
+   recorded (expand-only columns); one approval decision fills one seat, deciding for an absent
+   approver is a separate *on behalf of* choice (UC-SVC-10); a Windows zone name mapped to its
+   IANA zone through CLDR's table (CalDAV); a stored signal time so a stale firing never reopens a
+   resolved alert.
+4. **The finding issues are opened**: the two rows of final-runs-leftovers.md, "Needs a finding
+   issue", and the sync protocol change for a page opened while offline.
+5. **Unchanged:** a member at a typed `/administration` address still reads "nothing here" while
+   P-05 stands (`docs/vision/` changes only by the owner's own word); the use cases' changes stay
+   named "owner's decision … - not a correction" against these answers, without `decision`
+   issues; the trigger poll stays as automation.md §3.2 writes it.
+6. **Sizes.** Every ceiling the code enforces stands beside the largest size a run measured,
+   *not measured* where none did: support-matrix.md §9, the CMDB's 20 000 CIs a hub among them.
+7. **Tests and checks.** The tests and CI jobs the suite added are held to what can occur and to
+   the runtime budgets of engineering-guidelines.md §1; what was cut and why is in the pull
+   request.
