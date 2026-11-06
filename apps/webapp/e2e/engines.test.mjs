@@ -428,6 +428,9 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.keyboard.press('Enter');
     for (let waited = 0; creates.length === 0 && waited < 50; waited++) await page.waitForTimeout(100);
     assert.equal(creates[0]?.title, 'Order tiles !Materials', `${name}: the capture was not sent as typed`);
+    // The field closes once the capture is answered, not when it is sent; until then the page
+    // behind it is inert and a second `Q` would be typed into the field.
+    await field.waitFor({ state: 'hidden', timeout: 5_000 });
 
     await checkbox.focus();
     await page.keyboard.press('q');
