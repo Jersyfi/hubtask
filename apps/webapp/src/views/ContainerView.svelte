@@ -98,6 +98,7 @@
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import HubProductLines from '../lib/workspace/HubProductLines.svelte';
+  import HubActivity from '../lib/workspace/HubActivity.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { boardShapeIn, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
@@ -1451,6 +1452,8 @@
           create={mayShape ? { label: t('app.workspace.create_collection'), onclick: () => (isCreatingCollection = true), disabledReason: readOnlyReason } : undefined}
         />
       {/if}
+      <!-- What changed last in the hub's collections (user-experience.md §7.9). -->
+      <HubActivity hubId={container.id} />
     {:else}
       <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
            `query_fields` decides what can be asked, and nothing here is a list written down. The

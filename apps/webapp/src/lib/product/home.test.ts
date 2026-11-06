@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -260,4 +260,18 @@ test('a hub\'s overview counts the pages changed since the week began, its conte
   assert.equal(pagesChangedSince(pages, '2026-11-02', berlin), 2);
   assert.equal(pagesChangedSince(pages, '2026-11-02', () => undefined), 0);
   assert.equal(pagesChangedSince([], '2026-11-02', utc), 0);
+});
+
+test('a hub\'s overview counts the boards changed since the week began, in the reader\'s zone (§7.9)', () => {
+  const boards = [{ updated_at: '2026-11-02T08:00:00Z' }, { updated_at: '2026-11-01T23:30:00Z' }, { updated_at: '2026-10-30T08:00:00Z' }];
+  assert.equal(boardsChangedSince(boards, '2026-11-02', (iso) => iso.slice(0, 10)), 1);
+  const berlin = (iso: string) => new Date(Date.parse(iso) + 3_600_000).toISOString().slice(0, 10);
+  assert.equal(boardsChangedSince(boards, '2026-11-02', berlin), 2);
+  assert.equal(boardsChangedSince([], '2026-11-02', berlin), 0);
+});
+
+test('a hub\'s overview counts the goals still pursued and those of them at risk or off track (§7.9)', () => {
+  const goals = ['ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'NONE', 'DONE', 'DROPPED'].map((status) => ({ status }));
+  assert.deepEqual(goalsStanding(goals), { open: 4, atRisk: 2 });
+  assert.deepEqual(goalsStanding([]), { open: 0, atRisk: 0 });
 });

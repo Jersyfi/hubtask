@@ -927,9 +927,12 @@ As built (`HubProductLines`): above the cards, a line for *Plan* (the running sp
 soonest and its days left, then the next release; *No sprint running, no release planned* where
 neither is), *Pages* (the content pages changed since the reader's week began, in the reader's
 zone) and *Assets* (the inventory's total and what needs attention), each leading to its screen
-and drawn only once its read answered. Not built: the whiteboards' line (their read is paged, so a
-count would be one page's), the desk's (its queues' breaches are on their collection cards), time
-and goals, and the hub's recent activity.
+and drawn only once its read answered; *Whiteboards* (the boards changed since the week began,
+drawn only where the hub's list came whole), *Desk* (the desks' open requests and those about to
+breach, as the desk's queues count them), *Time* (the reader's own time recorded here this week)
+and *Goals* (the goals pursued, and how many of them are at risk or off track). Below the cards,
+*Recently changed* names the five entries of the hub's collections changed last, as the generic
+query answers them for the reader.
 
 ### 7.10 Integrations
 

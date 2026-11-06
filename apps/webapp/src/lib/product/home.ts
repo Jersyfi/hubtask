@@ -210,6 +210,23 @@ export function pagesChangedSince(pages: readonly PageRow[], from: string, dayOf
   }).length;
 }
 
+/** How many boards changed on or after `from` (§7.9), the day each changed read in the reader's zone. */
+export function boardsChangedSince(boards: readonly { readonly updated_at: string }[], from: string, dayOf: (iso: string) => string | undefined): number {
+  return boards.filter((board) => {
+    const day = dayOf(board.updated_at);
+    return day !== undefined && day >= from;
+  }).length;
+}
+
+/**
+ * A hub's goals as its overview counts them (§7.9): those still pursued - neither done nor
+ * dropped - and of them those at risk or off track.
+ */
+export function goalsStanding(goals: readonly { readonly status: string }[]): { readonly open: number; readonly atRisk: number } {
+  const open = goals.filter((goal) => goal.status !== 'DONE' && goal.status !== 'DROPPED');
+  return { open: open.length, atRisk: open.filter((goal) => goal.status === 'AT_RISK' || goal.status === 'OFF_TRACK').length };
+}
+
 /**
  * The pages waiting for the reader's review (§2.2): those the reader answers for whose
  * verification has run out (UC-DOC's `due_for_review`), the longest unchanged first.

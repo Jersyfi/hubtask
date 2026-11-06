@@ -66,6 +66,7 @@ function queueOf(body) {
   return narrowing.op === 'IS_NULL' ? 'unassigned' : 'mine';
 }
 const queries = [];
+const RECENT = [{ ...ticket('02', 'VPN drops at noon'), updated_at: '2026-11-04T09:30:00Z' }, { ...ticket('03', 'New laptop for Ana'), updated_at: '2026-11-03T08:00:00Z' }];
 const releaseOf = (n, name, on, state = 'PLANNED') => ({ id: `01a0e2e0-0000-7000-8000-0000000007${n}`, hub_id: HUB.id, name, description: '', release_on: on, state, released_at: null, notes_page_id: null, version: 1 });
 const RELEASES = [releaseOf('01', 'Winter release with the new planning board and the reworked reports', '2026-12-10'), releaseOf('02', 'Autumn fixes', '2026-11-20'), releaseOf('03', 'Summer', '2026-07-01', 'RELEASED')];
 const PORTFOLIOS = [{ id: '01a0e2e0-0000-7000-8000-000000000811', parent_id: null, name: 'Wachstum im Norden', description: '', owner_id: null, status: 'ON_TRACK', items: [], progress: 0, version: 1 }];
@@ -116,9 +117,11 @@ function stubFor({ modulesOn, hubModules, deskless = false, role }) {
     if (sla) return route.fulfill({ json: { data: GOALS[sla[1]] ?? [] } });
     if (path.endsWith('/api/v1/accounts:resolve')) return route.fulfill({ json: { data: [{ id: ACCOUNT.id, display_name: ACCOUNT.display_name }] } });
     if (path.endsWith('/api/v1/sla-policies')) return route.fulfill({ json: { data: [] } });
+    if (path.endsWith('/api/v1/time-records:report')) return route.fulfill({ json: { group_by: [], groups: [], minutes: 390, withheld_minutes: 0, withheld_groups: 0 } });
     if (path.endsWith('/api/v1/items:query')) {
       const body = route.request().postDataJSON();
       queries.push(body);
+      if (body?.sort?.[0]?.field === 'updated_at') return route.fulfill({ json: { data: RECENT, groups: [], page: { next_cursor: null, has_more: false }, total: null } });
       const rows = QUEUES[queueOf(body)];
       return route.fulfill({ json: { data: rows, groups: [], page: { next_cursor: null, has_more: false }, total: rows.length } });
     }
@@ -473,7 +476,8 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   const lines = page.getByRole('list', { name: 'What the products say here' });
   await lines.locator('[data-product-line="assets"]').waitFor({ timeout: 10_000 });
   await lines.locator('[data-product-line="plan"]').waitFor({ timeout: 10_000 });
-  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'pages', 'assets']);
+  await lines.locator('[data-product-line="whiteboards"]').waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'pages', 'whiteboards', 'assets']);
   assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /Plan\s+Sprint Kranich · (Its last day has passed|\d+ days? left) · Next: Autumn fixes on /);
   assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/collections/${SCRUM.id}/sprints`);
   // Every page of the fixture changed before this week began, the template included.
@@ -481,6 +485,35 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   assert.equal(await lines.locator('[data-product-line="pages"] a').getAttribute('href'), `/hubs/${HUB.id}/pages`);
   assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /42 configuration items · 2 need attention/);
   await noSidewaysScroll(page, 'hub overview');
+  assert.deepEqual(failures, []);
+});
+
+// §7.9: the desk's, time's and goals' lines, and the hub's recent activity - the entries of its
+// collections changed last - each leading to where it is about.
+test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what changed last', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK', 'TIME', 'GOALS', 'WHITEBOARD'] });
+  t.after(close);
+  const lines = page.getByRole('list', { name: 'What the products say here' });
+  for (const id of ['whiteboards', 'desk', 'time', 'goals']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['whiteboards', 'desk', 'time', 'goals']);
+  // Both boards of the fixture changed before this week began.
+  assert.match(await lines.locator('[data-product-line="whiteboards"]').innerText(), /Whiteboards\s+No board changed this week/);
+  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /Desk\s+3 open$/);
+  assert.equal(await lines.locator('[data-product-line="desk"] a').getAttribute('href'), `/hubs/${HUB.id}/desk`);
+  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /Time\s+6:30 of yours this week/);
+  assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/actuals`);
+  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /Goals\s+1 goal pursued$/);
+  assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/goals?hub=${HUB.id}`);
+  const recent = page.getByRole('region', { name: 'Recently changed' });
+  await recent.waitFor({ timeout: 10_000 });
+  assert.deepEqual(await recent.locator('.title').allTextContents(), RECENT.map((entry) => entry.title));
+  assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/items/${RECENT[0].id}`);
+  assert.match(await recent.locator('.where').first().innerText(), new RegExp(`^${DESK.name} · `));
+  const asked = queries.find((body) => body?.sort?.[0]?.field === 'updated_at');
+  assert.deepEqual(asked.scope, { container_id: HUB.id, include_descendants: true });
+  await noSidewaysScroll(page, 'hub overview, desk, time and goals');
   assert.deepEqual(failures, []);
 });
 
