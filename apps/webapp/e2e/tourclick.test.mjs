@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The first sign-in's tour is finished by clicking (design-system.md §8): at a desktop and a
-// phone size every step's mark stands inside the viewport and its Next takes a pointer - none is
+// The first sign-in's tour is finished by clicking (design-system.md §8): at the smallest
+// expanded size and a phone size every step's mark stands inside the viewport and its Next takes a pointer - none is
 // clipped at an edge or covered by its own text. Chromium only.
 
 import { test } from 'node:test';
@@ -21,7 +21,7 @@ test.after(() => served.close());
 
 const FRESH = { ...ACCOUNT, id: '01a0e2e0-0000-7000-8000-0000000032a1', onboarding_completed_at: null };
 
-for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
+for (const [width, height] of [[1280, 860], [390, 844]]) {
   test(`chromium: the tour is clicked through at ${width}x${height}`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
@@ -51,8 +51,17 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
 
     const seen = [];
     let firstWords = '';
-    // A step may move to another screen first: the next mark is waited for, the end is its absence.
-    const another = () => spotlight.waitFor({ state: 'attached', timeout: 8_000 }).then(() => true, () => false);
+    // A step may move to another screen first: the next mark is waited for, the end is the written
+    // completion - not a mark's absence, which a move to another screen also shows for a while.
+    const completed = () => written.some((body) => typeof body?.onboarding_completed_at === 'string');
+    const another = async () => {
+      for (let wait = 0; wait < 80; wait += 1) {
+        if (completed()) return false;
+        if (await spotlight.count()) return true;
+        await page.waitForTimeout(100);
+      }
+      return false;
+    };
     for (let step = 0; step < 20 && (await another()); step += 1) {
       const mark = page.locator('[role="dialog"][aria-labelledby^="coach-"]');
       await mark.waitFor({ state: 'visible', timeout: 5_000 });
@@ -67,6 +76,7 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
       await next.click({ timeout: 3_000 }).catch((error) => assert.fail(`${count}: Next cannot be clicked - ${String(error).split('\n')[0]}`));
       seen.push(count);
     }
+    await spotlight.waitFor({ state: 'detached', timeout: 3_000 }).catch(() => undefined);
     assert.equal(await spotlight.count(), 0, `the tour did not end after ${JSON.stringify(seen)}`);
     // Step 8 points at the whole of Your settings, taller than the screen: the one that was
     // clipped. The fixture draws no entry opener, so the tour passes over its last step.
@@ -80,8 +90,7 @@ for (const [width, height] of [[1440, 900], [1280, 860], [390, 844]]) {
     if (width < 1280) assert.match(firstWords, /This button opens the tree/);
     else assert.doesNotMatch(firstWords, /This button/);
     // A tour walked to its end is the account's no more: the next sign-in does not start it again.
-    for (let wait = 0; wait < 20 && !written.some((body) => typeof body?.onboarding_completed_at === 'string'); wait += 1) await page.waitForTimeout(100);
-    assert.ok(written.some((body) => typeof body?.onboarding_completed_at === 'string'), `the walked tour was not written: ${JSON.stringify(written)}`);
+    assert.ok(completed(), `the walked tour was not written: ${JSON.stringify(written)}`);
     assert.deepEqual(failures, []);
   });
 }

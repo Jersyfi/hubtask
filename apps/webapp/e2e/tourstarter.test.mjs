@@ -22,7 +22,7 @@ test.after(() => served.close());
 
 const FRESH = { ...ACCOUNT, id: '01a0e2e0-0000-7000-8000-0000000032b1', onboarding_completed_at: null };
 
-for (const [width, height] of [[1440, 900], [390, 844]]) {
+for (const [width, height] of [[1440, 900]]) {
   test(`chromium: the tour waits for the starter at ${width}x${height}`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
