@@ -34,7 +34,7 @@
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import { precacheWhenIdle } from './lib/frame/precache.ts';
-  import { loadFrame, partLoaders, workViews } from './lib/frame/parts.ts';
+  import { loadFrame, partLoaders, ruleViews, workViews } from './lib/frame/parts.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
   import { engine } from './lib/data/engine.ts';
   import { forwardTo } from './lib/data/oidc.ts';
@@ -101,8 +101,7 @@
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
-    RulesView: () => import('./views/RulesView.svelte'),
-    RuleEditorView: () => import('./views/RuleEditorView.svelte'),
+    ...ruleViews,
     // The two areas the Android build leaves to the web app, each one module (`platform/target.ts`).
     AdministrationArea: () => import('./views/AdministrationArea.svelte'),
     InstanceArea: () => import('./views/InstanceArea.svelte'),
