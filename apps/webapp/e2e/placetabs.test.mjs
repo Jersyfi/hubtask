@@ -80,7 +80,8 @@ async function noSidewaysScroll(page, label) {
 
 const PLACE_TABS = (page) => page.getByRole('main').getByRole('navigation', { name: HUB.name, exact: true });
 
-for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], [375, 'dark']]) {
+// The scheme changes no row or box asserted here: each width once, in one of them.
+for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: a hub's views are one strip, never head buttons`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());

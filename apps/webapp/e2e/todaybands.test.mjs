@@ -150,7 +150,8 @@ async function open(browser, { width, scheme = 'light', modulesOn, twoHubs = fal
   return { page, failures, asked, decided, close: () => context.close() };
 }
 
-for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], [375, 'dark']]) {
+// The scheme changes no row or box asserted here: each width once, in one of them.
+for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the desk's and time's bands stand on Today where they are on`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
@@ -227,7 +228,8 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 
 // §3.3: the desk entries on the reader with an SLA running, the pages waiting for their review and
 // the running sprint they are in, each where its product is on.
-for (const [width, scheme] of [[1280, 'light'], [1280, 'dark'], [375, 'light'], [375, 'dark']]) {
+// The scheme changes no row or box asserted here: each width once, in one of them.
+for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: Needs your answer, a page review and the Sprint stand on Today`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());

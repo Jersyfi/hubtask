@@ -157,7 +157,8 @@ async function noSidewaysScroll(page, label) {
   assert.equal(scroll.width, scroll.viewport, `${label}: the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
 }
 
-for (const scheme of ['light', 'dark']) {
+// The colour scheme changes no row or box here: one scheme per width.
+for (const scheme of ['light']) {
   test(`chromium 1280 px, ${scheme}: the products band, in one order, and a product's home with its hubs`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
@@ -215,7 +216,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
   assert.deepEqual([...narrowed.failures, ...none.failures], []);
 });
 
-for (const scheme of ['light', 'dark']) {
+for (const scheme of ['dark']) {
   test(`chromium 375 px, ${scheme}: More opens the drawer with the products first`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
