@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Access_test.go, core/application/service/knowledge/Access_test.go, core/application/service/work/Links_test.go]
+checked_by: [core/domain/model/knowledge/Access_test.go, core/application/service/knowledge/Access_test.go, core/application/service/knowledge/AccessDoors_test.go, core/application/service/work/Links_test.go]
 ---
 
 # Keep notes only I can read

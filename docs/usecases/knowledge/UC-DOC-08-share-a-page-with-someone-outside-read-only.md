@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Access_test.go, core/application/service/knowledge/Access_test.go, core/application/service/knowledge/PublicLink_test.go, core/domain/model/integration/PageLinkToken_test.go, presentation/rest/PublicPageController_test.go, test/integration/page_repository_test.go]
+checked_by: [core/domain/model/knowledge/Access_test.go, core/application/service/knowledge/Access_test.go, core/application/service/knowledge/AccessDoors_test.go, core/application/service/knowledge/PublicLink_test.go, core/domain/model/integration/PageLinkToken_test.go, presentation/rest/PublicPageController_test.go, test/integration/page_repository_test.go]
 ---
 
 # Share a page with someone outside, read-only

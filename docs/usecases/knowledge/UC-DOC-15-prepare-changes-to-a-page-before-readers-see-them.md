@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-17]
 state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Draft_test.go, core/application/service/knowledge/Drafts_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts]
+checked_by: [core/domain/model/knowledge/Draft_test.go, core/application/service/knowledge/Drafts_test.go, core/application/service/knowledge/AccessDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/data/pages.test.ts]
 ---
 
 # Prepare changes to a page before readers see them
