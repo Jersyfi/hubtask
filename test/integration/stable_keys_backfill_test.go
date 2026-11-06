@@ -17,7 +17,7 @@ import (
 // after the first. The refusing trigger is a deterministic stand-in for a killed migrator.
 func TestHubsAndViewsWrittenBeforeTheStableKeysAreGivenTheirs(t *testing.T) {
 	ctx := context.Background()
-	pool, dsn := databaseMigratedTo(ctx, t, "stable_keys_backfill", 285)
+	pool, dsn := databaseMigratedTo(ctx, t, "stable_keys_backfill", 292)
 
 	if _, err := pool.Exec(ctx, `
 		WITH t AS (
@@ -38,8 +38,8 @@ func TestHubsAndViewsWrittenBeforeTheStableKeysAreGivenTheirs(t *testing.T) {
 		t.Fatalf("seeding the views: %v", err)
 	}
 
-	if err := dbtest.MigrateTo(ctx, dsn, 328); err != nil {
-		t.Fatalf("migrating to 328: %v", err)
+	if err := dbtest.MigrateTo(ctx, dsn, 335); err != nil {
+		t.Fatalf("migrating to 335: %v", err)
 	}
 	var stop string
 	if err := pool.QueryRow(ctx, `
@@ -59,7 +59,7 @@ func TestHubsAndViewsWrittenBeforeTheStableKeysAreGivenTheirs(t *testing.T) {
 			t.Fatalf("stopping the walk: %v", err)
 		}
 	}
-	if err := dbtest.MigrateTo(ctx, dsn, 329); err == nil {
+	if err := dbtest.MigrateTo(ctx, dsn, 336); err == nil {
 		t.Fatal("the stopped walk reported success")
 	}
 	var given int
@@ -80,7 +80,7 @@ func TestHubsAndViewsWrittenBeforeTheStableKeysAreGivenTheirs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := dbtest.MigrateTo(ctx, dsn, 329); err != nil {
+	if err := dbtest.MigrateTo(ctx, dsn, 336); err != nil {
 		t.Fatalf("the second run failed: %v", err)
 	}
 	var left int

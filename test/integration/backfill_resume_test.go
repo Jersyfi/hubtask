@@ -18,7 +18,7 @@ import (
 // starts over nor leaves its ledger row behind.
 func TestAnInterruptedBackfillResumesWhereItStopped(t *testing.T) {
 	ctx := context.Background()
-	pool, dsn := databaseMigratedTo(ctx, t, "backfill_resume", 211)
+	pool, dsn := databaseMigratedTo(ctx, t, "backfill_resume", 218)
 
 	if _, err := pool.Exec(ctx, `
 		WITH t AS (
@@ -71,7 +71,7 @@ func TestAnInterruptedBackfillResumesWhereItStopped(t *testing.T) {
 		}
 	}
 
-	if err := dbtest.MigrateTo(ctx, dsn, 212); err == nil {
+	if err := dbtest.MigrateTo(ctx, dsn, 219); err == nil {
 		t.Fatal("the stopped walk reported success")
 	}
 	var position string
@@ -94,7 +94,7 @@ func TestAnInterruptedBackfillResumesWhereItStopped(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := dbtest.MigrateTo(ctx, dsn, 212); err != nil {
+	if err := dbtest.MigrateTo(ctx, dsn, 219); err != nil {
 		t.Fatalf("the second run failed: %v", err)
 	}
 
