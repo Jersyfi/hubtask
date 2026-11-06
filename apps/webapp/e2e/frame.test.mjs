@@ -111,6 +111,9 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   await page.locator('header .trigger').click();
   const band = page.locator('p.band[data-tone]');
   await band.waitFor({ timeout: 5_000 });
+  // The stream opens after the copy is attached; until then the mark says it is connecting. A
+  // loaded runner can open the band before that, so the state is awaited, then read.
+  await page.locator('p.band[data-tone]', { hasText: 'All synchronised' }).waitFor({ timeout: 10_000 }).catch(() => {});
   assert.equal((await band.innerText()).trim(), 'All synchronised', 'the band names the state, not only the connection');
   const geometry = await page.evaluate(() => {
     const state = document.querySelector('p.band[data-tone]');
