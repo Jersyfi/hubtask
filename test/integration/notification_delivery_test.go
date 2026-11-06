@@ -224,6 +224,9 @@ func newNotificationStack(ctx context.Context, t *testing.T) notificationStack {
 			Queue: jobs, UnitOfWork: work, Handlers: handlers, Clock: clockadapter.System{},
 			Batch: 10, PollInterval: 50 * time.Millisecond, JobTimeout: 5 * time.Second,
 			Lease: 30 * time.Second,
+			// The kinds it has handlers for, as a role's runner claims: the package's other tests
+			// leave jobs due in the shared queue, and taking those would be this test's wait.
+			Only: []queue.Kind{queue.KindInvitationEmail, queue.KindNotificationDeliver},
 			// The production backoff in miniature. Not zero: a job's attempt budget is eight, and
 			// retrying with no wait at all would spend all eight inside a second - which would be
 			// the test proving that an instant retry loop gives up, rather than that a message

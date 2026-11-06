@@ -110,47 +110,50 @@ func TestAWorkspaceRoleCountsAsAccessAndAWorkspaceRequesterFindsItsPortals(t *te
 	reader, requester, readRole, requestRole, hub, hidden, desk, secret := ids[0], ids[1], ids[2], ids[3], ids[4], ids[5], ids[6], ids[7]
 	readGrant, requestGrant := ids[8], ids[9]
 	admin := adminPool(ctx, t)
+	// A workspace of its own: a workspace grant reaches every collection, and the shared tenant
+	// holds the package's other fixtures - more than the fifty a portal list answers.
+	workspace, author := seedOwnTenant(ctx, t)
 	for _, statement := range []struct {
 		sql  string
 		args []any
 	}{
-		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Rita')`, []any{reader.String(), tenantA.String()}},
-		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Quinn')`, []any{requester.String(), tenantA.String()}},
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Rita')`, []any{reader.String(), workspace.String()}},
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Quinn')`, []any{requester.String(), workspace.String()}},
 		{`INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
 		  VALUES ($1, $2, $3, 'Contractor', ARRAY['READ'], now(), now())`,
-			[]any{readRole.String(), tenantA.String(), "contractor_" + readRole.String()[30:]}},
+			[]any{readRole.String(), workspace.String(), "contractor_" + readRole.String()[30:]}},
 		{`INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
 		  VALUES ($1, $2, $3, 'Client', ARRAY['REQUEST'], now(), now())`,
-			[]any{requestRole.String(), tenantA.String(), "client_" + requestRole.String()[30:]}},
+			[]any{requestRole.String(), workspace.String(), "client_" + requestRole.String()[30:]}},
 		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
-		  VALUES ($1, $2, 'HUB', 'Help', 'a0', $3)`, []any{hub.String(), tenantA.String(), authorA.String()}},
+		  VALUES ($1, $2, 'HUB', 'Help', 'a0', $3)`, []any{hub.String(), workspace.String(), author.String()}},
 		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by, private)
-		  VALUES ($1, $2, 'HUB', 'Board room', 'a1', $3, true)`, []any{hidden.String(), tenantA.String(), authorA.String()}},
+		  VALUES ($1, $2, 'HUB', 'Board room', 'a1', $3, true)`, []any{hidden.String(), workspace.String(), author.String()}},
 		{`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
 		  VALUES ($1, $2, 'COLLECTION', $3, 'Help desk', 'a0', $4)`,
-			[]any{desk.String(), tenantA.String(), hub.String(), authorA.String()}},
+			[]any{desk.String(), workspace.String(), hub.String(), author.String()}},
 		{`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
 		  VALUES ($1, $2, 'COLLECTION', $3, 'Minutes', 'a0', $4)`,
-			[]any{secret.String(), tenantA.String(), hidden.String(), authorA.String()}},
+			[]any{secret.String(), workspace.String(), hidden.String(), author.String()}},
 		{`INSERT INTO custom_role_grant (id, tenant_id, account_id, scope_type, scope_id, role_id, created_at)
 		  VALUES ($1, $2, $3, 'HUB', $4, $5, now())`,
-			[]any{readGrant.String(), tenantA.String(), reader.String(), hub.String(), readRole.String()}},
+			[]any{readGrant.String(), workspace.String(), reader.String(), hub.String(), readRole.String()}},
 		{`INSERT INTO custom_role_grant (id, tenant_id, account_id, scope_type, role_id, created_at)
 		  VALUES ($1, $2, $3, 'TENANT', $4, now())`,
-			[]any{requestGrant.String(), tenantA.String(), requester.String(), requestRole.String()}},
+			[]any{requestGrant.String(), workspace.String(), requester.String(), requestRole.String()}},
 	} {
 		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
 			t.Fatalf("seeding: %v\n%s", err, statement.sql)
 		}
 	}
 
-	if !holdsAny(ctx, t, tenantA, reader) {
+	if !holdsAny(ctx, t, workspace, reader) {
 		t.Error("a person holding a READ role of the workspace's own was answered as holding nothing")
 	}
-	if holdsAny(ctx, t, tenantA, requester) {
+	if holdsAny(ctx, t, workspace, requester) {
 		t.Error("a requester's role was counted as access; their place is the portal")
 	}
-	portals := portalsOf(ctx, t, tenantA, requester)
+	portals := portalsOf(ctx, t, workspace, requester)
 	found := false
 	for _, portal := range portals {
 		if portal.CollectionID == secret {

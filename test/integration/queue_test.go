@@ -93,8 +93,11 @@ const testKind = queue.Kind("test.claim")
 func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 	ctx := context.Background()
 	dedupe := freshID(t).String()
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: dedupe + "-1", RunAt: queueClock.Now()})
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: dedupe + "-2", RunAt: queueClock.Now()})
+	// A kind of its own, claimed alone: a claim of one job across every kind takes another test's
+	// leftover first, and the two left pending here would be the next test's surplus.
+	kind := queue.Kind("test.claim.disjoint")
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: dedupe + "-1", RunAt: queueClock.Now()})
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: dedupe + "-2", RunAt: queueClock.Now()})
 
 	// The first claim stays open while the second runs, which is the only arrangement in which
 	// the row lock of the first is visible to the second.
@@ -109,7 +112,7 @@ func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 		err := systemWrite(ctx, t, func(txCtx context.Context) error {
 			var err error
 			jobs, err = jobQueue(t).Claim(txCtx, queue.Lease{
-				Now: queueClock.Now(), Until: queueClock.Now().Add(time.Minute), Batch: 1,
+				Now: queueClock.Now(), Until: queueClock.Now().Add(time.Minute), Batch: 1, Only: []queue.Kind{kind},
 			})
 			firstClaimed <- jobs
 			<-release
@@ -121,7 +124,7 @@ func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 	})
 
 	first := <-firstClaimed
-	second := claim(ctx, t, queueClock.Now(), time.Minute, 1)
+	second := claimOf(ctx, t, queueClock.Now(), time.Minute, 1, kind)
 	close(release)
 	wg.Wait()
 

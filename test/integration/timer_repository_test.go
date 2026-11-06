@@ -34,31 +34,33 @@ func officeCalendar(t *testing.T) calendar.BusinessCalendar {
 // fired once (domain-model.md §3.7, migration 0236).
 func TestATimerIsStoredClaimedAndFiredOnce(t *testing.T) {
 	ctx := context.Background()
-	seedContainerTenants(ctx, t)
+	// A workspace of its own: ClaimDue answers every due timer of the workspace, and the shared
+	// tenant holds other tests' timers due at the same fixed moments.
+	tenant, _ := seedOwnTenant(ctx, t)
 	repo := postgres.NewTimerRepository()
 	subject := freshID(t)
 	armed := time.Date(2026, 11, 2, 8, 0, 0, 0, time.UTC) // 09:00 in Berlin, a Monday
-	timer, err := calendar.Arm(freshID(t), tenantA, calendar.PurposeSLA, subject, "resolution",
+	timer, err := calendar.Arm(freshID(t), tenant, calendar.PurposeSLA, subject, "resolution",
 		officeCalendar(t), 2*time.Hour, armed)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		return repo.Insert(ctx, timer, armed)
 	}); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
-	second, _ := calendar.Arm(freshID(t), tenantA, calendar.PurposeSLA, subject, "resolution",
+	second, _ := calendar.Arm(freshID(t), tenant, calendar.PurposeSLA, subject, "resolution",
 		officeCalendar(t), time.Hour, armed)
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		return repo.Insert(ctx, second, armed)
 	}); !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("a second live timer of the same goal: %v, want a conflict", err)
 	}
 
 	var found calendar.Timer
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
 		found, err = repo.FindLive(ctx, calendar.PurposeSLA, subject, "resolution")
 		return err
@@ -72,7 +74,7 @@ func TestATimerIsStoredClaimedAndFiredOnce(t *testing.T) {
 
 	due := armed.Add(2 * time.Hour)
 	var claimed []calendar.Timer
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		var err error
 		if claimed, err = repo.ClaimDue(ctx, due.Add(-time.Minute), 10); err != nil || len(claimed) != 0 {
 			return errors.Join(err, errors.New("claimed before its moment"))
@@ -94,7 +96,7 @@ func TestATimerIsStoredClaimedAndFiredOnce(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("firing: %v", err)
 	}
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		_, err := repo.FindLive(ctx, calendar.PurposeSLA, subject, "resolution")
 		return err
 	}); !errors.Is(err, shared.ErrNotFound) {
