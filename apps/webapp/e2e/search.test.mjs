@@ -113,8 +113,12 @@ async function open(browser, width) {
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
+  const before = asked.length;
   await page.goto(`${served.origin}/`);
   await page.getByRole('button', { name: ACCOUNT.display_name }).first().waitFor({ timeout: 15_000 });
+  // *Today* asks a wordless search of its own; on a loaded machine it lands after a walk has
+  // emptied `asked`, and reads as the first search the walk made.
+  await waitForAsked(before + 1);
   return { page, failures, close: () => context.close() };
 }
 
