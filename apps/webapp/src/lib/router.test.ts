@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalisePath, queryOf, resolve, type Route } from './router.ts';
+import { isOwnAddress, normalisePath, queryOf, resolve, type Route } from './router.ts';
 
 const routes: Route[] = [
   { name: 'home', pattern: '/' },
@@ -93,4 +93,16 @@ test('the query travels with the resolution, and the path stays clean of it', ()
   assert.deepEqual(resolution.query, { item: 'i1', x: 'y' });
   assert.deepEqual(queryOf('/collections/c1'), {});
   assert.deepEqual(queryOf('/a?item=%2Fx'), { item: '/x' });
+});
+
+test('a link of the shell at tauri://localhost stays in the application, though its origin is opaque', () => {
+  const shell = { protocol: 'tauri:', host: 'localhost' };
+  const link = new URL('/hubs/7', 'tauri://localhost/today');
+  assert.equal(link.origin, 'null');
+  assert.ok(isOwnAddress(link, shell));
+  assert.ok(isOwnAddress(new URL('/hubs/7', 'http://tauri.localhost/'), { protocol: 'http:', host: 'tauri.localhost' }));
+  assert.ok(isOwnAddress(new URL('https://hub.example.org:443/x'), { protocol: 'https:', host: 'hub.example.org' }));
+  assert.ok(!isOwnAddress(new URL('https://localhost/hubs/7'), shell));
+  assert.ok(!isOwnAddress(new URL('tauri://elsewhere/hubs/7'), shell));
+  assert.ok(!isOwnAddress(new URL('https://hub.example.org:8443/x'), { protocol: 'https:', host: 'hub.example.org' }));
 });

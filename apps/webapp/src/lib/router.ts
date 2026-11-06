@@ -125,6 +125,16 @@ export type Unsubscribe = () => void;
  * Everything above this line is pure and carries the tests; everything below is thin enough
  * to be verified by reading it.
  */
+/**
+ * Whether a link stays in this application: the same scheme and host as the page. Not `origin`:
+ * the URL standard gives a custom scheme's URL an opaque origin, `"null"`, while the page at
+ * `tauri://localhost` (the shell on Linux and macOS) has a tuple one, so every link compared
+ * unequal there and left as a full page load.
+ */
+export function isOwnAddress(url: URL, here: { readonly protocol: string; readonly host: string }): boolean {
+  return url.protocol === here.protocol && url.host === here.host;
+}
+
 export class Router {
   readonly #routes: readonly Route[];
   readonly #listeners = new Set<(resolution: Resolution) => void>();
@@ -205,7 +215,7 @@ export class Router {
       const anchor = (event.target as Element | null)?.closest('a');
       if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
       const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin) return;
+      if (!isOwnAddress(url, window.location)) return;
       event.preventDefault();
       this.navigate(url.pathname + url.search);
     };
