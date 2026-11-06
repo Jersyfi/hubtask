@@ -794,6 +794,8 @@ CREATE TABLE blocked_domain (
   was_main     boolean NOT NULL DEFAULT false,
   dismissed_at timestamptz
 );
+-- A workspace's blocks, by when, for its owner and for the workspace's deletion (migration 0386).
+CREATE INDEX blocked_domain_tenant_idx ON blocked_domain (tenant_id, blocked_at DESC) WHERE tenant_id IS NOT NULL;
 
 -- The providers a workspace signs its people in through (migration 0103). Plural,
 -- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
