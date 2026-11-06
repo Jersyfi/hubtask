@@ -908,7 +908,8 @@ echo "--- an instruction not to delete something ---"
 hold="$(hubctl hold place --scope CONTAINER --id "$COLLECTION_ID" --reason 'the end-to-end drill')"
 HOLD_ID="$(printf '%s\n' "$hold" | first_id)"
 [ -n "$HOLD_ID" ] || { echo "FAILED: placing the hold produced no identifier: $hold"; exit 1; }
-expect_contains "hold ls" "$(hubctl hold ls)" "in force"
+# Without --include-released the list holds only the holds in force.
+expect_contains "hold ls" "$(hubctl hold ls)" "$HOLD_ID"
 hubctl hold release "$HOLD_ID" --reason 'the drill ended' >/dev/null
 # A released hold is only visible when asked for, and it carries why it was lifted.
 expect_missing "hold ls" "$(hubctl hold ls)" "$HOLD_ID"
@@ -996,7 +997,7 @@ expect_missing "token ls" "$listed" "$TOKEN"
 
 # A service account: no address, nothing to accept, active from the moment it exists. A rule's
 # run_as points at one of these, so that a rule outlives its author.
-MACHINE_ID="$(hubctl service-account create --name 'the nightly export' | first_id)"
+MACHINE_ID="$(hubctl --json service-account create --display-name 'the nightly export' | answer_field id)"
 [ -n "$MACHINE_ID" ] || { echo "FAILED: creating the service account produced no identifier"; exit 1; }
 expect_contains "service-account ls" "$(hubctl service-account ls)" "$MACHINE_ID"
 
