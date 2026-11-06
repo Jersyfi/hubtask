@@ -12,11 +12,13 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	lifecycle "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -90,8 +92,12 @@ type Page struct {
 // it at an address outside the workspace are the same power, and the pull half must not be the
 // cheaper way to it. The event type's own read scope is the second: a token scoped to read items
 // polls item events and is refused what it is not scoped for, which falls out of the scopes the
-// catalogue already declares rather than out of a polling permission invented beside them.
+// catalogue already declares rather than out of a polling permission invented beside them. The
+// events are the workspace's own, so the poller is a member of it: a requester is none and is
+// refused (access.Request.AnyMember).
 type PollTriggerEvents struct {
+	// Members asks whether the poller is a member of the workspace; nil refuses everybody.
+	Members    Authorizer
 	Events     outbox.Pollable
 	Policies   lifecyclerepo.Policies
 	Cursors    Cursors
@@ -138,6 +144,16 @@ func (h PollTriggerEvents) Execute(
 		return Page{}, err
 	}
 	if err := actor.RequireScope(eventType.ReadScope()); err != nil {
+		return Page{}, err
+	}
+	if h.Members == nil {
+		return Page{}, shared.ErrForbidden.WithDetail("access.not_permitted").
+			WithParams(map[string]string{"permission": string(service.PermissionRead)})
+	}
+	if err := h.Members.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: TriggerPolledAction, TokenScope: automationScope,
+		TargetType: triggerTarget,
+	}); err != nil {
 		return Page{}, err
 	}
 
@@ -288,7 +304,8 @@ func (h PollTriggerEvents) Descriptor() usecase.Descriptor {
 			"CloudEvent a delivery would have carried, and `id` is the same value " +
 			"`X-Hubtask-Event-Id` names, so a consumer deduplicates on it either way. A cursor " +
 			"older than the outbox's retention period is refused rather than answered from the " +
-			"beginning: a poller that missed more than the window has to be told that it missed.",
+			"beginning: a poller that missed more than the window has to be told that it missed. " +
+			"Any member may poll; a requester is no member and is refused.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  automationScope,
 		ReadOnly:    true,

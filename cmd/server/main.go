@@ -3235,7 +3235,7 @@ func run() error {
 			Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 		}.Descriptor(),
 		integrationservice.PollTriggerEvents{
-			Events: outbox, Policies: lifecycleStore, Reach: authorizer,
+			Events: outbox, Policies: lifecycleStore, Reach: authorizer, Members: authorizer,
 			Cursors:   security.NewTriggerCursorCodec(cfg.SecretKey),
 			Rendering: cloudEventRendering{source: cfg.BaseURL},
 			// The pull half renders through the very function the push half delivers, so that one

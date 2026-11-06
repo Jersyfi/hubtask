@@ -159,7 +159,7 @@ func newPollHarness(rows ...event.Envelope) *pollHarness {
 		handler: PollTriggerEvents{
 			Events:   log,
 			Policies: policies{policy: lifecycle.Policy{DataKind: lifecycle.KindOutboxEvent, RetainDays: 7}},
-			Cursors:  plainCursors{}, Rendering: rendering{},
+			Cursors:  plainCursors{}, Rendering: rendering{}, Members: &authorizer{},
 			UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), Lag: pollLag,
 		},
 	}
@@ -464,6 +464,34 @@ func TestPollingIsRefusedWithoutTheEventsOwnScope(t *testing.T) {
 				t.Error("the log was read despite the refusal")
 			}
 		})
+	}
+}
+
+// The events are the workspace's own, entries' notes and all: a requester is no member and polls
+// none of them (access.Request.AnyMember), refused before the log is read; a build without the
+// authoriser refuses everybody.
+func TestARequesterPollsNoEvents(t *testing.T) {
+	h := newPollHarness(emitted(now.Add(-2*time.Hour), "01936f2a-0000-7000-8000-000000000001", event.ItemCreated))
+	members := &authorizer{refuse: shared.ErrForbidden.WithDetail("access.not_permitted")}
+	h.handler.Members = members
+
+	_, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated)})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want the refusal", err)
+	}
+	if len(h.log.asked) != 0 {
+		t.Error("the log was read for a requester")
+	}
+	if len(members.requests) != 1 || !members.requests[0].AnyMember ||
+		members.requests[0].Action != TriggerPolledAction || members.requests[0].TokenScope != automationScope {
+		t.Errorf("asked %+v, want any member under %s", members.requests, automationScope)
+	}
+
+	h.handler.Members = nil
+	if _, err := h.handler.Execute(context.Background(), pollingActor(bothScopes()...),
+		PollTriggerEventsCommand{EventType: string(event.ItemCreated)}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("without the authoriser = %v, want a refusal", err)
 	}
 }
 
