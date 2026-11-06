@@ -35,7 +35,9 @@
   import { people } from '../data/people.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { rowMessage } from '../data/figure.ts';
-  import { KEEPING, primary, products, workspaceBand } from '../navigation.ts';
+  import { KEEPING, leftToWebApp, primary, products, workspaceBand } from '../navigation.ts';
+  import { platform } from '../platform/index.ts';
+  import { webAppAddress, webAppHost } from '../webApp.ts';
   import { commands } from '../palette/commands.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { archivalOf } from '../data/containers.ts';
@@ -143,13 +145,20 @@
   );
   /** The workspace band (§2.1): *Administration*, where the manifest says the reader reaches it. */
   const workspaceRows = $derived(workspaceBand({ isAdministrationReachable: reachesAdministrationArea() === true }));
+  /** Where a build leaves the row's area to the web app (UC-SYN-07 check 7): it names that address and opens it. */
+  const webAppOrigins = $derived({ workspace: platform.webOrigin, installation: manifest.value?.installation_url });
+  const leftOut = (id: string) => leftToWebApp(id, platform.webApp?.areas);
   const workspaceNodes = $derived(
-    workspaceRows.map((row, index) => ({
-      id: row.id,
-      label: t(row.code),
-      icon: row.icon,
-      ...(index === 0 ? { band: { caption: t('app.nav.workspace_band') } } : {}),
-    })),
+    workspaceRows.map((row, index) => {
+      const area = leftOut(row.id);
+      return {
+        id: row.id,
+        label: t(row.code),
+        icon: row.icon,
+        ...(area === undefined ? {} : { meta: t('app.web_app.at', { host: webAppHost(area, webAppOrigins) }) }),
+        ...(index === 0 ? { band: { caption: t('app.nav.workspace_band') } } : {}),
+      };
+    }),
   );
 
   let isCreatingHub = $state(false);
@@ -453,6 +462,11 @@
     const product = productRows.find((each) => each.id === id);
     if (product) return onnavigate(product.path);
     const room = workspaceRows.find((each) => each.id === id);
+    const roomArea = room === undefined ? undefined : leftOut(room.id);
+    if (room && roomArea !== undefined) {
+      void platform.webApp?.open(webAppAddress(roomArea, room.path, webAppOrigins).href).catch(() => {});
+      return;
+    }
     if (room) return onnavigate(room.path);
     const keeping = KEEPING.find((each) => each.id === id);
     if (keeping) return onnavigate(keeping.path);

@@ -161,7 +161,7 @@ test('the account menu holds only what is about the person', () => {
 test('Switch workspace is offered only where the device keeps a list, before the ways through (UC-ID-25 checks 2, 8)', () => {
   const ids = (hasWorkspaceList: boolean) =>
     account({ isAdministrationReachable: true, isInstanceReachable: false, hasWorkspaceList }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'administration', 'switch-workspace', 'help', 'about', 'sign-out']);
+  assert.deepEqual(ids(true), ['profile', 'appearance', 'switch-workspace', 'help', 'about', 'sign-out']);
   assert.ok(!ids(false).includes('switch-workspace'), 'single mode was offered a list of workspaces');
   // The separator opens *Help*, not the switch: the switch belongs with the reader's own places.
   const banded = account({ isAdministrationReachable: true, isInstanceReachable: false, hasWorkspaceList: true })
@@ -173,7 +173,7 @@ test('Switch workspace is offered only where the device keeps a list, before the
 test('an installed app offers Switch workspace and Add a workspace, in single mode too (UC-ID-25 check 7, UC-SYN-07 check 4)', () => {
   const ids = account({ isAdministrationReachable: true, isInstanceReachable: false, isSingleWorkspace: true, holdsWorkspaces: true })
     .map((destination) => destination.id);
-  assert.deepEqual(ids.slice(0, 4), ['profile', 'administration', 'switch-workspace', 'add-workspace']);
+  assert.deepEqual(ids.slice(0, 4), ['profile', 'appearance', 'switch-workspace', 'add-workspace']);
   assert.ok(
     !account({ isAdministrationReachable: true, isInstanceReachable: false, hasWorkspaceList: true })
       .some((destination) => destination.id === 'add-workspace'),
@@ -403,19 +403,23 @@ test('the advanced rows fold while the workspace holds one person, and never wha
 
 test('the Android app keeps the administration\'s and the installation\'s rows, and leaves them to the web app (UC-SYN-07 check 7)', () => {
   const android = ['administration', 'instance'] as const;
+  // The administration's row stands in the column's workspace band (user-experience.md §2.1), the
+  // installation's in the account menu.
   const rows = account({ isAdministrationReachable: true, isInstanceReachable: true, holdsWorkspaces: true });
+  const band = workspaceBand({ isAdministrationReachable: true });
   assert.deepEqual(
     rows.map((row) => row.id).slice(0, 4),
-    ['profile', 'administration', 'instance', 'switch-workspace'],
-    'the rows stay where they are, as the approved preview draws them',
+    ['profile', 'appearance', 'instance', 'switch-workspace'],
+    'the rows stay where they are',
   );
+  assert.deepEqual(band.map((row) => row.id), ['administration'], 'the column keeps the administration\'s row');
   assert.deepEqual(
-    rows.map((row) => leftToWebApp(row.id, android)).filter(Boolean),
+    [...band, ...rows].map((row) => leftToWebApp(row.id, android)).filter(Boolean),
     ['administration', 'instance'],
   );
   assert.equal(leftToWebApp('administration', undefined), undefined, 'the browser and the desktop draw the area themselves');
   assert.equal(leftToWebApp('profile', android), undefined, 'the profile is the phone\'s own');
   // Somebody who does not reach the area is not offered its row on the phone either (P-05).
-  const member = account({ isAdministrationReachable: false, isInstanceReachable: false, holdsWorkspaces: true });
+  const member = [...workspaceBand({ isAdministrationReachable: false }), ...account({ isAdministrationReachable: false, isInstanceReachable: false, holdsWorkspaces: true })];
   assert.equal(member.some((row) => leftToWebApp(row.id, android) !== undefined), false);
 });

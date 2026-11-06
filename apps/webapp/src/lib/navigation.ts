@@ -153,6 +153,8 @@ export interface KeepingRow {
   readonly code: string;
   readonly path: string;
   readonly routes: readonly string[];
+  /** The ADR-0032 area its screens belong to, where a build may leave it to the web app. */
+  readonly area?: Area;
 }
 
 const ARCHIVE_ROW: KeepingRow = { id: 'archive', icon: 'archive', code: 'app.nav.archive', path: '/archive', routes: ['archive'] };
@@ -204,7 +206,7 @@ export const productOf = (module: string): ProductRow | undefined => PRODUCTS.fi
  * drawn where the manifest says the reader reaches it - `STRUCTURE` or `READ_CONFIGURATION` on the
  * workspace, the condition the account menu's row had.
  */
-const ADMINISTRATION_ROW: KeepingRow = { id: 'administration', icon: 'settings', code: 'app.nav.administration', path: '/administration', routes: ['administration'] };
+const ADMINISTRATION_ROW: KeepingRow = { id: 'administration', icon: 'settings', code: 'app.nav.administration', path: '/administration', routes: ['administration'], area: 'administration' };
 
 export function workspaceBand(options: { readonly isAdministrationReachable: boolean }): readonly KeepingRow[] {
   return options.isAdministrationReachable ? [ADMINISTRATION_ROW] : [];
@@ -710,11 +712,11 @@ export function firstScreen(groups: readonly SectionGroup[]): string {
 }
 
 /**
- * The area of an account row a build leaves to the web app (ADR-0032, UC-SYN-07 check 7), or
- * nothing for a row this build draws itself: the Android app keeps the administration's and the
- * installation's rows where they are, and they open the web app rather than a screen of its own.
+ * The area of a row a build leaves to the web app (ADR-0032, UC-SYN-07 check 7), or nothing for a
+ * row this build draws itself: the Android app keeps the administration's row in the column and the
+ * installation's in the account menu, and they open the web app rather than a screen of its own.
  */
 export function leftToWebApp(id: string, areas: readonly Area[] | undefined): Area | undefined {
-  const area = DESTINATIONS.find((each) => each.id === id)?.area;
+  const area = id === ADMINISTRATION_ROW.id ? ADMINISTRATION_ROW.area : DESTINATIONS.find((each) => each.id === id)?.area;
   return area !== undefined && areas?.includes(area) ? area : undefined;
 }
