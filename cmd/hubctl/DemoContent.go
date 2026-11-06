@@ -41,7 +41,7 @@ func (d *demo) run(ctx context.Context) {
 	desk, deskFresh := d.serviceDesk(ctx)
 	d.cmdb(ctx, desk, deskFresh)
 	mine := d.yours(ctx, scrum, kanban, classic, desk)
-	d.wiki(ctx, scrum.hub, desk.hub, classic.hub)
+	d.wiki(ctx, scrum.hub, desk, classic.hub)
 	d.whiteboards(ctx, scrum, kanban)
 	d.timeTracking(ctx, scrum, classic, desk, mine)
 	d.goals(ctx, scrum, kanban, classic, desk)
@@ -614,6 +614,13 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 				d.say(ctx, r.requester, "requester reply", "POST", "/requests/"+raised[i]+"/comments",
 					map[string]any{"body": "Vielen Dank, wir warten ab und melden uns, falls es danach nicht geht."})
 			}
+		case 1:
+			// The desk acknowledges it with the template's macro, so the run log holds a run.
+			if macro := d.acknowledgement(ctx, h); macro != "" {
+				if d.write(ctx, "acknowledge", "POST", "/automation/rules/"+macro+":trigger", map[string]any{"item_id": raised[i]}) != nil {
+					d.counts["automation runs"]++
+				}
+			}
 		case 2:
 			if sofia != nil {
 				d.write(ctx, "assign", "POST", "/items/"+raised[i]+":assign", map[string]any{"account_id": sofia})
@@ -647,8 +654,40 @@ func (d *demo) serviceDesk(ctx context.Context) (demoHub, bool) {
 	if change2, made := d.entry(ctx, "desk.change2", changes, "Upgrade PostgreSQL 15 → 16 on the reporting cluster", entryOptions{entryType: "change", assignee: sofia}); made {
 		d.steps(ctx, change2, "submit")
 	}
+	// Two changes ask the CAB; seed-demo.sh's CAB decides one, the other waits in its approvals.
+	if change3, made := d.entry(ctx, "desk.change3", changes, "Firewall-Regelwerk Standort Hamburg bereinigen (42 ungenutzte Regeln)", entryOptions{
+		entryType: "change", assignee: mehmet,
+		notes: "**Risiko:** mittel. **Rückfall:** Export des Regelwerks vom 01.11. liegt im Change."}); made {
+		d.steps(ctx, change3, "submit", "approve")
+	}
 	out.coll["raised"] = raised[0]
 	return out, fresh
+}
+
+// acknowledgement is the desk's macro that only answers the requester: the enabled MANUAL rule of
+// the hub whose every action is a comment. Empty where the template left none.
+func (d *demo) acknowledgement(ctx context.Context, hub string) string {
+	listed := d.write(ctx, "automation rules", "GET", "/automation/rules", nil)
+	rules, _ := listed["data"].([]any)
+	for _, raw := range rules {
+		rule, _ := raw.(map[string]any)
+		trigger, _ := rule["trigger"].(map[string]any)
+		scope, _ := rule["scope"].(map[string]any)
+		if rule["enabled"] != true || trigger["kind"] != "MANUAL" || (scope != nil && str(scope["id"]) != hub) {
+			continue
+		}
+		actions, _ := rule["actions"].([]any)
+		comments := len(actions) > 0
+		for _, a := range actions {
+			if action, _ := a.(map[string]any); action["kind"] != "ADD_COMMENT" {
+				comments = false
+			}
+		}
+		if comments {
+			return str(rule["id"])
+		}
+	}
+	return ""
 }
 
 // cmdb writes the desk's configuration items. They live in the desk's hub and leave with it, so
@@ -736,7 +775,7 @@ func (d *demo) page(ctx context.Context, key, hub string, body map[string]any) (
 	return d.object(ctx, "page."+key, "PAGE", "pages", "/hubs/"+hub+"/pages", body)
 }
 
-func (d *demo) wiki(ctx context.Context, scrum, desk, classic string) {
+func (d *demo) wiki(ctx context.Context, scrum string, desk demoHub, classic string) {
 	root, _ := d.page(ctx, "scrum.handbook", scrum, map[string]any{"title": "Handbuch Produktentwicklung", "icon": "📘",
 		"body": "Alles, was ein neues Teammitglied in der ersten Woche braucht.\n\nStart here: the pages below are kept current by both teams."})
 	if root != "" {
@@ -766,14 +805,20 @@ func (d *demo) wiki(ctx context.Context, scrum, desk, classic string) {
 			d.say(ctx, "Lukas Brandt", "page comment", "POST", "/pages/"+ritual+"/comments", map[string]any{"body": "Retro ab Dezember bitte remote – die Hälfte des Teams ist im Homeoffice."})
 		}
 	}
-	if kb, _ := d.page(ctx, "desk.knowledge", desk, map[string]any{"title": "Wissensdatenbank Service Desk", "icon": "💡",
+	if kb, _ := d.page(ctx, "desk.knowledge", desk.hub, map[string]any{"title": "Wissensdatenbank Service Desk", "icon": "💡",
 		"body": "Lösungen für häufige Anfragen. Artikel mit ✅ sind für das Kundenportal freigegeben."}); kb != "" {
 		for i, a := range [][2]string{
 			{"VPN verbindet nicht: die fünf häufigsten Ursachen", "1. Zeit auf dem Laptop falsch\n2. Zertifikat abgelaufen\n3. Hotel-WLAN blockiert UDP 4500\n4. Alte Client-Version\n5. Konto gesperrt"},
 			{"How to reset your password when you are locked out", "Use *Forgot password* on the sign-in page. The link is valid for 30 minutes."},
 			{"Drucker im 2. OG: Treiber und Warteschlangen", "Warteschlange `\\\\print-01\\OG2-Farbe`, Treiber Version 7.3."},
 		} {
-			d.page(ctx, fmt.Sprintf("desk.article%d", i), desk, map[string]any{"title": a[0], "parent_id": kb, "body": a[1]})
+			article, fresh := d.page(ctx, fmt.Sprintf("desk.article%d", i), desk.hub, map[string]any{"title": a[0], "parent_id": kb, "body": a[1]})
+			// The first two are the ones released for the portal, which its requesters read.
+			if fresh && i < 2 && desk.coll["desk"] != "" {
+				if d.write(ctx, "portal article", "POST", "/pages/"+article+"/articles", map[string]any{"collection_id": desk.coll["desk"]}) != nil {
+					d.counts["portal articles"]++
+				}
+			}
 		}
 	}
 	if minutes, _ := d.page(ctx, "classic.minutes", classic, map[string]any{"title": "Protokoll Lenkungskreis 12.09.", "icon": "📝",

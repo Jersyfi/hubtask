@@ -37,6 +37,7 @@ type showcaseWrite struct {
 
 const showcaseSelf = "0190a000-0000-7000-8000-00000000aaaa"
 const showcaseSprint = "0190a000-0000-7000-8000-00000000bbbb"
+const showcaseMacro = "0190a000-0000-7000-8000-00000000cccc"
 
 func serveShowcase(t *testing.T) *showcaseInstallation {
 	t.Helper()
@@ -70,6 +71,14 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 			answer(map[string]any{"id": showcaseSelf, "display_name": "Jana Krüger"})
 		case r.Method == http.MethodGet && strings.HasSuffix(path, "/sprints"):
 			answer(map[string]any{"data": []any{map[string]any{"id": showcaseSprint, "state": "ACTIVE"}}})
+		case r.Method == http.MethodGet && path == "/automation/rules":
+			// What the ITIL template leaves: an event rule and the acknowledgement macro.
+			answer(map[string]any{"data": []any{
+				map[string]any{"id": "0190a000-0000-7000-8000-00000000cccb", "enabled": true, "trigger": map[string]any{"kind": "EVENT"},
+					"actions": []any{map[string]any{"kind": "ADD_COMMENT"}}},
+				map[string]any{"id": showcaseMacro, "enabled": true, "trigger": map[string]any{"kind": "MANUAL"},
+					"actions": []any{map[string]any{"kind": "ADD_COMMENT"}}},
+			}})
 		case r.Method == http.MethodGet && path == "/goal-periods":
 			answer(map[string]any{"data": s.periods})
 		case r.Method == http.MethodPost && path == "/goal-periods":
@@ -87,8 +96,10 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		case strings.HasSuffix(path, ":plan"):
 			answer(map[string]any{"plan_hash": "h", "document": map[string]any{}, "template": "t", "mode": "MERGE"})
 		default:
-			if r.Method == http.MethodPost && !strings.Contains(path, ":") {
-				s.creates = append(s.creates, path)
+			if r.Method == http.MethodPost {
+				if !strings.Contains(path, ":") {
+					s.creates = append(s.creates, path)
+				}
 				var body map[string]any
 				_ = json.Unmarshal(raw, &body)
 				s.bodies = append(s.bodies, showcaseWrite{path: path, body: body, id: fmt.Sprintf("0190a000-0000-7000-8000-%012d", s.next+1)})
@@ -275,5 +286,43 @@ func TestTheShowcasesProjectPlanHasNoUndatedEntry(t *testing.T) {
 	}
 	if entries < 20 || len(undated) > 0 {
 		t.Errorf("%d entries in the project's hub, these without dates: %q", entries, undated)
+	}
+}
+
+// The desk is walked from its portal and its automation as well (user-experience.md §3.6): the
+// knowledge base's released articles are published to the intake's portal, the desk acknowledges
+// a request with the template's macro so the run log holds a run, and one change still waits for
+// the CAB, so its approvals open with something to decide.
+func TestTheShowcasesDeskOpensWithArticlesARunAndAWaitingChange(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	intake, request := "", ""
+	for _, w := range s.bodies {
+		if w.path == "/containers" && w.body["name"] == "Störungen & Anfragen" {
+			intake = w.id
+		}
+		if w.path == "/items" && w.body["collection_id"] == intake && w.body["entry_type"] == "service_request" && request == "" {
+			request = w.id
+		}
+	}
+	articles, pressed, asked := 0, false, 0
+	for _, w := range s.bodies {
+		switch {
+		case strings.HasSuffix(w.path, "/articles") && strings.HasPrefix(w.path, "/pages/"):
+			if w.body["collection_id"] != intake {
+				t.Errorf("an article went to %v, not the intake %s", w.body["collection_id"], intake)
+			}
+			articles++
+		case w.path == "/automation/rules/"+showcaseMacro+":trigger":
+			pressed = w.body["item_id"] == request && request != ""
+		case strings.HasSuffix(w.path, ":step") && w.body["step"] == "approve":
+			asked++
+		}
+	}
+	// The CAB decides one; the other approval stays waiting.
+	if articles < 2 || !pressed || asked < 2 {
+		t.Errorf("%d articles on the portal, macro pressed on the request %v, %d changes asking the CAB", articles, pressed, asked)
 	}
 }
