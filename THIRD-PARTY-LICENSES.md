@@ -58,6 +58,11 @@ library a step accepts; each notice is under `third-party/licenses/_bundled/`.
 | [lowlight](https://github.com/wooorm/lowlight/blob/main/license) 3.3.0 | MIT | The colours of a page's code blocks (`packages/editor`) |
 | [highlight.js](https://github.com/highlightjs/highlight.js/blob/main/LICENSE) 11.11.2 | BSD-3-Clause | The grammars lowlight colours with |
 | [emojibase-data](https://github.com/milesj/emojibase/blob/master/LICENSE) 18.0.0 | MIT | The page editor's emoji picker, in the reader's language (`apps/webapp`) |
+| [TipTap](https://github.com/ueberdosis/tiptap/blob/main/LICENSE.md) 3.32.0, with @tiptap/y-tiptap 3.0.10 | MIT | The page editor: its core, starter kit, lists, tables and collaboration extensions (`packages/editor`) |
+| [ProseMirror](https://github.com/ProseMirror/prosemirror/blob/master/LICENSE) (its modules, re-exported by @tiptap/pm 3.32.0) | MIT | TipTap's document model, state and view |
+| [Yjs](https://github.com/yjs/yjs/blob/main/LICENSE) 13.6.33 | MIT | The shared document of a page and a whiteboard, edited together and offline (`packages/editor`, `packages/whiteboard`) |
+| [y-protocols](https://github.com/yjs/y-protocols/blob/master/LICENSE) 1.0.7 | MIT | The live editor's sync and awareness messages (`packages/editor`) |
+| [lib0](https://github.com/dmonad/lib0/blob/main/LICENSE) 0.2.119 | MIT | The binary encoding of those messages, Yjs's own as well (`packages/editor`) |
 | [Chevrotain](https://github.com/Chevrotain/chevrotain/blob/master/LICENSE.txt) 13.2.0 | Apache-2.0 | Mermaid's parser |
 | [DOMPurify](https://github.com/cure53/DOMPurify/blob/main/LICENSE) 3.4.17 | Apache-2.0 (chosen of MPL-2.0 OR Apache-2.0) | Mermaid's sanitiser of a diagram's text |
 | [D3](https://github.com/d3/d3/blob/main/LICENSE) 3 (its modules) | ISC; BSD-3-Clause for d3-array 2, d3-path 1, d3-shape 1, d3-sankey | Mermaid's drawing |
