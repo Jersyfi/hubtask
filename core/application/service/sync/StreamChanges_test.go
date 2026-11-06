@@ -100,7 +100,9 @@ type authorizer struct {
 	// costs answers MANAGE_COSTS by the path's last scope, the workspace under the empty one.
 	costs map[shared.ID]bool
 	// members answers MANAGE_MEMBERS at the workspace: administering agents.
-	members   bool
+	members bool
+	// requester makes the member question (access.Request.AnyMember) answer no.
+	requester bool
 	questions int
 	err       error
 }
@@ -111,6 +113,9 @@ func (a *authorizer) Permits(
 	a.questions++
 	if a.err != nil {
 		return false, a.err
+	}
+	if request.AnyMember {
+		return !a.requester, nil
 	}
 	// The container is the last scope of the path, which is what ContainerScopes builds; a path
 	// that ends at the tenant is the workspace-wide question.
@@ -375,6 +380,30 @@ func TestAnEntryTypeRecordReachesAMemberWithoutTheWorkspace(t *testing.T) {
 	}
 	if len(batch.Records) != 1 {
 		t.Errorf("the entry type's record was withheld: %+v", batch.Records)
+	}
+}
+
+// The workspace's vocabulary, its kinds of work, its time policy and its shared calendar reach any
+// member's device and no requester's: what ListEntryTypes, ListWorkflows, ListLinkTypes,
+// ListCustomFields, ListWorkTypes, ReadTimePolicy and ListAbsences refuse a requester, the copy
+// does not carry either (UC-SVC-05).
+func TestTheWorkspacesVocabularyReachesNoRequestersDevice(t *testing.T) {
+	for _, kind := range []string{entityEntryType, entityLinkType, entityWorkflow, entityWorkflowScheme,
+		entityCustomField, entityWorkTypes, entityTimePolicy, entityAbsence} {
+		change := entry(1, "")
+		change.Entity = kind
+		f := streaming(t, change)
+		f.auth.requester = true
+
+		batch, err := f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+		if err != nil || len(batch.Records) != 0 {
+			t.Errorf("%s: a requester's device was sent %d records (%v)", kind, len(batch.Records), err)
+		}
+		f.auth.requester = false
+		batch, err = f.stream.Next(t.Context(), actor(), Position{IssuedAt: now})
+		if err != nil || len(batch.Records) != 1 {
+			t.Errorf("%s: a member's device was sent %d records (%v)", kind, len(batch.Records), err)
+		}
 	}
 }
 

@@ -482,17 +482,16 @@ func (s StreamChanges) mayReadWorkspaceWide(
 		return visibility{}, nil
 	}
 	switch entity {
-	case entityEntryType, entityLinkType, entityWorkflow, entityWorkflowScheme, entityCustomField:
-		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, and the
-		// workspace-wide definitions ListCustomFields answers within every collection.
-		return visibility{allowed: true}, nil
+	case entityEntryType, entityLinkType, entityWorkflow, entityWorkflowScheme, entityCustomField,
+		entityWorkTypes, entityTimePolicy, entityAbsence:
+		// What ListEntryTypes, ListLinkTypes and ListWorkflows answer every member, the
+		// workspace-wide definitions ListCustomFields answers within every collection, what every
+		// member fills a time record in with and the shared calendar ListAbsences answers: any
+		// member's, no requester's (access.Request.AnyMember).
+		return s.mayReadAsMember(ctx, actor, resolved)
 	case entityRoleGrant, entityTimeRecord, entityTimer, entityTimesheet, entityCapacities:
 		// The walk reads the reader's own grants and time only; the stream decides each record by
 		// holds.
-		return visibility{allowed: true}, nil
-	case entityWorkTypes, entityTimePolicy, entityAbsence:
-		// What every member fills a time record in with, and the shared calendar ListAbsences
-		// answers every member.
 		return visibility{allowed: true}, nil
 	case entityAgentModel, entityAgent, entityAgentRequest, entityAgentCase, entityAgentRun:
 		// Decided per record by mayReadBeyond: the owner, or whoever administers agents.
@@ -515,6 +514,24 @@ func (s StreamChanges) mayReadWorkspaceWide(
 	seen := visibility{allowed: allowed}
 	resolved[shared.ID("")] = seen
 	return seen, nil
+}
+
+// memberKey is where a batch remembers the member question's answer: no container has it.
+const memberKey = shared.ID("member")
+
+// mayReadAsMember asks once per batch whether the reader is a member of the workspace.
+func (s StreamChanges) mayReadAsMember(
+	ctx context.Context, actor appshared.ActorContext, resolved map[shared.ID]visibility,
+) (visibility, error) {
+	if seen, decided := resolved[memberKey]; decided {
+		return seen, nil
+	}
+	allowed, err := s.Authorizer.Permits(ctx, actor.ForACopy(), access.Request{AnyMember: true})
+	if err != nil {
+		return visibility{}, err
+	}
+	resolved[memberKey] = visibility{allowed: allowed}
+	return resolved[memberKey], nil
 }
 
 // mayReadOtherEnd decides the second collection a record names: a link's target. A record of
