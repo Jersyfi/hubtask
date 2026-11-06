@@ -332,6 +332,7 @@ func TestTheSummaryReadsManagedFromTheRow(t *testing.T) {
 	}
 
 	reader := identityservice.GetAccount{
+		Members:  allowEveryone{},
 		Accounts: postgres.NewAccountRepository(), UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
 	}
 	actor := administratorOf(tenantA)

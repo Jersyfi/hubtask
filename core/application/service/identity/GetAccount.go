@@ -7,10 +7,12 @@ import (
 	"context"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -36,18 +38,22 @@ const GetAccountName = "GetAccount"
 // Read-only throughout, for the reason `GetOwnAccount` is: a feed resolving a dozen actors must not
 // pin a dozen read transactions to the primary (`multi-tenancy.md` §7).
 type GetAccount struct {
+	// Members asks whether the reader is a member of the workspace, for another account than their
+	// own; nil answers nobody another account's name.
+	Members    Authorizer
 	Accounts   repository.Accounts
 	UnitOfWork persistence.UnitOfWork
 }
 
 // Execute returns the account behind an identifier, as another member of the tenant may see it.
 //
-// There is no permission check, and that is the decision rather than an omission - the same
-// decision `GetOwnAccount` records for its own reason, reached differently. A name is what makes a
-// shared workspace readable at all: a viewer who may see an entry's history but not learn who wrote
-// it is being shown a document with the subject removed from every sentence. And there is nothing
-// narrower to authorise against, because the identifiers a client holds arrived in records it was
-// already allowed to read.
+// No permission along a path is asked, and that is the decision rather than an omission. A name is
+// what makes a shared workspace readable at all: a viewer who may see an entry's history but not
+// learn who wrote it is being shown a document with the subject removed from every sentence. And
+// there is nothing narrower to authorise against, because the identifiers a client holds arrived in
+// records it was already allowed to read. Another account's name is a member's, though: a requester
+// knows the team only as "the team" in the portal (UC-SVC-05), and is refused it
+// (access.Request.AnyMember); their own name is answered to everybody.
 //
 // The tenant boundary is not checked here either, and for the reason it is not checked in
 // `GetOwnAccount`: the row is found through the transaction wrapper that sets `app.tenant_id`
@@ -69,6 +75,18 @@ func (h GetAccount) Execute(
 		return domain.Account{}, shared.ErrValidation.
 			WithDetail("accounts.account_required").
 			WithFields(shared.FieldError{Path: "/account_id", Code: "accounts.account_required"})
+	}
+	if accountID != actor.AccountID {
+		if h.Members == nil {
+			return domain.Account{}, shared.ErrForbidden.WithDetail("access.not_permitted").
+				WithParams(map[string]string{"permission": string(service.PermissionRead)})
+		}
+		if err := h.Members.Authorize(ctx, actor, access.Request{
+			AnyMember: true, Action: AccountReadAction, TokenScope: accountsRead,
+			TargetType: accountTarget, TargetID: accountID,
+		}); err != nil {
+			return domain.Account{}, err
+		}
 	}
 
 	var account domain.Account
@@ -93,7 +111,8 @@ func (h GetAccount) Descriptor() usecase.Descriptor {
 		Summary: "Reads the name behind an account identifier, as another member of the same " +
 			"tenant may see it: the display name, the kind and the status, and deliberately not " +
 			"the email or the preferences. This is what lets a history, an assignment or a " +
-			"member list say who rather than showing an identifier.",
+			"member list say who rather than showing an identifier. A requester reads only " +
+			"their own.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  accountsRead,
 		ReadOnly:    true,
