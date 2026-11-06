@@ -637,7 +637,13 @@ entry; creates entries). *Who may do what* and *view as* read
 `ExplainAccess`: the roles that count at a place, where each is held, what they carry. Each use
 case declares the permission it asks for (`Descriptor.Permission`); the handler still asks it at
 the path. A **requester** (`service.IsRequester`) holds `REQUEST` and not `READ` along the path: the
-portal's principal, refused by every other use case by the ordinary rule.
+portal's principal, refused by every other use case - by the ordinary rule, and where a read is any
+**member's** rather than a permission along a path, by the member question (`access.Request.AnyMember`):
+a member holds a built-in role anywhere in the workspace or a role of its own carrying `READ`, which
+a requester's `REQUEST` is not. Those reads are the groups and who is in them, another account's
+name, whom to ask in an explanation, the entry types, workflows, link types and workspace-wide field
+definitions, the kinds of work, the time policy and the shared calendar - over REST, MCP and a
+device's copy alike.
 
 A **restricted field** (`custom_field_definition.restricted`, UC-ID-27) is written only by holders
 of its `FIELD_WRITE:<key>` along the entry's path, through every door (`FormGate.holdRestricted`);
