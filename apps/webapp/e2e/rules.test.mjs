@@ -330,11 +330,12 @@ test('chromium: a deep link into the editor reads each resource once, and only w
   // The webhooks are the administration frame's, read once for its column's figure
   // (user-experience.md §7.10); the editor shares that read rather than asking again.
   assert.equal(gets.filter((line) => line.includes('/integrations/webhooks')).length, 1, 'the webhooks are read once, by the frame');
-  // Sixteen: the frame's own reads grew by the person's AI notice and their emergency notices,
-  // each read once per frame (PH-03, PH-05), and the administration's by the private hubs, the
-  // webhooks and the mailboxes its column counts (user-experience.md §7.10) - what this bounds is
-  // the editor's.
-  assert.ok(gets.length <= 16, `${gets.length} reads on open: ${gets.join(', ')}`);
+  // Seventeen: the frame's own reads grew by the person's AI notice, their emergency notices and
+  // their address notices, each read once per frame (PH-03, PH-05, UC-INS-19), and the
+  // administration's by the private hubs, the webhooks and the mailboxes its column counts
+  // (user-experience.md §7.10) - what this bounds is the editor's.
+  assert.equal(gets.filter((line) => line.includes('/accounts/me/address-notices')).length, 1, 'the address notices are read once, by the frame');
+  assert.ok(gets.length <= 17, `${gets.length} reads on open: ${gets.join(', ')}`);
 
   // And the canvas meets the content region rather than standing in its padding: standing in it
   // draws a slab of one colour on a page of another, which reads as a border no other screen has.
