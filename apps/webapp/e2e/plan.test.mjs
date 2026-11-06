@@ -76,6 +76,8 @@ async function plan(browser, width = 1280) {
       const moved = SCHEDULE.entries.filter((each) => body.item_ids.includes(each.item_id)).map(({ item_id, start, finish }) => ({ item_id, start, finish }));
       return route.fulfill({ json: { moved } });
     }
+    // The undated entry's own page reads it as soon as it opens, however quickly the walk goes back.
+    if (path === `/items/${UNDATED}` && method === 'GET') return route.fulfill({ json: { ...FIRST, id: UNDATED, title: 'Write the brief', start_at: null, due_at: null } });
     const item = ITEMS.find((each) => path === `/items/${each.id}`);
     if (item && method === 'GET') return route.fulfill({ json: item });
     if (item && method === 'PATCH') return route.fulfill({ json: { ...item, ...body, version: item.version + 1 } });
