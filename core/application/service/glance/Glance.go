@@ -113,15 +113,17 @@ func (g Glance) entries(
 	return rows, cursor, nil
 }
 
-// lines turns the entries into lines with their keys and links.
-func (g Glance) lines(ctx context.Context, actor appshared.ActorContext, rows []usecase.Output) ([]Found, error) {
-	base, err := g.Addresses.Of(ctx)
-	if err != nil {
-		return nil, err
-	}
-	base = strings.TrimSuffix(base, "/")
+// lines turns the entries into lines with their keys and links, and answers the workspace's
+// address the links begin with - read inside the transaction, which the address needs in multi mode.
+func (g Glance) lines(ctx context.Context, actor appshared.ActorContext, rows []usecase.Output) ([]Found, string, error) {
+	var base string
 	collections := map[string]domainwork.Container{}
-	err = g.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err := g.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		if base, err = g.Addresses.Of(ctx); err != nil {
+			return err
+		}
+		base = strings.TrimSuffix(base, "/")
 		for _, row := range rows {
 			id, _ := row["collection_id"].(string)
 			if _, read := collections[id]; read || id == "" {
@@ -136,7 +138,7 @@ func (g Glance) lines(ctx context.Context, actor appshared.ActorContext, rows []
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	out := make([]Found, 0, len(rows))
 	for _, row := range rows {
@@ -151,7 +153,7 @@ func (g Glance) lines(ctx context.Context, actor appshared.ActorContext, rows []
 		}
 		out = append(out, line)
 	}
-	return out, nil
+	return out, base, nil
 }
 
 // FoundOutput is a line as the contract names it (schema GlanceLine).
@@ -201,7 +203,7 @@ func (h ListMyOpenEntries) Execute(ctx context.Context, actor appshared.ActorCon
 	if err != nil {
 		return nil, "", err
 	}
-	lines, err := h.Glance.lines(ctx, actor, rows)
+	lines, _, err := h.Glance.lines(ctx, actor, rows)
 	return lines, next, err
 }
 
@@ -251,15 +253,11 @@ func (h SearchEverywhere) Execute(
 	if err != nil {
 		return nil, "", err
 	}
-	lines, err := h.Glance.lines(ctx, actor, rows)
+	lines, base, err := h.Glance.lines(ctx, actor, rows)
 	if err != nil || cursor != "" {
 		return lines, next, err
 	}
 	pages, err := h.Glance.Invoker.Invoke(ctx, searchPages, actor, usecase.Input{"text": words, "limit": size})
-	if err != nil {
-		return nil, "", err
-	}
-	base, err := h.Glance.Addresses.Of(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -270,7 +268,7 @@ func (h SearchEverywhere) Execute(
 		excerpt, _ := page["excerpt"].(string)
 		lines = append(lines, Found{
 			Kind: "PAGE", ID: id, Title: title, Excerpt: excerpt, UpdatedAt: timeOf(page["updated_at"]),
-			Link: strings.TrimSuffix(base, "/") + "/pages/" + id,
+			Link: base + "/pages/" + id,
 		})
 	}
 	return lines, next, nil

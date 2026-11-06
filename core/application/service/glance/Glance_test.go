@@ -48,9 +48,18 @@ func (s *searches) Invoke(_ context.Context, name string, _ appshared.ActorConte
 	return usecase.Output{"data": s.rows[start:end], "page": page}, nil
 }
 
+// inTransaction marks a context inline's unit of work handed out: the workspace's address, like
+// the repository behind it in multi mode, is answered only inside a transaction.
+type inTransaction struct{}
+
 type address struct{}
 
-func (address) Of(context.Context) (string, error) { return "https://hub.example/", nil }
+func (address) Of(ctx context.Context) (string, error) {
+	if ctx.Value(inTransaction{}) == nil {
+		return "", errors.New("postgres.no_transaction_in_context")
+	}
+	return "https://hub.example/", nil
+}
 
 type collections struct{ workrepo.Containers }
 
@@ -64,10 +73,10 @@ func (collections) Find(_ context.Context, id shared.ID) (work.Container, error)
 type inline struct{}
 
 func (inline) Within(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
-	return fn(ctx)
+	return fn(context.WithValue(ctx, inTransaction{}, true))
 }
 func (inline) WithinReadOnly(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
-	return fn(ctx)
+	return fn(context.WithValue(ctx, inTransaction{}, true))
 }
 
 func entries(n int) []usecase.Output {
