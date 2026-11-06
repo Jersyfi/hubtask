@@ -789,6 +789,10 @@ Not covered: a German account on an English browser still loads English at boot,
 
 ## Needs a finding issue
 
+Opened on the owner's word of 2026-11-06 (accepted.md, eighth answers): the timer stop as
+#1794, the CMDB views as #1795, and the page opened while offline (the second round's item (d)) as
+#1796.
+
 - **An offline timer stop stamped before the running timer's start.** A device that stopped its
   timer offline replays `StopTimer` with `stopped_at`; when another device started a timer after
   that moment, the replay answers `timers.not_started` (Timer.Stop, the span from the start) and
