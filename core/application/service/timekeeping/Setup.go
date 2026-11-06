@@ -31,7 +31,7 @@ type ListWorkTypes struct{ Keeper Keeper }
 
 // Execute reads them.
 func (h ListWorkTypes) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.WorkType, error) {
-	if err := person(actor); err != nil {
+	if err := h.Keeper.member(ctx, actor, WorkTypesReadAction, workTypeTarget); err != nil {
 		return nil, err
 	}
 	var kinds []domain.WorkType
@@ -152,7 +152,7 @@ type ReadTimePolicy struct{ Keeper Keeper }
 
 // Execute reads it.
 func (h ReadTimePolicy) Execute(ctx context.Context, actor appshared.ActorContext) (domain.ResolvedPolicy, error) {
-	if err := person(actor); err != nil {
+	if err := h.Keeper.member(ctx, actor, PolicyReadAction, policyTarget); err != nil {
 		return domain.ResolvedPolicy{}, err
 	}
 	return h.Keeper.resolvedPolicy(ctx, actor)

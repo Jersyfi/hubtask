@@ -154,6 +154,18 @@ func person(actor appshared.ActorContext) error {
 	return nil
 }
 
+// member refuses a read of the workspace's own - the shared calendar, the kinds of work, the
+// policy - to a person who is no member of the workspace, a requester above all
+// (access.Request.AnyMember): what any member reads is still not a customer's.
+func (k Keeper) member(ctx context.Context, actor appshared.ActorContext, action audit.Action, target string) error {
+	if err := person(actor); err != nil {
+		return err
+	}
+	return k.Authorizer.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: action, TargetType: target, TargetID: actor.TenantID,
+	})
+}
+
 // entryReadable reads an entry time is recorded on and asks READ on it: a person records time on
 // what they may see.
 func (k Keeper) entryReadable(ctx context.Context, actor appshared.ActorContext, id shared.ID, action audit.Action) error {

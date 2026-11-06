@@ -63,7 +63,9 @@ func (inline) WithinReadOnly(ctx context.Context, _ persistence.Scope, fn func(c
 type gate struct {
 	hidden    map[shared.ID]bool
 	approvers map[shared.ID][]shared.ID
-	refused   []access.Request
+	// requesters are no members: the member question refuses them.
+	requesters map[shared.ID]bool
+	refused    []access.Request
 }
 
 func (g *gate) approves(actor shared.ID, path []identity.Scope) bool {
@@ -80,6 +82,13 @@ func (g *gate) approves(actor shared.ID, path []identity.Scope) bool {
 }
 
 func (g *gate) Authorize(_ context.Context, actor appshared.ActorContext, r access.Request) error {
+	if r.AnyMember {
+		if g.requesters[actor.AccountID] {
+			g.refused = append(g.refused, r)
+			return shared.ErrForbidden.WithDetail("access.not_permitted")
+		}
+		return nil
+	}
 	if guarded(r.Permission) && !g.approves(actor.AccountID, r.Path) {
 		g.refused = append(g.refused, r)
 		return shared.ErrForbidden.WithDetail("access.denied")

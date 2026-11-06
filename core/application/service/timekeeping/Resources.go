@@ -297,7 +297,7 @@ type ListAbsences struct{ Keeper Keeper }
 
 // Execute reads them; a zero account is everybody.
 func (h ListAbsences) Execute(ctx context.Context, actor appshared.ActorContext, account shared.ID, from, to domain.Day) ([]domain.Absence, error) {
-	if err := person(actor); err != nil {
+	if err := h.Keeper.member(ctx, actor, AbsencesReadAction, absenceTarget); err != nil {
 		return nil, err
 	}
 	var out []domain.Absence

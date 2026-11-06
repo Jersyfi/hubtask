@@ -19,6 +19,7 @@ import (
 	idmodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/timekeeping"
+	"github.com/Jersyfi/hubtask/core/port/audit"
 )
 
 // resources keeps capacities, absences, rates and budgets in memory.
@@ -541,5 +542,33 @@ func TestTimeIsBilledByItsPlansRate(t *testing.T) {
 	}
 	if err := (RemoveBillingRate{Keeper: f.keeper}).Execute(ctx, as(lead), hubID, hub.ID, 1); err != nil || len(r.billing) != 1 {
 		t.Fatalf("remove the hub's rate: %v", err)
+	}
+}
+
+// The shared calendar, the kinds of work and the policy are the workspace's, read by any member and
+// by no requester: who is away is the team's business, not a customer's (UC-TIM-07, UC-SVC-05).
+func TestARequesterReadsNeitherTheCalendarNorTheKindsNorThePolicy(t *testing.T) {
+	ctx := t.Context()
+	f := newFixture()
+	requester := shared.ID("01936f2a-7c1e-7000-8000-0000000000f9")
+	f.gate.requesters = map[shared.ID]bool{requester: true}
+
+	if _, err := (ListAbsences{Keeper: f.keeper}).Execute(ctx, as(requester), "", day(t, "2026-11-01"), day(t, "2026-11-30")); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("the calendar = %v, want forbidden", err)
+	}
+	if _, err := (ListWorkTypes{Keeper: f.keeper}).Execute(ctx, as(requester)); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("the kinds of work = %v, want forbidden", err)
+	}
+	if _, err := (ReadTimePolicy{Keeper: f.keeper}).Execute(ctx, as(requester)); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("the policy = %v, want forbidden", err)
+	}
+	want := []audit.Action{AbsencesReadAction, WorkTypesReadAction, PolicyReadAction}
+	if len(f.gate.refused) != len(want) {
+		t.Fatalf("refused %+v, want the three reads", f.gate.refused)
+	}
+	for i, request := range f.gate.refused {
+		if !request.AnyMember || request.Action != want[i] {
+			t.Errorf("refusal %d = %+v, want any member for %s", i, request, want[i])
+		}
 	}
 }
