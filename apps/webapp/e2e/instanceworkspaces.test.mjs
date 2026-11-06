@@ -538,8 +538,9 @@ test('chromium: New workspace asks for the host where the installation assigns h
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MULTI, workspace_hosts: mode } });
-    if (path === '/admin/tenants' && request.method() === 'GET') {
-      return route.fulfill({ json: [{ ...workspace(), slug: 'sales', display_name: 'Sales', host: 'tasks-sales.corp.example' }] });
+    if ((path === '/admin/tenants' && request.method() === 'GET') || path === '/admin/tenants:query') {
+      const rows = [{ ...workspace(), slug: 'sales', display_name: 'Sales', host: 'tasks-sales.corp.example' }];
+      return route.fulfill({ json: path === '/admin/tenants' ? rows : { data: rows, page: { next_cursor: null, has_more: false } } });
     }
     if (path === '/admin/tenants' && request.method() === 'POST') {
       const body = request.postDataJSON() ?? {};
@@ -643,13 +644,12 @@ test('chromium: Change address names the new address and its costs, and is confi
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MULTI, workspace_hosts: 'subdomain' } });
-    if (path === '/admin/tenants' && request.method() === 'GET') {
-      return route.fulfill({
-        json: [
-          { ...workspace(), slug: 'meier', display_name: 'Meier family', host: 'meier.tasks.example.net' },
-          { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034c1', slug: 'taken', display_name: 'Taken', host: 'taken.tasks.example.net' },
-        ],
-      });
+    if ((path === '/admin/tenants' && request.method() === 'GET') || path === '/admin/tenants:query') {
+      const rows = [
+        { ...workspace(), slug: 'meier', display_name: 'Meier family', host: 'meier.tasks.example.net' },
+        { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034c1', slug: 'taken', display_name: 'Taken', host: 'taken.tasks.example.net' },
+      ];
+      return route.fulfill({ json: path === '/admin/tenants' ? rows : { data: rows, page: { next_cursor: null, has_more: false } } });
     }
     if (path === '/auth/step-up') {
       return route.fulfill({ status: 201, json: { step_up_token: 'hbt_sup_tok', expires_at: '2099-01-01T00:00:00Z', method: 'PASSWORD' } });
