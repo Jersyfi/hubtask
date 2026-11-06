@@ -7,7 +7,7 @@
   // opens the dialog here (`isAsked`); an empty inventory offers it with the import beside it.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, Input, ListRow, LoadMore, Select, Skeleton, Stack, Toolbar } from '@hubtask/design-system/components';
+  import { Badge, ListRow, LoadMore, Select, Skeleton, Stack, Toolbar } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiClass, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
@@ -16,7 +16,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import ProductEmpty from '../product/ProductEmpty.svelte';
-  import PlaceChip from '../product/PlaceChip.svelte';
+  import CreateDialog from '../product/CreateDialog.svelte';
   import { createPlaces } from '../product/places.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import AttributeField from './AttributeField.svelte';
@@ -200,23 +200,24 @@
 </Stack>
 
 {#if isCreating}
-  <Dialog bind:isOpen={isCreating} title={t('app.assets.new')} dismissLabel={t('app.assets.cancel')}>
-    <Stack gap="150">
-      <Select label={t('app.assets.class_label')} options={classOptions} placeholder={t('app.assets.needs_class')} bind:value={draftClass} />
-      <Input label={t('app.assets.name_label')} bind:value={draftName} maxlength={200} />
-      {#if chosen}
-        {#each chosen.all_attributes as attribute (attribute.key)}
-          <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} />
-        {/each}
-      {/if}
-      <PlaceChip current={draftHub} fallback={containers.find(hubId)?.name} places={placesToMake.list} onchoose={(id) => (draftHub = id)} />
-      {#if createFailure}<FailureNote problem={createFailure} />{/if}
-    </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.assets.cancel')}</Button>
-      <Button tone="primary" disabledReason={createReason} onclick={() => void create()}>{t('app.assets.create')}</Button>
-    {/snippet}
-  </Dialog>
+  <CreateDialog
+    bind:isOpen={isCreating}
+    title={t('app.assets.new')}
+    cancelLabel={t('app.assets.cancel')}
+    nameLabel={t('app.assets.name_label')}
+    bind:name={draftName}
+    maxlength={200}
+    place={{ current: draftHub, fallback: containers.find(hubId)?.name, places: placesToMake.list, onchoose: (id) => (draftHub = id) }}
+    failure={createFailure}
+    primary={{ label: t('app.assets.create'), disabledReason: createReason, onclick: () => void create() }}
+  >
+    <Select label={t('app.assets.class_label')} options={classOptions} placeholder={t('app.assets.needs_class')} bind:value={draftClass} />
+    {#if chosen}
+      {#each chosen.all_attributes as attribute (attribute.key)}
+        <AttributeField {attribute} bind:value={() => drafts[attribute.key] ?? '', (typed: string) => (drafts[attribute.key] = typed)} />
+      {/each}
+    {/if}
+  </CreateDialog>
 {/if}
 
 <style>

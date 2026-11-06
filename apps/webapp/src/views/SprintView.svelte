@@ -43,7 +43,7 @@
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
-  import PlaceChip from '../lib/product/PlaceChip.svelte';
+  import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
@@ -450,22 +450,24 @@
 </Stack>
 
 {#if isPlanning}
-  <Dialog bind:isOpen={isPlanning} title={editing ? t('app.sprints.edit') : t('app.sprints.plan')} dismissLabel={t('app.links.cancel')}>
-    <Stack gap="150">
-      <Input label={t('app.sprints.name')} bind:value={draft.name} maxlength={120} />
-      <Textarea label={t('app.sprints.goal')} bind:value={draft.goal} maxlength={500} />
-      <Inline gap="100">
-        <Input label={t('app.sprints.start_on')} type="date" bind:value={draft.start_on} disabledReason={editing?.state === 'ACTIVE' ? t('sprints.running_start_fixed') : undefined} />
-        <Input label={t('app.sprints.end_on')} type="date" bind:value={draft.end_on} />
-      </Inline>
-      <Select label={t('app.sprints.unit')} bind:value={draft.unit} disabledReason={editing?.state === 'ACTIVE' ? t('sprints.running_start_fixed') : undefined}
-        options={[{ value: 'POINTS', label: t('app.sprints.unit_POINTS') }, { value: 'HOURS', label: t('app.sprints.unit_HOURS') }]} />
-      {#if !editing}
-        <PlaceChip current={draftCollection} fallback={place ? [containers.find(place.parent_id ?? '')?.name, place.name].filter(Boolean).join(' › ') : ''} places={placesToPlan.list} onchoose={(id) => (draftCollection = id)} />
-      {/if}
-      <Inline justify="end"><Button onclick={plan}>{editing ? t('app.sprints.save') : t('app.sprints.plan')}</Button></Inline>
-    </Stack>
-  </Dialog>
+  <CreateDialog
+    bind:isOpen={isPlanning}
+    title={editing ? t('app.sprints.edit') : t('app.sprints.plan')}
+    cancelLabel={t('app.links.cancel')}
+    nameLabel={t('app.sprints.name')}
+    bind:name={draft.name}
+    maxlength={120}
+    place={editing ? undefined : { current: draftCollection, fallback: place ? [containers.find(place.parent_id ?? '')?.name, place.name].filter(Boolean).join(' › ') : '', places: placesToPlan.list, onchoose: (id) => (draftCollection = id) }}
+    primary={{ label: editing ? t('app.sprints.save') : t('app.sprints.plan'), onclick: plan }}
+  >
+    <Textarea label={t('app.sprints.goal')} bind:value={draft.goal} maxlength={500} />
+    <Inline gap="100">
+      <Input label={t('app.sprints.start_on')} type="date" bind:value={draft.start_on} disabledReason={editing?.state === 'ACTIVE' ? t('sprints.running_start_fixed') : undefined} />
+      <Input label={t('app.sprints.end_on')} type="date" bind:value={draft.end_on} />
+    </Inline>
+    <Select label={t('app.sprints.unit')} bind:value={draft.unit} disabledReason={editing?.state === 'ACTIVE' ? t('sprints.running_start_fixed') : undefined}
+      options={[{ value: 'POINTS', label: t('app.sprints.unit_POINTS') }, { value: 'HOURS', label: t('app.sprints.unit_HOURS') }]} />
+  </CreateDialog>
 {/if}
 
 {#if isClosing && chosen}

@@ -35,7 +35,7 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import BoardTemplates, { startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
-  import PlaceChip from '../lib/product/PlaceChip.svelte';
+  import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
@@ -279,33 +279,38 @@
 {/if}
 
 {#if isCreating}
-  <Dialog bind:isOpen={isCreating} title={t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')} isWide onClose={() => { imported = undefined; titleDraft = ''; createFailure = undefined; importFailure = undefined; isImportOpen = false; }}>
-    <Stack gap="200">
-      <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} maxlength={200} />
+  <CreateDialog
+    bind:isOpen={isCreating}
+    title={t('app.whiteboards.new')}
+    cancelLabel={t('app.links.cancel')}
+    nameLabel={t('app.whiteboards.board_title')}
+    bind:name={titleDraft}
+    maxlength={200}
+    isWide
+    place={{ current: draftHub, fallback: hub?.name, places: placesToMake.list, onchoose: (id) => (draftHub = id) }}
+    failure={createFailure}
+    primary={{ label: t('app.whiteboards.create'), busyLabel: isMaking ? t('app.whiteboards.making') : undefined, disabledReason: titleDraft.trim() ? undefined : t('app.whiteboards.needs_title'), onclick: () => void create() }}
+    onClose={() => { imported = undefined; titleDraft = ''; createFailure = undefined; importFailure = undefined; isImportOpen = false; }}
+  >
+    {#snippet gallery()}
       {#if imported}
         <Banner tone="info">{t('app.whiteboards.import_ready', { count: String(imported.elements.length) })}</Banner>
       {:else}
         <BoardTemplates bind:chosen={start} bind:format />
       {/if}
-      <PlaceChip current={draftHub} fallback={hub?.name} places={placesToMake.list} onchoose={(id) => (draftHub = id)} />
-      <Disclosure label={t('app.whiteboards.import_fold')} description={t('app.whiteboards.import_fold_hint')} tone="quiet" bind:isOpen={isImportOpen}>
-        <UploadField
-          label={t('app.whiteboards.import')}
-          chooseLabel={t('app.import.choose')}
-          dropLabel={t('app.media.drop')}
-          accept="application/json,.json"
-          error={importFailure}
-          onChoose={(file) => void readFile(file)}
-        />
-        {#if imported}<Button size="sm" tone="subtle" icon="x" onclick={() => (imported = undefined)}>{t('app.whiteboards.import_drop')}</Button>{/if}
-      </Disclosure>
-      {#if createFailure}<FailureNote problem={createFailure} />{/if}
-    </Stack>
-    {#snippet actions()}
-      <Button tone="secondary" onclick={() => (isCreating = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" busyLabel={isMaking ? t('app.whiteboards.making') : undefined} disabledReason={titleDraft.trim() ? undefined : t('app.whiteboards.needs_title')} onclick={() => void create()}>{t('app.whiteboards.create')}</Button>
     {/snippet}
-  </Dialog>
+    <Disclosure label={t('app.whiteboards.import_fold')} description={t('app.whiteboards.import_fold_hint')} tone="quiet" bind:isOpen={isImportOpen}>
+      <UploadField
+        label={t('app.whiteboards.import')}
+        chooseLabel={t('app.import.choose')}
+        dropLabel={t('app.media.drop')}
+        accept="application/json,.json"
+        error={importFailure}
+        onChoose={(file) => void readFile(file)}
+      />
+      {#if imported}<Button size="sm" tone="subtle" icon="x" onclick={() => (imported = undefined)}>{t('app.whiteboards.import_drop')}</Button>{/if}
+    </Disclosure>
+  </CreateDialog>
 {/if}
 
 {#if renaming}

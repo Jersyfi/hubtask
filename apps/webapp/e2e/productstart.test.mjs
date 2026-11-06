@@ -237,6 +237,7 @@ test('chromium: the create dialog makes the page in the hub its place chip names
   const hubs = [hubOf(HUB, 'Allgemein', 'a1'), hubOf(IT, 'IT-Service-Desk', 'a2'), hubOf(OFF, 'Vertrieb', 'a3')];
   const on = ['WORKFLOWS', 'KNOWLEDGE'];
   const made = [];
+  const sent = [];
   await context.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
@@ -252,6 +253,7 @@ test('chromium: the create dialog makes the page in the hub its place chip names
     const pagesAt = /^\/hubs\/([^/]+)\/pages$/.exec(path);
     if (pagesAt && method === 'POST') {
       made.push(pagesAt[1]);
+      sent.push(route.request().postDataJSON());
       return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000004f9', hub_id: pagesAt[1], title: 'Runbook', parent_id: null } });
     }
     if (pagesAt) return route.fulfill({ json: { ...PAGE, data: [] } });
@@ -279,10 +281,21 @@ test('chromium: the create dialog makes the page in the hub its place chip names
   assert.deepEqual(await choices.allInnerTexts(), ['Allgemein', 'IT-Service-Desk'], 'the chip offers a hub where pages are off');
   await page.getByRole('menuitem', { name: 'IT-Service-Desk' }).click();
   await chip.filter({ hasText: 'IT-Service-Desk' }).waitFor({ timeout: 10_000 });
+  // One anatomy (§5.2): the title first, the gallery with Blank chosen, the chip, one primary.
+  const order = await dialog.evaluate((root) => ['input', '[data-page-start]', '[data-chip="place"]']
+    .map((selector) => root.querySelector(selector))
+    .every((each, i, all) => each && (i === 0 || all[i - 1].compareDocumentPosition(each) & Node.DOCUMENT_POSITION_FOLLOWING)));
+  assert.ok(order, 'the dialog does not run title, gallery, place');
+  assert.equal(await dialog.locator('[data-page-start="blank"] button').getAttribute('aria-pressed'), 'true');
+  assert.equal(await dialog.locator('select').count(), 0, 'the templates are still a select');
+  await dialog.locator('[data-page-start="shipped:meeting"] button').click();
+  assert.equal(await dialog.locator('[data-page-start="shipped:meeting"] button').getAttribute('aria-pressed'), 'true');
   await dialog.getByLabel('Title').fill('Runbook');
   await dialog.getByRole('button', { name: 'Write the page', exact: true }).click();
   await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 10_000 });
   assert.deepEqual(made, [IT], 'the page was not made in the hub the chip names');
+  assert.equal(sent[0]?.title, 'Runbook');
+  assert.ok(typeof sent[0]?.body === 'string' && sent[0].body.length > 0, 'the chosen template\'s body was not sent');
   assert.deepEqual(failures, []);
 });
 

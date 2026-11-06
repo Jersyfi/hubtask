@@ -48,7 +48,7 @@
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
   import PlaceStrip from '../lib/workspace/PlaceStrip.svelte';
-  import PlaceChip from '../lib/product/PlaceChip.svelte';
+  import CreateDialog from '../lib/product/CreateDialog.svelte';
   import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
@@ -488,14 +488,17 @@
   const spacePages = $derived(rows.map((row) => ({ id: row.id, title: row.title, parent_id: row.parent_id })));
   const hubViews = $derived(views.of(hubId).map((view) => ({ id: view.id, name: view.name })));
 
-  const templateOptions = $derived([
-    { value: '', label: t('app.pages.template_none') },
+  /** The create dialog's gallery (§5.2): *Blank* first, the hub's own templates, Hubtask's pages and spaces. */
+  interface PageStart { readonly value: string; readonly name: string; readonly summary: string; readonly mark: 'file-text' | 'copy' | 'layout-template'; readonly note?: string }
+  const templateCards = $derived<readonly PageStart[]>([
+    { value: '', name: t('app.pages.blank'), summary: t('app.pages.blank_hint'), mark: 'file-text' },
     // A hub's own templates are its pages: offered only for a page made in that hub.
-    ...(isElsewhere ? [] : templateRows.map((row) => ({ value: `own:${row.id}`, label: row.title }))),
-    ...SHIPPED_TEMPLATES.map((key) => ({ value: `shipped:${key}`, label: t(`app.pages.template.${key}.title`) })),
-  ]);
-  const templateGroups = $derived([
-    { label: t('app.pages.start_space'), options: SHIPPED_SPACES.map((key) => ({ value: `space:${key}`, label: t(`app.pages.space.${key}.title`) })) },
+    ...(isElsewhere ? [] : templateRows.map((row) => ({ value: `own:${row.id}`, name: row.title, summary: t('app.pages.template_own_hint'), mark: 'copy' as const }))),
+    ...SHIPPED_TEMPLATES.map((key) => ({ value: `shipped:${key}`, name: t(`app.pages.template.${key}.title`), summary: t(`app.pages.template.${key}.lead`), mark: 'file-text' as const })),
+    ...SHIPPED_SPACES.map((key) => ({
+      value: `space:${key}`, name: t(`app.pages.space.${key}.title`), summary: t(`app.pages.space.${key}.lead`), mark: 'layout-template' as const,
+      note: t('app.pages.space_pages', { count: shippedSpace(key, t).subpages.length }),
+    })),
   ]);
 
   // --- A space with drafts (UC-DOC-15) -----------------------------------------------------------
@@ -943,25 +946,36 @@
 </div>
 
 {#if isCreating}
-  <Dialog bind:isOpen={isCreating} title={draftParent ? t('app.pages.new_child') : t('app.pages.new')} dismissLabel={t('app.pages.cancel')}>
-    <Stack gap="150">
-      <Input label={t('app.pages.page_title')} bind:value={draftTitle} />
-      <Select label={t('app.pages.start_from')} options={templateOptions} groups={templateGroups} bind:value={draftTemplate} />
-      {#if draftOffersSubpages}
-        <Switch label={t('app.pages.with_subpages')} bind:checked={draftWithSubpages} />
-      {/if}
-      {#if !draftParent}
-        <PlaceChip current={draftHub} fallback={hub?.name} places={placesToMake.list} onchoose={(id) => {
-          draftHub = id;
-          if (draftTemplate.startsWith('own:') && id !== hubId) draftTemplate = '';
-        }} />
-      {/if}
-    </Stack>
-    {#snippet actions()}
-      <Button tone="subtle" onclick={() => (isCreating = false)}>{t('app.pages.cancel')}</Button>
-      <Button tone="primary" busyLabel={busy ? t('app.pages.creating') : undefined} onclick={create}>{t('app.pages.create')}</Button>
+  <CreateDialog
+    bind:isOpen={isCreating}
+    title={draftParent ? t('app.pages.new_child') : t('app.pages.new')}
+    cancelLabel={t('app.pages.cancel')}
+    nameLabel={t('app.pages.page_title')}
+    bind:name={draftTitle}
+    isWide
+    place={draftParent ? undefined : { current: draftHub, fallback: hub?.name, places: placesToMake.list, onchoose: (id) => {
+      draftHub = id;
+      if (draftTemplate.startsWith('own:') && id !== hubId) draftTemplate = '';
+    } }}
+    primary={{ label: t('app.pages.create'), busyLabel: busy ? t('app.pages.creating') : undefined, onclick: () => void create() }}
+  >
+    {#snippet gallery()}
+      <TemplateGallery label={t('app.pages.start_from')} isLabelHidden>
+        {#each templateCards as card (card.value)}
+          <TemplateCard name={card.name} summary={card.summary} mark={card.mark} note={card.note} isChosen={draftTemplate === card.value} isCompact data-page-start={card.value || 'blank'}>
+            {#snippet action()}
+              <Button size="sm" tone={draftTemplate === card.value ? 'primary' : 'secondary'} icon={draftTemplate === card.value ? 'check' : undefined} aria-pressed={draftTemplate === card.value} onclick={() => (draftTemplate = card.value)}>
+                {t('app.pages.template_pick')}<VisuallyHidden>{` ${card.name}`}</VisuallyHidden>
+              </Button>
+            {/snippet}
+          </TemplateCard>
+        {/each}
+      </TemplateGallery>
     {/snippet}
-  </Dialog>
+    {#if draftOffersSubpages}
+      <Switch label={t('app.pages.with_subpages')} bind:checked={draftWithSubpages} />
+    {/if}
+  </CreateDialog>
 {/if}
 
 {#if isMoving && current}

@@ -384,7 +384,7 @@ component or composition**; the app holds only how a product fills it.
 | Pattern | Design system (`packages/design-system/src/`) | Web app | Status |
 |---|---|---|---|
 | Product home | `PageHeader` (primary with a split), `PlaceTabs` (new), `Toolbar`, `EmptyState` | `lib/product/ProductHome.svelte` (new), one per product filling it | new |
-| Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | each product's create dialog | moved + new |
+| Create | `PageHeader` primary split, `Dialog`, `TemplateCard` and `TemplateGallery` (new, moved from `apps/webapp/src/lib/settings/TemplatesGallery.svelte`) | `lib/product/CreateDialog.svelte`, filled by each product | moved + new |
 | Find | `SearchField`, `ListRow` | `lib/data/search.svelte.ts` fan-out, `lib/palette/sources.ts` one source per module | extended |
 | Configure | `SourceChip`, `SaveBar`, `Disclosure` (new: *Advanced*), `PlanSummary` (new) | `lib/settings/SettingsPage.svelte` (new shell) | new |
 | Empty | `EmptyState` (gains `secondary` and `footnote` slots) | `lib/product/ProductEmpty.svelte` | extended |
@@ -422,7 +422,13 @@ Every product home and every hub tab has one anatomy (mockup: `shell.html`, *Pro
   `data-list-add`, and an empty state's first act counts as inside it. Adding an entry stays capture
   (design-system §11.8, *One add*).
 * **One create dialog anatomy**: the title field first, the template gallery (with *Blank* as
-  one card) where templates exist, the place chips (*In:*), and the one primary.
+  one card) where templates exist, the place chips (*In:*), and the one primary. As built, it is one
+  composition, `lib/product/CreateDialog.svelte` (the title field, the gallery, the product's own
+  fields, the *In:* chip listing the hubs where the product is on and the reader may write, the
+  one primary beside *Cancel*), filled by pages (Blank, the hub's own templates, Hubtask's pages
+  and spaces as cards), whiteboards, configuration items and sprints; an entry's is capture's
+  dialog with its place chip (design-system §11.8). A product home's act opens it at the place
+  holding most of the product.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its
   *Simple* family. Choosing runs the single server-side apply of §3.2 at the hub. Where the
   template needs a workspace part the reader may not take, the card says *Ask an administrator to
