@@ -12,7 +12,8 @@
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { markOf } from '../lib/workspace/look.ts';
-  import { holdsHere, hubCreationHere, reachesAdministrationArea } from '../lib/data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { live } from '../lib/data/live.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -21,7 +22,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createAt, createOf, homeTabs, placesByUse, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -243,10 +244,24 @@
       for (const stop of stops) stop();
     };
   });
+  // A create act at a hub reads the reader's role in each, and offers only where they may write
+  // (P-05): a viewer is offered no act the place's screen would not open.
+  const writeHubs = $derived(createAct?.level === 'HUB' ? hubsWith.map((hub) => hub.id).join(',') : '');
+  $effect(() => {
+    const ids = writeHubs ? writeHubs.split(',') : [];
+    const stops = untrack(() => ids.map((hubId) => people.open({ hubId })));
+    return () => {
+      for (const stop of stops) stop();
+    };
+  });
+  const mayWriteIn = (hubId: string): boolean | undefined => {
+    const role = people.roleOf({ hubId }, actor.account?.id, roleOrder());
+    return role === undefined ? undefined : holds(role ?? undefined, 'WRITE_ITEMS').status === 'permitted';
+  };
   const createPlaces = $derived(
     createAct?.level === 'COLLECTION'
       ? hubsWith.flatMap((hub) => containers.collectionsOf(hub.id).map((collection) => ({ id: collection.id, label: `${hub.name} › ${collection.name}` })))
-      : placesByUse(hubsWith.map((hub) => ({ id: hub.id, label: hub.name })), objectCounts),
+      : placesByUse(writableHubs(hubsWith, mayWriteIn).map((hub) => ({ id: hub.id, label: hub.name })), objectCounts),
   );
   const primary = $derived.by(() => {
     // The home's act stays on its Settings tab (§5.4): the head is the home's on every tab of it.

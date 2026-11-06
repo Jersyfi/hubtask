@@ -124,6 +124,14 @@ export function placesByUse<P extends { readonly id: string }>(places: readonly 
     .map(({ place }) => place);
 }
 
+/**
+ * The hubs a home's create act at a hub may lead to: those where the reader may write (P-05), a hub
+ * whose answer is still out left out until it comes - an act the server would refuse is not drawn.
+ */
+export function writableHubs<P extends { readonly id: string }>(hubs: readonly P[], mayWrite: (hubId: string) => boolean | undefined): P[] {
+  return hubs.filter((hub) => mayWrite(hub.id) === true);
+}
+
 /** The screen a create act at a collection leads to: the product's screen there. */
 export function collectionScreenOf(module: string, collectionId: string): string | undefined {
   return module === 'PLANNING' ? `/collections/${encodeURIComponent(collectionId)}/sprints` : undefined;

@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -177,6 +177,17 @@ test('a home\'s create act offers the place holding most of the product first, t
   assert.deepEqual(placesByUse(places, { general: 0, it: 12, hr: 3 }).map((p) => p.id), ['it', 'hr', 'general']);
   assert.deepEqual(placesByUse(places, { general: 0, hr: 0 }).map((p) => p.id), ['general', 'it', 'hr']);
   assert.deepEqual(placesByUse(places, undefined).map((p) => p.id), ['general', 'it', 'hr']);
+});
+
+// P-05: a home's create act at a hub - a configuration item, a page, a whiteboard - is offered only in
+// the hubs where the reader may write (WRITE_ITEMS, what CreateCi, CreatePage and CreateWhiteboard
+// ask); a viewer everywhere is offered none, so the head draws no act, and a hub whose role is still
+// being read is not offered until it answers.
+test('a home\'s create act offers only the hubs where the reader may write', () => {
+  const hubs = [{ id: 'general' }, { id: 'it' }, { id: 'hr' }];
+  const may: Record<string, boolean | undefined> = { general: false, it: true, hr: undefined };
+  assert.deepEqual(writableHubs(hubs, (id) => may[id]).map((hub) => hub.id), ['it']);
+  assert.deepEqual(writableHubs(hubs, () => false), [], 'a viewer everywhere is offered no place');
 });
 
 // user-experience.md §5.2: a create dialog's *In:* chip offers the hubs where the product is on and
