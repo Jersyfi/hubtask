@@ -352,6 +352,7 @@ func credentialOf(r *http.Request, basicAllowed bool) (string, error) {
 // same problem document, under the challenge a CalDAV client prompts on. A Bearer challenge
 // would make the client show an error instead of asking again.
 func writeBasicChallenge(w http.ResponseWriter, err error, requestID string) {
+	noteProblem(w, err)
 	problem := ProblemFrom(err, requestID)
 	if problem.Status == http.StatusUnauthorized {
 		w.Header().Set("WWW-Authenticate", `Basic realm="Hubtask", charset="UTF-8"`)
@@ -366,6 +367,8 @@ func writeBasicChallenge(w http.ResponseWriter, err error, requestID string) {
 // to ask for the credential again - which is why the header is set from the mapped status rather
 // than assumed.
 func WriteUnauthenticated(w http.ResponseWriter, err error, requestID string) {
+	// A credential that could not be read is a 503, and its line names the cause (WriteProblem).
+	noteProblem(w, err)
 	problem := ProblemFrom(err, requestID)
 	if problem.Status == http.StatusUnauthorized {
 		// The scheme only. RFC 6750's error parameter would tell an attacker which of "unknown",

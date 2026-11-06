@@ -134,3 +134,32 @@ func TestARefusalIsNotLoggedAndAnOutageIsAWarning(t *testing.T) {
 		t.Fatalf("an outage wrote %+v, want one WARN", got)
 	}
 }
+
+// A credential that could not be read - the database saying "later", or the client gone while it
+// was asked - answers 503 through the authentication's own writers; the line is a WARN with the
+// cause like any other outage, not an ERROR that names none.
+func TestAnOutageWhileAuthenticatingIsAWarningWithItsCause(t *testing.T) {
+	cause := shared.ErrUnavailable.WithDetail("postgres.begin_failed").WithCause(context.Canceled)
+	writers := map[string]func(http.ResponseWriter, error, string){
+		"bearer": WriteUnauthenticated,
+		"basic":  writeBasicChallenge,
+	}
+	for name, write := range writers {
+		t.Run(name, func(t *testing.T) {
+			lines := captureLogs(t)
+			mux := http.NewServeMux()
+			mux.HandleFunc("GET /memberships", func(w http.ResponseWriter, r *http.Request) {
+				write(wrappingWriter{w}, cause, correlation.RequestIDFrom(r.Context()))
+			})
+			rec, _ := serve(t, mux, httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/memberships", nil))
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("status %d, want 503", rec.Code)
+			}
+			got := lines()
+			if len(got) != 1 || got[0].level != slog.LevelWarn ||
+				got[0].attrs["error_code"] != shared.ErrUnavailable.Code || got[0].attrs["error"] != cause.Error() {
+				t.Fatalf("lines %+v, want one WARN with the code and the cause", got)
+			}
+		})
+	}
+}
