@@ -34,7 +34,8 @@
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import { precacheWhenIdle } from './lib/frame/precache.ts';
-  import { loadFrame, partLoaders, ruleViews, workViews } from './lib/frame/parts.ts';
+  import { partLoaders } from './lib/frame/parts.ts';
+  import { loadFrame, ruleViews, workViews } from './lib/frame/screens.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
   import { engine } from './lib/data/engine.ts';
   import { forwardTo } from './lib/data/oidc.ts';

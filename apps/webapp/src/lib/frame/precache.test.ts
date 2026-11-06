@@ -49,7 +49,7 @@ test('the app precaches its table of lazy screens and the parts the screens load
 // A chunk loaded anywhere else would be missing offline until its screen had been opened once.
 test('every lazy chunk is in the app\'s table of screens or in the parts table', () => {
   const root = fileURLToPath(new URL('../../', import.meta.url));
-  const tables = new Set([join(root, 'App.svelte'), join(root, 'lib/frame/parts.ts')]);
+  const tables = new Set([join(root, 'App.svelte'), join(root, 'lib/frame/parts.ts'), join(root, 'lib/frame/screens.ts')]);
   const outside: string[] = [];
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -62,4 +62,10 @@ test('every lazy chunk is in the app\'s table of screens or in the parts table',
   };
   walk(root);
   assert.deepEqual(outside, []);
+});
+
+// A screen imports its parts; the parts table loading a screen too would close a cycle (screens.ts).
+test('the parts table loads no screen and no frame', () => {
+  const parts = readFileSync(new URL('./parts.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(parts, /import\(['"][^'"]*(\/views\/|AppFrame)/);
 });
