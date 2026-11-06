@@ -641,9 +641,9 @@ portal's principal, refused by every other use case - by the ordinary rule, and 
 **member's** rather than a permission along a path, by the member question (`access.Request.AnyMember`):
 a member holds a built-in role anywhere in the workspace or a role of its own carrying `READ`, which
 a requester's `REQUEST` is not. Those reads are the groups and who is in them, another account's
-name, whom to ask in an explanation, the entry types, workflows, link types and workspace-wide field
-definitions, the kinds of work, the time policy and the shared calendar - over REST, MCP and a
-device's copy alike.
+name, alone or in a batch, whom to ask in an explanation, the entry types, workflows, link types and
+workspace-wide field definitions, the kinds of work, the time policy and the shared calendar, the
+saved presets and a trigger's poll of the event stream - over REST, MCP and a device's copy alike.
 
 A **restricted field** (`custom_field_definition.restricted`, UC-ID-27) is written only by holders
 of its `FIELD_WRITE:<key>` along the entry's path, through every door (`FormGate.holdRestricted`);

@@ -525,7 +525,8 @@ order with a stable cursor, deduplicable through `event_id`.
 * **Authorisation is the event's, not the endpoint's.** A poll needs `automation:manage` (as a
   webhook subscription does) *and* the event type's own read scope
   (`core/domain/event/ReadScope.go`); an event of a private hub is answered only to a caller who
-  reaches the hub.
+  reaches the hub. The poller is a member of the workspace (`access.Request.AnyMember`): a portal
+  requester, who holds both scopes in a session, is refused.
 * **A poll reads a moment behind the present.** `occurred_at` is stamped by the writing transaction,
   not its commit, so an earlier transaction can commit a row behind an answered cursor; rows younger
   than `HUBTASK_TRIGGER_POLL_LAG` are withheld from page and cursor until the next poll. Webhooks are
