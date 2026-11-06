@@ -5,6 +5,9 @@
 // what the view shows, so panning and zooming over the largest board a scene holds keeps its frames
 // coming. Measured in a real browser, because the frame rate is the browser's: requestAnimationFrame
 // counts the frames painted while the view is carried across the board.
+//
+// `test:engines` runs this file alone, after the other walks: beside them a shared runner stalls
+// every page for 100 ms and more, at 40 objects drawn as at 2,270, and that stall is the runner's.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
