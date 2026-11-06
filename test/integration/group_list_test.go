@@ -7,12 +7,18 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -115,5 +121,86 @@ func TestTheGroupsOfAnotherTenantAreNotListed(t *testing.T) {
 			break
 		}
 		cursor = page.Info.NextCursor
+	}
+}
+
+// The groups are any member's and no requester's, against the real memberships (UC-ID-23): a
+// person holding a READ role of the workspace's own on one hub lists them and reads one with its
+// members; a person holding only REQUEST at a collection - the portal's requester - is refused both
+// as READ, recorded; and the member asking in another workspace, where they hold nothing, is
+// refused too (gate SG-3).
+func TestTheGroupsAreAMembersAndNotARequesters(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+
+	ids := make([]shared.ID, 8)
+	for i := range ids {
+		ids[i] = freshID(t)
+	}
+	member, requester, readRole, requestRole, hub, desk, readGrant, requestGrant :=
+		ids[0], ids[1], ids[2], ids[3], ids[4], ids[5], ids[6], ids[7]
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Mira')`, []any{member.String(), tenantA.String()}},
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Hanna')`, []any{requester.String(), tenantA.String()}},
+		{`INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
+		  VALUES ($1, $2, $3, 'Contractor', ARRAY['READ'], now(), now())`,
+			[]any{readRole.String(), tenantA.String(), "contractor_" + readRole.String()[30:]}},
+		{`INSERT INTO custom_role (id, tenant_id, key, name, permissions, created_at, updated_at)
+		  VALUES ($1, $2, $3, 'Client', ARRAY['REQUEST'], now(), now())`,
+			[]any{requestRole.String(), tenantA.String(), "client_" + requestRole.String()[30:]}},
+		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		  VALUES ($1, $2, 'HUB', $3, 'a0', $4)`, []any{hub.String(), tenantA.String(), freshName(t), authorA.String()}},
+		{`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+		  VALUES ($1, $2, 'COLLECTION', $3, 'Desk', 'a0', $4)`,
+			[]any{desk.String(), tenantA.String(), hub.String(), authorA.String()}},
+		{`INSERT INTO custom_role_grant (id, tenant_id, account_id, scope_type, scope_id, role_id, created_at)
+		  VALUES ($1, $2, $3, 'HUB', $4, $5, now())`,
+			[]any{readGrant.String(), tenantA.String(), member.String(), hub.String(), readRole.String()}},
+		{`INSERT INTO custom_role_grant (id, tenant_id, account_id, scope_type, scope_id, role_id, created_at)
+		  VALUES ($1, $2, $3, 'COLLECTION', $4, $5, now())`,
+			[]any{requestGrant.String(), tenantA.String(), requester.String(), desk.String(), requestRole.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v\n%s", err, statement.sql)
+		}
+	}
+	group := groupNamed(ctx, t, tenantA, freshName(t))
+
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	authorizer := access.Service{
+		Memberships: postgres.NewMembershipRepository(), UnitOfWork: unitOfWork,
+		Audit: postgres.NewAuditSink(clockadapter.NewUUIDv7(clockadapter.System{})), Clock: portclock.Fixed(created),
+	}
+	groups := postgres.NewGroupRepository(pageCursors())
+	list := identityservice.ListGroups{Members: authorizer, Groups: groups, UnitOfWork: unitOfWork}
+	get := identityservice.GetGroup{Members: authorizer, Groups: groups, UnitOfWork: unitOfWork}
+	as := func(tenant, account shared.ID) appshared.ActorContext {
+		return appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenant, AccountID: account, Scopes: []string{"members:read"}}
+	}
+
+	if _, err := list.Execute(ctx, as(tenantA, member), identityservice.ListGroupsQuery{Size: 200}); err != nil {
+		t.Errorf("a member listing the groups: %v", err)
+	}
+	if _, err := get.Execute(ctx, as(tenantA, member), group.ID); err != nil {
+		t.Errorf("a member reading a group: %v", err)
+	}
+	for name, actor := range map[string]appshared.ActorContext{
+		"the requester": as(tenantA, requester), "the member in another workspace": as(tenantB, member),
+	} {
+		_, err := list.Execute(ctx, actor, identityservice.ListGroupsQuery{})
+		if !errors.Is(err, shared.ErrForbidden) || shared.AsError(err).DetailCode != "access.not_permitted" {
+			t.Errorf("%s listing the groups = %v, want access.not_permitted", name, err)
+		}
+		if _, err := get.Execute(ctx, actor, group.ID); !errors.Is(err, shared.ErrForbidden) {
+			t.Errorf("%s reading a group = %v, want forbidden", name, err)
+		}
+	}
+	if n := countIn(ctx, t, `SELECT count(*) FROM audit_log WHERE actor_id = $1 AND action = 'group.read' AND outcome = 'DENIED'`,
+		requester.String()); n != 2 {
+		t.Errorf("%d refusals of the requester recorded, want two", n)
 	}
 }

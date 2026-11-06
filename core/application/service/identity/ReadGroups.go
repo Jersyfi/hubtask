@@ -30,19 +30,35 @@ const (
 
 // ListGroups answers the workspace's groups, by name.
 //
-// Any member of the workspace may read them, and the rule is written here rather than decided in
-// a controller. It is the rule `GetAccount` records, reached the same way: a membership granted
-// to a group is unreadable until the group can be shown as the people it reaches, and a member
-// scoped to one hub holds nothing at the workspace that `READ` there could be judged against -
-// requiring it would leave exactly the members screen without its groups. What a
-// group discloses is its name and its members' identifiers, and the identifiers resolve through
-// the same minimal read (`data-protection.md` §9). The token scope still applies (ADR-0005), and
-// the tenant boundary is the transaction's (ADR-0010).
+// Any member of the workspace may read them - a role on one hub is enough, so `READ` at the
+// workspace is not asked: requiring it would leave exactly the members screen without its groups.
+// A membership granted to a group is unreadable until the group can be shown as the people it
+// reaches. A requester is no member (service.IsRequester) and is refused, as is an account holding
+// nothing: the authoriser's member question (access.Request.AnyMember). What a group discloses is
+// its name and its members' identifiers, and the identifiers resolve through the same minimal read
+// (`data-protection.md` §9). The token scope still applies (ADR-0005), and the tenant boundary is
+// the transaction's (ADR-0010).
 //
 // Read-only throughout: the transaction may be served by a replica (multi-tenancy.md §7).
 type ListGroups struct {
+	// Members asks whether the reader is a member of the workspace; nil refuses everybody.
+	Members    Authorizer
 	Groups     repository.Groups
 	UnitOfWork persistence.UnitOfWork
+}
+
+// authorizeGroupRead is the question both group reads ask: the scope, then any member.
+func authorizeGroupRead(ctx context.Context, actor appshared.ActorContext, members Authorizer) error {
+	if err := actor.RequireScope(membersRead); err != nil {
+		return err
+	}
+	if members == nil {
+		return shared.ErrForbidden.WithDetail("access.not_permitted").
+			WithParams(map[string]string{"permission": string(service.PermissionRead)})
+	}
+	return members.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: GroupReadAction, TokenScope: membersRead, TargetType: groupTarget,
+	})
 }
 
 // ListGroupsQuery is the input, typed.
@@ -55,7 +71,7 @@ type ListGroupsQuery struct {
 func (h ListGroups) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListGroupsQuery,
 ) (repository.GroupPage, error) {
-	if err := actor.RequireScope(membersRead); err != nil {
+	if err := authorizeGroupRead(ctx, actor, h.Members); err != nil {
 		return repository.GroupPage{}, err
 	}
 
@@ -77,8 +93,8 @@ func (h ListGroups) Descriptor() usecase.Descriptor {
 		Name: ListGroupsName,
 		Summary: "Lists the workspace's groups by name. Any member may read them, for the reason " +
 			"any member may resolve an account identifier to a name: a role granted to a group " +
-			"is unreadable until the group can be shown as the people it reaches. The members " +
-			"are getGroup's answer.",
+			"is unreadable until the group can be shown as the people it reaches. A requester " +
+			"is no member and is refused. The members are getGroup's answer.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  membersRead,
 		ReadOnly:    true,
@@ -119,7 +135,9 @@ func (h ListGroups) invoke(
 // see ListGroups. The members are identifiers rather than names, for the reason every record
 // that says who is: the name is one request away, and a copy of it should not outlive the row.
 type GetGroup struct {
-	Groups repository.Groups
+	// Members asks whether the reader is a member of the workspace; nil refuses everybody.
+	Members Authorizer
+	Groups  repository.Groups
 	// Grants and Grantable answer whether the reader may change who is in the group. Either nil
 	// answers no, the side on which a client draws no control the server would refuse (P-05).
 	Grants     repository.MembershipGrants
@@ -141,7 +159,7 @@ type GroupDetail struct {
 func (h GetGroup) Execute(
 	ctx context.Context, actor appshared.ActorContext, groupID shared.ID,
 ) (GroupDetail, error) {
-	if err := actor.RequireScope(membersRead); err != nil {
+	if err := authorizeGroupRead(ctx, actor, h.Members); err != nil {
 		return GroupDetail{}, err
 	}
 	if groupID.IsZero() {

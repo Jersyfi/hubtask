@@ -2886,8 +2886,8 @@ func run() error {
 			Roles: customRoles, Containers: containers, Items: items, Entries: authorizer, Agents: agentStore,
 			Administration: postgres.NewMembershipRepository(), Accounts: accounts,
 		}.Descriptor(),
-		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
-		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.ListGroups{Members: authorizer, Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetGroup{Members: authorizer, Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
