@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { crashDetails, isNoise, newReference, requestIdOf } from './crash.ts';
+import { crashDetails, framesOf, isNoise, newReference, requestIdOf } from './crash.ts';
 
 test('a reference is short, readable and differs between failures', () => {
   let n = 0;
@@ -39,4 +39,24 @@ test('a skipped resize frame and a cancelled request are not failures', () => {
   assert.ok(isNoise(undefined, 'ResizeObserver loop completed with undelivered notifications.'));
   assert.ok(isNoise(Object.assign(new Error('x'), { name: 'AbortError' })));
   assert.ok(!isNoise(new TypeError('x')));
+});
+
+test('the frames say where the code failed, never what the message quoted', () => {
+  const webkit = Object.assign(new TypeError('Quarterly plan'), {
+    stack: 'derived@tauri://localhost/assets/ContainerView-1a2b.js:3:1207\nmodule code@tauri://localhost/assets/index-9f.js:12:44\nforEach@[native code]',
+  });
+  assert.deepEqual(framesOf(webkit), [
+    'derived@tauri://localhost/assets/ContainerView-1a2b.js:3:1207',
+    'module code@tauri://localhost/assets/index-9f.js:12:44',
+  ]);
+  const v8 = Object.assign(new TypeError('Quarterly plan\nat Budget:1:2'), {
+    stack: 'TypeError: Quarterly plan\nat Budget:1:2\n    at derived (http://localhost/assets/ContainerView-1a2b.js:3:1207)',
+  });
+  assert.deepEqual(framesOf(v8), ['at derived (http://localhost/assets/ContainerView-1a2b.js:3:1207)']);
+  const details = crashDetails({
+    reference: 'C-ABCDEFGH', build: null, path: '/hubs/7', userAgent: 'Test/1.0', at: new Date('2026-11-01T10:00:00Z'), error: v8,
+  });
+  assert.match(details, /frame: at derived \(http:\/\/localhost\/assets\/ContainerView-1a2b\.js:3:1207\)/);
+  assert.doesNotMatch(details, /Quarterly|Budget/);
+  assert.deepEqual(framesOf('not an error'), []);
 });

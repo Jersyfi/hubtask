@@ -41,6 +41,26 @@ export function kindOf(error: unknown): string {
   return typeof error;
 }
 
+/** At most this many frames are copied: the failing spot and the calls that led to it. */
+const FRAMES_KEPT = 8;
+
+/**
+ * Where the code failed: the stack's frames, never its message. V8 writes the message above the
+ * frames, and it may span lines: it is cut off whole, and of the rest only lines shaped as a frame
+ * are kept - V8's `at …`, WebKit's and Gecko's `name@url:line:column`. A frame names code and a
+ * bundle's address, whose line and column pin a minified build to its source.
+ */
+export function framesOf(error: unknown): readonly string[] {
+  if (!(error instanceof Error) || typeof error.stack !== 'string') return [];
+  const head = String(error);
+  const stack = error.stack.startsWith(head) ? error.stack.slice(head.length) : error.stack;
+  return stack
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^at \S.*:\d+:\d+\)?$/u.test(line) || /^[\w$.<>/*\[\] -]*@\S+:\d+:\d+$/u.test(line))
+    .slice(0, FRAMES_KEPT);
+}
+
 /** The text "Copy details" puts on the clipboard. */
 export function crashDetails(facts: CrashFacts): string {
   const requestId = requestIdOf(facts.error);
@@ -52,6 +72,7 @@ export function crashDetails(facts: CrashFacts): string {
     `browser: ${facts.userAgent}`,
     `failure: ${kindOf(facts.error)}`,
     ...(requestId ? [`request_id: ${requestId}`] : []),
+    ...framesOf(facts.error).map((frame) => `frame: ${frame}`),
   ].join('\n');
 }
 
