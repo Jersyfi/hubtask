@@ -29,6 +29,10 @@ type showcaseInstallation struct {
 	// cis is what the hub's inventory lists; changes are the PUTs and PATCHes the showcase sent.
 	cis     []any
 	changes []showcaseWrite
+	// people are the workspace's members by name; present refuses a POST to a path with the
+	// conflict detail an installation answers for what an earlier run wrote.
+	people  map[string]string
+	present map[string]string
 }
 
 // showcaseWrite is one create the showcase sent, with its body.
@@ -71,6 +75,22 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		case r.Method == http.MethodPost && path == "/tenant/samples:remove":
 			s.removed++
 			answer(map[string]any{"removed": len(s.marks), "kept": []any{}})
+		case r.Method == http.MethodPost && s.present[path] != "":
+			w.Header().Set("Content-Type", "application/problem+json")
+			w.WriteHeader(http.StatusConflict)
+			answer(map[string]any{"type": "about:blank", "title": "Conflict", "status": http.StatusConflict, "code": "conflict", "detail_code": s.present[path]})
+		case r.Method == http.MethodGet && path == "/memberships":
+			rows := []any{}
+			for _, id := range s.people {
+				rows = append(rows, map[string]any{"account_id": id})
+			}
+			answer(map[string]any{"data": rows})
+		case r.Method == http.MethodPost && path == "/accounts:resolve":
+			rows := []any{}
+			for name, id := range s.people {
+				rows = append(rows, map[string]any{"id": id, "display_name": name})
+			}
+			answer(map[string]any{"data": rows})
 		case r.Method == http.MethodGet && path == "/accounts/me":
 			answer(map[string]any{"id": showcaseSelf, "display_name": "Jana Krüger"})
 		case r.Method == http.MethodGet && strings.HasSuffix(path, "/sprints"):
@@ -413,5 +433,42 @@ func TestTheShowcaseKeepsTheBareCIsOfAnEarlierRun(t *testing.T) {
 	}
 	if !patched || !compliance {
 		t.Errorf("the bare CI: attributes %v, compliance %v", patched, compliance)
+	}
+}
+
+// A re-run whose week is still fresh writes the absences and cost rates again; the installation
+// refuses them as overlapping what the earlier run wrote, and the showcase keeps them, as it keeps
+// a marked sample, rather than ending incomplete (user-experience.md §3.6).
+func TestTheShowcaseKeepsTheAbsencesAndRatesAnEarlierRunWrote(t *testing.T) {
+	s := serveShowcase(t)
+	s.people = map[string]string{
+		"Sofia Rossi": "0190a000-0000-7000-8000-0000000d0001", "Jonas Weber": "0190a000-0000-7000-8000-0000000d0002",
+		"Amelia Hughes": "0190a000-0000-7000-8000-0000000d0003", "Mehmet Yılmaz": "0190a000-0000-7000-8000-0000000d0004",
+		"Priya Natarajan": "0190a000-0000-7000-8000-0000000d0005",
+	}
+	s.present = map[string]string{"/time-absences": "time.absence_overlaps", "/cost-rates": "time.rate_overlaps"}
+	code, out, errOut := invoke(t, s.env(), "", "--json", "workspace", "demo", "--workspace", "nordlicht")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	var answer struct {
+		Made    map[string]int `json:"made"`
+		Refused []string       `json:"refused"`
+	}
+	if err := json.Unmarshal([]byte(out), &answer); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	if len(answer.Refused) != 0 {
+		t.Errorf("refused: %v", answer.Refused)
+	}
+	if answer.Made["absences kept"] != 2 || answer.Made["cost rates kept"] != 4 {
+		t.Errorf("kept %d absences and %d cost rates, want 2 and 4 (%v)", answer.Made["absences kept"], answer.Made["cost rates kept"], answer.Made)
+	}
+
+	// Any other refusal of the same write is still one.
+	s.present = map[string]string{"/time-absences": "time.absence_kind_unknown"}
+	s.marks = map[string]map[string]any{}
+	if code, _, _ := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code == exitOK {
+		t.Errorf("a refused absence was taken as kept")
 	}
 }

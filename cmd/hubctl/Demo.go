@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"maps"
@@ -332,6 +333,29 @@ func (d *demo) write(ctx context.Context, what, method, path string, body any) m
 		d.queue(demoVoice{What: what, Method: method, Path: path, Body: body})
 		return map[string]any{}
 	}
+	out, err := d.send(ctx, method, path, body)
+	if err != nil {
+		d.fail(what, err)
+		return nil
+	}
+	return out
+}
+
+// writeAgain writes what carries no mark, so that a re-run writes it again: a refusal by present, the
+// installation's word that the earlier run's write holds there already, is that write kept.
+func (d *demo) writeAgain(ctx context.Context, what, kept, present, method, path string, body any) {
+	_, err := d.send(ctx, method, path, body)
+	var refusal APIError
+	switch {
+	case err == nil:
+	case errors.As(err, &refusal) && refusal.DetailCode == present:
+		d.counts[kept]++
+	default:
+		d.fail(what, err)
+	}
+}
+
+func (d *demo) send(ctx context.Context, method, path string, body any) (map[string]any, error) {
 	var out map[string]any
 	err := d.call(ctx, func(ctx context.Context) error {
 		switch method {
@@ -344,11 +368,7 @@ func (d *demo) write(ctx context.Context, what, method, path string, body any) m
 		}
 		return d.c.Post(ctx, path, body, &out)
 	})
-	if err != nil {
-		d.fail(what, err)
-		return nil
-	}
-	return out
+	return out, err
 }
 
 func (d *demo) day(offset, hour int) string {

@@ -1022,17 +1022,17 @@ func (d *demo) timeTracking(ctx context.Context, scrum, classic, desk demoHub, m
 		}
 	}
 	if sofia := d.who("Sofia Rossi"); sofia != nil {
-		d.write(ctx, "absence", "POST", "/time-absences", map[string]any{"account_id": sofia, "from": d.date(10), "to": d.date(14), "kind": "LEAVE"})
+		d.writeAgain(ctx, "absence", "absences kept", "time.absence_overlaps", "POST", "/time-absences", map[string]any{"account_id": sofia, "from": d.date(10), "to": d.date(14), "kind": "LEAVE"})
 	}
 	if jonas := d.who("Jonas Weber"); jonas != nil {
-		d.write(ctx, "absence", "POST", "/time-absences", map[string]any{"account_id": jonas, "from": d.date(3), "to": d.date(3), "kind": "TRAINING"})
+		d.writeAgain(ctx, "absence", "absences kept", "time.absence_overlaps", "POST", "/time-absences", map[string]any{"account_id": jonas, "from": d.date(3), "to": d.date(3), "kind": "TRAINING"})
 	}
 	for _, r := range []struct {
 		name string
 		rate int
 	}{{"Amelia Hughes", 9500}, {"Mehmet Yılmaz", 8200}, {"Sofia Rossi", 8800}, {"Priya Natarajan", 10500}} {
 		if id := d.who(r.name); id != nil {
-			d.write(ctx, "cost rate", "POST", "/cost-rates", map[string]any{"account_id": id, "hour_minor": r.rate, "currency": "EUR", "from": d.date(-365)})
+			d.writeAgain(ctx, "cost rate", "cost rates kept", "time.rate_overlaps", "POST", "/cost-rates", map[string]any{"account_id": id, "hour_minor": r.rate, "currency": "EUR", "from": d.date(-365)})
 		}
 	}
 	if len(plans[0].entries) > 0 && plans[0].entries[0] != "" {
