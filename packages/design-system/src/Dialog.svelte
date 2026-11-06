@@ -101,6 +101,13 @@
       // browser would have left it too.
       focusReturn(opener);
       onClose?.();
+      // WebKit, busy, can refuse the opener focus in the very task that closes the modal - its
+      // own restore and the call above both leave it on the body. A task later it takes it; a
+      // microtask is still too early, and a frame never comes in a background tab.
+      const back = opener;
+      setTimeout(() => {
+        if (document.activeElement === document.body) focusReturn(back);
+      }, 0);
     };
   });
 </script>
