@@ -207,6 +207,15 @@ page's body differently is refused (`config.attribute_fixed`): the page is chang
 `itil_service_desk@9` switches knowledge on and brings *How we work with this desk* - what the
 organisation still decides itself (`standards.md` §3) - and a knowledge base with its first pages.
 
+**Configuration item classes** are the workspace part's `ci_classes` section (with Assets on): a
+block per class of the workspace's own, its `parent`, `name`, `icon`, `abstract`, `attributes`,
+`identifier_rules`, `required_relations` and `staleness_days` - its own part, never what it
+inherits (`CiRequiredRelation.class` and `CiClass.own_staleness_days` tell them apart). Applying
+defines each whole through `DefineCiClass`; removing a block archives its class rather than
+deleting it, since CIs may hold it, and an archived class is no block. A shipped class is never a
+block: it is not changed. `configuration_items@1` switches Assets on and brings *Printer* (beneath
+*Network device*) and *Mobile device* (beneath *Hardware*, identified by its IMEI).
+
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).
 A hub made from a hub template (`CreateHubFromTemplate`, `POST /containers:from-template`) takes,
@@ -260,12 +269,12 @@ Grouped by what people come for; each names the standard it follows (`docs/backl
 | Family | Templates |
 |---|---|
 | Personal and household | List, Tasks, Household, Shopping, Habits, Travel |
-| Teams | Tasks, Kanban team, Scrum team, Bug tracking, Content calendar, Event planning |
+| Teams | Tasks, Kanban team, Scrum team, Bug tracking, Content calendar, Event planning, Team wiki (switches Knowledge on; its hub part brings a space with the guide pages *Start here* and *Team handbook*) |
 | Projects | Classic project (PRINCE2 / PMBOK-aligned: stages, tolerances, RAID, change control, baselines), Hybrid project, Client project (agency) |
 | Programmes and portfolio | Portfolio, OKR, Scaled agile (PI planning, ART board, ROAM risks) |
 | Service | ITIL service desk, Internal IT, Facility requests, HR requests, Customer support |
 | Business processes | Approvals (purchase, leave, travel), Onboarding / offboarding, Procurement, CAPA (ISO 9001), Risk and controls register (ISO 27001), Records of processing (GDPR) |
-| Registers | IT asset register, Risk register (likelihood × impact as a calculated score), Contacts and organisations, Vendors and contracts (an internal comment 30 days before a live contract's notice date, a rule measured from the date field) - record types (kept, never done, never scheduled) with their fields and forms, for the workspace; no hub part, since a record runs no workflow |
+| Registers | IT asset register, Risk register (likelihood × impact as a calculated score), Contacts and organisations, Vendors and contracts (an internal comment 30 days before a live contract's notice date, a rule measured from the date field) - record types (kept, never done, never scheduled) with their fields and forms, for the workspace; no hub part, since a record runs no workflow. Configuration items (switches Assets on, with its CI classes, §6) has a hub part, since a hub holds the CIs |
 
 The catalogue is curated: few, good, standard-aligned. Customers build their own world on them.
 

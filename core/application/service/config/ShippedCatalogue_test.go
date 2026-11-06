@@ -4,6 +4,7 @@
 package config
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 	"sort"
@@ -12,7 +13,9 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/workflow"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	automationmodel "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	cmdbmodel "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/config"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -24,12 +27,12 @@ import (
 // *Tasks* are the presets of the same names, offered as templates by presetTemplates.
 var catalogueKeys = map[string][]string{
 	"personal":   {"household", "shopping", "habits", "travel"},
-	"teams":      {"kanban_team", "scrum_team", "bug_tracking", "content_calendar", "event_planning"},
+	"teams":      {"kanban_team", "scrum_team", "bug_tracking", "content_calendar", "event_planning", "team_wiki"},
 	"projects":   {"classic_project", "hybrid_project", "client_project"},
 	"programmes": {"portfolio", "okr", "scaled_agile"},
 	"service":    {"itil_service_desk", "internal_it", "facility_requests", "hr_requests", "customer_support"},
 	"processes":  {"approvals", "onboarding", "procurement", "capa", "risk_controls", "records_of_processing"},
-	"registers":  {"it_asset_register", "risk_register", "contact_register", "vendor_contracts"},
+	"registers":  {"it_asset_register", "risk_register", "contact_register", "vendor_contracts", "configuration_items"},
 }
 
 // The whole catalogue is shipped and nothing beside it, and every template in it is one a workspace
@@ -177,6 +180,29 @@ func TestEveryShippedTemplateIsOneAWorkspaceCanTake(t *testing.T) {
 				t.Errorf("%s: role %s: %v", key, role, err)
 			}
 		}
+		// A template's own CI classes are defined one by one beneath the shipped hierarchy, a
+		// parent before its children, as DefineCiClass defines them.
+		classes := cmdbmodel.NewClasses(nil)
+		var own []cmdbmodel.Class
+		for _, classKey := range slices.Sorted(maps.Keys(template.Document[sectionCiClasses])) {
+			block := template.Document[sectionCiClasses][classKey]
+			in := usecase.Input{"key": classKey}
+			ops, err := ciClassOps(domain.BlockChange{Section: sectionCiClasses, Key: classKey, Op: domain.OpAdd, After: block}, nil)
+			if err != nil || len(ops) != 1 || ops[0].UseCase != "DefineCiClass" {
+				t.Errorf("%s: class %s: %+v, %v", key, classKey, ops, err)
+				continue
+			}
+			for name, value := range ops[0].Input {
+				in[name] = value
+			}
+			class, err := cmdbmodel.NewClass(ciClassInput(in, id, tenant), classes)
+			if err != nil {
+				t.Errorf("%s: class %s: %v", key, classKey, err)
+				continue
+			}
+			own = append(own, class)
+			classes = cmdbmodel.NewClasses(own)
+		}
 		for rule, block := range template.Document[sectionRules] {
 			trigger, _ := block["trigger"].(map[string]any)
 			if trigger["anchor"] == "FIELD" && text(fields[text(trigger["anchor_field"])]["kind"]) != "DATE" {
@@ -288,4 +314,24 @@ func TestEveryServiceTemplateShipsARequesterRole(t *testing.T) {
 			t.Errorf("%s: the requester role = %v, want one holding REQUEST alone", template.Key, role)
 		}
 	}
+}
+
+// ciClassInput reads DefineCiClass's input as its handler does.
+func ciClassInput(in usecase.Input, id, tenant shared.ID) cmdbmodel.ClassInput {
+	out := cmdbmodel.ClassInput{ID: id, TenantID: tenant, Key: text(in["key"]), Parent: text(in["parent"]), Name: text(in["name"]),
+		Icon: text(in["icon"]), StalenessDays: number(in["staleness_days"]), Now: time.Now()}
+	out.Abstract, _ = in["abstract"].(bool)
+	for _, a := range rowsOfAny(in["attributes"]) {
+		identifier, _ := a["identifier"].(bool)
+		out.Attributes = append(out.Attributes, cmdbmodel.Attribute{Key: text(a["key"]), Kind: cmdbmodel.AttributeKind(text(a["kind"])),
+			Need: cmdbmodel.Need(text(a["need"])), Identifier: identifier, Options: optionTexts(a["options"])})
+	}
+	for _, r := range rowsOfAny(in["identifier_rules"]) {
+		out.Rules = append(out.Rules, cmdbmodel.IdentifierRule{Attributes: optionTexts(r["attributes"])})
+	}
+	for _, r := range rowsOfAny(in["required_relations"]) {
+		outgoing, _ := r["outgoing"].(bool)
+		out.Required = append(out.Required, cmdbmodel.RequiredRelation{Types: optionTexts(r["types"]), Outgoing: outgoing})
+	}
+	return out
 }
