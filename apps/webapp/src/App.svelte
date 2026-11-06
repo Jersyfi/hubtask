@@ -35,6 +35,7 @@
   import { session } from './lib/session.svelte.ts';
   import { precacheWhenIdle } from './lib/frame/precache.ts';
   import { loadFrame, partLoaders, ruleViews, workViews } from './lib/frame/parts.ts';
+  import { onceEach } from './lib/frame/once.ts';
   import { connectorReturnOf } from './lib/data/connectorreturn.ts';
   import { engine } from './lib/data/engine.ts';
   import { forwardTo } from './lib/data/oidc.ts';
@@ -57,7 +58,7 @@
   // Route-level code splitting (F-10): every screen but the doors before the frame is its own
   // chunk, loaded when its route is first reached; the frame and the work's own screens - today, a
   // place, an entry - are fetched together as soon as somebody is signed in.
-  const views = {
+  const views = onceEach({
     ...workViews,
     AgentsView: () => import('./views/AgentsView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
@@ -108,7 +109,7 @@
     // The two areas the Android build leaves to the web app, each one module (`platform/target.ts`).
     AdministrationArea: () => import('./views/AdministrationArea.svelte'),
     InstanceArea: () => import('./views/InstanceArea.svelte'),
-  };
+  });
 
   const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
   $effect(() => leaveGuard.connect((path) => router.navigate(path)));
