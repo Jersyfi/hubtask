@@ -80,7 +80,7 @@ func configFixture() (fixture, *configured) {
 	return f, c
 }
 
-// UC-AST-01: a workspace adds a class of its own beneath a shipped one, with typed attributes and
+// A workspace adds a class of its own beneath a shipped one, with typed attributes and
 // identifier rules; the key is not taken twice, a stale change is refused, a shipped class is
 // listed first, and only whoever shapes the workspace writes.
 func TestAWorkspaceDefinesItsOwnClass(t *testing.T) {
@@ -133,7 +133,7 @@ func TestAWorkspaceDefinesItsOwnClass(t *testing.T) {
 	}
 }
 
-// UC-AST-01: a relation type of the workspace's own says which end suffers; its key is unique,
+// A relation type of the workspace's own says which end suffers; its key is unique,
 // it is changed only at the version last read, and archiving keeps it listed.
 func TestAWorkspaceDefinesItsOwnRelationType(t *testing.T) {
 	f, c := configFixture()
@@ -172,8 +172,8 @@ func TestAWorkspaceDefinesItsOwnRelationType(t *testing.T) {
 	}
 }
 
-// UC-AST-02: a source is defined with its rank and what it may write; `manual` is the people's
-// and taken for every source; only whoever shapes the workspace writes one.
+// UC-AST-02 check 6: a source is defined with its rank and what it may write; `manual` is the
+// people's and taken for every source; only whoever shapes the workspace writes one.
 func TestASourceIsDefinedWithItsRank(t *testing.T) {
 	f, c := configFixture()
 	define := DefineCiSource{f.inv}.Descriptor()
@@ -210,7 +210,7 @@ func TestASourceIsDefinedWithItsRank(t *testing.T) {
 	}
 }
 
-// UC-AST-02 checks 2 and 3: what a reconciliation held and the runs it made are read in the hub
+// UC-AST-02 check 7: what a reconciliation held and the runs it made are read in the hub
 // they belong to; a private hub's are not found by whoever cannot reach it, and dismissing a
 // hold is on the trail.
 func TestTheReviewQueueBelongsToItsHub(t *testing.T) {

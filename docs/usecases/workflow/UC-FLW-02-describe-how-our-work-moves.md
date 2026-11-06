@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-05, P-06, P-11, P-13, P-17]
 state: verified
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/WorkflowHub_test.go, core/application/service/workflow/WorkflowHub_test.go, core/application/service/work/WorkflowHubGate_test.go, core/application/service/sync/InitialSyncHubBlocks_test.go, test/integration/workflow_hub_test.go]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/WorkflowHub_test.go, core/application/service/workflow/WorkflowHub_test.go, core/application/service/work/WorkflowHubGate_test.go, core/application/service/sync/InitialSyncHubBlocks_test.go, test/integration/workflow_hub_test.go, core/application/service/workflow/WorkflowDoors_test.go]
 ---
 
 # Describe how our work moves, and switch it on

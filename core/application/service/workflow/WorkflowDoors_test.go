@@ -71,7 +71,7 @@ func doorShape(group string) map[string]any {
 	}
 }
 
-// UC-FLW-02 checks 1 and 3 and UC-FLW-04 checks 1-2 through the doors: a workflow created,
+// UC-FLW-02 check 1 and UC-FLW-04 checks 1-2 through the doors: a workflow created,
 // drafted, previewed, published and deleted by the descriptors REST and MCP call, with the
 // shape read from JSON - check words per language and an approval's numbers included.
 func TestAWorkflowRunsItsWholeLifeThroughTheDoors(t *testing.T) {
