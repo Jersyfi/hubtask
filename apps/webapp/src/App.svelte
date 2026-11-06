@@ -39,19 +39,14 @@
   import { engine } from './lib/data/engine.ts';
   import { forwardTo } from './lib/data/oidc.ts';
   import SignInCard from './lib/signin/SignInCard.svelte';
-  import ConsentView from './views/ConsentView.svelte';
   import { deviceList } from './lib/data/devicelist.svelte.ts';
   import YourWorkspacesView from './views/YourWorkspacesView.svelte';
-  import AppSignInView from './lib/signin/AppSignInView.svelte';
-  import KeyRelayView from './lib/signin/KeyRelayView.svelte';
   import { appSignIn } from './lib/signin/appsignin.svelte.ts';
   import { appWorkspaces } from './lib/data/appworkspaces.svelte.ts';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
   import ConfirmAddressView from './views/ConfirmAddressView.svelte';
-  import PublicFormView from './views/PublicFormView.svelte';
-  import PublicRoadmapView from './views/PublicRoadmapView.svelte';
   import RateView from './views/RateView.svelte';
   import SetupView from './views/SetupView.svelte';
   import SignInView from './views/SignInView.svelte';
@@ -102,6 +97,14 @@
     WorkloadView: () => import('./views/WorkloadView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
     ...ruleViews,
+    // Doors few first screens open - an app's consent, the installed app's own sign-in and its
+    // passkey relay, a public form and roadmap - so the first screen's budget
+    // (`build/budget.test.js`) carries none of them.
+    PublicFormView: () => import('./views/PublicFormView.svelte'),
+    PublicRoadmapView: () => import('./views/PublicRoadmapView.svelte'),
+    ConsentView: () => import('./views/ConsentView.svelte'),
+    AppSignInView: () => import('./lib/signin/AppSignInView.svelte'),
+    KeyRelayView: () => import('./lib/signin/KeyRelayView.svelte'),
     // The two areas the Android build leaves to the web app, each one module (`platform/target.ts`).
     AdministrationArea: () => import('./views/AdministrationArea.svelte'),
     InstanceArea: () => import('./views/InstanceArea.svelte'),
@@ -333,11 +336,11 @@
 {:else if route.name === 'public-form'}
   <!-- A public form, on the card whether or not somebody is signed in (UC-SVC-13): it files as
        the link's maker, never as the reader of this tab. -->
-  <PublicFormView />
+  <LazyView load={views.PublicFormView} />
 {:else if route.name === 'public-roadmap'}
   <!-- A portfolio's roadmap opened by its public link (UC-GOL-03 check 15), whether or not
        somebody is signed in: it reads as the link's maker, never as this tab's reader. -->
-  <PublicRoadmapView />
+  <LazyView load={views.PublicRoadmapView} />
 {:else if route.name === 'rate'}
   <!-- A resolution mail's satisfaction link, on the card whether or not somebody is signed in
        (UC-SVC-07 check 6): it rates for the requester it was mailed to, never as this tab's reader. -->
@@ -346,7 +349,7 @@
   <!-- An installed app's passkey step-up, in the system browser at the workspace's host
        (ADR-0096 decision 5). Whether or not this browser is signed in: the proof is for the app's
        session, and the answer goes back to the app. -->
-  <KeyRelayView />
+  <LazyView load={views.KeyRelayView} />
 {:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem' || route.name === 'confirm-address'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
@@ -363,7 +366,7 @@
   {:else if platform.browserSignIn}
     <!-- An installed app signs in through the system browser at the workspace's own host
          (ADR-0096), so its card asks which workspace and waits; the sign-in card is the browser's. -->
-    <AppSignInView />
+    <LazyView load={views.AppSignInView} />
   {:else if manifest.isSetupOpen}
     <!-- A fresh installation: nothing to sign in to yet, so the first start's setup takes the
          sign-in card's place until the first workspace exists (UC-INS-01). -->
@@ -384,7 +387,7 @@
        arrives here signed out meets the sign-in screen first and lands back on this address. A
        card like the sign-in's rather than the frame: the question is the workspace's to the
        person, about an app, and nothing else on the page may be pressed instead (UC-SYN-07/3). -->
-  <ConsentView />
+  <LazyView load={views.ConsentView} />
 {:else}
 <LazyFrame {route} onnavigate={(path) => router.navigate(path)}>
   <svelte:boundary onerror={(_, reset) => (resetView = reset)}>
