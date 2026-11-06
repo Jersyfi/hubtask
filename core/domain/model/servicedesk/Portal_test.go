@@ -64,6 +64,30 @@ func TestThePortalAsksTheShownCustomFieldsWithTheirKind(t *testing.T) {
 	}
 }
 
+// UC-SVC-05 check 1, UC-SVC-13 check 2: a validation of a field the door hides is the team's
+// rule about what the requester never fills; neither the portal nor a public form shows it.
+func TestADoorShowsNoValidationOfAFieldItHides(t *testing.T) {
+	form := work.Form{
+		Fields: []work.FormField{{Key: "title"}, {Key: "custom_fields.room"}, {Key: "custom_fields.cost_centre"}},
+		Validations: []work.FormValidation{
+			{Key: "room_known", Field: "custom_fields.room", Holds: "entry.custom_fields.room != ''"},
+			{Key: "budget", Field: "custom_fields.cost_centre", Holds: "entry.custom_fields.cost_centre != 'K-4711'"},
+			{Key: "whole", Holds: "size(entry.title) > 3"},
+		},
+		Channels: []work.FormChannelRule{
+			{Channel: work.ChannelPortal, Hidden: []string{"custom_fields.cost_centre"}},
+			{Channel: work.ChannelPublic, Hidden: []string{"custom_fields.cost_centre"}},
+		},
+	}
+	types := []work.EntryType{{Key: "incident", Level: work.ItemTask, Form: form}}
+	for _, channel := range []work.FormChannel{work.ChannelPortal, work.ChannelPublic} {
+		shown := servicedesk.CatalogueThrough(channel, types, nil, nil, "")[0].Form.Validations
+		if len(shown) != 2 || shown[0].Key != "room_known" || shown[1].Key != "whole" {
+			t.Errorf("%s shows the validations %+v", channel, shown)
+		}
+	}
+}
+
 // UC-SVC-05 check 7: the catalogue names and describes each type in the reader's language where
 // the type says it there, and in the default text otherwise.
 func TestTheCatalogueSpeaksTheReadersLanguage(t *testing.T) {

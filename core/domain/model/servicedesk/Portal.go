@@ -90,13 +90,19 @@ func channelRule(form work.Form, channel work.FormChannel) (work.FormChannelRule
 	return work.FormChannelRule{}, false
 }
 
-// portalForm is what a requester is shown: the fields the portal hides taken out, and no
-// channel rules - they are the team's configuration.
+// portalForm is what a requester is shown: the fields the door hides taken out with their
+// validations, which are never asked there (work.Form.State), and no channel rules - both are the
+// team's configuration.
 func portalForm(form work.Form, hidden []string) work.Form {
-	shown := work.Form{Sections: slices.Clone(form.Sections), Validations: slices.Clone(form.Validations)}
+	shown := work.Form{Sections: slices.Clone(form.Sections)}
 	for _, field := range form.Fields {
 		if !slices.Contains(hidden, field.Key) {
 			shown.Fields = append(shown.Fields, field)
+		}
+	}
+	for _, validation := range form.Validations {
+		if validation.Field == "" || !slices.Contains(hidden, validation.Field) {
+			shown.Validations = append(shown.Validations, validation)
 		}
 	}
 	return shown
