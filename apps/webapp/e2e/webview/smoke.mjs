@@ -313,6 +313,18 @@ async function walk(server, browser) {
   await session.wait('h1, h2', `You are signed out of ${WORKSPACE}`);
 }
 
+/** What the broken screen's "Copy details" puts on the clipboard, or null where no screen broke. */
+async function crashDetails() {
+  const pressed = await session.script(`
+    const button = [...document.querySelectorAll('[data-crash] button')].find((each) => each.textContent.includes('Copy details'));
+    if (!button) return false;
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text) => { window.__walkCrash = text; } } });
+    button.click();
+    return true;`);
+  if (!pressed) return null;
+  return until('the copied details', () => session.script('return window.__walkCrash ?? null;'), 5_000);
+}
+
 async function items({ token, collection }) {
   const page = await json('GET', `/items?collection_id=${collection.id}`, { token });
   return page.data ?? page.items ?? [];
@@ -331,9 +343,18 @@ async function explain() {
     writeFileSync(join(out, 'failure.txt'), String(text));
     say('the screen\'s text', String(text).slice(0, 3000));
     say('the page\'s address', await session.url().catch((error) => `(unreadable: ${error.message})`));
+    // Where this document was loaded - a link the router let pass is a full load at its address -
+    // and the two origins the router compares: a custom scheme's URL has an opaque one.
+    say('the document\'s load and origins', await session.script(
+      'const [load] = performance.getEntriesByType("navigation"); return [`loaded ${load?.type ?? "?"} at ${load?.name ?? "?"}`, `location.origin ${location.origin}`, `URL origin ${new URL(location.href).origin}`].join("\\n");',
+    ).catch((error) => `(unreadable: ${error.message})`));
     say('the page\'s requests', await session.script(
       'return performance.getEntriesByType("resource").slice(-40).map((e) => `${e.initiatorType} ${e.responseStatus ?? ""} ${e.name}`).join("\\n");',
     ).catch((error) => `(unreadable: ${error.message})`));
+    // A broken screen's own details - the failure's kind and frames, never its message (crash.ts):
+    // what "Copy details" would hand support, caught from the clipboard. No engine's driver here
+    // reads the console of WebKitGTK, so this is how a crash there names its place in the code.
+    say('the broken screen\'s details', await crashDetails().catch((error) => `(unreadable: ${error.message})`));
     say('the page\'s console', await session.log()
       .then((entries) => entries.map((entry) => `${entry.level} ${entry.message}`).join('\n'))
       .catch((error) => `(unreadable: ${error.message})`));
