@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// CalendarPushRepository stores the calendar pushes (migration 0278) through the unit of work's
+// CalendarPushRepository stores the calendar pushes (migration 0285) through the unit of work's
 // transaction (rule 3).
 type CalendarPushRepository struct{}
 

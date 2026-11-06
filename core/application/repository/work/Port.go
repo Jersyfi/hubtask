@@ -1511,7 +1511,7 @@ type KeptFigureKey struct {
 	BasisKey     string
 }
 
-// KeptFigure is a count kept between reads (migration 0292) with the collection's number of
+// KeptFigure is a count kept between reads (migration 0299) with the collection's number of
 // changes it was counted at. Present is false where nothing is kept for the key.
 type KeptFigure struct {
 	Key       KeptFigureKey
@@ -1529,7 +1529,7 @@ type KeptFigureState struct {
 	Kept    KeptFigure
 }
 
-// KeptFigures keeps collections' counts between reads (UC-WRK-29, migration 0292). A kept count is
+// KeptFigures keeps collections' counts between reads (UC-WRK-29, migration 0299). A kept count is
 // answered only while its collection's number of changes is the one it was counted at; every write
 // to an entry, a column or a definition moves that number in its own transaction, by trigger.
 type KeptFigures interface {

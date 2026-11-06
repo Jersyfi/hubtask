@@ -67,7 +67,7 @@ func fetchFeed(t *testing.T, reader CalendarFeedReader, token string) *httptest.
 	t.Helper()
 
 	controller := NewRestController()
-	controller.Feeds = &FeedDoor{Calendar: reader, BaseURL: "https://hubtask.example.com"}
+	controller.Feeds = &FeedDoor{Calendar: reader, Links: &movingLinks{base: "https://hubtask.example.com"}}
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
 		APIBasePath+"/calendar/"+token+".ics", nil)

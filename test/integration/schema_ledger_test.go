@@ -73,7 +73,7 @@ func TestTheLedgerReadsBeforeAndAfterItsReaderOnAManagedDatabase(t *testing.T) {
 	}
 }
 
-// The application role reads the compatibility floor (migration 0337); no contract step has raised
+// The application role reads the compatibility floor (migration 0344); no contract step has raised
 // it yet, so it holds this build back from nothing.
 func TestTheApplicationRoleReadsTheCompatibilityFloor(t *testing.T) {
 	ctx := context.Background()

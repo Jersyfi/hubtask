@@ -75,6 +75,12 @@ const (
 	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
+	// KindAddressChangedEmail tells one member that the workspace's address changed: the old and the
+	// new address, that passkeys ended and that everybody signs in again (multi-tenancy.md §3.1).
+	// Queued in the change's own transaction, one job per member with an address, for
+	// KindPasswordOpeningEmail's reason not a notification record.
+	KindAddressChangedEmail Kind = "notification.address_changed"
+
 	// KindWayInChangedEmail tells a person that a way into their account changed - a password
 	// changed or set through a reset, a provider connected or disconnected (ADR-0078 §6,
 	// identity.md §6). Queued in the change's own transaction, one job per person, and only where
@@ -365,7 +371,7 @@ const (
 
 	// KindSAMLCertificateWatch tells a workspace's administrators 30, 7 and 1 days before a SAML
 	// provider's last certificate ends (identity.md §26.1). The deadline watch's shape: seeded by
-	// the write that configures a SAML provider (and once by migration 0340), it reschedules
+	// the write that configures a SAML provider (and once by migration 0361), it reschedules
 	// itself while the workspace has one; deduplicated on the workspace.
 	KindSAMLCertificateWatch Kind = "identity.saml_certificate_watch"
 
@@ -510,7 +516,7 @@ const (
 	// write that sets the digest seeds it.
 	KindDashboardDigest Kind = "dashboard.digest"
 
-	// KindFigureRecount keeps one workspace's kept figures honest (UC-WRK-29, migration 0292): it
+	// KindFigureRecount keeps one workspace's kept figures honest (UC-WRK-29, migration 0313): it
 	// folds the recorded changes, drops what no read can be answered from, and recounts the kept
 	// counts a read may still be answered from, writing the fresh count over one that drifted. One
 	// job per workspace, scheduled by the first count a read keeps and rescheduling itself.
@@ -545,6 +551,10 @@ const (
 	// a resolved entry was filed for by mail (UC-SVC-07 check 6), deduplicated by the completion's
 	// event.
 	KindRequesterSatisfaction Kind = "servicedesk.requester_satisfaction"
+	// KindOwnDomainCheck looks at the own domains' DNS records (ADR-0095 §4): one installation job,
+	// without a tenant, seeded when a worker starts in multi mode and repeating; the dedupe key
+	// keeps it one however many workers start. Detached, so no transaction waits on a name server.
+	KindOwnDomainCheck Kind = "own_domain.check"
 )
 
 func (k Kind) String() string { return string(k) }

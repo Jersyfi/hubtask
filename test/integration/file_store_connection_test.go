@@ -20,7 +20,7 @@ import (
 
 // A connection is read as made, signing in again as the same login replaces its grant, a waiting
 // connection stays until it is forgotten, and the workspace next door finds none of it (migration
-// 0279, UC-INT-17).
+// 0286, UC-INT-17).
 func TestAFileStoreConnectionStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	at := time.Date(2026, 10, 30, 9, 0, 0, 0, time.UTC)

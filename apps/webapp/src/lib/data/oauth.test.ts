@@ -94,3 +94,22 @@ test('no app asking is not an incomplete request', () => {
   assert.deepEqual(missingParts(''), []);
   assert.deepEqual(missingParts('?state=s'), []);
 });
+
+// The installed apps' request (ADR-0096): no scope, the device and its system instead.
+test('the built-in app asks with its device and no scope', () => {
+  const request = readRequest(
+    '?client_id=app&redirect_uri=http%3A%2F%2F127.0.0.1%3A51734%2Foauth&code_challenge=c&code_challenge_method=S256&state=s&device=LENA-LAPTOP&platform=windows',
+  );
+  assert.equal(request?.device, 'LENA-LAPTOP');
+  assert.equal(request?.platform, 'windows');
+  assert.deepEqual(request?.scopes, []);
+  assert.deepEqual(missingParts('?client_id=app&redirect_uri=x&code_challenge=c&device=d&platform=linux'), []);
+  // Without its device a request without scope is still incomplete.
+  assert.equal(readRequest('?client_id=app&redirect_uri=x&code_challenge=c'), undefined);
+});
+
+test('the code returns to the loopback address or to the Android app', () => {
+  assert.equal(completionUrl('http://127.0.0.1:51734/oauth', 'hbt_oac_x', 's'), 'http://127.0.0.1:51734/oauth?code=hbt_oac_x&state=s');
+  assert.equal(completionUrl('eu.hubtask.app:/oauth', 'hbt_oac_x', 's'), 'eu.hubtask.app:/oauth?code=hbt_oac_x&state=s');
+  assert.equal(completionUrl('eu.hubtask.app.evil:/oauth', 'c', 's'), undefined);
+});

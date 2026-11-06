@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package filelink is the store of an entry's files in a store (migration 0276), read and written
+// Package filelink is the store of an entry's files in a store (migration 0283), read and written
 // inside the unit of work's transaction (rule 3).
 package filelink
 

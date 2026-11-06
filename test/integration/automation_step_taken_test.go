@@ -15,7 +15,7 @@ import (
 
 // A STEP_TAKEN rule keeps its workflow and step through the trigger column, the lookup by kind
 // finds it in its own workspace only, and a run it starts is one rule_run.trigger takes (migration
-// 0218, UC-FLW-04 check 4).
+// 0225, UC-FLW-04 check 4).
 func TestAStepRuleAndItsRunSurviveTheColumns(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

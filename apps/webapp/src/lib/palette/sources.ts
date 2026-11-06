@@ -23,7 +23,7 @@ import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
 import { modulesHere } from '../data/modules.ts';
 import { placeTabs } from '../workspace/placeTabs.ts';
-import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type SectionGroup } from '../navigation.ts';
+import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type AccountAction, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
 
@@ -33,7 +33,7 @@ export type Translate = (code: string, params?: Record<string, string>) => strin
 /** What pressing a listed row does - the palette's own verbs, and nothing a screen does not offer. */
 export type Target =
   | { readonly kind: 'route'; readonly path: string }
-  | { readonly kind: 'account'; readonly action: 'help' | 'sign-out' }
+  | { readonly kind: 'account'; readonly action: AccountAction }
   | { readonly kind: 'search'; readonly line: string }
   | { readonly kind: 'open'; readonly containerId: string; readonly layout?: string; readonly add?: boolean }
   /** The one create dialog, for a hub or for a collection in `parentId`. */

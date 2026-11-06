@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// PageRepository stores the knowledge module's pages (migration 0231), through the unit of work's
+// PageRepository stores the knowledge module's pages (migration 0238), through the unit of work's
 // transaction (rule 3).
 type PageRepository struct{}
 

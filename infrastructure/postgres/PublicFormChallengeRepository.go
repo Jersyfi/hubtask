@@ -11,7 +11,7 @@ import (
 )
 
 // PublicFormChallengeRepository is the record of a public form's spent challenges (migration
-// 0319), shared by every server of the installation.
+// 0326), shared by every server of the installation.
 type PublicFormChallengeRepository struct{}
 
 // Take spends a challenge in the caller's transaction after forgetting the workspace's expired

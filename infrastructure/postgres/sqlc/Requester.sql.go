@@ -530,7 +530,7 @@ type PutSatisfactionLinkParams struct {
 	ExpiresAt   pgtype.Timestamptz
 }
 
-// One link per requester and entry (migration 0304): a resolution mailed again replaces the token,
+// One link per requester and entry (migration 0311): a resolution mailed again replaces the token,
 // and the old one stops answering.
 func (q *Queries) PutSatisfactionLink(ctx context.Context, arg PutSatisfactionLinkParams) error {
 	_, err := q.db.Exec(ctx, putSatisfactionLink,
@@ -567,7 +567,7 @@ type RecordRequesterContactParams struct {
 	DisplayName string
 }
 
-// Requesters without an account (migration 0283, accepted.md B). Row level security bounds every
+// Requesters without an account (migration 0290, accepted.md B). Row level security bounds every
 // statement to the transaction's tenant (ADR-0010).
 // One contact: the record made or its last contact moved on (a name given replaces the one kept),
 // and the entry it wrote on. Idempotent: a mail delivered twice records the same contact.

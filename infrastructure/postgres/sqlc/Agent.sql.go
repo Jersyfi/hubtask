@@ -1128,7 +1128,7 @@ type ListAgentModelsRow struct {
 	Version       int32
 }
 
-// Governed agents (migration 0251, M9): models, agents, the kill switch, the ledger, held acts,
+// Governed agents (migration 0258, M9): models, agents, the kill switch, the ledger, held acts,
 // evaluation sets and runs, and the provenance of accepted AI values. Every statement names the
 // tenant through row level security and `current_tenant_id()` (rule 3).
 func (q *Queries) ListAgentModels(ctx context.Context, max int32) ([]ListAgentModelsRow, error) {

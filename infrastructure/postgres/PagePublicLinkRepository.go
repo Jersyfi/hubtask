@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// PagePublicLinkRepository stores a page's public link (migration 0262) and finds the one a token
+// PagePublicLinkRepository stores a page's public link (migration 0269) and finds the one a token
 // names. The token is hashed here and nowhere else: the pepper is this layer's secret.
 type PagePublicLinkRepository struct {
 	hasher security.InboundTokenHasher

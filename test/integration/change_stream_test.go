@@ -737,7 +737,7 @@ func TestAChangeNamingAFieldStampsTheClockAndAPushesReadingReplacesTheWriters(t 
 }
 
 // A session revoked by any path rings the credential channel with its workspace and account
-// (migration 0332), so every process holding a stream of that account asks again at once.
+// (migration 0339), so every process holding a stream of that account asks again at once.
 func TestARevokedSessionRingsTheCredentialChannel(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

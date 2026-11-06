@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package calendarpush is the store of the calendar pushes (migration 0278): a person's feeds
+// Package calendarpush is the store of the calendar pushes (migration 0285): a person's feeds
 // written into their calendar at a provider, what each wrote, and the connections waiting for the
 // provider's answer - read and written inside the unit of work's transaction (rule 3).
 package calendarpush

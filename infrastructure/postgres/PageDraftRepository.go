@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// PageDraftRepository stores what waits on a page to be published (migration 0306).
+// PageDraftRepository stores what waits on a page to be published (migration 0313).
 type PageDraftRepository struct{}
 
 // NewPageDraftRepository is the adapter.

@@ -48,7 +48,7 @@ func (r CustomFieldRepository) Insert(
 		return err
 	}
 	// A hub's definition is stored where a collection's is: the column references the container
-	// (migration 0325).
+	// (migration 0332).
 	collectionID, err := optionalUUID(definition.ScopeID())
 	if err != nil {
 		return err

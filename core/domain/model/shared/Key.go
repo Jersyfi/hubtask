@@ -5,7 +5,7 @@ package shared
 
 // ValidKey reports whether a stable key is one the configuration document can name: lower case,
 // digits and underscores, starting with a letter, at most 63 - the same check the database holds
-// a view's and a rule's key to (migration 0286).
+// a view's and a rule's key to (migration 0293).
 func ValidKey(key string) bool {
 	if key == "" || len(key) > 63 || key[0] < 'a' || key[0] > 'z' {
 		return false

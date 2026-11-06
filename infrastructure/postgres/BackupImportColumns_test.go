@@ -33,6 +33,7 @@ var notImported = map[string]string{
 	"tenant.password_opened_requester": "an operator's opening, bounded in time",
 	"tenant.password_opened_reason":    "an operator's opening, bounded in time",
 	"tenant.archive_downloaded_at":     "not exported: the installation's window",
+	"tenant.address_changed_at":        "not exported: the owners' cooldown after a change of address, the installation's clock",
 	"page.search_document":             "not exported: the trigger builds it",
 	"work_item.search_configuration":   "the trigger sets it with the document",
 	"media_object.unreferenced_since":  "the recount's clock; NULL holds the sweep off until it counts",

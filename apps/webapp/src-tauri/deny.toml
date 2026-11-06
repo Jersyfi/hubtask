@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+# The shell's crates under the licence policy the Go side is held to by `go-licenses` and the
+# JavaScript side by the dependency review (licensing-editions.md §1): no GPL, LGPL, AGPL or SSPL,
+# because a copyleft dependency would change the terms on which an Apache-2.0 app may be passed
+# on. cargo-deny admits by list rather than refusing by family, so the list below is the
+# permissive licences and MPL-2.0 (copyleft per file, not per program) the graph carries; a crate
+# under anything else fails the `shell` lane until it is weighed.
+[graph]
+# The systems the shell is built for (F7 Decision 9); a crate only another system links is not ours.
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+]
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+  "0BSD",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "CC0-1.0",
+  # The updater's TLS (ring, rustls-webpki, untrusted): permissive, as the icons' Lucide is.
+  "ISC",
+  "MIT",
+  "MIT-0",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Unlicense",
+  "Zlib",
+]
+
+# r-efi offers "MIT OR Apache-2.0 OR LGPL-2.1-or-later" and is taken under MIT; said here so the
+# choice is written down rather than left to the expression. getrandom links it only on UEFI, which
+# the shell is not built for, but Cargo.lock lists it and the dependency review in ci.yml reads the
+# lock (its `allow-dependencies-licenses` names the same two versions).
+[[licenses.clarify]]
+crate = "r-efi"
+expression = "MIT"
+license-files = []
+
+# The SQLite and SQLCipher sources the encrypted copy builds in (ADR-0033 §4) carry SQLite's
+# public-domain blessing, and the libtomcrypt beside them the WTFPL: both permissive, neither
+# copyleft, and admitted for that crate alone rather than for the graph.
+[[licenses.exceptions]]
+crate = "sqlcipher-src"
+allow = ["blessing", "WTFPL"]
+
+[bans]
+# Several versions of one crate are Tauri's to settle, not ours; a wildcard requirement is ours.
+multiple-versions = "allow"
+wildcards = "deny"
+
+[sources]
+# crates.io only: no git dependency, no other registry.
+unknown-registry = "deny"
+unknown-git = "deny"

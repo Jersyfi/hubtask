@@ -911,7 +911,7 @@ type RetentionMarkedItemsDueRow struct {
 // Phase two: what the grace period has run out on.
 // `after_at` and `after_id` continue past marked rows a hold or a retained descendant keeps, as the
 // candidates above do.
-// Read from the side table (F-10, 0227), whose work_item_retention_due_idx holds only the marked.
+// Read from the side table (F-10, 0234), whose work_item_retention_due_idx holds only the marked.
 func (q *Queries) RetentionMarkedItemsDue(ctx context.Context, arg RetentionMarkedItemsDueParams) ([]RetentionMarkedItemsDueRow, error) {
 	rows, err := q.db.Query(ctx, retentionMarkedItemsDue,
 		arg.Now,

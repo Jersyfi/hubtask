@@ -22,7 +22,7 @@ import (
 
 // An organisation is stored, replaced by its version and found by a domain; a domain in another
 // organisation of the workspace is refused by the database, and the workspace next door neither
-// reads, finds nor deletes it (migration 0287, UC-SVC-11).
+// reads, finds nor deletes it (migration 0294, UC-SVC-11).
 func TestOrganisationsStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

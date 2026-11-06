@@ -102,7 +102,10 @@ func (h RevokeSession) Execute(
 			return err
 		}
 		if changed {
-			return w.recordRevocation(ctx, actor, SessionRevokedAction, sessionID, 1, now)
+			if err := w.recordRevocation(ctx, actor, SessionRevokedAction, sessionID, 1, now); err != nil {
+				return err
+			}
+			return w.withdrawAppGrant(ctx, actor, sessionID, now)
 		}
 
 		// Nothing changed: the session is already over, or it is not the caller's. The first is
@@ -218,6 +221,33 @@ func (h RevokeOtherSessions) invoke(
 }
 
 // recordRevocation writes the evidence for one ending or all of them.
+// withdrawAppGrant ends what an installed app was allowed when its session ends (ADR-0096): one
+// consent, one device, one session, so the grant would otherwise stay listed with nothing behind it.
+func (w SessionWriter) withdrawAppGrant(
+	ctx context.Context, actor appshared.ActorContext, sessionID shared.ID, at time.Time,
+) error {
+	grantID, clientID, err := w.Sessions.RevokeAppGrant(ctx, sessionID, actor.AccountID, at)
+	if err != nil || grantID.IsZero() {
+		return err
+	}
+	return w.Audit.Append(ctx, audit.Entry{
+		TenantID:   actor.TenantID,
+		OccurredAt: at,
+		Action:     OauthGrantRevokedAction,
+		Outcome:    audit.OutcomeSuccess,
+		Severity:   audit.SeverityNotice,
+		ActorKind:  actor.Kind,
+		ActorID:    actor.AccountID,
+		ActorLabel: actor.AccountName,
+		TargetType: oauthGrantTarget,
+		TargetID:   grantID,
+		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx), APIClient: clientID.String()},
+		Changes: audit.Changes(audit.Change{
+			Field: "detail", Classification: audit.Open, To: "1",
+		}),
+	})
+}
+
 func (w SessionWriter) recordRevocation(
 	ctx context.Context, actor appshared.ActorContext,
 	action audit.Action, target shared.ID, count int, at time.Time,

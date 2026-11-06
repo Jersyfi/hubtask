@@ -212,6 +212,9 @@ func labelWriteError(err error, label work.Label, what string) error {
 			WithDetail("labels.name_taken").
 			WithParams(map[string]string{"name": label.Name})
 	}
+	if taken := identifierTaken(err, "label_pkey", "labels.id_taken"); taken != nil {
+		return taken
+	}
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("%s of %s: %w", what, label.ID, err))

@@ -45,3 +45,21 @@ func TestWhatTheDNSWouldRefuseIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// An apex is its own registered domain, also under a suffix of two labels; a public suffix lies in
+// none (UC-INS-15 check 4).
+func TestTheRegisteredDomainOfAHost(t *testing.T) {
+	for host, want := range map[string]string{
+		"tasks.acme.com":   "acme.com",
+		"acme.com":         "acme.com",
+		"tasks.acme.co.uk": "acme.co.uk",
+		"acme.co.uk":       "acme.co.uk",
+	} {
+		if got, err := (text.Registry{}).RegisteredDomain(host); err != nil || got != want {
+			t.Errorf("RegisteredDomain(%q) = (%q, %v), want %q", host, got, err, want)
+		}
+	}
+	if _, err := (text.Registry{}).RegisteredDomain("co.uk"); err == nil {
+		t.Error("a public suffix lies in a registered domain")
+	}
+}

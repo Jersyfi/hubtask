@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// TimerRepository stores durable timers (migration 0229).
+// TimerRepository stores durable timers (migration 0236).
 type TimerRepository struct{}
 
 func NewTimerRepository() TimerRepository { return TimerRepository{} }

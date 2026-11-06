@@ -99,6 +99,10 @@ var PublicRoutes = map[string]bool{
 	// The metadata is this installation's, public as a provider's own is (identity.md §26).
 	http.MethodPost + " " + APIBasePath + "/auth/saml:acs":     true,
 	http.MethodGet + " " + APIBasePath + "/auth/saml:metadata": true,
+	// The device's list of workspaces is checked by the installation's own address, where nobody
+	// is signed in; the entries are signed by the installation and are the call's whole input
+	// (ADR-0095 §7).
+	http.MethodPost + " " + APIBasePath + "/auth/device-list:check": true,
 	// The token endpoint is public the way sign-in is: the single-use code, the PKCE
 	// verifier and - for a confidential client - the secret travel in the body and are the
 	// whole of what authenticates the exchange.

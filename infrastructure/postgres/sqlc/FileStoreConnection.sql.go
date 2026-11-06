@@ -195,7 +195,7 @@ type ListFileStoreConnectionsRow struct {
 	UsedAt    pgtype.Timestamptz
 }
 
-// A person's own sign-in to a file store (migration 0279, UC-INT-17).
+// A person's own sign-in to a file store (migration 0286, UC-INT-17).
 func (q *Queries) ListFileStoreConnections(ctx context.Context, accountID pgtype.UUID) ([]ListFileStoreConnectionsRow, error) {
 	rows, err := q.db.Query(ctx, listFileStoreConnections, accountID)
 	if err != nil {

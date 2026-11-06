@@ -153,9 +153,9 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
   // The way out, the overview and the screens of the suite's groups a workspace without its modules
-  // holds ("Link types" and "Changes" among them): the number moves when the section gains a
-  // screen, which is what this assertion is for.
-  assert.equal(rows.length, 23, `the section holds ${rows.length} rows`);
+  // holds ("Link types", "Changes" and "Address" among them): the number moves when the section
+  // gains a screen, which is what this assertion is for.
+  assert.equal(rows.length, 24, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.
   assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 

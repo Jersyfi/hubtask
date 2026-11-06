@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// RealtimeRepository stores live documents (migration 0230): realtime.Documents and, for the
+// RealtimeRepository stores live documents (migration 0237): realtime.Documents and, for the
 // retention sweep, realtime.History.
 type RealtimeRepository struct{}
 
@@ -112,7 +112,7 @@ func (RealtimeRepository) Since(ctx context.Context, ref realtime.Ref, after int
 }
 
 // StoreSnapshot writes the snapshot and marks the one it replaces. The updates it covers are not
-// touched: an update at or below a snapshot's place is compacted by that (migration 0354).
+// touched: an update at or below a snapshot's place is compacted by that (migration 0361).
 func (RealtimeRepository) StoreSnapshot(ctx context.Context, ref realtime.Ref, snapshot realtime.Snapshot) (bool, error) {
 	queries, id, err := realtimeOpen(ctx, ref)
 	if err != nil {

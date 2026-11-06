@@ -1,4 +1,4 @@
--- The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
+-- The configuration document's versions, proposals and templates (migration 0228, F-6). The tenant
 -- is the transaction's in every statement (ADR-0010).
 
 -- name: HoldConfiguration :exec

@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
-// FigureRecount is the queue's way into a workspace's recount of its kept figures (migration 0292).
+// FigureRecount is the queue's way into a workspace's recount of its kept figures (migration 0299).
 // It reschedules itself, for MediaReconciliation's reason: nothing may enumerate tenants, so the
 // first count a read keeps schedules it, and it never finishes for good - the next read keeps more.
 // It runs in the runner's transaction; a pass is safe to run twice.

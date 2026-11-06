@@ -22,7 +22,7 @@ var (
 	textsTenantB = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fe02")
 )
 
-// A type's texts against the real boundary (UC-SVC-05 check 7, migration 0311, gate SG-3): its
+// A type's texts against the real boundary (UC-SVC-05 check 7, migration 0318, gate SG-3): its
 // description and its texts per language are stored on its row and read back whole, and the
 // workspace next door neither reads nor changes them.
 func TestATypesTextsAreStoredWholeAndItsOwn(t *testing.T) {

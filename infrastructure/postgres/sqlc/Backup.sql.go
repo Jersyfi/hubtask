@@ -651,7 +651,7 @@ type InstallationBackupGapsRow struct {
 	WithoutRecent int64
 }
 
-// The health report's backup warning, across workspaces through the door (0368): how many active
+// The health report's backup warning, across workspaces through the door (0375): how many active
 // workspaces have no enabled target, and how many no successful backup in the given days. Numbers.
 func (q *Queries) InstallationBackupGaps(ctx context.Context, staleDays int32) (InstallationBackupGapsRow, error) {
 	row := q.db.QueryRow(ctx, installationBackupGaps, staleDays)

@@ -19,7 +19,7 @@ import (
 )
 
 // A notice about a failing mailbox against a real database: the row carries the mailbox as its
-// subject through migration 0338's foreign key, another workspace cannot read it, and removing the
+// subject through migration 0345's foreign key, another workspace cannot read it, and removing the
 // mailbox removes the notice with it.
 func TestAFailingMailboxNoticeNamesItsMailboxAndGoesWithIt(t *testing.T) {
 	ctx := context.Background()

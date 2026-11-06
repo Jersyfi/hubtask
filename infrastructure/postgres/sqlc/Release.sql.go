@@ -114,7 +114,7 @@ type InsertReleaseParams struct {
 	CreatedBy   pgtype.UUID
 }
 
-// Releases and their entries (migration 0272, M2, PLN-08).
+// Releases and their entries (migration 0279, M2, PLN-08).
 func (q *Queries) InsertRelease(ctx context.Context, arg InsertReleaseParams) error {
 	_, err := q.db.Exec(ctx, insertRelease,
 		arg.ID,

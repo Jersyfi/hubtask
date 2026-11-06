@@ -106,7 +106,7 @@ func (IdentityProviderRepository) RecordSAMLCertificatesEnd(ctx context.Context,
 }
 
 // SAMLCertificatesEnding counts the installation's SAML providers by their certificates' end, across
-// every workspace, through the door that names none of them (migration 0348).
+// every workspace, through the door that names none of them (migration 0355).
 func (IdentityProviderRepository) SAMLCertificatesEnding(ctx context.Context) (identity.SAMLCertificateCount, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

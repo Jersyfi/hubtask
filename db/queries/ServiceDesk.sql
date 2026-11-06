@@ -1,4 +1,4 @@
--- Business calendars, SLA policies and an entry's SLA record (migration 0240, M5). Every statement
+-- Business calendars, SLA policies and an entry's SLA record (migration 0247, M5). Every statement
 -- runs under the tenant's context (rule 3); row level security keeps them to it.
 
 -- name: InsertBusinessCalendar :exec
@@ -88,7 +88,7 @@ FROM entry_sla
 WHERE standing IN ('RUNNING', 'PAUSED') AND id > sqlc.arg('after_id')::uuid
 ORDER BY id LIMIT sqlc.arg('max_rows');
 
--- One goal of one OLA on an entry (migration 0303), written whole like an SLA goal's.
+-- One goal of one OLA on an entry (migration 0310), written whole like an SLA goal's.
 -- name: UpsertEntryOla :exec
 INSERT INTO entry_ola (
   id, tenant_id, item_id, policy_key, group_id, goal, target_seconds, standing, armed_at, due_at,
@@ -320,7 +320,7 @@ SELECT count(*)::int AS held FROM requester_organisation;
 DELETE FROM requester_organisation WHERE key = sqlc.arg('key');
 
 -- name: RequesterOrganisationOfDomain :one
--- The organisation a mail domain belongs to; a domain is in at most one (migration 0287).
+-- The organisation a mail domain belongs to; a domain is in at most one (migration 0294).
 SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_at, version
 FROM requester_organisation WHERE domains @> ARRAY[sqlc.arg('domain')::text] LIMIT 1;
 
@@ -344,7 +344,7 @@ WHERE token_hash = sqlc.arg('token_hash');
 DELETE FROM public_form WHERE tenant_id = current_tenant_id() AND collection_id = sqlc.arg('collection_id');
 
 -- name: FindDeskLogo :one
--- A collection's logo as its portal draws it (migration 0313); NULL for none.
+-- A collection's logo as its portal draws it (migration 0320); NULL for none.
 SELECT logo_media_id FROM container
 WHERE id = sqlc.arg('collection_id')::uuid AND type = 'COLLECTION' AND deleted_at IS NULL;
 

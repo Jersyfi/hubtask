@@ -337,7 +337,7 @@ type OutboxBacklogRow struct {
 	OldestSeconds float64
 }
 
-// The health report's outbox backlog, across workspaces through the door (0345): how many events
+// The health report's outbox backlog, across workspaces through the door (0352): how many events
 // wait to be dispatched and how long the oldest has waited. Numbers, no rows.
 func (q *Queries) OutboxBacklog(ctx context.Context) (OutboxBacklogRow, error) {
 	row := q.db.QueryRow(ctx, outboxBacklog)

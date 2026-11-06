@@ -1,4 +1,4 @@
--- The type registry (migration 0209, UC-FLW-01). A workspace's rows only: the system types a
+-- The type registry (migration 0216, UC-FLW-01). A workspace's rows only: the system types a
 -- workspace has never changed are the domain's and have none.
 
 -- name: ListEntryTypes :many

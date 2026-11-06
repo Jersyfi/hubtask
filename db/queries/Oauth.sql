@@ -5,22 +5,26 @@
 -- The secret's hash is computed in the adapter, the pepper's home (security.md §8); NULL for a
 -- public client, whose whole authentication is PKCE.
 INSERT INTO oauth_client
-  (id, tenant_id, name, confidential, secret_hash, redirect_uris, created_at, created_by)
+  (id, tenant_id, name, confidential, secret_hash, redirect_uris, created_at, created_by,
+   app_platform)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('name'), sqlc.arg('confidential'),
   sqlc.narg('secret_hash'), sqlc.arg('redirect_uris'), sqlc.arg('created_at'),
-  sqlc.narg('created_by')
+  sqlc.narg('created_by'), sqlc.narg('app_platform')
 );
 
 -- name: ListOauthClients :many
+-- The registry: what an administrator registered. The built-in client's rows are the people's own
+-- consents, listed with their grants instead.
 SELECT id, name, confidential, redirect_uris, created_at
 FROM oauth_client
+WHERE app_platform IS NULL
 ORDER BY created_at DESC, id DESC;
 
 -- name: FindOauthClient :one
 -- The exchange's read: everything judging a token request needs, the stored hash included -
 -- compared in the adapter, never answered upwards.
-SELECT id, name, confidential, secret_hash, redirect_uris, created_at
+SELECT id, name, confidential, secret_hash, redirect_uris, created_at, app_platform
 FROM oauth_client
 WHERE id = sqlc.arg('id');
 
@@ -50,19 +54,30 @@ WHERE id = sqlc.arg('id');
 -- One's own, newest first, with the client's name and when a session under the grant last
 -- acted - computed from the sessions rather than written back, so the listing is accurate
 -- without the hot path paying a second write.
-SELECT g.id, g.client_id, c.name AS client_name, g.scopes, g.created_at,
+SELECT g.id, g.client_id, c.name AS client_name, c.app_platform, g.scopes, g.created_at,
        max(s.last_seen_at) AS last_used_at
 FROM oauth_grant g
 JOIN oauth_client c ON c.id = g.client_id
 LEFT JOIN session s ON s.grant_id = g.id
 WHERE g.account_id = sqlc.arg('account_id') AND g.revoked_at IS NULL
-GROUP BY g.id, c.name
+GROUP BY g.id, c.name, c.app_platform
 ORDER BY g.created_at DESC, g.id DESC;
 
 -- name: RevokeOauthGrant :execrows
 -- Bounded to the owner in the same statement that writes; only the first withdrawal writes.
 UPDATE oauth_grant SET revoked_at = sqlc.arg('revoked_at')
 WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id') AND revoked_at IS NULL;
+
+-- name: RevokeAppGrantOfSession :one
+-- An installed app signing out withdraws what it was allowed (ADR-0096): the grant of the built-in
+-- client behind the session, bounded to the owner in the statement that writes. Nothing for a
+-- registered client's session, whose grant stays until the person withdraws it.
+UPDATE oauth_grant g SET revoked_at = sqlc.arg('revoked_at')
+FROM session s, oauth_client c
+WHERE s.id = sqlc.arg('session_id') AND s.account_id = sqlc.arg('account_id')
+  AND g.id = s.grant_id AND c.id = g.client_id AND c.app_platform IS NOT NULL
+  AND g.revoked_at IS NULL
+RETURNING g.id, g.client_id;
 
 -- name: RevokeGrantSessions :execrows
 -- The leash pulled: every session the grant issued refuses on its next request, the way refresh

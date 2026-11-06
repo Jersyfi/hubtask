@@ -1,4 +1,4 @@
--- A chat bot in a hub's room (migrations 0280, 0288; UC-INT-18, UC-INT-19).
+-- A chat bot in a hub's room (migrations 0287, 0295; UC-INT-18, UC-INT-19).
 
 -- name: ListChatBots :many
 SELECT id, hub_id, collection_id, platform, homeserver, room, bot_user, locale, unfurl, capture, enabled, run_as, since,

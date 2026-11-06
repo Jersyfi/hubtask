@@ -201,7 +201,7 @@ func TestATransactionalMigrationWaitsBoundedAndIsRetried(t *testing.T) {
 	}
 }
 
-// A backfill killed between two batches left its policy behind (0228); the next run drops it and
+// A backfill killed between two batches left its policy behind (0235); the next run drops it and
 // the file applies, rather than failing on CREATE POLICY at every retry.
 func TestALeftoverBackfillPolicyDoesNotStopTheNextRun(t *testing.T) {
 	if testing.Short() {
@@ -220,10 +220,10 @@ func TestALeftoverBackfillPolicyDoesNotStopTheNextRun(t *testing.T) {
 	}
 	goose.SetLogger(goose.NopLogger())
 	goose.SetBaseFS(db.Migrations)
-	if err := goose.UpToContext(ctx, pool, "migrations", 227); err != nil {
-		t.Fatalf("bringing the database to 0227: %v", err)
+	if err := goose.UpToContext(ctx, pool, "migrations", 234); err != nil {
+		t.Fatalf("bringing the database to 0234: %v", err)
 	}
-	// What a killed 0228 leaves: the policy, committed with its first batch, and no ledger row.
+	// What a killed 0235 leaves: the policy, committed with its first batch, and no ledger row.
 	if _, err := pool.ExecContext(ctx, `CREATE POLICY side_rows_backfill ON work_item TO CURRENT_USER USING (true) WITH CHECK (true)`); err != nil {
 		t.Fatal(err)
 	}

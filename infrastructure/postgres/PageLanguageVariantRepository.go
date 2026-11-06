@@ -16,7 +16,7 @@ import (
 )
 
 // PageLanguageVariantRepository keeps which page is written in another language for which, on the
-// page rows themselves (migration 0314).
+// page rows themselves (migration 0321).
 type PageLanguageVariantRepository struct{}
 
 var _ repository.LanguageVariants = PageLanguageVariantRepository{}

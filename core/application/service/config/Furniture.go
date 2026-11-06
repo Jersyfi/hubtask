@@ -16,7 +16,7 @@ import (
 
 // A workspace's and a hub's furniture as sections of their documents (configuration.md §1):
 // the saved views shared where they live - a queue is one - and the automation rules there - a
-// macro is one -, each by its stable key (migration 0286). A view's anchor, a `collection_id` it
+// macro is one -, each by its stable key (migration 0293). A view's anchor, a `collection_id` it
 // filters on and a rule step's container are named by the hub's or collection's handle, and in a
 // hub's own document the hub itself by `@hub`, so a hub's document applies to a second hub
 // unchanged. An identifier no handle is known for - a place the reader does not reach - stays as

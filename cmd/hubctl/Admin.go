@@ -39,7 +39,7 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant create",
-				usage:   "--slug <name> --name <display name> --owner-email <address> [flags]",
+				usage:   "(--slug <name> | --host <host>) --name <display name> --owner-email <address> [flags]",
 				summary: "provision a workspace and hand over the owner's way in, shown once",
 				run:     adminTenantCreate,
 			},
@@ -48,6 +48,12 @@ func adminGroup() group {
 				usage:   "<id> (--reference <ref> | --clear) [--expected-version <n>]",
 				summary: "set or clear the platform's reference on a workspace",
 				run:     adminTenantSetReference,
+			},
+			{
+				name:    "tenant change-address",
+				usage:   "<id> (--slug <name> | --host <host>) [--dry-run]",
+				summary: "give a workspace a new address; everybody signs in again at it",
+				run:     adminTenantChangeAddress,
 			},
 			{
 				name:    "tenant export",
@@ -159,9 +165,10 @@ func adminGroup() group {
 // standard error.
 func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "admin tenant", "create",
-		"--slug <name> --name <display name> --owner-email <address> [--owner-name <name>] "+
-			"[--locale <tag>] [--zone <zone>] [--plan <short name>] [--reference <ref>]")
-	slug := flags.String("slug", "", "the subdomain the workspace answers on")
+		"(--slug <name> | --host <host> [--slug <name>]) --name <display name> --owner-email <address> "+
+			"[--owner-name <name>] [--locale <tag>] [--zone <zone>] [--plan <short name>] [--reference <ref>]")
+	slug := flags.String("slug", "", "the short name; with subdomains, the subdomain the workspace answers on")
+	host := flags.String("host", "", "where the installation assigns hosts: the host the workspace answers at")
 	name := flags.String("name", "", "what people read")
 	ownerEmail := flags.String("owner-email", "", "who the workspace is for")
 	ownerName := flags.String("owner-name", "", "what to call them")
@@ -172,8 +179,10 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
-	if *slug == "" || *name == "" || *ownerEmail == "" {
-		return usagef("provisioning needs --slug, --name and --owner-email")
+	// Which of --slug and --host the installation asks for is the server's to say: it knows how it
+	// gives a workspace its address, and refuses the one it does not take at its field.
+	if (*slug == "" && *host == "") || *name == "" || *ownerEmail == "" {
+		return usagef("provisioning needs --slug or --host, --name and --owner-email")
 	}
 
 	client, err := cli.client()
@@ -182,7 +191,8 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	}
 	var provisioned openapi.ProvisionedTenant
 	if err := client.Post(ctx, adminTenantsPath, openapi.TenantProvision{
-		Slug:              *slug,
+		Slug:              optional(*slug),
+		Host:              optional(*host),
 		DisplayName:       *name,
 		OwnerEmail:        openapitypes.Email(*ownerEmail),
 		OwnerDisplayName:  optional(*ownerName),
@@ -198,9 +208,9 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 		return cli.Emit(provisioned, Table{})
 	}
 	cli.emitTable(Table{
-		Columns: []string{"id", "slug", "name", "status", "owner", "default hub", "example collection"},
+		Columns: []string{"id", "slug", "host", "name", "status", "owner", "default hub", "example collection"},
 		Rows: [][]string{{
-			provisioned.Id.String(), provisioned.Slug, provisioned.DisplayName,
+			provisioned.Id.String(), provisioned.Slug, text(provisioned.Host), provisioned.DisplayName,
 			string(provisioned.Status), provisioned.OwnerAccountId.String(),
 			provisioned.DefaultHubId.String(), provisioned.ExampleCollectionId.String(),
 		}},
@@ -266,12 +276,82 @@ func adminTenantExport(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(job, jobTable(job))
 }
 
+// adminTenantChangeAddress gives a workspace a new address (multi-tenancy.md §3.1): a short name with
+// subdomains, a host where the installation assigns hosts. The server checks it as provisioning does,
+// refuses a change that would lock somebody out, and takes the proof by password or provider only.
+// --dry-run asks without a proof and changes nothing.
+func adminTenantChangeAddress(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "admin tenant change-address <id> (--slug <name> | --host <host>) [--dry-run]"
+	tenantID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "admin tenant", "change-address",
+		"<id> (--slug <name> | --host <host>) [--dry-run]")
+	slug := flags.String("slug", "", "the new short name, where workspaces answer beneath the installation's host")
+	host := flags.String("host", "", "the new host, where the installation assigns hosts")
+	dryRun := flags.Bool("dry-run", false, "check and say what would change, without changing anything")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+	if (*slug == "") == (*host == "") {
+		return usagef("changing the address needs exactly one of --slug and --host")
+	}
+	request := openapi.TenantAddressChange{}
+	if *slug != "" {
+		request.Slug = slug
+	}
+	if *host != "" {
+		request.Host = host
+	}
+	if *dryRun {
+		request.DryRun = dryRun
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	path := adminTenantsPath + "/" + tenantID.String() + ":change-address"
+	var changed openapi.TenantAddressChanged
+	if *dryRun {
+		err = client.Post(ctx, path, request, &changed)
+	} else {
+		err = cli.proveAgain(ctx, client, func(stepUp string) error {
+			return client.PostWithHeader(ctx, path, request, stepUpProof(stepUp), &changed)
+		})
+	}
+	if err != nil {
+		return err
+	}
+	if cli.JSON {
+		return cli.Emit(changed, Table{})
+	}
+	to := ""
+	if changed.To != nil {
+		to = *changed.To
+	}
+	cli.emitTable(Table{
+		Columns: []string{"workspace", "from", "to", "mailed", "told at sign-in"},
+		Rows: [][]string{{changed.Tenant.Id.String(), changed.From, to,
+			strconv.Itoa(changed.MembersMailed), strconv.Itoa(changed.MembersToldAtSignIn)}},
+	})
+	if *dryRun {
+		printf(cli.Err, "nothing was changed\n")
+		return nil
+	}
+	printf(cli.Err, "the old address answers nothing from now; everybody signs in again at the new one, "+
+		"and passkeys made at the old one stopped working\n")
+	return nil
+}
+
 func tenantTable(tenants []openapi.AdminTenant) Table {
 	rows := make([][]string, 0, len(tenants))
 	for _, tenant := range tenants {
 		rows = append(rows, []string{
 			tenant.Id.String(),
 			tenant.Slug,
+			text(tenant.Host),
 			tenant.DisplayName,
 			string(tenant.Status),
 			text(tenant.DefaultLocale),
@@ -286,7 +366,7 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 	}
 	return Table{
 		// "removal began" is the moment from which the deletion can no longer be called off.
-		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold", "plan", "reference"},
+		Columns: []string{"id", "slug", "host", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold", "plan", "reference"},
 		Rows:    rows,
 	}
 }

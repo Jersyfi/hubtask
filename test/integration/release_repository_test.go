@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A release and its entries stay in their workspace (migration 0272, UC-PLN-08 check 6); an entry
+// A release and its entries stay in their workspace (migration 0279, UC-PLN-08 check 6); an entry
 // is in one release at a time.
 func TestAReleaseStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+# The one Rust the shell builds with (F7 Decision 4): rustup reads this file wherever the shell is
+# built - a person's machine and the `shell` lane alike - so a new compiler arrives by a change
+# here, never by a runner image moving underneath.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

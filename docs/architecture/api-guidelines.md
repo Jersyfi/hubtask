@@ -210,7 +210,7 @@ permission, and an `aggregate` instead of a sort, page or grouping: `function` (
 in the statement, never a parameter), `field` (a `custom_fields.<key>` holding a number, money or a duration, or a
 built-in quantity in whole minutes - `lead_time`, `created_at` to `completed_at`, and
 `scheduled_span`, `start_at` to `due_at`, none where a stamp is missing; and from the status history
-migration 0250 writes, `cycle_time`, the first entry into a status of the `IN_PROGRESS` category to
+migration 0257 writes, `cycle_time`, the first entry into a status of the `IN_PROGRESS` category to
 `completed_at`, `wip_age`, that entry to now for an open entry, and `time_in_status`, the latest
 entry into the current status to now for an open entry - the use case binds the started statuses of
 the workspace's workflows and the moment from its clock, and an entry without history holds none;

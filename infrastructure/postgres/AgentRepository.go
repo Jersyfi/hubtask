@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// AgentRepository stores the governed agents module (migration 0251, M9). A held act's input and
+// AgentRepository stores the governed agents module (migration 0258, M9). A held act's input and
 // a case's expectation are `jsonb`, written as the use case handed them.
 type AgentRepository struct{}
 

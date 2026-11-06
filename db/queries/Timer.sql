@@ -1,4 +1,4 @@
--- Durable timers (migration 0229, domain-model.md §3.7). Every statement runs under the tenant's
+-- Durable timers (migration 0236, domain-model.md §3.7). Every statement runs under the tenant's
 -- context (rule 3); row level security keeps them to it.
 
 -- name: InsertTimer :exec

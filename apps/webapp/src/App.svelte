@@ -40,6 +40,12 @@
   import { forwardTo } from './lib/data/oidc.ts';
   import SignInCard from './lib/signin/SignInCard.svelte';
   import ConsentView from './views/ConsentView.svelte';
+  import { deviceList } from './lib/data/devicelist.svelte.ts';
+  import YourWorkspacesView from './views/YourWorkspacesView.svelte';
+  import AppSignInView from './lib/signin/AppSignInView.svelte';
+  import KeyRelayView from './lib/signin/KeyRelayView.svelte';
+  import { appSignIn } from './lib/signin/appsignin.svelte.ts';
+  import { appWorkspaces } from './lib/data/appworkspaces.svelte.ts';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
@@ -58,27 +64,10 @@
   // place, an entry - are fetched together as soon as somebody is signed in.
   const views = {
     ...workViews,
-    AdministrationOverviewView: () => import('./views/AdministrationOverviewView.svelte'),
     AgentsView: () => import('./views/AgentsView.svelte'),
     ArchiveView: () => import('./views/ArchiveView.svelte'),
     JumbleView: () => import('./views/JumbleView.svelte'),
     InstallationView: () => import('./views/InstallationView.svelte'),
-    InstanceEncryptionView: () => import('./views/InstanceEncryptionView.svelte'),
-    InstanceJournalView: () => import('./views/InstanceJournalView.svelte'),
-    InstanceDeadLettersView: () => import('./views/InstanceDeadLettersView.svelte'),
-    InstanceUsageView: () => import('./views/InstanceUsageView.svelte'),
-    InstanceTemplatesView: () => import('./views/InstanceTemplatesView.svelte'),
-    InstanceFileView: () => import('./views/InstanceFileView.svelte'),
-    InstanceOperatorsView: () => import('./views/InstanceOperatorsView.svelte'),
-    InstanceOverviewView: () => import('./views/InstanceOverviewView.svelte'),
-    InstanceProvidersView: () => import('./views/InstanceProvidersView.svelte'),
-    InstanceAiView: () => import('./views/InstanceAiView.svelte'),
-    InstanceTargetsView: () => import('./views/InstanceTargetsView.svelte'),
-    InstancePlatformView: () => import('./views/InstancePlatformView.svelte'),
-    InstancePlanView: () => import('./views/InstancePlanView.svelte'),
-    InstancePlansView: () => import('./views/InstancePlansView.svelte'),
-    InstanceSettingsView: () => import('./views/InstanceSettingsView.svelte'),
-    InstanceWorkspacesView: () => import('./views/InstanceWorkspacesView.svelte'),
     ProfileView: () => import('./views/ProfileView.svelte'),
     AppearanceView: () => import('./views/AppearanceView.svelte'),
     NotificationsView: () => import('./views/NotificationsView.svelte'),
@@ -91,13 +80,6 @@
     SearchView: () => import('./views/SearchView.svelte'),
     MyTokensView: () => import('./views/MyTokensView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
-    MachinesView: () => import('./views/MachinesView.svelte'),
-    PeopleView: () => import('./views/PeopleView.svelte'),
-    QuotasView: () => import('./views/QuotasView.svelte'),
-    PrivateHubsView: () => import('./views/PrivateHubsView.svelte'),
-    ModulesView: () => import('./views/ModulesView.svelte'),
-    EntryTypesView: () => import('./views/EntryTypesView.svelte'),
-    LinkTypesView: () => import('./views/LinkTypesView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
@@ -119,23 +101,11 @@
     ActualsView: () => import('./views/ActualsView.svelte'),
     WorkloadView: () => import('./views/WorkloadView.svelte'),
     AssetsView: () => import('./views/AssetsView.svelte'),
-    ChangesView: () => import('./views/ChangesView.svelte'),
-    WorkflowsView: () => import('./views/WorkflowsView.svelte'),
-    BackupView: () => import('./views/BackupView.svelte'),
-    RetentionView: () => import('./views/RetentionView.svelte'),
-    RestoreView: () => import('./views/RestoreView.svelte'),
-    AuditView: () => import('./views/AuditView.svelte'),
-    PrivacyView: () => import('./views/PrivacyView.svelte'),
     RulesView: () => import('./views/RulesView.svelte'),
     RuleEditorView: () => import('./views/RuleEditorView.svelte'),
-    RunsView: () => import('./views/RunsView.svelte'),
-    WebhooksView: () => import('./views/WebhooksView.svelte'),
-    VoiceView: () => import('./views/VoiceView.svelte'),
-    MailView: () => import('./views/MailView.svelte'),
-    WorkspaceSettingsView: () => import('./views/WorkspaceSettingsView.svelte'),
-    PresetsView: () => import('./views/PresetsView.svelte'),
-    AiSettingsView: () => import('./views/AiSettingsView.svelte'),
-    SignInSettingsView: () => import('./views/SignInSettingsView.svelte'),
+    // The two areas the Android build leaves to the web app, each one module (`platform/target.ts`).
+    AdministrationArea: () => import('./views/AdministrationArea.svelte'),
+    InstanceArea: () => import('./views/InstanceArea.svelte'),
   };
 
   const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
@@ -255,6 +225,19 @@
   });
 
   /**
+   * After a sign-in in multi mode, the workspace's entry goes once to the installation's own
+   * address, where the device keeps its list of workspaces, and the browser comes back here
+   * (UC-ID-25 check 1, ADR-0095 §7). Once the account has arrived, so the path it comes back to is
+   * the one the sign-in went on to, and once the manifest is read, which says whether there is a
+   * list at all - in single mode the sign-in is taken and nothing happens (check 8).
+   */
+  $effect(() => {
+    if (!session.isSignedIn || !session.isFreshSignIn || !actor.account || !manifest.isRead) return;
+    session.takeFreshSignIn();
+    void deviceList.rememberHere(location.pathname + location.search);
+  });
+
+  /**
    * The one stream this tab keeps, opened once there is a credential to open it with and an
    * account to hold the copy for - the replica is one store per account, so the stream
    * waits for `/accounts/me` rather than for the bearer alone.
@@ -270,6 +253,16 @@
    * failed account again, each failure is a new state: a loop as tight as the network lets it be,
    * hundreds of reads of `/accounts/me` in the seconds an outage lasts.
    */
+  // An installed app's sign-in, once the account has arrived: the workspace named, the toast said.
+  let welcomed = false;
+  $effect(() => {
+    if (!session.isSignedIn || !actor.account || welcomed || platform.browserSignIn === undefined) return;
+    welcomed = true;
+    void appSignIn.welcome();
+  });
+  // And the grants a workspace forgotten offline still owes, withdrawn once per start.
+  appWorkspaces.settle();
+
   const liveAccountId = $derived(
     // The account from `/accounts/me`, or the one remembered beside the pair when the server
     // cannot be reached: a tab reloading offline still opens its replica. Not while the session
@@ -350,6 +343,11 @@
   <!-- A resolution mail's satisfaction link, on the card whether or not somebody is signed in
        (UC-SVC-07 check 6): it rates for the requester it was mailed to, never as this tab's reader. -->
   <RateView />
+{:else if route.name === 'app-passkey'}
+  <!-- An installed app's passkey step-up, in the system browser at the workspace's host
+       (ADR-0096 decision 5). Whether or not this browser is signed in: the proof is for the app's
+       session, and the answer goes back to the app. -->
+  <KeyRelayView />
 {:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem' || route.name === 'confirm-address'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
@@ -363,13 +361,31 @@
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
     <RedeemView onnavigate={(path) => router.navigate(path)} />
+  {:else if platform.browserSignIn}
+    <!-- An installed app signs in through the system browser at the workspace's own host
+         (ADR-0096), so its card asks which workspace and waits; the sign-in card is the browser's. -->
+    <AppSignInView />
   {:else if manifest.isSetupOpen}
     <!-- A fresh installation: nothing to sign in to yet, so the first start's setup takes the
          sign-in card's place until the first workspace exists (UC-INS-01). -->
     <SetupView onnavigate={(path) => router.navigate(path)} />
+  {:else if deviceList.isHome}
+    <!-- The installation's own address in multi mode, signed out: the device's list of workspaces
+         and no sign-in card - no workspace answers here, and no field looks one up (UC-ID-25
+         check 3, Decision 7). -->
+    <YourWorkspacesView />
+  {:else if deviceList.mayBeHome}
+    <!-- A redirect to the list's home, before the manifest said whether this is it: nothing drawn,
+         so the redirect there and back stays invisible. -->
   {:else}
     <SignInView />
   {/if}
+{:else if route.name === 'consent'}
+  <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
+       arrives here signed out meets the sign-in screen first and lands back on this address. A
+       card like the sign-in's rather than the frame: the question is the workspace's to the
+       person, about an app, and nothing else on the page may be pressed instead (UC-SYN-07/3). -->
+  <ConsentView />
 {:else}
 <LazyFrame {route} onnavigate={(path) => router.navigate(path)}>
   <svelte:boundary onerror={(_, reset) => (resetView = reset)}>
@@ -379,10 +395,6 @@
     {@render nothingHere()}
   {:else if offModule}
     <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} />
-  {:else if route.name === 'consent'}
-    <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
-         arrives here signed out meets the sign-in screen first and lands back on this address. -->
-    <ConsentView />
   {:else if route.name === 'home'}
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
@@ -407,61 +419,6 @@
     <LazyView load={views.CalendarPushesView} props={{ providerAnswer: route.query, onanswered: () => router.replace('/profile/calendars') }} />
   {:else if route.name === 'filestores'}
     <LazyView load={views.FileStoresView} props={{ providerAnswer: route.query, onanswered: () => router.replace('/profile/files') }} />
-  {:else if route.name === 'instance'}
-    <!-- The level above the workspaces (ADR-0070 §5). Its own area, and its own door: every screen
-         here is drawn only while the session is raised, and the hour's end returns the reader to
-         the application rather than leaving them looking at numbers nothing will refresh. -->
-    <LazyView load={views.InstanceOverviewView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-workspaces'}
-    <LazyView load={views.InstanceWorkspacesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-plans'}
-    <LazyView load={views.InstancePlansView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-plan'}
-    {#key route.params.name}
-      <LazyView load={views.InstancePlanView} props={{ name: route.params.name ?? '', onnavigate: (path: string) => router.navigate(path) }} />
-    {/key}
-  {:else if route.name === 'instance-settings'}
-    <LazyView load={views.InstanceSettingsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'instance-providers'}
-    <LazyView load={views.InstanceProvidersView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-ai'}
-    <LazyView load={views.InstanceAiView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-targets'}
-    <LazyView load={views.InstanceTargetsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-platform'}
-    <LazyView load={views.InstancePlatformView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-encryption'}
-    <LazyView load={views.InstanceEncryptionView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-operators'}
-    <LazyView load={views.InstanceOperatorsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-journal'}
-    <LazyView load={views.InstanceJournalView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-dead-letters'}
-    <LazyView load={views.InstanceDeadLettersView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-usage'}
-    <LazyView load={views.InstanceUsageView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-templates'}
-    <LazyView load={views.InstanceTemplatesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'instance-file'}
-    <LazyView load={views.InstanceFileView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'administration'}
-    <LazyView load={views.AdministrationOverviewView} />
-  {:else if route.name === 'workspace-settings'}
-    <LazyView load={views.WorkspaceSettingsView} />
-  {:else if route.name === 'presets'}
-    <LazyView load={views.PresetsView} props={{ template: route.query['template'], onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'people'}
-    <LazyView load={views.PeopleView} props={{ tab: route.query['tab'], person: route.query['person'], onnavigate: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'machines'}
-    <LazyView load={views.MachinesView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'rules'}
-    <LazyView load={views.RulesView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'rule-new'}
-    <LazyView load={views.RuleEditorView} props={{ id: 'new', workflow: route.query['workflow'], step: route.query['step'], onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'rule'}
-    {#key route.params.id}
-      <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
-    {/key}
   {:else if route.name === 'own-rules'}
     <LazyView load={views.RulesView} props={{ isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'own-rule-new'}
@@ -470,48 +427,17 @@
     {#key route.params.id}
       <LazyView load={views.RuleEditorView} props={{ id: route.params.id ?? '', isOwn: true, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'runs'}
-    <LazyView load={views.RunsView} />
-  {:else if route.name === 'webhooks'}
-    <LazyView load={views.WebhooksView} />
-  {:else if route.name === 'quotas'}
-    <LazyView load={views.QuotasView} />
-  {:else if route.name === 'modules'}
-    <LazyView load={views.ModulesView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'entry-types'}
-    <LazyView load={views.EntryTypesView} />
-  {:else if route.name === 'link-types'}
-    <LazyView load={views.LinkTypesView} />
   {:else if route.name === 'own-agents'}
     <LazyView load={views.AgentsView} props={{ tab: route.query['tab'], agent: route.query['agent'], base: '/profile/agents', onnavigate: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'changes'}
-    <LazyView load={views.ChangesView} />
-  {:else if route.name === 'workflows'}
-    <LazyView load={views.WorkflowsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'private-hubs'}
-    <LazyView load={views.PrivateHubsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
-  {:else if route.name === 'backup'}
-    <LazyView load={views.BackupView} />
-  {:else if route.name === 'retention'}
-    <LazyView load={views.RetentionView} />
-  {:else if route.name === 'restore'}
-    <LazyView load={views.RestoreView} />
-  {:else if route.name === 'audit'}
-    <LazyView load={views.AuditView} />
-  {:else if route.name === 'privacy'}
-    <LazyView load={views.PrivacyView} />
   {:else if movedTo(route.name)}
     <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
-  {:else if route.name === 'sign-in-settings'}
-    <LazyView load={views.SignInSettingsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
-  {:else if route.name === 'voice'}
-    <LazyView load={views.VoiceView} />
-  {:else if route.name === 'mail' || route.name === 'mail-oauth'}
-    <LazyView load={views.MailView} props={{ providerAnswer: route.name === 'mail-oauth' ? route.query : undefined, onanswered: () => router.replace('/administration/mail') }} />
-  {:else if route.name === 'legal'}
-    <LazyView load={views.SignInSettingsView} props={{ part: 'legal' }} />
-  {:else if route.name === 'ai'}
-    <LazyView load={views.AiSettingsView} props={{ tab: route.query['tab'], onnavigate: (path: string) => router.replace(path) }} />
+  {:else if route.area === 'instance'}
+    <!-- The level above the workspaces (ADR-0070 §5). Its own area, and its own door: every screen
+         here is drawn only while the session is raised, and the hour's end returns the reader to
+         the application rather than leaving them looking at numbers nothing will refresh. -->
+    <LazyView load={views.InstanceArea} props={{ route, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
+  {:else if route.area === 'administration'}
+    <LazyView load={views.AdministrationArea} props={{ route, onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
   {:else if route.name === 'search'}
     <LazyView load={views.SearchView} props={{ query: route.query, onnavigate: (path: string) => router.replace(path) }} />
   {:else if route.name === 'jumble'}

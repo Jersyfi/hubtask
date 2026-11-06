@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The directory's identifiers on accounts and groups (migration 0256, UC-ID-28), against the real
+// The directory's identifiers on accounts and groups (migration 0263, UC-ID-28), against the real
 // boundary: written, found, unique per workspace, and invisible from the workspace next door
 // (gate SG-3).
 

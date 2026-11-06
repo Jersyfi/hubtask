@@ -166,7 +166,7 @@ const holdConfiguration = `-- name: HoldConfiguration :exec
 SELECT pg_advisory_xact_lock(hashtextextended('config/' || current_tenant_id()::text, 0))
 `
 
-// The configuration document's versions, proposals and templates (migration 0221, F-6). The tenant
+// The configuration document's versions, proposals and templates (migration 0228, F-6). The tenant
 // is the transaction's in every statement (ADR-0010).
 // One hold per workspace for the length of an apply or a sandbox write: each reads, changes and
 // records the configuration (or its one sandbox) as it stands, which another may be changing.

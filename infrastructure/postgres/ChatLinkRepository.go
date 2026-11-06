@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// ChatLinkRepository stores the chat accounts people linked to a hub's chat bot (migration 0321)
+// ChatLinkRepository stores the chat accounts people linked to a hub's chat bot (migration 0328)
 // through the unit of work's transaction (rule 3).
 type ChatLinkRepository struct{}
 

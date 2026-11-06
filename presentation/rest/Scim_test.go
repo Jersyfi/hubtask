@@ -130,7 +130,7 @@ func (f *fakeDirectory) People(_ context.Context, _ appshared.ActorContext, filt
 
 func TestScimCreateUserAnswersTheResource(t *testing.T) {
 	directory := &fakeDirectory{}
-	c := &RestController{Scim: &ScimDoor{Directory: directory, BaseURL: "https://hub.example.org"}}
+	c := &RestController{Scim: &ScimDoor{Directory: directory, Links: &movingLinks{base: "https://hub.example.org"}}}
 	body := `{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"lena@example.org",
 		"name":{"givenName":"Lena","familyName":"Berg"},"externalId":"00u1","active":true}`
 	w := httptest.NewRecorder()

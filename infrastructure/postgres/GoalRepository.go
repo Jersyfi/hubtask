@@ -20,7 +20,7 @@ import (
 )
 
 // GoalRepository stores periods, goals, linked entries, check-ins, portfolios, their updates and
-// dashboards (migration 0248, M8). Key results, a check-in's values and a dashboard's widgets are
+// dashboards (migration 0255, M8). Key results, a check-in's values and a dashboard's widgets are
 // `jsonb`; their shape is this adapter's.
 type GoalRepository struct{}
 

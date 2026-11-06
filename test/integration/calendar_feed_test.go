@@ -332,7 +332,7 @@ func TestCalendarFeedsAreInvisibleFromAnotherTenant(t *testing.T) {
 	})
 }
 
-// A data feed keeps its kind, and a calendar feed reads back as one (migration 0277, UC-INT-15).
+// A data feed keeps its kind, and a calendar feed reads back as one (migration 0284, UC-INT-15).
 func TestAFeedKeepsItsKind(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)

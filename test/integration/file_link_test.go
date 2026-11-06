@@ -17,7 +17,7 @@ import (
 )
 
 // A file link is read as written, an address is named once per entry, and the workspace next door
-// finds none (migration 0276, UC-INT-14).
+// finds none (migration 0283, UC-INT-14).
 func TestAFileLinkStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, item := seedCodeEntry(ctx, t, tenantA)

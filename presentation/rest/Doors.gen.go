@@ -129,7 +129,6 @@ var restDoors = map[string]restDoor{
 	"createBackupSchedule":              {UseCase: "CreateBackupSchedule", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"id", "next_run_at"}, Flatten: map[string]map[string]string{"scope": {"id": "scope_id", "kind": "scope"}}},
 	"createBackupTarget":                {UseCase: "CreateBackupTarget", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createBucket":                      {UseCase: "CreateBucket", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/containers/{collection_id}/buckets/{id}", NullClears: false, Integers: []string{"wip_limit"}},
-	"createCalendarFeed":                {UseCase: "CreateCalendarFeed", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createChatBot":                     {UseCase: "CreateChatBot", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"createCi":                          {UseCase: "CreateCi", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "/cis/{id}", NullClears: false, Integers: []string(nil)},
 	"createCodeHook":                    {UseCase: "CreateCodeHook", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -468,7 +467,7 @@ var restDoors = map[string]restDoor{
 	"placeLegalHold":                    {UseCase: "PlaceLegalHold", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Flatten: map[string]map[string]string{"scope": {"id": "scope_id", "kind": "scope"}}},
 	"planConfig":                        {UseCase: "PlanConfig", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"to_version"}},
 	"planConfigTemplate":                {UseCase: "PlanConfigTemplate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
-	"planInstanceSettings":              {UseCase: "PlanInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}},
+	"planInstanceSettings":              {UseCase: "PlanInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"address_change_cooldown_days", "version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}},
 	"pollTriggerEvents":                 {UseCase: "PollTriggerEvents", Status: 200, Query: []string{"limit", "since"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}, QueryAs: map[string]string{"since": "cursor"}},
 	"previewContainerStructure":         {UseCase: "PreviewContainerStructure", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"previewCustomFieldReach":           {UseCase: "PreviewCustomFieldReach", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -807,7 +806,7 @@ var restDoors = map[string]restDoor{
 	"withdrawPreset":                    {UseCase: "WithdrawPreset", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"withdrawTimesheet":                 {UseCase: "WithdrawTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"writeConfigSandbox":                {UseCase: "WriteConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"writeInstanceSettings":             {UseCase: "WriteInstanceSettings", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}},
+	"writeInstanceSettings":             {UseCase: "WriteInstanceSettings", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"address_change_cooldown_days", "version"}, ReadOnly: []string{"is_enforced_from_file", "source", "version"}},
 }
 
 // AcceptSuggestion answers POST /suggestions/{suggestionId}:accept by the generated mapping.
@@ -1551,12 +1550,6 @@ func (c *RestController) CreateBackupTarget(w http.ResponseWriter, r *http.Reque
 func (c *RestController) CreateBucket(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
 	var body openapi.CreateBucketJSONRequestBody
 	c.door(w, r, restDoors["createBucket"], usecase.Input{"collection_id": containerId.String()}, nil, &body, answerBy(bucketResponse))
-}
-
-// CreateCalendarFeed answers POST /integrations/calendar-feeds by the generated mapping.
-func (c *RestController) CreateCalendarFeed(w http.ResponseWriter, r *http.Request, params openapi.CreateCalendarFeedParams) {
-	var body openapi.CreateCalendarFeedJSONRequestBody
-	c.door(w, r, restDoors["createCalendarFeed"], usecase.Input{}, params, &body, answerBy(c.calendarFeedSecretResponse))
 }
 
 // CreateChatBot answers POST /hubs/{hubId}/chat-bots by the generated mapping.

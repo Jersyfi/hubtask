@@ -150,7 +150,7 @@ func TestACustomDateRangesByItsDay(t *testing.T) {
 
 // UC-WRK-17 check 10 against the database: a moment ranges by its instant, an address ranges and
 // sorts as an address in `addr` (10.0.0.9 before 10.0.0.10, which text would not give), labels are
-// a set, and a state and a two-level choice compare as text (migration 0298).
+// a set, and a state and a two-level choice compare as text (migration 0305).
 func TestTheRegisterKindsRangeSortAndMatchInTheDatabase(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -109,7 +109,7 @@ SELECT
   r.id,
   r.celebrations,
   r.onboarding_completed_at,
-  -- An archive from before migration 0376 carries none: nobody has seen a mark yet.
+  -- An archive from before migration 0383 carries none: nobody has seen a mark yet.
   coalesce(r.products_seen, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
@@ -361,7 +361,7 @@ SELECT
   -- carries neither, and the store then gives the handle and the count starts at none.
   r.handle,
   coalesce(r.item_counter, 0),
-  -- An archive written before 0356 carries none, and the store derives one from the name.
+  -- An archive written before 0363 carries none, and the store derives one from the name.
   r.key_prefix
 FROM jsonb_populate_record(
   NULL::container,
@@ -666,9 +666,9 @@ SELECT
   -- An entry's number travels with it (migration 0204); an archive written before carries none,
   -- and the store then draws the next of its collection.
   r.number,
-  -- An archive written before migration 0209 carries none: the level's system type.
+  -- An archive written before migration 0216 carries none: the level's system type.
   r.entry_type,
-  -- An archive written before migration 0216 carries none: no workflow ran.
+  -- An archive written before migration 0223 carries none: no workflow ran.
   r.status
 FROM jsonb_populate_record(
   NULL::work_item,
@@ -814,7 +814,7 @@ SELECT
   coalesce(r.kind, 'USER'),
   r.system_code,
   r.system_params,
-  -- An archive written before migration 0241 carries no flag: a public comment.
+  -- An archive written before migration 0248 carries no flag: a public comment.
   coalesce(r.internal, false)
 FROM jsonb_populate_record(
   NULL::comment,
@@ -1107,7 +1107,7 @@ SELECT
   r.sharing,
   r.created_at,
   r.version,
-  -- The key travels with the row (migration 0286); an archive written before carries none,
+  -- The key travels with the row (migration 0293); an archive written before carries none,
   -- and the store then draws one from the name.
   r.key
 FROM jsonb_populate_record(
@@ -1351,7 +1351,7 @@ SELECT
   r.deleted_at,
   r.version,
   r.next_run_at,
-  -- The key travels with the row (migration 0286); an archive written before carries none.
+  -- The key travels with the row (migration 0293); an archive written before carries none.
   r.key
 FROM jsonb_populate_record(
   NULL::automation_rule,
@@ -1920,8 +1920,8 @@ INSERT INTO entry_type (
   description, translations, hub_id, copied_from
 )
 SELECT
-  -- An archive from before 0214 carries no form, one from before 0311 no texts, one from before
-  -- 0317 no hub: the type then has the empty ones and is the whole workspace's.
+  -- An archive from before 0221 carries no form, one from before 0318 no texts, one from before
+  -- 0324 no hub: the type then has the empty ones and is the whole workspace's.
   r.id, r.tenant_id, r.key, r.level, r.system, r.name, r.icon, r.color_token, r.completable,
   r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, COALESCE(r.form, '{}'::jsonb),
   r.position, r.archived_at,
@@ -2132,8 +2132,8 @@ DELETE FROM link_type;
 
 -- name: ImportEntryLink :execrows
 -- A link is drawn and removed, never changed: an overwrite replaces only its timing - the one
--- part the application may update (migration 0244's grant); naming any other column in the SET
--- makes every write of a link a permission refusal. An archive written before migration 0244
+-- part the application may update (migration 0251's grant); naming any other column in the SET
+-- makes every write of a link a permission refusal. An archive written before migration 0251
 -- holds no timing: the columns' defaults stand.
 INSERT INTO entry_link (id, tenant_id, link_type, source_id, target_id, created_by, created_at,
   dependency_kind, lag_days)
@@ -2159,7 +2159,7 @@ INSERT INTO workflow (
   created_at, updated_at, version, hub_id, copied_from
 )
 SELECT
-  -- An archive from before 0323 carries no hub: the workflow is then the whole workspace's.
+  -- An archive from before 0330 carries no hub: the workflow is then the whole workspace's.
   r.id, r.tenant_id, r.key, r.system, r.name, r.published, r.draft, r.published_at, r.published_by,
   r.created_at, r.updated_at, r.version, r.hub_id, r.copied_from
 FROM jsonb_populate_record(
@@ -2471,7 +2471,7 @@ SELECT EXISTS (
 DELETE FROM page_article_rating;
 
 -- name: ImportRealtimeDocument :execrows
--- A live document's head, log and snapshots (migration 0230): written once each, so an overwrite
+-- A live document's head, log and snapshots (migration 0237): written once each, so an overwrite
 -- has only the head's places to bring back.
 INSERT INTO realtime_document (tenant_id, kind, document_id, head_seq, snapshot_seq, created_at, updated_at)
 SELECT r.tenant_id, r.kind, r.document_id, r.head_seq, r.snapshot_seq, r.created_at, r.updated_at
@@ -2908,7 +2908,7 @@ SELECT EXISTS (SELECT 1 FROM hub_business_calendar WHERE id = (sqlc.arg('payload
 DELETE FROM hub_business_calendar;
 
 -- name: ImportSlaPolicy :execrows
--- An archive from before 0324 carries no hub: the policy is then the whole workspace's.
+-- An archive from before 0331 carries no hub: the policy is then the whole workspace's.
 INSERT INTO sla_policy (id, tenant_id, key, name, calendar_key, entry_types, priority_field, goals, position, enabled, created_at, updated_at, version, organisations, assignee_group_id, hub_id, copied_from)
 SELECT r.id, r.tenant_id, r.key, r.name, r.calendar_key, r.entry_types, r.priority_field, r.goals, r.position, r.enabled, r.created_at, r.updated_at, r.version,
        coalesce(r.organisations, '{}'), r.assignee_group_id, r.hub_id, r.copied_from
@@ -3498,7 +3498,7 @@ DELETE FROM agent_halt;
 -- name: ImportAgentRequest :execrows
 INSERT INTO agent_request (id, tenant_id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at, version, performing)
 SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code, r.created_at, r.version,
-  -- An archive written before migration 0361 holds no mark: nothing it holds was being performed.
+  -- An archive written before migration 0368 holds no mark: nothing it holds was being performed.
   coalesce(r.performing, false)
 FROM jsonb_populate_record(
   NULL::agent_request,
@@ -4105,7 +4105,7 @@ SELECT EXISTS (
 DELETE FROM template_page;
 
 -- name: ImportEntryStatusChange :execrows
--- The entry's status history (migration 0374). `seq` is drawn anew rather than carried: the
+-- The entry's status history (migration 0381). `seq` is drawn anew rather than carried: the
 -- identity is installation-wide, and a carried number could meet the one this installation draws
 -- for the entry's next change. The rows of a file come in the order of their old numbers, so the
 -- new ones keep it. The first archived row of an entry removes the stand-in the restore's write of

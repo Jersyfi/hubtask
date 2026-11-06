@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A capacity, an absence, a cost rate and a budget stay in their workspace (migration 0247,
+// A capacity, an absence, a cost rate and a budget stay in their workspace (migration 0254,
 // UC-TIM-06 check 5, UC-TIM-07 check 5, UC-TIM-08 check 6).
 func TestTimeResourcesStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
@@ -91,7 +91,7 @@ func TestTimeResourcesStayInTheirWorkspace(t *testing.T) {
 }
 
 // A billing rate is a row of its plan, never among the cost rates, and stays in its workspace
-// (migration 0290, UC-TIM-08 check 9).
+// (migration 0297, UC-TIM-08 check 9).
 func TestBillingRatesStayWithTheirPlan(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

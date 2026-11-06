@@ -68,7 +68,7 @@ var capacityPaths = []capacityPath{
 				`"group_by":{"field":"is_completed","limit_per_group":50}}`
 		}},
 	// The web app's own board, byte for byte as apps/webapp/src/lib/data sends it: the columns are
-	// found through the index (migration 0364), the exact count still reads the collection. The seed
+	// found through the index (migration 0371), the exact count still reads the collection. The seed
 	// files no entry into a column, so every entry stands in the one page without a value.
 	{name: "board_of_the_web_app", method: http.MethodPost,
 		path: func(tenant) string { return "/api/v1/items:query" },
@@ -116,7 +116,7 @@ type CapacityTenant struct {
 }
 
 // CapacityMixed is one workspace's hub level read under writes: the read pays the recount a write
-// leaves, which the read-only paths never see (UC-WRK-29, migration 0292).
+// leaves, which the read-only paths never see (UC-WRK-29, migration 0299).
 type CapacityMixed struct {
 	Rank   int          `json:"rank"`
 	Items  int          `json:"items"`

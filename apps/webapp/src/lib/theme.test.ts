@@ -4,6 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { values } from '@hubtask/design-system';
+
 import { applyTheme } from './theme.ts';
 
 function fakeRoot() {
@@ -51,4 +53,16 @@ test('a choice is kept on the device, and following the system is the absence of
   assert.equal(readThemeChoice(fakeStore({ [THEME_KEY]: 'sepia' })), 'system');
   // No store at all is no choice, not a throw.
   assert.equal(readThemeChoice(undefined), 'system');
+});
+
+test('the Android app\'s system bars take the bars\' surface of the mode, with icons that read on it', () => {
+  const painted: Array<[string, boolean]> = [];
+  const root = { setAttribute: () => {} };
+  applyTheme(root, true, (background, isDark) => painted.push([background, isDark]));
+  applyTheme(root, false, (background, isDark) => painted.push([background, isDark]));
+  assert.deepEqual(painted, [
+    [values.dark.bg.surface, true],
+    [values.light.bg.surface, false],
+  ]);
+  assert.match(painted[0]?.[0] ?? '', /^#[0-9a-f]{6}$/i, 'a value the system can read');
 });

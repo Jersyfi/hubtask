@@ -13,6 +13,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -57,10 +58,15 @@ func (c *RestController) exportViewWriter(r *http.Request, sent map[string]any) 
 		case string(openapi.ViewExportFormatCSV):
 			writeCSV(w, r, rows, zone)
 		default:
+			base, err := c.linkBase(r.Context(), actorOf(r).TenantID)
+			if err != nil {
+				WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+				return
+			}
 			writeCalendar(w, r, calendar.Calendar{
 				Name:        out.String("view_name"),
 				GeneratedAt: timeValue(out["generated_at"]),
-				Events:      c.eventsOf(rows, zone),
+				Events:      eventsOf(base, rows, zone),
 			})
 		}
 	}, nil
@@ -86,9 +92,14 @@ func (c *RestController) exportItemsWriter(r *http.Request, sent map[string]any)
 		case string(openapi.ItemExportFormatCSV):
 			writeCSV(w, r, rows, zone)
 		default:
+			base, err := c.linkBase(r.Context(), actorOf(r).TenantID)
+			if err != nil {
+				WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+				return
+			}
 			writeCalendar(w, r, calendar.Calendar{
 				GeneratedAt: timeValue(out["generated_at"]),
-				Events:      c.eventsOf(rows, zone),
+				Events:      eventsOf(base, rows, zone),
 			})
 		}
 	}, nil
@@ -213,7 +224,7 @@ func writeCalendar(w http.ResponseWriter, r *http.Request, document calendar.Cal
 // eventsOf turns the rows into calendar entries. An entry with no due date is not a calendar
 // entry and does not appear: a calendar is a set of moments, and "somewhere on the list" is not
 // one.
-func (c *RestController) eventsOf(rows []usecase.Output, zone *time.Location) []calendar.Event {
+func eventsOf(base string, rows []usecase.Output, zone *time.Location) []calendar.Event {
 	events := make([]calendar.Event, 0, len(rows))
 
 	for _, row := range rows {
@@ -227,7 +238,7 @@ func (c *RestController) eventsOf(rows []usecase.Output, zone *time.Location) []
 			UID:          id + "@hubtask",
 			Summary:      row.String("title"),
 			Start:        due,
-			URL:          itemURL(c.BaseURL, id),
+			URL:          itemURL(base, id),
 			LastModified: timeValue(row["updated_at"]),
 		}
 		if allDay, _ := row["due_date_only"].(bool); allDay {
@@ -249,8 +260,8 @@ func (c *RestController) eventsOf(rows []usecase.Output, zone *time.Location) []
 	return events
 }
 
-// itemURL is the link back into the product. Relative when the installation names no base URL,
-// for the reason feedURL is.
+// itemURL is the link back into the product, on the workspace's main address; none where there is
+// no address, rather than a relative one a file opened elsewhere cannot follow.
 func itemURL(base, id string) string {
 	if base == "" {
 		return ""

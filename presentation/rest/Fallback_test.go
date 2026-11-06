@@ -4,6 +4,7 @@
 package rest_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -136,5 +137,45 @@ func TestTheInterfaceIsRecordedUnderOneRouteTemplate(t *testing.T) {
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, rest.APIBasePath+"/items", nil)
 	if _, template := f.Handler(request); template != "GET "+rest.APIBasePath+"/items" {
 		t.Errorf("the API's own template did not survive: %q", template)
+	}
+}
+
+// redirectsFake sends a browser from one host to another base.
+type redirectsFake map[string]string
+
+func (f redirectsFake) RedirectFor(_ context.Context, host string) (string, error) {
+	return f[host], nil
+}
+
+// UC-INS-15 check 7: a page load on the subdomain beside a main own domain is sent on to the same
+// path there; the API on that host still answers, and so do the assets and any other host.
+func TestAPageLoadBesideTheMainAddressIsSentOn(t *testing.T) {
+	t.Parallel()
+	f := fallback(stubUI())
+	f.Browsers = redirectsFake{"acme.tasks.example.net": "https://tasks.acme.com"}
+
+	ask := func(host, path, mode string) *httptest.ResponseRecorder {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+		request.Host = host
+		if mode != "" {
+			request.Header.Set("Sec-Fetch-Mode", mode)
+		}
+		recorder := httptest.NewRecorder()
+		f.ServeHTTP(recorder, request)
+		return recorder
+	}
+
+	page := ask("acme.tasks.example.net", "/hubs/1?view=board", "navigate")
+	if page.Code != http.StatusFound || page.Header().Get("Location") != "https://tasks.acme.com/hubs/1?view=board" {
+		t.Errorf("a page load answered %d to %q", page.Code, page.Header().Get("Location"))
+	}
+	if api := ask("acme.tasks.example.net", rest.APIBasePath+"/items", "cors"); api.Header().Get("X-Answered-By") != "api" {
+		t.Errorf("the API on the subdomain answered %d by %q", api.Code, api.Header().Get("X-Answered-By"))
+	}
+	if asset := ask("acme.tasks.example.net", "/assets/app.js", "no-cors"); asset.Header().Get("X-Answered-By") != "ui" {
+		t.Errorf("an asset answered %d", asset.Code)
+	}
+	if main := ask("tasks.acme.com", "/", "navigate"); main.Header().Get("X-Answered-By") != "ui" {
+		t.Errorf("the main address answered %d", main.Code)
 	}
 }

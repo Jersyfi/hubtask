@@ -22,7 +22,7 @@ var (
 	formTenantB = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000ff02")
 )
 
-// A type's form against the real boundary (UC-FLW-01 check 2, migration 0214, gate SG-3): it is
+// A type's form against the real boundary (UC-FLW-01 check 2, migration 0221, gate SG-3): it is
 // stored on the type's row and read back whole, and the workspace next door neither reads nor
 // changes it.
 func TestATypesFormIsStoredWholeAndItsOwn(t *testing.T) {

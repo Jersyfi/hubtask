@@ -67,7 +67,7 @@ type ChangeListener struct {
 	// worth reporting, because a process that never reconnects is a process where every stream is
 	// silently slow.
 	connected bool
-	// documents are the waiters of one live document, woken by its own log (migration 0296).
+	// documents are the waiters of one live document, woken by its own log (migration 0303).
 	documents map[DocumentKey]map[int64]chan struct{}
 	// origin names this process on the awareness channel, so that it skips what it sent itself;
 	// heard is where another process's awareness goes.
@@ -82,7 +82,7 @@ type ChangeListener struct {
 	// coalesce is the window (wakeCoalesce), zero for none.
 	held     map[shared.ID]bool
 	coalesce time.Duration
-	// ended is where a credential's doorbell goes (migration 0332); the account is empty for a
+	// ended is where a credential's doorbell goes (migration 0339); the account is empty for a
 	// whole workspace.
 	ended func(tenantID, accountID shared.ID)
 }
@@ -94,7 +94,7 @@ type DocumentKey struct {
 	DocumentID shared.ID
 }
 
-// The channels besides ChangeChannel: a document's own log (migration 0296) and the awareness
+// The channels besides ChangeChannel: a document's own log (migration 0303) and the awareness
 // relayed between processes (AwarenessBus).
 const (
 	DocumentChannel   = "hubtask_document"
@@ -405,7 +405,7 @@ func (l *ChangeListener) HasPeers(within time.Duration) bool {
 // NewPeer rings when a process is heard announcing itself for the first time.
 func (l *ChangeListener) NewPeer() <-chan struct{} { return l.newPeer }
 
-// credential hands `tenant` or `tenant/account`, as migration 0332 writes it, to OnCredential's
+// credential hands `tenant` or `tenant/account`, as migration 0339 writes it, to OnCredential's
 // handler; another shape is skipped.
 func (l *ChangeListener) credential(payload string) {
 	tenantText, accountText, scoped := strings.Cut(payload, "/")
@@ -427,7 +427,7 @@ func (l *ChangeListener) credential(payload string) {
 	}
 }
 
-// documentKeyOf reads `tenant/kind/document`, as migration 0296 writes it.
+// documentKeyOf reads `tenant/kind/document`, as migration 0303 writes it.
 func documentKeyOf(payload string) (DocumentKey, bool) {
 	parts := strings.Split(payload, "/")
 	if len(parts) != 3 || parts[1] == "" {

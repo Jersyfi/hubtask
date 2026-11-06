@@ -93,6 +93,12 @@ type ItemReader interface {
 	Execute(ctx context.Context, actor appshared.ActorContext, query work.GetWorkItemQuery) (workmodel.WorkItem, error)
 }
 
+// WorkspaceLinks answers a workspace's address, read through the application layer in the
+// workspace's own transaction (rules 2 and 3) rather than from HUBTASK_BASE_URL or the request.
+type WorkspaceLinks interface {
+	For(ctx context.Context, tenantID shared.ID) (string, error)
+}
+
 // Controller serves the tree.
 type Controller struct {
 	Feeds FeedLister
@@ -100,9 +106,9 @@ type Controller struct {
 	// Items reads an entry the view does not answer; nil means a PUT to such an address is a
 	// creation, which is only right where no entry holds the identifier.
 	Items ItemReader
-	// BaseURL is the installation's own address, for the URL a todo carries back into the
-	// product; empty means a relative one.
-	BaseURL string
+	// Links answers the actor's workspace's address - its main row's (UC-INS-19 check 9) - for
+	// the URL a todo carries back into the product; nil means a relative one.
+	Links WorkspaceLinks
 	// Now stamps DTSTAMP where the selection carries no moment of its own.
 	Now func() time.Time
 	// UseCases performs the writes as the actor; nil means the tree is read-only.
@@ -447,10 +453,12 @@ func (m member) props(withData bool) map[xml.Name]element {
 }
 
 type calendarView struct {
-	feed    integration.CalendarFeed
-	view    view.SavedView
-	name    string
-	ctag    string
+	feed integration.CalendarFeed
+	view view.SavedView
+	name string
+	ctag string
+	// base is the workspace's address the members' links are written on.
+	base    string
 	members []member
 	byID    map[string]member
 	props   map[xml.Name]element
@@ -478,6 +486,10 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 	if err != nil {
 		return calendarView{}, err
 	}
+	base, err := c.linkBase(ctx, actor)
+	if err != nil {
+		return calendarView{}, err
+	}
 	zone := zoneOr(exported.TimeZone, time.UTC)
 	stamp := exported.GeneratedAt
 	if stamp.IsZero() && c.Now != nil {
@@ -499,7 +511,7 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 		children[item.ParentID] = count
 	}
 
-	view := calendarView{feed: feed, view: exported.View, name: exported.View.Name, byID: map[string]member{}}
+	view := calendarView{feed: feed, view: exported.View, name: exported.View.Name, base: base, byID: map[string]member{}}
 	digest := sha256.New()
 	for _, item := range exported.Items {
 		// As the feed's eventOf, an entry with no due date is not shown - a calendar is a set
@@ -507,7 +519,7 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 		if item.Due == nil {
 			continue
 		}
-		m := c.memberOf(account, feed.ID.String(), item, zone, children, stamp)
+		m := memberOf(base, account, feed.ID.String(), item, zone, children, stamp)
 		view.members = append(view.members, m)
 		view.byID[m.id] = m
 		_, _ = fmt.Fprintf(digest, "%s:%d\n", item.ID, item.Version)
@@ -529,8 +541,8 @@ func (c *Controller) calendar(ctx context.Context, actor appshared.ActorContext,
 }
 
 // memberOf is one entry at its address: the todo rendered, the version as the ETag.
-func (c *Controller) memberOf(account, feed string, item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int, stamp time.Time) member {
-	todo := c.todoOf(item, zone, children)
+func memberOf(base, account, feed string, item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int, stamp time.Time) member {
+	todo := todoOf(base, item, zone, children)
 	m := member{
 		id:      addressOf(item),
 		itemID:  item.ID.String(),
@@ -569,11 +581,11 @@ func uidOf(item workmodel.WorkItem) string {
 // todoOf turns one entry into a todo. An entry without a due date is one the calendar does not
 // show, and the caller decides that; here it is a todo without a DUE, which is what the write
 // half diffs a client's PUT against.
-func (c *Controller) todoOf(item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int) Todo {
+func todoOf(base string, item workmodel.WorkItem, zone *time.Location, children map[shared.ID][2]int) Todo {
 	todo := Todo{
 		UID:             uidOf(item),
 		Summary:         item.Title,
-		URL:             c.itemURL(item.ID.String()),
+		URL:             itemURL(base, item.ID.String()),
 		Created:         item.CreatedAt,
 		LastModified:    item.UpdatedAt,
 		PercentComplete: -1,
@@ -595,12 +607,21 @@ func (c *Controller) todoOf(item workmodel.WorkItem, zone *time.Location, childr
 	return todo
 }
 
-func (c *Controller) itemURL(id string) string {
+// itemURL is the link a todo carries back into the product, on the workspace's address.
+func itemURL(base, id string) string {
 	p := "/items/" + id
-	if c.BaseURL == "" {
+	if base == "" {
 		return p
 	}
-	return strings.TrimRight(c.BaseURL, "/") + p
+	return strings.TrimRight(base, "/") + p
+}
+
+// linkBase is the actor's workspace's address, or empty where no Links is wired.
+func (c *Controller) linkBase(ctx context.Context, actor appshared.ActorContext) (string, error) {
+	if c.Links == nil {
+		return "", nil
+	}
+	return c.Links.For(ctx, actor.TenantID)
 }
 
 func zoneOr(named string, fallback *time.Location) *time.Location {

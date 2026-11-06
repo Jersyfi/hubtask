@@ -29,10 +29,15 @@ const (
 	permissionsPolicy = "accelerometer=(), camera=(), geolocation=(), gyroscope=(), " +
 		"magnetometer=(), microphone=(), payment=(), usb=()"
 
-	// serverName carries no version. The version is available under /meta, authenticated
-	// (security.md §9, "version disclosure").
+	// serverName carries no version. The version is in /meta's manifest (security.md §9,
+	// "version disclosure").
 	serverName = "Hubtask"
 )
+
+// appOrigins are the installed apps' webview origins (security.md §9, ADR-0096): admitted always,
+// whatever the allowlist says, because a person installs the app without asking an operator. Safe
+// for the reason the wildcard is: this API answers bearer requests only and never credentials mode.
+var appOrigins = []string{"tauri://localhost", "http://tauri.localhost"}
 
 // corsAllowedHeaders is what a browser may send. Every entry is a header this API reads;
 // anything else is refused by the preflight rather than silently ignored.
@@ -82,7 +87,7 @@ func (s Secured) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Vary goes on before the allowlist is consulted, not after. An answer that differs by origin
 	// differs whether or not this particular origin was allowed, and a cache told only about the
 	// allowed case would happily serve a refusal to somebody on the list.
-	if len(s.CORS.AllowedOrigins) > 0 && !s.CORS.AllowsAnyOrigin() {
+	if !s.CORS.AllowsAnyOrigin() {
 		header.Add("Vary", "Origin")
 	}
 
@@ -136,5 +141,5 @@ func (s Secured) originAllowed(origin string) bool {
 	}
 	// Exact comparison, not a suffix match: `https://evil-example.com` ends with
 	// `example.com`, and that is the whole class of bug this avoids.
-	return slices.Contains(s.CORS.AllowedOrigins, origin)
+	return slices.Contains(appOrigins, origin) || slices.Contains(s.CORS.AllowedOrigins, origin)
 }

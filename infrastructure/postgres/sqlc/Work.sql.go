@@ -653,7 +653,7 @@ SELECT
   wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6). Read here rather than assembled by a second query, because §6's
-  -- point is that the object itself says what is coming; read from the side table (F-10, 0227),
+  -- point is that the object itself says what is coming; read from the side table (F-10, 0234),
   -- which the trigger keeps equal to the columns every writer still writes.
   rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
   rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
@@ -1167,7 +1167,7 @@ type InsertContainerRow struct {
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
 // two cannot disagree.
-// The handle and the key prefix the store gave a collection (migrations 0204, 0356), so the create
+// The handle and the key prefix the store gave a collection (migrations 0204, 0363), so the create
 // answers them.
 func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (InsertContainerRow, error) {
 	row := q.db.QueryRow(ctx, insertContainer,
@@ -1232,9 +1232,9 @@ INSERT INTO work_item (
   $9, $10, $11,
   $12, $13, $14,
   $15, $16, $16, 1,
-  -- The entry's type, null for its level's system type (migration 0209).
+  -- The entry's type, null for its level's system type (migration 0216).
   $17::text,
-  -- Its status in the workflow in force where it is created, null where none runs (0216).
+  -- Its status in the workflow in force where it is created, null where none runs (0223).
   $18::text
 )
 RETURNING number
@@ -2569,7 +2569,7 @@ UPDATE container SET
   description = $2,
   icon        = $3,
   color_token = $4,
-  -- A collection's key prefix; one another collection holds is refused by 0356's trigger as a
+  -- A collection's key prefix; one another collection holds is refused by 0363's trigger as a
   -- unique violation on container_key_prefix_uq.
   key_prefix  = $5,
   updated_at  = $6,

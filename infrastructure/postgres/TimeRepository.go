@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// TimeRepository stores the time module's rows (migration 0246, M7).
+// TimeRepository stores the time module's rows (migration 0253, M7).
 type TimeRepository struct{}
 
 var _ repository.Store = TimeRepository{}

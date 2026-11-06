@@ -27,7 +27,7 @@ type SAMLExpiryNotice interface {
 // WatchSAMLCertificates tells a workspace's administrators 30, 7 and 1 days before the last
 // certificate of one of its SAML providers ends (identity.md §26.1): from then on every answer is
 // refused and nobody signs in through it. It keeps each provider's end on its row as well, which
-// the installation counts across workspaces (saml_certificates_ending, migration 0348).
+// the installation counts across workspaces (saml_certificates_ending, migration 0355).
 type WatchSAMLCertificates struct {
 	Watches    repository.SAMLCertificateWatches
 	Tell       SAMLExpiryNotice

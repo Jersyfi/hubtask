@@ -11,7 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// formDocument is a type's form as the `entry_type.form` column holds it (migration 0214). The
+// formDocument is a type's form as the `entry_type.form` column holds it (migration 0221). The
 // names are the contract's (api/openapi.yaml, EntryForm), so that the archive and the sync replica
 // carry the document a client already reads.
 type formDocument struct {
@@ -101,7 +101,7 @@ func formFrom(raw []byte) (work.Form, error) {
 }
 
 // translationDocument is one language's texts as the `entry_type.translations` column holds them
-// (migration 0311), under the contract's names (EntryTypeTranslations).
+// (migration 0318), under the contract's names (EntryTypeTranslations).
 type translationDocument struct {
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`

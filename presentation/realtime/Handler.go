@@ -78,12 +78,12 @@ type Documents interface {
 	Relayable(data []byte) error
 }
 
-// Wakeups rings when the tenant's change log or a document's log moved (migration 0230).
+// Wakeups rings when the tenant's change log or a document's log moved (migration 0237).
 type Wakeups interface {
 	Subscribe(tenantID shared.ID) (<-chan struct{}, func())
 }
 
-// DocumentWakeups rings when one document's log moved (migration 0296).
+// DocumentWakeups rings when one document's log moved (migration 0303).
 type DocumentWakeups interface {
 	SubscribeDocument(tenantID shared.ID, kind string, documentID shared.ID) (<-chan struct{}, func())
 }

@@ -118,6 +118,7 @@ import (
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
+	dnsadapter "github.com/Jersyfi/hubtask/infrastructure/dns"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
@@ -366,7 +367,7 @@ func run() error {
 		PerProcess:    cfg.LoadShed.StreamsPerProcess,
 	})
 	// A credential ended on any process asks this process's streams of that account again at once
-	// (migration 0332); without the listener they still ask every 30 seconds.
+	// (migration 0353); without the listener they still ask every 30 seconds.
 	changeListener.OnCredential(func(tenantID, accountID shared.ID) {
 		streams.Recheck(tenantID.String(), accountID.String())
 	})
@@ -392,8 +393,15 @@ func run() error {
 	})
 
 	ops := &http.Server{
-		Addr:              cfg.OpsAddr,
-		Handler:           rest.OpsController{Health: registry, Metrics: metrics.Handler()}.Routes(),
+		Addr: cfg.OpsAddr,
+		Handler: rest.OpsController{
+			Health: registry, Metrics: metrics.Handler(),
+			// The ingress's question before an own domain's certificate (ADR-0095 §5).
+			Certificates: identity.CertificateQuestion{
+				Doors: postgres.NewOwnDomainRepository(), UnitOfWork: postgres.NewUnitOfWork(pool),
+				Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+			},
+		}.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -825,7 +833,7 @@ func run() error {
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
 	milestones := postgres.NewMilestoneRepository()
-	// Kept between reads while the collection is unchanged (migration 0292), recounted by
+	// Kept between reads while the collection is unchanged (migration 0313), recounted by
 	// figure.recount.
 	keptFigures := postgres.NewKeptFigureRepository()
 	figures := work.FigureReader{
@@ -1388,7 +1396,8 @@ func run() error {
 		Grants:     postgres.NewOauthGrantRepository(),
 		Codes:      postgres.NewOauthCodeRepository(security.NewOauthCodeHasher(cfg.SecretKey)),
 		Authorizer: authorizer, KnownScopes: catalogue.Scopes(),
-		Text: forms,
+		SessionScopes: catalogue.SessionScopes(),
+		Text:          forms,
 	}
 
 	// The installation's own host, which the canonical host of every new workspace is derived
@@ -1581,9 +1590,15 @@ func run() error {
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		People:     postgres.NewPrivateHubRepository(),
-		// The hosts the workspace answers at. Read-only: nothing resolves a request
-		// through them yet.
+		// The hosts the workspace answers at, the main one first.
 		Hosts: postgres.NewTenantHostRepository(),
+		// The main address and who may change it, for the workspace's *Address* screen.
+		Address: identity.WorkspaceAddressReader{
+			Tenancy: cfg.Tenancy, InstallationHost: installationHost,
+			Settings: postgres.NewInstanceSettingRepository(),
+			Changes:  postgres.NewWorkspaceAddressRepository(), Owners: grants, Clock: clockadapter.System{},
+			OwnDomains: postgres.NewOwnDomainRepository(),
+		},
 		// The workspace's structure, answered beside its sign-in rule.
 		Structure: work.WorkspaceStructureAnswer{Resolver: structures, UnitOfWork: unitOfWork},
 		Starter:   starter,
@@ -1920,7 +1935,7 @@ func run() error {
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
 		Domains: domains, Text: forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
 		// The one host the new workspace answers at. The installation's own host comes
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
@@ -2308,6 +2323,37 @@ func run() error {
 		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
 		Renderer:    renderer,
 	}
+	// A change of a workspace's address (multi-tenancy.md §3.1): the lockout read through the
+	// session writer, the proof by password or provider only, an owner's cooldown from the last change.
+	changeAddress := adminservice.ChangeTenantAddress{
+		Instance: instanceWriter, Tenants: postgres.NewAdminTenantRepository(),
+		Addresses: postgres.NewWorkspaceAddressRepository(),
+		Audience:  postgres.NewWorkspaceAddressRepository(),
+		Notices: notification.RecordAddressChange{
+			Jobs: jobs, Notices: postgres.NewWorkspaceAddressRepository(),
+		},
+		Owners: grants, Ways: identity.LastingWays{Writer: sessionWriter},
+		Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{}, Domains: domains,
+		Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
+		InstallationHost: installationHost, Settings: postgres.NewInstanceSettingRepository(),
+		Changes: postgres.NewWorkspaceAddressRepository(),
+	}
+	// A workspace's own domain (UC-INS-15): the owner's set-up, the operator's list and block.
+	ownDomains := adminservice.OwnDomains{
+		Instance: instanceWriter, Domains: postgres.NewOwnDomainRepository(),
+		Doors: postgres.NewOwnDomainRepository(), Owners: grants,
+		Settings: postgres.NewInstanceSettingRepository(), Tenants: postgres.NewAdminTenantRepository(),
+		Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{}, Encoder: domains, Registry: textadapter.Registry{},
+		Tenancy: cfg.Tenancy, InstallationHost: installationHost,
+	}
+	// The own domain as the main address and back (UC-INS-15 checks 6 and 8): the change of
+	// address's lockout rule, proof, audience and notices.
+	mainAddress := adminservice.MainAddress{OwnDomains: ownDomains, Change: changeAddress, Authorizer: authorizer}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
 		agentservice.Gate{Desk: agentDesk}.Wrap(
@@ -2924,6 +2970,7 @@ func run() error {
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors),
 			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+			WorkspaceHosts: cfg.WorkspaceHosts, InstallationHost: installationHost,
 			Instance: postgres.NewInstanceSettingRepository(),
 		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
@@ -3793,6 +3840,32 @@ func run() error {
 		// and the register through the instance writer, the step-up through the session's verifier.
 		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
+		// A change of a workspace's address: the operator's always, the owners' where the
+		// installation allows it.
+		changeAddress.Descriptor(),
+		adminservice.ChangeWorkspaceAddress{Change: changeAddress, Authorizer: authorizer}.Descriptor(),
+		adminservice.SetUpOwnDomain{OwnDomains: ownDomains, Authorizer: authorizer}.Descriptor(),
+		adminservice.RemoveOwnDomain{OwnDomains: ownDomains, Authorizer: authorizer}.Descriptor(),
+		adminservice.ListOwnDomains{OwnDomains: ownDomains}.Descriptor(),
+		adminservice.BlockOwnDomain{OwnDomains: ownDomains}.Descriptor(),
+		adminservice.MakeOwnDomainMain{MainAddress: mainAddress}.Descriptor(),
+		adminservice.SwitchBackFromOwnDomain{MainAddress: mainAddress}.Descriptor(),
+		identity.ListAddressNotices{
+			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		identity.AcknowledgeAddressNotices{
+			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		// The device's list of workspaces (ADR-0095 §7): the entry a sign-in hands over, signed by
+		// the installation, and the check its own address asks before keeping or showing one.
+		identity.IssueDeviceListEntry{
+			Signer: security.NewDeviceListEntryCodec(cfg.SecretKey), Address: workspaceAddress(cfg),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		identity.CheckDeviceList{
+			Signer: security.NewDeviceListEntryCodec(cfg.SecretKey), Hosts: postgres.NewOwnDomainRepository(),
+			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
 		adminservice.ExportTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Targets: exportTargets, Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -3897,14 +3970,15 @@ func run() error {
 			},
 			CallbackURL: oidcRedirectURL, Metadata: samlMetadata,
 		}
-		// The address a calendar client is handed. Configured rather than taken from the
-		// request's Host, so that one caller cannot decide what the next person's client stores.
-		controller.BaseURL = cfg.BaseURL
+		// The address a calendar client is handed and an export's links: the workspace's main
+		// row, never the request's Host, so that one caller cannot decide what the next person's
+		// client stores (UC-INS-19 check 9).
+		controller.Links = identity.WorkspaceLinks{Address: workspaceAddress(cfg), UnitOfWork: unitOfWork}
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
 		// A page's public link: not a catalogue entry, for the feed's reason.
 		controller.Feeds = &rest.FeedDoor{
-			BaseURL: cfg.BaseURL, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace},
+			Links: controller.Links, Pages: knowledgeservice.ReadPublicPage{Space: pageSpace},
 			Pictures: controller.Media.Content,
 		}
 		// A portfolio roadmap's public link, the page link's way (UC-GOL-03 check 15).
@@ -3976,7 +4050,7 @@ func run() error {
 		controller.Intake.CmdbInventory = intake.InventoryIntake{Deliveries: connectors}
 		// The SCIM door a directory provisions through (UC-ID-28): the group acts are the
 		// catalogue's own, wired as they are there.
-		controller.Scim = &rest.ScimDoor{Directory: directory, BaseURL: cfg.BaseURL}
+		controller.Scim = &rest.ScimDoor{Directory: directory, Links: controller.Links}
 		controller.Intake.MailIntake = intake.MailIntake{
 			Deliveries: jumbleservice.IntakeMail{
 				Intake: jumbleIntake, Entries: postgres.NewJumbleRepository(cursors),
@@ -4170,8 +4244,8 @@ func run() error {
 					Items: items, ItemLabels: itemLabels, Containers: containers,
 					Authorizer: authorizer, UnitOfWork: unitOfWork,
 				},
-				BaseURL: cfg.BaseURL,
-				Now:     clockadapter.System{}.Now,
+				Links: identity.WorkspaceLinks{Address: workspaceAddress(cfg), UnitOfWork: unitOfWork},
+				Now:   clockadapter.System{}.Now,
 				// The writes: a completion, a date, a name, a deletion, each the
 				// ordinary use case performed as the token's account through the registry.
 				UseCases: useCases,
@@ -4335,6 +4409,11 @@ func run() error {
 					API:      apiRoutes,
 					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
 					UI:       ui,
+					// A page load beside a workspace's main address goes on to it (UC-INS-15 check 7).
+					Browsers: identity.BrowserAddress{
+						Hosts: postgres.NewOwnDomainRepository(), UnitOfWork: unitOfWork,
+						BaseURL: cfg.BaseURL, InstallationHost: installationHost, Tenancy: cfg.Tenancy,
+					},
 					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.BuildMarked{Build: build, Routes: apiRoutes, Next: rest.Shedding{
 						Routes: apiRoutes, Admit: admit, Signals: metrics,
 						Next: rest.Bounded{
@@ -4656,6 +4735,14 @@ func run() error {
 			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			Providers: postgres.NewIdentityProviderRepository(),
 			Mail:      mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale, Addresses: workspaceAddress(cfg),
+		},
+	}
+	// A member told by mail that the workspace's address changed (multi-tenancy.md §3.1).
+	addressChangeMessage := worker.AddressChangeMessage{
+		Send: notification.SendAddressChange{
+			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Mail: mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
 			FallbackLocale: cfg.Locale.DefaultLocale, Addresses: workspaceAddress(cfg),
 		},
 	}
@@ -5059,6 +5146,16 @@ func run() error {
 
 	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
 	// without a tenant, seeded below when a worker starts.
+	// The own domains' check (ADR-0095 §4): every lookup through the DNS port under its deadline.
+	ownDomainCheck := adminservice.CheckOwnDomains{
+		OwnDomains: adminservice.OwnDomains{
+			Domains: postgres.NewOwnDomainRepository(), Doors: postgres.NewOwnDomainRepository(),
+			Audit: auditSink, UnitOfWork: backgroundWork, Clock: clockadapter.System{},
+			Tenancy: cfg.Tenancy, InstallationHost: installationHost,
+		},
+		Resolver: dnsadapter.Resolver{Timeout: cfg.Outbound.ConnectTimeout},
+		Jobs:     jobs,
+	}
 	platformSweep := adminservice.SweepPlatformEvents{
 		Events: postgres.NewPlatformEventRepository(), Deliveries: postgres.NewPlatformDeliveryRepository(),
 		Jobs: jobs, UnitOfWork: backgroundWork,
@@ -5144,6 +5241,7 @@ func run() error {
 		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
 		queueport.KindWayInChangedEmail:        wayInChangedMessage,
+		queueport.KindAddressChangedEmail:      addressChangeMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
@@ -5191,6 +5289,7 @@ func run() error {
 		queueport.KindPlanExceptionEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:     webhookDelivery,
 		queueport.KindPlatformSweep:      worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindOwnDomainCheck:     worker.OwnDomainCheck{Check: ownDomainCheck},
 		queueport.KindPlatformDeliver:    platformDelivery,
 		queueport.KindAutomationRun:      automationRun,
 		queueport.KindAutomationHTTP:     outboundCall,
@@ -5452,6 +5551,10 @@ func run() error {
 			slog.WarnContext(ctx, "the platform events' sweep could not be seeded",
 				slog.String("code", shared.AsError(err).DetailCode))
 		}
+		if err := ownDomainCheck.Seed(seeding); err != nil {
+			slog.WarnContext(ctx, "the own domains' check could not be seeded",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
 		cancelSeeding()
 	}
 
@@ -5484,9 +5587,9 @@ func run() error {
 			// Alert A-25's number: a snapshot or a session pinning vacuum.
 			Transactions: jobs, Horizon: jobs,
 			Indexes: jobs,
-			// Alert A-29's numbers, across workspaces through the door of migration 0344.
+			// Alert A-29's numbers, across workspaces through the door of migration 0365.
 			MailApps: postgres.NewMailboxRepository(),
-			// The SAML providers' certificate ends, across workspaces through the door of 0348.
+			// The SAML providers' certificate ends, across workspaces through the door of 0369.
 			SAMLProviders: postgres.NewIdentityProviderRepository(),
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
@@ -5553,7 +5656,9 @@ func run() error {
 
 	// Every workspace's main address, before the first request: a request's host names its
 	// workspace only through a row, and a workspace older than its row has none (ADR-0095 §1).
-	if cfg.Tenancy == envport.TenancyMulti {
+	// With assigned hosts every workspace got its host when it was made, and a subdomain written
+	// now would be an address the operator never gave it.
+	if cfg.Tenancy == envport.TenancyMulti && cfg.WorkspaceHosts != envport.HostsAssigned {
 		ensureMainHosts(ctx, identity.EnsureMainHosts{
 			Hosts: postgres.NewTenantHostRepository(), UnitOfWork: unitOfWork, BaseHost: installationHost,
 		})

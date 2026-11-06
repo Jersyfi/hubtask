@@ -387,7 +387,7 @@ WHERE id IN (
 )
 RETURNING state;
 
--- The oldest open transaction's age in seconds (migration 0331, alert A-25).
+-- The oldest open transaction's age in seconds (migration 0338, alert A-25).
 -- name: OldestTransactionSeconds :one
 SELECT oldest_transaction_seconds()::float8 AS seconds;
 
@@ -455,18 +455,18 @@ SELECT EXISTS (SELECT 1 FROM job WHERE id = sqlc.arg('id') AND state = 'DEAD_LET
 -- How close the database is to the limits that stop every write (alerts A-36, A-37): the share of
 -- the NOTIFY queue a stuck listener has filled - once full, every transaction that notifies fails
 -- at commit - and the transaction-ID age vacuum has not yet frozen, which at about two billion
--- makes PostgreSQL refuse writes (migration 0353); and the database's size on disk, which alert
+-- makes PostgreSQL refuse writes (migration 0360); and the database's size on disk, which alert
 -- A-42 holds against the operator's budget before the volume or the plan runs out.
 -- name: DatabaseHorizon :one
 SELECT pg_notification_queue_usage()::float8 AS notify_queue_usage, frozen_xid_age()::bigint AS xid_age,
   pg_database_size(current_database())::bigint AS database_bytes;
 
--- How the last invitation mail to each of these accounts went (0362): the newest job of the
+-- How the last invitation mail to each of these accounts went (0369): the newest job of the
 -- invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
 -- statement here. No payload is read: it holds identifiers only, and the answer needs none.
 --
 -- The job only records the notification and queues its delivery, so once it has succeeded what
--- the mail did is the newest INVITATION notification of the account written since (0363): sent,
+-- the mail did is the newest INVITATION notification of the account written since (0370): sent,
 -- failed or suppressed, with its reason code. Account identifiers are compared as text, the form
 -- the dedupe key has.
 -- name: LatestInvitationDeliveries :many

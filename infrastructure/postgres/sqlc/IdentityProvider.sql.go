@@ -969,7 +969,7 @@ type RecordSamlCertificatesEndParams struct {
 	ID              pgtype.UUID
 }
 
-// The certificates' end the watch found, kept for the installation's count (0348).
+// The certificates' end the watch found, kept for the installation's count (0355).
 func (q *Queries) RecordSamlCertificatesEnd(ctx context.Context, arg RecordSamlCertificatesEndParams) (int64, error) {
 	result, err := q.db.Exec(ctx, recordSamlCertificatesEnd, arg.CertificatesEnd, arg.ID)
 	if err != nil {
@@ -1019,7 +1019,7 @@ type SamlCertificatesEndingRow struct {
 	Ended        int64
 }
 
-// Across workspaces through the door (0348): the enabled SAML providers whose end is known, those
+// Across workspaces through the door (0355): the enabled SAML providers whose end is known, those
 // ending within 30 and 7 days, and those ended. Numbers, no rows.
 func (q *Queries) SamlCertificatesEnding(ctx context.Context) (SamlCertificatesEndingRow, error) {
 	row := q.db.QueryRow(ctx, samlCertificatesEnding)

@@ -75,6 +75,15 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 		}
 		answer.ReservedShortNames = &reserved
 	}
+	if owners, held := out["owners_change_address"].(bool); held {
+		answer.OwnersChangeAddress = &owners
+	}
+	if domains, held := out["owners_own_domains"].(bool); held {
+		answer.OwnersOwnDomains = &domains
+	}
+	if cooldown, held := out["address_change_cooldown_days"].(int); held {
+		answer.AddressChangeCooldownDays = &cooldown
+	}
 	if source := out.String("source"); source != "" {
 		answer.Source = &source
 	}

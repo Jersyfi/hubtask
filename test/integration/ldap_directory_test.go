@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A workspace's LDAP directory (migration 0285, UC-ID-31) against the real boundary: stored, its
+// A workspace's LDAP directory (migration 0292, UC-ID-31) against the real boundary: stored, its
 // run recorded, whom it holds read by the prefix - and none of it seen or written from the
 // workspace next door (gate SG-3).
 

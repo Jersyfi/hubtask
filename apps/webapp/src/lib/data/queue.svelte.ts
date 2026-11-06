@@ -7,14 +7,14 @@
  * from the copy. The engine's `QueueState` is the fact; this is how a person reads it.
  */
 
-import type { ConflictRecord, MutationKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
+import type { ConflictRecord, QueuedKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { ENTITY_PLACES, fieldRefusals } from './queueplaces.ts';
 import { messages, t } from '../i18n/i18n.svelte.ts';
 
 /** The message code for a mutation kind, and for a patch the field that moved. */
-export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
+export function whatOf(kind: QueuedKind, mutation?: SyncMutation): string {
   if (kind === 'ITEM_PATCH' && mutation?.fields) {
     const fields = Object.keys(mutation.fields);
     const field = fields[0];
@@ -35,20 +35,52 @@ export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
 const linkSourceOf = (mutation?: SyncMutation): string | undefined =>
   mutation?.entity === 'entry_link' && typeof mutation.payload?.item_id === 'string' ? mutation.payload.item_id : undefined;
 
-/**
- * The entry's title from the copy, or its identifier where the copy has none; for the
- * vocabulary, the name of what was written, or its key.
- */
-async function whereOf(itemId: string, mutation?: SyncMutation): Promise<string> {
-  const vocabulary = mutation?.entity ? ENTITY_PLACES[mutation.entity] : undefined;
-  if (vocabulary?.collection) {
-    const held = await engine.storage?.get<StoredRecord<{ name?: string }>>(vocabulary.collection, itemId);
-    return held?.document.name ?? String(mutation?.entity_key ?? itemId);
-  }
-  const source = linkSourceOf(mutation);
-  if (mutation?.entity === 'entry_link') return source ? whereOf(source) : String(mutation.entity_key ?? itemId);
+/** What a change names, as the copy knows it: the entry it hangs off, or the container, label or bucket. */
+interface Subject {
+  readonly itemId: string;
+  readonly kind: QueuedKind;
+  readonly entityId?: string;
+  readonly mutation?: SyncMutation;
+}
+
+/** An entry's title from the copy, or its identifier where the copy has none. */
+async function titleOf(itemId: string): Promise<string> {
   const held = await engine.storage?.get<StoredRecord<{ title?: string }>>('items', itemId);
   return held?.document.title ?? itemId;
+}
+
+/** For the vocabulary, the name of what was written, or its key; a link names its source entry. */
+async function vocabularyWhereOf(itemId: string, mutation: SyncMutation): Promise<string> {
+  const vocabulary = mutation.entity ? ENTITY_PLACES[mutation.entity] : undefined;
+  if (vocabulary?.collection) {
+    const held = await engine.storage?.get<StoredRecord<{ name?: string }>>(vocabulary.collection, itemId);
+    return held?.document.name ?? String(mutation.entity_key ?? itemId);
+  }
+  const source = linkSourceOf(mutation);
+  if (mutation.entity === 'entry_link') return source ? titleOf(source) : String(mutation.entity_key ?? itemId);
+  return titleOf(itemId);
+}
+
+/**
+ * Where a change sits: the entry's title and page; for the vocabulary, what was written and its
+ * screen; for a container, a label, a bucket or a template applied, the collection's name and page
+ * (or the hub's), from the copy - its identifier where the copy has none.
+ */
+async function whereOf(subject: Subject): Promise<{ where: string; href: string }> {
+  const storage = engine.storage;
+  if (subject.mutation?.entity) {
+    return { where: await vocabularyWhereOf(subject.itemId, subject.mutation), href: hrefOf(subject.itemId, subject.mutation) };
+  }
+  if (subject.itemId) {
+    return { where: await titleOf(subject.itemId), href: `/items/${subject.itemId}` };
+  }
+  const payload = (subject.mutation?.payload ?? {}) as { collection_id?: string; parent_id?: string };
+  const containerId = subject.kind.startsWith('CONTAINER_')
+    ? (subject.entityId ?? subject.mutation?.entity_id ?? '')
+    : (subject.mutation?.container_id ?? payload.collection_id ?? '');
+  const held = await storage?.get<StoredRecord<{ name?: string; type?: string }>>('containers', String(containerId));
+  const kind = held?.document.type === 'HUB' ? 'hubs' : 'collections';
+  return { where: held?.document.name ?? String(containerId), href: `/${kind}/${containerId}` };
 }
 
 /** Where a queued change is opened: its entry, or the screen of the vocabulary it writes. */
@@ -122,13 +154,10 @@ class QueueView {
 
   async #spell(state: QueueState): Promise<void> {
     const storage = engine.storage;
-    const pending = storage ? await storage.all<{ id: string; seq: number; kind: MutationKind; itemId: string; mutation: SyncMutation }>('queue') : [];
+    const pending = storage ? await storage.all<{ id: string; seq: number; kind: QueuedKind; itemId: string; entityId?: string; mutation: SyncMutation }>('queue') : [];
     const listed: ListedChange[] = [];
     for (const change of [...pending].sort((a, b) => a.seq - b.seq)) {
-      listed.push({
-        id: change.id, what: whatOf(change.kind, change.mutation),
-        where: await whereOf(change.itemId, change.mutation), href: hrefOf(change.itemId, change.mutation),
-      });
+      listed.push({ id: change.id, what: whatOf(change.kind, change.mutation), ...(await whereOf(change)) });
     }
     const refused: ListedRefusal[] = [];
     for (const record of state.rejected) {
@@ -137,8 +166,7 @@ class QueueView {
       refused.push({
         id: record.id,
         what: whatOf(record.kind, record.mutation),
-        where: await whereOf(record.itemId, record.mutation),
-        href: hrefOf(record.itemId, record.mutation),
+        ...(await whereOf(record)),
         reason: reasonOf(record),
         fieldReasons: fieldReasonsOf(record),
         record,
@@ -146,7 +174,7 @@ class QueueView {
     }
     this.#queued = listed;
     this.#refused = refused;
-    this.#pendingItems = new Set(pending.map((change) => change.itemId));
+    this.#pendingItems = new Set(pending.map((change) => change.itemId).filter((id) => id !== ''));
   }
 
   async dismiss(id: string): Promise<void> {

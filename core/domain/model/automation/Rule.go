@@ -235,7 +235,7 @@ type Rule struct {
 	TenantID shared.ID
 	Name     string
 	// Key names the rule in its scope - unique there, kept by a rename - so that the
-	// configuration document names it in every workspace alike (migration 0286).
+	// configuration document names it in every workspace alike (migration 0293).
 	Key   string
 	Scope Scope
 	// Enabled is false on a rule that has just been written. Writing what a rule would do and

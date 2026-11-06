@@ -53,7 +53,7 @@ type lateCount struct {
 // read in the figure's own transaction, so that a figure leaves out exactly what a read marks hidden.
 //
 // Kept, where wired, answers a count from the last read with the same basis while the collection is
-// unchanged (migration 0292), and keeps what had to be counted after the read's transaction ended;
+// unchanged (migration 0299), and keeps what had to be counted after the read's transaction ended;
 // Jobs then schedules the workspace's recount (FigureRecount), which corrects what a write outside
 // its workspace's context left behind.
 type FigureReader struct {

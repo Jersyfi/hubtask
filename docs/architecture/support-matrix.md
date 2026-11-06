@@ -119,8 +119,18 @@ platform. The web app is a browser application only: no manifest-based install, 
 no service-worker install. The installed clients carry the offline promise; the browser holds a
 best-effort copy ([offline-sync.md](./offline-sync.md) §1).
 
-No shell exists yet, so no row claims one. A shell's row arrives with the job that starts it on its
-platform, under §6's rule 1.
+Each app renders the web app in its system's own webview, so the row is the engine, and the job
+walks the app in it: the smoke walk of UC-SYN-07 check 9 - sign in through the workspace's consent,
+open a hub, create, edit and complete an entry, sign out - against a server built from the same
+commit, through the engine's own WebDriver (`apps/webapp/e2e/webview/smoke.mjs`). The build walked
+is the debug build with the `walk` feature, which stands in for the system's browser and nothing
+else. A failure in one engine fails the job.
+
+| App | Engine | Status | Proven by |
+|---|---|---|---|
+| Windows | WebView2, the Evergreen runtime | `supported` | `ci.yml:shell`, the Windows leg: the walk through the runner's msedgedriver |
+| Linux (AppImage, `.deb`) | WebKitGTK 4.1 | `supported` | `ci.yml:shell`, the Linux leg: the walk through WebKitWebDriver under Xvfb |
+| Android | Android System WebView | `supported` | `ci.yml:shell`, the Android leg: the walk through the runner's chromedriver on an API 35 emulator (x86_64) |
 
 ## 8. Host size
 
@@ -128,7 +138,7 @@ What is measured, and only that:
 
 | Reading | `app` (all four roles in one process) | `db` | Where and how |
 |---|---|---|---|
-| Idle, a fresh installation, no workspace set up, 10 minutes after start | about 150 MiB resident, 2.5 s of CPU in 10.5 minutes | about 89 MiB (`docker stats`) | 2026-11-01, commit `15253e187`: the server built for macOS arm64 and run as a bare binary on the owner's workstation, against `pgvector/pgvector:pg16` in Docker, migrated to 0354; resident memory by `ps`, sampled every minute |
+| Idle, a fresh installation, no workspace set up, 10 minutes after start | about 150 MiB resident, 2.5 s of CPU in 10.5 minutes | about 89 MiB (`docker stats`) | 2026-11-01, commit `15253e187`: the server built for macOS arm64 and run as a bare binary on the owner's workstation, against `pgvector/pgvector:pg16` in Docker, migrated to 0375; resident memory by `ps`, sampled every minute |
 
 Not measured yet: the Compose stack's own containers (the Linux image, not a macOS binary), and any
 installation under load. Until run F1 of the load plan ([test/load/PLAN.md](../../test/load/PLAN.md))

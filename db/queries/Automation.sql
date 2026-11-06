@@ -24,7 +24,7 @@ INSERT INTO automation_rule (
   sqlc.arg('on_error'), sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
   sqlc.narg('next_run_at'), sqlc.narg('key')
 )
--- The key is the writer's, or drawn from the name by the store (migration 0286).
+-- The key is the writer's, or drawn from the name by the store (migration 0293).
 RETURNING key;
 
 -- name: FindAutomationRule :one

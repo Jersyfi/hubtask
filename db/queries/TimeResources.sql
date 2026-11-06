@@ -1,4 +1,4 @@
--- A person's capacity and absences, cost rates and budgets (migration 0247, M7).
+-- A person's capacity and absences, cost rates and budgets (migration 0254, M7).
 
 -- name: ListTimeCapacities :many
 -- The capacities of the people named, or of everybody where none is named, by person and day.
@@ -87,7 +87,7 @@ WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')::uuid AND plan_id 
   AND version = sqlc.arg('expected_version')::int;
 
 -- A billing rate is a row of time_cost_rate whose subject is a hub or a collection (migration
--- 0290); the statements above never touch one, these touch nothing else.
+-- 0297); the statements above never touch one, these touch nothing else.
 
 -- name: ListTimeBillingRates :many
 SELECT id, plan_id, hour_minor, currency, from_day, to_day, version

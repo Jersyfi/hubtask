@@ -21,6 +21,24 @@ const (
 	SetRemove  MutationKind = "SET_REMOVE"
 	Move       MutationKind = "MOVE"
 	CommentAdd MutationKind = "COMMENT_ADD"
+
+	ReminderCreate   MutationKind = "REMINDER_CREATE"
+	ReminderPatch    MutationKind = "REMINDER_PATCH"
+	ReminderDelete   MutationKind = "REMINDER_DELETE"
+	RecurrenceCreate MutationKind = "RECURRENCE_CREATE"
+	RecurrencePatch  MutationKind = "RECURRENCE_PATCH"
+	RecurrenceDelete MutationKind = "RECURRENCE_DELETE"
+	TemplateApply    MutationKind = "TEMPLATE_APPLY"
+	ContainerCreate  MutationKind = "CONTAINER_CREATE"
+	ContainerPatch   MutationKind = "CONTAINER_PATCH"
+	ContainerDelete  MutationKind = "CONTAINER_DELETE"
+	LabelCreate      MutationKind = "LABEL_CREATE"
+	LabelPatch       MutationKind = "LABEL_PATCH"
+	LabelDelete      MutationKind = "LABEL_DELETE"
+	BucketCreate     MutationKind = "BUCKET_CREATE"
+	BucketPatch      MutationKind = "BUCKET_PATCH"
+	BucketDelete     MutationKind = "BUCKET_DELETE"
+
 	// EntityUpsert, EntityPatch and EntityDelete are about an entity of the workspace's vocabulary
 	// rather than an entry, each under the merge rule its entity declares (Entity.Rule).
 	EntityUpsert MutationKind = "ENTITY_UPSERT"
@@ -32,11 +50,18 @@ const (
 func MutationKinds() []MutationKind {
 	return []MutationKind{
 		ItemCreate, ItemPatch, ItemDelete, SetAdd, SetRemove, Move, CommentAdd,
+		ReminderCreate, ReminderPatch, ReminderDelete,
+		RecurrenceCreate, RecurrencePatch, RecurrenceDelete,
+		TemplateApply,
+		ContainerCreate, ContainerPatch, ContainerDelete,
+		LabelCreate, LabelPatch, LabelDelete,
+		BucketCreate, BucketPatch, BucketDelete,
 		EntityUpsert, EntityPatch, EntityDelete,
 	}
 }
 
-// OnEntity reports whether the kind names an entity rather than an entry.
+// OnEntity reports whether the kind names an entity of the workspace's vocabulary rather than an
+// entry or one of the entry's own records.
 func (k MutationKind) OnEntity() bool {
 	return k == EntityUpsert || k == EntityPatch || k == EntityDelete
 }

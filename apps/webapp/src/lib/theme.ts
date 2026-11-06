@@ -21,6 +21,10 @@
  * that caller.
  */
 
+import { values } from '@hubtask/design-system';
+
+import { platform } from './platform/index.ts';
+
 /** The two modes `tokens.css` defines. */
 export type ThemeMode = 'light' | 'dark';
 
@@ -29,9 +33,12 @@ export interface ThemeTarget {
   setAttribute(name: string, value: string): void;
 }
 
-export function applyTheme(root: ThemeTarget, prefersDark: boolean): ThemeMode {
+export function applyTheme(root: ThemeTarget, prefersDark: boolean, paint = platform.paintBars): ThemeMode {
   const mode: ThemeMode = prefersDark ? 'dark' : 'light';
   root.setAttribute('data-theme', mode);
+  // The Android app's system bars take the bars' surface beside them, the top bar's and the bottom
+  // bar's: a value, because the system cannot read a custom property.
+  paint?.(values[mode].bg.surface, mode === 'dark');
   return mode;
 }
 

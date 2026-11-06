@@ -36,7 +36,7 @@ const journalSetUp = "instance.set_up"
 type WorkspaceSeeder interface {
 	SeedWorkspace(
 		ctx context.Context, actor appshared.ActorContext, tenant domain.Tenant, owner domain.Account,
-		now time.Time,
+		host string, now time.Time,
 	) (shared.ID, shared.ID, error)
 }
 
@@ -51,6 +51,7 @@ type SetUpInstallationCommand struct {
 	Code             string
 	DisplayName      string
 	Slug             string
+	Host             string
 	OwnerEmail       string
 	OwnerDisplayName string
 	Password         secret.Secret
@@ -82,6 +83,10 @@ type SetUpInstallation struct {
 	// Tenancy decides whether a short name is asked for: in single mode it routes nothing and is
 	// derived from the name; in multi mode it is the workspace's subdomain.
 	Tenancy env.TenancyMode
+	// WorkspaceHosts decides, in multi mode, whether the host is asked for beside the short name
+	// (ADR-0095 §6), and InstallationHost is the host it may not be.
+	WorkspaceHosts   env.WorkspaceHosts
+	InstallationHost string
 	// Instance is the installation's level: a file may have seeded its language and zone before
 	// the first workspace exists, and that workspace starts with them. Nil reads nothing.
 	Instance repository.InstanceSettings
@@ -94,7 +99,21 @@ func (h SetUpInstallation) Execute(
 	w := h.Writer
 
 	slug := strings.TrimSpace(cmd.Slug)
+	assigned := h.Tenancy == env.TenancyMulti && h.WorkspaceHosts == env.HostsAssigned
+	var host string
 	switch {
+	case h.Tenancy != env.TenancyMulti && strings.TrimSpace(cmd.Host) != "":
+		return SessionPair{}, shared.ErrValidation.WithDetail("admin.host_not_assigned").
+			WithFields(shared.FieldError{Path: "/host", Code: "admin.host_not_assigned"})
+	case assigned:
+		var err error
+		if host, slug, err = domain.AddressAtCreation(
+			true, cmd.Host, slug, h.InstallationHost, h.Domains); err != nil {
+			return SessionPair{}, err
+		}
+	case h.Tenancy == env.TenancyMulti && strings.TrimSpace(cmd.Host) != "":
+		return SessionPair{}, shared.ErrValidation.WithDetail("admin.host_not_assigned").
+			WithFields(shared.FieldError{Path: "/host", Code: "admin.host_not_assigned"})
 	case h.Tenancy == env.TenancyMulti && slug == "":
 		return SessionPair{}, shared.ErrValidation.WithDetail("setup.short_name_required").
 			WithFields(shared.FieldError{Path: "/slug", Code: "setup.short_name_required"})
@@ -173,7 +192,7 @@ func (h SetUpInstallation) Execute(
 			Kind: appshared.ActorUser, TenantID: tenant.ID, TenantSlug: tenant.Slug,
 			AccountID: owner.ID, AccountName: owner.DisplayName,
 		}
-		hubID, _, err := h.Seeder.SeedWorkspace(ctx, actor, tenant, owner, now)
+		hubID, _, err := h.Seeder.SeedWorkspace(ctx, actor, tenant, owner, host, now)
 		if err != nil {
 			return err
 		}
@@ -301,7 +320,13 @@ func (h SetUpInstallation) Descriptor() usecase.Descriptor {
 			{Name: "display_name", Kind: usecase.KindString, Required: true},
 			{
 				Name: "slug", Kind: usecase.KindString,
-				Description: "Multi mode only, and required there: the workspace's subdomain.",
+				Description: "Multi mode only: the workspace's short name, required with " +
+					"subdomains and made from the host when omitted with assigned hosts.",
+			},
+			{
+				Name: "host", Kind: usecase.KindString,
+				Description: "Multi mode with assigned hosts only, and required there: the host " +
+					"the workspace answers at.",
 			},
 			{Name: "owner_email", Kind: usecase.KindString, Required: true},
 			{Name: "owner_display_name", Kind: usecase.KindString},
@@ -338,6 +363,7 @@ func (h SetUpInstallation) invoke(
 		Code:             in.String("code"),
 		DisplayName:      in.String("display_name"),
 		Slug:             in.String("slug"),
+		Host:             in.String("host"),
 		OwnerEmail:       in.String("owner_email"),
 		OwnerDisplayName: in.String("owner_display_name"),
 		Password:         secret.New(in.String("password")),

@@ -43,7 +43,7 @@ make capacity ITEMS=10000000 TENANTS=2000       # 10⁷, on named hardware only
 
 `capacity_test.go` seeds the dataset into its own container (through files, so 10⁷ rows never sit
 in memory, and in COPY statements of 500 000 rows, so no statement queues ten million rows'
-after-triggers; every entry carries its number, as a restore does - migration 0289), vacuums it,
+after-triggers; every entry carries its number, as a restore does - migration 0296), vacuums it,
 starts the real binary and holds each read path that grows with a workspace - a
 collection's page, an open-entries query sorted by due date, the board grouped by completion, a
 count over the hub, the hub's level - for the largest, a middle and the smallest credentialled
@@ -52,7 +52,7 @@ workspace: 30 s each after a 5 s warm-up, eight callers, paced at 400 requests a
 workspace, which is how the decay with entries per workspace is read. It asserts only that every
 path answered without a server error; what the figures mean is the release tier's to judge, and a
 cell no run filled stays *not measured*. No path writes, so the hub's level is answered from the
-collections' kept figures after the warm-up (migration 0292): it measures the read once a count is
+collections' kept figures after the warm-up (migration 0299): it measures the read once a count is
 kept. The count a write makes the next read pay is the mixed run beside it: for each of the three
 workspaces the hub's level is read by eight callers at 400 a second while two writers add entries
 to its collection at 40 a second, each side recorded on its own (`mixed` in the same file: the

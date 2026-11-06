@@ -33,7 +33,7 @@ FOR UPDATE OF p SKIP LOCKED;
 
 -- name: DeleteTrashedPages :execrows
 -- Takes its versions, comments, references, media rows, articles and live document with it
--- (cascades and migration 0260's trigger).
+-- (cascades and migration 0267's trigger).
 DELETE FROM page p
 WHERE p.tenant_id = current_tenant_id() AND p.id = ANY(sqlc.arg('ids')::uuid[])
   AND p.deleted_at IS NOT NULL AND p.deleted_at < sqlc.arg('cutoff')::timestamptz

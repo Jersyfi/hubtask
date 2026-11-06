@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
-// The hubs and views written before 0286 are given their handles and keys by 0329's batches, past
+// The hubs and views written before 0293 are given their handles and keys by 0336's batches, past
 // its first batch of 500 and oldest first on a clash; a walk stopped in its second batch resumes
 // after the first. The refusing trigger is a deterministic stand-in for a killed migrator.
 func TestHubsAndViewsWrittenBeforeTheStableKeysAreGivenTheirs(t *testing.T) {
@@ -69,7 +69,7 @@ func TestHubsAndViewsWrittenBeforeTheStableKeysAreGivenTheirs(t *testing.T) {
 		t.Fatalf("the first batch gave %d hubs a handle (%v), want 500", given, err)
 	}
 	var position string
-	if err := pool.QueryRow(ctx, `SELECT position FROM migration_cursor WHERE name = '0329_stable_keys_hubs'`).Scan(&position); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT position FROM migration_cursor WHERE name = '0336_stable_keys_hubs'`).Scan(&position); err != nil {
 		t.Fatalf("the stopped walk left no position: %v", err)
 	}
 	for _, statement := range []string{

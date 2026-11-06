@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// PortfolioPublicLinkRepository stores a portfolio roadmap's public link (migration 0322) and finds the one a token
+// PortfolioPublicLinkRepository stores a portfolio roadmap's public link (migration 0329) and finds the one a token
 // names. The token is hashed here and nowhere else: the pepper is this layer's secret.
 type PortfolioPublicLinkRepository struct {
 	hasher security.InboundTokenHasher

@@ -42,7 +42,7 @@ FROM import_run
 WHERE id = $1
 `
 
-// The columns in the table's order - collection_id and dry_run last, as migrations 0200 and 0358
+// The columns in the table's order - collection_id and dry_run last, as migrations 0200 and 0365
 // added them - so that the row is the table's model.
 func (q *Queries) FindImportRun(ctx context.Context, id pgtype.UUID) (ImportRun, error) {
 	row := q.db.QueryRow(ctx, findImportRun, id)

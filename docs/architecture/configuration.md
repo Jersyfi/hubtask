@@ -224,7 +224,7 @@ in one transaction, the template's workspace part where the workspace has not ta
 each as `ApplyConfig` applies it; a refused part leaves no hub, and a template without a hub part is
 `config.template_not_for_hubs`.
 
-A **collection part** (`collection_document`, migration 0310) holds the collection sections of a
+A **collection part** (`collection_document`, migration 0317) holds the collection sections of a
 hub's document (§1: `collection_structure`, `collection_tolerance`, `collection_views`,
 `collection_rules`, `collection_fields`, `collection_attributes`) with each block keyed without a handle, so one part sets up
 any collection; a section of another kind or a key with a handle is refused at publish

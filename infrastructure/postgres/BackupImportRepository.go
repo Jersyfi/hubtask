@@ -69,7 +69,7 @@ func (r BackupImportRepository) Write(
 	}
 	if table == "work_item" {
 		// The trigger dates a restored entry's status from the restore rather than from its
-		// creation, as a stand-in the archive's history replaces where it carries one (0350, 0374).
+		// creation, as a stand-in the archive's history replaces where it carries one (0357, 0381).
 		if err := markRestoring(ctx); err != nil {
 			return false, err
 		}

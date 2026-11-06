@@ -18,7 +18,7 @@ import (
 
 // ui.md A4: a block's draft is saved under the optimistic lock, removed by the apply that put
 // exactly it in force, kept when saved again since, and invisible to the workspace next door
-// (migration 0308).
+// (migration 0315).
 func TestAConfigDraftKeepsItsLockAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -86,7 +86,7 @@ func holdsDraft(drafts []repository.Draft, key string) bool {
 }
 
 // A role's key may be 63 characters long (custom_role, shared.ValidKey), and its draft holds the
-// same key (migrations 0365, 0366).
+// same key (migrations 0372, 0373).
 func TestARoleWithALongKeyIsDrafted(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -25,7 +25,8 @@ const ROOTS = ['apps', 'packages'];
 const ALLOWED = [
   path.join('packages', 'design-system', 'tokens', 'tokens.json'),
 ];
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit']);
+// src-tauri: the shell's Rust and Cargo's build output, which embeds a copy of the built bundle.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit', 'src-tauri']);
 const EXTENSIONS = new Set(['.css', '.ts', '.tsx', '.js', '.jsx', '.html', '.svg', '.json', '.svelte']);
 
 // Colour is checked everywhere; length and duration only in application code.

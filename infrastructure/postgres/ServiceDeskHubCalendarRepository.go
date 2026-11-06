@@ -16,7 +16,7 @@ import (
 
 var _ repository.HubCalendars = ServiceDeskHubCalendars{}
 
-// ServiceDeskHubCalendars is the hubs' own calendars (migration 0270).
+// ServiceDeskHubCalendars is the hubs' own calendars (migration 0277).
 type ServiceDeskHubCalendars struct{}
 
 func (ServiceDeskRepository) HubCalendars() ServiceDeskHubCalendars { return ServiceDeskHubCalendars{} }
@@ -44,7 +44,7 @@ func (ServiceDeskHubCalendars) Insert(ctx context.Context, cal servicedesk.Calen
 		case isUniqueViolation(err):
 			return shared.ErrConflict.WithDetail("calendars.key_taken").WithParams(map[string]string{"key": cal.Key})
 		case isForeignKeyViolation(err):
-			// The hub is gone; the key is the use case's to check (migration 0327).
+			// The hub is gone; the key is the use case's to check (migration 0334).
 			return shared.ErrNotFound.WithDetail("calendars.not_found")
 		}
 		return queryFailed("writing a hub's business calendar", err)

@@ -1,4 +1,4 @@
--- A template's sample entries (migration 0307, configuration.md §6).
+-- A template's sample entries (migration 0314, configuration.md §6).
 
 -- name: InsertSampleEntry :execrows
 -- A key the hub already marks is no second sample: the caller refuses it.
@@ -15,7 +15,7 @@ WHERE s.tenant_id = current_tenant_id() AND s.hub_id = sqlc.arg('hub_id') AND w.
 ORDER BY s.key
 LIMIT 200;
 
--- The workspace's sample content (migration 0377, user-experience.md §3.6).
+-- The workspace's sample content (migration 0384, user-experience.md §3.6).
 
 -- name: InsertSampleObject :one
 -- The same object under the same key again is the same mark; the caller refuses a key that marks

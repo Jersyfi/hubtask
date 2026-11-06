@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// FileLinkRepository stores an entry's files in a store (migration 0276) through the unit of
+// FileLinkRepository stores an entry's files in a store (migration 0283) through the unit of
 // work's transaction (rule 3).
 type FileLinkRepository struct{}
 

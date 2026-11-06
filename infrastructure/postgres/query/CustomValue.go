@@ -17,11 +17,11 @@ import (
 )
 
 // The typed side of a custom field (F-2): ranges, sorts and groupings read `entry_field_value`,
-// which migration 0211's trigger keeps beside the jsonb document. The key is bound as a
+// which migration 0218's trigger keeps beside the jsonb document. The key is bound as a
 // parameter, as everywhere else in this package, and the column is chosen by the shape the use
 // case put on the field - never by a value (ADR-0026).
 
-// customTextLength bounds a text value the way the side table does (migration 0211), so that a
+// customTextLength bounds a text value the way the side table does (migration 0218), so that a
 // cursor's key and a group's key match the stored one.
 const customTextLength = 256
 

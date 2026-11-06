@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// CmdbRepository stores the assets and configuration module (migration 0236) through the unit of
+// CmdbRepository stores the assets and configuration module (migration 0243) through the unit of
 // work's transaction (rule 3).
 type CmdbRepository struct{}
 

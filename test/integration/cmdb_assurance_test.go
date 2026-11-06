@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The CMDB's assurance (migration 0267) answers its own workspace and nobody next door: an
+// The CMDB's assurance (migration 0274) answers its own workspace and nobody next door: an
 // entry's affected CIs, a campaign and its attestations, a group, an asset and an alias.
 func TestTheInventorysAssuranceStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()

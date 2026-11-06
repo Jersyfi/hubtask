@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// InvitationJobRepository reads the queue's last invitation job per account (0362). The job table
+// InvitationJobRepository reads the queue's last invitation job per account (0369). The job table
 // has no row level security, so the statement names the transaction's tenant itself.
 type InvitationJobRepository struct{}
 

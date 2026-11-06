@@ -17,7 +17,7 @@ import (
 )
 
 // DirectoryRepository is the directory's identifiers on account and account_group (migration
-// 0256). Like every repository here it takes no tenant: row level security bounds it.
+// 0263). Like every repository here it takes no tenant: row level security bounds it.
 type DirectoryRepository struct{}
 
 func NewDirectoryRepository() DirectoryRepository { return DirectoryRepository{} }

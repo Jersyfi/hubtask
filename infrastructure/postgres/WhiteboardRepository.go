@@ -18,8 +18,8 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// WhiteboardRepository stores the whiteboard module's boards and their history (migrations 0233,
-// 0234), through the unit of work's transaction (rule 3).
+// WhiteboardRepository stores the whiteboard module's boards and their history (migrations 0240,
+// 0241), through the unit of work's transaction (rule 3).
 type WhiteboardRepository struct{}
 
 // NewWhiteboardRepository answers the store.
@@ -32,7 +32,7 @@ func boardFailed(what string, err error) error {
 }
 
 // sceneElement is an object as the `scene` column stores it: the contract's shape (schema
-// WhiteboardElement), which the trigger of migration 0233 reads for `kind`, `text` and `target`.
+// WhiteboardElement), which the trigger of migration 0240 reads for `kind`, `text` and `target`.
 type sceneElement struct {
 	ID         string       `json:"id"`
 	Kind       string       `json:"kind"`

@@ -198,7 +198,7 @@ are built.
     workspace's oldest owner grant held by somebody else (`run_as`, `owner_id`), stays off, and the
     erasure's `dsr.erased` entry counts what moved and names the new owner; with nobody to take it
     the deletion is refused the same way. Foreign keys over `(tenant_id, run_as)` and
-    `(tenant_id, owner_id)` (migrations 0369 and 0370) refuse any deletion that would leave one
+    `(tenant_id, owner_id)` (migrations 0376 and 0377) refuse any deletion that would leave one
     naming nobody.
   * **What each step keeps.** A row on an entry is kept when a hold covers the entry: the workspace,
     its hub or collection, the entry or one above it, or the account that created it - so the

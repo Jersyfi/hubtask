@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
-// A view's key (migration 0286): drawn from the name and numbered on a clash in the same scope,
+// A view's key (migration 0293): drawn from the name and numbered on a clash in the same scope,
 // the writer's own kept, a taken one refused rather than renamed, and another workspace's views
 // never counted - a key is unique where the view lives, not across workspaces.
 func TestAViewsKeyIsUniqueWhereItLives(t *testing.T) {

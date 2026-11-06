@@ -1,4 +1,4 @@
--- The assets and configuration module (migration 0236, M6). The tenant is the transaction's in
+-- The assets and configuration module (migration 0243, M6). The tenant is the transaction's in
 -- every statement (ADR-0010).
 
 -- name: ListCmdbClasses :many

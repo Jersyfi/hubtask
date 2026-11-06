@@ -31,7 +31,7 @@ UPDATE account SET
   email            = NULL,
   sign_in_name     = NULL,
   external_subject = NULL,
-  -- The directory's identifier of the person (migration 0256): personal, so it goes too.
+  -- The directory's identifier of the person (migration 0263): personal, so it goes too.
   external_id      = NULL,
   password_hash    = NULL,
   start_password_at = NULL,
@@ -338,7 +338,7 @@ const deleteChatLinksOfAccount = `-- name: DeleteChatLinksOfAccount :execrows
 DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = $1
 `
 
-// A chat account linked to the person names them on the platform (migration 0321).
+// A chat account linked to the person names them on the platform (migration 0328).
 func (q *Queries) DeleteChatLinksOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteChatLinksOfAccount, accountID)
 	if err != nil {
@@ -644,7 +644,7 @@ DELETE FROM automation_rule
 WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = $1
 `
 
-// The person's own rules (scope PERSON, migration 0312): their configuration, gone with them
+// The person's own rules (scope PERSON, migration 0319): their configuration, gone with them
 // whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.
 func (q *Queries) DeletePersonalRulesOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, deletePersonalRulesOfAccount, accountID)
@@ -1251,7 +1251,7 @@ type IntegrationsNamingAccountRow struct {
 }
 
 // Every connector, hook and agent that still names the account, switched on or off: what a full
-// deletion must have moved before the account row goes (0369's foreign keys refuse it otherwise).
+// deletion must have moved before the account row goes (0376's foreign keys refuse it otherwise).
 func (q *Queries) IntegrationsNamingAccount(ctx context.Context, accountID pgtype.UUID) (IntegrationsNamingAccountRow, error) {
 	row := q.db.QueryRow(ctx, integrationsNamingAccount, accountID)
 	var i IntegrationsNamingAccountRow

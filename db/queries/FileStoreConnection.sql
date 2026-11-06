@@ -1,4 +1,4 @@
--- A person's own sign-in to a file store (migration 0279, UC-INT-17).
+-- A person's own sign-in to a file store (migration 0286, UC-INT-17).
 
 -- name: ListFileStoreConnections :many
 SELECT id, account_id, kind, server, login, created_at, used_at

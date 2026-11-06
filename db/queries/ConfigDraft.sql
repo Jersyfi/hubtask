@@ -1,4 +1,4 @@
--- Drafts of the configuration's shared blocks (migration 0308, ui.md A4).
+-- Drafts of the configuration's shared blocks (migration 0315, ui.md A4).
 
 -- name: SaveConfigDraft :one
 -- The first save writes version 1; a later one moves the version only when expected is the stored

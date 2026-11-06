@@ -39,12 +39,12 @@ func TestEveryEmbeddedIndexBuildIsFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(builds["wi_status_idx"], "ON work_item") {
-		t.Errorf("0217's build was not found: %q", builds["wi_status_idx"])
+		t.Errorf("0224's build was not found: %q", builds["wi_status_idx"])
 	}
 }
 
 // An interrupted CREATE INDEX CONCURRENTLY left wi_status_idx invalid and the retry's IF NOT
-// EXISTS recorded 0217 as applied over it; the next run builds it again.
+// EXISTS recorded 0224 as applied over it; the next run builds it again.
 func TestAnIndexLeftInvalidByAnInterruptedBuildIsBuiltAgain(t *testing.T) {
 	if testing.Short() {
 		t.Skip("this test starts a database")
@@ -62,8 +62,8 @@ func TestAnIndexLeftInvalidByAnInterruptedBuildIsBuiltAgain(t *testing.T) {
 	}
 	goose.SetLogger(goose.NopLogger())
 	goose.SetBaseFS(db.Migrations)
-	if err := goose.UpToContext(ctx, pool, "migrations", 217); err != nil {
-		t.Fatalf("bringing the database to 0217: %v", err)
+	if err := goose.UpToContext(ctx, pool, "migrations", 224); err != nil {
+		t.Fatalf("bringing the database to 0224: %v", err)
 	}
 	// What the interrupted build leaves, as the catalogue sees it.
 	if _, err := pool.ExecContext(ctx,

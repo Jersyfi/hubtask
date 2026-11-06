@@ -1,4 +1,4 @@
--- Links and references (migration 0213, F-3, UC-PLN-01). A workspace's own link types only: the
+-- Links and references (migration 0220, F-3, UC-PLN-01). A workspace's own link types only: the
 -- six shipped ones are the domain's and have no row.
 
 -- name: ListLinkTypes :many

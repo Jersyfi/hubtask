@@ -19,7 +19,7 @@ import (
 )
 
 // ServiceDeskRepository stores business calendars, SLA policies and entries' SLA records
-// (migration 0240).
+// (migration 0247).
 type ServiceDeskRepository struct{}
 
 func NewServiceDeskRepository() ServiceDeskRepository { return ServiceDeskRepository{} }

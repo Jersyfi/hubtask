@@ -133,7 +133,7 @@ WHERE tenant_id = current_tenant_id()
 ORDER BY key
 `
 
-// Workflows and the scheme (migration 0216, UC-FLW-02 … 05). A workspace's rows only: the shipped
+// Workflows and the scheme (migration 0223, UC-FLW-02 … 05). A workspace's rows only: the shipped
 // workflow a workspace has never used or changed is the domain's and has none.
 func (q *Queries) ListWorkflows(ctx context.Context) ([]Workflow, error) {
 	rows, err := q.db.Query(ctx, listWorkflows)

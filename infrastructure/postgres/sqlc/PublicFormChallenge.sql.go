@@ -16,7 +16,7 @@ const pruneSpentChallenges = `-- name: PruneSpentChallenges :exec
 DELETE FROM public_form_challenge WHERE expires_at <= $1
 `
 
-// A public form's spent challenges (migration 0319). Row level security bounds every statement to
+// A public form's spent challenges (migration 0326). Row level security bounds every statement to
 // the transaction's tenant (ADR-0010).
 // The workspace's expired challenges; a challenge lives minutes, so the set stays small.
 func (q *Queries) PruneSpentChallenges(ctx context.Context, now pgtype.Timestamptz) error {

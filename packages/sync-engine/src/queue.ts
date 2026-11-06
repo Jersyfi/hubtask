@@ -16,13 +16,37 @@
 import type { Storage } from './ports.ts';
 import { collectionOf, Replica, META } from './replica.ts';
 import type {
-  ChangeRecord, ConflictRecord, MutationKind, PendingMutation, QueuedWrite, RefusedField, RejectedMutation, StoredRecord,
+  ChangeRecord, ConflictRecord, MutationKind, PendingMutation, QueuedKind, QueuedWrite, RefusedField, RejectedMutation, StoredRecord,
   SyncMutation, SyncMutationResult,
 } from './schema.ts';
 
 export const QUEUE = 'queue';
 export const REJECTED = 'rejected';
 export const CONFLICTS = 'conflicts';
+/** Where a captured file's bytes wait, under its operation's identifier, until they are up. */
+export const FILES = 'files';
+
+/**
+ * What a kind beyond the entry's is about (offline-sync.md §4.2): the entity its records carry
+ * and how it travels - whole on creation and deletion, field by field between. Undefined for the
+ * entry's own kinds and for applying a template, which predicts nothing: its entries arrive as
+ * ordinary creations with the next pull.
+ */
+export function familyOf(kind: QueuedKind): { entity: string; shape: 'CREATE' | 'PATCH' | 'DELETE' } | undefined {
+  const match = /^(REMINDER|RECURRENCE|CONTAINER|LABEL|BUCKET)_(CREATE|PATCH|DELETE)$/.exec(kind);
+  if (!match?.[1] || !match[2]) return undefined;
+  const entity = { REMINDER: 'reminder', RECURRENCE: 'recurrence_rule', CONTAINER: 'container', LABEL: 'label', BUCKET: 'bucket' }[match[1]];
+  return entity ? { entity, shape: match[2] as 'CREATE' | 'PATCH' | 'DELETE' } : undefined;
+}
+
+/** The entity and identifier a queued write's prediction and answer are filed under. */
+export function subjectOf(write: { kind: QueuedKind; itemId: string; entityId?: string; entity?: unknown; payload?: Readonly<Record<string, unknown>> }, opId: string): { entity: string; id: string } {
+  if (onEntity(write.kind)) return { entity: String(write.entity ?? ''), id: write.itemId };
+  const family = familyOf(write.kind);
+  if (family) return { entity: family.entity, id: write.entityId ?? '' };
+  if (write.kind === 'COMMENT_ADD') return { entity: 'comment', id: String(write.payload?.id ?? opId) };
+  return { entity: 'item', id: write.itemId };
+}
 
 /** The next sequence number, kept in the store so a reload continues the order. */
 async function nextSeq(storage: Storage): Promise<number> {
@@ -38,8 +62,29 @@ export function mutationOf(write: QueuedWrite, opId: string, stamp: () => string
   // record, which is no entry's, and the contract reads it as one.
   const mutation: Record<string, unknown> = onEntity(write.kind)
     ? { op_id: opId, kind: write.kind, entity: write.entity, entity_key: write.entityKey }
-    : { op_id: opId, kind: write.kind, item_id: write.itemId };
+    : { op_id: opId, kind: write.kind };
+  if (!onEntity(write.kind)) {
+    if (write.itemId) mutation.item_id = write.itemId;
+    if (write.entityId) mutation.entity_id = write.entityId;
+    if (write.containerId) mutation.container_id = write.containerId;
+  }
   if (write.baseVersion !== undefined) mutation.base_version = write.baseVersion;
+  const family = familyOf(write.kind);
+  if (family?.shape === 'PATCH') {
+    const fields: Record<string, { value: unknown; hlc: string }> = {};
+    for (const [field, value] of Object.entries(write.fields ?? {})) fields[field] = { value, hlc: stamp() };
+    mutation.fields = fields;
+    return mutation as SyncMutation;
+  }
+  if (family?.shape === 'CREATE' || write.kind === 'TEMPLATE_APPLY') {
+    mutation.payload = { ...(write.payload ?? {}) };
+    mutation.hlc = stamp();
+    return mutation as SyncMutation;
+  }
+  if (family?.shape === 'DELETE') {
+    mutation.hlc = stamp();
+    return mutation as SyncMutation;
+  }
   switch (write.kind) {
     case 'ITEM_PATCH': {
       const fields: Record<string, { value: unknown; hlc: string }> = {};
@@ -70,7 +115,7 @@ export function mutationOf(write: QueuedWrite, opId: string, stamp: () => string
 }
 
 /** Whether a kind writes the workspace's vocabulary rather than an entry (§4.4). */
-export function onEntity(kind: MutationKind): boolean {
+export function onEntity(kind: QueuedKind): boolean {
   return kind === 'ENTITY_UPSERT' || kind === 'ENTITY_PATCH' || kind === 'ENTITY_DELETE';
 }
 
@@ -112,6 +157,7 @@ export class Queue {
       seq: await nextSeq(this.#storage),
       kind: write.kind,
       itemId: write.itemId,
+      ...(write.entityId ? { entityId: write.entityId } : {}),
       mutation,
       ...(write.invalidates ? { invalidates: write.invalidates } : {}),
       queuedAt: at,
@@ -131,6 +177,16 @@ export class Queue {
       const held = await this.#storage.get<StoredRecord<Record<string, unknown>>>(collection, id);
       if (held) await this.#storage.put(collection, id, { ...held, pending: true, seenAt: at });
     };
+    const family = familyOf(write.kind);
+    if (family && write.entityId) {
+      const id = write.entityId;
+      if (family.shape === 'DELETE') return this.#replica.apply(record('DELETE', family.entity, id));
+      const document = family.shape === 'CREATE'
+        ? { ...(write.payload ?? {}), id, ...(write.itemId ? { item_id: write.itemId } : {}), version: 0 }
+        : { ...(write.fields ?? {}) };
+      await this.#replica.apply(record('UPSERT', family.entity, id, document));
+      return mark(collectionOf(family.entity), id);
+    }
     switch (write.kind) {
       case 'ITEM_CREATE':
         await this.#replica.apply(record('UPSERT', 'item', write.itemId, {
@@ -200,8 +256,17 @@ export class Queue {
    */
   async settle(pending: PendingMutation, result: SyncMutationResult, at: number): Promise<void> {
     await this.#storage.delete(QUEUE, pending.id);
-    const entity = entityOf(pending);
-    const entityId = result.entity_id ?? (pending.kind === 'COMMENT_ADD' ? String((pending.mutation.payload as { id?: string } | undefined)?.id ?? pending.id) : pending.itemId);
+    await this.#storage.delete(FILES, pending.id);
+    const subject = subjectOf({
+      ...pending, entity: pending.mutation.entity, payload: pending.mutation.payload as Record<string, unknown> | undefined,
+    }, pending.id);
+    const entity = subject.entity;
+    const entityId = result.entity_id ?? subject.id;
+    if (pending.kind === 'TEMPLATE_APPLY' && result.result !== 'REJECTED') {
+      // Nothing was predicted, and the answer names the stamp rather than a document: the entries
+      // arrive as ordinary creations with the next pull.
+      return;
+    }
     if (onEntity(pending.kind) && entityId !== pending.itemId) {
       // A vocabulary entry created offline was predicted under an identifier minted here; the
       // server names it by its own, so the prediction goes and the answer takes its place.
@@ -262,7 +327,7 @@ export class Queue {
   async #adopt(entity: string, entityId: string, state: Record<string, unknown> | null, pending: PendingMutation): Promise<void> {
     if (state) {
       await this.#replica.apply(record('UPSERT', entity, entityId, { ...state, id: entityId }));
-    } else if (pending.kind === 'ITEM_DELETE' || pending.kind === 'ENTITY_DELETE') {
+    } else if (pending.kind === 'ITEM_DELETE' || pending.kind === 'ENTITY_DELETE' || familyOf(pending.kind)?.shape === 'DELETE') {
       await this.#replica.apply(record('DELETE', entity, entityId));
       return;
     }
@@ -284,11 +349,78 @@ export class Queue {
   async revoked(mutations: readonly PendingMutation[], at: number): Promise<void> {
     for (const pending of mutations) {
       await this.#storage.delete(QUEUE, pending.id);
+      await this.#storage.delete(FILES, pending.id);
       await this.#storage.put<RejectedMutation>(REJECTED, pending.id, {
         id: pending.id, kind: pending.kind, itemId: pending.itemId, code: 'sync.device_revoked',
         local: localOf(pending.mutation), at,
       });
     }
+  }
+
+  /**
+   * A file captured offline (the installed apps' alone): its bytes into the store under the
+   * operation's identifier, and a queued step that uploads them when the server answers and then
+   * becomes the `SET_ADD` that attaches the object - in the order the person worked, so a change
+   * made after the capture is pushed after the attachment.
+   */
+  async capture(
+    capture: { itemId: string; fileName: string | null; contentType: string | null; size: number; bytes: unknown; invalidates?: readonly string[] },
+    opId: string,
+    at: number,
+  ): Promise<PendingMutation> {
+    const pending: PendingMutation = {
+      id: opId,
+      seq: await nextSeq(this.#storage),
+      kind: 'ATTACHMENT_CAPTURE',
+      itemId: capture.itemId,
+      mutation: { op_id: opId, kind: 'SET_ADD', item_id: capture.itemId, set: 'attachments' } as SyncMutation,
+      file: { fileName: capture.fileName, contentType: capture.contentType, size: capture.size },
+      ...(capture.invalidates ? { invalidates: capture.invalidates } : {}),
+      queuedAt: at,
+      attempts: 0,
+    };
+    await this.#storage.put(FILES, opId, { bytes: capture.bytes });
+    await this.#storage.put(QUEUE, opId, pending);
+    const held = await this.#storage.get<StoredRecord<Record<string, unknown>>>('items', capture.itemId);
+    if (held) await this.#storage.put('items', capture.itemId, { ...held, pending: true, seenAt: at });
+    return pending;
+  }
+
+  /** The bytes a captured file holds in the store, or undefined once they are gone. */
+  async bytesOf(pending: PendingMutation): Promise<unknown> {
+    return (await this.#storage.get<{ bytes: unknown }>(FILES, pending.id))?.bytes;
+  }
+
+  /**
+   * The bytes are up and the object is ready: the step becomes the `SET_ADD` it waited to be, in
+   * its place in the order, and the bytes leave the store.
+   */
+  async uploaded(pending: PendingMutation, mediaId: string, hlc: string): Promise<PendingMutation> {
+    const attach: PendingMutation = {
+      ...pending,
+      kind: 'SET_ADD',
+      mutation: { ...pending.mutation, element: mediaId, hlc } as SyncMutation,
+    };
+    const { file: _file, ...rest } = attach;
+    await this.#storage.put(QUEUE, pending.id, rest);
+    await this.#storage.delete(FILES, pending.id);
+    return rest;
+  }
+
+  /**
+   * The server refused the file - too large, a type it does not take, the quota spent: shown on
+   * the change with its code (§9.5), as any refusal is, and the bytes leave the store.
+   */
+  async refusedUpload(pending: PendingMutation, code: string, messageCode: string | undefined, at: number): Promise<void> {
+    await this.#storage.delete(QUEUE, pending.id);
+    await this.#storage.delete(FILES, pending.id);
+    await this.#storage.put<RejectedMutation>(REJECTED, pending.id, {
+      id: pending.id, kind: pending.kind, itemId: pending.itemId, code,
+      ...(messageCode ? { messageCode } : {}),
+      local: { file_name: pending.file?.fileName ?? null, size: pending.file?.size ?? 0 },
+      at,
+    });
+    await this.#unmark('item', pending.itemId);
   }
 
   /** A push that never reached the server: the mutations stay, one attempt older. */

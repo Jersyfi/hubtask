@@ -70,7 +70,7 @@ const (
 		`wi.trash_batch_id, ` +
 		`wi.created_by, wi.created_at, wi.updated_at, wi.version, wi.number, wi.entry_type, wi.status`
 
-	// What a retention run marked is read from its side table (F-10, migration 0227); every
+	// What a retention run marked is read from its side table (F-10, migration 0234); every
 	// statement that selects itemColumns joins it.
 	retentionJoin = ` LEFT JOIN work_item_retention rt ON rt.tenant_id = wi.tenant_id AND rt.item_id = wi.id`
 
@@ -220,7 +220,7 @@ func (b *builder) columns(search repository.ItemSearch, group string, known []vi
 
 // skipsThrough reports whether a board's columns can be found by skipping through an index rather
 // than by numbering the scope: a board column or a status, over one collection's top entries,
-// without the trash - exactly what migration 0364's indexes hold.
+// without the trash - exactly what migration 0371's indexes hold.
 func skipsThrough(search repository.ItemSearch) bool {
 	name := search.Spec.GroupBy.Field.Name
 	return (name == view.FieldBucketID || name == view.FieldStatus) &&
@@ -534,7 +534,7 @@ func (b *builder) wordMatch(search repository.TextSearch) {
 
 // attachedMatch writes the branches that find an entry by what is attached to it rather than by its
 // own document (F-9): a living comment on it, one of its text-valued custom fields, or the name of
-// a file attached to it. Under `simple` and written as migrations 0225 and 0226 indexed them, since
+// a file attached to it. Under `simple` and written as migrations 0232 and 0233 indexed them, since
 // the planner matches an expression index by its tree. The entry is still the hit: what the actor may see is decided for entries,
 // and a comment is readable exactly where its entry is.
 func (b *builder) attachedMatch(words string) {
@@ -558,7 +558,7 @@ func (b *builder) attachedMatch(words string) {
 	b.write(`)`)
 }
 
-// attachmentName is migration 0226's indexed expression, verbatim: a file's name with the dot, the
+// attachmentName is migration 0233's indexed expression, verbatim: a file's name with the dot, the
 // underscore and the hyphen read as spaces, so "budget_2026.pdf" holds the word "budget".
 const attachmentName = `to_tsvector('simple'::regconfig, translate(mo.file_name, '._-', '   '))`
 

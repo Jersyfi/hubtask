@@ -24,6 +24,14 @@ type OpsController struct {
 	// deliberately: the series say what runs, how much of it, and how slowly
 	// (observability-reliability.md §3.2).
 	Metrics http.Handler
+	// Certificates answers the ingress whether a host may have a certificate (ADR-0095 §5); nil
+	// answers no for every host.
+	Certificates CertificateQuestion
+}
+
+// CertificateQuestion is the application's answer to the ingress's question.
+type CertificateQuestion interface {
+	Allowed(ctx context.Context, host string) (bool, error)
 }
 
 func (c OpsController) Routes() http.Handler {
@@ -65,6 +73,28 @@ func (c OpsController) Routes() http.Handler {
 	if c.Metrics != nil {
 		mux.Handle("GET /metrics", c.Metrics)
 	}
+
+	// The ingress's question before it obtains a certificate on demand: 200 for a workspace's
+	// serving host, 404 for every other - the shape an on-demand ingress's `ask` expects. On this
+	// port only: the public network cannot use it to learn which hosts are served.
+	mux.HandleFunc("GET /tls/allowed", func(w http.ResponseWriter, r *http.Request) {
+		defer concurrency.Recover(r.Context(), "ops.tls_allowed")
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if c.Certificates == nil {
+			writeText(w, http.StatusNotFound, "no")
+			return
+		}
+		allowed, err := c.Certificates.Allowed(ctx, r.URL.Query().Get("domain"))
+		switch {
+		case err != nil:
+			writeText(w, http.StatusServiceUnavailable, "unavailable")
+		case allowed:
+			writeText(w, http.StatusOK, "ok")
+		default:
+			writeText(w, http.StatusNotFound, "no")
+		}
+	})
 
 	// The deep self-diagnosis, unauthenticated, on the internal port.
 	//

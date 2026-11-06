@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// CodeForgeRepository stores a hub's forge hooks and an entry's code links (migration 0275)
+// CodeForgeRepository stores a hub's forge hooks and an entry's code links (migration 0282)
 // through the unit of work's transaction (rule 3).
 type CodeForgeRepository struct{}
 

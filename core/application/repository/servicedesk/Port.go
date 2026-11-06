@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package servicedesk is the persistence port of the service desk's building blocks: business
-// calendars, SLA policies and each entry's SLA record (migration 0240).
+// calendars, SLA policies and each entry's SLA record (migration 0247).
 package servicedesk
 
 import (
@@ -36,7 +36,7 @@ type Calendars interface {
 	Delete(ctx context.Context, key string) error
 }
 
-// HubCalendars stores the hubs' own versions of the workspace's calendars (migration 0270): one
+// HubCalendars stores the hubs' own versions of the workspace's calendars (migration 0277): one
 // per hub and key, under a key the workspace holds.
 type HubCalendars interface {
 	// Insert writes a hub's calendar; one the hub holds under the key is `calendars.key_taken`.
@@ -48,7 +48,7 @@ type HubCalendars interface {
 	OfHub(ctx context.Context, hubID shared.ID) ([]servicedesk.Calendar, error)
 	Delete(ctx context.Context, hubID shared.ID, key string) error
 	// KeyHeld answers whether any hub keeps its own version of the key. The key itself is the
-	// use case's to check: the installation's calendars are no rows (migration 0327).
+	// use case's to check: the installation's calendars are no rows (migration 0334).
 	KeyHeld(ctx context.Context, key string) (bool, error)
 }
 
@@ -97,7 +97,7 @@ type ReplyTemplates interface {
 	Delete(ctx context.Context, key string) error
 }
 
-// Ratings stores how satisfied requesters were, one per request (migration 0243).
+// Ratings stores how satisfied requesters were, one per request (migration 0250).
 type Ratings interface {
 	// Save writes the request's rating, replacing an earlier one, and answers it as stored.
 	Save(ctx context.Context, rating servicedesk.Rating) (servicedesk.Rating, error)
@@ -106,7 +106,7 @@ type Ratings interface {
 }
 
 // Approvals stores the approvals a step opens, their decisions and people's delegations
-// (migration 0268).
+// (migration 0275).
 type Approvals interface {
 	// Insert writes a new approval; an entry already waiting on one is `approvals.pending`.
 	Insert(ctx context.Context, approval servicedesk.Approval) error
@@ -137,7 +137,7 @@ type Approvals interface {
 	EndDelegation(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
-// Organisations stores a workspace's portal organisations (migration 0287): requesters grouped by
+// Organisations stores a workspace's portal organisations (migration 0294): requesters grouped by
 // mail domain, a domain in at most one of them.
 type Organisations interface {
 	// Insert writes a new organisation; a key the workspace holds is `organisations.key_taken`, a

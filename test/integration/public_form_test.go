@@ -21,7 +21,7 @@ import (
 )
 
 // UC-SVC-13 check 1: a public form is found by its token in its own workspace alone, a new link
-// replaces the old, and taking it away leaves nothing to find (migration 0302).
+// replaces the old, and taking it away leaves nothing to find (migration 0309).
 func TestAPublicFormIsFoundByItsTokenInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

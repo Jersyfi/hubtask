@@ -40,7 +40,7 @@ func seedCodeEntry(ctx context.Context, t *testing.T, tenant shared.ID) (hub, it
 }
 
 // A hook and its links are read as written, a delivery is seen once, and the workspace next door
-// finds none of them (migration 0275, UC-INT-13).
+// finds none of them (migration 0282, UC-INT-13).
 func TestACodeLinkStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	hub, item := seedCodeEntry(ctx, t, tenantA)

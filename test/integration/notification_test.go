@@ -468,7 +468,7 @@ func TestThePreferencesOfAnotherTenantAreNotListed(t *testing.T) {
 	}
 }
 
-// A portal requester's reply notice is a category the table takes (migration 0295), read back as
+// A portal requester's reply notice is a category the table takes (migration 0302), read back as
 // written.
 func TestARequestReplyIsWrittenAndReadBack(t *testing.T) {
 	ctx := context.Background()
@@ -484,7 +484,7 @@ func TestARequestReplyIsWrittenAndReadBack(t *testing.T) {
 	}
 }
 
-// A rule's notice is a category the table takes (migration 0316, UC-AUT-09), and so is a
+// A rule's notice is a category the table takes (migration 0323, UC-AUT-09), and so is a
 // person's switch of it.
 func TestARuleNoticeIsWrittenAndReadBack(t *testing.T) {
 	ctx := context.Background()

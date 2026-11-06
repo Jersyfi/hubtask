@@ -1,4 +1,4 @@
--- A file in a store on an entry (migration 0276, UC-INT-14).
+-- A file in a store on an entry (migration 0283, UC-INT-14).
 
 -- name: ListFileLinks :many
 SELECT id, item_id, provider, address, name, added_by, added_at

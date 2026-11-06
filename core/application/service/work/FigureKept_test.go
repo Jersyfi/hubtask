@@ -77,7 +77,7 @@ func figureKeptReader(store *figureStore, kept *keptStore, jobs FigureJobs, at t
 }
 
 // A kept count answers while its collection is unchanged; a change makes the read count again and
-// keep the new count at the number read before counting (migration 0292).
+// keep the new count at the number read before counting (migration 0299).
 func TestAKeptFigureAnswersOnlyWhileItsCollectionIsUnchanged(t *testing.T) {
 	collection := countedCollection(collectionID)
 	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureProgress, domain.ItemTask, domain.ItemWorkPackage)}

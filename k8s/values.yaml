@@ -46,6 +46,9 @@ roles:
 
 config:
   tenancyMode: multi
+  # `subdomain` behind a wildcard certificate, or `assigned`: a host the operator names for each
+  # workspace when it is created (deployment.md §6.1). An installation with workspaces keeps its choice.
+  workspaceHosts: subdomain
   baseUrl: ""
   logFormat: json
   logLevel: info

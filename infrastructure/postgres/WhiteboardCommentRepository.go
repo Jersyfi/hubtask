@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// InsertComment writes a board's comment (migration 0266).
+// InsertComment writes a board's comment (migration 0273).
 func (WhiteboardRepository) InsertComment(ctx context.Context, comment whiteboard.Comment) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

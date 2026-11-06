@@ -27,6 +27,20 @@ func dataFeedRoot(base, token string) string {
 	return strings.TrimRight(base, "/") + path
 }
 
+// feedBase is the main address of the workspace the feed's token names (ADR-0095 §2), read once
+// the feed is known to stand; one that cannot be read leaves the service root relative.
+func (c *FeedDoor) feedBase(r *http.Request, presented string) string {
+	token, err := integration.ParseFeedToken(presented)
+	if err != nil {
+		return ""
+	}
+	address, err := c.linkBase(r.Context(), token.TenantID())
+	if err != nil {
+		return ""
+	}
+	return address
+}
+
 // dataFeed reads the feed's rows, or answers the one refusal and false.
 func (c *FeedDoor) dataFeed(w http.ResponseWriter, r *http.Request, presented string) ([]odata.Entry, bool) {
 	requestID := correlation.RequestIDFrom(r.Context())
@@ -79,7 +93,7 @@ func (c *FeedDoor) GetDataFeedService(w http.ResponseWriter, r *http.Request, to
 		return
 	}
 	odataHeaders(w)
-	writeJSON(w, r, http.StatusOK, odata.Service(dataFeedRoot(c.BaseURL, token)))
+	writeJSON(w, r, http.StatusOK, odata.Service(dataFeedRoot(c.feedBase(r, token), token)))
 }
 
 // GetDataFeedMetadata answers GET /odata/{token}/$metadata.
@@ -108,5 +122,5 @@ func (c *FeedDoor) GetDataFeedEntries(w http.ResponseWriter, r *http.Request, to
 		page.Top, page.HasTop = *params.Top, true
 	}
 	odataHeaders(w)
-	writeJSON(w, r, http.StatusOK, odata.Entries(dataFeedRoot(c.BaseURL, token), rows, page))
+	writeJSON(w, r, http.StatusOK, odata.Entries(dataFeedRoot(c.feedBase(r, token), token), rows, page))
 }

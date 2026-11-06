@@ -15,7 +15,7 @@ import (
 )
 
 // configuration.md §6: a page a template brought to a hub is marked once per key, listed while it
-// is out of the trash, and invisible to the workspace next door (migration 0309).
+// is out of the trash, and invisible to the workspace next door (migration 0316).
 func TestATemplatePageIsMarkedOnceAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

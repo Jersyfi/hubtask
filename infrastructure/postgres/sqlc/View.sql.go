@@ -99,7 +99,7 @@ type InsertSavedViewParams struct {
 // visible fields: this table is a bookmark shelf, and what a bookmark opens into is decided by
 // whoever opens it, under their own authorisation.
 // The key is the writer's, or drawn from the name by the store when it names none (migration
-// 0286); the statement answers the one stored.
+// 0293); the statement answers the one stored.
 func (q *Queries) InsertSavedView(ctx context.Context, arg InsertSavedViewParams) (*string, error) {
 	row := q.db.QueryRow(ctx, insertSavedView,
 		arg.ID,

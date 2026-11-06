@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// SampleObjectRepository stores the marks of the workspace's sample content (migration 0377).
+// SampleObjectRepository stores the marks of the workspace's sample content (migration 0384).
 type SampleObjectRepository struct{}
 
 var _ repository.SampleMarks = SampleObjectRepository{}

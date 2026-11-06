@@ -318,7 +318,7 @@ type DatabaseHorizonRow struct {
 // How close the database is to the limits that stop every write (alerts A-36, A-37): the share of
 // the NOTIFY queue a stuck listener has filled - once full, every transaction that notifies fails
 // at commit - and the transaction-ID age vacuum has not yet frozen, which at about two billion
-// makes PostgreSQL refuse writes (migration 0353); and the database's size on disk, which alert
+// makes PostgreSQL refuse writes (migration 0360); and the database's size on disk, which alert
 // A-42 holds against the operator's budget before the volume or the plan runs out.
 func (q *Queries) DatabaseHorizon(ctx context.Context) (DatabaseHorizonRow, error) {
 	row := q.db.QueryRow(ctx, databaseHorizon)
@@ -797,12 +797,12 @@ type LatestInvitationDeliveriesRow struct {
 	MailSentAt      pgtype.Timestamptz
 }
 
-// How the last invitation mail to each of these accounts went (0362): the newest job of the
+// How the last invitation mail to each of these accounts went (0369): the newest job of the
 // invitation kind per account, whose dedupe key is the account. The tenant is named, as in every
 // statement here. No payload is read: it holds identifiers only, and the answer needs none.
 //
 // The job only records the notification and queues its delivery, so once it has succeeded what
-// the mail did is the newest INVITATION notification of the account written since (0363): sent,
+// the mail did is the newest INVITATION notification of the account written since (0370): sent,
 // failed or suppressed, with its reason code. Account identifiers are compared as text, the form
 // the dedupe key has.
 func (q *Queries) LatestInvitationDeliveries(ctx context.Context, arg LatestInvitationDeliveriesParams) ([]LatestInvitationDeliveriesRow, error) {
@@ -839,7 +839,7 @@ const oldestTransactionSeconds = `-- name: OldestTransactionSeconds :one
 SELECT oldest_transaction_seconds()::float8 AS seconds
 `
 
-// The oldest open transaction's age in seconds (migration 0331, alert A-25).
+// The oldest open transaction's age in seconds (migration 0338, alert A-25).
 func (q *Queries) OldestTransactionSeconds(ctx context.Context) (float64, error) {
 	row := q.db.QueryRow(ctx, oldestTransactionSeconds)
 	var seconds float64

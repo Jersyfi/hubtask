@@ -586,6 +586,14 @@ written onto the session when it opens: a tightened bound reaches new sessions o
 
 * The web app keeps both tokens in `sessionStorage`, never longer than the tab; signing out ends the
   session at the server and discards the copy.
+* An installed app keeps a pair per workspace it holds, with the workspace's address and the
+  account, in the system's keystore through the shell (one entry per workspace's origin) and the
+  open workspace's in the page's memory - never in the webview's storage - so a restart signs nobody
+  out; signing out ends the session, withdraws the app's grant (§15.3) and removes the entry and the
+  copy. *Forget this workspace* does the same for any workspace the app holds, with that
+  workspace's own pair, and takes it off the app's list; forgotten while its server cannot be
+  reached, the copy and its key go at once and the grant is withdrawn by the next start that
+  reaches it, its entry kept until then.
 * A client exchanges the refresh token in **one place, once per refusal**: a `401` gets one refresh
   and one retry, concurrent requests sharing the exchange in flight.
 * A credential is never put in a URL, a log, a message or the DOM beyond its field. One arriving in
@@ -634,12 +642,35 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
 * Issued tokens are the session pair of §14 leashed to the **grant**: the session carries its
   scopes, revoking the grant ends its sessions, and every act through it is audited with the client
   as an actor attribute. Grants are listed per account with client, scopes and last use.
-* *Decided, not built - milestone F7* ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)):
-  the Hubtask apps are a **built-in public client** every workspace knows without registering it,
-  with no secret; its redirect is a loopback address on any port (desktop) or
-  `eu.hubtask.app:/oauth` (Android) and nothing else. The flow opens in the system browser at the
-  workspace's host, the consent names the app and the device, and the grant carries a session's
-  scopes (§15.4).
+* **The installed apps are a built-in public client**
+  ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)): one
+  identifier in every workspace of every installation (`AppClientID`, answered as `app_client_id`
+  by `/meta/capabilities`), no secret, no registration. Its redirect is `http://127.0.0.1` or
+  `http://[::1]` on any port with the path `/oauth` on the desktop - never `localhost`, which a hosts
+  file can point elsewhere - and exactly `eu.hubtask.app:/oauth` on Android (RFC 8252 §7.3, §7.1);
+  nothing else, and `S256` as for any client. The app asks for no scope: the consent names the
+  device and its system (`device`, `platform`), and the grant carries a session's scopes (§15.4).
+  Each consent writes a client row of its own, marked with the platform and named by the device
+  (migration 0214), so two devices are two grants signed out one by one; the registry lists only
+  registered clients, and such a row presented by its own identifier is no client. The exchange
+  names the built-in identifier and finds the row through the code. The app's own sign-out
+  (`DELETE /auth/sessions/{id}` of its session) withdraws its grant; the grant list names it
+  "Hubtask app for {system} on {device}" with *Sign out*.
+* **The flow** (desktop): the app reads `/meta/capabilities` at the address typed - nothing answers,
+  not Hubtask, older than the app (F7 Decision 12) or an installation's own address in multi mode is
+  refused at the field before the browser opens -, opens a loopback listener, and hands
+  `/oauth/consent` at the workspace's host to the system browser with the challenge and a state;
+  the verifier stays in the page's memory. The redirect's page is the app's own ("Back to the
+  app"), the code is exchanged at `/oauth/token` from the webview, and the pair goes to the
+  keystore (§14.4). The installed apps' webview origins pass CORS for that ([security.md](./security.md) §9).
+* **A passkey step-up in the app** (ADR-0096 decision 5) goes the same way: the app asks
+  `POST /auth/step-up:passkey-options` with its own session, opens a loopback listener and hands
+  `/app/passkey` at the workspace's host to the system browser, the options in the address's
+  fragment, which no request carries. That page runs the ceremony at the relying party's own origin
+  (§23.3) and sends the answer to `http://127.0.0.1:{port}/oauth` as the redirect's `code`, with the
+  app's state; the app presents it to `POST /auth/step-up` as any key's answer. The challenge is
+  bound to the app's session (§23.3), so the answer is worth nothing to anybody else, and the page
+  sends nothing to the server. A step-up at a provider does not go through the browser yet.
 
 ### 15.4 What a session carries
 
@@ -683,6 +714,10 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
   or a restore's `step_up_token` in its body).
 * Every step-up is audited with its method, never its credential; `RECOVERY` also records the
   consumed code.
+* **An act may accept only some methods.** A change of a workspace's address accepts `PASSWORD` and
+  `PROVIDER` alone ([multi-tenancy.md](./multi-tenancy.md) §3.1): its demand names the account's
+  methods among those, with `purpose` `change_address` so the prompt says why a passkey is not
+  offered, and a proof given another way is spent and refused as `auth.step_up_method_refused`.
 
 ### 16.3 Which actions demand it
 
@@ -694,9 +729,10 @@ a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the
 /tenant` that asks), §13's new start password, §9's reset of somebody's second factor, connecting a provider from a session (§11), adding or
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
-destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
-configuring or removing one of the installation's own backup targets (backup-restore.md §2), and an
-invitation renewed as a link where mail is sent (§12).
+destructive modes and §8.5's erasures carried out again after a point-in-time recovery,
+configuring or removing one of the installation's own backup targets (backup-restore.md §2), an
+invitation renewed as a link where mail is sent (§12), and an operator's change of a workspace's
+address ([multi-tenancy.md](./multi-tenancy.md) §3.1).
 
 ---
 
@@ -1009,7 +1045,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Rule | Detail |
 |---|---|
 | RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-19, UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
-| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the installed apps sign in through the system browser at the workspace's host (§15.3, *decided, not built - milestone F7*). |
+| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the installed apps sign in through the system browser at the workspace's host (§15.3). |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
 | Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose - `PASSKEY_REGISTER`, `PASSKEY_SIGN_IN`, `PASSKEY_FACTOR`, `PASSKEY_ENROLL`, `PASSKEY_STEP_UP` (migrations 0161, 0174, 0176), each under its own token prefix: five minutes, single use, bound to the workspace, to the account where one is known and, for a step-up or an addition, to the session. A challenge is spent only by its own door. |
@@ -1105,7 +1141,7 @@ groups over SCIM 2.0 (RFC 7643, RFC 7644) at `/api/v1/scim/v2` ([UC-ID-28](../us
 * **The address** is the person's way in and is not the directory's to change
   (`directory.address_immutable`, SCIM `mutability`).
 * **`externalId`** is kept on `account.external_id` and `account_group.external_id` (migration
-  0256), unique in the workspace; it travels in the archive with its row and is cleared by an
+  0277), unique in the workspace; it travels in the archive with its row and is cleared by an
   anonymising erasure.
 * **Groups** are created, changed and deleted through `CreateGroup`, `UpdateGroup` and
   `DeleteGroup` themselves: the ceiling of every role a group holds applies, and a group holding
@@ -1142,7 +1178,7 @@ arrival, the newcomers and the session are the same code.
 
 | Rule | Detail |
 |---|---|
-| Configuration | `issuer` is the provider's entity ID, an absolute URI compared exactly (`http:` and `urn:` allowed, trailing slash kept); `client_id` this workspace's entity ID, suggested as the installation's metadata address; `saml_sso_url` https; `saml_certificate` one or two PEM certificates valid now. No secret (an empty one is sealed for the column), no discovery. A workspace's own only (`identity_provider.saml_workspace_only`, and a CHECK in migration 0284). |
+| Configuration | `issuer` is the provider's entity ID, an absolute URI compared exactly (`http:` and `urn:` allowed, trailing slash kept); `client_id` this workspace's entity ID, suggested as the installation's metadata address; `saml_sso_url` https; `saml_certificate` one or two PEM certificates valid now. No secret (an empty one is sealed for the column), no discovery. A workspace's own only (`identity_provider.saml_workspace_only`, and a CHECK in migration 0305). |
 | The request | `AuthnRequest` by HTTP-Redirect, unsigned, ID `_` + the flow's nonce, the assertion consumer service `<base>/api/v1/auth/saml:acs`, `ForceAuthn` where §10's `Fresh` asks; `RelayState` is the flow's state. |
 | The return | The provider posts to the assertion consumer service. It keeps the answer (at most 256 KiB) **once** on the live sign-in flow of a SAML provider the state names, unverified, with the hash of a single-use handoff code, and answers `303` to `<base>/auth/callback?code=…&state=…`; from there the web app finishes as for OpenID Connect (`oidc:locate`, `oidc:callback`). An answer it cannot keep (no live flow, a second answer, too large) goes to `<base>/auth/callback?error=<detail code>&state=…` instead, where the sign-in card says that reason. The callback refuses a code that is not the handoff, and verifies the kept answer. |
 | Verification | Only the element goxmldsig returns as verified is read. A signed response or a signed assertion, by a configured certificate, never SHA-1; exactly one assertion, none encrypted, no document type declaration; `InResponseTo` the request, `Destination` and the bearer confirmation's `Recipient` the service, issuer the entity ID, audience `client_id`, `NotBefore`/`NotOnOrAfter` with 60 s skew. Every failure is `auth.identity_token_invalid` but one: when no configured certificate is valid at the moment, the answer is refused before it is read as `auth.saml_certificate_expired`, which tells the person to ask an administrator (§26.1). |
@@ -1155,15 +1191,15 @@ An ended certificate refuses every answer, so nobody signs in through the provid
 moment. The workspace's administrators are told by e-mail (category `INTEGRATION`, subject
 `notification.identity_provider_id`) 30, 7 and 1 days before the **last** configured certificate
 ends - during a rollover the newer one keeps the provider working - once per warning and end
-(`identity_provider.saml_expiry_told_for`/`_days`, migration 0340), so a new certificate is
+(`identity_provider.saml_expiry_told_for`/`_days`, migration 0361), so a new certificate is
 warned of afresh. A switched-off provider is told nothing. The watch is the per-workspace job
 `identity.saml_certificate_watch`: seeded by the save of a SAML provider (and once by migration
-0340 for the workspaces that had one), it looks again at the next warning or after a day at the
+0361 for the workspaces that had one), it looks again at the next warning or after a day at the
 latest, and ends when the workspace has no SAML provider. The message links `/administration/sign-in`.
 The provider's answer carries that end as `saml_certificate_expires_at`; the sign-in settings and
 the installation's provider list draw it as a warning from 30 days before and as ended after.
 Each pass of the watch also keeps the end on the row (`identity_provider.saml_certificates_end`,
-migration 0348) when it changed, and the scheduler's leader counts the enabled SAML providers across
+migration 0369) when it changed, and the scheduler's leader counts the enabled SAML providers across
 workspaces through `saml_certificates_ending()` into `hubtask_saml_providers` and
 `hubtask_saml_providers_ending{within="30d"|"7d"|"ended"}` - numbers, no provider and no
 workspace. A provider is counted from its watch's next pass, within a day. No alert reads them:
@@ -1181,7 +1217,7 @@ limit and the groups' rules hold unchanged.
 
 | Rule | Detail |
 |---|---|
-| Configuration | One per workspace (`ldap_directory`, migration 0285), set whole by `PUT /directory/ldap` with a step-up. `ldaps://`, or `ldap://` always upgraded by StartTLS before the bind - no plain bind exists; an empty password is refused. Bound to and the people's base searched once before it is stored. The password sealed to the workspace (`ldap.bind_password:<tenant>`), never answered; omitting it keeps it. Defaults: `(objectClass=person)`, `(objectClass=groupOfNames)`, `entryUUID`, `mail`, `displayName`, `cn`, `member`, every 60 minutes (15 to 1440). |
+| Configuration | One per workspace (`ldap_directory`, migration 0306), set whole by `PUT /directory/ldap` with a step-up. `ldaps://`, or `ldap://` always upgraded by StartTLS before the bind - no plain bind exists; an empty password is refused. Bound to and the people's base searched once before it is stored. The password sealed to the workspace (`ldap.bind_password:<tenant>`), never answered; omitting it keeps it. Defaults: `(objectClass=person)`, `(objectClass=groupOfNames)`, `entryUUID`, `mail`, `displayName`, `cn`, `member`, every 60 minutes (15 to 1440). |
 | Acting as | An active service account of the workspace with `MANAGE_MEMBERS`, asked at the save and before every run (`directory.ldap_run_as_invalid`, `directory.ldap_run_as_refused`); its scopes are `members:read` and `members:write`. |
 | Whom it holds | A person or group whose `external_id` is `ldap:` and the identifier attribute's value (binary values, as `objectGUID`, in hex). A SCIM identifier has no prefix, so neither takes the other's. |
 | The plan | Pure (`PlanLdapSync`): invite who is new under the folded address; take over an account already here under it that holds no other identifier; rename; switch on whom it switched off; switch off whom it holds and the directory no longer answers. An entry without an address, with an address another entry has, or with an identifier over 250 characters is skipped, never guessed. Groups: created by their identifier, members those the run keeps; a group gone from the directory keeps its roles and loses its members. |

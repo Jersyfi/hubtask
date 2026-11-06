@@ -13,7 +13,7 @@ import (
 )
 
 // A backfill killed between batches resumes after the last batch it committed when the migrator
-// runs again (versioning-release.md §4): 0212's walk is stopped in its second batch by a trigger
+// runs again (versioning-release.md §4): 0219's walk is stopped in its second batch by a trigger
 // that refuses one entry's row, as a killed process would stop it, and the second run neither
 // starts over nor leaves its ledger row behind.
 func TestAnInterruptedBackfillResumesWhereItStopped(t *testing.T) {
@@ -44,7 +44,7 @@ func TestAnInterruptedBackfillResumesWhereItStopped(t *testing.T) {
 		FROM c, d, generate_series(1, 4500) g`); err != nil {
 		t.Fatalf("seeding the entries: %v", err)
 	}
-	// 0211's trigger projected them already; the backfill is for entries written before it.
+	// 0218's trigger projected them already; the backfill is for entries written before it.
 	if _, err := pool.Exec(ctx, `DELETE FROM entry_field_value`); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestAnInterruptedBackfillResumesWhereItStopped(t *testing.T) {
 		t.Fatal("the stopped walk reported success")
 	}
 	var position string
-	if err := pool.QueryRow(ctx, `SELECT position FROM migration_cursor WHERE name = '0212_entry_field_value_backfill'`).Scan(&position); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT position FROM migration_cursor WHERE name = '0219_entry_field_value_backfill'`).Scan(&position); err != nil {
 		t.Fatalf("the stopped walk left no position: %v", err)
 	}
 	var done int

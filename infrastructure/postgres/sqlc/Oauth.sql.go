@@ -87,7 +87,7 @@ func (q *Queries) DeleteOauthClient(ctx context.Context, id pgtype.UUID) (int64,
 }
 
 const findOauthClient = `-- name: FindOauthClient :one
-SELECT id, name, confidential, secret_hash, redirect_uris, created_at
+SELECT id, name, confidential, secret_hash, redirect_uris, created_at, app_platform
 FROM oauth_client
 WHERE id = $1
 `
@@ -99,6 +99,7 @@ type FindOauthClientRow struct {
 	SecretHash   []byte
 	RedirectUris []string
 	CreatedAt    pgtype.Timestamptz
+	AppPlatform  *string
 }
 
 // The exchange's read: everything judging a token request needs, the stored hash included -
@@ -113,6 +114,7 @@ func (q *Queries) FindOauthClient(ctx context.Context, id pgtype.UUID) (FindOaut
 		&i.SecretHash,
 		&i.RedirectUris,
 		&i.CreatedAt,
+		&i.AppPlatform,
 	)
 	return i, err
 }
@@ -149,11 +151,12 @@ func (q *Queries) FindOauthGrant(ctx context.Context, id pgtype.UUID) (FindOauth
 const insertOauthClient = `-- name: InsertOauthClient :exec
 
 INSERT INTO oauth_client
-  (id, tenant_id, name, confidential, secret_hash, redirect_uris, created_at, created_by)
+  (id, tenant_id, name, confidential, secret_hash, redirect_uris, created_at, created_by,
+   app_platform)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7
+  $7, $8
 )
 `
 
@@ -165,6 +168,7 @@ type InsertOauthClientParams struct {
 	RedirectUris []string
 	CreatedAt    pgtype.Timestamptz
 	CreatedBy    pgtype.UUID
+	AppPlatform  *string
 }
 
 // The OAuth2 provider. The tenant is never a parameter: row level security bounds every
@@ -180,6 +184,7 @@ func (q *Queries) InsertOauthClient(ctx context.Context, arg InsertOauthClientPa
 		arg.RedirectUris,
 		arg.CreatedAt,
 		arg.CreatedBy,
+		arg.AppPlatform,
 	)
 	return err
 }
@@ -225,6 +230,7 @@ func (q *Queries) InsertOauthCode(ctx context.Context, arg InsertOauthCodeParams
 const listOauthClients = `-- name: ListOauthClients :many
 SELECT id, name, confidential, redirect_uris, created_at
 FROM oauth_client
+WHERE app_platform IS NULL
 ORDER BY created_at DESC, id DESC
 `
 
@@ -236,6 +242,8 @@ type ListOauthClientsRow struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+// The registry: what an administrator registered. The built-in client's rows are the people's own
+// consents, listed with their grants instead.
 func (q *Queries) ListOauthClients(ctx context.Context) ([]ListOauthClientsRow, error) {
 	rows, err := q.db.Query(ctx, listOauthClients)
 	if err != nil {
@@ -263,23 +271,24 @@ func (q *Queries) ListOauthClients(ctx context.Context) ([]ListOauthClientsRow, 
 }
 
 const listOauthGrants = `-- name: ListOauthGrants :many
-SELECT g.id, g.client_id, c.name AS client_name, g.scopes, g.created_at,
+SELECT g.id, g.client_id, c.name AS client_name, c.app_platform, g.scopes, g.created_at,
        max(s.last_seen_at) AS last_used_at
 FROM oauth_grant g
 JOIN oauth_client c ON c.id = g.client_id
 LEFT JOIN session s ON s.grant_id = g.id
 WHERE g.account_id = $1 AND g.revoked_at IS NULL
-GROUP BY g.id, c.name
+GROUP BY g.id, c.name, c.app_platform
 ORDER BY g.created_at DESC, g.id DESC
 `
 
 type ListOauthGrantsRow struct {
-	ID         pgtype.UUID
-	ClientID   pgtype.UUID
-	ClientName string
-	Scopes     []string
-	CreatedAt  pgtype.Timestamptz
-	LastUsedAt interface{}
+	ID          pgtype.UUID
+	ClientID    pgtype.UUID
+	ClientName  string
+	AppPlatform *string
+	Scopes      []string
+	CreatedAt   pgtype.Timestamptz
+	LastUsedAt  interface{}
 }
 
 // One's own, newest first, with the client's name and when a session under the grant last
@@ -298,6 +307,7 @@ func (q *Queries) ListOauthGrants(ctx context.Context, accountID pgtype.UUID) ([
 			&i.ID,
 			&i.ClientID,
 			&i.ClientName,
+			&i.AppPlatform,
 			&i.Scopes,
 			&i.CreatedAt,
 			&i.LastUsedAt,
@@ -310,6 +320,36 @@ func (q *Queries) ListOauthGrants(ctx context.Context, accountID pgtype.UUID) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeAppGrantOfSession = `-- name: RevokeAppGrantOfSession :one
+UPDATE oauth_grant g SET revoked_at = $1
+FROM session s, oauth_client c
+WHERE s.id = $2 AND s.account_id = $3
+  AND g.id = s.grant_id AND c.id = g.client_id AND c.app_platform IS NOT NULL
+  AND g.revoked_at IS NULL
+RETURNING g.id, g.client_id
+`
+
+type RevokeAppGrantOfSessionParams struct {
+	RevokedAt pgtype.Timestamptz
+	SessionID pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+type RevokeAppGrantOfSessionRow struct {
+	ID       pgtype.UUID
+	ClientID pgtype.UUID
+}
+
+// An installed app signing out withdraws what it was allowed (ADR-0096): the grant of the built-in
+// client behind the session, bounded to the owner in the statement that writes. Nothing for a
+// registered client's session, whose grant stays until the person withdraws it.
+func (q *Queries) RevokeAppGrantOfSession(ctx context.Context, arg RevokeAppGrantOfSessionParams) (RevokeAppGrantOfSessionRow, error) {
+	row := q.db.QueryRow(ctx, revokeAppGrantOfSession, arg.RevokedAt, arg.SessionID, arg.AccountID)
+	var i RevokeAppGrantOfSessionRow
+	err := row.Scan(&i.ID, &i.ClientID)
+	return i, err
 }
 
 const revokeGrantSessions = `-- name: RevokeGrantSessions :execrows

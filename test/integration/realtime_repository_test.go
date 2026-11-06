@@ -17,7 +17,7 @@ import (
 )
 
 // A document's updates take consecutive places, a snapshot marks what it covers without removing
-// it, and retention removes only what is compacted and old enough (migration 0230).
+// it, and retention removes only what is compacted and old enough (migration 0237).
 func TestADocumentLogIsOrderedCompactedAndPrunedByRetention(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -49,7 +49,7 @@ func TestADocumentLogIsOrderedCompactedAndPrunedByRetention(t *testing.T) {
 	}
 
 	// A snapshot rewrites no update: what it covers is its range, so the log's rows are written
-	// once and deleted once (migration 0354).
+	// once and deleted once (migration 0361).
 	admin := adminPool(ctx, t)
 	var marked int
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM realtime_update WHERE document_id = $1 AND compacted_at IS NOT NULL`,
@@ -163,7 +163,7 @@ func TestADocumentIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 }
 
 // A hub purged takes its pages' and boards' live documents with them, history and snapshots
-// included; a document of a page in another hub stays (migration 0260).
+// included; a document of a page in another hub stays (migration 0267).
 func TestAHubPurgedTakesItsLiveDocuments(t *testing.T) {
 	ctx := context.Background()
 	pageHub, page, _ := seedSpace(ctx, t)

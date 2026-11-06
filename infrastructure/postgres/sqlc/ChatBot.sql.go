@@ -165,7 +165,7 @@ type ListChatBotsRow struct {
 	Version      int32
 }
 
-// A chat bot in a hub's room (migrations 0280, 0288; UC-INT-18, UC-INT-19).
+// A chat bot in a hub's room (migrations 0287, 0295; UC-INT-18, UC-INT-19).
 func (q *Queries) ListChatBots(ctx context.Context, hubID pgtype.UUID) ([]ListChatBotsRow, error) {
 	rows, err := q.db.Query(ctx, listChatBots, hubID)
 	if err != nil {

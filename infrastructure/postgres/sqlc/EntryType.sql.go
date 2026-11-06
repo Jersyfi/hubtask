@@ -207,7 +207,7 @@ WHERE tenant_id = current_tenant_id()
 ORDER BY level, position, key
 `
 
-// The type registry (migration 0209, UC-FLW-01). A workspace's rows only: the system types a
+// The type registry (migration 0216, UC-FLW-01). A workspace's rows only: the system types a
 // workspace has never changed are the domain's and have none.
 func (q *Queries) ListEntryTypes(ctx context.Context) ([]EntryType, error) {
 	rows, err := q.db.Query(ctx, listEntryTypes)

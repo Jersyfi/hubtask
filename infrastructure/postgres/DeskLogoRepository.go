@@ -12,7 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// DeskLogoRepository stores a collection's logo on its container row (migration 0313).
+// DeskLogoRepository stores a collection's logo on its container row (migration 0320).
 type DeskLogoRepository struct{}
 
 var _ repository.DeskLogos = DeskLogoRepository{}

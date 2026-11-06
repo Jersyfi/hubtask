@@ -137,12 +137,18 @@ func oauthClientSummaryResponse(out usecase.Output) openapi.OauthClientSummary {
 
 // oauthGrantResponse draws one consent a person gave a client.
 func oauthGrantResponse(row usecase.Output) openapi.OauthGrant {
+	var platform *openapi.OauthGrantAppPlatform
+	if value := row.String("app_platform"); value != "" {
+		named := openapi.OauthGrantAppPlatform(value)
+		platform = &named
+	}
 	return openapi.OauthGrant{
-		Id:         uuidValue(row.String("id")),
-		ClientId:   uuidValue(row.String("client_id")),
-		ClientName: row.String("client_name"),
-		Scopes:     scopeList(row["scopes"]),
-		CreatedAt:  timeValue(row["created_at"]),
-		LastUsedAt: optionalTimeField(row["last_used_at"]),
+		AppPlatform: platform,
+		Id:          uuidValue(row.String("id")),
+		ClientId:    uuidValue(row.String("client_id")),
+		ClientName:  row.String("client_name"),
+		Scopes:      scopeList(row["scopes"]),
+		CreatedAt:   timeValue(row["created_at"]),
+		LastUsedAt:  optionalTimeField(row["last_used_at"]),
 	}
 }

@@ -73,7 +73,7 @@ const (
 	// AVG over a queue's view is that queue's satisfaction. An entry nobody rated holds none.
 	QuantitySatisfaction Quantity = "satisfaction"
 	// QuantityCycleTime is the first entry into a status of the IN_PROGRESS category to completion.
-	// Read from the status history, which is written from migration 0250 on: an entry that never
+	// Read from the status history, which is written from migration 0257 on: an entry that never
 	// entered such a status since then, or is open, holds none.
 	QuantityCycleTime Quantity = "cycle_time"
 	// QuantityWipAge is how long an open entry has been in progress: its first entry into an

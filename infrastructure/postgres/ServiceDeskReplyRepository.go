@@ -14,7 +14,7 @@ import (
 
 var _ repository.ReplyTemplates = ServiceDeskReplies{}
 
-// ServiceDeskReplies stores the workspace's canned replies (migration 0242).
+// ServiceDeskReplies stores the workspace's canned replies (migration 0249).
 type ServiceDeskReplies struct{}
 
 func (ServiceDeskRepository) Replies() ServiceDeskReplies { return ServiceDeskReplies{} }

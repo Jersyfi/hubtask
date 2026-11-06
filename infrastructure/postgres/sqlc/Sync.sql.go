@@ -637,7 +637,7 @@ type SnapshotAgentCasesRow struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-// The evaluation cases (migration 0251), paged by identifier.
+// The evaluation cases (migration 0258), paged by identifier.
 func (q *Queries) SnapshotAgentCases(ctx context.Context, arg SnapshotAgentCasesParams) ([]SnapshotAgentCasesRow, error) {
 	rows, err := q.db.Query(ctx, snapshotAgentCases, arg.After, arg.Batch)
 	if err != nil {
@@ -697,7 +697,7 @@ type SnapshotAgentModelsRow struct {
 	Version       int32
 }
 
-// The registry's models (migration 0251), paged by identifier.
+// The registry's models (migration 0258), paged by identifier.
 func (q *Queries) SnapshotAgentModels(ctx context.Context, arg SnapshotAgentModelsParams) ([]SnapshotAgentModelsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotAgentModels, arg.After, arg.Batch)
 	if err != nil {
@@ -763,7 +763,7 @@ type SnapshotAgentRequestsRow struct {
 	OwnerID   pgtype.UUID
 }
 
-// The held acts (migration 0251) with their agent's owner, paged by identifier.
+// The held acts (migration 0258) with their agent's owner, paged by identifier.
 func (q *Queries) SnapshotAgentRequests(ctx context.Context, arg SnapshotAgentRequestsParams) ([]SnapshotAgentRequestsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotAgentRequests, arg.After, arg.Batch)
 	if err != nil {
@@ -822,7 +822,7 @@ type SnapshotAgentRunsRow struct {
 	OwnerID       pgtype.UUID
 }
 
-// The evaluation runs (migration 0251) with their agent's owner, paged by identifier.
+// The evaluation runs (migration 0258) with their agent's owner, paged by identifier.
 func (q *Queries) SnapshotAgentRuns(ctx context.Context, arg SnapshotAgentRunsParams) ([]SnapshotAgentRunsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotAgentRuns, arg.After, arg.Batch)
 	if err != nil {
@@ -896,7 +896,7 @@ type SnapshotAgentsRow struct {
 	Version               int32
 }
 
-// The registry's agents (migration 0251), paged by identifier.
+// The registry's agents (migration 0258), paged by identifier.
 func (q *Queries) SnapshotAgents(ctx context.Context, arg SnapshotAgentsParams) ([]SnapshotAgentsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotAgents, arg.After, arg.Batch)
 	if err != nil {
@@ -979,7 +979,7 @@ type SnapshotApprovalsRow struct {
 	CollectionID pgtype.UUID
 }
 
-// Every live entry's approvals (migration 0268), with the entry's collection, which decides who is
+// Every live entry's approvals (migration 0275), with the entry's collection, which decides who is
 // told of them.
 func (q *Queries) SnapshotApprovals(ctx context.Context, arg SnapshotApprovalsParams) ([]SnapshotApprovalsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotApprovals, arg.After, arg.Batch)
@@ -1088,7 +1088,7 @@ type SnapshotCmdbAffectedRow struct {
 	HubID   pgtype.UUID
 }
 
-// The CIs entries name as affected (migration 0267), each filed under the CI's hub.
+// The CIs entries name as affected (migration 0274), each filed under the CI's hub.
 func (q *Queries) SnapshotCmdbAffected(ctx context.Context, arg SnapshotCmdbAffectedParams) ([]SnapshotCmdbAffectedRow, error) {
 	rows, err := q.db.Query(ctx, snapshotCmdbAffected, arg.After, arg.Batch)
 	if err != nil {
@@ -1228,7 +1228,7 @@ type SnapshotCmdbCisRow struct {
 	Version        int32
 }
 
-// The workspace's configuration items not merged away (migration 0236), for reading a hub's
+// The workspace's configuration items not merged away (migration 0243), for reading a hub's
 // inventory offline; each is filed under its hub, which decides who is told of it.
 func (q *Queries) SnapshotCmdbCis(ctx context.Context, arg SnapshotCmdbCisParams) ([]SnapshotCmdbCisRow, error) {
 	rows, err := q.db.Query(ctx, snapshotCmdbCis, arg.After, arg.Batch)
@@ -1416,7 +1416,7 @@ type SnapshotCodeLinksRow struct {
 	CollectionID pgtype.UUID
 }
 
-// Every live entry's commits, branches and pull requests (migration 0275), with the entry's collection.
+// Every live entry's commits, branches and pull requests (migration 0282), with the entry's collection.
 func (q *Queries) SnapshotCodeLinks(ctx context.Context, arg SnapshotCodeLinksParams) ([]SnapshotCodeLinksRow, error) {
 	rows, err := q.db.Query(ctx, snapshotCodeLinks, arg.After, arg.Batch)
 	if err != nil {
@@ -1718,7 +1718,7 @@ type SnapshotCustomRolesParams struct {
 	Batch int32
 }
 
-// The workspace's own roles (migration 0219).
+// The workspace's own roles (migration 0226).
 func (q *Queries) SnapshotCustomRoles(ctx context.Context, arg SnapshotCustomRolesParams) ([]CustomRole, error) {
 	rows, err := q.db.Query(ctx, snapshotCustomRoles, arg.After, arg.Batch)
 	if err != nil {
@@ -1941,7 +1941,7 @@ type SnapshotEntrySchedulesRow struct {
 	CollectionID pgtype.UUID
 }
 
-// Every live entry's stored scheduling mode and milestone mark (migration 0244), with its
+// Every live entry's stored scheduling mode and milestone mark (migration 0251), with its
 // collection: a reader is told of it where they may read the entry.
 func (q *Queries) SnapshotEntrySchedules(ctx context.Context, arg SnapshotEntrySchedulesParams) ([]SnapshotEntrySchedulesRow, error) {
 	rows, err := q.db.Query(ctx, snapshotEntrySchedules, arg.After, arg.Batch)
@@ -2002,7 +2002,7 @@ type SnapshotEntrySlasRow struct {
 	CollectionID  pgtype.UUID
 }
 
-// Every live entry's SLA records by goal (migration 0240), with the entry's collection.
+// Every live entry's SLA records by goal (migration 0247), with the entry's collection.
 func (q *Queries) SnapshotEntrySlas(ctx context.Context, arg SnapshotEntrySlasParams) ([]SnapshotEntrySlasRow, error) {
 	rows, err := q.db.Query(ctx, snapshotEntrySlas, arg.After, arg.Batch)
 	if err != nil {
@@ -2054,7 +2054,7 @@ type SnapshotEntryTypesParams struct {
 	Batch int32
 }
 
-// The workspace's type rows (migration 0209); the system types it never changed are the domain's.
+// The workspace's type rows (migration 0216); the system types it never changed are the domain's.
 func (q *Queries) SnapshotEntryTypes(ctx context.Context, arg SnapshotEntryTypesParams) ([]EntryType, error) {
 	rows, err := q.db.Query(ctx, snapshotEntryTypes, arg.After, arg.Batch)
 	if err != nil {
@@ -2125,7 +2125,7 @@ type SnapshotFileLinksRow struct {
 	CollectionID pgtype.UUID
 }
 
-// Every live entry's files in a store (migration 0276), with the entry's collection.
+// Every live entry's files in a store (migration 0283), with the entry's collection.
 func (q *Queries) SnapshotFileLinks(ctx context.Context, arg SnapshotFileLinksParams) ([]SnapshotFileLinksRow, error) {
 	rows, err := q.db.Query(ctx, snapshotFileLinks, arg.After, arg.Batch)
 	if err != nil {
@@ -2234,7 +2234,7 @@ type SnapshotGoalPeriodsRow struct {
 	Version int32
 }
 
-// The workspace's goal periods (migration 0248), workspace-wide: read where the workspace is.
+// The workspace's goal periods (migration 0255), workspace-wide: read where the workspace is.
 func (q *Queries) SnapshotGoalPeriods(ctx context.Context, arg SnapshotGoalPeriodsParams) ([]SnapshotGoalPeriodsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotGoalPeriods, arg.After, arg.Batch)
 	if err != nil {
@@ -2382,7 +2382,7 @@ type SnapshotLinkTypesParams struct {
 	Batch int32
 }
 
-// The workspace's link type rows (migration 0213); the six shipped ones are the domain's.
+// The workspace's link type rows (migration 0220); the six shipped ones are the domain's.
 func (q *Queries) SnapshotLinkTypes(ctx context.Context, arg SnapshotLinkTypesParams) ([]LinkType, error) {
 	rows, err := q.db.Query(ctx, snapshotLinkTypes, arg.After, arg.Batch)
 	if err != nil {
@@ -2512,7 +2512,7 @@ type SnapshotOwnTimeRecordsRow struct {
 	Version   int32
 }
 
-// One person's time records (migration 0246), walked for that person alone.
+// One person's time records (migration 0253), walked for that person alone.
 func (q *Queries) SnapshotOwnTimeRecords(ctx context.Context, arg SnapshotOwnTimeRecordsParams) ([]SnapshotOwnTimeRecordsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotOwnTimeRecords, arg.AccountID, arg.After, arg.Batch)
 	if err != nil {
@@ -2576,7 +2576,7 @@ type SnapshotOwnTimesheetsRow struct {
 	Version     int32
 }
 
-// One person's weeks (migration 0246), walked for that person alone.
+// One person's weeks (migration 0253), walked for that person alone.
 func (q *Queries) SnapshotOwnTimesheets(ctx context.Context, arg SnapshotOwnTimesheetsParams) ([]SnapshotOwnTimesheetsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotOwnTimesheets, arg.AccountID, arg.After, arg.Batch)
 	if err != nil {
@@ -2649,9 +2649,9 @@ type SnapshotPagesRow struct {
 	DailyFor        pgtype.Date
 }
 
-// The workspace's living pages with their bodies (migration 0231), for reading offline; each is
+// The workspace's living pages with their bodies (migration 0238), for reading offline; each is
 // filed under its hub, which decides who is told of it. A page behind a restriction stays on the
-// server: a hub's readers are not all its readers (migration 0261).
+// server: a hub's readers are not all its readers (migration 0268).
 func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([]SnapshotPagesRow, error) {
 	rows, err := q.db.Query(ctx, snapshotPages, arg.After, arg.Batch)
 	if err != nil {
@@ -2718,7 +2718,7 @@ type SnapshotPortfoliosRow struct {
 	Version     int32
 }
 
-// The workspace's portfolios (migration 0248), paged by identifier; their projects are read
+// The workspace's portfolios (migration 0255), paged by identifier; their projects are read
 // beside them.
 func (q *Queries) SnapshotPortfolios(ctx context.Context, arg SnapshotPortfoliosParams) ([]SnapshotPortfoliosRow, error) {
 	rows, err := q.db.Query(ctx, snapshotPortfolios, arg.After, arg.Batch)
@@ -2887,7 +2887,7 @@ type SnapshotReleasesRow struct {
 	Version     int32
 }
 
-// The workspace's releases (migration 0272), each filed under its hub.
+// The workspace's releases (migration 0279), each filed under its hub.
 func (q *Queries) SnapshotReleases(ctx context.Context, arg SnapshotReleasesParams) ([]SnapshotReleasesRow, error) {
 	rows, err := q.db.Query(ctx, snapshotReleases, arg.After, arg.Batch)
 	if err != nil {
@@ -3008,7 +3008,7 @@ type SnapshotSatisfactionRatingsRow struct {
 	CollectionID pgtype.UUID
 }
 
-// Every live request's satisfaction rating (migration 0243), with the request's collection.
+// Every live request's satisfaction rating (migration 0250), with the request's collection.
 func (q *Queries) SnapshotSatisfactionRatings(ctx context.Context, arg SnapshotSatisfactionRatingsParams) ([]SnapshotSatisfactionRatingsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotSatisfactionRatings, arg.After, arg.Batch)
 	if err != nil {
@@ -3185,7 +3185,7 @@ type SnapshotSprintsRow struct {
 	Version        int32
 }
 
-// The workspace's sprints (migration 0245), each filed under its collection.
+// The workspace's sprints (migration 0252), each filed under its collection.
 func (q *Queries) SnapshotSprints(ctx context.Context, arg SnapshotSprintsParams) ([]SnapshotSprintsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotSprints, arg.After, arg.Batch)
 	if err != nil {
@@ -3310,7 +3310,7 @@ type SnapshotTimeAbsencesRow struct {
 	Version   int32
 }
 
-// The workspace's absences (migration 0247), the shared calendar every member reads.
+// The workspace's absences (migration 0254), the shared calendar every member reads.
 func (q *Queries) SnapshotTimeAbsences(ctx context.Context, arg SnapshotTimeAbsencesParams) ([]SnapshotTimeAbsencesRow, error) {
 	rows, err := q.db.Query(ctx, snapshotTimeAbsences, arg.After, arg.Batch)
 	if err != nil {
@@ -3360,7 +3360,7 @@ type SnapshotTimeBudgetsRow struct {
 	Version     int32
 }
 
-// The hubs' and collections' budgets (migration 0247), paged by their plan.
+// The hubs' and collections' budgets (migration 0254), paged by their plan.
 func (q *Queries) SnapshotTimeBudgets(ctx context.Context, arg SnapshotTimeBudgetsParams) ([]SnapshotTimeBudgetsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotTimeBudgets, arg.After, arg.Batch)
 	if err != nil {
@@ -3413,7 +3413,7 @@ type SnapshotWhiteboardsRow struct {
 	Version   int32
 }
 
-// The workspace's boards outside the trash with their scenes (migration 0233), for reading offline;
+// The workspace's boards outside the trash with their scenes (migration 0240), for reading offline;
 // each is filed under its hub, which decides who is told of it.
 func (q *Queries) SnapshotWhiteboards(ctx context.Context, arg SnapshotWhiteboardsParams) ([]SnapshotWhiteboardsRow, error) {
 	rows, err := q.db.Query(ctx, snapshotWhiteboards, arg.After, arg.Batch)
@@ -3606,7 +3606,7 @@ type SnapshotWorkflowsParams struct {
 	Batch int32
 }
 
-// The workspace's workflow rows (migration 0215); the shipped one it never used is the domain's.
+// The workspace's workflow rows (migration 0222); the shipped one it never used is the domain's.
 func (q *Queries) SnapshotWorkflows(ctx context.Context, arg SnapshotWorkflowsParams) ([]Workflow, error) {
 	rows, err := q.db.Query(ctx, snapshotWorkflows, arg.After, arg.Batch)
 	if err != nil {

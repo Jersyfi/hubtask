@@ -218,7 +218,7 @@ SELECT logo_media_id FROM container
 WHERE id = $1::uuid AND type = 'COLLECTION' AND deleted_at IS NULL
 `
 
-// A collection's logo as its portal draws it (migration 0313); NULL for none.
+// A collection's logo as its portal draws it (migration 0320); NULL for none.
 func (q *Queries) FindDeskLogo(ctx context.Context, collectionID pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, findDeskLogo, collectionID)
 	var logo_media_id pgtype.UUID
@@ -518,7 +518,7 @@ type InsertBusinessCalendarParams struct {
 	Now      pgtype.Timestamptz
 }
 
-// Business calendars, SLA policies and an entry's SLA record (migration 0240, M5). Every statement
+// Business calendars, SLA policies and an entry's SLA record (migration 0247, M5). Every statement
 // runs under the tenant's context (rule 3); row level security keeps them to it.
 func (q *Queries) InsertBusinessCalendar(ctx context.Context, arg InsertBusinessCalendarParams) error {
 	_, err := q.db.Exec(ctx, insertBusinessCalendar,
@@ -1421,7 +1421,7 @@ SELECT id, tenant_id, key, name, domains, shares_requests, created_at, updated_a
 FROM requester_organisation WHERE domains @> ARRAY[$1::text] LIMIT 1
 `
 
-// The organisation a mail domain belongs to; a domain is in at most one (migration 0287).
+// The organisation a mail domain belongs to; a domain is in at most one (migration 0294).
 func (q *Queries) RequesterOrganisationOfDomain(ctx context.Context, domain string) (RequesterOrganisation, error) {
 	row := q.db.QueryRow(ctx, requesterOrganisationOfDomain, domain)
 	var i RequesterOrganisation
@@ -1788,7 +1788,7 @@ type UpsertEntryOlaParams struct {
 	Now             pgtype.Timestamptz
 }
 
-// One goal of one OLA on an entry (migration 0303), written whole like an SLA goal's.
+// One goal of one OLA on an entry (migration 0310), written whole like an SLA goal's.
 func (q *Queries) UpsertEntryOla(ctx context.Context, arg UpsertEntryOlaParams) error {
 	_, err := q.db.Exec(ctx, upsertEntryOla,
 		arg.ID,

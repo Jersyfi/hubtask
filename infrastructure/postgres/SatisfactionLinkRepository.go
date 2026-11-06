@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// SatisfactionLinkRepository stores the satisfaction links of resolution mails (migration 0304)
+// SatisfactionLinkRepository stores the satisfaction links of resolution mails (migration 0311)
 // and finds the one a token names. The token is hashed here and nowhere else.
 type SatisfactionLinkRepository struct {
 	hasher security.InboundTokenHasher

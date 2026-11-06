@@ -98,7 +98,7 @@ type CountExpiredRealtimeUpdatesParams struct {
 }
 
 // What retention may remove: the updates a snapshot older than the cutoff covers, counted up to a
-// ceiling (migration 0354: compacted by range, never marked).
+// ceiling (migration 0361: compacted by range, never marked).
 func (q *Queries) CountExpiredRealtimeUpdates(ctx context.Context, arg CountExpiredRealtimeUpdatesParams) (int32, error) {
 	row := q.db.QueryRow(ctx, countExpiredRealtimeUpdates, arg.Cutoff, arg.Ceiling)
 	var column_1 int32
@@ -271,7 +271,7 @@ type OpenRealtimeDocumentParams struct {
 	At         pgtype.Timestamptz
 }
 
-// Live documents (migration 0230, F-8). The tenant is the transaction's in every statement
+// Live documents (migration 0237, F-8). The tenant is the transaction's in every statement
 // (ADR-0010).
 // The head of a document, created on its first update.
 func (q *Queries) OpenRealtimeDocument(ctx context.Context, arg OpenRealtimeDocumentParams) error {

@@ -58,10 +58,10 @@ narrow them, never widen them beyond the system boundary.
 | `CHILDREN` | `WORK_PACKAGE`, `ACTIVITY` | `ACTIVITY` | — | The permitted child types; a task may hold both at once (decision #1627) |
 | `MAX_DEPTH` | 3 | 2 | 1 | Relative to the collection |
 
-**Entry types** (F-1, UC-FLW-01, migration 0209). A workspace names the kinds of its work as rows of
+**Entry types** (F-1, UC-FLW-01, migration 0216). A workspace names the kinds of its work as rows of
 `entry_type`: a stable `key`, the *level* it sits on (one of the three above, which a type never
 changes), a name, a description, the name and description in further languages by BCP 47 tag
-(`translations`, migration 0311: a reader reads the exact tag's words, then its language's, then the
+(`translations`, migration 0318: a reader reads the exact tag's words, then its language's, then the
 default text, field by field - `EntryType.TextIn`, UC-SVC-05 check 7), an icon of the design
 system's set, a label colour token, and the behaviours of its entries - *completable*, *workflow*, *record*, *schedulable*, *estimable* - with the keys of the
 types allowed directly underneath. Each level has a **system type** keyed after it (`task`,
@@ -75,7 +75,7 @@ level is its structure's ninth setting, `entry_types` (below): a level it names 
 that order, the system type by default where it is among them and the first one in use otherwise,
 and a creation or change of type to another is refused with `entry_types.not_offered`
 (`EntryTypes.ChooseAmong`); an entry keeps the type it has when the list narrows. A type may be
-**a hub's own** (`hub_id`, migration 0317; UC-FLW-01 check 10): made there with STRUCTURE on the hub,
+**a hub's own** (`hub_id`, migration 0324; UC-FLW-01 check 10): made there with STRUCTURE on the hub,
 or copied there from a shared type (`CopyEntryTypeHere`, under a key of its own, `copied_from`
 naming the source's key). It is offered and listed only inside that hub (`EntryTypes.Within`), an
 entry or collection carrying it is refused leaving the hub (`entry_types.hub_bound`), and it goes
@@ -88,7 +88,7 @@ type - a rewrite of the largest table under an exclusive lock, which no upgrade 
 may do. What a workspace configures is the type, `entry_type` with its `level` naming one of
 them.
 
-**Forms** (F-4, D-13, P-18, UC-FLW-01 check 2, migration 0214). A type carries its **form**, the one
+**Forms** (F-4, D-13, P-18, UC-FLW-01 check 2, migration 0221). A type carries its **form**, the one
 layout and logic of every door that creates or edits an entry of it (`work.Form`, stored whole in
 `entry_type.form`): sections in order; fields in order, each named `title`, `notes`, `due_date`,
 `start_at` or `custom_fields.<key>`, with *required*, *required when*, *read-only when* and
@@ -124,7 +124,7 @@ CEL itself. Only while the server cannot be reached does `packages/expression` s
 conditions over the copy, through `SYNC`, the door the push arrives by - and the push is judged by
 the server again; a calculated field of an entry whose writes wait is computed there too.
 
-**Workflows** (F-4, D-02, UC-FLW-02 … 05, migrations 0216/0217). A workspace describes how its work
+**Workflows** (F-4, D-02, UC-FLW-02 … 05, migrations 0223/0224). A workspace describes how its work
 moves as **workflows** (`work.Workflow`, table `workflow`): **statuses**, each with a stable key, a
 name, a label colour token and one of four **categories** - `BACKLOG`, `TODO`, `IN_PROGRESS`,
 `DONE` -, the open status a new entry starts in, and **steps**, each from some statuses - or from
@@ -155,7 +155,7 @@ use (`workflows.mapping_required`) -, and otherwise a done entry enters the firs
 an open one the initial status; no move changes completion or runs a step's conditions
 (`workflows.mapping_changes_completion`). Each moved entry's history says `item.workflow_changed`;
 the trail records the counts. Using a workflow needs the person's confirmation of its preview
-(`workflows.confirmation_required`). A workflow may be **a hub's own** (`hub_id`, migration 0323;
+(`workflows.confirmation_required`). A workflow may be **a hub's own** (`hub_id`, migration 0330;
 UC-FLW-02 check 9): made there with STRUCTURE on the hub, or copied there from a shared one
 (`CopyWorkflowHere`, the shape in force under a key of its own, `copied_from` naming the source's
 key; the shipped workflow is copied by adding one with the client's words, rule 8). Only the hub
@@ -245,7 +245,7 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   that cannot be counted is marked `unavailable` and never fails the read) and the client draws
   it. A count is kept between reads with its basis — what the structure offers and the parts of
   the reader's day the kind reads — and answers a later read with the same basis while the
-  collection's number of changes is the one it was counted at (migration 0292): every write to an
+  collection's number of changes is the one it was counted at (migration 0299): every write to an
   entry, a board column or a custom field definition moves that number by trigger in its own
   transaction, a workspace-wide definition every collection's; `FLOW` and `RHYTHM`, which the clock
   moves, answer from a kept count for a minute at most. A count the read's deadline cuts off is
@@ -376,7 +376,7 @@ one registry that assembles every area's declarations; `ReadSettingsCatalogue` (
 signed-in caller, without any place's value, and the client's settings search and *View as file* draw from it. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
 `fields`. Storage is one shape: a dotted key with a JSON value and a lock in `instance_setting` and
 `plan_setting`, and `setting_value` (level, scope, key, value, hold, allowed) for the workspace, a
-hub, a collection and a person (migration 0208).
+hub, a collection and a person (migration 0215).
 
 **The configuration document** (F-6, D-15 … D-17; packages `core/domain/model/config` and
 `core/application/service/config`). A workspace's configuration as one document of sections -
@@ -390,7 +390,7 @@ defined whole under its key; an organisation's change is flagged *changes
 permissions*, one giving up a mail domain runs first in its section, and a published template
 leaves the organisations out), `views` (the views shared workspace-wide, a queue among them) and `rules` (the
 workspace's automation rules, a macro among them) by the stable key a view and a rule carry in their
-scope (migration 0286: the writer's, or drawn from the name; a taken one refused), `settings` (the catalogue settings the workspace decided itself by their catalogue
+scope (migration 0293: the writer's, or drawn from the name; a taken one refused), `settings` (the catalogue settings the workspace decided itself by their catalogue
 key: the sign-in switches and legal links, the localisation, the AI narrowing and opt-out,
 `config.agent_apply`, `knowledge.public_links`; a value left to the level above has no block but is
 explained) - each
@@ -425,14 +425,14 @@ the workspace's and a person's own by identifier (`installation_<id>`, `preset_<
 the preset's version); a workspace template may not take one of those keys
 (`config.template_key_shipped`). A template the configuration check finds an error in is refused too
 (`config.template_check_failed`, `configuration.md` §11). A **hub template** carries a hub part beside the workspace's
-(`config_template.hub_document`, migration 0271): a hub's own document, published from a hub
+(`config_template.hub_document`, migration 0278): a hub's own document, published from a hub
 (`hub_id`) or named (`hub_document`) and linted as an empty hub would take it. A hub takes it with
 `hub_id` on the plan and the apply, once the workspace took the template
 (`config.template_workspace_first`; one without a hub part is `config.template_not_for_hubs`), and
 the part taken is that hub's base (`config_hub_template_use`). The ITIL template's hub part says
 which of its workflows each of its types follows in the hub, and brings the desk's queues (*Mine*,
 *Unassigned*, *About to breach*, *Unhappy*) and macros as the hub's views and rules. A **collection
-template** carries a collection part (`config_template.collection_document`, migration 0310): the
+template** carries a collection part (`config_template.collection_document`, migration 0317): the
 collection sections keyed without a handle, which a collection takes with `collection_id` under its
 own handle, recorded as that collection's base in `config_hub_template_use` (`configuration.md` §6).
 The five tables are in the workspace archive (tenant-export.md §6).
@@ -450,7 +450,7 @@ the rules scoped to it), authorised as
 `STRUCTURE` at the hub. The hub is named by the request and inside the document as `@hub`, so one
 hub's document applies to another unchanged. A view's anchor, a `collection_id` it filters on and a
 rule step's `…collection_id`, `…container_id` or `…hub_id` name a place by its handle - a hub has one
-as a collection has since migration 0286 - and an identifier no handle is known for stays as it is;
+as a collection has since migration 0293 - and an identifier no handle is known for stays as it is;
 a string literal in a rule condition's expression that is a place's identifier is written
 `'place:<handle>'` (`'place:@hub'` for the hub itself) and applied as the identifier of the place
 holding that handle, a marked handle no place holds refused at the plan (`config.place_unknown`);
@@ -458,8 +458,8 @@ a rule a document brings acts as whoever applies it unless it names `run_as`, is
 off and then switched on where its block says `enabled`; a rule listing longer than an export walks
 (fifty pages of 200) refuses the document (`config.section_too_large`) rather than leaving rules out
 that an apply would read as removed; its versions are the workspace's numbering with `hub_id`
-set (migration 0223), listed in the hub's history only, and a version restores only its own scope
-(`config.version_other_scope`). **The sandbox** (`config_sandbox`, migration 0224, one per
+set (migration 0230), listed in the hub's history only, and a version restores only its own scope
+(`config.version_other_scope`). **The sandbox** (`config_sandbox`, migration 0231, one per
 workspace) is a copy of the document without content and the copy it started from:
 `WriteConfigSandbox` changes it by a document - nothing runs, so the plan scope is enough - held to
 the refusals its promotion would meet; promoting is a plan and apply with `from_sandbox`, which asks
@@ -737,7 +737,7 @@ stateDiagram-v2
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?`, `internal` | An internal note (UC-SVC-04) is the team's: every reader of the entry reads it, a requester in the portal never does; a reply to one is internal, and the flag is fixed when written. Only the author or an admin may change it. Deletion erases the body and keeps identifier, author and timestamps, so the thread stays readable and no removed text is retained — except under a legal hold, where the row keeps the text, no read serves it, and the retention pass clears it once no hold covers it ([data-retention.md](./data-retention.md) §4) |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a message code (below) |
 | `MediaObject` | `tenantId`, `storageKey`, `fileName?`, `mimeType`, `size`, `checksum?`, `usage`, `status` (`PENDING`\|`READY`) | Presigned upload, reference counting, deletion on hard delete. Nothing uses an object before the confirmation has read its bytes back and judged them ([security.md](./security.md) T-11). `usage` is `COVER`, `ATTACHMENT`, `IMPORT` or `AVATAR` (a person's picture: at most 5 MB, an image delivered inline, read by every member) |
-| `CustomFieldDefinition` | `scope(collection\|hub\|tenant)`, `copiedFrom?`, `key`, `name?` (what a person reads for it, at most 100 characters, renamed freely; a client shows the key where none is set, migration 0355), `kind` (`TEXT`,`NUMBER`,`DATE`,`SELECT`,`MULTI_SELECT`,`BOOL`,`USER`,`URL`; the suite's `MONEY`,`DURATION`,`REFERENCE`,`USER_SET`,`RICH_TEXT`,`CALCULATED`; the registers' `DATE_TIME`,`GROUP`,`CASCADING_SELECT`,`IP_ADDRESS`,`FILE`,`LABEL`,`STATUS`, migration 0298), `options` (SELECT, MULTI_SELECT, STATUS in the order a record passes through them, CASCADING_SELECT as paths `Parent` and `Parent/Child`, each child under a parent listed), `currency` (MONEY only, ISO 4217, fixed once defined), `formula` (CALCULATED only, CEL, fixed once defined, migration 0215), `required` | Extension without a migration. Under a key the nearest scope wins - a collection's over its hub's over the workspace's (migration 0325, UC-WRK-12 check 9); a hub's is stored in the container column a collection's is, and a hub copies a workspace-wide one under the same key with *Make a copy here* (`copiedFrom` the source's identifier, no reference). A value records the definition it was written under, and reads and filters answer only values whose definition still lives, so a key recreated after deletion starts empty. MONEY holds at most four decimal places, DURATION whole minutes, REFERENCE an entry the writer can see, USER_SET accounts that can see the entry; RICH_TEXT is Markdown and is never compared (F-2). DATE_TIME holds an RFC 3339 moment stored in UTC to the second and ranges by its instant, never beside a DATE under one key; GROUP a group of the workspace; FILE the media of an attachment the entry carries (a value left behind by a detached file reads as out of reach, nothing deletes it); IP_ADDRESS one address without a prefix or zone in its canonical spelling, ranged and sorted as an address through `entry_field_value.addr` (`inet`); LABEL a set of lower-case words of letters, digits, `-`, `_` and `.`, at most 40 characters and 20 a value, nobody defines first; STATUS one state from the options, which drives nothing (a status that moves work is a workflow's). A CALCULATED value is the server's alone: its formula reads `entry.custom_fields` - the scope's NUMBER, MONEY, DURATION and BOOL fields, never another CALCULATED one, so no formula waits on another - is compiled against them when defined (`fields.formula_invalid`) with its whole numbers read as decimals (`hours * 2`), and is evaluated after every write of a value (`SetCustomField`, and so every creation and sync push through it), each moved result a key written with its own records; a formula that cannot answer leaves no value. A person's write of one is `fields.calculated`, and a new definition is filled on the entries defined before it by the `fields.fill` job (`FillCalculatedFields`, a page per job, the system's act), an entry that may not change then filling on its next write of an input |
+| `CustomFieldDefinition` | `scope(collection\|hub\|tenant)`, `copiedFrom?`, `key`, `name?` (what a person reads for it, at most 100 characters, renamed freely; a client shows the key where none is set, migration 0362), `kind` (`TEXT`,`NUMBER`,`DATE`,`SELECT`,`MULTI_SELECT`,`BOOL`,`USER`,`URL`; the suite's `MONEY`,`DURATION`,`REFERENCE`,`USER_SET`,`RICH_TEXT`,`CALCULATED`; the registers' `DATE_TIME`,`GROUP`,`CASCADING_SELECT`,`IP_ADDRESS`,`FILE`,`LABEL`,`STATUS`, migration 0305), `options` (SELECT, MULTI_SELECT, STATUS in the order a record passes through them, CASCADING_SELECT as paths `Parent` and `Parent/Child`, each child under a parent listed), `currency` (MONEY only, ISO 4217, fixed once defined), `formula` (CALCULATED only, CEL, fixed once defined, migration 0222), `required` | Extension without a migration. Under a key the nearest scope wins - a collection's over its hub's over the workspace's (migration 0332, UC-WRK-12 check 9); a hub's is stored in the container column a collection's is, and a hub copies a workspace-wide one under the same key with *Make a copy here* (`copiedFrom` the source's identifier, no reference). A value records the definition it was written under, and reads and filters answer only values whose definition still lives, so a key recreated after deletion starts empty. MONEY holds at most four decimal places, DURATION whole minutes, REFERENCE an entry the writer can see, USER_SET accounts that can see the entry; RICH_TEXT is Markdown and is never compared (F-2). DATE_TIME holds an RFC 3339 moment stored in UTC to the second and ranges by its instant, never beside a DATE under one key; GROUP a group of the workspace; FILE the media of an attachment the entry carries (a value left behind by a detached file reads as out of reach, nothing deletes it); IP_ADDRESS one address without a prefix or zone in its canonical spelling, ranged and sorted as an address through `entry_field_value.addr` (`inet`); LABEL a set of lower-case words of letters, digits, `-`, `_` and `.`, at most 40 characters and 20 a value, nobody defines first; STATUS one state from the options, which drives nothing (a status that moves work is a workflow's). A CALCULATED value is the server's alone: its formula reads `entry.custom_fields` - the scope's NUMBER, MONEY, DURATION and BOOL fields, never another CALCULATED one, so no formula waits on another - is compiled against them when defined (`fields.formula_invalid`) with its whole numbers read as decimals (`hours * 2`), and is evaluated after every write of a value (`SetCustomField`, and so every creation and sync push through it), each moved result a key written with its own records; a formula that cannot answer leaves no value. A person's write of one is `fields.calculated`, and a new definition is filled on the entries defined before it by the `fields.fill` job (`FillCalculatedFields`, a page per job, the system's act), an entry that may not change then filling on its next write of an input |
 | `LinkType` | `key`, `system`, `name`, `inverseName`, `direction` (`DIRECTED`\|`SYMMETRIC`), `cardinality` (`MANY`\|`ONE`), `cycles` (`FORBIDDEN`\|`ALLOWED`), `waits` (`NONE`\|`SOURCE`\|`TARGET`), `archivedAt` | A kind of relation between entries (F-3). Six ship and have no row - `blocks` (target waits), `depends_on` (source waits), `duplicates` (one per entry), `runs_on`, `affects` (loops allowed), `implements` - and a workspace adds its own. What a type means is fixed once made; one in use is archived, never deleted. A waiting type forbids loops, judged over every waiting type at once, so `depends_on` and `blocks` cannot loop between them |
 | `EntryLink` | `type`, `sourceId`, `targetId`, `createdBy`, `createdAt` | A link of a type from one entry to another, drawn and removed, never changed (UC-PLN-01). Drawn by whoever may change the source and sees the target; removed by whoever may change either end. A symmetric link is stored in one order. Written under the workspace's link lock, so the cardinality and the cycle rule hold against concurrent writers |
 | `Reference` | `kind` (`ENTRY`,`HUB`,`COLLECTION`,`VIEW`; the later modules' `PAGE`,`WHITEBOARD`,`CI`,`DASHBOARD`,`GOAL`,`SPRINT`), `id`, `anchor?`; drawn as `MENTION`, `CARD` or `EMBED` | The one way anything points at anything (P-19). Text writes it as a Markdown link to `hubtask:<kind>/<id>#<anchor>` - an image of the link is a card, or a live view for a viewable kind. It carries no copy: `ResolveReferences` answers what the reader may see, and an object out of reach, missing or of a module not built yet answers only its address and `available: false` - one answer, so a reference never tells whether something exists. What an entry's notes and comments point at is a projection (`entry_reference`) the database keeps in the writing transaction; it is what backlinks read |
@@ -815,7 +815,7 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   instance file (`business_calendars`, no identity and no row): a reader by key - planning,
   capacity, the SLA clocks - meets the workspace's of a key first and the installation's where the
   workspace holds none (`WithInstallation`). A policy's calendar is held by key in the use cases,
-  not by a foreign key (migration 0291): it names one the workspace or the installation holds, and a
+  not by a foreign key (migration 0298): it names one the workspace or the installation holds, and a
   workspace calendar a policy names goes only where the installation offers its key; a policy whose
   calendar the instance file stopped offering arms nothing.
 * **`SlaPolicy`** (UC-SVC-02): the entry types it measures, a `FIRST_RESPONSE` and a `RESOLUTION`
@@ -830,7 +830,7 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   of each goal - target, standing (`RUNNING`, `PAUSED`, `MET`, `BREACHED`), due, at risk, met,
   breached -, the record the archive carries and a report counts; the timer is only its clock. A
   warning timer running out announces `item.sla_at_risk`, the goal's `item.sla_breached`, once each;
-  an escalation is a rule on them. A policy may be **a hub's own** (`hub_id`, migration 0324;
+  an escalation is a rule on them. A policy may be **a hub's own** (`hub_id`, migration 0331;
   UC-SVC-02 check 13): defined there with STRUCTURE on the hub, or copied there from a shared one
   (`CopySlaPolicyHere`, under a key of its own, `copied_from` naming the source's). It measures
   only the hub's entries and is tried there before the workspace's, whatever its position
@@ -843,7 +843,7 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   entry is on a member of the group (the `OlaClocks` subscriber), its first response met by a
   comment - public or internal - of a member, every goal met by the completion or when the entry
   is handed on outside the group, paused like an SLA's. **`EntryOla`** (`entry_ola`, migration
-  0303) is its record, one per entry, policy and goal - apart from `entry_sla`, so an entry
+  0310) is its record, one per entry, policy and goal - apart from `entry_sla`, so an entry
   carries one requester's promise and any number of teams'; its timers have the purpose `OLA` and
   the record as subject. An entry is measured by an OLA once. Its moments are announced as the
   requester's are, with `assignee_group_id`.
@@ -896,7 +896,7 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   `MANAGE_MEMBERS`) at the workspace or at the hub or collection of the entries; nobody approves
   their own week. `Actuals` adds everybody's minutes to an entry's estimate in hours, rolled up its
   parents.
-* **Resources and costs** (`core/domain/model/timekeeping`, M7; stored by migration 0247, UC-TIM-06 … 08):
+* **Resources and costs** (`core/domain/model/timekeeping`, M7; stored by migration 0254, UC-TIM-06 … 08):
   a **`Capacity`** is a person's minutes per weekday from a day on, until their next; an
   **`Absence`** is a span of days, whole or half, of `LEAVE`, `TRAINING` or `OTHER` - no illness as
   a kind, because a calendar the team shares must not show a health reason (GDPR Art. 9). Public
@@ -909,7 +909,7 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   time against it, leaving minutes whose rate is in another currency unpriced (no exchange rates).
   A **`BillingRate`** is what an hour of billable time on a hub or collection is charged to its
   client, over a validity without overlaps per plan, a collection's before its hub's; kept as a row
-  of `time_cost_rate` whose subject is the plan (migration 0290), read only with `MANAGE_COSTS`, and
+  of `time_cost_rate` whose subject is the plan (migration 0297), read only with `MANAGE_COSTS`, and
   `BillableValueMinor` is a record's minutes at it - nothing where the record is not billable.
 * **The portal** (UC-SVC-05): a requester holds `REQUEST` at a collection serving as a service. Its
   catalogue is the top-level types the collection offers whose form names the `PORTAL` channel and
@@ -919,13 +919,13 @@ timer: a `RELATIVE_DATE` trigger anchored on the completion or on a date field (
   `AddComment` on the same door - public only, only on the requester's own entry. The portal's
   reads answer the requester's own entries without the team's fields, internal notes or system
   comments.
-* **A `PublicForm`** (UC-SVC-13, migration 0302) is a collection's link for people without an
+* **A `PublicForm`** (UC-SVC-13, migration 0309) is a collection's link for people without an
   account, one per collection, kept as its token's keyed hash; made where the workspace allows it
   (`servicedesk.public_forms`). It offers the types whose form opens `PUBLIC`; a submission carries
   a signed proof-of-work challenge, is filed through `CreateWorkItem` on the `PUBLIC` door as the
   link's maker, evaluated at every submission, and names the visitor by the mail intake's From line
   and a requester's record.
-* **An `Organisation`** (UC-SVC-11, migration 0287) groups a workspace's requesters by the mail
+* **An `Organisation`** (UC-SVC-11, migration 0294) groups a workspace's requesters by the mail
   domains of their addresses - read when asked, never stored per person; a domain is in at most one
   organisation of a workspace. Where it `sharesRequests` (off by default), its people list and read
   each other's requests in the portal; answering and rating stay the requester's own.
@@ -1071,7 +1071,7 @@ An `Alert` is one problem per intake and key - firing, resolved, reopened - boun
 host names and to the entry opened for it; a pull keeps one more about its own runs, firing while
 they fail or fetch nothing. A connector is switched off, never deleted.
 
-What vouches for an inventory (migration 0267): an entry names up to fifty CIs as **affected**
+What vouches for an inventory (migration 0274): an entry names up to fifty CIs as **affected**
 (`Affected`) - its readers see the services their failure reaches, the other open entries on them,
 and a **collision** with an entry planned on the same or a reached CI in an overlapping start-to-due
 window (UC-AST-09). A **campaign** fixes, when it starts, the active CIs of its classes due for review
@@ -1107,7 +1107,7 @@ the reader, a project the reader may not read left out and kept when they change
 **`StatusUpdate`** gives a health and a summary, becomes the portfolio's health and stays as history.
 A **`Dashboard`** at the workspace or in a hub is its owner's (`PRIVATE`), read by everybody who
 reads its place (`SCOPE`), or by the members of up to twenty groups who read it (`GROUPS`, migration
-0274) - sharing either way needs `STRUCTURE`; its at most 24 **`Widget`**s on a twelve-column
+0281) - sharing either way needs `STRUCTURE`; its at most 24 **`Widget`**s on a twelve-column
 grid run a saved summary view, a stored `POST /items:aggregate` document or goals' progress, and
 their numbers are computed when read, for the reader, never stored. A bar, line or table widget
 may carry a second summary (`Compare`, resolved beside created) and draw each period as its running
@@ -1143,7 +1143,7 @@ and a change of any of them is a new **revision** an agent's approval must cover
 agent's evaluation set is a ticket's words and the expected answer; a **`Run`** records how many cases
 an answer set passed on one revision, scored here (UC-AGT-04). A **`Mark`** is an accepted AI value's
 provenance - the object, the names of its fields, the suggestion, model and prompt, who accepted it
-when - kept beyond the suggestion (UC-AGT-05). All of it is stored by migration 0251 and archived.
+when - kept beyond the suggestion (UC-AGT-05). All of it is stored by migration 0258 and archived.
 
 A shipped agent **proposes and never applies** (G11, UC-AGT-07): every write it attempts is held as
 a `Request` whatever its policy allows, or is a suggestion on the entry. Its owner or an
@@ -1151,7 +1151,7 @@ administrator starts a **`Job`** of it on one target - an entry for ticket triag
 knowledge draft, a hub's inventory for duplicate review -, judged like an act and held to the
 agent's tokens per day and its runs at once (a job counts for a lease of fifteen minutes); the job
 runs as the agent's own account through the catalogue, and keeps how it ended, what it proposed and
-the tokens it spent, never what it read (migration 0252, archived). A triage routes a ticket nobody
+the tokens it spent, never what it read (migration 0259, archived). A triage routes a ticket nobody
 holds by its offering - named, else the nearest a named CI affects, none on a tie - to the support
 group member with the fewest open entries in the hub, as a held `AssignWorkItem`.
 
@@ -1163,14 +1163,14 @@ switched off, never removed. An entry's **`Link`** is a commit, a branch or a pu
 text named the entry's key, one per entry, hook, kind, repository and reference, with its title,
 address, the forge's account name and its state (`PUSHED`, `OPEN`, `MERGED`, `CLOSED`) as the forge
 last told it; a signal older than the one it follows is ignored and a merge is final
-(UC-INT-13, migration 0275, archived).
+(UC-INT-13, migration 0282, archived).
 
 ### 3.14 Files in a store (context: Integration, M10)
 
 An entry's file **`Link`** names a file or folder in Nextcloud, SharePoint, OneDrive or a WebDAV
 store by its https address, with a name and the store (told by the address unless chosen); one per
 entry and address, at most fifty per entry. The file is never fetched or copied; a link taken off
-leaves it in its store (UC-INT-14, migration 0276, archived).
+leaves it in its store (UC-INT-14, migration 0283, archived).
 
 ### 3.15 A calendar feed pushed into a calendar (context: Integration, M10)
 
@@ -1178,14 +1178,14 @@ A **`CalendarPush`** writes its owner's own calendar feed into their calendar at
 Google: one per feed and provider, at most ten per person, `ACTIVE` until a refusal for good -
 the grant revoked, the feed gone - makes it `FAILED`. A **`PushedEvent`** is what it wrote for one
 entry, the provider's event and a digest, so a run writes only what changed (`PlanPush`)
-(UC-INT-16, migration 0278, not archived: the grant opens on one installation).
+(UC-INT-16, migration 0285, not archived: the grant opens on one installation).
 
 ### 3.16 A person's own file store (context: Integration, M10)
 
 A **`filelink.Connection`** is a person's own sign-in to a file store - a Nextcloud by its login
 flow and an app password, or Microsoft's OneDrive and SharePoint by a refresh token - at most ten
 per person, one per store and login. *Link a file* walks its folders as **`filelink.Item`**s and
-keeps a picked one as an ordinary file link (UC-INT-17, migration 0279, not archived: the grant
+keeps a picked one as an ordinary file link (UC-INT-17, migration 0286, not archived: the grant
 opens on one installation).
 
 ### 3.17 A chat bot in a hub's room (context: Integration, M10)
@@ -1193,11 +1193,11 @@ opens on one installation).
 A **`ChatBot`** is a Matrix account seated in one room for one hub: it answers links to the hub's
 entries (`LinkedEntries`) and makes `!task` messages entries in its collection (`Captured`), as
 whoever set it up; at most ten per hub, one per room, its sync position kept between reads
-(UC-INT-18, migration 0280, not archived: the token opens on one installation).
+(UC-INT-18, migration 0287, not archived: the token opens on one installation).
 A bot's **`Platform`** is MATRIX, SLACK, TEAMS or MATTERMOST; on the last three the platform posts
 to the bot's intake and the bot's room is a channel or conversation by its identifier, checked in
 each platform's shape (`CheckChatBotOn`), a Teams thread read as its conversation (`SameRoom`)
-(UC-INT-19, migration 0288).
+(UC-INT-19, migration 0295).
 
 ## 4. Domain events
 
@@ -1325,7 +1325,7 @@ The complete DDL, indices included: [`../../db/schema.sql`](../../db/schema.sql)
   is what every read answers; its typed projection `entry_field_value (tenant, entry, definition,
   ordinal, num | ts | text | ref)` with one B-tree per column is what ranges, sorts and groups
   read. A trigger writes it in the transaction that writes the document, from every path
-  (migration 0211): a number, an amount, a duration and a yes/no in `num`, a date as its UTC
+  (migration 0218): a number, an amount, a duration and a yes/no in `num`, a date as its UTC
   midnight in `ts`, text, a choice and a link in `text` (first 256 characters), a person and a
   reference in `ref`, one row per element of a set; formatted text has none.
 * Full text: a `tsvector` column with a language-dependent configuration per item, maintained by a

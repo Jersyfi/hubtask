@@ -63,8 +63,8 @@ func TestTheRequestIndexReachesEveryAuditPartition(t *testing.T) {
 	}
 	goose.SetLogger(goose.NopLogger())
 	goose.SetBaseFS(db.Migrations)
-	if err := goose.UpToContext(ctx, pool, "migrations", 358); err != nil {
-		t.Fatalf("bringing the database to 0358: %v", err)
+	if err := goose.UpToContext(ctx, pool, "migrations", 365); err != nil {
+		t.Fatalf("bringing the database to 0365: %v", err)
 	}
 	// A month the partition job created before the index existed.
 	if _, err := pool.ExecContext(ctx, `SELECT ensure_audit_partition('2026-10-01')`); err != nil {

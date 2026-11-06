@@ -16,7 +16,7 @@ import (
 func fetchData(t *testing.T, reader CalendarFeedReader, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	controller := NewRestController()
-	controller.Feeds = &FeedDoor{Data: reader, BaseURL: "https://hubtask.example.com"}
+	controller.Feeds = &FeedDoor{Data: reader, Links: &movingLinks{base: "https://hubtask.example.com"}}
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, APIBasePath+path, nil)
 	recorder := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(recorder, request)

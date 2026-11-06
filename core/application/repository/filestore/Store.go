@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package filestore is the store of a person's file store connections (migration 0279): their
+// Package filestore is the store of a person's file store connections (migration 0286): their
 // sign-ins to a Nextcloud or to Microsoft's OneDrive and SharePoint, each with its grant sealed,
 // and the connections waiting for the store's answer - read and written inside the unit of work's
 // transaction (rule 3).

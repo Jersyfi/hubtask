@@ -186,7 +186,7 @@ type StartChatLinkParams struct {
 	CreatedAt     pgtype.Timestamptz
 }
 
-// A person's chat account linked to a hub's chat bot (migration 0321; UC-SVC-09 check 6).
+// A person's chat account linked to a hub's chat bot (migration 0328; UC-SVC-09 check 6).
 func (q *Queries) StartChatLink(ctx context.Context, arg StartChatLinkParams) error {
 	_, err := q.db.Exec(ctx, startChatLink,
 		arg.ID,

@@ -148,7 +148,7 @@ func TestANameRoutesToItsPlaceAndAHandleChangesOnce(t *testing.T) {
 	}
 }
 
-// A collection's key prefix (migration 0356, user-experience.md §5.6): the store derives it from
+// A collection's key prefix (migration 0363, user-experience.md §5.6): the store derives it from
 // the name, a key with it names the entry as one with the handle does, only in its own workspace,
 // and a prefix another collection holds is refused.
 func TestACollectionsKeyPrefixNamesItsEntriesInItsWorkspaceOnly(t *testing.T) {

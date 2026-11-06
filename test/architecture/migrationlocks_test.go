@@ -19,6 +19,11 @@ import (
 // that stops writes for the length of a scan (versioning-release.md §4). Raised with each release.
 const lastReleasedMigration = 206
 
+// mergedBeforeTheCheck are main's migrations of milestones CD and F7, merged before this check met
+// them. A merged migration never changes (rule 12): the lock each takes on its released table is
+// what the release that ships them takes.
+var mergedBeforeTheCheck = map[string]bool{"0211_own_domain.sql": true, "0214_app_client.sql": true}
+
 var (
 	createdTable   = regexp.MustCompile(`(?i)\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*)`)
 	createdIndex   = regexp.MustCompile(`(?is)\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?[a-z_0-9]*\s*ON\s+(ONLY\s+)?([a-z_][a-z0-9_]*)`)
@@ -76,7 +81,7 @@ func readMigrations(t *testing.T) []migrationFile {
 
 // No migration after the last release takes a write-stopping lock on a released table for a scan:
 // an index is built CONCURRENTLY, a CHECK or FOREIGN KEY is added NOT VALID, and its VALIDATE runs
-// outside the transaction that added it - in a NO TRANSACTION file, as 0209 and 0210 do. Inside
+// outside the transaction that added it - in a NO TRANSACTION file, as 0216 and 0217 do. Inside
 // one transaction the ADD's ACCESS EXCLUSIVE lock is held through the VALIDATE's scan.
 func TestNoMigrationAfterTheReleaseBlocksWritesOnAReleasedTable(t *testing.T) {
 	for _, violation := range lockViolations(t) {
@@ -96,7 +101,7 @@ func lockViolations(t *testing.T) []lockViolation {
 	notValid := regexp.MustCompile(`(?i)\bNOT\s+VALID\b`)
 	var found []lockViolation
 	for _, file := range files {
-		if file.number <= lastReleasedMigration {
+		if file.number <= lastReleasedMigration || mergedBeforeTheCheck[file.name] {
 			continue
 		}
 		addedHere := map[string]bool{}
@@ -163,7 +168,7 @@ func withoutFunctionBodies(text string) string {
 // No transaction that alters a released table also rewrites a released table's rows: the ALTER's
 // ACCESS EXCLUSIVE lock is held until the commit, so every reader and writer of that table waits
 // for the whole backfill. A backfill runs in a NO TRANSACTION file of its own and commits by batch,
-// as 0212 does.
+// as 0219 does.
 func TestNoMigrationBackfillsInsideTheTransactionThatAltersAReleasedTable(t *testing.T) {
 	files := readMigrations(t)
 	released := releasedTables(files)

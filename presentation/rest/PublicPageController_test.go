@@ -90,7 +90,7 @@ func TestAPublicPageDrawsItsPicturesThroughTheLink(t *testing.T) {
 	reader := &publicReader{}
 	sender := &pictureBytes{}
 	controller := NewRestController()
-	controller.Feeds = &FeedDoor{Pages: reader, Pictures: sender, BaseURL: "https://tasks.example.org"}
+	controller.Feeds = &FeedDoor{Pages: reader, Pictures: sender, Links: &movingLinks{base: "https://tasks.example.org"}}
 	tenant := shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
 	token, err := integration.NewPageLinkToken(tenant, bytes.Repeat([]byte{3}, integration.PageLinkTokenSecretBytes))
 	if err != nil {

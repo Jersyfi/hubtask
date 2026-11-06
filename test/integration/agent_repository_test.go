@@ -18,7 +18,7 @@ import (
 )
 
 // A model, an agent, the kill switch, a held act, the ledger, a case, a run and a provenance mark
-// stay in their workspace (migration 0251, UC-AGT-01 check 7, UC-AGT-03 check 5,
+// stay in their workspace (migration 0258, UC-AGT-01 check 7, UC-AGT-03 check 5,
 // UC-AGT-04 check 5).
 func TestAgentsStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()

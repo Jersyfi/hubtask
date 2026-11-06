@@ -442,7 +442,7 @@ type ListTimeBillingRatesRow struct {
 }
 
 // A billing rate is a row of time_cost_rate whose subject is a hub or a collection (migration
-// 0290); the statements above never touch one, these touch nothing else.
+// 0297); the statements above never touch one, these touch nothing else.
 func (q *Queries) ListTimeBillingRates(ctx context.Context, arg ListTimeBillingRatesParams) ([]ListTimeBillingRatesRow, error) {
 	rows, err := q.db.Query(ctx, listTimeBillingRates, arg.Plans, arg.Max)
 	if err != nil {
@@ -494,7 +494,7 @@ type ListTimeCapacitiesRow struct {
 	Version     int32
 }
 
-// A person's capacity and absences, cost rates and budgets (migration 0247, M7).
+// A person's capacity and absences, cost rates and budgets (migration 0254, M7).
 // The capacities of the people named, or of everybody where none is named, by person and day.
 func (q *Queries) ListTimeCapacities(ctx context.Context, arg ListTimeCapacitiesParams) ([]ListTimeCapacitiesRow, error) {
 	rows, err := q.db.Query(ctx, listTimeCapacities, arg.AccountIds, arg.Max)

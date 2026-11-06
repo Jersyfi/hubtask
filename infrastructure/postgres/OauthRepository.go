@@ -77,6 +77,7 @@ func (r OauthClientRepository) Insert(
 		RedirectUris: client.RedirectURIs,
 		CreatedAt:    pgtype.Timestamptz{Time: client.CreatedAt, Valid: true},
 		CreatedBy:    createdBy,
+		AppPlatform:  optionalText(string(client.AppPlatform)),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -122,6 +123,7 @@ func (r OauthClientRepository) Find(ctx context.Context, clientID shared.ID) (id
 	return identity.OauthClient{
 		ID: id, Name: row.Name, Confidential: row.Confidential,
 		RedirectURIs: row.RedirectUris, CreatedAt: timeFrom(row.CreatedAt),
+		AppPlatform: identity.AppPlatform(stringFrom(row.AppPlatform)),
 	}, nil
 }
 
@@ -276,8 +278,9 @@ func (r OauthGrantRepository) ListForAccount(
 				ID: id, AccountID: accountID, ClientID: clientID,
 				Scopes: row.Scopes, CreatedAt: timeFrom(row.CreatedAt),
 			},
-			ClientName: row.ClientName,
-			LastUsedAt: interfaceTime(row.LastUsedAt),
+			ClientName:  row.ClientName,
+			AppPlatform: identity.AppPlatform(stringFrom(row.AppPlatform)),
+			LastUsedAt:  interfaceTime(row.LastUsedAt),
 		})
 	}
 	return listings, nil

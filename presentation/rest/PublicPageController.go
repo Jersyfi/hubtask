@@ -50,17 +50,19 @@ type FeedDoor struct {
 	Forms PublicFormDoor
 	// Satisfaction answers a resolution mail's satisfaction link (UC-SVC-07 check 6).
 	Satisfaction SatisfactionLinkDoor
-	// BaseURL is the installation's public address the links back are composed from (feedURL).
-	BaseURL string
+	// Links answers the main address of the workspace a token names, which a feed's links, a data
+	// feed's service root and a public page's pictures are composed from (UC-INS-19 check 9); nil
+	// keeps them relative or unlinked.
+	Links WorkspaceLinks
 }
 
 // publicPagePolicy keeps the document inert wherever it is opened: no script, nothing loaded from
 // elsewhere, no form, never framed - the page is words somebody wrote, shown to anybody. Pictures
-// load from the link's own media route alone; without a configured address, from this origin.
-func (c *FeedDoor) publicPagePolicy(presented string) string {
+// load from the link's own media route alone; without the workspace's address, from this origin.
+func (c *FeedDoor) publicPagePolicy(base, presented string) string {
 	pictures := "'self'"
-	if c.BaseURL != "" {
-		pictures = strings.TrimSuffix(c.BaseURL, "/") + APIBasePath + "/public/pages/" + presented + "/media/"
+	if base != "" {
+		pictures = strings.TrimSuffix(base, "/") + APIBasePath + "/public/pages/" + presented + "/media/"
 	}
 	return "default-src 'none'; img-src data: " + pictures + "; style-src 'unsafe-inline'; " +
 		"base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
@@ -95,7 +97,12 @@ func (c *FeedDoor) GetPublicPage(w http.ResponseWriter, r *http.Request, present
 		}
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Security-Policy", c.publicPagePolicy(presented))
+	// The pictures load from the page's own workspace's main address (ADR-0095 §2).
+	base, err := c.linkBase(r.Context(), token.TenantID())
+	if err != nil {
+		base = ""
+	}
+	w.Header().Set("Content-Security-Policy", c.publicPagePolicy(base, presented))
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")

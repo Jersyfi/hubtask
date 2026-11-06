@@ -153,7 +153,7 @@ func TestALinksSummaryCountsTheLinksBetweenTheKeptEntries(t *testing.T) {
 }
 
 // The status history is written as an entry enters a status, and a summary reads cycle time,
-// WIP age and time in status from it (migration 0250, UC-GOL-04 check 11).
+// WIP age and time in status from it (migration 0257, UC-GOL-04 check 11).
 func TestAFlowQuantityReadsTheStatusHistory(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)

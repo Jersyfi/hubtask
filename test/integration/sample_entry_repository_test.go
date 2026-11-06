@@ -15,7 +15,7 @@ import (
 )
 
 // configuration.md §6: a hub's sample entry is marked once per key, listed while it is out of the
-// trash, and invisible to the workspace next door (migration 0307).
+// trash, and invisible to the workspace next door (migration 0314).
 func TestASampleEntryIsMarkedOnceAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

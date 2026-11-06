@@ -249,7 +249,7 @@ type InsertWhiteboardParams struct {
 	At        pgtype.Timestamptz
 }
 
-// The whiteboard module's boards (migration 0233, M4). The tenant is the transaction's in every
+// The whiteboard module's boards (migration 0240, M4). The tenant is the transaction's in every
 // statement (ADR-0010).
 func (q *Queries) InsertWhiteboard(ctx context.Context, arg InsertWhiteboardParams) error {
 	_, err := q.db.Exec(ctx, insertWhiteboard,

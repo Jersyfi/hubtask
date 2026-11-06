@@ -70,7 +70,7 @@ UPDATE restore_run SET
   safety_backup_run_id = COALESCE(sqlc.narg('safety_backup_run_id'), safety_backup_run_id),
   finished_at          = sqlc.arg('finished_at'),
   error_code           = sqlc.narg('error_code'),
-  -- A run that has ended needs its passphrase no more (migration 0320).
+  -- A run that has ended needs its passphrase no more (migration 0327).
   passphrase_enc       = NULL,
   passphrase_key_id    = NULL
 WHERE id = sqlc.arg('id')

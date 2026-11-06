@@ -124,7 +124,7 @@ UPDATE restore_run SET
   safety_backup_run_id = COALESCE($3, safety_backup_run_id),
   finished_at          = $4,
   error_code           = $5,
-  -- A run that has ended needs its passphrase no more (migration 0320).
+  -- A run that has ended needs its passphrase no more (migration 0327).
   passphrase_enc       = NULL,
   passphrase_key_id    = NULL
 WHERE id = $6

@@ -1,6 +1,6 @@
 # ADR-0096 — The installed apps sign in through the system browser
 
-**Status:** proposed, accepted when F7-02 merges · **Date:** 2026-10-27 · **Decided:** at the cut of
+**Status:** accepted · **Date:** 2026-10-27 · **Decided:** at the cut of
 milestone F7, by the worker; the shells themselves by
 [ADR-0031](./ADR-0031-tauri-app-shell.md) and [ADR-0084](./ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)
 

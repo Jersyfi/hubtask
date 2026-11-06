@@ -84,6 +84,9 @@ func (r RecurrenceRepository) Insert(ctx context.Context, rule work.RecurrenceRu
 		CreatedAt:   timestampOf(rule.CreatedAt),
 	})
 	if err != nil {
+		if taken := identifierTaken(err, "recurrence_rule_pkey", "recurrence.id_taken"); taken != nil {
+			return taken
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the series %s: %w", rule.ID, err))

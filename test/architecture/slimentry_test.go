@@ -105,7 +105,7 @@ func TestNoNewQueryNamesTheSlimEntrysMirroredColumns(t *testing.T) {
 	}
 }
 
-// releasesSinceSlimExpand names how many releases already shipped migration 0228; `make release-tag`
+// releasesSinceSlimExpand names how many releases already shipped migration 0235; `make release-tag`
 // sets it from the tags, so the contract steps cannot be forgotten: the release after the suite's
 // is refused while a writer still names the columns, the one after that while the trigger stands.
 const releasesSinceSlimExpand = "HUBTASK_RELEASES_SINCE_SLIM_EXPAND"
@@ -115,7 +115,7 @@ var createsTheMirror = regexp.MustCompile(`(?i)CREATE\s+(?:OR\s+REPLACE\s+)?TRIG
 
 // slimEntryStepsDue answers the contract steps a release is cut without, given how many releases
 // already shipped the expand half, the queries still naming the columns and whether a migration
-// after 0228 drops the mirror.
+// after 0235 drops the mirror.
 func slimEntryStepsDue(releases int, namers map[string][]string, mirrorDropped bool) []string {
 	var due []string
 	if releases >= 1 {
@@ -147,7 +147,7 @@ func TestTheSlimEntrysContractStepsAreDueOnTime(t *testing.T) {
 	}
 	dropped := false
 	for _, path := range files {
-		if filepath.Base(path) <= "0228" {
+		if filepath.Base(path) <= "0235" {
 			continue
 		}
 		content, err := os.ReadFile(path)

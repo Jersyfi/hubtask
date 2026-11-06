@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// PlanningSprints stores sprints, their entries and estimates (migration 0245, M2).
+// PlanningSprints stores sprints, their entries and estimates (migration 0252, M2).
 type PlanningSprints struct{}
 
 var _ repository.Sprints = PlanningSprints{}

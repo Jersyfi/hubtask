@@ -4671,7 +4671,7 @@ type ExportRealtimeDocumentsRow struct {
 	Payload   []byte
 }
 
-// Live documents (migration 0230): the head, the log and the snapshots, written whole - an update
+// Live documents (migration 0237): the head, the log and the snapshots, written whole - an update
 // removed by retention leaves no marker.
 func (q *Queries) ExportRealtimeDocuments(ctx context.Context, arg ExportRealtimeDocumentsParams) ([]ExportRealtimeDocumentsRow, error) {
 	rows, err := q.db.Query(ctx, exportRealtimeDocuments, arg.AfterID, arg.AfterSecond, arg.Batch)

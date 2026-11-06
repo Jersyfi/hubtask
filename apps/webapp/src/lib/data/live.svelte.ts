@@ -120,7 +120,7 @@ class Live {
       holdOfflineAccount(accountId);
       if (storage) {
         try {
-          await engine.attach(storage, { platform: 'web', displayName: platform.deviceName() });
+          await engine.attach(storage, { platform: platform.devicePlatform, displayName: platform.deviceName() });
           // A copy narrowed before holds the hubs opened lately as of now.
           await engine.renarrow();
           this.#held = engine.heldContainers;

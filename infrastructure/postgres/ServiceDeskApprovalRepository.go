@@ -18,7 +18,7 @@ import (
 
 var _ repository.Approvals = ServiceDeskApprovals{}
 
-// ServiceDeskApprovals stores approvals, their decisions and delegations (migration 0268).
+// ServiceDeskApprovals stores approvals, their decisions and delegations (migration 0275).
 type ServiceDeskApprovals struct{}
 
 func (ServiceDeskRepository) Approvals() ServiceDeskApprovals { return ServiceDeskApprovals{} }

@@ -19,6 +19,7 @@
  */
 
 import type {
+  AdminOwnDomain,
   AdminTenant,
   IdentityProvider,
   IdentityProviderConfiguration,
@@ -33,6 +34,8 @@ import type {
   OfferedAiModelConfiguration,
   Operator,
   PasswordOpeningRequest,
+  TenantAddressChange,
+  TenantAddressChanged,
   ProvisionedTenant,
   TenantProvision,
   TenantQuotas,
@@ -62,6 +65,7 @@ const TENANTS = '/admin/tenants';
 const TENANT_QUERY = '/admin/tenants:query';
 type TenantPage = { readonly data: readonly AdminTenant[]; readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean } };
 
+const OWN_DOMAINS = '/admin/own-domains';
 const SETTINGS = '/admin/settings';
 const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
@@ -92,7 +96,7 @@ const TARGETS = '/admin/backup-targets';
 /** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
 // The plans too: a workspace provisioned on a plan, deleted or purged changes its plan's count, and
 // a plan whose count is stale offers a removal the server refuses.
-const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS, '/admin/plans'];
+const EVERYTHING = [OVERVIEW, TENANTS, OWN_DOMAINS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS, '/admin/plans'];
 
 /** How often the remaining time is recomputed. A second: it is a clock somebody is reading. */
 const TICK_MS = 1_000;
@@ -110,6 +114,7 @@ class Instance {
   #workspaces = $state<ResourceState<readonly AdminTenant[]>>({ status: 'idle' });
   #workspacePage = $state<ResourceState<TenantPage>>({ status: 'idle' });
   #workspaceQuery: Record<string, unknown> = workspaceQuery({});
+  #ownDomains = $state<ResourceState<readonly AdminOwnDomain[]>>({ status: 'idle' });
   #settings = $state<ResourceState<InstanceSettings>>({ status: 'idle' });
   #operators = $state<ResourceState<readonly Operator[]>>({ status: 'idle' });
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
@@ -178,6 +183,11 @@ class Instance {
   async isSlugTaken(slug: string): Promise<boolean> {
     const state = await engine.refresh<TenantPage>({ path: TENANT_QUERY, body: workspaceQuery({ slug }, 1) });
     return state.status === 'ready' && state.data.data.length > 0;
+  }
+
+  /** Every own domain the workspaces' owners set up, and every block (UC-INS-15 check 10). */
+  get ownDomains(): readonly AdminOwnDomain[] {
+    return this.#ownDomains.status === 'ready' ? this.#ownDomains.data : [];
   }
 
   get settings(): ResourceState<InstanceSettings> {
@@ -250,6 +260,7 @@ class Instance {
     this.#nearQuota = { status: 'idle' };
     this.#workspaces = { status: 'idle' };
     this.#workspacePage = { status: 'idle' };
+    this.#ownDomains = { status: 'idle' };
     this.#settings = { status: 'idle' };
     this.#operators = { status: 'idle' };
     this.#journal = { status: 'idle' };
@@ -318,6 +329,22 @@ class Instance {
   openOverview(): () => void {
     return engine.subscribe<InstanceOverview>({ path: OVERVIEW }, (next) => {
       this.#overview = next;
+    });
+  }
+
+  openOwnDomains(): () => void {
+    return engine.subscribe<readonly AdminOwnDomain[]>({ path: OWN_DOMAINS }, (next) => {
+      this.#ownDomains = next;
+    });
+  }
+
+  /**
+   * Blocks an own domain with a reason: it stops answering at once, and the workspace's owner reads
+   * the reason. In the workspace's trail and the instance journal.
+   */
+  async blockOwnDomain(domain: string, reason: string): Promise<AdminOwnDomain> {
+    return engine.mutate<AdminOwnDomain>('POST', `${OWN_DOMAINS}/${encodeURIComponent(domain)}:block`, { reason }, {
+      invalidates: [OWN_DOMAINS, JOURNAL],
     });
   }
 
@@ -549,6 +576,21 @@ class Instance {
         stepUpToken,
         invalidates: EVERYTHING,
       }),
+    );
+  }
+
+  /**
+   * Changes a workspace's address (multi-tenancy.md §3.1), or with `dry_run` asks what the change
+   * would be: the field's refusals, the lockout, who is told. A dry run takes no proof; the change
+   * takes one by password or provider, which the refusal names.
+   */
+  async changeAddress(tenantId: string, change: TenantAddressChange): Promise<TenantAddressChanged> {
+    const path = `${TENANTS}/${tenantId}:change-address`;
+    if (change.dry_run) {
+      return engine.mutate<TenantAddressChanged>('POST', path, change, { invalidates: [] });
+    }
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<TenantAddressChanged>('POST', path, change, { stepUpToken, invalidates: EVERYTHING }),
     );
   }
 

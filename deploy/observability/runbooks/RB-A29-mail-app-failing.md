@@ -17,7 +17,7 @@ point at the app: its client secret expired or was deleted at the provider, the 
 or the configured secret is wrong after a change. No workspace administrator can fix that. With
 only one or two mailboxes on the app, one person's withdrawn consent also fires this alert.
 
-The numbers come from `installation_mail_apps()` (migration 0344): counts per preset, never an
+The numbers come from `installation_mail_apps()` (migration 0351): counts per preset, never an
 address or a workspace.
 
 ## Immediate action

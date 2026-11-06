@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// TemplatePageRepository stores the marks of the pages a template brought (migration 0309).
+// TemplatePageRepository stores the marks of the pages a template brought (migration 0316).
 type TemplatePageRepository struct{}
 
 var _ repository.TemplatePages = TemplatePageRepository{}

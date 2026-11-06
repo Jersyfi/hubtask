@@ -559,7 +559,7 @@ func TestAWordlessSearchStaysInsideItsWorkspace(t *testing.T) {
 }
 
 // An entry is found by what was said about it (F-9): a word only its comment carries finds the
-// entry, through the index migration 0225 built.
+// entry, through the index migration 0232 built.
 func TestAnEntryIsFoundByItsComment(t *testing.T) {
 	ctx := context.Background()
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
@@ -606,7 +606,7 @@ func TestACommentHitIsRankedByTheComment(t *testing.T) {
 }
 
 // An entry is found by the file it carries (F-9): a word only an attachment's name holds finds the
-// entry, through the index migration 0226 built, and a removed file no longer does.
+// entry, through the index migration 0233 built, and a removed file no longer does.
 func TestAnEntryIsFoundByItsAttachmentName(t *testing.T) {
 	ctx := context.Background()
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)

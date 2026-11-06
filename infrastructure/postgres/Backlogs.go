@@ -16,7 +16,7 @@ import (
 )
 
 // Backlogs counts the installation's queues for the health report: the due jobs, the dead
-// letters, the webhook retries parked on the queue, and the outbox through its door (0345).
+// letters, the webhook retries parked on the queue, and the outbox through its door (0352).
 // Counts only, in one read-only transaction.
 type Backlogs struct {
 	UnitOfWork persistence.UnitOfWork

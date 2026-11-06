@@ -147,7 +147,7 @@ WHERE event_type = sqlc.arg('event_type')
 ORDER BY occurred_at, id
 LIMIT sqlc.arg('batch');
 
--- The health report's outbox backlog, across workspaces through the door (0345): how many events
+-- The health report's outbox backlog, across workspaces through the door (0352): how many events
 -- wait to be dispatched and how long the oldest has waited. Numbers, no rows.
 -- name: OutboxBacklog :one
 SELECT pending::bigint AS pending, oldest_seconds::double precision AS oldest_seconds

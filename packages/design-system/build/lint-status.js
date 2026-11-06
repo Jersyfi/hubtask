@@ -200,7 +200,8 @@ export function findViolations(file, source) {
   return found;
 }
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit']);
+// src-tauri: the shell's Rust and Cargo's build output, which embeds a copy of the built bundle.
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.vite', '.turbo', '.svelte-kit', 'src-tauri']);
 
 /** lint walks one source tree and returns every violation in it. */
 export function lint(root) {

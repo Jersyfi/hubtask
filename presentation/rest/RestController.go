@@ -53,11 +53,11 @@ type RestController struct {
 	// WorkspaceArchive streams the owner's download of the whole workspace (UC-BAK-07 check 7).
 	WorkspaceArchive *WorkspaceArchiveDoor
 
-	// BaseURL is this installation's public address, and the only thing this controller composes
-	// rather than maps: a calendar feed is handed to a client as a URL to subscribe to, and a URL
-	// is a fact about the installation rather than about the domain. Empty answers a
-	// relative address, which is what a client that just called this server can still use.
-	BaseURL string
+	// Links answers the address of the request's workspace - its main row's (UC-INS-19 check 9) -
+	// for the links this controller composes rather than maps: a calendar feed's address and an
+	// entry's link in an export or a feed. Nil answers relative ones, which a client that just
+	// called this server can still use.
+	Links WorkspaceLinks
 
 	// Feeds serves the routes a token alone opens (FeedDoor). Nil leaves them answering the
 	// pending 404.

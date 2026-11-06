@@ -23,6 +23,11 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        version::integer AS version
 FROM admin_tenants();
 
+-- name: AdminMainHosts :many
+-- Each listed workspace's main address (migration 0208); a NULL list answers every workspace's.
+SELECT tenant_id::uuid AS tenant_id, host::text AS host
+FROM admin_main_hosts(sqlc.narg('want')::uuid[]);
+
 -- name: InsertTenant :exec
 -- Runs inside the new tenant's own scope: the tenant_self policy's WITH CHECK compares the row
 -- against current_tenant_id(), so the first write a tenant ever sees is already bounded to it.
@@ -42,7 +47,9 @@ SELECT t.id, t.slug, t.display_name, t.status, t.default_locale, t.default_time_
        t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
        t.status_before_deletion, t.purge_started_at,
        coalesce(p.name, '')::text AS plan_name,
-       coalesce(t.external_reference, '')::text AS external_reference
+       coalesce(t.external_reference, '')::text AS external_reference,
+       coalesce((SELECT h.host FROM tenant_host h
+                 WHERE h.tenant_id = t.id AND h.is_canonical AND h.state = 'ACTIVE'), '')::text AS host
 FROM tenant t
 LEFT JOIN plan p ON p.id = t.plan_id
 WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL;

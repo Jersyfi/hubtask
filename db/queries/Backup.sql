@@ -297,7 +297,7 @@ ORDER BY created_at;
 DELETE FROM backup_target WHERE id = sqlc.arg('id');
 
 -- name: InstallationBackupGaps :one
--- The health report's backup warning, across workspaces through the door (0368): how many active
+-- The health report's backup warning, across workspaces through the door (0375): how many active
 -- workspaces have no enabled target, and how many no successful backup in the given days. Numbers.
 SELECT without_target::bigint AS without_target, without_recent::bigint AS without_recent
 FROM installation_backup_gaps(sqlc.arg('stale_days')::integer);

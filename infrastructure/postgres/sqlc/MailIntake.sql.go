@@ -410,7 +410,7 @@ type InstallationMailAppsRow struct {
 	Failing   int64
 }
 
-// Alert A-29's numbers, across workspaces through the door (0344): per provider preset, the enabled
+// Alert A-29's numbers, across workspaces through the door (0351): per provider preset, the enabled
 // mailboxes on the installation's own app and those failing for over an hour. Numbers, no rows.
 func (q *Queries) InstallationMailApps(ctx context.Context) ([]InstallationMailAppsRow, error) {
 	rows, err := q.db.Query(ctx, installationMailApps)
@@ -448,8 +448,8 @@ type ItemByKeyParams struct {
 	Number int64
 }
 
-// A key names its collection by the key prefix or by the handle (migration 0356); the word is
-// given in lower case, as the handle is written. 0356 keeps a prefix from being another
+// A key names its collection by the key prefix or by the handle (migration 0363); the word is
+// given in lower case, as the handle is written. 0363 keeps a prefix from being another
 // collection's handle, and the prefix is preferred should two writers have raced past that.
 func (q *Queries) ItemByKey(ctx context.Context, arg ItemByKeyParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, itemByKey, arg.Handle, arg.Number)

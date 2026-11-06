@@ -702,7 +702,7 @@ type InsertAutomationRuleParams struct {
 // A rule is written switched off, which is why `enabled` is a parameter rather than the column's
 // default: writing what a rule would do and letting it loose are two decisions, and the default
 // says the opposite.
-// The key is the writer's, or drawn from the name by the store (migration 0286).
+// The key is the writer's, or drawn from the name by the store (migration 0293).
 func (q *Queries) InsertAutomationRule(ctx context.Context, arg InsertAutomationRuleParams) (*string, error) {
 	row := q.db.QueryRow(ctx, insertAutomationRule,
 		arg.ID,

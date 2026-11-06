@@ -1,0 +1,10 @@
+/src/main/**/generated
+/src/main/jniLibs/**/*.so
+/src/main/assets/tauri.conf.json
+/tauri.build.gradle.kts
+/proguard-tauri.pro
+/tauri.properties
+# The launcher icons, generated from the mark's app-icon source by `pnpm desktop:icons`
+# (UC-WRK-33 check 5), never committed: a hand-made icon would drift from the mark.
+/src/main/res/mipmap-*/
+/src/main/res/values/ic_launcher_background.xml

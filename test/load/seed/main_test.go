@@ -168,7 +168,7 @@ func TestTheOrderKeysAreTheApplicationsOwnScheme(t *testing.T) {
 }
 
 // Every entry carries its number, counted from one in its collection without a gap or a repeat,
-// so the load never rewrites a collection's counter row once per entry (migration 0289).
+// so the load never rewrites a collection's counter row once per entry (migration 0296).
 func TestEveryEntryCarriesItsCollectionsNextNumber(t *testing.T) {
 	var out bytes.Buffer
 	if err := write(&out, tableWorkItem, 2, 60, "a-seed"); err != nil {

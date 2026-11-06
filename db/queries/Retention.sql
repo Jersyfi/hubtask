@@ -164,7 +164,7 @@ WHERE id = ANY(sqlc.arg('ids')::uuid[])
 -- Phase two: what the grace period has run out on.
 -- `after_at` and `after_id` continue past marked rows a hold or a retained descendant keeps, as the
 -- candidates above do.
--- Read from the side table (F-10, 0227), whose work_item_retention_due_idx holds only the marked.
+-- Read from the side table (F-10, 0234), whose work_item_retention_due_idx holds only the marked.
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
        rt.action AS retention_action, w.title

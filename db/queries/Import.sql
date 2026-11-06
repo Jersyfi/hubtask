@@ -14,7 +14,7 @@ INSERT INTO import_run (
 );
 
 -- name: FindImportRun :one
--- The columns in the table's order - collection_id and dry_run last, as migrations 0200 and 0358
+-- The columns in the table's order - collection_id and dry_run last, as migrations 0200 and 0365
 -- added them - so that the row is the table's model.
 SELECT id, tenant_id, requested_by, kind, media_id, hub_id, mapping, time_zone, language, status,
        report, refused, progress, error_code, created_at, started_at, finished_at, collection_id,

@@ -110,7 +110,7 @@ func StrengthOf(kind Kind, inPlace bool) Strength {
 
 // Address is the reference as text writes it: `hubtask:<kind>/<id>` with `#<anchor>` when there
 // is one. A Markdown link to the address is a mention, an image of it (`![](…)`) a card or a live
-// view; the database trigger of migration 0214 reads the same grammar (Extract).
+// view; the database trigger of migration 0221 reads the same grammar (Extract).
 func (r Reference) Address() string {
 	address := "hubtask:" + strings.ToLower(string(r.Kind)) + "/" + r.ID.String()
 	if r.Anchor != "" {

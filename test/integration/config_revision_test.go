@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The configuration's history against the real boundary (migration 0221, F-6, gate SG-3): a
+// The configuration's history against the real boundary (migration 0228, F-6, gate SG-3): a
 // workspace's versions, its agents' proposals, its templates and the template it took are its
 // own - the workspace next door neither reads nor decides any of it - and a version is written
 // once.
@@ -131,7 +131,7 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 		return nil
 	})
 
-	// A hub's version (migration 0223) takes the workspace's next number, names its hub, and is
+	// A hub's version (migration 0230) takes the workspace's next number, names its hub, and is
 	// listed in the hub's history only - never in the workspace's, never next door.
 	// A bare identifier, as the actors are: no hub row is needed.
 	hubA := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc03")
@@ -163,7 +163,7 @@ func TestAWorkspacesConfigurationHistoryIsItsOwn(t *testing.T) {
 	})
 }
 
-// The sandbox (migration 0224, gate SG-3): one per workspace, replaced by a write, read and
+// The sandbox (migration 0231, gate SG-3): one per workspace, replaced by a write, read and
 // discarded only by its own workspace.
 func TestAWorkspacesConfigurationSandboxIsItsOwn(t *testing.T) {
 	ctx := context.Background()

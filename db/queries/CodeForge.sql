@@ -1,4 +1,4 @@
--- The code on an entry (migration 0275, UC-INT-13).
+-- The code on an entry (migration 0282, UC-INT-13).
 
 -- name: ListCodeHooks :many
 SELECT id, hub_id, kind, name, enabled, salt, run_as, created_at, updated_at, last_delivery_at

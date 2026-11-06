@@ -153,7 +153,7 @@ type ListCodeHooksRow struct {
 	LastDeliveryAt pgtype.Timestamptz
 }
 
-// The code on an entry (migration 0275, UC-INT-13).
+// The code on an entry (migration 0282, UC-INT-13).
 func (q *Queries) ListCodeHooks(ctx context.Context, hubID pgtype.UUID) ([]ListCodeHooksRow, error) {
 	rows, err := q.db.Query(ctx, listCodeHooks, hubID)
 	if err != nil {

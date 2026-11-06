@@ -1,4 +1,4 @@
--- Planning (migration 0244, M2): a plan's entries as the scheduler reads them, a dependency's
+-- Planning (migration 0251, M2): a plan's entries as the scheduler reads them, a dependency's
 -- timing, an entry's scheduling mode and a plan's baselines. A plan is a collection, or a hub with
 -- the collections in it.
 

@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// The constraints a write of a link or a link type can meet (migration 0213).
+// The constraints a write of a link or a link type can meet (migration 0220).
 const (
 	linkTypeKeyIndex = "link_type_key_uq"
 	entryLinkIndex   = "entry_link_uq"

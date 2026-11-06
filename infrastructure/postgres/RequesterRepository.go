@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// RequesterRepository is the record of requesters without an account (migration 0283): written by
+// RequesterRepository is the record of requesters without an account (migration 0290): written by
 // the mail intake, removed by REQUESTER's period and by an erasure case by address.
 type RequesterRepository struct {
 	IDs interface{ NewID() shared.ID }

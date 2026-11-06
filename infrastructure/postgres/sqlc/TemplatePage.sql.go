@@ -25,7 +25,7 @@ type InsertTemplatePageParams struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-// A template's pages (migration 0309, configuration.md §6).
+// A template's pages (migration 0316, configuration.md §6).
 // A key the hub already marks is no second page: the caller refuses it.
 func (q *Queries) InsertTemplatePage(ctx context.Context, arg InsertTemplatePageParams) (int64, error) {
 	result, err := q.db.Exec(ctx, insertTemplatePage,

@@ -9,6 +9,11 @@
   //
   // The health of the machinery is `/meta/health`, which is where it already lived: a second
   // surface for one fact is how two answers come to disagree.
+  //
+  // The one row it names is an own domain that fell back to its workspace's subdomain (UC-INS-15
+  // check 9): the domain and the workspace's name, which the operator's *Own domains* lists anyway,
+  // and nothing from inside the workspace. It stays until the owner makes the domain main again or
+  // removes it.
 
   import { untrack } from 'svelte';
 
@@ -16,7 +21,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { health } from '../lib/data/health.svelte.ts';
-  import { formatDateTime, formatRelative } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatLongDay, formatRelative, formatTime } from '../lib/i18n/datetime.ts';
   import { backlogTiles, featureNameCode, instancePageOfFeature, schemaState } from '../lib/instance/health.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
@@ -46,6 +51,7 @@
       instance.openOperators(),
       instance.openProviders(),
       instance.openJournal(),
+      instance.openOwnDomains(),
     ]);
     return () => stops.forEach((stop) => stop());
   });
@@ -107,6 +113,7 @@
   const schema = $derived(schemaState(report));
   const backlogs = $derived(backlogTiles(report));
   const formatNumber = (value: number) => new Intl.NumberFormat(messages.locale, { maximumFractionDigits: 0 }).format(value);
+  const fellBack = $derived(instance.ownDomains.filter((row) => row.fell_back_at));
 
   $effect(() => page.entitle(t('app.instance.overview')));
 </script>
@@ -200,6 +207,22 @@
       {:else if unreadable}
         <FailureNote problem={unreadable} />
       {:else if census}
+        {#each fellBack as row (row.domain)}
+          <div data-fell-back={row.domain}>
+            <Banner tone="warning" title={t('app.instance.fell_back_title')}>
+              <span class="mono">{row.domain}</span>
+              {t('app.instance.fell_back', {
+                workspace: row.tenant_name,
+                day: formatLongDay(row.fell_back_at ?? '', messages.locale),
+                time: formatTime(row.fell_back_at ?? '', messages.locale),
+                host: row.address_host ?? '',
+              })}
+              {#snippet action()}
+                <Button tone="secondary" size="sm" onclick={() => onnavigate('/instance/workspaces')}>{t('app.instance.own_domains')}</Button>
+              {/snippet}
+            </Banner>
+          </div>
+        {/each}
         <dl class="counts">
           <div class="count">
             <dt>{t('app.instance.workspaces_active')}</dt>
@@ -333,6 +356,8 @@
 </Stack>
 
 <style>
+  .mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
+
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 

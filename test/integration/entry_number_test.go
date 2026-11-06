@@ -12,7 +12,7 @@ import (
 
 // Entries that arrive with their numbers - a restore, a bulk load - leave the collection's counter
 // row alone, and the next drawn number still comes after every number the collection holds
-// (migration 0289). A counter row rewritten per entry inside one transaction made a large load
+// (migration 0296). A counter row rewritten per entry inside one transaction made a large load
 // grow with the square of its entries.
 func TestALoadWithNumbersLeavesTheCounterAloneAndTheDrawCatchesUp(t *testing.T) {
 	ctx := context.Background()

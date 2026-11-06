@@ -1,4 +1,4 @@
--- Workflows and the scheme (migration 0216, UC-FLW-02 … 05). A workspace's rows only: the shipped
+-- Workflows and the scheme (migration 0223, UC-FLW-02 … 05). A workspace's rows only: the shipped
 -- workflow a workspace has never used or changed is the domain's and has none.
 
 -- name: ListWorkflows :many

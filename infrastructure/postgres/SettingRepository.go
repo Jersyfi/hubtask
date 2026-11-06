@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// SettingRepository is the settings catalogue's storage shape (migration 0208) and the two tables
+// SettingRepository is the settings catalogue's storage shape (migration 0215) and the two tables
 // above it in the same shape: instance_setting and plan_setting.
 type SettingRepository struct{}
 

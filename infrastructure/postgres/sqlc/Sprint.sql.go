@@ -162,7 +162,7 @@ type InsertSprintParams struct {
 	CreatedBy    pgtype.UUID
 }
 
-// Sprints and estimates (migration 0245, M2, PLN-06, PLN-07).
+// Sprints and estimates (migration 0252, M2, PLN-06, PLN-07).
 func (q *Queries) InsertSprint(ctx context.Context, arg InsertSprintParams) error {
 	_, err := q.db.Exec(ctx, insertSprint,
 		arg.ID,

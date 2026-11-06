@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// UC-GOL-03 check 15 against PostgreSQL (migration 0322): a roadmap's public link is found by its
+// UC-GOL-03 check 15 against PostgreSQL (migration 0329): a roadmap's public link is found by its
 // token, a new one replaces it, and the workspace next door neither finds nor removes it (SG-3).
 func TestARoadmapsPublicLinkIsFoundByItsTokenInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()

@@ -31,7 +31,7 @@ func officeCalendar(t *testing.T) calendar.BusinessCalendar {
 }
 
 // A timer is written, found live with its calendar intact, paused, resumed, claimed when due and
-// fired once (domain-model.md §3.7, migration 0229).
+// fired once (domain-model.md §3.7, migration 0236).
 func TestATimerIsStoredClaimedAndFiredOnce(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

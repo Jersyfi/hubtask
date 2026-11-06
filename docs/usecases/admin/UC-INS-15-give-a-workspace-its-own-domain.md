@@ -5,9 +5,9 @@ context: admin
 actors: [PE-owner, PE-operator]
 deployments: [D5, D6, D7]
 serves: [P-01, P-03, P-04, P-05, P-11, P-12, P-16]
-state: specified
+state: verified
 tasks: [SI-12, CD-07, CD-08]
-checked_by: []
+checked_by: [core/domain/model/identity/OwnDomain_test.go, core/application/service/admin/OwnDomain_test.go, core/application/service/identity/OwnDomain_test.go, infrastructure/text/Domain_test.go, infrastructure/dns/Resolver_test.go, presentation/rest/OpsCertificate_test.go, test/integration/own_domain_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/src/lib/instance/values.test.ts, apps/webapp/src/lib/address/owndomain.test.ts, apps/webapp/e2e/owndomain.test.mjs, core/application/service/admin/OwnDomainMain_test.go, presentation/rest/Fallback_test.go, apps/webapp/e2e/ownmain.test.mjs]
 ---
 
 # Give a workspace its own domain
@@ -64,17 +64,3 @@ again by itself and the screen says why.
   ([multi-tenancy.md](../../architecture/multi-tenancy.md) §3.1).
 * Changing the subdomain itself is UC-INS-19; a host the operator assigns is UC-INS-20.
 * Milestone CD.
-
-## Today
-
-* Check 1: not met — there is no screen for a workspace's own domain, and no installation switch.
-* Check 2: not met — there is no screen that shows the records.
-* Check 3: not met — there is no verification of a domain.
-* Check 4: not met — nothing refuses a domain beneath the installation's host or a blocked one.
-* Check 5: not met — nothing answers the ingress whether a host may have a certificate.
-* Check 6: not met — there is no confirmation for making a domain the main address.
-* Check 7: not met — nothing resolves a workspace through its own domain.
-* Check 8: not met — there is no way back to the subdomain.
-* Check 9: not met — there is no fallback from a broken domain, and no warning.
-* Check 10: not met — the operator sees no own domains and cannot block one.
-* Check 11: not met — no address change reaches the trail or the journal.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package forge is the store of a hub's forge hooks and an entry's code links (migration 0275),
+// Package forge is the store of a hub's forge hooks and an entry's code links (migration 0282),
 // read and written inside the unit of work's transaction (rule 3).
 package forge
 

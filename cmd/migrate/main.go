@@ -334,8 +334,8 @@ func statementClass(word string) string {
 	return word
 }
 
-// dropLeftoverBackfillPolicies removes the policy a batched backfill gives itself (0019, 0212,
-// 0228), left behind by a run killed between its batches: the file's next run would otherwise
+// dropLeftoverBackfillPolicies removes the policy a batched backfill gives itself (0019, 0219,
+// 0235), left behind by a run killed between its batches: the file's next run would otherwise
 // fail on CREATE POLICY for ever. Under the advisory lock no backfill is running, so every such
 // policy present is a leftover.
 func dropLeftoverBackfillPolicies(ctx context.Context, pool *sql.DB) error {

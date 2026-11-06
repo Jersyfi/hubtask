@@ -281,7 +281,7 @@ func (b *builder) quantity(aggregation view.Aggregation) {
 	b.write(`div(extract(epoch FROM timestamptz_mi(`, to, `, `, from, `)), 60)`)
 }
 
-// flowQuantity writes a measure read from the status history (migration 0250): the first entry
+// flowQuantity writes a measure read from the status history (migration 0257): the first entry
 // into a started status to completion (cycle time) or to the moment of asking (WIP age), or the
 // latest entry into the current status to that moment (time in status), in whole minutes. The
 // started keys and the moment are bound; an entry without the rows, or the wrong side of

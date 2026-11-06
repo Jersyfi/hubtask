@@ -154,7 +154,7 @@ CREATE TABLE tenant (
   password_opened_until     timestamptz,
   password_opened_requester text CHECK (length(password_opened_requester) BETWEEN 1 AND 200),
   password_opened_reason    text CHECK (length(password_opened_reason) BETWEEN 1 AND 500),
-  -- The owner's last whole-archive download, judged once in 24 hours (migration 0315).
+  -- The owner's last whole-archive download, judged once in 24 hours (migration 0322).
   archive_downloaded_at     timestamptz,
   -- A pending deletion can be called off (0130, multi-tenancy.md §5): where the workspace stood
   -- when it was requested, to return it there, and the grace job's mark, written before the first
@@ -164,6 +164,9 @@ CREATE TABLE tenant (
   -- The first start's question was answered or skipped (0197, UC-WRK-30 check 5): nobody is asked
   -- again.
   starter_answered_at       timestamptz,
+  -- When the workspace's address last changed (0210, multi-tenancy.md §3.1): an owner's change
+  -- waits out the installation's cooldown from it.
+  address_changed_at        timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
     CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );
@@ -211,7 +214,7 @@ CREATE TABLE account (
   -- The picture the person shows beside their name (migration 0199); NULL means the initials. Its
   -- foreign key is declared after media_object.
   avatar_media_id   uuid,
-  -- The identifier a directory knows the person by, provisioning over SCIM (UC-ID-28, migration 0256).
+  -- The identifier a directory knows the person by, provisioning over SCIM (UC-ID-28, migration 0263).
   external_id       text CONSTRAINT account_external_id_length_check
                       CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255),
   created_at        timestamptz NOT NULL DEFAULT now(),
@@ -228,7 +231,7 @@ CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
   WHERE external_subject IS NOT NULL;
 CREATE UNIQUE INDEX account_external_id_uq ON account (tenant_id, external_id)
   WHERE external_id IS NOT NULL AND deleted_at IS NULL;
--- A portal organisation's people by their address's domain (migration 0300, UC-SVC-11 check 3).
+-- A portal organisation's people by their address's domain (migration 0307, UC-SVC-11 check 3).
 CREATE INDEX account_mail_domain_idx ON account (tenant_id, lower(split_part(email, '@', 2)))
   WHERE email IS NOT NULL AND deleted_at IS NULL;
 -- The lookup the public redemption route makes: the hash covers the whole presented string,
@@ -243,7 +246,7 @@ CREATE TABLE account_group (
   description  text,
   created_at   timestamptz NOT NULL DEFAULT now(),
   version      integer NOT NULL DEFAULT 1,
-  -- The identifier a directory knows the group by (UC-ID-28, migration 0256).
+  -- The identifier a directory knows the group by (UC-ID-28, migration 0263).
   external_id  text CONSTRAINT account_group_external_id_length_check
                  CHECK (external_id IS NULL OR char_length(external_id) BETWEEN 1 AND 255)
 );
@@ -294,7 +297,7 @@ CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_i
 CREATE UNIQUE INDEX membership_grant_uq
   ON membership (tenant_id, account_id, group_id, scope_type, scope_id, role) NULLS NOT DISTINCT;
 
--- Custom roles from the permission catalogue and where they are held (migration 0219, UC-ID-26). The
+-- Custom roles from the permission catalogue and where they are held (migration 0226, UC-ID-26). The
 -- seven built-in roles are the enum above and have no row.
 CREATE TABLE custom_role (
   id          uuid PRIMARY KEY,
@@ -336,7 +339,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON custom_role TO hubtask_app;
 GRANT SELECT, INSERT, DELETE ON custom_role_grant TO hubtask_app;
 
 -- The configuration document's versions, agents' plans waiting for a person, and templates
--- (migration 0221, F-6, D-16, D-17). Configuration and counts only, never content (rule 10).
+-- (migration 0228, F-6, D-16, D-17). Configuration and counts only, never content (rule 10).
 CREATE TABLE config_revision (
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   version        integer NOT NULL CHECK (version > 0),
@@ -352,7 +355,7 @@ CREATE TABLE config_revision (
   changed        integer NOT NULL DEFAULT 0,
   removed        integer NOT NULL DEFAULT 0,
   created_at     timestamptz NOT NULL,
-  -- The hub whose document this version is, NULL for the workspace's (migration 0223).
+  -- The hub whose document this version is, NULL for the workspace's (migration 0230).
   hub_id         uuid,
   PRIMARY KEY (tenant_id, version)
 );
@@ -375,7 +378,7 @@ CREATE TABLE config_proposal (
   created_at          timestamptz NOT NULL,
   decided_at          timestamptz,
   hub_id              uuid,
-  collection_id       uuid,  -- migration 0310: the collection taking a template's collection part
+  collection_id       uuid,  -- migration 0317: the collection taking a template's collection part
   UNIQUE (tenant_id, id)
 );
 CREATE INDEX config_proposal_waiting_idx ON config_proposal (tenant_id, created_at DESC) WHERE state = 'WAITING';
@@ -400,13 +403,13 @@ CREATE TABLE config_template_use (
   applied_at   timestamptz NOT NULL,
   PRIMARY KEY (tenant_id, template_key)
 );
--- DELETE only for a replacing restore (migration 0222, tenant-export.md §6).
+-- DELETE only for a replacing restore (migration 0229, tenant-export.md §6).
 GRANT SELECT, INSERT, DELETE ON config_revision TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON config_proposal TO hubtask_app;
 GRANT SELECT, INSERT, DELETE ON config_template TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON config_template_use TO hubtask_app;
 -- The sandbox: a copy of the configuration without content, and the one it was copied from
--- (migration 0224, config-document.md §3).
+-- (migration 0231, config-document.md §3).
 CREATE TABLE config_sandbox (
   tenant_id     uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
   document      jsonb NOT NULL,
@@ -482,7 +485,7 @@ CREATE TABLE session (
   -- Which provider opened it, for a session opened through one (migration 0111): named in the
   -- session list. No foreign key - a removed provider is no reason to touch the sessions it opened.
   signed_in_provider_id uuid,
-  -- *View as* (UC-ID-29, migration 0258): the person this session shows the app as, and until when.
+  -- *View as* (UC-ID-29, migration 0265): the person this session shows the app as, and until when.
   -- NULL is "not viewing as anybody"; one deleted while being viewed ends the view.
   viewing_as       uuid,
   viewing_as_until timestamptz,
@@ -695,7 +698,11 @@ CREATE TABLE oauth_client (
   created_at    timestamptz NOT NULL,
   created_by    uuid,
   version       integer NOT NULL DEFAULT 1,
-  CHECK (confidential = (secret_hash IS NOT NULL))
+  -- Set on a row of the built-in client of the installed apps, one per consent, named by the
+  -- device (migration 0214, identity.md §15.3); the registry keeps the rows where it is NULL.
+  app_platform  text CHECK (app_platform IN ('windows', 'linux', 'android')),
+  CHECK (confidential = (secret_hash IS NOT NULL)),
+  CONSTRAINT oauth_client_app_public CHECK (app_platform IS NULL OR NOT confidential)
 );
 CREATE UNIQUE INDEX oauth_client_tenant_id_uq ON oauth_client (tenant_id, id);
 
@@ -752,6 +759,20 @@ CREATE TABLE tenant_host (
   verified_at  timestamptz,
   is_canonical boolean NOT NULL DEFAULT false,
   created_at   timestamptz NOT NULL,
+  -- ADDRESS a subdomain or an assigned host · OWN_DOMAIN set up by the workspace's owner and proven
+  -- by DNS (migration 0211, ADR-0095 §4): a CNAME to the installation's target and a TXT record at
+  -- `_hubtask.<host>` carrying `verification`. A VERIFIED own domain answers; it is ACTIVE once the
+  -- ingress asked for its certificate and a request reached the workspace through it.
+  kind         text NOT NULL DEFAULT 'ADDRESS' CONSTRAINT tenant_host_kind_check
+                 CHECK (kind IN ('ADDRESS', 'OWN_DOMAIN')),
+  state_since  timestamptz,
+  checked_at   timestamptz,
+  target_found boolean NOT NULL DEFAULT false,
+  proof_found  boolean NOT NULL DEFAULT false,
+  certificate_asked_at timestamptz,
+  -- When a main own domain broke and the subdomain became the main address again by itself
+  -- (migration 0212); cleared when the owner makes it main again.
+  fell_back_at timestamptz,
   PRIMARY KEY (tenant_id, host)
 );
 -- One host, one workspace, installation-wide: two workspaces claiming the same host is the failure
@@ -759,6 +780,20 @@ CREATE TABLE tenant_host (
 CREATE UNIQUE INDEX tenant_host_host_uq ON tenant_host (host);
 -- One canonical host per workspace. A mail, a redirect and an invitation link have to name one.
 CREATE UNIQUE INDEX tenant_host_canonical_uq ON tenant_host (tenant_id) WHERE is_canonical;
+-- One own domain per workspace (Decision 9 of milestone CD).
+CREATE UNIQUE INDEX tenant_host_own_domain_uq ON tenant_host (tenant_id) WHERE kind = 'OWN_DOMAIN';
+
+-- The domains the operator blocked (migration 0211): installation-wide, outliving the row, so no
+-- workspace sets one up again. The workspace it was taken from reads its own block, the reason
+-- word for word, until its owner removes it from view.
+CREATE TABLE blocked_domain (
+  host         text PRIMARY KEY CHECK (host = lower(host) AND length(host) BETWEEN 4 AND 253),
+  tenant_id    uuid REFERENCES tenant(id) ON DELETE SET NULL,
+  reason       text NOT NULL CHECK (length(reason) BETWEEN 1 AND 500),
+  blocked_at   timestamptz NOT NULL,
+  was_main     boolean NOT NULL DEFAULT false,
+  dismissed_at timestamptz
+);
 
 -- The providers a workspace signs its people in through (migration 0103). Plural,
 -- and `tenant_id` is nullable: NULL is the installation's own, which every workspace reads and
@@ -798,7 +833,7 @@ CREATE TABLE identity_provider (
   newcomer_role         membership_role,
   newcomer_group_id     uuid,
   -- A SAML provider's sign-in address and signing certificate, both or neither, and only a
-  -- workspace's own (migration 0284, UC-ID-30).
+  -- workspace's own (migration 0291, UC-ID-30).
   saml_sso_url          text CHECK (length(saml_sso_url) <= 2000),
   saml_certificate      text CHECK (length(saml_certificate) <= 20000),
   CONSTRAINT identity_provider_saml_whole CHECK (
@@ -929,7 +964,7 @@ CREATE TABLE oidc_flow (
   -- migration 0140); the arrival that activates the invited account stores them.
   terms_url     text CONSTRAINT oidc_flow_terms_url_check CHECK (char_length(terms_url) <= 2000),
   terms_version text CONSTRAINT oidc_flow_terms_version_check CHECK (char_length(terms_version) <= 64),
-  -- A SAML answer kept for the handoff, and its hash (migration 0284).
+  -- A SAML answer kept for the handoff, and its hash (migration 0291).
   saml_response     text CHECK (length(saml_response) <= 350000),
   saml_handoff_hash bytea,
   CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
@@ -1003,11 +1038,11 @@ CREATE TABLE container (
   -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0124).
   private      boolean NOT NULL DEFAULT false,
   -- A collection's short name and the count its entries' numbers come from (migration 0204,
-  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry. A hub's handle since 0286: its
+  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry. A hub's handle since 0293: its
   -- stable key in the configuration document.
   handle       text CHECK (handle IS NULL OR handle ~ '^[a-z][a-z0-9]{1,19}$'),
   item_counter bigint NOT NULL DEFAULT 0,
-  -- A desk's own logo (migration 0313); cleared when the picture goes.
+  -- A desk's own logo (migration 0320); cleared when the picture goes.
   logo_media_id uuid,
   CHECK ((type = 'HUB') = (parent_id IS NULL)),
   CONSTRAINT container_private_hub_check CHECK (NOT private OR type = 'HUB')
@@ -1078,7 +1113,7 @@ CREATE UNIQUE INDEX icp_uq ON item_capability_profile
   (coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), type);
 
 -- The settings catalogue's entries of the workspace, its hubs, collections and people (migration
--- 0208): a dotted key, its value as JSON, how the level holds it, and what it leaves the levels
+-- 0215): a dotted key, its value as JSON, how the level holds it, and what it leaves the levels
 -- below. `scope_id` is the tenant, the container or the account, by `level`; no foreign key, since it
 -- points into three tables.
 CREATE TABLE setting_value (
@@ -1097,7 +1132,7 @@ CREATE TABLE setting_value (
   CHECK ((allowed IS NOT NULL) = (hold = 'RESTRICT'))
 );
 
--- The type registry (migrations 0209, 0210; UC-FLW-01): a workspace's own kinds of entries, each on
+-- The type registry (migrations 0216, 0217; UC-FLW-01): a workspace's own kinds of entries, each on
 -- one level. The three system types are declared in the domain and gain a row only once changed.
 CREATE TABLE entry_type (
   id               uuid PRIMARY KEY,
@@ -1115,10 +1150,10 @@ CREATE TABLE entry_type (
   schedulable      boolean NOT NULL DEFAULT true,
   estimable        boolean NOT NULL DEFAULT false,
   allowed_children text[] NOT NULL DEFAULT '{}',
-  -- The type's form (0214): one document, read and written whole.
+  -- The type's form (0221): one document, read and written whole.
   form             jsonb NOT NULL DEFAULT '{}'::jsonb
                      CHECK (jsonb_typeof(form) = 'object' AND pg_column_size(form) <= 262144),
-  -- What it is for, and its name and description per language (0311, UC-SVC-05 check 7).
+  -- What it is for, and its name and description per language (0318, UC-SVC-05 check 7).
   description      text NOT NULL DEFAULT '' CHECK (char_length(description) <= 500),
   translations     jsonb NOT NULL DEFAULT '{}'::jsonb
                      CHECK (jsonb_typeof(translations) = 'object' AND pg_column_size(translations) <= 65536),
@@ -1128,7 +1163,7 @@ CREATE TABLE entry_type (
   updated_at       timestamptz NOT NULL,
   version          integer NOT NULL DEFAULT 1,
   -- The hub it is defined at and offered in; null is the whole workspace. A copy names the key it
-  -- was copied from (0317, UC-FLW-01 check 10).
+  -- was copied from (0324, UC-FLW-01 check 10).
   hub_id           uuid,
   copied_from      text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),
@@ -1142,7 +1177,7 @@ CREATE TABLE entry_type (
 CREATE UNIQUE INDEX entry_type_system_uq ON entry_type (tenant_id, level) WHERE system;
 CREATE INDEX entry_type_hub_idx ON entry_type (tenant_id, hub_id) WHERE hub_id IS NOT NULL;
 
--- Workflows and which hub or collection runs which per type (migration 0216, UC-FLW-02 … 05).
+-- Workflows and which hub or collection runs which per type (migration 0223, UC-FLW-02 … 05).
 CREATE TABLE workflow (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1159,7 +1194,7 @@ CREATE TABLE workflow (
   updated_at   timestamptz NOT NULL,
   version      integer NOT NULL DEFAULT 1,
   -- The hub it is defined at, which alone runs it; null is the whole workspace. A copy names the
-  -- key it was copied from (0323, UC-FLW-02 check 9).
+  -- key it was copied from (0330, UC-FLW-02 check 9).
   hub_id       uuid,
   copied_from  text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),
@@ -1274,9 +1309,9 @@ CREATE TABLE work_item (
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
   -- The entry's number in its collection (migration 0204, ADR-0094).
   number       bigint,
-  -- The entry's type by key, null for its level's system type (migration 0209).
+  -- The entry's type by key, null for its level's system type (migration 0216).
   entry_type   text,
-  -- Its status in the workflow in force for it, null where none runs (migration 0216).
+  -- Its status in the workflow in force for it, null where none runs (migration 0223).
   status       text,
   CONSTRAINT work_item_entry_type_fkey
     FOREIGN KEY (tenant_id, entry_type) REFERENCES entry_type (tenant_id, key)
@@ -1290,7 +1325,7 @@ ALTER TABLE work_item ADD CONSTRAINT work_item_parent_id_fkey
     FOREIGN KEY (tenant_id, parent_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, order_key)
   WHERE deleted_at IS NULL AND archived_at IS NULL;
--- A board's columns, by column or by status, archived entries included (migration 0364).
+-- A board's columns, by column or by status, archived entries included (migration 0371).
 CREATE INDEX wi_board_bucket_idx ON work_item (tenant_id, collection_id, bucket_id, order_key COLLATE "C", id)
   WHERE deleted_at IS NULL AND parent_id IS NULL;
 CREATE INDEX wi_board_status_idx ON work_item (tenant_id, collection_id, status, order_key COLLATE "C", id)
@@ -1303,7 +1338,7 @@ CREATE INDEX wi_figure_open_idx ON work_item (tenant_id, collection_id)
   WHERE parent_id IS NULL AND is_completed = false AND archived_at IS NULL AND deleted_at IS NULL;
 CREATE INDEX wi_figure_done_idx ON work_item (tenant_id, collection_id, completed_at)
   WHERE is_completed = true AND deleted_at IS NULL;
--- A count by completion over a hub or a collection, from the index alone. Migration 0318.
+-- A count by completion over a hub or a collection, from the index alone. Migration 0325.
 CREATE INDEX wi_completion_idx ON work_item (tenant_id, collection_id, is_completed)
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 -- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
@@ -1424,22 +1459,22 @@ CREATE INDEX item_member_reverse_idx ON item_member (tenant_id, account_id, item
 CREATE TABLE custom_field_definition (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  collection_id uuid,   -- the collection or the hub (migration 0325); NULL = tenant-wide
+  collection_id uuid,   -- the collection or the hub (migration 0332); NULL = tenant-wide
   key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
   kind          text NOT NULL CONSTRAINT custom_field_definition_kind_check
                   CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
                                   'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT','CALCULATED',
                                   'DATE_TIME','GROUP','CASCADING_SELECT','IP_ADDRESS','FILE','LABEL',
-                                  'STATUS')),  -- migrations 0215, 0298
+                                  'STATUS')),  -- migrations 0222, 0305
   options       jsonb NOT NULL DEFAULT '[]'::jsonb,
-  -- The ISO 4217 code of a MONEY field's amounts, null for every other kind (migration 0211).
+  -- The ISO 4217 code of a MONEY field's amounts, null for every other kind (migration 0218).
   currency      text,
   is_required   boolean NOT NULL DEFAULT false,
-  -- Written only by holders of FIELD_WRITE:<key> (migration 0219, UC-ID-27).
+  -- Written only by holders of FIELD_WRITE:<key> (migration 0226, UC-ID-27).
   restricted    boolean NOT NULL DEFAULT false,
-  -- Read only by holders of FIELD_READ:<key>; only a write-restricted field (migration 0220).
+  -- Read only by holders of FIELD_READ:<key>; only a write-restricted field (migration 0227).
   read_restricted boolean NOT NULL DEFAULT false,
-  -- A CALCULATED field's expression, null for every other kind (migration 0215).
+  -- A CALCULATED field's expression, null for every other kind (migration 0222).
   formula       text,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
   created_at    timestamptz NOT NULL DEFAULT now(),
@@ -1453,7 +1488,7 @@ CREATE TABLE custom_field_definition (
   CONSTRAINT custom_field_definition_formula_check
     CHECK ((kind = 'CALCULATED') = (formula IS NOT NULL) AND (formula IS NULL OR length(formula) <= 2000)),
   CONSTRAINT cfd_read_restricted_ck CHECK (NOT read_restricted OR restricted),
-  -- The shared definition a hub's copy was made from; an identifier, not a reference (0325).
+  -- The shared definition a hub's copy was made from; an identifier, not a reference (0332).
   copied_from   uuid
 );
 CREATE UNIQUE INDEX custom_field_definition_tenant_id_uq ON custom_field_definition (tenant_id, id);
@@ -1463,7 +1498,7 @@ CREATE UNIQUE INDEX cfd_key_uq
   WHERE deleted_at IS NULL;
 
 -- The typed projection of `work_item.custom_fields` the query language ranges, sorts and groups
--- over (migrations 0211, 0212; F-2): one row per value, per element of a set, in the one column its
+-- over (migrations 0218, 0219; F-2): one row per value, per element of a set, in the one column its
 -- kind compares in. Written by the trigger below in the transaction that writes the document.
 CREATE TABLE entry_field_value (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1475,7 +1510,7 @@ CREATE TABLE entry_field_value (
   text          text CHECK (text IS NULL OR char_length(text) <= 256),  -- TEXT, SELECT, MULTI_SELECT, URL,
                                   -- CASCADING_SELECT, LABEL, STATUS, IP_ADDRESS (canonical)
   ref           uuid,             -- USER, USER_SET, REFERENCE, GROUP, FILE
-  addr          inet,             -- IP_ADDRESS beside its text (migration 0298)
+  addr          inet,             -- IP_ADDRESS beside its text (migration 0305)
   PRIMARY KEY (tenant_id, entry_id, definition_id, ordinal),
   CHECK (num_nonnulls(num, ts, text, ref) = 1),
   CONSTRAINT entry_field_value_addr_check CHECK (addr IS NULL OR text IS NOT NULL),
@@ -1489,12 +1524,12 @@ CREATE INDEX efv_num_idx  ON entry_field_value (tenant_id, definition_id, num)  
 CREATE INDEX efv_ts_idx   ON entry_field_value (tenant_id, definition_id, ts)   WHERE ts IS NOT NULL;
 CREATE INDEX efv_text_idx ON entry_field_value (tenant_id, definition_id, text) WHERE text IS NOT NULL;
 CREATE INDEX efv_ref_idx  ON entry_field_value (tenant_id, definition_id, ref)  WHERE ref IS NOT NULL;
-CREATE INDEX efv_addr_idx ON entry_field_value (tenant_id, definition_id, addr) WHERE addr IS NOT NULL;  -- migration 0299
-CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'::regconfig, text)) WHERE text IS NOT NULL;  -- migration 0225
+CREATE INDEX efv_addr_idx ON entry_field_value (tenant_id, definition_id, addr) WHERE addr IS NOT NULL;  -- migration 0306
+CREATE INDEX efv_search_idx ON entry_field_value USING gin (to_tsvector('simple'::regconfig, text)) WHERE text IS NOT NULL;  -- migration 0232
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
--- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0211.
+-- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0218.
 
--- The slim entry's side tables (migrations 0227, 0228; F-10): what background loops keep on an
+-- The slim entry's side tables (migrations 0234, 0235; F-10): what background loops keep on an
 -- entry, mirrored from its columns by the trigger work_item_side_rows until the contract release
 -- moves the readers here and drops the columns. A row exists only while one of its values does.
 CREATE TABLE work_item_announcement (
@@ -1533,9 +1568,9 @@ CREATE INDEX work_item_retention_due_idx ON work_item_retention (tenant_id, pend
   WHERE pending_until IS NOT NULL;
 GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, work_item_retention
   TO hubtask_app;
--- work_item_mirror_side_rows(work_item) and the trigger work_item_side_rows: migration 0227.
+-- work_item_mirror_side_rows(work_item) and the trigger work_item_side_rows: migration 0234.
 
--- Durable timers on business calendars (migration 0229, F-10, domain-model.md §3.7).
+-- Durable timers on business calendars (migration 0236, F-10, domain-model.md §3.7).
 CREATE TABLE durable_timer (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1561,9 +1596,9 @@ CREATE UNIQUE INDEX durable_timer_live_uq ON durable_timer (tenant_id, purpose, 
 CREATE INDEX durable_timer_due_idx ON durable_timer (tenant_id, due_at) WHERE state = 'RUNNING';
 GRANT SELECT, INSERT, UPDATE, DELETE ON durable_timer TO hubtask_app;
 
--- Live documents (migration 0230, F-8): a document's CRDT update log, its snapshots and its head.
+-- Live documents (migration 0237, F-8): a document's CRDT update log, its snapshots and its head.
 -- The updates are the editor's bytes and never read here; what a snapshot covers (seq <= its
--- up_to_seq) is removed by the DOCUMENT_HISTORY retention kind (migration 0354). compacted_at is no
+-- up_to_seq) is removed by the DOCUMENT_HISTORY retention kind (migration 0361). compacted_at is no
 -- longer written; it stays until a contract step drops it.
 CREATE TABLE realtime_document (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1612,7 +1647,7 @@ CREATE INDEX realtime_snapshot_superseded_idx ON realtime_snapshot (tenant_id, s
   WHERE superseded_at IS NOT NULL;
 GRANT SELECT, INSERT, UPDATE, DELETE ON realtime_snapshot TO hubtask_app;
 
--- Pages of the knowledge module (migration 0231, M3).
+-- Pages of the knowledge module (migration 0238, M3).
 CREATE TABLE page (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1630,7 +1665,7 @@ CREATE TABLE page (
   verified_by      uuid,
   archived_at      timestamptz,
   deleted_at       timestamptz,
-  -- Who trashed it (migration 0371).
+  -- Who trashed it (migration 0378).
   deleted_by_type  text,
   deleted_by_id    uuid,
   created_by       uuid NOT NULL,
@@ -1638,10 +1673,10 @@ CREATE TABLE page (
   updated_by       uuid NOT NULL,
   updated_at       timestamptz NOT NULL,
   version          integer NOT NULL DEFAULT 1,
-  restricted       boolean NOT NULL DEFAULT false,   -- migration 0261: who reads it is page_restriction
+  restricted       boolean NOT NULL DEFAULT false,   -- migration 0268: who reads it is page_restriction
   daily_for        date,                             -- a personal space's daily note (UC-DOC-07)
   search_document  tsvector,
-  -- A language variant of another page for a portal (migration 0314); cleared when the source goes.
+  -- A language variant of another page for a portal (migration 0321); cleared when the source goes.
   language_source_id uuid,
   language_variant   text CONSTRAINT page_language_variant_check
                      CHECK (language_variant IS NULL OR char_length(language_variant) BETWEEN 1 AND 35),
@@ -1658,7 +1693,7 @@ CREATE TABLE page (
   CONSTRAINT page_language_source_fkey FOREIGN KEY (tenant_id, language_source_id)
     REFERENCES page (tenant_id, id) ON DELETE SET NULL (language_source_id) DEFERRABLE INITIALLY DEFERRED
 );
--- One language variant per tag and source (migration 0314).
+-- One language variant per tag and source (migration 0321).
 CREATE UNIQUE INDEX page_language_variant_idx ON page (tenant_id, language_source_id, lower(language_variant))
   WHERE language_source_id IS NOT NULL;
 -- The tree a space reads: its pages in order under each parent.
@@ -1746,7 +1781,7 @@ CREATE INDEX page_reference_target_idx ON page_reference (tenant_id, target_kind
 
 GRANT SELECT, INSERT, DELETE ON page_reference TO hubtask_app;
 
--- Migration 0261: who reads a page beyond its hub, and a person's own space.
+-- Migration 0268: who reads a page beyond its hub, and a person's own space.
 CREATE UNIQUE INDEX page_daily_note_idx ON page (tenant_id, hub_id, daily_for)
   WHERE daily_for IS NOT NULL AND deleted_at IS NULL;
 
@@ -1796,7 +1831,7 @@ CREATE TABLE personal_space (
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON personal_space TO hubtask_app;
 
--- Migration 0262: a page opened read-only by a link (UC-DOC-08); only the token's hash is kept.
+-- Migration 0269: a page opened read-only by a link (UC-DOC-08); only the token's hash is kept.
 CREATE TABLE page_public_link (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   page_id    uuid NOT NULL,
@@ -1812,7 +1847,7 @@ CREATE TABLE page_public_link (
 CREATE UNIQUE INDEX page_public_link_token_uq ON page_public_link (token_hash);
 GRANT SELECT, INSERT, UPDATE, DELETE ON page_public_link TO hubtask_app;
 
--- Migration 0264: a page published as an article of a service's portal (UC-DOC-13).
+-- Migration 0271: a page published as an article of a service's portal (UC-DOC-13).
 CREATE TABLE page_article (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   page_id       uuid NOT NULL,
@@ -1867,7 +1902,7 @@ DROP TRIGGER IF EXISTS page_references_update ON page;
 CREATE TRIGGER page_references_update AFTER UPDATE OF body, deleted_at ON page
   FOR EACH ROW EXECUTE FUNCTION page_reference_of_body();
 
--- Boards of the whiteboard module (migration 0233, M4).
+-- Boards of the whiteboard module (migration 0240, M4).
 CREATE TABLE whiteboard (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1875,7 +1910,7 @@ CREATE TABLE whiteboard (
   title      text NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
   scene      jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(scene) = 'array' AND jsonb_array_length(scene) <= 5000),
   deleted_at timestamptz,
-  -- Who trashed it (migration 0371).
+  -- Who trashed it (migration 0378).
   deleted_by_type text,
   deleted_by_id   uuid,
   created_by uuid NOT NULL,
@@ -1951,7 +1986,7 @@ DROP TRIGGER IF EXISTS whiteboard_references_update ON whiteboard;
 CREATE TRIGGER whiteboard_references_update AFTER UPDATE OF scene, deleted_at ON whiteboard
   FOR EACH ROW EXECUTE FUNCTION whiteboard_reference_of_scene();
 
--- A whiteboard's history (migration 0234, UC-CNV-06): one row per drawing session, a named
+-- A whiteboard's history (migration 0241, UC-CNV-06): one row per drawing session, a named
 -- version its own row.
 CREATE TABLE whiteboard_version (
   tenant_id     uuid NOT NULL,
@@ -1974,7 +2009,7 @@ CREATE POLICY tenant_isolation ON whiteboard_version
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON whiteboard_version TO hubtask_app;
 
--- Links and references (migration 0213, F-3). The six shipped link types have no row.
+-- Links and references (migration 0220, F-3). The six shipped link types have no row.
 CREATE TABLE link_type (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -2010,7 +2045,7 @@ CREATE TABLE entry_link (
   target_id   uuid NOT NULL,
   created_by  uuid,
   created_at  timestamptz NOT NULL,
-  -- A waiting link's timing (migration 0244, M2).
+  -- A waiting link's timing (migration 0251, M2).
   dependency_kind text NOT NULL DEFAULT 'FS' CHECK (dependency_kind IN ('FS', 'SS', 'FF', 'SF')),
   lag_days    integer NOT NULL DEFAULT 0 CHECK (lag_days BETWEEN -999 AND 999),
   UNIQUE (tenant_id, id),
@@ -2044,11 +2079,11 @@ CREATE TABLE entry_reference (
     FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE INDEX entry_reference_target_idx ON entry_reference (tenant_id, target_kind, target_id);
--- A purged entry's references, which its cascade takes (0333).
+-- A purged entry's references, which its cascade takes (0340).
 CREATE INDEX entry_reference_entry_idx ON entry_reference (tenant_id, entry_id);
 GRANT SELECT, INSERT, DELETE ON entry_reference TO hubtask_app;
 -- entry_references_of(text) and the triggers work_item_references_* and comment_references_*,
--- which keep entry_reference from an entry's notes and its comments: migration 0213.
+-- which keep entry_reference from an entry's notes and its comments: migration 0220.
 
 CREATE TABLE comment (
   id                uuid PRIMARY KEY,
@@ -2072,18 +2107,18 @@ CREATE TABLE comment (
   kind              text NOT NULL DEFAULT 'USER' CONSTRAINT comment_kind_known CHECK (kind IN ('USER', 'SYSTEM')),
   system_code       text,
   system_params     jsonb,
-  -- A note for the team beside the public replies (migration 0241, UC-SVC-04).
+  -- A note for the team beside the public replies (migration 0248, UC-SVC-04).
   internal          boolean NOT NULL DEFAULT false,
   CONSTRAINT comment_item_id_fkey
     FOREIGN KEY (tenant_id, item_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE
 );
 CREATE UNIQUE INDEX comment_tenant_id_uq ON comment (tenant_id, id);
--- A search finds an entry by its comments (migration 0225, F-9).
+-- A search finds an entry by its comments (migration 0232, F-9).
 CREATE INDEX comment_search_idx ON comment USING gin (to_tsvector('simple'::regconfig, body)) WHERE deleted_at IS NULL;
 ALTER TABLE comment ADD CONSTRAINT comment_parent_comment_id_fkey
     FOREIGN KEY (tenant_id, parent_comment_id) REFERENCES comment (tenant_id, id) ON DELETE CASCADE;
 CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
--- A purged comment's replies, which its cascade takes (0335).
+-- A purged comment's replies, which its cascade takes (0342).
 CREATE INDEX comment_parent_idx ON comment (tenant_id, parent_comment_id) WHERE parent_comment_id IS NOT NULL;
 -- The tombstones whose text a legal hold keeps, which the retention pass reads (migration 0122).
 CREATE INDEX comment_kept_text_idx ON comment (tenant_id, id)
@@ -2217,8 +2252,8 @@ CREATE TABLE media_object (
   deleted_at  timestamptz,
   -- The upload life (migration 0013): PENDING between staging and confirmation, READY once
   -- the bytes were read back, judged and sealed; PENDING_SCAN held for a scanner that could not
-  -- answer, INFECTED found malicious, its bytes gone (migration 0301), UNSCANNABLE refused by the
-  -- scanner for its size (0336). Fail-closed default.
+  -- answer, INFECTED found malicious, its bytes gone (migration 0308), UNSCANNABLE refused by the
+  -- scanner for its size (0343). Fail-closed default.
   status      text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'READY', 'PENDING_SCAN', 'INFECTED', 'UNSCANNABLE')),
   file_name   text,
   -- Since when nothing has pointed at this object, NULL while something does (migration 0051).
@@ -2230,14 +2265,14 @@ CREATE TABLE media_object (
 
 CREATE UNIQUE INDEX media_object_tenant_id_uq ON media_object (tenant_id, id);
 CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_count, created_at);
--- A search finds an entry by the name of a file attached to it (migration 0226, F-9).
+-- A search finds an entry by the name of a file attached to it (migration 0233, F-9).
 CREATE INDEX media_object_name_search_idx ON media_object USING gin (to_tsvector('simple'::regconfig, translate(file_name, '._-', '   '))) WHERE file_name IS NOT NULL AND deleted_at IS NULL;
 -- Declared here rather than in work_item's definition, because media_object is created after it
 -- in this file; migration 0013 is where it arrived.
 ALTER TABLE work_item ADD CONSTRAINT work_item_cover_media_fkey
   FOREIGN KEY (tenant_id, cover_media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT;
 
--- A whiteboard's pictures and files (migration 0235, UC-CNV-08), placed by AttachWhiteboardMedia.
+-- A whiteboard's pictures and files (migration 0242, UC-CNV-08), placed by AttachWhiteboardMedia.
 CREATE TABLE whiteboard_media (
   tenant_id     uuid NOT NULL,
   whiteboard_id uuid NOT NULL,
@@ -2254,7 +2289,7 @@ ALTER TABLE whiteboard_media FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON whiteboard_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON whiteboard_media TO hubtask_app;
--- A page's pictures and files (migration 0265, UC-DOC-14).
+-- A page's pictures and files (migration 0272, UC-DOC-14).
 CREATE TABLE page_media (
   tenant_id uuid NOT NULL,
   page_id   uuid NOT NULL,
@@ -2271,7 +2306,7 @@ ALTER TABLE page_media FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON page_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON page_media TO hubtask_app;
--- The labels a page carries (migration 0297, UC-DOC-01 check 9).
+-- The labels a page carries (migration 0304, UC-DOC-01 check 9).
 CREATE TABLE page_label (
   tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   page_id   uuid NOT NULL,
@@ -2286,7 +2321,7 @@ ALTER TABLE page_label FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON page_label
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON page_label TO hubtask_app;
--- What waits on a page to be published in a space with drafts (migration 0306, UC-DOC-15).
+-- What waits on a page to be published in a space with drafts (migration 0313, UC-DOC-15).
 CREATE TABLE page_draft (
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   page_id     uuid NOT NULL,
@@ -2305,7 +2340,7 @@ ALTER TABLE page_draft FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON page_draft
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON page_draft TO hubtask_app;
--- A template's sample entries (migration 0307, configuration.md §6): one act removes them all.
+-- A template's sample entries (migration 0314, configuration.md §6): one act removes them all.
 CREATE TABLE sample_entry (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   item_id    uuid NOT NULL,
@@ -2324,11 +2359,11 @@ ALTER TABLE sample_entry FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON sample_entry
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON sample_entry TO hubtask_app;
--- Drafts of the configuration's shared blocks (migration 0308, ui.md A4): in force once applied.
+-- Drafts of the configuration's shared blocks (migration 0315, ui.md A4): in force once applied.
 CREATE TABLE config_draft (
   tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   section   text NOT NULL CHECK (section IN ('types', 'sla_policies', 'roles')),
-  -- A custom role's key may be 63 characters (0365).
+  -- A custom role's key may be 63 characters (0372).
   key       text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$'),
   block     jsonb NOT NULL
     CHECK (jsonb_typeof(block) = 'object' AND pg_column_size(block) <= 262144),
@@ -2342,7 +2377,7 @@ ALTER TABLE config_draft FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON config_draft
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON config_draft TO hubtask_app;
--- A template's pages (migration 0309, configuration.md §6): read back by the hub's document.
+-- A template's pages (migration 0316, configuration.md §6): read back by the hub's document.
 CREATE TABLE template_page (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   page_id    uuid NOT NULL,
@@ -2366,7 +2401,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON template_page TO hubtask_app;
 ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey
   FOREIGN KEY (tenant_id, avatar_media_id) REFERENCES media_object (tenant_id, id)
   ON DELETE SET NULL (avatar_media_id);
--- The same for a desk's logo (migration 0313).
+-- The same for a desk's logo (migration 0320).
 ALTER TABLE container ADD CONSTRAINT container_logo_media_fkey
   FOREIGN KEY (tenant_id, logo_media_id) REFERENCES media_object (tenant_id, id)
   ON DELETE SET NULL (logo_media_id);
@@ -2443,7 +2478,7 @@ CREATE TABLE saved_view (
   sharing       text NOT NULL DEFAULT 'PRIVATE' CHECK (sharing IN ('PRIVATE','SCOPE','PUBLIC_LINK')),
   created_at    timestamptz NOT NULL DEFAULT now(),
   version       integer NOT NULL DEFAULT 1,
-  -- The view's stable key in its scope (migration 0286), as a rule's.
+  -- The view's stable key in its scope (migration 0293), as a rule's.
   key           text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$')
 );
 CREATE UNIQUE INDEX saved_view_tenant_id_uq ON saved_view (tenant_id, id);
@@ -2563,7 +2598,7 @@ CREATE INDEX mail_receipt_recent_idx ON mail_receipt (tenant_id, received_at DES
 CREATE TABLE mailbox (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  -- GRAPH (migration 0305): Microsoft Graph, neither a host nor a session URL.
+  -- GRAPH (migration 0312): Microsoft Graph, neither a host nor a session URL.
   protocol      text NOT NULL CONSTRAINT mailbox_protocol_check CHECK (protocol IN ('IMAP', 'JMAP', 'GRAPH')),
   address       text NOT NULL,
   host          text,
@@ -2666,7 +2701,7 @@ CREATE UNIQUE INDEX auto_assign_policy_scope_uq ON auto_assign_policy (tenant_id
 CREATE TABLE automation_rule (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  -- PERSON is a person's own rule (migration 0312): scope_id is the owner, who it acts as.
+  -- PERSON is a person's own rule (migration 0319): scope_id is the owner, who it acts as.
   scope_type  text NOT NULL CHECK (scope_type IN ('TENANT','HUB','COLLECTION','PERSON')),
   scope_id    uuid,
   name        text NOT NULL,
@@ -2698,7 +2733,7 @@ CREATE TABLE automation_rule (
   -- Switched off by the workspace's deletion request (0130), so that a cancel switches exactly
   -- these back on.
   paused_for_deletion boolean NOT NULL DEFAULT false,
-  -- The rule's stable key in its scope (migration 0286): the configuration document's name for
+  -- The rule's stable key in its scope (migration 0293): the configuration document's name for
   -- it, drawn from the name by a trigger when the writer named none.
   key         text CHECK (key IS NULL OR key ~ '^[a-z][a-z0-9_]{0,62}$'),
   CONSTRAINT automation_rule_run_as_fkey
@@ -2831,7 +2866,7 @@ CREATE TABLE webhook_subscription (
   -- Where it listens (migration 0156): a hub or a collection, both NULL for the whole workspace.
   scope_type    text,
   scope_id      uuid,
-  -- What the target receives (UC-INT-12, migration 0257): the CloudEvent or a chat room's
+  -- What the target receives (UC-INT-12, migration 0264): the CloudEvent or a chat room's
   -- sentence. A chat room's credential - a Matrix token, an incoming webhook address - is sealed in
   -- secret_enc; chat_room is the Matrix room, chat_locale the sentence's language.
   format        text NOT NULL DEFAULT 'CLOUDEVENTS',
@@ -2902,7 +2937,7 @@ CREATE TABLE calendar_feed (
   token_hash  bytea NOT NULL,
   created_at  timestamptz NOT NULL DEFAULT now(),
   revoked_at  timestamptz,
-  -- What the token opens (migration 0277): a calendar, or a data feed of the view's rows.
+  -- What the token opens (migration 0284): a calendar, or a data feed of the view's rows.
   kind        text NOT NULL DEFAULT 'CALENDAR' CHECK (kind IN ('CALENDAR', 'DATA')),
   CONSTRAINT calendar_feed_account_id_fkey
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -2962,7 +2997,7 @@ CREATE TABLE notification (
   -- The role somebody was given (migrations 0144, 0145, UC-NOT-01 check 9): the mail reads the role,
   -- the scope and the place's name from the grant at delivery, and a revoked grant takes it along.
   membership_id uuid,
-  -- The page whose review fell due (migration 0232, UC-DOC-12 check 4): the mail reads its title at
+  -- The page whose review fell due (migration 0239, UC-DOC-12 check 4): the mail reads its title at
   -- delivery, and a purged page takes it along.
   page_id uuid,
 
@@ -2994,12 +3029,12 @@ CREATE UNIQUE INDEX notification_event_recipient_idx
 CREATE INDEX notification_pending_idx
   ON notification (tenant_id, created_at) WHERE state = 'PENDING';
 CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
--- The last invitation notification per account, for the people list (migration 0363).
+-- The last invitation notification per account, for the people list (migration 0370).
 CREATE INDEX notification_invitation_idx ON notification (tenant_id, recipient_id, created_at DESC)
   WHERE category = 'INVITATION';
--- The last notification of any kind per account, for the people list (migration 0375).
+-- The last notification of any kind per account, for the people list (migration 0382).
 CREATE INDEX notification_recipient_idx ON notification (tenant_id, recipient_id, created_at DESC);
--- A purged entry's notifications, which its cascade takes (0335).
+-- A purged entry's notifications, which its cascade takes (0342).
 CREATE INDEX notification_item_idx ON notification (tenant_id, item_id) WHERE item_id IS NOT NULL;
 -- What a revocation's cascade finds its records by.
 CREATE INDEX notification_membership_idx
@@ -3112,16 +3147,16 @@ CREATE TABLE job (
   last_error_params jsonb,
   -- How a job that succeeded ended, where its kind says more: a message code only (migration 0171).
   outcome      text,
-  -- How often a dead duty was revived since its last round that worked (migration 0330).
+  -- How often a dead duty was revived since its last round that worked (migration 0337).
   revivals     integer NOT NULL DEFAULT 0
 );
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)
   WHERE dedupe_key IS NOT NULL AND state IN ('PENDING','RUNNING');
--- The last invitation mail per account, for the people list (migration 0362).
+-- The last invitation mail per account, for the people list (migration 0369).
 CREATE INDEX job_invitation_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
   WHERE kind = 'notification.invitation';
--- A notification's delivery job, for the people list's last mail (migration 0375).
+-- A notification's delivery job, for the people list's last mail (migration 0382).
 CREATE INDEX job_notification_delivery_idx ON job (tenant_id, dedupe_key, created_at DESC)
   WHERE kind = 'notification.deliver';
 
@@ -3358,6 +3393,19 @@ CREATE TABLE ai_objection_notice (
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 
+-- A member without an email address told of a change of the workspace's address at their next
+-- sign-in (migration 0209); the acknowledgement removes the row.
+CREATE TABLE address_change_notice (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  from_host  text NOT NULL CHECK (length(from_host) BETWEEN 1 AND 253),
+  to_host    text NOT NULL CHECK (length(to_host) BETWEEN 1 AND 253),
+  changed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT address_change_notice_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
 -- Documented data breaches (Art. 33/34) - evidence, not automated notification.
 CREATE TABLE privacy_incident (
   id             uuid PRIMARY KEY,
@@ -3501,7 +3549,7 @@ CREATE TABLE restore_run (
   finished_at    timestamptz,
   error_code     text,
   -- The sealed passphrase of a passphrase-encrypted archive's restore, held while the run goes and
-  -- emptied when it ends (migration 0320).
+  -- emptied when it ends (migration 0327).
   passphrase_enc bytea,
   passphrase_key_id text
 );
@@ -3669,12 +3717,12 @@ CREATE TRIGGER change_log_notify
   AFTER INSERT ON change_log
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 
--- A live document's update wakes the connections on every process (migration 0230).
+-- A live document's update wakes the connections on every process (migration 0237).
 CREATE TRIGGER realtime_update_notify
   AFTER INSERT ON realtime_update
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_change();
 
--- And the document's own connections alone, by its key (migration 0296).
+-- And the document's own connections alone, by its key (migration 0303).
 CREATE OR REPLACE FUNCTION hubtask_notify_document() RETURNS trigger
   LANGUAGE plpgsql AS
 $$
@@ -3688,7 +3736,7 @@ CREATE TRIGGER realtime_update_notify_document
   FOR EACH ROW EXECUTE FUNCTION hubtask_notify_document();
 
 -- A credential ended rings every process holding a stream of its account, which asks the
--- credential again at once (migration 0332): `tenant/account`, or `tenant` for a whole workspace.
+-- credential again at once (migration 0339): `tenant/account`, or `tenant` for a whole workspace.
 CREATE OR REPLACE FUNCTION hubtask_notify_credential() RETURNS trigger
   LANGUAGE plpgsql AS
 $$
@@ -3993,7 +4041,7 @@ BEGIN
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
-    'ai_objection_notice',
+    'ai_objection_notice','address_change_notice','blocked_domain',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
@@ -4407,7 +4455,7 @@ REVOKE ALL ON FUNCTION applied_schema_versions() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION applied_schema_versions() TO hubtask_app;
 
 -- The oldest binary, by its newest embedded migration, that still works on this schema
--- (migration 0337): a contract migration raises it, readiness compares it (deployment.md §5).
+-- (migration 0344): a contract migration raises it, readiness compares it (deployment.md §5).
 CREATE OR REPLACE FUNCTION schema_compatibility_floor()
 RETURNS bigint
 LANGUAGE sql IMMUTABLE SET search_path = pg_catalog, pg_temp AS $$
@@ -4417,7 +4465,7 @@ REVOKE ALL ON FUNCTION schema_compatibility_floor() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION schema_compatibility_floor() TO hubtask_app;
 
 -- The oldest open transaction's age in seconds, the caller's own left out, for alert A-25
--- (migration 0331): the application role sees its own sessions' transactions.
+-- (migration 0338): the application role sees its own sessions' transactions.
 CREATE OR REPLACE FUNCTION oldest_transaction_seconds()
 RETURNS double precision
 LANGUAGE sql STABLE SET search_path = pg_catalog, pg_temp AS $$
@@ -4814,6 +4862,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_host' AND policyname = 'doors_write') THEN
     CREATE POLICY doors_write ON tenant_host FOR INSERT TO CURRENT_USER WITH CHECK (true);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_host' AND policyname = 'doors_update') THEN
+    CREATE POLICY doors_update ON tenant_host FOR UPDATE TO CURRENT_USER USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'blocked_domain' AND policyname = 'doors_read') THEN
+    CREATE POLICY doors_read ON blocked_domain FOR SELECT TO CURRENT_USER USING (true);
+  END IF;
 END $owner$;
 
 CREATE OR REPLACE FUNCTION resolve_tenant_host(request_host text) RETURNS uuid
@@ -4821,7 +4875,7 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT h.tenant_id FROM tenant_host h
   JOIN tenant t ON t.id = h.tenant_id
   WHERE h.host = lower(rtrim(request_host, '.'))
-    AND h.state = 'ACTIVE'
+    AND (h.state = 'ACTIVE' OR (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED'))
     AND t.deleted_at IS NULL
   LIMIT 1
 $$;
@@ -4853,6 +4907,172 @@ END
 $$;
 REVOKE ALL ON FUNCTION ensure_main_hosts(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ensure_main_hosts(text) TO hubtask_app;
+
+-- The main row of each live workspace among `want`, every one where it is NULL: what the control
+-- plane's list shows beside the short name (migration 0208).
+CREATE OR REPLACE FUNCTION admin_main_hosts(want uuid[]) RETURNS TABLE (tenant_id uuid, host text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id, h.host
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.is_canonical
+    AND h.state = 'ACTIVE'
+    AND t.deleted_at IS NULL
+    AND (want IS NULL OR h.tenant_id = ANY (want))
+$$;
+
+REVOKE ALL ON FUNCTION admin_main_hosts(uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_main_hosts(uuid[]) TO hubtask_app;
+
+-- An own domain's doors (migration 0211): the ingress's question, the first request, the block,
+-- the check's due rows and the operator's list. The owner updates a row by `doors_update`.
+-- The ingress's question on the operations port: may this host have a certificate? Yes for a
+-- serving row of a live workspace, never for a blocked, pending or broken one. An own domain is
+-- stamped as asked, which is half of what makes it ACTIVE.
+CREATE OR REPLACE FUNCTION own_domain_certificate(request_host text, asked_at timestamptz) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE
+  wanted text := lower(rtrim(coalesce(request_host, ''), '.'));
+  found  boolean;
+BEGIN
+  SELECT true INTO found FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.host = wanted
+    AND (h.state = 'ACTIVE' OR (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED'))
+    AND t.deleted_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM blocked_domain b WHERE b.host = wanted);
+  IF NOT coalesce(found, false) THEN
+    RETURN false;
+  END IF;
+  UPDATE tenant_host SET certificate_asked_at = asked_at
+  WHERE host = wanted AND kind = 'OWN_DOMAIN' AND certificate_asked_at IS NULL;
+  RETURN true;
+END
+$$;
+
+-- A request reached a workspace through this host: a VERIFIED own domain the ingress asked about
+-- becomes ACTIVE. Whether it awaits that is answered beside the workspace, so the request path
+-- writes only when there is something to write.
+CREATE OR REPLACE FUNCTION resolve_serving_host(request_host text)
+RETURNS TABLE (tenant_id uuid, awaits_request boolean)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id,
+         (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED' AND h.certificate_asked_at IS NOT NULL)
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.host = lower(rtrim(request_host, '.'))
+    AND (h.state = 'ACTIVE' OR (h.kind = 'OWN_DOMAIN' AND h.state = 'VERIFIED'))
+    AND t.deleted_at IS NULL
+  LIMIT 1
+$$;
+
+CREATE OR REPLACE FUNCTION own_domain_served(request_host text, served_at timestamptz) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+  WITH moved AS (
+    UPDATE tenant_host SET state = 'ACTIVE', state_since = served_at
+    WHERE host = lower(rtrim(request_host, '.'))
+      AND kind = 'OWN_DOMAIN' AND state = 'VERIFIED' AND certificate_asked_at IS NOT NULL
+    RETURNING 1
+  )
+  SELECT EXISTS (SELECT 1 FROM moved)
+$$;
+
+-- Whether the operator blocked a host, asked from the workspace that wants to set it up.
+CREATE OR REPLACE FUNCTION own_domain_blocked(request_host text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM blocked_domain WHERE host = lower(rtrim(request_host, '.')))
+$$;
+
+-- The own domains the check owes a look: pending and broken ones not looked at since
+-- `pending_before`, serving ones not since `serving_before`; the longest unchecked first.
+CREATE OR REPLACE FUNCTION own_domains_due(pending_before timestamptz, serving_before timestamptz, most integer)
+RETURNS TABLE (tenant_id uuid, host text, verification text, state text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id, h.host, h.verification, h.state
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.kind = 'OWN_DOMAIN'
+    AND t.deleted_at IS NULL
+    AND (h.checked_at IS NULL
+         OR (h.state IN ('PENDING', 'BROKEN') AND h.checked_at < pending_before)
+         OR (h.state IN ('VERIFIED', 'ACTIVE') AND h.checked_at < serving_before))
+  ORDER BY h.checked_at NULLS FIRST, h.host
+  LIMIT most
+$$;
+
+-- Every own domain of the installation with its workspace, and every block, for the operator; with
+-- when a main one fell back and the workspace's own address it fell back to.
+CREATE OR REPLACE FUNCTION admin_own_domains()
+RETURNS TABLE (host text, tenant_id uuid, tenant_name text, state text, since timestamptz,
+               is_main boolean, blocked_reason text, fell_back_at timestamptz, address_host text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.host, h.tenant_id, t.display_name, h.state, coalesce(h.state_since, h.created_at),
+         h.is_canonical, NULL::text, h.fell_back_at,
+         (SELECT a.host FROM tenant_host a
+          WHERE a.tenant_id = h.tenant_id AND a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+          ORDER BY a.is_canonical DESC, a.created_at DESC LIMIT 1)
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.kind = 'OWN_DOMAIN' AND t.deleted_at IS NULL
+  UNION ALL
+  SELECT b.host, b.tenant_id, coalesce(t.display_name, ''), 'BLOCKED', b.blocked_at, b.was_main,
+         b.reason, NULL::timestamptz,
+         (SELECT a.host FROM tenant_host a
+          WHERE a.tenant_id = b.tenant_id AND a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+          ORDER BY a.is_canonical DESC, a.created_at DESC LIMIT 1)
+  FROM blocked_domain b
+  LEFT JOIN tenant t ON t.id = b.tenant_id AND t.deleted_at IS NULL
+  ORDER BY 5 DESC, 1
+$$;
+
+-- Where a browser on this host is sent instead: the workspace's main address, for a serving row that
+-- is not main beside a serving main row, where one of the two is an own domain. NULL for every other
+-- host, which the request then serves as before.
+CREATE OR REPLACE FUNCTION browser_host(request_host text) RETURNS text
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT m.host
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  JOIN tenant_host m ON m.tenant_id = h.tenant_id AND m.is_canonical AND m.state = 'ACTIVE'
+  WHERE h.host = lower(rtrim(request_host, '.'))
+    AND h.state = 'ACTIVE' AND NOT h.is_canonical
+    AND (h.kind = 'OWN_DOMAIN' OR m.kind = 'OWN_DOMAIN')
+    AND t.deleted_at IS NULL
+  LIMIT 1
+$$;
+
+REVOKE ALL ON FUNCTION own_domain_certificate(text, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION resolve_serving_host(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION own_domain_served(text, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION own_domain_blocked(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION admin_own_domains() FROM PUBLIC;
+REVOKE ALL ON FUNCTION browser_host(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION own_domain_certificate(text, timestamptz) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION resolve_serving_host(text) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION own_domain_served(text, timestamptz) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION own_domain_blocked(text) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION admin_own_domains() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION browser_host(text) TO hubtask_app;
+
+-- Whether this host is the main address of a live workspace (migration 0213): the device's list of
+-- workspaces asks it before it keeps an entry and whenever it shows one. A yes or a no, never the
+-- workspace.
+CREATE OR REPLACE FUNCTION is_main_host(request_host text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM tenant_host h
+    JOIN tenant t ON t.id = h.tenant_id
+    WHERE h.host = lower(rtrim(request_host, '.'))
+      AND h.is_canonical AND h.state = 'ACTIVE'
+      AND t.deleted_at IS NULL
+  )
+$$;
+REVOKE ALL ON FUNCTION is_main_host(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION is_main_host(text) TO hubtask_app;
+
 
 -- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's
 -- account by address, nothing when there is not exactly one workspace.
@@ -5295,7 +5515,7 @@ REVOKE ALL ON restore_drill_marker FROM hubtask_app;
 -- ============================ Backfill ledger =========================
 -- Where a migration's backfill stopped, one row per migration while it runs, so that a run killed
 -- between batches resumes after the last batch it committed (versioning-release.md §4). Created by
--- the first backfill that needs it (migration 0212); the application role has no access at all.
+-- the first backfill that needs it (migration 0219); the application role has no access at all.
 CREATE TABLE migration_cursor (
   name       text PRIMARY KEY CHECK (name ~ '^[0-9]{4}_[a-z0-9_]{1,80}$'),
   position   text NOT NULL CHECK (char_length(position) <= 200),
@@ -5533,7 +5753,7 @@ GRANT EXECUTE ON FUNCTION admin_usage(date, date, text, uuid, uuid, integer) TO 
 REVOKE ALL ON FUNCTION sweep_usage(date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sweep_usage(date) TO hubtask_app;
 
--- The assets and configuration module (M6), migration 0236.
+-- The assets and configuration module (M6), migration 0243.
 CREATE TABLE cmdb_class (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -5751,7 +5971,7 @@ CREATE POLICY tenant_isolation ON cmdb_duplicate
 GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_class, cmdb_relation_type, cmdb_source, cmdb_ci,
   cmdb_ci_identifier, cmdb_relation, cmdb_run, cmdb_hold, cmdb_duplicate TO hubtask_app;
 
--- The connectors, their alerts and the signed deliveries seen (migrations 0238, 0239).
+-- The connectors, their alerts and the signed deliveries seen (migrations 0245, 0246).
 CREATE TABLE cmdb_connector (
   id                    uuid PRIMARY KEY,
   tenant_id             uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -5785,7 +6005,7 @@ CREATE TABLE cmdb_connector (
   CONSTRAINT cmdb_connector_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT cmdb_connector_credential_whole CHECK ((credential_enc IS NULL) = (credential_key_id IS NULL)),
-  -- Migrations 0369/0370.
+  -- Migrations 0376/0377.
   CONSTRAINT cmdb_connector_run_as_fkey FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id)
 );
 CREATE INDEX cmdb_connector_hub_idx ON cmdb_connector (tenant_id, hub_id, key);
@@ -5807,7 +6027,7 @@ CREATE TABLE cmdb_alert (
   last_at       timestamptz NOT NULL,
   resolved_at   timestamptz,
   count         integer NOT NULL DEFAULT 1 CHECK (count >= 1),
-  started_at    timestamptz,  -- 0372: when the program says the current episode began
+  started_at    timestamptz,  -- 0379: when the program says the current episode began
   UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, connector_id, dedup_key),
   CONSTRAINT cmdb_alert_connector_fkey FOREIGN KEY (tenant_id, connector_id)
@@ -5845,7 +6065,7 @@ CREATE POLICY tenant_isolation ON cmdb_intake_seen
 GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_connector, cmdb_alert, cmdb_intake_seen TO hubtask_app;
 
 
--- Business calendars, SLA policies and what became of each goal on an entry (migration 0240, M5).
+-- Business calendars, SLA policies and what became of each goal on an entry (migration 0247, M5).
 CREATE TABLE business_calendar (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -5878,16 +6098,16 @@ CREATE TABLE sla_policy (
   created_at     timestamptz NOT NULL,
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
-  -- the requester organisations measured; empty measures every requester's (0294)
+  -- the requester organisations measured; empty measures every requester's (0301)
   organisations  text[] NOT NULL DEFAULT '{}' CHECK (cardinality(organisations) <= 20),
-  -- the group whose internal promise (an OLA) the policy is; NULL is the requester's (0303)
+  -- the group whose internal promise (an OLA) the policy is; NULL is the requester's (0310)
   assignee_group_id uuid,
   -- the hub it is defined at, whose entries alone it measures; null is the whole workspace. A copy
-  -- names the key it was copied from (0324, UC-SVC-02 check 13)
+  -- names the key it was copied from (0331, UC-SVC-02 check 13)
   hub_id         uuid,
   copied_from    text CHECK (copied_from IS NULL OR copied_from ~ '^[a-z][a-z0-9_]{0,49}$'),
   UNIQUE (tenant_id, id),
-  -- the calendar is held by key in the use cases: the workspace's or the installation's (0291)
+  -- the calendar is held by key in the use cases: the workspace's or the installation's (0298)
   CONSTRAINT sla_policy_key_uq UNIQUE (tenant_id, key),
   CONSTRAINT sla_policy_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE
@@ -5914,7 +6134,7 @@ CREATE TABLE entry_sla (
   breached_at    timestamptz,
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
-  -- What a paused goal had spent, from which a restore re-arms it (0334).
+  -- What a paused goal had spent, from which a restore re-arms it (0341).
   consumed_seconds bigint,
   UNIQUE (tenant_id, id),
   CONSTRAINT entry_sla_goal_uq UNIQUE (tenant_id, item_id, goal),
@@ -5932,7 +6152,7 @@ CREATE POLICY tenant_isolation ON entry_sla
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_sla TO hubtask_app;
 
--- The goals of the assignee groups' OLAs on an entry, one per entry, policy and goal (0303).
+-- The goals of the assignee groups' OLAs on an entry, one per entry, policy and goal (0310).
 CREATE TABLE entry_ola (
   id             uuid PRIMARY KEY,
   tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -5949,7 +6169,7 @@ CREATE TABLE entry_ola (
   breached_at    timestamptz,
   updated_at     timestamptz NOT NULL,
   version        integer NOT NULL DEFAULT 1,
-  -- What a paused goal had spent, from which a restore re-arms it (0334).
+  -- What a paused goal had spent, from which a restore re-arms it (0341).
   consumed_seconds bigint,
   UNIQUE (tenant_id, id),
   CONSTRAINT entry_ola_goal_uq UNIQUE (tenant_id, item_id, policy_key, goal),
@@ -5966,7 +6186,7 @@ CREATE POLICY tenant_isolation ON entry_ola
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_ola TO hubtask_app;
 
 
--- Canned replies (migration 0242, M5).
+-- Canned replies (migration 0249, M5).
 CREATE TABLE reply_template (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -5986,7 +6206,7 @@ CREATE POLICY tenant_isolation ON reply_template
 GRANT SELECT, INSERT, UPDATE, DELETE ON reply_template TO hubtask_app;
 
 
--- How satisfied a requester was with a resolved request (migration 0243, M5).
+-- How satisfied a requester was with a resolved request (migration 0250, M5).
 CREATE TABLE satisfaction_rating (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6006,7 +6226,7 @@ CREATE POLICY tenant_isolation ON satisfaction_rating
 GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_rating TO hubtask_app;
 
 
--- An entry's scheduling mode and a plan's baselines (migration 0244, M2).
+-- An entry's scheduling mode and a plan's baselines (migration 0251, M2).
 CREATE TABLE entry_schedule (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   entry_id   uuid NOT NULL,
@@ -6032,7 +6252,7 @@ CREATE TABLE plan_baseline (
   taken_at    timestamptz NOT NULL,
   taken_by    uuid,
   entry_count integer NOT NULL DEFAULT 0 CHECK (entry_count BETWEEN 0 AND 10000),
-  exception_noticed_at timestamptz,  -- 0373: the plan first found in exception against it
+  exception_noticed_at timestamptz,  -- 0380: the plan first found in exception against it
   UNIQUE (tenant_id, id),
   CONSTRAINT plan_baseline_plan_fkey
     FOREIGN KEY (tenant_id, plan_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
@@ -6061,7 +6281,7 @@ CREATE POLICY tenant_isolation ON plan_baseline_entry
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON plan_baseline_entry TO hubtask_app;
 
--- Sprints, their entries and an entry's estimate (migration 0245, M2).
+-- Sprints, their entries and an entry's estimate (migration 0252, M2).
 CREATE TABLE sprint (
   id              uuid PRIMARY KEY,
   tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6138,7 +6358,7 @@ CREATE POLICY tenant_isolation ON entry_estimate
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON entry_estimate TO hubtask_app;
 
--- Time (migration 0246, M7).
+-- Time (migration 0253, M7).
 CREATE TABLE time_work_type (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6242,7 +6462,7 @@ CREATE POLICY tenant_isolation ON time_policy
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON time_policy TO hubtask_app;
 
--- Time's capacity, absences, cost rates and budgets (migration 0247, M7).
+-- Time's capacity, absences, cost rates and budgets (migration 0254, M7).
 CREATE TABLE time_capacity (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6295,7 +6515,7 @@ CREATE TABLE time_cost_rate (
   updated_at timestamptz NOT NULL,
   updated_by uuid,
   version    integer NOT NULL DEFAULT 1,
-  -- a billing rate's hub or collection (migration 0290): the subject is a person, a role or a plan
+  -- a billing rate's hub or collection (migration 0297): the subject is a person, a role or a plan
   plan_id    uuid,
   CONSTRAINT time_cost_rate_subject_check CHECK (num_nonnulls(account_id, role, plan_id) = 1),
   CONSTRAINT time_cost_rate_check1 CHECK (to_day IS NULL OR to_day >= from_day),
@@ -6332,7 +6552,7 @@ CREATE POLICY tenant_isolation ON time_budget
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON time_budget TO hubtask_app;
 
--- Goals and insight (migration 0248, M8).
+-- Goals and insight (migration 0255, M8).
 CREATE TABLE goal_period (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6486,7 +6706,7 @@ CREATE POLICY tenant_isolation ON portfolio_update
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON portfolio_update TO hubtask_app;
 
--- A portfolio's roadmap opened by a link without signing in (migration 0322, UC-GOL-03 check 15).
+-- A portfolio's roadmap opened by a link without signing in (migration 0329, UC-GOL-03 check 15).
 CREATE TABLE portfolio_public_link (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   portfolio_id uuid NOT NULL,
@@ -6518,7 +6738,7 @@ CREATE TABLE dashboard (
   updated_at timestamptz NOT NULL,
   updated_by uuid,
   version    integer NOT NULL DEFAULT 1,
-  -- The groups a GROUPS dashboard is shared with (migration 0274).
+  -- The groups a GROUPS dashboard is shared with (migration 0281).
   group_ids  uuid[] NOT NULL DEFAULT '{}' CHECK (cardinality(group_ids) <= 20),
   CONSTRAINT dashboard_hub_fkey
     FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
@@ -6546,7 +6766,7 @@ CREATE TABLE dashboard_digest (
   updated_at   timestamptz NOT NULL,
   CHECK ((cadence = 'WEEKLY') = (weekday > 0)),
   UNIQUE (tenant_id, dashboard_id, account_id),
-  -- Tenant-first since migration 0281 (ADR-0024).
+  -- Tenant-first since migration 0288 (ADR-0024).
   CONSTRAINT dashboard_digest_dashboard_fkey
     FOREIGN KEY (tenant_id, dashboard_id) REFERENCES dashboard (tenant_id, id) ON DELETE CASCADE
 );
@@ -6557,8 +6777,8 @@ CREATE POLICY tenant_isolation ON dashboard_digest
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON dashboard_digest TO hubtask_app;
 
--- An entry's status history (migration 0250): written by a trigger as an entry enters a status.
--- `from_restore` (0374) marks the stand-in a restore's write of an entry leaves until the
+-- An entry's status history (migration 0257): written by a trigger as an entry enters a status.
+-- `from_restore` (0381) marks the stand-in a restore's write of an entry leaves until the
 -- archive's own history for it is written back.
 CREATE TABLE entry_status_change (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -6604,7 +6824,7 @@ CREATE TRIGGER work_item_status_history
   AFTER INSERT OR UPDATE OF status ON work_item
   FOR EACH ROW EXECUTE FUNCTION work_item_status_history();
 
--- Kept collection figures (migration 0292): a count kept between reads beside the collection's
+-- Kept collection figures (migration 0299): a count kept between reads beside the collection's
 -- number of changes, which every write in the workspace's context moves by trigger.
 CREATE SEQUENCE collection_figure_touch_token;
 GRANT USAGE ON SEQUENCE collection_figure_touch_token TO hubtask_app;
@@ -6655,7 +6875,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON collection_figure_stamp, collection_figu
 
 -- A collection's number of changes: the folded ones and the rows not folded yet, its own and its
 -- workspace's. Monotonic, and unchanged by a fold, which moves rows into the stamp in one commit.
--- Counts the collection's hub as well (migration 0325).
+-- Counts the collection's hub as well (migration 0332).
 CREATE OR REPLACE FUNCTION collection_figure_changes(collection uuid) RETURNS bigint
 LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   WITH scopes AS (
@@ -6703,7 +6923,7 @@ END
 $$;
 
 -- BEFORE rather than AFTER: an after-trigger queues an event per row until the statement ends, and
--- a load of 500 000 entries would queue as many (migration 0289).
+-- a load of 500 000 entries would queue as many (migration 0296).
 CREATE OR REPLACE FUNCTION work_item_figure_touch() RETURNS trigger
 LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN
@@ -6814,7 +7034,7 @@ CREATE TABLE agent (
   UNIQUE (tenant_id, account_id),
   UNIQUE (tenant_id, id),
   CONSTRAINT agent_model_fkey FOREIGN KEY (tenant_id, model_id) REFERENCES agent_model (tenant_id, id),
-  -- Migrations 0369/0370.
+  -- Migrations 0376/0377.
   CONSTRAINT agent_owner_fkey FOREIGN KEY (tenant_id, owner_id) REFERENCES account (tenant_id, id)
 );
 ALTER TABLE agent ENABLE ROW LEVEL SECURITY;
@@ -6959,7 +7179,7 @@ CREATE POLICY tenant_isolation ON agent_job
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE ON agent_job TO hubtask_app;
 
--- The agent a suggestion and a notification name (migrations 0253, 0254), declared after agent.
+-- The agent a suggestion and a notification name (migrations 0260, 0261), declared after agent.
 ALTER TABLE ai_suggestion ADD COLUMN agent_id uuid,
   ADD CONSTRAINT ai_suggestion_agent_id_fkey
     FOREIGN KEY (tenant_id, agent_id) REFERENCES agent (tenant_id, id) ON DELETE CASCADE;
@@ -6971,7 +7191,7 @@ ALTER TABLE notification ADD COLUMN agent_id uuid,
     CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id) <= 1);
 CREATE INDEX notification_agent_idx ON notification (tenant_id, agent_id) WHERE agent_id IS NOT NULL;
 
--- Comments pinned on a whiteboard, and the board a mention's notification names (migration 0266,
+-- Comments pinned on a whiteboard, and the board a mention's notification names (migration 0273,
 -- UC-CNV-09).
 CREATE TABLE whiteboard_comment (
   id            uuid PRIMARY KEY,
@@ -7015,7 +7235,7 @@ ALTER TABLE notification ADD COLUMN whiteboard_id uuid,
 CREATE INDEX notification_whiteboard_idx ON notification (tenant_id, whiteboard_id) WHERE whiteboard_id IS NOT NULL;
 
 -- The CMDB's assurance: affected CIs, certification campaigns, CI groups, assets and software
--- aliases (migration 0267).
+-- aliases (migration 0274).
 CREATE TABLE cmdb_affected (
   id        uuid PRIMARY KEY,
   tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7166,7 +7386,7 @@ ALTER TABLE cmdb_software_alias FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON cmdb_software_alias
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
--- Approvals: a step waiting for people's yes, its decisions and delegations (migration 0268).
+-- Approvals: a step waiting for people's yes, its decisions and delegations (migration 0275).
 CREATE TABLE approval (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7231,7 +7451,7 @@ ALTER TABLE approval_delegation FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON approval_delegation
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
--- An approval's people told and reminded, and its asker told of an overdue level (migration 0269).
+-- An approval's people told and reminded, and its asker told of an overdue level (migration 0276).
 ALTER TABLE notification ADD COLUMN approval_id uuid,
   ADD CONSTRAINT notification_approval_id_fkey
     FOREIGN KEY (tenant_id, approval_id) REFERENCES approval (tenant_id, id) ON DELETE CASCADE,
@@ -7241,7 +7461,7 @@ ALTER TABLE notification ADD COLUMN approval_id uuid,
       whiteboard_id, approval_id) <= 1);
 CREATE INDEX notification_approval_idx ON notification (tenant_id, approval_id) WHERE approval_id IS NOT NULL;
 
--- A hub's own version of a workspace business calendar (migration 0270).
+-- A hub's own version of a workspace business calendar (migration 0277).
 CREATE TABLE hub_business_calendar (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7263,9 +7483,9 @@ ALTER TABLE hub_business_calendar FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON hub_business_calendar
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
--- A hub template's part and the hubs that took it (migration 0271).
+-- A hub template's part and the hubs that took it (migration 0278).
 ALTER TABLE config_template ADD COLUMN hub_document jsonb;
--- A template's collection part (migration 0310); a collection's use is a row below under its id.
+-- A template's collection part (migration 0317); a collection's use is a row below under its id.
 ALTER TABLE config_template ADD COLUMN collection_document jsonb;
 CREATE TABLE config_hub_template_use (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7283,7 +7503,7 @@ ALTER TABLE config_hub_template_use FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON config_hub_template_use
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 
--- Releases and their entries (migration 0272, M2, PLN-08).
+-- Releases and their entries (migration 0279, M2, PLN-08).
 CREATE TABLE release (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7328,7 +7548,7 @@ CREATE POLICY tenant_isolation ON release_entry
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON release_entry TO hubtask_app;
 
--- A plan in exception told to whoever decided its tolerance, once per baseline (migration 0273).
+-- A plan in exception told to whoever decided its tolerance, once per baseline (migration 0280).
 ALTER TABLE notification ADD COLUMN baseline_id uuid,
   ADD CONSTRAINT notification_baseline_id_fkey
     FOREIGN KEY (tenant_id, baseline_id) REFERENCES plan_baseline (tenant_id, id) ON DELETE CASCADE,
@@ -7339,7 +7559,7 @@ ALTER TABLE notification ADD COLUMN baseline_id uuid,
 CREATE UNIQUE INDEX notification_baseline_once
   ON notification (tenant_id, baseline_id, recipient_id, channel) WHERE baseline_id IS NOT NULL;
 
--- The code on an entry: a forge's hooks and an entry's code links (migration 0275).
+-- The code on an entry: a forge's hooks and an entry's code links (migration 0282).
 CREATE TABLE code_hook (
   id                uuid PRIMARY KEY,
   tenant_id         uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7355,7 +7575,7 @@ CREATE TABLE code_hook (
   UNIQUE (tenant_id, id),
   CONSTRAINT code_hook_hub_fkey FOREIGN KEY (tenant_id, hub_id)
     REFERENCES container (tenant_id, id) ON DELETE CASCADE,
-  -- Migrations 0369/0370.
+  -- Migrations 0376/0377.
   CONSTRAINT code_hook_run_as_fkey FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id)
 );
 CREATE INDEX code_hook_hub_idx ON code_hook (tenant_id, hub_id, created_at);
@@ -7413,7 +7633,7 @@ CREATE POLICY tenant_isolation ON code_delivery_seen
 -- a hook is switched off, and a link goes with its entry.
 GRANT SELECT, INSERT, UPDATE, DELETE ON code_hook, code_link, code_delivery_seen TO hubtask_app;
 
--- A file in a store on an entry (migration 0276).
+-- A file in a store on an entry (migration 0283).
 CREATE TABLE file_link (
   id         uuid PRIMARY KEY,
   tenant_id  uuid NOT NULL,
@@ -7437,7 +7657,7 @@ CREATE POLICY tenant_isolation ON file_link
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON file_link TO hubtask_app;
 
--- A calendar feed pushed into a provider's calendar (migration 0278).
+-- A calendar feed pushed into a provider's calendar (migration 0285).
 -- A feed's identity per workspace, which the push's tenant-scoped reference needs; a small table.
 CREATE UNIQUE INDEX calendar_feed_tenant_id_uq ON calendar_feed (tenant_id, id);
 
@@ -7510,7 +7730,7 @@ CREATE POLICY tenant_isolation ON calendar_push_authorization
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON calendar_push_authorization TO hubtask_app;
 
--- A person's own sign-in to a file store (migration 0279).
+-- A person's own sign-in to a file store (migration 0286).
 CREATE TABLE file_store_connection (
   id            uuid PRIMARY KEY,
   tenant_id     uuid NOT NULL,
@@ -7557,7 +7777,7 @@ CREATE POLICY tenant_isolation ON file_store_authorization
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON file_store_authorization TO hubtask_app;
 
--- A chat bot in a hub's room (migrations 0280, 0288): a Matrix account, or a Slack, Teams or
+-- A chat bot in a hub's room (migrations 0287, 0295): a Matrix account, or a Slack, Teams or
 -- Mattermost app posting to the bot's intake.
 CREATE TABLE chat_bot (
   id            uuid PRIMARY KEY,
@@ -7598,7 +7818,7 @@ CREATE POLICY tenant_isolation ON chat_bot
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON chat_bot TO hubtask_app;
 
--- A person linked to their chat account through a bot (migration 0321).
+-- A person linked to their chat account through a bot (migration 0328).
 CREATE TABLE chat_link (
   id              uuid PRIMARY KEY,
   tenant_id       uuid NOT NULL,
@@ -7627,13 +7847,13 @@ CREATE POLICY tenant_isolation ON chat_link
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON chat_link TO hubtask_app;
 
--- Migration 0282: what the retention pass reads of pages and boards.
+-- Migration 0289: what the retention pass reads of pages and boards.
 CREATE INDEX page_trashed_idx ON page (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX page_children_idx ON page (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
 CREATE INDEX whiteboard_trashed_idx ON whiteboard (tenant_id, deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX page_version_unnamed_idx ON page_version (tenant_id, created_at) WHERE name = '';
 
--- Migration 0283: A requester without an account (accepted.md B, data-protection.md §4): an address that wrote in
+-- Migration 0290: A requester without an account (accepted.md B, data-protection.md §4): an address that wrote in
 -- by mail and whose request an account filed on its behalf, with its name, its first and last
 -- contact and the entries it wrote on. REQUESTER removes it 24 months after the last contact; an
 -- erasure case by address removes it at once.
@@ -7673,7 +7893,7 @@ CREATE POLICY tenant_isolation ON requester_contact
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON requester_contact TO hubtask_app;
 
--- The LDAP directory a workspace synchronises its people from (migration 0285, identity.md §27):
+-- The LDAP directory a workspace synchronises its people from (migration 0292, identity.md §27):
 -- the bind password sealed under the installation's key; who it holds is the `ldap:` prefix on
 -- account.external_id and account_group.external_id.
 CREATE TABLE ldap_directory (
@@ -7711,7 +7931,7 @@ CREATE POLICY tenant_isolation ON ldap_directory
 GRANT SELECT, INSERT, UPDATE, DELETE ON ldap_directory TO hubtask_app;
 
 
--- A portal's organisations (migration 0287, UC-SVC-11): requesters grouped by mail domain, a
+-- A portal's organisations (migration 0294, UC-SVC-11): requesters grouped by mail domain, a
 -- domain in at most one organisation of a workspace (a trigger under a lock per workspace).
 CREATE TABLE requester_organisation (
   id               uuid PRIMARY KEY,
@@ -7751,7 +7971,7 @@ CREATE TRIGGER requester_organisation_domains_unique
   FOR EACH ROW EXECUTE FUNCTION requester_organisation_domains_unique();
 
 
--- Migration 0302: a collection's public form (UC-SVC-13); only the token's hash is kept.
+-- Migration 0309: a collection's public form (UC-SVC-13); only the token's hash is kept.
 CREATE TABLE public_form (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   collection_id uuid NOT NULL,
@@ -7771,7 +7991,7 @@ CREATE POLICY tenant_isolation ON public_form
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON public_form TO hubtask_app;
 
--- Migration 0304: a resolution mail's satisfaction link (UC-SVC-07 check 6), one per requester and
+-- Migration 0311: a resolution mail's satisfaction link (UC-SVC-07 check 6), one per requester and
 -- entry, hung on the contact; only the token's hash is kept.
 CREATE TABLE satisfaction_link (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7793,7 +8013,7 @@ CREATE POLICY tenant_isolation ON satisfaction_link
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON satisfaction_link TO hubtask_app;
 
--- Migration 0319: a public form's spent challenges (UC-SVC-13 check 8), kept until they expire so a
+-- Migration 0326: a public form's spent challenges (UC-SVC-13 check 8), kept until they expire so a
 -- challenge is answered once across every server.
 CREATE TABLE public_form_challenge (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -7808,7 +8028,7 @@ CREATE POLICY tenant_isolation ON public_form_challenge
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON public_form_challenge TO hubtask_app;
 
--- Migrations 0338-0351: a notification about a failing mailbox, a SAML certificate ending, a
+-- Migrations 0338-0358: a notification about a failing mailbox, a SAML certificate ending, a
 -- calendar push, a CMDB connector or a forge's hook; what the certificate watch keeps; a durable
 -- timer's attempts.
 ALTER TABLE notification ADD COLUMN mailbox_id uuid,
@@ -7836,7 +8056,7 @@ ALTER TABLE identity_provider ADD COLUMN saml_expiry_told_for timestamptz,
   ADD COLUMN saml_certificates_end timestamptz;
 ALTER TABLE durable_timer ADD COLUMN fire_attempts integer NOT NULL DEFAULT 0;
 
--- Migrations 0355-0361: a custom field's name; a collection's key prefix (its functions and trigger
+-- Migrations 0355-0368: a custom field's name; a collection's key prefix (its functions and trigger
 -- are the migration's); an import's dry run; the addresses mail no longer reaches; an agent
 -- request being performed.
 ALTER TABLE custom_field_definition ADD COLUMN name text NULL,
@@ -7862,11 +8082,11 @@ CREATE POLICY tenant_isolation ON mail_undeliverable
 GRANT SELECT, INSERT, UPDATE, DELETE ON mail_undeliverable TO hubtask_app;
 ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
 
--- Migration 0376: the products whose first-visit mark the person has seen.
+-- Migration 0383: the products whose first-visit mark the person has seen.
 ALTER TABLE account ADD COLUMN products_seen text[] NOT NULL DEFAULT '{}',
   ADD CONSTRAINT account_products_seen_bound CHECK (cardinality(products_seen) <= 9);
 
--- Migration 0377: the workspace's sample content (user-experience.md §3.6), one act removes it.
+-- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
 CREATE TABLE sample_object (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   key        text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_.]{0,99}$'),

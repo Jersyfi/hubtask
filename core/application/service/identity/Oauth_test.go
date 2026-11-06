@@ -75,8 +75,10 @@ func (s *oauthClientsStore) Delete(_ context.Context, clientID shared.ID) (bool,
 }
 
 type oauthGrantsStore struct {
-	byID    map[shared.ID]domain.OauthGrant
-	names   map[shared.ID]string
+	byID  map[shared.ID]domain.OauthGrant
+	names map[shared.ID]string
+	// clients is where a listing reads an app row's platform, as the statement joins it.
+	clients *oauthClientsStore
 	revoked []shared.ID
 	ended   int
 }
@@ -112,9 +114,13 @@ func (s *oauthGrantsStore) ListForAccount(
 	var listings []repository.GrantListing
 	for _, grant := range s.byID {
 		if grant.AccountID == accountID && grant.RevokedAt.IsZero() {
-			listings = append(listings, repository.GrantListing{
-				Grant: grant, ClientName: s.names[grant.ClientID],
-			})
+			listing := repository.GrantListing{Grant: grant, ClientName: s.names[grant.ClientID]}
+			if s.clients != nil {
+				if client, ok := s.clients.byID[grant.ClientID]; ok && client.IsApp() {
+					listing.ClientName, listing.AppPlatform = client.Name, client.AppPlatform
+				}
+			}
+			listings = append(listings, listing)
 		}
 	}
 	return listings, nil
@@ -181,6 +187,7 @@ func newOauthFixture(at time.Time) *oauthFixture {
 		codes:   newOauthCodes(),
 		auth:    &authorizer{},
 	}
+	f.grants.clients = f.clients
 	// The consent demands a person's own session behind the actor.
 	credential, _ := refreshCredential(at)
 	session.sessions.sessions[sessionRowID] = repository.SessionCredential{
@@ -189,8 +196,9 @@ func newOauthFixture(at time.Time) *oauthFixture {
 	}
 	f.writer = OauthWriter{
 		Session: session.writer, Clients: f.clients, Grants: f.grants, Codes: f.codes,
-		Authorizer:  f.auth,
-		KnownScopes: []string{"items:read", "items:write", "containers:read"},
+		Authorizer:    f.auth,
+		KnownScopes:   []string{"items:read", "items:write", "containers:read"},
+		SessionScopes: []string{"items:read", "items:write", "containers:read", "admin:tenants"},
 	}
 	return f
 }

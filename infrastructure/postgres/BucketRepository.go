@@ -349,6 +349,9 @@ func bucketWriteError(err error, bucket work.Bucket, what string) error {
 			WithDetail("buckets.name_taken").
 			WithParams(map[string]string{"name": bucket.Name})
 	}
+	if taken := identifierTaken(err, "bucket_pkey", "buckets.id_taken"); taken != nil {
+		return taken
+	}
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("%s of %s: %w", what, bucket.ID, err))

@@ -1,4 +1,4 @@
--- The CMDB's assurance (migration 0267): affected CIs, campaigns, groups, assets, software aliases.
+-- The CMDB's assurance (migration 0274): affected CIs, campaigns, groups, assets, software aliases.
 
 -- name: InsertCmdbAffected :execrows
 INSERT INTO cmdb_affected (id, tenant_id, item_id, ci_id, added_by, added_at)

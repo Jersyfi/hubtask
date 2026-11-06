@@ -54,10 +54,17 @@ export interface StoredRecord<T> {
 
 /**
  * What a device can do offline, as the contract names them: the seven an entry takes
- * (offline-sync.md §3.2), and the three that write the workspace's vocabulary (§4.4).
+ * (offline-sync.md §3.2), the kinds beyond the entry (§4.2), and the three that write the
+ * workspace's vocabulary (§4.4).
  */
 export type MutationKind =
   | 'ITEM_CREATE' | 'ITEM_PATCH' | 'ITEM_DELETE' | 'SET_ADD' | 'SET_REMOVE' | 'MOVE' | 'COMMENT_ADD'
+  | 'REMINDER_CREATE' | 'REMINDER_PATCH' | 'REMINDER_DELETE'
+  | 'RECURRENCE_CREATE' | 'RECURRENCE_PATCH' | 'RECURRENCE_DELETE'
+  | 'TEMPLATE_APPLY'
+  | 'CONTAINER_CREATE' | 'CONTAINER_PATCH' | 'CONTAINER_DELETE'
+  | 'LABEL_CREATE' | 'LABEL_PATCH' | 'LABEL_DELETE'
+  | 'BUCKET_CREATE' | 'BUCKET_PATCH' | 'BUCKET_DELETE'
   | 'ENTITY_UPSERT' | 'ENTITY_PATCH' | 'ENTITY_DELETE';
 
 /**
@@ -65,6 +72,13 @@ export type MutationKind =
  * the person's own timer.
  */
 export type VocabularyEntity = 'entry_type' | 'link_type' | 'entry_link' | 'workflow' | 'custom_role' | 'time_timer' | 'time_record';
+
+/**
+ * What waits in the queue: a mutation the contract names, or a file captured offline - the
+ * installed apps' alone (`holdsFiles`) - whose bytes are uploaded once the server answers and
+ * which then becomes the `SET_ADD` that attaches it. Never sent as such.
+ */
+export type QueuedKind = MutationKind | 'ATTACHMENT_CAPTURE';
 
 /** The four sets an entry carries, as `SET_ADD` and `SET_REMOVE` name them. */
 export type SetName = 'labels' | 'members' | 'watchers' | 'attachments';
@@ -78,23 +92,29 @@ export type SetName = 'labels' | 'members' | 'watchers' | 'attachments';
 export interface QueuedWrite {
   readonly kind: MutationKind;
   /**
-   * The entry the mutation is about - the client-minted identifier on an ITEM_CREATE (§9.1). For
-   * an `ENTITY_*` mutation, the replica's identifier of the record it predicts: the held one's,
-   * or one minted for a creation, which the server's answer replaces.
+   * The entry the mutation is about - the client-minted identifier on an ITEM_CREATE (§9.1) -
+   * or the entry a reminder or a series hangs off; empty for a container, a label, a bucket and
+   * a template applied. For an `ENTITY_*` mutation, the replica's identifier of the record it
+   * predicts: the held one's, or one minted for a creation, which the server's answer replaces.
    */
   readonly itemId: string;
+  /** The reminder, series, container, label or bucket, minted here on its creation. */
+  readonly entityId?: string;
+  /** The collection a label or a bucket belongs to, on its patch and deletion. */
+  readonly containerId?: string;
   /** `ENTITY_*`: which vocabulary, and its key - for an `entry_link` the identifier minted here. */
   readonly entity?: VocabularyEntity;
   readonly entityKey?: string;
   readonly baseVersion?: number | null;
-  /** ITEM_PATCH: the fields that moved, each stamped with its own clock by the engine. */
+  /** ITEM_PATCH and every `*_PATCH`: the fields that moved, each stamped with its own clock. */
   readonly fields?: Readonly<Record<string, unknown>>;
   /** SET_ADD and SET_REMOVE: which set, and which element. */
   readonly set?: SetName;
   readonly element?: string;
   /**
-   * ITEM_CREATE, MOVE, COMMENT_ADD and `ENTITY_UPSERT` / `ENTITY_PATCH`: what the applier takes -
-   * for an entity, the use case's input; a comment's `id` is minted here too.
+   * ITEM_CREATE, MOVE, COMMENT_ADD, every `*_CREATE`, TEMPLATE_APPLY and `ENTITY_UPSERT` /
+   * `ENTITY_PATCH`: what the applier takes - for an entity, the use case's input; a comment's `id`
+   * is minted here too.
    */
   readonly payload?: Readonly<Record<string, unknown>>;
   /** Which held reads the write makes stale, as the caller named them. */
@@ -121,9 +141,14 @@ export interface PendingMutation {
   readonly id: string;
   /** The order it was made in: what the push sorts by. */
   readonly seq: number;
-  readonly kind: MutationKind;
+  readonly kind: QueuedKind;
   readonly itemId: string;
+  /** The reminder, series, container, label or bucket the mutation is about. */
+  readonly entityId?: string;
+  /** The wire shape; for a captured file, the `SET_ADD` it becomes once its bytes are up. */
   readonly mutation: SyncMutation;
+  /** A captured file: what its upload declares; its bytes wait in the store's `files`. */
+  readonly file?: CapturedFileRecord;
   readonly invalidates?: readonly string[];
   readonly queuedAt: number;
   readonly attempts: number;
@@ -136,6 +161,13 @@ export interface RefusedField {
   readonly params?: Readonly<Record<string, string>>;
 }
 
+/** What a captured file declares at upload; its bytes are held in `FILES`, not here. */
+export interface CapturedFileRecord {
+  readonly fileName: string | null;
+  readonly contentType: string | null;
+  readonly size: number;
+}
+
 /**
  * A mutation the server refused (§9.5): kept with its code until the person dismisses it, so
  * that what they did offline is shown to them rather than swallowed. `sync.gone` (§7) and
@@ -144,7 +176,7 @@ export interface RefusedField {
  */
 export interface RejectedMutation {
   readonly id: string;
-  readonly kind: MutationKind;
+  readonly kind: QueuedKind;
   readonly itemId: string;
   readonly code: string;
   readonly messageCode?: string;
@@ -916,6 +948,20 @@ export type PlanChange = components['schemas']['PlanChange'];
 export type PlanFeature = components['schemas']['PlanFeature'];
 export type TenantPlanMove = components['schemas']['TenantPlanMove'];
 export type TenantPlanMoved = components['schemas']['TenantPlanMoved'];
+export type TenantAddressChange = components['schemas']['TenantAddressChange'];
+export type TenantAddressChanged = components['schemas']['TenantAddressChanged'];
+export type AddressChangeNotice = components['schemas']['AddressChangeNotice'];
+export type DeviceListEntry = components['schemas']['DeviceListEntry'];
+export type DeviceListChecked = components['schemas']['DeviceListChecked'];
+export type DeviceListEntryState = components['schemas']['DeviceListEntryState'];
+export type WorkspaceAddress = components['schemas']['WorkspaceAddress'];
+export type WorkspaceAddressChanged = components['schemas']['WorkspaceAddressChanged'];
+/** A workspace's own domain as its owner sees it, its two records, and the operator's row of it (UC-INS-15). */
+export type OwnDomain = components['schemas']['OwnDomain'];
+export type OwnDomainRecord = components['schemas']['OwnDomainRecord'];
+export type AdminOwnDomain = components['schemas']['AdminOwnDomain'];
+/** The owner's move of the main address to the own domain or back (UC-INS-15 checks 6 and 8). */
+export type MainAddressSwitch = components['schemas']['MainAddressSwitch'];
 /**
  * A preset the installation offers every workspace (UC-INS-18): its settings, whether it is the
  * default a new hub starts from, and - on the default - the settings it locks; and what writing one takes.

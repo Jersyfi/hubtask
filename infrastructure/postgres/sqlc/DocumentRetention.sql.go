@@ -248,7 +248,7 @@ type DeleteTrashedPagesParams struct {
 }
 
 // Takes its versions, comments, references, media rows, articles and live document with it
-// (cascades and migration 0260's trigger).
+// (cascades and migration 0267's trigger).
 func (q *Queries) DeleteTrashedPages(ctx context.Context, arg DeleteTrashedPagesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteTrashedPages, arg.Ids, arg.Cutoff)
 	if err != nil {

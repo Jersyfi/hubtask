@@ -561,7 +561,7 @@ func (q Queue) ReviveDeadDuties(ctx context.Context, kinds []queue.Kind, batch i
 }
 
 // OldestTransactionSeconds answers how long the database's oldest open transaction has run, the
-// caller's own left out (migration 0331).
+// caller's own left out (migration 0338).
 func (q Queue) OldestTransactionSeconds(ctx context.Context) (float64, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -577,7 +577,7 @@ func (q Queue) OldestTransactionSeconds(ctx context.Context) (float64, error) {
 }
 
 // DatabaseHorizon answers the share of the NOTIFY queue in use, the transaction-ID age vacuum
-// has not frozen (alerts A-36, A-37; migration 0353) and the database's size (A-42).
+// has not frozen (alerts A-36, A-37; migration 0360) and the database's size (A-42).
 func (q Queue) DatabaseHorizon(ctx context.Context) (float64, int64, int64, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

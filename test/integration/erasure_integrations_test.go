@@ -41,7 +41,7 @@ func TestTheIntegrationsActingAsAPersonAreCountedInTheirWorkspaceAlone(t *testin
 			t.Fatalf("seeding a hook: %v", err)
 		}
 	}
-	// The key carries the tenant (0369): a hook of B cannot name A's person at all.
+	// The key carries the tenant (0376): a hook of B cannot name A's person at all.
 	if _, err := admin.Exec(ctx, `INSERT INTO code_hook (id, tenant_id, hub_id, kind, name, enabled, salt, run_as, created_at, updated_at)
 		VALUES ($1, $2, $3, 'GITHUB', 'repo', true, 'abcdefghijklmnopqrstuvwx', $4, now(), now())`,
 		freshID(t).String(), tenantB.String(), hubB.ID.String(), person.String()); err == nil {
@@ -74,7 +74,7 @@ func TestTheIntegrationsActingAsAPersonAreCountedInTheirWorkspaceAlone(t *testin
 
 // Before a full deletion the switched-off connectors and hooks and the retired agents move to
 // another owner and stay off (UC-PRV-01 check 12); another workspace's are untouched, and while
-// one still names the person the account row cannot go (0369).
+// one still names the person the account row cannot go (0376).
 func TestSwitchedOffIntegrationsMoveToAnotherOwnerInTheirWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

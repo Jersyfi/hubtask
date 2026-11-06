@@ -4,9 +4,11 @@
 package rest
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -127,4 +129,56 @@ func quotaStandingResponse(row usecase.Output) openapi.QuotaStanding {
 		standing.Ratio = &float
 	}
 	return standing
+}
+
+// changeTenantAddressUseCase is ChangeTenantAddress's use case, written out longhand for
+// ListServiceAccounts' reason: the identity helper's closure gives the linter nothing to trace the
+// context through.
+const changeTenantAddressUseCase = "ChangeTenantAddress"
+
+// ChangeTenantAddress answers POST /admin/tenants/{tenantId}:change-address.
+func (c *RestController) ChangeTenantAddress(
+	w http.ResponseWriter, r *http.Request,
+	tenantID openapi.AdminTenantId, params openapi.ChangeTenantAddressParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.TenantAddressChange
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{
+		"tenant_id":     tenantID.String(),
+		"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	}
+	if body.Slug != nil {
+		in["slug"] = *body.Slug
+	}
+	if body.Host != nil {
+		in["host"] = *body.Host
+	}
+	if body.DryRun != nil {
+		in["dry_run"] = *body.DryRun
+	}
+	out, err := c.UseCases.Invoke(r.Context(), changeTenantAddressUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	tenant, _ := out["tenant"].(usecase.Output)
+	mailed, _ := out["members_mailed"].(int)
+	told, _ := out["members_told_at_sign_in"].(int)
+	dryRun, _ := out["dry_run"].(bool)
+	answer := openapi.TenantAddressChanged{
+		Tenant: adminTenantResponse(tenant), From: out.String("from"),
+		MembersMailed: mailed, MembersToldAtSignIn: told, DryRun: dryRun,
+	}
+	if to := out.String("to"); to != "" {
+		answer.To = &to
+	}
+	writeJSON(w, r, http.StatusOK, answer)
 }

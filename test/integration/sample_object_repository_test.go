@@ -16,7 +16,7 @@ import (
 
 // user-experience.md §3.6: a mark of the workspace's sample content is kept once per key, answers
 // the mark a key holds, is unmarked by its key, and is invisible to the workspace next door
-// (migration 0377).
+// (migration 0384).
 func TestAWorkspaceSampleMarkIsKeptPerKeyAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

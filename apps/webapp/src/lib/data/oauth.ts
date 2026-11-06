@@ -24,6 +24,12 @@ export interface AuthorizationRequest {
   readonly method: string;
   /** Echoed back to the app untouched, for its own CSRF binding. Absent where the app sent none. */
   readonly state?: string;
+  /**
+   * The installed app's device and system, which only the built-in client sends (ADR-0096): it
+   * asks for no scope, because its grant carries a session's.
+   */
+  readonly device?: string;
+  readonly platform?: string;
 }
 
 /**
@@ -41,7 +47,10 @@ export function readRequest(search: string): AuthorizationRequest | undefined {
   const redirectUri = query.get('redirect_uri') ?? '';
   const challenge = query.get('code_challenge') ?? '';
   const scopes = (query.get('scope') ?? '').split(/[\s+]+/).filter((one) => one !== '');
-  if (clientId === '' || redirectUri === '' || challenge === '' || scopes.length === 0) {
+  const device = query.get('device') ?? '';
+  const platform = query.get('platform') ?? '';
+  const isApp = device !== '' && platform !== '';
+  if (clientId === '' || redirectUri === '' || challenge === '' || (scopes.length === 0 && !isApp)) {
     return undefined;
   }
   return {
@@ -53,6 +62,7 @@ export function readRequest(search: string): AuthorizationRequest | undefined {
     // travels as it arrived rather than being defaulted into looking valid.
     method: query.get('code_challenge_method') ?? '',
     state: query.get('state') ?? undefined,
+    ...(isApp ? { device, platform } : {}),
   };
 }
 
@@ -71,7 +81,8 @@ export function missingParts(search: string): MissingPart[] {
   const missing: MissingPart[] = [];
   if ((query.get('redirect_uri') ?? '') === '') missing.push('redirect_uri');
   if ((query.get('code_challenge') ?? '') === '') missing.push('code_challenge');
-  if ((query.get('scope') ?? '').trim() === '') missing.push('scope');
+  const isApp = (query.get('device') ?? '') !== '' && (query.get('platform') ?? '') !== '';
+  if ((query.get('scope') ?? '').trim() === '' && !isApp) missing.push('scope');
   return missing;
 }
 
@@ -97,7 +108,7 @@ export function completionUrl(
   } catch {
     return undefined;
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
+  if (!isNavigable(url)) return undefined;
   url.searchParams.set('code', code);
   if (state !== undefined) url.searchParams.set('state', state);
   return url.href;
@@ -117,8 +128,16 @@ export function declineUrl(redirectUri: string, state: string | undefined): stri
   } catch {
     return undefined;
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
+  if (!isNavigable(url)) return undefined;
   url.searchParams.set('error', 'access_denied');
   if (state !== undefined) url.searchParams.set('state', state);
   return url.href;
+}
+
+/**
+ * A web address, or the Android app's own scheme (`eu.hubtask.app:/oauth`, identity.md §15.3),
+ * which opens the app rather than running anything in this origin.
+ */
+function isNavigable(url: URL): boolean {
+  return url.protocol === 'https:' || url.protocol === 'http:' || url.href.startsWith('eu.hubtask.app:/oauth');
 }

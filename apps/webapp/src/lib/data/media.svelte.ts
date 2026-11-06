@@ -169,6 +169,22 @@ class Media {
     return sealed;
   }
 
+  /**
+   * Keeps an attachment the server could not take now in the encrypted copy (`keepsOffline`): the
+   * engine uploads and attaches it when the connection returns, before anything made after it, and
+   * the bar counts it as waiting meanwhile.
+   */
+  async keep(itemId: string, file: File): Promise<void> {
+    await engine.capture({
+      itemId,
+      fileName: file.name || null,
+      contentType: file.type || null,
+      size: file.size,
+      bytes: file,
+      invalidates: [attachmentsPath(itemId)],
+    });
+  }
+
   /** Puts a cover on the entry. The entry's own row moves, so this carries the version. */
   async setCover(itemId: string, cover: CoverInput, version: number): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PUT', `/items/${itemId}/cover`, cover, {

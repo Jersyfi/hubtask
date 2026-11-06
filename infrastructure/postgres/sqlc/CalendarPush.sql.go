@@ -228,7 +228,7 @@ type ListCalendarPushesRow struct {
 	Version   int32
 }
 
-// A calendar feed pushed into a provider's calendar (migration 0278, UC-INT-16).
+// A calendar feed pushed into a provider's calendar (migration 0285, UC-INT-16).
 func (q *Queries) ListCalendarPushes(ctx context.Context, accountID pgtype.UUID) ([]ListCalendarPushesRow, error) {
 	rows, err := q.db.Query(ctx, listCalendarPushes, accountID)
 	if err != nil {

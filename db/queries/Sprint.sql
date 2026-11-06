@@ -1,4 +1,4 @@
--- Sprints and estimates (migration 0245, M2, PLN-06, PLN-07).
+-- Sprints and estimates (migration 0252, M2, PLN-06, PLN-07).
 
 -- name: InsertSprint :exec
 INSERT INTO sprint (id, tenant_id, collection_id, name, goal, start_on, end_on, state, unit,

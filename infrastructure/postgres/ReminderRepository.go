@@ -170,6 +170,9 @@ func (r ReminderRepository) Insert(ctx context.Context, reminder work.Reminder) 
 		CreatedAt:  timestampOf(reminder.CreatedAt),
 	})
 	if err != nil {
+		if taken := identifierTaken(err, "reminder_pkey", "reminders.id_taken"); taken != nil {
+			return taken
+		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the reminder %s: %w", reminder.ID, err))

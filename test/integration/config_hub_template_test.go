@@ -15,7 +15,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A hub template (migration 0271, configuration.md §6): a template version keeps the part a hub takes
+// A hub template (migration 0278, configuration.md §6): a template version keeps the part a hub takes
 // beside the workspace's, and the part a hub took is recorded for that hub - not for the
 // workspace, not for another hub, and the workspace next door reads none of it.
 func TestAHubsTemplateStaysInItsWorkspace(t *testing.T) {
@@ -82,7 +82,7 @@ func TestAHubsTemplateStaysInItsWorkspace(t *testing.T) {
 	}
 }
 
-// A collection template (migration 0310, configuration.md §6): a template version keeps the part a
+// A collection template (migration 0317, configuration.md §6): a template version keeps the part a
 // collection takes, the collection's use is recorded under the collection - not its hub - and a
 // proposal keeps the collection it would record it for; the workspace next door reads none of it.
 func TestACollectionsTemplateStaysInItsWorkspace(t *testing.T) {

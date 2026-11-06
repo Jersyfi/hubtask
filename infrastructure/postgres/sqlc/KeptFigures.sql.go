@@ -106,7 +106,7 @@ type KeptFiguresRow struct {
 	CountedAt    pgtype.Timestamptz
 }
 
-// Kept figures (UC-WRK-29, migration 0292): a collection's count with the basis it was counted on,
+// Kept figures (UC-WRK-29, migration 0299): a collection's count with the basis it was counted on,
 // answered again only while the collection's number of changes (`collection_figure_changes`) is
 // the one it was counted at. Row level security binds every statement to the transaction's
 // workspace.

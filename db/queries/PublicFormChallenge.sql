@@ -1,4 +1,4 @@
--- A public form's spent challenges (migration 0319). Row level security bounds every statement to
+-- A public form's spent challenges (migration 0326). Row level security bounds every statement to
 -- the transaction's tenant (ADR-0010).
 
 -- name: PruneSpentChallenges :exec

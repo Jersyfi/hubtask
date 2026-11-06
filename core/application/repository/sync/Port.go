@@ -235,7 +235,7 @@ type Snapshot interface {
 	// CIRelations pages the relations between them.
 	CIRelations(ctx context.Context, after shared.ID, batch int) ([]cmdb.Relation, error)
 	// CIAffected pages the CIs entries name as affected, each with its CI's hub; CIGroups and
-	// CIAssets page a hub's CI groups and the CIs' asset records (migration 0267).
+	// CIAssets page a hub's CI groups and the CIs' asset records (migration 0274).
 	CIAffected(ctx context.Context, after shared.ID, batch int) ([]AffectedRow, error)
 	CIGroups(ctx context.Context, after shared.ID, batch int) ([]cmdb.Group, error)
 	CIAssets(ctx context.Context, after shared.ID, batch int) ([]cmdb.Asset, error)

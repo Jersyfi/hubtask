@@ -130,7 +130,7 @@ func TestAProcessWithNoListeningConnectionSaysSo(t *testing.T) {
 	}
 }
 
-// A credential's doorbell names the workspace and, where one, the account (migration 0332); a
+// A credential's doorbell names the workspace and, where one, the account (migration 0339); a
 // payload of another shape is ignored.
 func TestACredentialNotificationReachesItsHandler(t *testing.T) {
 	l := listener()

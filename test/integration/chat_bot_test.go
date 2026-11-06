@@ -18,7 +18,7 @@ import (
 )
 
 // A bot is read as set up, a second one for the same room is a conflict, a run's position is
-// kept, and the workspace next door finds none of it (migration 0280, UC-INT-18).
+// kept, and the workspace next door finds none of it (migration 0287, UC-INT-18).
 func TestAChatBotStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -96,7 +96,7 @@ func TestAChatBotStaysInItsWorkspace(t *testing.T) {
 }
 
 // A person's code links the chat user who says it, a wrong or spent code links nothing and lets
-// no earlier link go, and the workspace next door neither claims nor finds a link (migration 0321,
+// no earlier link go, and the workspace next door neither claims nor finds a link (migration 0328,
 // UC-SVC-09 check 6).
 func TestAChatLinkIsClaimedOnceAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()

@@ -82,7 +82,7 @@ INSERT INTO container (
                        'completion_policy', sqlc.arg('completion_policy')::text)
   END
 )
--- The handle and the key prefix the store gave a collection (migrations 0204, 0356), so the create
+-- The handle and the key prefix the store gave a collection (migrations 0204, 0363), so the create
 -- answers them.
 RETURNING handle, key_prefix;
 
@@ -227,7 +227,7 @@ UPDATE container SET
   description = sqlc.narg('description'),
   icon        = sqlc.narg('icon'),
   color_token = sqlc.narg('color_token'),
-  -- A collection's key prefix; one another collection holds is refused by 0356's trigger as a
+  -- A collection's key prefix; one another collection holds is refused by 0363's trigger as a
   -- unique violation on container_key_prefix_uq.
   key_prefix  = sqlc.narg('key_prefix'),
   updated_at  = sqlc.arg('updated_at'),
@@ -368,7 +368,7 @@ SELECT
   wi.origin_jumble_id,
   -- What a retention rule has announced about this entry, for as long as one applies to it
   -- (data-retention.md §6). Read here rather than assembled by a second query, because §6's
-  -- point is that the object itself says what is coming; read from the side table (F-10, 0227),
+  -- point is that the object itself says what is coming; read from the side table (F-10, 0234),
   -- which the trigger keeps equal to the columns every writer still writes.
   rt.pending_until AS retention_pending_until, rt.rule_id AS retention_rule_id,
   rt.action AS retention_action, rt.blocked_by AS retention_blocked_by,
@@ -547,9 +547,9 @@ INSERT INTO work_item (
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
   sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
-  -- The entry's type, null for its level's system type (migration 0209).
+  -- The entry's type, null for its level's system type (migration 0216).
   sqlc.narg('entry_type')::text,
-  -- Its status in the workflow in force where it is created, null where none runs (0216).
+  -- Its status in the workflow in force where it is created, null where none runs (0223).
   sqlc.narg('status')::text
 )
 -- The number the store drew in the collection (migration 0204), so the create answers it.

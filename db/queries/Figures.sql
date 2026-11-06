@@ -182,7 +182,7 @@ SELECT w.collection_id::uuid AS collection_id,
            avg(extract(epoch FROM fl.flow_finished_at - fl.flow_started_at))
              FILTER (WHERE fl.flow_finished_at >= fl.flow_started_at) AS average_seconds
       FROM work_item wi
-      -- The moments from the side table (F-10, 0227), which the trigger keeps equal to the columns.
+      -- The moments from the side table (F-10, 0234), which the trigger keeps equal to the columns.
       LEFT JOIN work_item_flow fl ON fl.tenant_id = wi.tenant_id AND fl.item_id = wi.id
      WHERE wi.collection_id = w.collection_id AND wi.parent_id IS NULL
        AND wi.is_completed = true AND wi.deleted_at IS NULL

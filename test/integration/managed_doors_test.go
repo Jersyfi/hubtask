@@ -324,7 +324,7 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 	})
 
 	// The backup warning (UC-BAK-01 check 11): workspaces without a target or a recent backup are
-	// counted across workspaces through the door (0368), as the application role reads them.
+	// counted across workspaces through the door (0375), as the application role reads them.
 	t.Run("the backup gaps count every workspace", func(t *testing.T) {
 		gaps := func() (withoutTarget, withoutRecent int64) {
 			t.Helper()

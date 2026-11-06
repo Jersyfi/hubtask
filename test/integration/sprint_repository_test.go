@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A sprint, its entries and their estimates stay in their workspace (migration 0245,
+// A sprint, its entries and their estimates stay in their workspace (migration 0252,
 // UC-PLN-06 check 6, UC-PLN-07 check 4); an entry is in one open sprint at a time and one
 // sprint runs per collection.
 func TestASprintStaysInItsWorkspace(t *testing.T) {

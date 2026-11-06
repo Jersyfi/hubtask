@@ -17,10 +17,10 @@ import (
 
 var _ repository.Organisations = ServiceDeskOrganisations{}
 
-// organisationDomainConstraint is the name the trigger of migration 0287 refuses an overlap under.
+// organisationDomainConstraint is the name the trigger of migration 0294 refuses an overlap under.
 const organisationDomainConstraint = "requester_organisation_domain_uq"
 
-// ServiceDeskOrganisations stores a workspace's portal organisations (migration 0287).
+// ServiceDeskOrganisations stores a workspace's portal organisations (migration 0294).
 type ServiceDeskOrganisations struct{}
 
 func (ServiceDeskRepository) Organisations() ServiceDeskOrganisations {

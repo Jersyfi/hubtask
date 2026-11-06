@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// The status history travels in the archive (migration 0374, tenant-export.md §6, UC-GOL-04
+// The status history travels in the archive (migration 0381, tenant-export.md §6, UC-GOL-04
 // check 11): a restored entry keeps when it entered each status, so its cycle time is the one it
 // had before the restore - not one counted from the restore's moment.
 

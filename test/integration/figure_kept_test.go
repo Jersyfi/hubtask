@@ -19,7 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Kept figures against PostgreSQL as the application role (migration 0292, UC-WRK-29): a kept
+// Kept figures against PostgreSQL as the application role (migration 0299, UC-WRK-29): a kept
 // count answers while the collection is unchanged, every write in the workspace's context moves
 // the collection on in its own transaction, nothing crosses a workspace, and the recount repairs a
 // count that a write outside the workspace's context left wrong. Tenant B, for figureReader's reason.

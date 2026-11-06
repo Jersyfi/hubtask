@@ -21,7 +21,7 @@ import (
 
 // A push is read as connected, connecting the feed again replaces its grant, what it wrote is
 // kept per entry, a waiting connection is taken once, and the workspace next door finds none of it
-// (migration 0278, UC-INT-16).
+// (migration 0285, UC-INT-16).
 func TestACalendarPushStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	collection := collectionFor(ctx, t, tenantA, authorA)
@@ -141,7 +141,7 @@ func TestACalendarPushStaysInItsWorkspace(t *testing.T) {
 	}
 }
 
-// The notice that a push stopped is stored with the push as its subject (migration 0342) and goes
+// The notice that a push stopped is stored with the push as its subject (migration 0349) and goes
 // with it when its owner disconnects it.
 func TestAStoppedPushNoticeNamesItsPushAndGoesWithIt(t *testing.T) {
 	ctx := context.Background()

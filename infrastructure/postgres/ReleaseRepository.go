@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// PlanningReleases stores a hub's releases and their entries (migration 0272, M2).
+// PlanningReleases stores a hub's releases and their entries (migration 0279, M2).
 type PlanningReleases struct{}
 
 var _ repository.Releases = PlanningReleases{}

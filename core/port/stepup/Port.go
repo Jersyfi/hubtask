@@ -141,3 +141,98 @@ type Verifier interface {
 	// demand is about to refuse.
 	Methods(ctx context.Context, tenantID, accountID shared.ID) ([]Method, error)
 }
+
+// CodeMethodRefused is the refusal of a proof given by a method the act does not accept - a passkey
+// for a change of address, whose relying party is the address that ends (multi-tenancy.md §3.1). The
+// proof is spent; the refusal names the methods that are accepted, as the demand does.
+const CodeMethodRefused = "auth.step_up_method_refused"
+
+// MethodVerifier is a verifier that also answers which method gave the proof it consumed.
+type MethodVerifier interface {
+	Verifier
+	SatisfiedBy(ctx context.Context, accountID shared.ID, token string) (Method, bool, error)
+}
+
+// DemandOneOf is Demand for an act that accepts only some methods. The demand names the account's
+// methods among them, and `purpose` beside, so that a prompt can say why the others are not offered;
+// a proof by another method is refused with CodeMethodRefused. A verifier that cannot say which
+// method proved it refuses, Demand's reasoning: the restriction must not lapse by omission.
+func DemandOneOf(
+	ctx context.Context, verifier Verifier, tenantID, accountID shared.ID, token, purpose string,
+	accepted ...Method,
+) error {
+	byMethod, ok := verifier.(MethodVerifier)
+	if verifier == nil || !ok || !verifier.Available() {
+		return withPurpose(requiredOf(accepted), purpose)
+	}
+	if token != "" {
+		method, satisfied, err := byMethod.SatisfiedBy(ctx, accountID, token)
+		if err != nil {
+			return err
+		}
+		if satisfied && slices.Contains(accepted, method) {
+			return nil
+		}
+		if satisfied {
+			refusal, err := refuseAmong(ctx, verifier, tenantID, accountID, purpose, accepted)
+			if err != nil {
+				return err
+			}
+			return refusal.WithDetail(CodeMethodRefused)
+		}
+	}
+	return refuseAmongErr(ctx, verifier, tenantID, accountID, purpose, accepted)
+}
+
+func refuseAmongErr(
+	ctx context.Context, verifier Verifier, tenantID, accountID shared.ID, purpose string,
+	accepted []Method,
+) error {
+	refusal, err := refuseAmong(ctx, verifier, tenantID, accountID, purpose, accepted)
+	if err != nil {
+		return err
+	}
+	return refusal
+}
+
+// refuseAmong is refuse with the account's methods narrowed to the accepted ones.
+func refuseAmong(
+	ctx context.Context, verifier Verifier, tenantID, accountID shared.ID, purpose string,
+	accepted []Method,
+) (*shared.Error, error) {
+	held, err := verifier.Methods(ctx, tenantID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	methods := make([]Method, 0, len(held))
+	for _, method := range held {
+		if slices.Contains(accepted, method) {
+			methods = append(methods, method)
+		}
+	}
+	demand := withPurpose(requiredOf(methods), purpose)
+	namer, names := verifier.(ProviderNamer)
+	if !names || !slices.Contains(methods, MethodProvider) {
+		return demand, nil
+	}
+	name, err := namer.ProviderName(ctx, tenantID, accountID)
+	if err != nil {
+		return nil, err
+	}
+	params := map[string]string{"provider": name}
+	for key, value := range demand.Params {
+		params[key] = value
+	}
+	return demand.WithParams(params), nil
+}
+
+func withPurpose(demand *shared.Error, purpose string) *shared.Error {
+	if purpose == "" {
+		return demand
+	}
+	params := map[string]string{"purpose": purpose}
+	for key, value := range demand.Params {
+		params[key] = value
+	}
+	return demand.WithParams(params)
+}

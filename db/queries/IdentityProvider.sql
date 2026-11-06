@@ -334,12 +334,12 @@ UPDATE identity_provider SET
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND kind = 'SAML';
 
 -- name: RecordSamlCertificatesEnd :execrows
--- The certificates' end the watch found, kept for the installation's count (0348).
+-- The certificates' end the watch found, kept for the installation's count (0355).
 UPDATE identity_provider SET saml_certificates_end = sqlc.arg('certificates_end')
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND kind = 'SAML';
 
 -- name: SamlCertificatesEnding :one
--- Across workspaces through the door (0348): the enabled SAML providers whose end is known, those
+-- Across workspaces through the door (0355): the enabled SAML providers whose end is known, those
 -- ending within 30 and 7 days, and those ended. Numbers, no rows.
 SELECT providers::bigint AS providers, within_30_days::bigint AS within_30_days,
        within_7_days::bigint AS within_7_days, ended::bigint AS ended

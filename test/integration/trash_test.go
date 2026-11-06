@@ -850,7 +850,7 @@ func TestTheOneTrashListsPagesAndWhiteboardsWithinTheirWorkspace(t *testing.T) {
 }
 
 // Who trashed a page or a board is recorded by the write that trashes it, listed by the one trash,
-// and forgotten by its restore; another workspace's trash write touches nothing (migration 0371).
+// and forgotten by its restore; another workspace's trash write touches nothing (migration 0378).
 func TestTheOneTrashNamesWhoTrashedAPageOrABoard(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

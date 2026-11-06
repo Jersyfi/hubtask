@@ -49,7 +49,7 @@ func seedSpace(ctx context.Context, t *testing.T) (hub, root, child shared.ID) {
 }
 
 // A space's tree, a page's ancestors and subtree, search, backlinks, trash and restore read what
-// was written (migration 0231).
+// was written (migration 0238).
 func TestASpaceIsReadAsItWasWritten(t *testing.T) {
 	ctx := context.Background()
 	hub, root, child := seedSpace(ctx, t)
@@ -196,7 +196,7 @@ func TestThePageWalkStaysInItsWorkspace(t *testing.T) {
 }
 
 // A restriction narrows down the tree and keeps the page off the walk; a share and a personal
-// space are read back; the workspace next door sees none of them (migration 0261).
+// space are read back; the workspace next door sees none of them (migration 0268).
 func TestAPagesAccessIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	hub, root, child := seedSpace(ctx, t)
@@ -273,7 +273,7 @@ func TestAPagesAccessIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
 }
 
 // UC-DOC-08 check 4: a public link is found by its token in its own workspace alone, a new one
-// replaces the old, and taking it away leaves nothing to find (migration 0262).
+// replaces the old, and taking it away leaves nothing to find (migration 0269).
 func TestAPagesPublicLinkIsFoundByItsTokenInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
 	_, root, _ := seedSpace(ctx, t)
@@ -333,7 +333,7 @@ func TestAPagesPublicLinkIsFoundByItsTokenInItsWorkspaceAlone(t *testing.T) {
 }
 
 // UC-DOC-13: an article is published to one service, found by its words there, counted and
-// rated, and read in its own workspace alone (migration 0264).
+// rated, and read in its own workspace alone (migration 0271).
 func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, root, child := seedSpace(ctx, t)
@@ -388,7 +388,7 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 
 // A page written in another language is linked to its source under one tag each, offered and
 // found in the reader's language - the exact tag, then the language alone, then the source - and
-// the workspace next door neither reads nor changes the link (migration 0314, UC-DOC-13 check 4).
+// the workspace next door neither reads nor changes the link (migration 0321, UC-DOC-13 check 4).
 func TestAnArticlesLanguageVariantIsOfferedInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
 	hub, root, _ := seedSpace(ctx, t)
@@ -491,7 +491,7 @@ func TestAnArticlesLanguageVariantIsOfferedInItsWorkspaceAlone(t *testing.T) {
 }
 
 // A picture a page holds is counted once and found through the page, a trashed page serves it no
-// more, and the workspace next door neither attaches nor finds it (migration 0265,
+// more, and the workspace next door neither attaches nor finds it (migration 0272,
 // UC-DOC-14 check 4).
 func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
@@ -545,7 +545,7 @@ func TestAPagesPicturesStayInItsWorkspace(t *testing.T) {
 
 // A page's labels are written as a set, narrow a search - alone, with a text, by first author and
 // by the moment of the last change - and count in the space's facet; the workspace next door
-// neither writes, reads, counts nor finds them (migration 0297, UC-DOC-01 check 9).
+// neither writes, reads, counts nor finds them (migration 0304, UC-DOC-01 check 9).
 func TestAPagesLabelsNarrowASearchInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
 	hub, root, child := seedSpace(ctx, t)
@@ -609,7 +609,7 @@ func TestAPagesLabelsNarrowASearchInItsWorkspaceAlone(t *testing.T) {
 }
 
 // UC-DOC-15: a page's draft is read as written, replaced by the next, counted for its space while
-// it waits on a published page, and invisible to the workspace next door (migration 0306).
+// it waits on a published page, and invisible to the workspace next door (migration 0313).
 func TestAPagesDraftIsReadAsWrittenAndStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	hub, root, child := seedSpace(ctx, t)

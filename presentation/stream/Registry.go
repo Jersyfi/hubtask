@@ -109,7 +109,7 @@ type Slot struct {
 	// does - by returning from the handler, which is what lets the server drain (§9).
 	Closing <-chan struct{}
 	// Recheck rings when a credential of the stream's account or its workspace's status changed on
-	// any process (migration 0332): the handler asks its credential again now rather than at its
+	// any process (migration 0339): the handler asks its credential again now rather than at its
 	// next periodic recheck. Room for one; a second ring before the first is read says nothing new.
 	Recheck <-chan struct{}
 	release func()

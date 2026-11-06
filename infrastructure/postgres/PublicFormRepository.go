@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
-// PublicFormRepository stores a collection's public form (migration 0302) and finds the one a
+// PublicFormRepository stores a collection's public form (migration 0309) and finds the one a
 // token names. The token is hashed here and nowhere else: the pepper is this layer's secret.
 type PublicFormRepository struct {
 	hasher security.InboundTokenHasher

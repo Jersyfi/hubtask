@@ -445,7 +445,7 @@ func TestAGroupWhoseTypeNamesItsValuesIsReadPerColumn(t *testing.T) {
 }
 
 // A board's column or status over one collection is read a column at a time too, though its values
-// are data: they are found by skipping through the column's index (migration 0364), so the
+// are data: they are found by skipping through the column's index (migration 0371), so the
 // collection is never numbered whole. A scope the index does not hold is still numbered.
 func TestABoardsColumnsAreFoundBySkippingThroughTheIndex(t *testing.T) {
 	board := func(t *testing.T, field string, descendants, trashed bool) string {
@@ -861,7 +861,7 @@ func TestASearchSaysWhichRowsOnlyTheMeaningFound(t *testing.T) {
 }
 
 // A search finds an entry by a living comment on it and by its text-valued custom fields (F-9),
-// through the expressions migration 0225 indexed, and the words reach both as parameters only.
+// through the expressions migration 0232 indexed, and the words reach both as parameters only.
 func TestASearchReadsCommentsAndTextFields(t *testing.T) {
 	statement, err := Search(textSearchOf("quarterly report"), "", SearchBoundary{}, 51)
 	if err != nil {
@@ -987,7 +987,7 @@ func TestBlockedTraversesTheWaitingLinks(t *testing.T) {
 	}
 }
 
-// A search finds an entry by the name of a file attached to it (F-9), through migration 0226's
+// A search finds an entry by the name of a file attached to it (F-9), through migration 0233's
 // expression written verbatim, only for a sealed and living object, and with the words bound.
 func TestASearchReadsAttachmentNames(t *testing.T) {
 	statement, err := Search(textSearchOf("budget"), "", SearchBoundary{}, 51)

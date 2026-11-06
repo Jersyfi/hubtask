@@ -276,11 +276,11 @@ func TestAnEntryLivesAtTheUIDItsClientChose(t *testing.T) {
 
 	// Rendered back: the client's UID, verbatim, and no suffix.
 	dated := c.Items.(*fakeItems).items[entryID]
-	todo := c.todoOf(dated, time.UTC, nil)
+	todo := todoOf("", dated, time.UTC, nil)
 	if todo.UID != uid {
 		t.Errorf("UID = %q, want the client's own", todo.UID)
 	}
-	m := c.memberOf(me, feedID.String(), dated, time.UTC, nil, time.Time{})
+	m := memberOf("", me, feedID.String(), dated, time.UTC, nil, time.Time{})
 	if m.id != uid || m.itemID != entryID.String() || !strings.HasSuffix(m.path, "/"+uid+".ics") {
 		t.Errorf("member = %+v: want the UID as the address and the identifier beside it", m)
 	}

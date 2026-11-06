@@ -20,7 +20,7 @@ import (
 )
 
 // A calendar, a policy on it and an entry's record are stored and read back, and the workspace next
-// door sees none of them (migration 0240, UC-SVC-01, UC-SVC-02). Since migration 0291 the use cases
+// door sees none of them (migration 0247, UC-SVC-01, UC-SVC-02). Since migration 0298 the use cases
 // hold a policy's calendar by key - the installation's calendars are no rows -, so the store takes
 // a policy on a key the workspace does not hold and lets a named calendar go.
 func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
@@ -72,7 +72,7 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Errorf("a policy on a key the installation offers: %v", err)
 	}
-	// A policy for organisations reads them back; one for every requester holds none (migration 0294).
+	// A policy for organisations reads them back; one for every requester holds none (migration 0301).
 	vip := policy
 	vip.ID, vip.Key, vip.Organisations = freshID(t), "key_accounts", []string{"acme"}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
@@ -114,7 +114,7 @@ func TestServiceDeskBlocksStayInTheirWorkspace(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	// A next response is a goal the store takes (migration 0293).
+	// A next response is a goal the store takes (migration 0300).
 	other := seedWorkItemForRules(ctx, t, tenantA)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		next := record

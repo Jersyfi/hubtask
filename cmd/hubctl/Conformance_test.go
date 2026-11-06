@@ -201,6 +201,12 @@ func (s *conformingServer) apply(m map[string]any, second bool) map[string]any {
 			state["title"], state["title_hlc"] = title["value"], reading
 			result["result"] = "APPLIED"
 		}
+	case "TEMPLATE_APPLY":
+		// A kind the frame carries; the template is the server's to find.
+		result = rejected("not_found", "templates.not_found")
+		if s.broken[8] {
+			result = rejected("validation", "sync.kind_unknown")
+		}
 	default:
 		result = rejected("validation", "sync.kind_unknown")
 		if s.broken[8] {

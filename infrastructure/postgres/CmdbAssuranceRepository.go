@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// CmdbAssuranceRepository stores the CMDB's assurance (migration 0267) through the unit of work's
+// CmdbAssuranceRepository stores the CMDB's assurance (migration 0274) through the unit of work's
 // transaction (rule 3).
 type CmdbAssuranceRepository struct{}
 

@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// entryTypeKeyIndex is the unique constraint a taken key violates (migration 0209).
+// entryTypeKeyIndex is the unique constraint a taken key violates (migration 0216).
 const entryTypeKeyIndex = "entry_type_key_uq"
 
 // EntryTypeRepository stores a workspace's type registry (UC-FLW-01), through the transaction the

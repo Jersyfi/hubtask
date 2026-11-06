@@ -706,7 +706,7 @@ FROM (
   LIMIT sqlc.arg('batch')::int;
 
 -- name: ExportRealtimeDocuments :many
--- Live documents (migration 0230): the head, the log and the snapshots, written whole - an update
+-- Live documents (migration 0237): the head, the log and the snapshots, written whole - an update
 -- removed by retention leaves no marker.
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

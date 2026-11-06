@@ -66,9 +66,11 @@ func (TenantHostRepository) Insert(ctx context.Context, host identity.TenantHost
 			// One host, one workspace, installation-wide. The conflict is the answer a caller has
 			// to be able to act on: the host is somebody's, and which somebody is not theirs to
 			// learn.
+			params := map[string]string{"host": host.Host}
 			return shared.ErrConflict.
-				WithDetail("tenant_host.host_taken").
-				WithParams(map[string]string{"host": host.Host})
+				WithDetail("admin.host_taken").
+				WithParams(params).
+				WithFields(shared.FieldError{Path: "/host", Code: "admin.host_taken", Params: params})
 		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").

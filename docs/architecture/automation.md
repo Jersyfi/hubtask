@@ -41,7 +41,7 @@ graph LR
 A rule holds at most 20 conditions (all must hold) and at most 50 actions; branches nest at most 3
 deep. The scope is the workspace (`TENANT`), a `HUB` or a `COLLECTION` - or a person (`PERSON`, the
 id their account): a person's own rule acts as them alone (`run_as` = the id, held by a CHECK,
-migration 0312), starts on an `EVENT` only, fires on an entry only when its owner may `READ` it at
+migration 0319), starts on an `EVENT` only, fires on an entry only when its owner may `READ` it at
 that moment (`MatchRules.Readers`), and is managed and seen by its owner alone, signed in as
 themselves, without the `AUTOMATION` permission - anybody else is answered not found. It is not a
 section of the configuration document, and an erasure takes it with the person (UC-AUT-01 checks
@@ -598,7 +598,7 @@ names a wire protocol (engineering-guidelines.md §2, item 17); nothing calls th
   reads one (`HANDLE-42`, standing alone before its number ends, at most ten a signal). A delivery
   that proves the secret while that person may no longer write there switches the hook off - it is
   still answered `404` - and the workspace's and the hub's administrators are told once by e-mail
-  (`INTEGRATION`, subject `notification.code_hook_id`, migration 0346), linking the hub's
+  (`INTEGRATION`, subject `notification.code_hook_id`, migration 0353), linking the hub's
   *Settings → Code*; switching it on again makes it act as whoever does. An authorisation that
   could not be answered is no refusal: the hook stays on and the forge is answered `5xx`, so it
   delivers again.
@@ -772,7 +772,7 @@ and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
 
 Every collection has a *handle* (`einkauf`, letters and digits, unique in the workspace over
 trashed collections too, kept on a rename) and every entry a number in its collection. A
-collection made since migration 0356 also has a *key prefix* (`EIN`, a letter and up to four
+collection made since migration 0363 also has a *key prefix* (`EIN`, a letter and up to four
 letters or digits, derived from the name, changeable or clearable, unique in the workspace and
 never another collection's handle); the *ticket key* is the prefix and the number (`EIN-42`), or
 the handle in capitals and the number (`EINKAUF-42`) where there is no prefix, and either form
@@ -844,7 +844,7 @@ job per connector (`cmdb.connector_pull`, deduplicated by the connector), seeded
 and rescheduling itself to the connector's next moment; it runs with the rights of the person who
 last defined the connector, as an automation with the item scopes only, and switches itself off
 after ten failed runs in a row - which the workspace's and the hub's administrators are told once
-by e-mail (`INTEGRATION`, subject `notification.cmdb_connector_id`, migration 0342), in the run's
+by e-mail (`INTEGRATION`, subject `notification.cmdb_connector_id`, migration 0349), in the run's
 transaction. A calendar push its provider refuses for good (UC-INT-16) is told to its owner the
 same way (`notification.calendar_push_id`). A run that fails or fetches nothing fires the hub's one alert about
 that connector's runs (key `hubtask.connector_run`, its title the failure's message code or

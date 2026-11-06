@@ -58,7 +58,7 @@ VALUES (
 SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_at, s.revoked_at,
        s.grant_id, s.scopes,
        s.hard_expires_at, s.idle_minutes, s.signed_in_with, s.elevated_until,
-       -- *View as* (UC-ID-29, migration 0258): the person this session shows the app as, and what
+       -- *View as* (UC-ID-29, migration 0265): the person this session shows the app as, and what
        -- the actor of the request needs of them, on the round trip that already runs. Whether they
        -- reach a private hub is read only while a view runs: such a view lapses (ADR-0073 §1).
        s.viewing_as, s.viewing_as_until,

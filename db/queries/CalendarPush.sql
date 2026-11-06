@@ -1,4 +1,4 @@
--- A calendar feed pushed into a provider's calendar (migration 0278, UC-INT-16).
+-- A calendar feed pushed into a provider's calendar (migration 0285, UC-INT-16).
 
 -- name: ListCalendarPushes :many
 SELECT id, account_id, feed_id, provider, address, state, failure, pushed_at, created_at, updated_at, version

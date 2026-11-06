@@ -13,7 +13,7 @@ import (
 
 // FigureClockBound is how long a kept count of a kind the clock moves may answer: FLOW's seven days
 // roll forward with every read, and RHYTHM counts up to the moment of counting. The kinds the
-// entries alone decide answer for as long as the collection is unchanged (migration 0292).
+// entries alone decide answer for as long as the collection is unchanged (migration 0299).
 const FigureClockBound = time.Minute
 
 // FigureKeptLife is how old a kept count of any kind may be before it is counted again: the recount

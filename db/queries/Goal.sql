@@ -1,4 +1,4 @@
--- Goals and insight (migration 0248, M8): periods, goals, linked entries, check-ins, portfolios,
+-- Goals and insight (migration 0255, M8): periods, goals, linked entries, check-ins, portfolios,
 -- status updates and dashboards. Every statement names the tenant through row level security and
 -- `current_tenant_id()` (rule 3).
 

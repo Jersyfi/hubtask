@@ -39,8 +39,19 @@ type ScimDoor struct {
 	// Directory provisions people and groups. Nil answers every SCIM route not found, in SCIM's
 	// own error document.
 	Directory ScimDirectory
-	// BaseURL is the installation's public address the resources' locations are composed from.
-	BaseURL string
+	// Links answers the workspace's main address the resources' locations are composed from
+	// (ADR-0095 §2); nil keeps them relative.
+	Links WorkspaceLinks
+}
+
+// base is the main address of the workspace the SCIM credential provisions. An address that
+// cannot be read leaves the locations relative rather than refusing the provisioning.
+func (c *ScimDoor) base(r *http.Request) string {
+	address, err := linkBaseOf(r.Context(), c.Links, actorOf(r).TenantID)
+	if err != nil {
+		return ""
+	}
+	return address
 }
 
 func writeScim(w http.ResponseWriter, r *http.Request, status int, body any) {
@@ -108,7 +119,7 @@ func (c *ScimDoor) GetScimServiceProviderConfig(w http.ResponseWriter, r *http.R
 
 func (c *ScimDoor) ListScimResourceTypes(w http.ResponseWriter, r *http.Request) {
 	if c.scimServed(w, r) {
-		types := scimResourceTypes(c.BaseURL)
+		types := scimResourceTypes(c.base(r))
 		writeScim(w, r, http.StatusOK, scimList(len(types), 1, types))
 	}
 }
@@ -141,7 +152,7 @@ func (c *ScimDoor) ListScimUsers(w http.ResponseWriter, r *http.Request, params 
 	}
 	resources := make([]map[string]any, 0, len(page.Items))
 	for _, person := range page.Items {
-		resources = append(resources, scimUserOut(c.BaseURL, person))
+		resources = append(resources, scimUserOut(c.base(r), person))
 	}
 	writeScim(w, r, http.StatusOK, scimList(page.Total, page.Start, resources))
 }
@@ -167,7 +178,7 @@ func (c *ScimDoor) CreateScimUser(w http.ResponseWriter, r *http.Request) {
 		writeScimError(w, r, err)
 		return
 	}
-	out := scimUserOut(c.BaseURL, person)
+	out := scimUserOut(c.base(r), person)
 	w.Header().Set("Location", scimLocation(out))
 	writeScim(w, r, http.StatusCreated, out)
 }
@@ -181,7 +192,7 @@ func (c *ScimDoor) GetScimUser(w http.ResponseWriter, r *http.Request, id openap
 		writeScimError(w, r, err)
 		return
 	}
-	writeScim(w, r, http.StatusOK, scimUserOut(c.BaseURL, person))
+	writeScim(w, r, http.StatusOK, scimUserOut(c.base(r), person))
 }
 
 func (c *ScimDoor) ReplaceScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
@@ -232,7 +243,7 @@ func (c *ScimDoor) changeScimUser(w http.ResponseWriter, r *http.Request, cmd id
 		writeScimError(w, r, err)
 		return
 	}
-	writeScim(w, r, http.StatusOK, scimUserOut(c.BaseURL, person))
+	writeScim(w, r, http.StatusOK, scimUserOut(c.base(r), person))
 }
 
 func (c *ScimDoor) DeleteScimUser(w http.ResponseWriter, r *http.Request, id openapi.ScimUserId) {
@@ -268,7 +279,7 @@ func (c *ScimDoor) ListScimGroups(w http.ResponseWriter, r *http.Request, params
 	}
 	resources := make([]map[string]any, 0, len(page.Items))
 	for _, group := range page.Items {
-		resources = append(resources, scimGroupOut(c.BaseURL, group, withMembers))
+		resources = append(resources, scimGroupOut(c.base(r), group, withMembers))
 	}
 	writeScim(w, r, http.StatusOK, scimList(page.Total, page.Start, resources))
 }
@@ -291,7 +302,7 @@ func (c *ScimDoor) CreateScimGroup(w http.ResponseWriter, r *http.Request) {
 		writeScimError(w, r, err)
 		return
 	}
-	out := scimGroupOut(c.BaseURL, group, true)
+	out := scimGroupOut(c.base(r), group, true)
 	w.Header().Set("Location", scimLocation(out))
 	writeScim(w, r, http.StatusCreated, out)
 }
@@ -306,7 +317,7 @@ func (c *ScimDoor) GetScimGroup(w http.ResponseWriter, r *http.Request, id opena
 		writeScimError(w, r, err)
 		return
 	}
-	writeScim(w, r, http.StatusOK, scimGroupOut(c.BaseURL, group, withMembers))
+	writeScim(w, r, http.StatusOK, scimGroupOut(c.base(r), group, withMembers))
 }
 
 func (c *ScimDoor) ReplaceScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {
@@ -349,7 +360,7 @@ func (c *ScimDoor) changeScimGroup(w http.ResponseWriter, r *http.Request, cmd i
 		writeScimError(w, r, err)
 		return
 	}
-	writeScim(w, r, http.StatusOK, scimGroupOut(c.BaseURL, group, withMembers))
+	writeScim(w, r, http.StatusOK, scimGroupOut(c.base(r), group, withMembers))
 }
 
 func (c *ScimDoor) DeleteScimGroup(w http.ResponseWriter, r *http.Request, id openapi.ScimGroupId) {

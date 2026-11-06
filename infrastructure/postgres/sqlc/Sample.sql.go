@@ -37,7 +37,7 @@ type InsertSampleEntryParams struct {
 	CreatedAt pgtype.Timestamptz
 }
 
-// A template's sample entries (migration 0307, configuration.md §6).
+// A template's sample entries (migration 0314, configuration.md §6).
 // A key the hub already marks is no second sample: the caller refuses it.
 func (q *Queries) InsertSampleEntry(ctx context.Context, arg InsertSampleEntryParams) (int64, error) {
 	result, err := q.db.Exec(ctx, insertSampleEntry,
@@ -76,7 +76,7 @@ type InsertSampleObjectRow struct {
 	Version  *int64
 }
 
-// The workspace's sample content (migration 0377, user-experience.md §3.6).
+// The workspace's sample content (migration 0384, user-experience.md §3.6).
 // The same object under the same key again is the same mark; the caller refuses a key that marks
 // another object, which the answer names.
 func (q *Queries) InsertSampleObject(ctx context.Context, arg InsertSampleObjectParams) (InsertSampleObjectRow, error) {

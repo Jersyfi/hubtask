@@ -16,7 +16,7 @@ import (
 // person, switch one off and on, keep groups. What it may not is decided here, because it holds
 // for every door a directory could come through.
 
-// MaxExternalID bounds the identifier a directory knows a person or a group by (migration 0256).
+// MaxExternalID bounds the identifier a directory knows a person or a group by (migration 0263).
 const MaxExternalID = 255
 
 // ExternalID checks the identifier a directory sends: trimmed, at most MaxExternalID characters,

@@ -16,7 +16,7 @@ import (
 )
 
 // KeptFigureRepository keeps collections' counts between reads (db/queries/KeptFigures.sql,
-// migration 0292). A kept row whose counts or basis do not decode is answered as not kept: it is
+// migration 0299). A kept row whose counts or basis do not decode is answered as not kept: it is
 // counted again rather than trusted.
 type KeptFigureRepository struct{}
 

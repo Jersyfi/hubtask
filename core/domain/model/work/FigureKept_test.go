@@ -10,7 +10,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// A kept count is shared by exactly the readers whose basis is the same (migration 0292): what the
+// A kept count is shared by exactly the readers whose basis is the same (migration 0299): what the
 // kind reads of the reader's day enters the key, nothing else does.
 func TestAFiguresBasisHoldsWhatItsKindReads(t *testing.T) {
 	berlin, auckland := zone(t, "Europe/Berlin"), zone(t, "Pacific/Auckland")

@@ -91,7 +91,7 @@ func TestAPlansBaselinesListNewestFirst(t *testing.T) {
 	}
 }
 
-// A plan's entries, their modes and its baselines stay in their workspace (migration 0244, M2,
+// A plan's entries, their modes and its baselines stay in their workspace (migration 0251, M2,
 // UC-PLN-04 check 4).
 func TestAPlanStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()

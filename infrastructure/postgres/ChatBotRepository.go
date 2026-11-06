@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// ChatBotRepository stores a hub's Matrix bots (migration 0280) through the unit of work's
+// ChatBotRepository stores a hub's Matrix bots (migration 0287) through the unit of work's
 // transaction (rule 3).
 type ChatBotRepository struct{}
 

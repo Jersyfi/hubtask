@@ -346,7 +346,7 @@ type InsertCmdbAffectedParams struct {
 	At      pgtype.Timestamptz
 }
 
-// The CMDB's assurance (migration 0267): affected CIs, campaigns, groups, assets, software aliases.
+// The CMDB's assurance (migration 0274): affected CIs, campaigns, groups, assets, software aliases.
 func (q *Queries) InsertCmdbAffected(ctx context.Context, arg InsertCmdbAffectedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, insertCmdbAffected,
 		arg.ID,

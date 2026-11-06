@@ -51,7 +51,7 @@ func seedCIs(ctx context.Context, t *testing.T) (hub, app, vm shared.ID) {
 }
 
 // A CI is read as written, found by its identifiers, and the impact walks its relation's way
-// (migration 0236).
+// (migration 0243).
 func TestACIIsFoundByItsIdentifiersAndItsImpact(t *testing.T) {
 	ctx := context.Background()
 	hub, app, vm := seedCIs(ctx, t)
@@ -163,7 +163,7 @@ func TestACIIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 }
 
 // The CIs an account owns are read across its workspace's hubs by name, merged and disposed ones
-// left out, and never in the workspace next door (UC-SVC-03 check 9, migration 0326).
+// left out, and never in the workspace next door (UC-SVC-03 check 9, migration 0333).
 func TestTheCIsAnAccountOwnsStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
 	hub, app, _ := seedCIs(ctx, t)
@@ -203,7 +203,7 @@ func TestTheCIsAnAccountOwnsStayInTheirWorkspace(t *testing.T) {
 }
 
 // A text's `hubtask:ci/<id>` is a reference the database keeps, as reference.Extract reads it
-// (migration 0237), and a reference table takes the kind.
+// (migration 0244), and a reference table takes the kind.
 func TestACIAddressIsAReferenceOfTheText(t *testing.T) {
 	ctx := context.Background()
 	admin := adminPool(ctx, t)
@@ -262,7 +262,7 @@ func TestTheInventoryWalkStaysInItsWorkspace(t *testing.T) {
 }
 
 // A connector, its sealed credential, its run record and its alerts are kept in its workspace
-// (migration 0238); the workspace next door finds none of them and cannot write them.
+// (migration 0245); the workspace next door finds none of them and cannot write them.
 func TestAConnectorAndItsAlertsStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
 	hub, _, vm := seedCIs(ctx, t)

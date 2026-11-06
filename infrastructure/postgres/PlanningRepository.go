@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// PlanningRepository stores the planning module's rows (migration 0244, M2).
+// PlanningRepository stores the planning module's rows (migration 0251, M2).
 type PlanningRepository struct{}
 
 // NewPlanningRepository builds the adapter.

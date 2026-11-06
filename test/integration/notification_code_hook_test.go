@@ -18,7 +18,7 @@ import (
 )
 
 // A notice about a forge hook that switched itself off, against a real database: the row carries the
-// hook as its subject through migration 0346's foreign key, another workspace cannot read it, and
+// hook as its subject through migration 0353's foreign key, another workspace cannot read it, and
 // the hook's removal removes the notice with it.
 func TestASwitchedOffHookNoticeNamesItsHookAndGoesWithIt(t *testing.T) {
 	ctx := context.Background()

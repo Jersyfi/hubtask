@@ -126,7 +126,7 @@ re-mints identities must rewrite exactly these).
 | # | Entity | Table | Identity | References (field → entity) |
 |---|---|---|---|---|
 | 1 | `tenants` | `tenant` | `id` | — (the workspace itself: slug, display name, defaults, settings) |
-| 2 | `accounts` | `account` | `id` | — (people and service accounts, with the directory's `external_id` where one provisioned them, migration 0256; credentials are **not** among the fields, §9) |
+| 2 | `accounts` | `account` | `id` | — (people and service accounts, with the directory's `external_id` where one provisioned them, migration 0263; credentials are **not** among the fields, §9) |
 | 3 | `webauthn_credentials` | `webauthn_credential` | `id` | `account_id`→accounts (a person's passkeys; an export carries their name and dates, not the credential, §9) |
 | 4 | `account_groups` | `account_group` | `id` | — (with the directory's `external_id`) |
 | 5 | `account_group_members` | `account_group_member` | `group_id/account_id` | `group_id`→account_groups, `account_id`→accounts |
@@ -135,7 +135,7 @@ re-mints identities must rewrite exactly these).
 | 8 | `buckets` | `bucket` | `id` | `collection_id`→containers |
 | 9 | `labels` | `label` | `id` | `collection_id`→containers |
 | 10 | `custom_field_definitions` | `custom_field_definition` | `id` | `collection_id`→containers |
-| 11 | `entry_types` | `entry_type` | `id` | — (the workspace's own entry types and its rows for the system types it changed, migration 0209; a work item names one by `key` in `entry_type`, so they precede the work items; a duplicate skips a key the workspace holds) |
+| 11 | `entry_types` | `entry_type` | `id` | — (the workspace's own entry types and its rows for the system types it changed, migration 0216; a work item names one by `key` in `entry_type`, so they precede the work items; a duplicate skips a key the workspace holds) |
 | 12 | `work_items` | `work_item` | `id` | `entry_type`→entry_types (by key), `collection_id`→containers, `parent_id`→work_items, `bucket_id`→buckets, `assignee_id`→accounts, `cover_media_id`→media_objects, `recurrence_rule_id`→recurrence_rules, `origin_jumble_id`→jumble_entries |
 | 13 | `item_labels` | `item_label` | `item_id/label_id` | `item_id`→work_items, `label_id`→labels |
 | 14 | `item_members` | `item_member` | `item_id/account_id` | `item_id`→work_items, `account_id`→accounts |
@@ -161,26 +161,26 @@ re-mints identities must rewrite exactly these).
 | 34 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
 | 35 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
 | 36 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
-| 128 | `workflows` | `workflow` | `id` | `published_by`→accounts (the workspace's workflows, migration 0216; a scheme names one by `key`, so they precede the schemes; a duplicate skips a key the workspace holds) |
+| 128 | `workflows` | `workflow` | `id` | `published_by`→accounts (the workspace's workflows, migration 0223; a scheme names one by `key`, so they precede the schemes; a duplicate skips a key the workspace holds) |
 | 129 | `workflow_schemes` | `workflow_scheme` | `container_id/entry_type` | `container_id`→containers (which workflow a hub or collection runs for an entry type; `workflow_key` names one of `workflows` by key) |
-| 37 | `link_types` | `link_type` | `id` | — (the workspace's own link types, migration 0213; the six shipped ones have no row; a link names one by `key`, so they precede the links; a duplicate skips a key the workspace holds) |
-| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key, held by the generated `own_type`, which is null for a shipped type; a waiting link carries its `dependency_kind` and `lag_days`, migration 0244) |
-| 39 | `custom_roles` | `custom_role` | `id` | — (the workspace's own roles from the permission catalogue, migration 0219; restored right after `memberships`, before their grants; the seven built-in roles have no row) |
+| 37 | `link_types` | `link_type` | `id` | — (the workspace's own link types, migration 0220; the six shipped ones have no row; a link names one by `key`, so they precede the links; a duplicate skips a key the workspace holds) |
+| 38 | `entry_links` | `entry_link` | `id` | `source_id`→work_items, `target_id`→work_items, `created_by`→accounts (`link_type` names a shipped type or one of `link_types` by key, held by the generated `own_type`, which is null for a shipped type; a waiting link carries its `dependency_kind` and `lag_days`, migration 0251) |
+| 39 | `custom_roles` | `custom_role` | `id` | — (the workspace's own roles from the permission catalogue, migration 0226; restored right after `memberships`, before their grants; the seven built-in roles have no row) |
 | 40 | `custom_role_grants` | `custom_role_grant` | `id` | `account_id`→accounts, `group_id`→account_groups, `role_id`→custom_roles (`scope_id` names the workspace's container as a membership's does) |
-| 41 | `config_revisions` | `config_revision` | `version` | — (the configuration document's versions, migration 0221, a hub's with its `hub_id` since 0223; written once, so a version the workspace holds is kept) |
+| 41 | `config_revisions` | `config_revision` | `version` | — (the configuration document's versions, migration 0228, a hub's with its `hub_id` since 0230; written once, so a version the workspace holds is kept) |
 | 42 | `config_proposals` | `config_proposal` | `id` | — (agents' plans kept for a person, and how each was decided) |
 | 43 | `config_templates` | `config_template` | `id` | — (the workspace's template versions; one the workspace holds by identity or by key and version is kept) |
 | 44 | `config_template_uses` | `config_template_use` | `template_key` | — (the template version a workspace took, the base of a three-way upgrade) |
-| 45 | `realtime_documents` | `realtime_document` | `document_id/kind` | — (a live document's head, migration 0230; `document_id` names what its `kind` belongs to - a page, a whiteboard - without a foreign key) |
+| 45 | `realtime_documents` | `realtime_document` | `document_id/kind` | — (a live document's head, migration 0237; `document_id` names what its `kind` belongs to - a page, a whiteboard - without a foreign key) |
 | 46 | `realtime_updates` | `realtime_update` | `document_id/kind/seq` | `author_id`→accounts (`document_id` and `kind` name the head in `realtime_documents` by its key; the editor's CRDT updates as sent, `data` as hex; what retention removed after a snapshot is not there) |
 | 47 | `realtime_snapshots` | `realtime_snapshot` | `document_id/kind/up_to_seq` | — (`document_id` and `kind` name the head in `realtime_documents` by its key; a writer's merged state up to an update, `state` as hex) |
-| 48 | `pages` | `page` | `id` | `hub_id`→containers, `parent_id`→pages, `owner_id`→accounts (a hub's pages, migration 0231; `body` is Markdown with `hubtask:` references; the search document and the references are rebuilt on import; `parent_id` may point forward, a moved page coming before a newer parent, and the schema checks it at the commit) |
+| 48 | `pages` | `page` | `id` | `hub_id`→containers, `parent_id`→pages, `owner_id`→accounts (a hub's pages, migration 0238; `body` is Markdown with `hubtask:` references; the search document and the references are rebuilt on import; `parent_id` may point forward, a moved page coming before a newer parent, and the schema checks it at the commit) |
 | 49 | `page_versions` | `page_version` | `page_id/seq` | `page_id`→pages, `author_id`→accounts (a page's history, one row per editing session) |
 | 50 | `page_comments` | `page_comment` | `id` | `page_id`→pages, `parent_id`→page_comments, `author_id`→accounts |
-| 51 | `whiteboards` | `whiteboard` | `id` | `hub_id`→containers (a hub's boards, migration 0233; `scene` is the board's objects as JSON in the contract's shape, a card naming its entry by identifier; where the board points is rebuilt on import) |
-| 52 | `whiteboard_versions` | `whiteboard_version` | `whiteboard_id`, `seq` | `whiteboard_id`→whiteboards, `author_id`→accounts (cleared when absent) (a board's history, migration 0234: one version per drawing session, its scene as JSON in the contract's shape) |
-| 53 | `whiteboard_media` | `whiteboard_media` | `whiteboard_id`, `media_id` | `whiteboard_id`→whiteboards, `media_id`→media_objects (the pictures and files placed on a board, migration 0235) |
-| 54 | `cmdb_classes` | `cmdb_class` | `id` | — (the workspace's own configuration item classes, migration 0236; attributes, identifier rules and required relations as JSON) |
+| 51 | `whiteboards` | `whiteboard` | `id` | `hub_id`→containers (a hub's boards, migration 0240; `scene` is the board's objects as JSON in the contract's shape, a card naming its entry by identifier; where the board points is rebuilt on import) |
+| 52 | `whiteboard_versions` | `whiteboard_version` | `whiteboard_id`, `seq` | `whiteboard_id`→whiteboards, `author_id`→accounts (cleared when absent) (a board's history, migration 0241: one version per drawing session, its scene as JSON in the contract's shape) |
+| 53 | `whiteboard_media` | `whiteboard_media` | `whiteboard_id`, `media_id` | `whiteboard_id`→whiteboards, `media_id`→media_objects (the pictures and files placed on a board, migration 0242) |
+| 54 | `cmdb_classes` | `cmdb_class` | `id` | — (the workspace's own configuration item classes, migration 0243; attributes, identifier rules and required relations as JSON) |
 | 55 | `cmdb_relation_types` | `cmdb_relation_type` | `id` | — (the workspace's own relation types between CIs, with their impact and class pairs) |
 | 56 | `cmdb_sources` | `cmdb_source` | `id` | — (the sources CIs come from, their rank, classes and a file source's mapping) |
 | 57 | `cmdb_cis` | `cmdb_ci` | `id` | `hub_id`→containers, `owner_account_id`→accounts and `owner_group_id`→account_groups (cleared when absent) (a hub's configuration items: typed attributes, provenance per attribute, lifecycle and compliance fields; `location_ci_id` and `merged_into` name CIs without a foreign key) |
@@ -189,29 +189,29 @@ re-mints identities must rewrite exactly these).
 | 60 | `cmdb_runs` | `cmdb_run` | `id` | `hub_id`→containers (the reconciliation's runs with their decisions) |
 | 61 | `cmdb_holds` | `cmdb_hold` | `id` | `run_id`→cmdb_runs (items held for review, the item as reported) |
 | 62 | `cmdb_duplicates` | `cmdb_duplicate` | `id` | `hub_id`→containers (duplicates opened to merge, with their survivor once resolved) |
-| 63 | `cmdb_connectors` | `cmdb_connector` | `id` | `hub_id`→containers, `collection_id`→containers (cleared when absent), `run_as`→accounts (a hub's connectors with their settings, schedule, cursor and last run, migration 0238; the sealed credential is a backup's only) |
+| 63 | `cmdb_connectors` | `cmdb_connector` | `id` | `hub_id`→containers, `collection_id`→containers (cleared when absent), `run_as`→accounts (a hub's connectors with their settings, schedule, cursor and last run, migration 0245; the sealed credential is a backup's only) |
 | 64 | `cmdb_alerts` | `cmdb_alert` | `id` | `connector_id`→cmdb_connectors (the alerts an intake took in, bound to a CI and an entry by identifier, without a foreign key) |
-| 65 | `business_calendars` | `business_calendar` | `id` | — (the workspace's business calendars: weekly working spans, holidays and a zone under a key, migration 0240) |
+| 65 | `business_calendars` | `business_calendar` | `id` | — (the workspace's business calendars: weekly working spans, holidays and a zone under a key, migration 0247) |
 | 66 | `sla_policies` | `sla_policy` | `id` | — (the workspace's SLA policies: goals with targets per priority, pause statuses and a warning share; `calendar_key` names one of `business_calendars` by key) |
 | 67 | `entry_slas` | `entry_sla` | `id` | `item_id`→work_items (what became of each goal on an entry: target, at risk, met, breached; the clock is a timer, not archived) |
-| 68 | `reply_templates` | `reply_template` | `id` | — (the workspace's canned replies under a key, with their placeholders, migration 0242) |
-| 69 | `satisfaction_ratings` | `satisfaction_rating` | `id` | `item_id`→work_items (how satisfied the requester was with a resolved request, one score from 1 to 5, migration 0243) |
-| 70 | `entry_schedules` | `entry_schedule` | `entry_id` | `entry_id`→work_items (whether the scheduler may move an entry, and whether it is a milestone, migration 0244) |
-| 71 | `plan_baselines` | `plan_baseline` | `id` | `plan_id`→containers, `taken_by`→accounts (a hub's or a collection's agreed plan under a name, migration 0244) |
+| 68 | `reply_templates` | `reply_template` | `id` | — (the workspace's canned replies under a key, with their placeholders, migration 0249) |
+| 69 | `satisfaction_ratings` | `satisfaction_rating` | `id` | `item_id`→work_items (how satisfied the requester was with a resolved request, one score from 1 to 5, migration 0250) |
+| 70 | `entry_schedules` | `entry_schedule` | `entry_id` | `entry_id`→work_items (whether the scheduler may move an entry, and whether it is a milestone, migration 0251) |
+| 71 | `plan_baselines` | `plan_baseline` | `id` | `plan_id`→containers, `taken_by`→accounts (a hub's or a collection's agreed plan under a name, migration 0251) |
 | 72 | `plan_baseline_entries` | `plan_baseline_entry` | `baseline_id`, `entry_id` | `baseline_id`→plan_baselines, `entry_id`→work_items (one entry's start and due as the baseline holds them) |
-| 73 | `sprints` | `sprint` | `id` | `collection_id`→containers, `created_by`→accounts (a collection's time box with its goal, commitment and result, migration 0245) |
+| 73 | `sprints` | `sprint` | `id` | `collection_id`→containers, `created_by`→accounts (a collection's time box with its goal, commitment and result, migration 0252) |
 | 74 | `sprint_entries` | `sprint_entry` | `sprint_id`, `entry_id` | `sprint_id`→sprints, `entry_id`→work_items (an entry's membership in a sprint and what became of it at the close) |
 | 75 | `entry_estimates` | `entry_estimate` | `entry_id` | `entry_id`→work_items, `updated_by`→accounts (how big an entry is in points, hours or a T-shirt size) |
-| 76 | `time_work_types` | `time_work_type` | `id` | — (the workspace's kinds of work, by key, migration 0246) |
+| 76 | `time_work_types` | `time_work_type` | `id` | — (the workspace's kinds of work, by key, migration 0253) |
 | 77 | `time_records` | `time_record` | `id` | `account_id`→accounts, `entry_id`→work_items, cleared when withheld (a person's time on one day; no foreign key on the entry, so approved time outlives a purged entry) |
 | 78 | `time_timers` | `time_timer` | `id` | `account_id`→accounts, `entry_id`→work_items, cleared when withheld (a person's running clock) |
 | 79 | `timesheets` | `timesheet` | `id` | `account_id`→accounts, `decided_by`→accounts (a person's week from Monday, handed in, approved or sent back) |
 | 80 | `time_policies` | `time_policy` | `id` | `updated_by`→accounts (the workspace's locked period and visibility of other people's time; not duplicated) |
-| 81 | `time_capacities` | `time_capacity` | `id` | `account_id`→accounts, `updated_by`→accounts (a person's minutes per weekday from a day on, migration 0247) |
+| 81 | `time_capacities` | `time_capacity` | `id` | `account_id`→accounts, `updated_by`→accounts (a person's minutes per weekday from a day on, migration 0254) |
 | 82 | `time_absences` | `time_absence` | `id` | `account_id`→accounts, `created_by`→accounts (a span a person is away, by a kind and never a reason) |
 | 83 | `time_cost_rates` | `time_cost_rate` | `id` | `account_id`→accounts, cleared when withheld, `plan_id`→containers, `updated_by`→accounts (an hour's cost of a person or a role, or a hub's or collection's billing rate, with its validity) |
 | 84 | `time_budgets` | `time_budget` | `id` | `plan_id`→containers, `updated_by`→accounts (a hub's or collection's budget in minutes and money; not duplicated) |
-| 85 | `goal_periods` | `goal_period` | `id` | `created_by`, `closed_by`→accounts (a cycle goals are set for, closed with grades; migration 0248) |
+| 85 | `goal_periods` | `goal_period` | `id` | `created_by`, `closed_by`→accounts (a cycle goals are set for, closed with grades; migration 0255) |
 | 86 | `goals` | `goal` | `id` | `period_id`→goal_periods, `hub_id`→containers, `owner_id`, `created_by`, `updated_by`→accounts (an objective with its key results; `parent_id` names another goal of the file) |
 | 87 | `goal_entries` | `goal_entry` | `goal_id`, `entry_id` | `goal_id`→goals, `entry_id`→work_items (an entry linked to a goal) |
 | 88 | `goal_check_ins` | `goal_check_in` | `id` | `goal_id`→goals, `author_id`→accounts (a status, a confidence, a note and the values reported) |
@@ -219,8 +219,8 @@ re-mints identities must rewrite exactly these).
 | 90 | `portfolio_items` | `portfolio_item` | `portfolio_id`, `container_id` | `portfolio_id`→portfolios, `container_id`→containers (a project of a portfolio with its dates and health) |
 | 91 | `portfolio_updates` | `portfolio_update` | `id` | `portfolio_id`→portfolios, `author_id`→accounts (a status update) |
 | 92 | `dashboards` | `dashboard` | `id` | `hub_id`→containers, `owner_id`, `updated_by`→accounts (widgets as their queries; no number is stored) |
-| 93 | `dashboard_digests` | `dashboard_digest` | `id` | `dashboard_id`→dashboards, `account_id`→accounts (a person's digest of a dashboard by mail: cadence, weekday, hour, zone and next moment; no number is stored; migration 0249) |
-| 94 | `agent_models` | `agent_model` | `id` | `consent_by`→accounts (a model registered for agents: source, model, region, the provider's retention, the consent and its revision; migration 0251) |
+| 93 | `dashboard_digests` | `dashboard_digest` | `id` | `dashboard_id`→dashboards, `account_id`→accounts (a person's digest of a dashboard by mail: cadence, weekday, hour, zone and next moment; no number is stored; migration 0256) |
+| 94 | `agent_models` | `agent_model` | `id` | `consent_by`→accounts (a model registered for agents: source, model, region, the provider's retention, the consent and its revision; migration 0258) |
 | 95 | `agents` | `agent` | `id` | `account_id`, `owner_id`, `approved_by`, `suspended_by`, `created_by`→accounts, `model_id`→agent models (purpose, kind, risk class, scopes, policy, budget, lifecycle) |
 | 96 | `agent_halts` | `agent_halt` | `id` | `set_by`→accounts (the workspace's kill switch for every agent) |
 | 97 | `agent_requests` | `agent_request` | `id` | `agent_id`→agents, `decided_by`→accounts (an act held for a person's approval, with its input) |
@@ -228,44 +228,44 @@ re-mints identities must rewrite exactly these).
 | 99 | `agent_eval_cases` | `agent_eval_case` | `id` | `agent_id`→agents, `created_by`→accounts (a golden case: words and the expected answer) |
 | 100 | `agent_eval_runs` | `agent_eval_run` | `id` | `agent_id`→agents, `run_by`→accounts (an evaluation's counts on a model revision) |
 | 101 | `ai_provenance` | `ai_provenance` | `id` | `accepted_by`→accounts (an accepted AI value's mark: object, field names, suggestion, agent, model, prompt, who accepted when - AI-2) |
-| 102 | `agent_jobs` | `agent_job` | `id` | `agent_id`→agents, `started_by`→accounts (a shipped agent's job on an entry or a hub: how it ended, what it proposed, the tokens; never what it read or the model answered; migration 0252) |
-| 103 | `page_restrictions` | `page_restriction` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (the people a restricted page names, migration 0261; `page.restricted` says a page is restricted, so a restriction whose people are gone stays closed) |
+| 102 | `agent_jobs` | `agent_job` | `id` | `agent_id`→agents, `started_by`→accounts (a shipped agent's job on an entry or a hub: how it ended, what it proposed, the tokens; never what it read or the model answered; migration 0259) |
+| 103 | `page_restrictions` | `page_restriction` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (the people a restricted page names, migration 0268; `page.restricted` says a page is restricted, so a restriction whose people are gone stays closed) |
 | 104 | `page_shares` | `page_share` | `page_id/account_id` | `page_id`→pages, `account_id`→accounts, `granted_by`→accounts (cleared when absent) (a page shared read-only with one person beside its hub, UC-DOC-08) |
 | 105 | `personal_spaces` | `personal_space` | `account_id` | `account_id`→accounts, `hub_id`→containers (the private hub that is a person's own notes, UC-DOC-07) |
 | 106 | `page_public_links` | `page_public_link` | `page_id` | `page_id`→pages, `created_by`→accounts (a page opened read-only by a link, UC-DOC-08; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
 | 107 | `page_articles` | `page_article` | `page_id/collection_id` | `page_id`→pages, `collection_id`→containers, `published_by`→accounts (cleared when absent) (a page published to a service's portal with its count of openings, UC-DOC-13) |
 | 108 | `page_article_ratings` | `page_article_rating` | `page_id/collection_id/account_id` | `page_id`→pages, `collection_id`→containers, `account_id`→accounts (a requester's "was this helpful?") |
-| 109 | `page_media` | `page_media` | `page_id/media_id` | `page_id`→pages, `media_id`→media_objects (the pictures and files a page holds, migration 0265, UC-DOC-14) |
-| 110 | `whiteboard_comments` | `whiteboard_comment` | `id` | `whiteboard_id`→whiteboards, `parent_id`→whiteboard_comments, `author_id`→accounts (cleared when absent) (comments pinned to a board's objects and places, migration 0266, UC-CNV-09; `element_id` names an object of the scene) |
-| 111 | `cmdb_affected` | `cmdb_affected` | `id` | `item_id`→work_items, `ci_id`→cmdb_cis (the CIs an entry names as affected, migration 0267, UC-AST-09) |
+| 109 | `page_media` | `page_media` | `page_id/media_id` | `page_id`→pages, `media_id`→media_objects (the pictures and files a page holds, migration 0272, UC-DOC-14) |
+| 110 | `whiteboard_comments` | `whiteboard_comment` | `id` | `whiteboard_id`→whiteboards, `parent_id`→whiteboard_comments, `author_id`→accounts (cleared when absent) (comments pinned to a board's objects and places, migration 0273, UC-CNV-09; `element_id` names an object of the scene) |
+| 111 | `cmdb_affected` | `cmdb_affected` | `id` | `item_id`→work_items, `ci_id`→cmdb_cis (the CIs an entry names as affected, migration 0274, UC-AST-09) |
 | 112 | `cmdb_campaigns` | `cmdb_campaign` | `id` | `hub_id`→containers (certification campaigns of a hub's CIs, UC-AST-10) |
 | 113 | `cmdb_attestations` | `cmdb_attestation` | `campaign_id/ci_id` | `campaign_id`→cmdb_campaigns, `ci_id`→cmdb_cis (one CI asked in a campaign, its owner then and the verdict) |
 | 114 | `cmdb_ci_groups` | `cmdb_ci_group` | `id` | `hub_id`→containers, `service_id`→cmdb_cis (cleared when absent) (a hub's CI groups by filter, UC-AST-11) |
 | 115 | `cmdb_assets` | `cmdb_asset` | `ci_id` | `ci_id`→cmdb_cis, `hub_id`→containers, `contract_id`/`stockroom_id`→cmdb_cis, `assigned_to`→accounts, `request_id`→work_items (each cleared when absent) (a CI's asset record and its disposal, UC-AST-12) |
 | 116 | `cmdb_software_aliases` | `cmdb_software_alias` | `id` | — (the workspace's software aliases, UC-AST-13) |
-| 117 | `approvals` | `approval` | `id` | `item_id`→work_items, `requested_by`→accounts (a step waiting for people's yes: its levels as they opened with the people counted then, the level deciding, its state; migration 0268) |
+| 117 | `approvals` | `approval` | `id` | `item_id`→work_items, `requested_by`→accounts (a step waiting for people's yes: its levels as they opened with the people counted then, the level deciding, its state; migration 0275) |
 | 118 | `approval_decisions` | `approval_decision` | `id` | `approval_id`→approvals, `approver_id`→accounts, `on_behalf_of`→accounts (one answer at one level with its reason and the entry's version, the approval's trail) |
 | 119 | `approval_delegations` | `approval_delegation` | `account_id` | `account_id`→accounts, `delegate_id`→accounts (who decides a person's approvals while they are away, from when until when) |
-| 120 | `hub_business_calendars` | `hub_business_calendar` | `id` | `hub_id`→containers (a hub's own version of a workspace calendar under its `key`, which names one of `business_calendars`: working spans, holidays and a zone, migration 0270) |
-| 121 | `config_hub_template_uses` | `config_hub_template_use` | `hub_id`, `template_key` | `hub_id`→containers (the hub template part a hub took and that part then, the base of the hub's three-way upgrade, migration 0271) |
-| 122 | `releases` | `release` | `id` | `hub_id`→containers, `notes_page_id`→pages, `created_by`→accounts (a version a hub ships, its day, and once out the page its notes went to, migration 0272) |
+| 120 | `hub_business_calendars` | `hub_business_calendar` | `id` | `hub_id`→containers (a hub's own version of a workspace calendar under its `key`, which names one of `business_calendars`: working spans, holidays and a zone, migration 0277) |
+| 121 | `config_hub_template_uses` | `config_hub_template_use` | `hub_id`, `template_key` | `hub_id`→containers (the hub template part a hub took and that part then, the base of the hub's three-way upgrade, migration 0278) |
+| 122 | `releases` | `release` | `id` | `hub_id`→containers, `notes_page_id`→pages, `created_by`→accounts (a version a hub ships, its day, and once out the page its notes went to, migration 0279) |
 | 123 | `release_entries` | `release_entry` | `release_id`, `entry_id` | `release_id`→releases, `entry_id`→work_items (an entry in a release; one release per entry) |
-| 124 | `code_hooks` | `code_hook` | `id` | `hub_id`→containers, `run_as`→accounts (a forge's hook into a hub, migration 0275; its secret is derived from the installation key and the salt and is no column, so a restore on another installation draws it again) |
+| 124 | `code_hooks` | `code_hook` | `id` | `hub_id`→containers, `run_as`→accounts (a forge's hook into a hub, migration 0282; its secret is derived from the installation key and the salt and is no column, so a restore on another installation draws it again) |
 | 125 | `code_links` | `code_link` | `id` | `item_id`→work_items, `hub_id`→containers, `hook_id`→code_hooks (an entry's commit, branch or pull request as its forge last told it) |
-| 130 | `requesters` | `requester` | `id` | — (a requester without an account, migration 0283) |
+| 130 | `requesters` | `requester` | `id` | — (a requester without an account, migration 0290) |
 | 131 | `requester_contacts` | `requester_contact` | `requester_id/item_id` | `requester_id`→requesters, `item_id`→work_items (an entry a requester wrote on) |
-| 132 | `page_labels` | `page_label` | `page_id/label` | `page_id`→pages (the labels a page carries, migration 0297, UC-DOC-01 check 9) |
-| 135 | `page_drafts` | `page_draft` | `page_id` | `page_id`→pages, `updated_by`→accounts (what waits on a page to be published in a space with drafts, migration 0306, UC-DOC-15) |
-| 136 | `sample_entries` | `sample_entry` | `item_id` | `item_id`→work_items, `hub_id`→containers (the mark of a template's sample entry, migration 0307, configuration.md §6) |
-| 137 | `config_drafts` | `config_draft` | `section`, `key` | `saved_by`→accounts (a draft of a type, an SLA policy or a role saved beside the block in force, migration 0308, ui.md A4) |
-| 138 | `template_pages` | `template_page` | `page_id` | `page_id`→pages, `hub_id`→containers (the mark of a page a template brought to a hub's space, migration 0309, configuration.md §6) |
-| 139 | `portfolio_public_links` | `portfolio_public_link` | `portfolio_id` | `portfolio_id`→portfolios, `created_by`→accounts (a portfolio's roadmap opened read-only by a link, UC-GOL-03 check 15, migration 0322; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
-| 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0276; the file itself stays in its store) |
-| 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0287) |
+| 132 | `page_labels` | `page_label` | `page_id/label` | `page_id`→pages (the labels a page carries, migration 0304, UC-DOC-01 check 9) |
+| 135 | `page_drafts` | `page_draft` | `page_id` | `page_id`→pages, `updated_by`→accounts (what waits on a page to be published in a space with drafts, migration 0313, UC-DOC-15) |
+| 136 | `sample_entries` | `sample_entry` | `item_id` | `item_id`→work_items, `hub_id`→containers (the mark of a template's sample entry, migration 0314, configuration.md §6) |
+| 137 | `config_drafts` | `config_draft` | `section`, `key` | `saved_by`→accounts (a draft of a type, an SLA policy or a role saved beside the block in force, migration 0315, ui.md A4) |
+| 138 | `template_pages` | `template_page` | `page_id` | `page_id`→pages, `hub_id`→containers (the mark of a page a template brought to a hub's space, migration 0316, configuration.md §6) |
+| 139 | `portfolio_public_links` | `portfolio_public_link` | `portfolio_id` | `portfolio_id`→portfolios, `created_by`→accounts (a portfolio's roadmap opened read-only by a link, UC-GOL-03 check 15, migration 0329; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
+| 126 | `file_links` | `file_link` | `id` | `item_id`→work_items, `added_by`→accounts (an entry's file or folder in a file store by its address, migration 0283; the file itself stays in its store) |
+| 127 | `requester_organisations` | `requester_organisation` | `id` | none (a portal's organisation: its key, name, mail domains and whether its members see each other's requests, migration 0294) |
 | 133 | `public_forms` | `public_form` | `collection_id` | `collection_id`→containers, `created_by`→accounts (a collection's public form, UC-SVC-13; the token's hash leaves in a backup only, §9, and an import of an export skips the link) |
-| 134 | `entry_olas` | `entry_ola` | `id` | `item_id`→work_items (what became of each goal of an assignee group's OLA on an entry, migration 0303; the group is named, not referenced, and the clock is a timer, not archived) |
-| 140 | `entry_status_changes` | `entry_status_change` | `item_id/seq` | `item_id`→work_items (when an entry entered each status, `status` and `entered_at`, migration 0374; an importer draws `seq` anew - it only orders an entry's rows - and Hubtask's restore writes them after the entries, replacing the row its write of each entry dated from the restore's moment; an entry an archive carries no history for - an archive from before this file - keeps that row, and its history starts at the restore) |
-| 141 | `sample_objects` | `sample_object` | `key` | — (the mark of the workspace's sample content, `kind` and `object_id` naming a row of the table the kind says, and the `version` it was made at, migration 0377, user-experience.md §3.6; nothing is remapped, and a DUPLICATE skips it, since a copy would mark the originals) |
+| 134 | `entry_olas` | `entry_ola` | `id` | `item_id`→work_items (what became of each goal of an assignee group's OLA on an entry, migration 0310; the group is named, not referenced, and the clock is a timer, not archived) |
+| 140 | `entry_status_changes` | `entry_status_change` | `item_id/seq` | `item_id`→work_items (when an entry entered each status, `status` and `entered_at`, migration 0381; an importer draws `seq` anew - it only orders an entry's rows - and Hubtask's restore writes them after the entries, replacing the row its write of each entry dated from the restore's moment; an entry an archive carries no history for - an archive from before this file - keeps that row, and its history starts at the restore) |
+| 141 | `sample_objects` | `sample_object` | `key` | — (the mark of the workspace's sample content, `kind` and `object_id` naming a row of the table the kind says, and the `version` it was made at, migration 0384, user-experience.md §3.6; nothing is remapped, and a DUPLICATE skips it, since a copy would mark the originals) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
@@ -328,18 +328,18 @@ reasoning is backup-restore.md §8.4):
   device registrations, the digests of the CMDB's alert deliveries that refuse a replay
   (`cmdb_intake_seen`) and of the forge deliveries that refuse a repeat (`code_delivery_seen`). A copy of a credential is a credential.
 * **Live plumbing**: the outbox and event consumptions, notification rows, webhook deliveries,
-  rule runs and occurrences, durable timers (migration 0229; a clock towards the source system's
+  rule runs and occurrences, durable timers (migration 0236; a clock towards the source system's
   future), idempotency keys, the synchronisation's change log, operation log,
   field clocks and tombstones, usage records.
 * **Projections rebuilt from the archive**: the typed custom field values (`entry_field_value`,
-  migration 0211), which the restore's own write of each entry's `custom_fields` rebuilds - the
+  migration 0218), which the restore's own write of each entry's `custom_fields` rebuilds - the
   definitions precede the work items, so every value finds the definition it was written under;
-  and the references texts hold (`entry_reference`, migration 0213), which the restore's write of
+  and the references texts hold (`entry_reference`, migration 0220), which the restore's write of
   each entry's notes and each comment rebuilds; and the slim entry's side tables
-  (`work_item_announcement`, `work_item_flow`, `work_item_retention`, migration 0227), mirrors of
+  (`work_item_announcement`, `work_item_flow`, `work_item_retention`, migration 0234), mirrors of
   the entry's own columns that the restore's write of each entry rebuilds.
 * **Kept figures** (`collection_figure`, `collection_figure_touch`, `collection_figure_stamp`,
-  migration 0292): counts kept between reads and the record of when they stop answering; a
+  migration 0299): counts kept between reads and the record of when they stop answering; a
   restore's write of each entry records its change, and the first read counts again.
 * **AI machinery**: the AI provider configuration (with its sealed key), the workspace's choice of AI
   source (choosing an offered model is a consent a restore must not resume), suggestions, pending AI

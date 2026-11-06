@@ -18,6 +18,7 @@ data:
   HUBTASK_OPS_ADDR: ":9090"
 
   HUBTASK_TENANCY_MODE: {{ .Values.config.tenancyMode | quote }}
+  HUBTASK_WORKSPACE_HOSTS: {{ .Values.config.workspaceHosts | default "subdomain" | quote }}
   HUBTASK_LOG_FORMAT: {{ .Values.config.logFormat | quote }}
   HUBTASK_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
   {{- if .Values.config.baseUrl }}

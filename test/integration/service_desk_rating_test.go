@@ -17,7 +17,7 @@ import (
 )
 
 // A request's rating is kept once and replaced by rating again; the workspace next door neither
-// reads it nor rates the entry (migration 0243, UC-SVC-07 check 5).
+// reads it nor rates the entry (migration 0250, UC-SVC-07 check 5).
 func TestARatingStaysWithItsRequest(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// TimeResourceRepository stores capacity, absences, cost rates and budgets (migration 0247, M7).
+// TimeResourceRepository stores capacity, absences, cost rates and budgets (migration 0254, M7).
 type TimeResourceRepository struct{}
 
 var _ repository.Resources = TimeResourceRepository{}

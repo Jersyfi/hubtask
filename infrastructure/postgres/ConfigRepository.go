@@ -20,7 +20,7 @@ import (
 )
 
 // ConfigRepository stores the configuration document's versions, proposals and templates
-// (migration 0221), through the unit of work's transaction (rule 3).
+// (migration 0228), through the unit of work's transaction (rule 3).
 type ConfigRepository struct{}
 
 func NewConfigRepository() ConfigRepository { return ConfigRepository{} }

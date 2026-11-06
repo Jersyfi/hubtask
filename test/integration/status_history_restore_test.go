@@ -14,7 +14,7 @@ import (
 // A replace-restore deletes the living entry, and its status history with it; the history is not
 // archived. The restored entry's status is dated from the restore, not from its creation: an entry
 // created a year ago that entered In Progress yesterday does not read as In Progress for a year
-// (migration 0350, UC-GOL-04 check 11).
+// (migration 0357, UC-GOL-04 check 11).
 func TestARestoredEntrysStatusIsDatedFromTheRestore(t *testing.T) {
 	ctx := context.Background()
 	pool := adminPool(ctx, t)

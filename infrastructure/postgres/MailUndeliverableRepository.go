@@ -14,7 +14,7 @@ import (
 )
 
 // MailUndeliverableRepository stores the addresses the mail server refused for good
-// (0360_mail_undeliverable.sql).
+// (0367_mail_undeliverable.sql).
 type MailUndeliverableRepository struct{}
 
 func NewMailUndeliverableRepository() MailUndeliverableRepository {

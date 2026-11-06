@@ -19,7 +19,7 @@ import (
 
 // A reply template is stored, replaced by its version and read back; the workspace next door
 // neither lists, finds - so fills - nor deletes it, and a second one under the same key is refused
-// (migration 0242, UC-SVC-06 check 3).
+// (migration 0249, UC-SVC-06 check 3).
 func TestReplyTemplatesStayInTheirWorkspace(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

@@ -54,8 +54,8 @@ func (l SchemaLedger) Applied(ctx context.Context) (applied []int64, older bool,
 	return applied, false, nil
 }
 
-// Floor answers the schema's compatibility floor (migration 0337): the oldest binary, by its newest
-// embedded migration, that still works on it. A database from before 0337 has no floor, which is 0.
+// Floor answers the schema's compatibility floor (migration 0344): the oldest binary, by its newest
+// embedded migration, that still works on it. A database from before 0344 has no floor, which is 0.
 func (l SchemaLedger) Floor(ctx context.Context) (int64, error) {
 	var floor int64
 	err := l.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {

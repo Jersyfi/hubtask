@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// PageArticleRepository stores the pages published to a service's portal (migration 0264).
+// PageArticleRepository stores the pages published to a service's portal (migration 0271).
 type PageArticleRepository struct{}
 
 // NewPageArticleRepository is the adapter.

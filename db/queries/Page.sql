@@ -1,4 +1,4 @@
--- The knowledge module's pages (migration 0231, M3). The tenant is the transaction's in every
+-- The knowledge module's pages (migration 0238, M3). The tenant is the transaction's in every
 -- statement (ADR-0010).
 
 -- name: InsertPage :exec

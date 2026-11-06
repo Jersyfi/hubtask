@@ -160,7 +160,7 @@ are paced at in the largest workspace: the count over the hub answers 71.8 a sec
 collected", 2): the web app's board (17 → 47, 14 → 35, 14 → 33 ms) and the count over the hub
 (25 → 119, 8 → 32, 7 → 25 ms). The same ranks hold 7.2, 7.2 and 7.2 times the entries at 10⁷
 (170 124 → 1 222 737, 34 024 → 244 547, 21 265 → 152 842), and both paths read every entry they
-cover: the count from `wi_completion_idx` alone (migration 0318, its plan read in the first
+cover: the count from `wi_completion_idx` alone (migration 0325, its plan read in the first
 round's 10⁷ run), the board's exact count (`"count":"exact"`) over its collection, which the
 harness's comment on the path names. Their P95 grew by 2.4 to 4.8 times, less than the entries.
 **Explained, not fixed**; no plan was read in this round (`HUBTASK_LOAD_EXPLAIN` logs a statement

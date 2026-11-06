@@ -20,7 +20,7 @@ import (
 
 const customRoleKeyIndex = "custom_role_key_uq"
 
-// CustomRoleRepository stores the workspace's own roles and their grants (migration 0219), through
+// CustomRoleRepository stores the workspace's own roles and their grants (migration 0226), through
 // the unit of work's transaction (rule 3).
 type CustomRoleRepository struct{}
 

@@ -1061,7 +1061,7 @@ type ListCmdbClassesRow struct {
 	Version       int32
 }
 
-// The assets and configuration module (migration 0236, M6). The tenant is the transaction's in
+// The assets and configuration module (migration 0243, M6). The tenant is the transaction's in
 // every statement (ADR-0010).
 func (q *Queries) ListCmdbClasses(ctx context.Context) ([]ListCmdbClassesRow, error) {
 	rows, err := q.db.Query(ctx, listCmdbClasses)

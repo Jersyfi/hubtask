@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// A hub keeps its own version of a calendar under its key (migrations 0270, 0327, UC-SVC-01 check
+// A hub keeps its own version of a calendar under its key (migrations 0277, 0334, UC-SVC-01 check
 // 5): stored and read back, under a key the workspace does not hold too - an installation's, which
 // the use case checks -, the key then held, and the workspace next door reads none of it.
 func TestAHubsCalendarStaysInItsWorkspace(t *testing.T) {

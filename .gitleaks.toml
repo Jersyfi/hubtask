@@ -53,4 +53,8 @@ regexes = [
   # the sentence, which the reader quotes to an administrator - a walk id, not a secret. The log now
   # elides it; the scan reads the history, so the entry stays with the commit.
   '''ccf39748aad8795ee96e4e8760719820''',
+  # The public half of a throwaway update key in apps/webapp/build/release-apps.test.js, written once
+  # by the Tauri CLI's signer so the verifier is tested against what the release's signer writes.
+  # A public key only verifies, it signs nothing; its private half was never kept.
+  '''RWRD4T7szKI8KtF3cIVk95WX5mMrBvuXOfJf10OtDOkg6HQwEDh9EXO/''',
 ]

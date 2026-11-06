@@ -1,4 +1,4 @@
--- A template's pages (migration 0309, configuration.md §6).
+-- A template's pages (migration 0316, configuration.md §6).
 
 -- name: InsertTemplatePage :execrows
 -- A key the hub already marks is no second page: the caller refuses it.

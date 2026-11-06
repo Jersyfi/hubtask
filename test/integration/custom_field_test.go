@@ -595,7 +595,7 @@ func TestARealCustomFieldSurvivesTheRoundTripThroughTheArchivesShape(t *testing.
 	}
 }
 
-// A field's name is stored, renamed and removed; the key stays (migration 0355).
+// A field's name is stored, renamed and removed; the key stays (migration 0362).
 func TestAFieldsNameRoundTripsAndIsRemovedAsNull(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

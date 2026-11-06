@@ -109,7 +109,7 @@ BK-4; one is added at a major release ([versioning-release.md](./versioning-rele
   [tenant-export.md](./tenant-export.md) §1): the members under a key derived with Argon2id
   (RFC 9106's second set, `infrastructure/crypto.Passphrase`), whose salt and cost the manifest
   carries with `kdf: argon2id` and `key_id: passphrase`. A restore of it takes `decryption_passphrase`:
-  sealed under the master key and bound to its run (`restore_run.passphrase_enc`, migration 0320),
+  sealed under the master key and bound to its run (`restore_run.passphrase_enc`, migration 0327),
   held only while the run goes - the job reads the archive later, in another process - and emptied
   by the statement that ends the run, whatever its outcome. Without it the restore is refused
   (`backup.archive_passphrase_required`), with a wrong one too (`backup.archive_passphrase_wrong`),
@@ -366,7 +366,7 @@ read `restore_run` for the result instead.
   are written and in the workspace they landed in (`durable_timer` names its subject per purpose,
   which no remap follows). A running SLA or OLA goal runs to the due moment its record names, at
   once when that has passed, so it breaches through the timer pass; a paused one keeps the working
-  time its record says it had spent (none, for a record paused before 0334 kept it); a pending
+  time its record says it had spent (none, for a record paused before 0341 kept it); a pending
   approval's level counts from when it began, and a page's review runs to its verification date.
   A reminder whose moment has passed - an approval's halfway or due notice, a review date - is not
   sent late. A goal whose policy, calendar or entry is gone stays as it stands.

@@ -24,7 +24,7 @@
  * and nothing more, and drawing from it would be this client trusting a claim the server refuses to.
  */
 
-import type { Capabilities, Cover, CoverInput, MediaObject, MediaTransfer } from '@hubtask/sync-engine';
+import { TransportError, type Capabilities, type Cover, type CoverInput, type MediaObject, type MediaTransfer } from '@hubtask/sync-engine';
 
 /** Where the installation states what it accepts. One key, named once. */
 const LIMIT_KEY = 'max_upload_bytes';
@@ -130,4 +130,14 @@ export function colourCover(token: string): CoverInput {
  */
 export function acceptFor(usage: 'COVER' | 'ATTACHMENT'): string | undefined {
   return usage === 'COVER' ? 'image/*' : undefined;
+}
+
+/**
+ * Whether an attachment whose upload failed is kept for later instead (offline-sync.md §1): only
+ * where the copy holds files - the installed apps' encrypted one - and only when the server could
+ * not be reached. A refusal is the server's answer about the file and stays one; the browser keeps
+ * saying `sync.needs_connection`.
+ */
+export function keepsOffline(error: unknown, holdsFiles: boolean): boolean {
+  return holdsFiles && error instanceof TransportError && (error.kind === 'offline' || error.kind === 'timeout');
 }

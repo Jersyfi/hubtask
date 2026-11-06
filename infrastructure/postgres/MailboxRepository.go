@@ -317,7 +317,7 @@ func (MailboxAuthorizationRepository) DeleteExpired(ctx context.Context, now tim
 }
 
 // InstallationApps answers how the installation's own mail apps fare across every workspace
-// (alert A-29), through the door that counts and names no mailbox (migration 0344).
+// (alert A-29), through the door that counts and names no mailbox (migration 0351).
 func (MailboxRepository) InstallationApps(ctx context.Context) ([]domain.AppHealth, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

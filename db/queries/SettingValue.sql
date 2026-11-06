@@ -1,4 +1,4 @@
--- The settings catalogue's one storage shape (migration 0208): a workspace's, a hub's, a
+-- The settings catalogue's one storage shape (migration 0215): a workspace's, a hub's, a
 -- collection's and a person's entries, read for the places a resolution walks through.
 
 -- name: ListSettingValues :many

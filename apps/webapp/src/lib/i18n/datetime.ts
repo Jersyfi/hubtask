@@ -32,6 +32,20 @@ export function formatDay(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(at);
 }
 
+/** The reader's time of day of an instant - "14:32" - where the day is plain from the context. */
+export function formatTime(iso: string, locale: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(at);
+}
+
+/** The reader's day of an instant in full - "14 October 2026" - where a sentence names the day. */
+export function formatLongDay(iso: string, locale: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(at);
+}
+
 /**
  * A calendar day (`2026-11-03`) as the reader writes one, or `—` for none. A plain date has no
  * zone, so it is read on UTC's clock: on the device's, its midnight is the day before west of

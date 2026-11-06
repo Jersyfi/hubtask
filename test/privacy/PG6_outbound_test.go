@@ -48,6 +48,7 @@ var dialableExceptions = map[string]string{
 	"infrastructure/filestore/Store.go":                    "Microsoft Graph's address: dialled only for a connection its owner made, through an app the operator configured",
 	"infrastructure/mailbox/Graph.go":                      "Microsoft Graph's address: dialled only for a GRAPH mailbox an administrator connected with its own OAuth grant",
 	"infrastructure/environment/EnvConfig.go":              "the scheme prefix a framed origin is held to (HUBTASK_UI_FRAME_SOURCES): a shape rule, never a destination",
+	"presentation/rest/Security.go":                        "the installed apps' fixed origins (security.md §9), compared with a request's Origin header and never dialled",
 }
 
 func TestPG6NoAddressIsDialledWithoutConfiguration(t *testing.T) {

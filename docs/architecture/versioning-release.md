@@ -13,7 +13,7 @@ server and every first-party client ([ADR-0035](../adr/ADR-0035-one-product-vers
 | Container image | `ghcr.io/jersyfi/hubtask:vX.Y.Z`, plus `:latest` for a stable version or `:rc` for a pre-release | Signed by digest. `latest` never points at a release candidate; the per-commit `:main-<sha>` images are not releases |
 | Helm chart | `version` = `appVersion` = product version | Set from the tag; a chart change is released with a product version. `oci://ghcr.io/jersyfi/charts/hubtask` |
 | Web app bundle | none of its own | Built from the same commit and embedded in the binary ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
-| Tauri shells | `appVersion` = product version, plus a platform build counter per build | The stores require a monotonic counter (`CFBundleVersion`, `versionCode`); a store-only fix bumps the counter, never the product version ([support-matrix.md](./support-matrix.md) §7) |
+| Tauri shells | `appVersion` = product version, plus a platform build counter per build: `X.Y.Z+N`, and Android's `versionCode` = `N` | `N` is `release.yml`'s run number, which only grows; build metadata orders nothing, so an app never takes its own release for a newer one. The stores require a monotonic counter (`CFBundleVersion`, `versionCode`); a store-only fix bumps the counter, never the product version ([support-matrix.md](./support-matrix.md) §7). Published as `hubtask-X.Y.Z-windows-x64-setup.exe`, `-linux-x86_64.AppImage`, `-linux-amd64.deb` and `-android-universal.apk`, each with its update signature (`.sig`), beside `latest.json` and one `SHA256SUMS` over every file of the release (§9) |
 | Website (`hubtask.eu`) | unversioned | Continuously deployed; no compatibility surface |
 | Workspace packages (`apps/*`, `packages/*`, `sdk/typescript`) and the Python SDK | `private: true` | Nothing is published to a registry; the `version` field is not a product statement |
 | REST API | Path major `/api/v1`; `info.version` = product version | A breaking change ⇒ a new path major *and* a new product major |
@@ -72,8 +72,9 @@ pass the gates, and an optional surface is announced under `features` in `/meta/
 ([api-guidelines.md](./api-guidelines.md) §1).
 
 **Release:** `make release-tag VERSION_TO_TAG=X.Y.Z` runs `make verify` on a clean tree, creates
-the signed tag `vX.Y.Z` and pushes it; `release.yml` does the rest after the `production`
-environment's approval ([deployment.md](./deployment.md) §7).
+the signed tag `vX.Y.Z` and pushes it; `release.yml` builds the installed apps, and does the rest
+after the `production` environment's approval ([deployment.md](./deployment.md) §7): the apps are
+signed with the project's two keys there (§9).
 
 A release that ships a security fix also publishes its advisory: the GitHub security advisory
 with its CVE, and the CSAF 2.0 document (and any VEX statement) under `hubtask.eu/.well-known/csaf/`
@@ -112,13 +113,13 @@ expand/contract:
 
 Rules:
 
-* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. A new column carries no inline `CHECK` or `REFERENCES` (it is checked against every row under the ALTER's lock; measured on postgres:16), and a transaction that alters a table updates no rows of one - its backfill is a file of its own (0329). `test/architecture` holds every migration after the last release to it on the tables that release created.
+* No blocking locks: `CREATE INDEX CONCURRENTLY`, `NOT VALID` constraints with a later `VALIDATE` in a `NO TRANSACTION` file - in the transaction that added it, the ADD's lock is held through the scan. A new column carries no inline `CHECK` or `REFERENCES` (it is checked against every row under the ALTER's lock; measured on postgres:16), and a transaction that alters a table updates no rows of one - its backfill is a file of its own (0336). `test/architecture` holds every migration after the last release to it on the tables that release created.
 * An interrupted `CREATE INDEX CONCURRENTLY` leaves an invalid index its retry's `IF NOT EXISTS` would keep. Before the pending files, the migrator drops every invalid index a `NO TRANSACTION` file builds and runs that build again; one still invalid after the run fails it with the index's name. An invalid index no file builds is logged and left; any index invalid for an hour raises A-28 (`hubtask_db_invalid_indexes`, sampled by the scheduler leader).
 * A new index on a partitioned table (`audit_log`) is created `ON ONLY` the parent in a transactional file. After the pending files the migrator builds it `CONCURRENTLY` on every partition it does not reach and attaches it, so the parent's index turns valid without a write held; a share an interrupted build left invalid is dropped and built again on the next run. A partition created later takes the index with it.
 * A backfill in a migration walks in batches, one transaction each, in a `NO TRANSACTION` file,
   and records where it stopped in `migration_cursor` in the transaction of each batch, deleting its
   row at the end: a run killed between batches resumes after the last batch it committed
-  (0212, 0228; `TestAnInterruptedBackfillResumesWhereItStopped`). The first backfill that needs the
+  (0219, 0235; `TestAnInterruptedBackfillResumesWhereItStopped`). The first backfill that needs the
   ledger creates it (`CREATE TABLE IF NOT EXISTS`).
 * No destructive step in the same release as the code change that stops using the object.
 * The schema stays backwards compatible with the previous minor, which makes a rollback possible;
@@ -134,7 +135,7 @@ Rules:
 **Scheduled contract steps.** A drop waits until no binary that can still run names the object, so
 a step that moves its writers lands one release before the drop:
 
-* *The slim entry* (F-10, migrations 0227/0228). This release reads the side tables
+* *The slim entry* (F-10, migrations 0234/0235). This release reads the side tables
   `work_item_retention` and `work_item_flow` - the retention walk and an entry's marking, every
   entry read (sqlc and the query compiler), the flow figure - and still writes the eight columns,
   which the trigger `work_item_side_rows` mirrors (`TestTheMirrorAgreesAfterEveryWritePath`). The
@@ -148,7 +149,7 @@ a step that moves its writers lands one release before the drop:
   `work_item_retention_idx` and the generated `search_vector`. Until then no new query names
   the eight columns: `TestNoNewQueryNamesTheSlimEntrysMirroredColumns` holds the queries that still
   do to a list, which each moved writer leaves. Neither step can be forgotten: `make release-tag`
-  counts the releases (pre-releases aside) that already shipped migration 0228 and runs
+  counts the releases (pre-releases aside) that already shipped migration 0235 and runs
   `TestTheSlimEntrysContractStepsAreDueOnTime` with that count, which refuses the release after
   the suite's while a query on that list other than `CountFigureFlow` remains, and the release
   after that while no later migration drops `work_item_side_rows`.
@@ -163,7 +164,7 @@ a step that moves its writers lands one release before the drop:
   migration. No schema object changes, so the floor stays.
 
 **A contract step raises the compatibility floor.** The migration that drops what an older binary
-names also replaces `schema_compatibility_floor()` (migration 0337) with the number of the first
+names also replaces `schema_compatibility_floor()` (migration 0344) with the number of the first
 migration of the release that stopped naming it — never with a lower one. A binary whose newest
 migration is below the floor is `migration:too_old`: not ready, and it refuses to start
 (`config.binary_older_than_schema`), instead of passing readiness and failing every write on a
@@ -249,3 +250,76 @@ Three movements, in this order, for `1.0.0` and every major after it
 commit.** No client ships later under the same version.
 
 The milestones of the current major are in [roadmap.md](../roadmap.md).
+
+---
+
+There is no §8: ADR-0025 cites one for what §2 says ([Errata](../adr/README.md#errata)).
+
+## 9. The installed apps' keys
+
+Two keys sign what a release offers of the installed apps (F7 Decision 10,
+[ADR-0084](../adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)): the **APK signing
+key**, which Android checks before it installs an update over an installed app, and the **update
+key**, whose signatures the desktop updater checks
+([ADR-0097](../adr/ADR-0097-android-stays-current-by-a-notice.md)). The Android app's notice reads
+the same manifest without checking it: it installs nothing, opens the release's own page rather
+than an address from the manifest, and Android checks the APK's key itself. Both are the project's; the
+owner creates each once, on a machine of their own, and nobody else holds them.
+
+| Key | Recorded |
+|---|---|
+| APK signing certificate, SHA-256 | `pending` |
+| Update public key | `pending` |
+| Update key ID | `pending` |
+
+**How the desktop updater reads a release.** Tauri's updater checks a package's signature, not
+the manifest's, so its endpoint is `update.json`: the newest release's manifest (`latest.json`) as
+the one download, with `latest.json.sig` as its signature, in the updater's single-download
+format. The app (`apps/webapp/src-tauri/src/update.rs`) fetches the manifest through it — checked
+under the update key and for the version the key signed into it — reads the package for its system
+from the manifest, downloads and checks that too, and only then offers *Install and restart*. A
+signature that does not hold refuses the manifest or the package, and the app says which. The
+`.deb` is updated by the system's package manager, so the app names the newer release and opens its
+download instead. `releases/latest` never answers a pre-release, so a release candidate is offered
+to nobody.
+
+`release.yml` reads the first two rows (`apps/webapp/build/release-apps.js`): it publishes no APK
+whose certificate is not the recorded one, and no app or `latest.json` whose signature does not
+hold under the recorded update key, and none whose shell (`tauri.conf.json`) names another key
+than the recorded one. While a row says `pending`, a release stops before it publishes anything;
+until then the shell names a placeholder no release accepts. The download page shows the same values (milestone `0.9.5`).
+
+**Creating them, once.**
+
+1. The APK key, in a PKCS #12 store under the alias `hubtask`, valid for a hundred years (an
+   Android app keeps its key for life unless it is rotated); the store's password is the key's:
+
+   ```bash
+   keytool -genkeypair -keystore hubtask-apk.p12 -storetype PKCS12 -alias hubtask \
+     -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=Hubtask"
+   keytool -list -v -keystore hubtask-apk.p12 -alias hubtask     # the SHA256 line
+   ```
+
+2. The update key, with a password:
+
+   ```bash
+   pnpm --filter @hubtask/webapp exec tauri signer generate -w hubtask-update.key
+   base64 -d < hubtask-update.key.pub                           # the key ID, then the key (RW…)
+   ```
+
+3. Four secrets of the environment `production` — environment secrets, so only the job behind
+   the approval reads them ([ci-cd.md](./ci-cd.md) §6): `ANDROID_KEYSTORE_BASE64`
+   (`base64 < hubtask-apk.p12`), `ANDROID_KEYSTORE_PASSWORD`, `TAURI_SIGNING_PRIVATE_KEY` (the
+   content of `hubtask-update.key`) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+4. The table above, in a pull request: the certificate's SHA-256, the public key and its ID. In
+   the same pull request `plugins.updater.pubkey` in `apps/webapp/src-tauri/tauri.conf.json`
+   becomes the content of `hubtask-update.key.pub` (the base64 the signer writes).
+5. Both files and both passwords on two offline media kept in two places; then the files are
+   deleted from the machine that made them.
+
+**What a lost or leaked key costs.**
+
+| Key | Lost | Leaked |
+|---|---|---|
+| APK signing key | No installed Android app takes an update again: Android refuses an APK signed with another key. Each person uninstalls the app — which deletes its encrypted copy, and with it every change not yet synchronised — and installs the APK of a new key; the release notes and the download page say so. The installed app keeps working until then | The next APK rotates to a new key with a lineage the old key signs (`apksigner rotate`, APK Signature Scheme v3), so installed apps accept it; the release notes say which releases the leaked key signed |
+| Update key | Installed desktop apps refuse every newer update, and the Android notice names none: each person downloads the next release by hand, and that release carries a new public key | A new key: the next release is signed one last time with the old key and carries the new public key, so installed apps move over; the old key is never used again |

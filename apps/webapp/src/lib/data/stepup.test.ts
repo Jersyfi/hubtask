@@ -18,6 +18,7 @@ import {
   isReturning,
   methodsOf,
   providerOf,
+  purposeOf,
   rememberReturn,
   takeGrant,
   takeReturn,
@@ -148,6 +149,25 @@ test('the four methods are read, and the provider by its name', () => {
   assert.deepEqual(methodsOf(refusal({ methods: 'PROVIDER' })), ['PROVIDER']);
   assert.equal(providerOf(refusal({ methods: 'PROVIDER', provider: 'Contoso Entra ID' })), 'Contoso Entra ID');
   assert.equal(providerOf(refusal({ methods: 'PASSWORD' })), undefined);
+});
+
+test('the purpose of a narrowed demand reaches the prompt (UC-INS-19 check 5)', async () => {
+  // A change of address names only the password and the provider, and says why.
+  const narrowed = refusal({ methods: 'PASSWORD', purpose: 'change_address' });
+  assert.equal(purposeOf(narrowed), 'change_address');
+  assert.equal(purposeOf(refusal({ methods: 'PASSWORD' })), undefined);
+  let asked: unknown[] = [];
+  await withStepUp(
+    async (token) => {
+      if (!token) throw narrowed;
+      return token;
+    },
+    async (...args) => {
+      asked = args;
+      return 'hbt_sup_x';
+    },
+  );
+  assert.deepEqual(asked, [['PASSWORD'], undefined, 'change_address']);
 });
 
 test('a held grant answers the first call that asks for a proof, and only one that asks', async () => {

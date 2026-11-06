@@ -823,7 +823,7 @@ func TestEveryGroupableFieldAnswersItsColumnsAndCounts(t *testing.T) {
 }
 
 // The web app's board: one collection's top entries, archived ones included, grouped by column or
-// status, each column counted. The columns are found by skipping through migration 0364's indexes,
+// status, each column counted. The columns are found by skipping through migration 0371's indexes,
 // so this proves that path answers what numbering answered: every column a kept entry holds, in
 // order, the entries without a value last; nothing below an entry, nothing from the trash.
 func TestABoardOfOneCollectionAnswersEveryColumnItsTopEntriesHold(t *testing.T) {

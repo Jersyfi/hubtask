@@ -191,7 +191,7 @@ targets and runs cover every workspace (UC-BAK-01 check 11).
 |---|---|---|
 | PostgreSQL | `/readyz` red, no traffic accepted, reconnection with backoff; **no** process exit | `503` with a message code, `Retry-After` |
 | Object storage (S3-compatible) | Core features normal; upload/download disabled, `degraded_features` set | Attachments temporarily unavailable, tasks work |
-| SMTP / push | Notifications stay in the queue and are caught up; no loss. An installation with no mail server at all sends no email by decision: each email is suppressed at once (`notifications.no_mail_server`), never retried into a dead letter. An address the server refuses for good (a 5xx at RCPT or DATA) fails at once and is marked (`mail_undeliverable`, 0360): later messages to it are suppressed (`notifications.undeliverable`) until the person chooses *Try mail again* on the profile; a changed address is tried at once | The reminder arrives late, with an in-app notice; without a mail server, the in-app notice alone |
+| SMTP / push | Notifications stay in the queue and are caught up; no loss. An installation with no mail server at all sends no email by decision: each email is suppressed at once (`notifications.no_mail_server`), never retried into a dead letter. An address the server refuses for good (a 5xx at RCPT or DATA) fails at once and is marked (`mail_undeliverable`, 0367): later messages to it are suppressed (`notifications.undeliverable`) until the person chooses *Try mail again* on the profile; a changed address is tried at once | The reminder arrives late, with an in-app notice; without a mail server, the in-app notice alone |
 | `LISTEN/NOTIFY` (the stream's wake-up) | Streams fall back to their idle poll interval; no record is lost or reordered | Changes arrive within seconds instead of immediately |
 | The public address's WebSocket path (a proxy in front) | Each process serving the API opens a socket to `/api/v1/realtime/probe` through `HUBTASK_BASE_URL` every five minutes, in the background; two failed attempts in a row read `realtime_public` down (`health.realtime_unreachable`) with `live_editing` degraded, and A-40 tickets it after a quarter of an hour. Without a base URL the probe is `disabled` | Pages and whiteboards save but are not edited together; the administration and instance overviews name *live editing* |
 | AI provider | AI suggestions and search by meaning disappear (`ai_suggestions`, `semantic_search`); every manual route remains, and search still finds the words typed. One breaker **per endpoint**, a provider being per tenant. `/meta/health` names no endpoint or model: `disabled` until this process has called a provider, then `ok`, `down`, or `degraded` with `ai.embedding_too_wide`; with no provider, `ok` and no degraded feature | The feature greyed out with a reason; with no provider at all no control (`/meta/capabilities`) |
@@ -379,19 +379,19 @@ and the smallest workspace. **10⁶ ran on the owner's workstation on 2026-10-31
 error; at 170 124 entries in the largest workspace a collection's page held P95 7 ms, the board
 47 ms, a count over the hub 60 ms - and the hub's level 254 ms with eight concurrent readers while
 its figures were counted on every read (about 75 ms of database time for one), 7 ms once a
-collection's figure is kept between reads while it is unchanged (migration 0292; the first read
+collection's figure is kept between reads while it is unchanged (migration 0299; the first read
 after a write counts that collection again). Read while two writers add entries at 40 a second
 (P2, 2026-11-01), the hub's level held P95 66 ms at 134 reads a second in the largest workspace
 and 21 ms or less in the others, the writes 20 to 23 ms. The database held
 1.2 GB per 10⁶ entries, 70 % of it indexes; the server stayed at about 200 MB resident. The run
-found and fixed a seed that grew with the square of a collection's entries (migration 0289),
+found and fixed a seed that grew with the square of a collection's entries (migration 0296),
 whole-level scans behind a page and a create's rank, and JIT compilation in the tail. **10⁷ ran
 on the owner's workstation on 2026-11-01** ([evidence](../evidence/capacity-10000000-2026-11-01.md)):
 no server error. It found a generic plan behind a collection's page and a figure deadline that
 kept nothing, both fixed and measured again by R2 at 8 ms P95. The board by completion and the
 count over the hub read every entry they covered (430 and 974 ms P95 in the 1.2-million-entry
 workspace); a board grouped by a field whose type names its values is now read per column and
-the count from `wi_completion_idx` alone (migration 0318), measured again at 10 and 128 ms P95.
+the count from `wi_completion_idx` alone (migration 0325), measured again at 10 and 128 ms P95.
 **The second round ran on 2026-11-05** ([evidence](../evidence/second-round-2026-11-05.md),
 `test/load/PLAN.md` "Results of the second round"): at 10⁶ and 10⁷ every read path held P95
 under 200 ms without a server error, the hub's level beside writers 11 to 13 ms and the writes 21

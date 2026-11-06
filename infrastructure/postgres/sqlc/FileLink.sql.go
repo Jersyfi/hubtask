@@ -117,7 +117,7 @@ type ListFileLinksRow struct {
 	AddedAt  pgtype.Timestamptz
 }
 
-// A file in a store on an entry (migration 0276, UC-INT-14).
+// A file in a store on an entry (migration 0283, UC-INT-14).
 func (q *Queries) ListFileLinks(ctx context.Context, itemID pgtype.UUID) ([]ListFileLinksRow, error) {
 	rows, err := q.db.Query(ctx, listFileLinks, itemID)
 	if err != nil {

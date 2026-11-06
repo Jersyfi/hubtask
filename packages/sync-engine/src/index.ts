@@ -59,6 +59,8 @@ export type {
 // and account, and the memory one the tests and the conformance runner use.
 export { IndexedDbStorage, databaseNameFor } from './storage/IndexedDbStorage.ts';
 export { MemoryStorage } from './storage/MemoryStorage.ts';
+export { SqliteStorage, copyNameFor } from './storage/SqliteStorage.ts';
+export type { ShellCall } from './storage/SqliteStorage.ts';
 export { LIVE_UNSENT, META, collectionOf } from './replica.ts';
 export type { SyncPosition } from './replica.ts';
 export type { DeviceIdentity } from './device.ts';
@@ -495,6 +497,18 @@ export type {
   PlanFeature,
   TenantPlanMove,
   TenantPlanMoved,
+  TenantAddressChange,
+  TenantAddressChanged,
+  AddressChangeNotice,
+  DeviceListEntry,
+  DeviceListChecked,
+  DeviceListEntryState,
+  WorkspaceAddress,
+  WorkspaceAddressChanged,
+  OwnDomain,
+  OwnDomainRecord,
+  AdminOwnDomain,
+  MainAddressSwitch,
   InstallationPreset,
   InstallationPresetCreate,
   InstallationPresetUpdate,
@@ -532,6 +546,8 @@ export type {
   NotificationPreferenceUpdate,
   PendingMutation,
   MutationKind,
+  QueuedKind,
+  CapturedFileRecord,
   QueuedWrite,
   QueueState,
   VocabularyEntity,

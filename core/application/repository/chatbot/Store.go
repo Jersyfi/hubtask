@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package chatbot is the store of a hub's Matrix bots (migration 0280), each with its access
+// Package chatbot is the store of a hub's Matrix bots (migration 0287), each with its access
 // token sealed, read and written inside the unit of work's transaction (rule 3).
 package chatbot
 
@@ -30,7 +30,7 @@ type Store interface {
 	Delete(ctx context.Context, id shared.ID) error
 }
 
-// Links keeps the chat accounts people linked to a bot (migration 0321).
+// Links keeps the chat accounts people linked to a bot (migration 0328).
 type Links interface {
 	// Start keeps a pending link's code hash until it runs out, replacing one not yet said.
 	Start(ctx context.Context, id, botID, accountID shared.ID, codeHash []byte, expiresAt, now time.Time) error

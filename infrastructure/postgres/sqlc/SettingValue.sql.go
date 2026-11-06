@@ -92,7 +92,7 @@ type ListSettingValuesRow struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
-// The settings catalogue's one storage shape (migration 0208): a workspace's, a hub's, a
+// The settings catalogue's one storage shape (migration 0215): a workspace's, a hub's, a
 // collection's and a person's entries, read for the places a resolution walks through.
 // Every entry under a key prefix at the given places, `levels[i]` pairing with `scopes[i]`.
 func (q *Queries) ListSettingValues(ctx context.Context, arg ListSettingValuesParams) ([]ListSettingValuesRow, error) {

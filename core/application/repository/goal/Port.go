@@ -85,7 +85,7 @@ type Store interface {
 	DigestSent(ctx context.Context, id shared.ID, sent *time.Time, next time.Time) error
 }
 
-// RoadmapLinks stores a portfolio roadmap's public link by its token's hash (migration 0322); the
+// RoadmapLinks stores a portfolio roadmap's public link by its token's hash (migration 0329); the
 // hashing is the adapter's, whose pepper it is.
 type RoadmapLinks interface {
 	// Put writes the link, replacing the portfolio's previous one.

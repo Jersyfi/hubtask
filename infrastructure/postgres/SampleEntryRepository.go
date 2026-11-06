@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// SampleEntryRepository stores the marks of a template's sample entries (migration 0307).
+// SampleEntryRepository stores the marks of a template's sample entries (migration 0314).
 type SampleEntryRepository struct{}
 
 var _ repository.Samples = SampleEntryRepository{}

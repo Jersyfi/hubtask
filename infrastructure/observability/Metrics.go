@@ -927,7 +927,7 @@ func (m *Metrics) MediaReclaimed(ctx context.Context, count int64) {
 }
 
 // FigureDrifted counts the kept figures a recount replaced. Anything above zero is a write that
-// moved no collection's number of changes (migration 0292): a figure was answered wrong until then.
+// moved no collection's number of changes (migration 0299): a figure was answered wrong until then.
 func (m *Metrics) FigureDrifted(ctx context.Context, count int64) {
 	m.figureDrifted.Add(ctx, count)
 }

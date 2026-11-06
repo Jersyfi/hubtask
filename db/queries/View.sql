@@ -7,7 +7,7 @@
 
 -- name: InsertSavedView :one
 -- The key is the writer's, or drawn from the name by the store when it names none (migration
--- 0286); the statement answers the one stored.
+-- 0293); the statement answers the one stored.
 INSERT INTO saved_view (
   id, tenant_id, scope_type, scope_id, owner_id, name, layout, query, grouping,
   visible_fields, sharing, created_at, version, key

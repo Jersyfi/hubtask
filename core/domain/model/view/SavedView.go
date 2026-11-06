@@ -35,7 +35,7 @@ type SavedView struct {
 	Name    string
 	// Key names the view where it lives - unique in its scope, kept by a rename - so that the
 	// configuration document names it in every workspace alike. Empty until the store drew one
-	// from the name (migration 0286).
+	// from the name (migration 0293).
 	Key string
 	// Layout is one of the declared set, stored and never consulted.
 	Layout Layout

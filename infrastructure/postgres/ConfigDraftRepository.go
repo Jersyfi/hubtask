@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// ConfigDraftRepository stores the drafts of the configuration's shared blocks (migration 0308).
+// ConfigDraftRepository stores the drafts of the configuration's shared blocks (migration 0315).
 type ConfigDraftRepository struct{}
 
 var _ repository.Drafts = ConfigDraftRepository{}

@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
-// directoryLinks is migration 0256's two columns, in memory, over the account store.
+// directoryLinks is migration 0263's two columns, in memory, over the account store.
 type directoryLinks struct {
 	accounts *accountStore
 	people   map[shared.ID]string

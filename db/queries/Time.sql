@@ -1,4 +1,4 @@
--- Time records, timers, weeks, kinds of work and the time policy (migration 0246, M7).
+-- Time records, timers, weeks, kinds of work and the time policy (migration 0253, M7).
 
 -- name: ListTimeWorkTypes :many
 SELECT id, key, name, billable, archived, position, version

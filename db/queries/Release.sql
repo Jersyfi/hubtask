@@ -1,4 +1,4 @@
--- Releases and their entries (migration 0272, M2, PLN-08).
+-- Releases and their entries (migration 0279, M2, PLN-08).
 
 -- name: InsertRelease :exec
 INSERT INTO release (id, tenant_id, hub_id, name, description, release_on, state, created_at,

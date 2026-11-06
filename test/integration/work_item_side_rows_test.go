@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// sideRows counts the entry's rows in the three side tables of migration 0227, past every policy.
+// sideRows counts the entry's rows in the three side tables of migration 0234, past every policy.
 func sideRows(ctx context.Context, t *testing.T, item shared.ID) (announcement, flow, retention int) {
 	t.Helper()
 	if err := adminPool(ctx, t).QueryRow(ctx, `

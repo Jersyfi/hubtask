@@ -280,7 +280,7 @@ product they cannot switch on. The strip can be dismissed for good.
   `CoachMark`. On a product home's first visit, one `CoachMark` points at its create action, once
   per person (kept beside `onboarding_completed_at`, as a list of products seen).
 
-**As built.** `Account.products_seen` (migration 0376) holds the products whose mark was seen,
+**As built.** `Account.products_seen` (migration 0383) holds the products whose mark was seen,
 written as the whole list through `PATCH /accounts/{id}/preferences` (a null clears it). The first
 visit of a product's home, once the starter and the base tour are behind the person, opens that
 product's tour at its first step, the create act: the page head's primary, or the empty home's
@@ -316,7 +316,7 @@ by the one signed-in person: the four templates with the desk's samples, the Scr
 and desk hubs with their entries, sprints, releases, plan, risks, the desk's calls and CIs, pages
 with an image and versions, three whiteboards, two weeks of the person's own time, goals with key
 results and check-ins, two portfolios and two dashboards. Every object it makes is marked under
-a key (`POST /tenant/samples`, migration 0377); a second run makes only what no mark holds, and
+a key (`POST /tenant/samples`, migration 0384); a second run makes only what no mark holds, and
 what belongs to an object (its steps, comments, links) is written once, with it. A goal,
 portfolio or dashboard is marked at the version its own check-ins and updates leave it at, and a
 child goal is keyed under its parent so that it goes first. `--remove`
@@ -586,7 +586,7 @@ trash takes pages and boards too. `TestEveryKindWithARestoreIsInTheOneTrash` hol
 A hub's pages and whiteboards keep no trash list of their own: their *Trash* is a link to
 `/trash?kind=PAGE` or `/trash?kind=WHITEBOARD`, the kind in the address and the filter alike; the
 per-hub endpoints are deprecated for `/trash?kind=…` since 2026-11-05 and removed with the next
-major. Who trashed a page or a board is recorded since migration 0371, so
+major. Who trashed a page or a board is recorded since migration 0378, so
 its row names the person as an entry's does; one trashed before names nobody.
 
 ### 5.10 Forms and errors

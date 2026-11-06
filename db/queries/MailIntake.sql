@@ -31,7 +31,7 @@ SELECT mail_workspace_name_taken(sqlc.arg('name')::text, current_tenant_id())::b
 SELECT resolve_mail_workspace(sqlc.arg('name')::text)::uuid AS tenant_id;
 
 -- name: InstallationMailApps :many
--- Alert A-29's numbers, across workspaces through the door (0344): per provider preset, the enabled
+-- Alert A-29's numbers, across workspaces through the door (0351): per provider preset, the enabled
 -- mailboxes on the installation's own app and those failing for over an hour. Numbers, no rows.
 SELECT provider::text AS provider, connected::bigint AS connected, failing::bigint AS failing
 FROM installation_mail_apps();
@@ -87,8 +87,8 @@ WHERE c.handle = sqlc.arg('handle') AND c.type = 'COLLECTION'
   AND hub.deleted_at IS NULL AND hub.archived_at IS NULL;
 
 -- name: ItemByKey :one
--- A key names its collection by the key prefix or by the handle (migration 0356); the word is
--- given in lower case, as the handle is written. 0356 keeps a prefix from being another
+-- A key names its collection by the key prefix or by the handle (migration 0363); the word is
+-- given in lower case, as the handle is written. 0363 keeps a prefix from being another
 -- collection's handle, and the prefix is preferred should two writers have raced past that.
 SELECT wi.id
 FROM work_item wi

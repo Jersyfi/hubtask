@@ -16,7 +16,7 @@ import (
 // figureRecountBatch bounds the counts one pass recounts: each is a statement over a collection.
 const figureRecountBatch = 25
 
-// RecountFigures keeps one workspace's kept figures honest (UC-WRK-29, migration 0292). The
+// RecountFigures keeps one workspace's kept figures honest (UC-WRK-29, migration 0299). The
 // number of changes a kept count answers by is moved by every write in its workspace's context; a
 // write outside it - a cascade, a repair by a role without the workspace's context - moves nothing,
 // and the kept count would answer a figure that is no longer true. The pass therefore recounts the

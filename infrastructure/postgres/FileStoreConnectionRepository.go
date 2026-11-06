@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// FileStoreConnectionRepository stores a person's file store connections (migration 0279)
+// FileStoreConnectionRepository stores a person's file store connections (migration 0286)
 // through the unit of work's transaction (rule 3).
 type FileStoreConnectionRepository struct{}
 

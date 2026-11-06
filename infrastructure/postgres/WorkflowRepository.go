@@ -20,7 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// workflowKeyIndex is the unique constraint a taken key violates (migration 0216).
+// workflowKeyIndex is the unique constraint a taken key violates (migration 0223).
 const workflowKeyIndex = "workflow_key_uq"
 
 // WorkflowRepository stores a workspace's workflows and scheme (UC-FLW-02 … 05), through the

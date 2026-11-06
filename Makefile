@@ -1071,8 +1071,8 @@ release-tag:
 	@$(MAKE) verify
 	@# A scheduled contract step falls due by the releases that shipped its expand half
 	@# (versioning-release.md §4); a pre-release does not count.
-	@expand=$$(git log --diff-filter=A --format=%H -- 'db/migrations/0228_*.sql' | tail -1); \
-		test -n "$$expand" || { echo "migration 0228 not found in the history"; exit 1; }; \
+	@expand=$$(git log --diff-filter=A --format=%H -- 'db/migrations/0235_*.sql' | tail -1); \
+		test -n "$$expand" || { echo "migration 0235 not found in the history"; exit 1; }; \
 		n=$$(git tag --list 'v*' --contains "$$expand" | grep -cv -e '-' || true); \
 		HUBTASK_RELEASES_SINCE_SLIM_EXPAND=$$n $(GO) test -count=1 -run '^TestTheSlimEntrysContractStepsAreDueOnTime$$' ./test/architecture/
 	git tag -s "v$(VERSION_TO_TAG)" -m "Release v$(VERSION_TO_TAG)"

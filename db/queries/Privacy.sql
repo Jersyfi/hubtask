@@ -223,7 +223,7 @@ UPDATE account SET
   email            = NULL,
   sign_in_name     = NULL,
   external_subject = NULL,
-  -- The directory's identifier of the person (migration 0256): personal, so it goes too.
+  -- The directory's identifier of the person (migration 0263): personal, so it goes too.
   external_id      = NULL,
   password_hash    = NULL,
   start_password_at = NULL,
@@ -272,7 +272,7 @@ WHERE tenant_id = current_tenant_id()
   AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
 
 -- name: DeletePersonalRulesOfAccount :execrows
--- The person's own rules (scope PERSON, migration 0312): their configuration, gone with them
+-- The person's own rules (scope PERSON, migration 0319): their configuration, gone with them
 -- whatever the mode, their runs by the cascade; before the account itself, which their run_as holds.
 DELETE FROM automation_rule
 WHERE tenant_id = current_tenant_id() AND scope_type = 'PERSON' AND scope_id = sqlc.arg('account_id');
@@ -327,7 +327,7 @@ SELECT (SELECT count(*) FROM connectors)::int AS connectors,
 
 -- name: IntegrationsNamingAccount :one
 -- Every connector, hook and agent that still names the account, switched on or off: what a full
--- deletion must have moved before the account row goes (0369's foreign keys refuse it otherwise).
+-- deletion must have moved before the account row goes (0376's foreign keys refuse it otherwise).
 SELECT
   (SELECT count(*) FROM cmdb_connector c
      WHERE c.tenant_id = current_tenant_id() AND c.run_as = sqlc.arg('account_id'))::int AS connectors,
@@ -427,7 +427,7 @@ WHERE tenant_id = current_tenant_id()
   AND (account_id = sqlc.arg('account_id') OR delegate_id = sqlc.arg('account_id'));
 
 -- name: DeleteChatLinksOfAccount :execrows
--- A chat account linked to the person names them on the platform (migration 0321).
+-- A chat account linked to the person names them on the platform (migration 0328).
 DELETE FROM chat_link WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
 
 -- name: DeletePersonSettingsOfAccount :execrows

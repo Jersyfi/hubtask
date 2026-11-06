@@ -241,7 +241,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotEntryTypes :many
--- The workspace's type rows (migration 0209); the system types it never changed are the domain's.
+-- The workspace's type rows (migration 0216); the system types it never changed are the domain's.
 SELECT id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
   schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version, form,
   description, translations, hub_id, copied_from
@@ -344,7 +344,7 @@ UPDATE tenant SET sync_epoch = sync_epoch + 1 WHERE id = current_tenant_id()
 RETURNING sync_epoch;
 
 -- name: SnapshotWorkflows :many
--- The workspace's workflow rows (migration 0215); the shipped one it never used is the domain's.
+-- The workspace's workflow rows (migration 0222); the shipped one it never used is the domain's.
 SELECT id, tenant_id, key, system, name, published, draft, published_at, published_by,
   created_at, updated_at, version, hub_id, copied_from
 FROM workflow
@@ -353,7 +353,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotLinkTypes :many
--- The workspace's link type rows (migration 0213); the six shipped ones are the domain's.
+-- The workspace's link type rows (migration 0220); the six shipped ones are the domain's.
 SELECT id, tenant_id, key, name, inverse_name, direction, cardinality, cycles, waits, position,
   archived_at, created_at, updated_at, version
 FROM link_type
@@ -375,7 +375,7 @@ ORDER BY l.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotEntrySchedules :many
--- Every live entry's stored scheduling mode and milestone mark (migration 0244), with its
+-- Every live entry's stored scheduling mode and milestone mark (migration 0251), with its
 -- collection: a reader is told of it where they may read the entry.
 SELECT es.entry_id, es.mode, es.milestone, es.version, wi.collection_id
 FROM entry_schedule es
@@ -385,7 +385,7 @@ ORDER BY es.entry_id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotCustomRoles :many
--- The workspace's own roles (migration 0219).
+-- The workspace's own roles (migration 0226).
 SELECT id, tenant_id, key, name, permissions, created_at, updated_at, version
 FROM custom_role
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
@@ -414,9 +414,9 @@ SELECT EXISTS (
 ) AS member;
 
 -- name: SnapshotPages :many
--- The workspace's living pages with their bodies (migration 0231), for reading offline; each is
+-- The workspace's living pages with their bodies (migration 0238), for reading offline; each is
 -- filed under its hub, which decides who is told of it. A page behind a restriction stays on the
--- server: a hub's readers are not all its readers (migration 0261).
+-- server: a hub's readers are not all its readers (migration 0268).
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
        p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
@@ -427,7 +427,7 @@ ORDER BY p.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotCmdbCis :many
--- The workspace's configuration items not merged away (migration 0236), for reading a hub's
+-- The workspace's configuration items not merged away (migration 0243), for reading a hub's
 -- inventory offline; each is filed under its hub, which decides who is told of it.
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
@@ -446,7 +446,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotGoalPeriods :many
--- The workspace's goal periods (migration 0248), workspace-wide: read where the workspace is.
+-- The workspace's goal periods (migration 0255), workspace-wide: read where the workspace is.
 SELECT id, name, start_on, end_on, state, version
 FROM goal_period
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
@@ -481,7 +481,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotSprints :many
--- The workspace's sprints (migration 0245), each filed under its collection.
+-- The workspace's sprints (migration 0252), each filed under its collection.
 SELECT id, collection_id, name, goal, start_on, end_on, state, unit, committed_value,
   committed_count, completed_value, completed_count, started_at, closed_at, created_at,
   created_by, updated_at, version
@@ -524,7 +524,7 @@ ORDER BY f.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotOwnTimeRecords :many
--- One person's time records (migration 0246), walked for that person alone.
+-- One person's time records (migration 0253), walked for that person alone.
 SELECT id, account_id, entry_id, work_type, day, started_at, minutes, note, billable, source,
   corrects, created_at, updated_at, version
 FROM time_record
@@ -534,7 +534,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotOwnTimesheets :many
--- One person's weeks (migration 0246), walked for that person alone.
+-- One person's weeks (migration 0253), walked for that person alone.
 SELECT id, account_id, week_start, state, minutes, submitted_at, decided_at, decided_by, reason, version
 FROM timesheet
 WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id')::uuid
@@ -543,7 +543,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotTimeAbsences :many
--- The workspace's absences (migration 0247), the shared calendar every member reads.
+-- The workspace's absences (migration 0254), the shared calendar every member reads.
 SELECT id, account_id, from_day, to_day, kind, half, version
 FROM time_absence
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
@@ -551,7 +551,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotTimeBudgets :many
--- The hubs' and collections' budgets (migration 0247), paged by their plan.
+-- The hubs' and collections' budgets (migration 0254), paged by their plan.
 SELECT plan_id, minutes, amount_minor, currency, version
 FROM time_budget
 WHERE tenant_id = current_tenant_id() AND plan_id > sqlc.arg('after')
@@ -559,7 +559,7 @@ ORDER BY plan_id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotPortfolios :many
--- The workspace's portfolios (migration 0248), paged by identifier; their projects are read
+-- The workspace's portfolios (migration 0255), paged by identifier; their projects are read
 -- beside them.
 SELECT id, parent_id, name, description, owner_id, status, version
 FROM portfolio
@@ -568,7 +568,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotAgentModels :many
--- The registry's models (migration 0251), paged by identifier.
+-- The registry's models (migration 0258), paged by identifier.
 SELECT id, key, name, source, offered_id, model, region, retention_days, consent_by, consent_at,
        revision, retired, updated_at, version
 FROM agent_model
@@ -577,7 +577,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotAgents :many
--- The registry's agents (migration 0251), paged by identifier.
+-- The registry's agents (migration 0258), paged by identifier.
 SELECT id, account_id, name, purpose, kind, owner_id, risk_class, scopes, model_id, policy_reversible,
        policy_irreversible, tokens_per_day, actions_per_hour, concurrent_runs, min_accuracy, status,
        approved_by, approved_at, approved_model_revision, suspended_by, suspended_at, created_by,
@@ -588,7 +588,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotAgentRequests :many
--- The held acts (migration 0251) with their agent's owner, paged by identifier.
+-- The held acts (migration 0258) with their agent's owner, paged by identifier.
 SELECT r.id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code,
        r.created_at, r.version, a.owner_id
 FROM agent_request r
@@ -598,7 +598,7 @@ ORDER BY r.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotAgentCases :many
--- The evaluation cases (migration 0251), paged by identifier.
+-- The evaluation cases (migration 0258), paged by identifier.
 SELECT id, agent_id, title, notes, expected, created_by, created_at
 FROM agent_eval_case
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after')
@@ -606,7 +606,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotAgentRuns :many
--- The evaluation runs (migration 0251) with their agent's owner, paged by identifier.
+-- The evaluation runs (migration 0258) with their agent's owner, paged by identifier.
 SELECT r.id, r.agent_id, r.model_revision, r.cases, r.passed, r.run_by, r.at, a.owner_id
 FROM agent_eval_run r
 JOIN agent a ON a.tenant_id = r.tenant_id AND a.id = r.agent_id
@@ -615,7 +615,7 @@ ORDER BY r.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotWhiteboards :many
--- The workspace's boards outside the trash with their scenes (migration 0233), for reading offline;
+-- The workspace's boards outside the trash with their scenes (migration 0240), for reading offline;
 -- each is filed under its hub, which decides who is told of it.
 SELECT id, hub_id, title, scene, deleted_at, created_by, created_at, updated_by, updated_at, version
 FROM whiteboard
@@ -624,7 +624,7 @@ ORDER BY id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotCmdbAffected :many
--- The CIs entries name as affected (migration 0267), each filed under the CI's hub.
+-- The CIs entries name as affected (migration 0274), each filed under the CI's hub.
 SELECT a.id, a.item_id, a.ci_id, a.added_by, a.added_at, c.hub_id
 FROM cmdb_affected a
 JOIN cmdb_ci c ON c.tenant_id = a.tenant_id AND c.id = a.ci_id
@@ -650,7 +650,7 @@ ORDER BY ci_id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotApprovals :many
--- Every live entry's approvals (migration 0268), with the entry's collection, which decides who is
+-- Every live entry's approvals (migration 0275), with the entry's collection, which decides who is
 -- told of them.
 SELECT a.id, a.tenant_id, a.item_id, a.workflow_key, a.step_key, a.item_version, a.levels, a.decline_to,
        a.due_hours, a.current_level, a.state, a.requested_by, a.requested_at, a.level_since, a.decided_at,
@@ -662,7 +662,7 @@ ORDER BY a.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotEntrySlas :many
--- Every live entry's SLA records by goal (migration 0240), with the entry's collection.
+-- Every live entry's SLA records by goal (migration 0247), with the entry's collection.
 SELECT es.id, es.tenant_id, es.item_id, es.goal, es.policy_key, es.target_seconds, es.standing, es.armed_at,
        es.due_at, es.at_risk_at, es.met_at, es.breached_at, es.updated_at, es.version, wi.collection_id
 FROM entry_sla es
@@ -672,7 +672,7 @@ ORDER BY es.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotSatisfactionRatings :many
--- Every live request's satisfaction rating (migration 0243), with the request's collection.
+-- Every live request's satisfaction rating (migration 0250), with the request's collection.
 SELECT sr.id, sr.tenant_id, sr.item_id, sr.score, sr.rated_at, sr.version, wi.collection_id
 FROM satisfaction_rating sr
 JOIN work_item wi ON wi.tenant_id = sr.tenant_id AND wi.id = sr.item_id AND wi.deleted_at IS NULL
@@ -681,7 +681,7 @@ ORDER BY sr.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotReleases :many
--- The workspace's releases (migration 0272), each filed under its hub.
+-- The workspace's releases (migration 0279), each filed under its hub.
 SELECT id, hub_id, name, description, release_on, state, released_at, notes_page_id, created_at,
   created_by, updated_at, version
 FROM release
@@ -700,7 +700,7 @@ ORDER BY re.entry_id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotCodeLinks :many
--- Every live entry's commits, branches and pull requests (migration 0275), with the entry's collection.
+-- Every live entry's commits, branches and pull requests (migration 0282), with the entry's collection.
 SELECT cl.id, cl.item_id, cl.hub_id, cl.hook_id, cl.kind, cl.repository, cl.ref, cl.title, cl.url, cl.author,
   cl.state, cl.happened_at, cl.updated_at, wi.collection_id
 FROM code_link cl
@@ -710,7 +710,7 @@ ORDER BY cl.id
 LIMIT sqlc.arg('batch');
 
 -- name: SnapshotFileLinks :many
--- Every live entry's files in a store (migration 0276), with the entry's collection.
+-- Every live entry's files in a store (migration 0283), with the entry's collection.
 SELECT fl.id, fl.item_id, fl.provider, fl.address, fl.name, fl.added_by, fl.added_at, wi.collection_id
 FROM file_link fl
 JOIN work_item wi ON wi.tenant_id = fl.tenant_id AND wi.id = fl.item_id AND wi.deleted_at IS NULL

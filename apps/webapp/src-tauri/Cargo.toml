@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+# The installed apps' shell (ADR-0031, ADR-0033): one Tauri project for the desktop and mobile
+# targets, rendering the web app of the directory above. Only what a page may not do lives here.
+# The crates are exactly F7 Decision 4's; anything else is asked again.
+[package]
+name = "hubtask"
+version = "0.0.0"
+description = "Hubtask, installed"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+# A library beside the binary, because the mobile targets load the shell as one.
+[lib]
+name = "hubtask_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# The encrypted copy (ADR-0033 §4): SQLCipher built in, its cipher from the system's own crypto
+# (OpenSSL's libcrypto on Linux and Windows, CommonCrypto on a Mac).
+rusqlite = { version = "0.41", features = ["bundled-sqlcipher"] }
+
+# The workspace's sign-in in the system's browser (ADR-0096), called from the shell's own command.
+tauri-plugin-opener = "2"
+# The update manifest, read once its signature held (`update.rs`) and the deep-link plugin's
+# configuration, which `tauri::generate_context!` embeds: Tauri's own dependency, at the version
+# the lock already holds.
+serde_json = "1"
+
+# The copy's key in the desktop systems' keystores; the Android app brings a bridge of its own
+# (`android.rs` and its Kotlin half).
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+keyring = "4"
+# Staying current on Windows and Linux (UC-SYN-07 check 5, ADR-0097); Android has a notice instead.
+tauri-plugin-updater = "2"
+
+# The sign-in's return to the Android app's own scheme, `eu.hubtask.app:/oauth` (identity.md §15.3).
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-deep-link = "2"
+
+# The smoke walk's build (UC-SYN-07 check 9, `walk.rs`): the system's browser replaced by the walk,
+# WebView2's remote-debugging port open for its driver.
+# Never in a release; the `shell` lane's debug builds turn it on.
+[features]
+walk = []
+
+# The updater's refusal is tested against a mock of the app (`update.rs`).
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

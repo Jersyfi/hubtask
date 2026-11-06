@@ -344,7 +344,7 @@ func writeWorkItems(out io.Writer, shares []int, seed string) error {
 				completed, completedAt,
 				orderKey(n), dueAt, author, stamp(choice(seed, "created", n, 365)),
 				// Its number in the collection, as a restore brings one: an entry loaded without
-				// one draws it from the collection's counter row, once per entry (migration 0289).
+				// one draws it from the collection's counter row, once per entry (migration 0296).
 				strconv.Itoa(n/collectionsPerTenant+1),
 			); err != nil {
 				return err

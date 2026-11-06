@@ -545,7 +545,7 @@ type InsertPageParams struct {
 	DailyFor        pgtype.Date
 }
 
-// The knowledge module's pages (migration 0231, M3). The tenant is the transaction's in every
+// The knowledge module's pages (migration 0238, M3). The tenant is the transaction's in every
 // statement (ADR-0010).
 func (q *Queries) InsertPage(ctx context.Context, arg InsertPageParams) error {
 	_, err := q.db.Exec(ctx, insertPage,

@@ -3397,7 +3397,7 @@ SELECT
   r.id,
   r.celebrations,
   r.onboarding_completed_at,
-  -- An archive from before migration 0376 carries none: nobody has seen a mark yet.
+  -- An archive from before migration 0383 carries none: nobody has seen a mark yet.
   coalesce(r.products_seen, '{}'),
   r.redemption_token_hash,
   r.redemption_expires_at,
@@ -3800,7 +3800,7 @@ func (q *Queries) ImportAgentModel(ctx context.Context, arg ImportAgentModelPara
 const importAgentRequest = `-- name: ImportAgentRequest :execrows
 INSERT INTO agent_request (id, tenant_id, agent_id, use_case, class, input, status, decided_by, decided_at, code, created_at, version, performing)
 SELECT r.id, r.tenant_id, r.agent_id, r.use_case, r.class, r.input, r.status, r.decided_by, r.decided_at, r.code, r.created_at, r.version,
-  -- An archive written before migration 0361 holds no mark: nothing it holds was being performed.
+  -- An archive written before migration 0368 holds no mark: nothing it holds was being performed.
   coalesce(r.performing, false)
 FROM jsonb_populate_record(
   NULL::agent_request,
@@ -4028,7 +4028,7 @@ SELECT
   r.deleted_at,
   r.version,
   r.next_run_at,
-  -- The key travels with the row (migration 0286); an archive written before carries none.
+  -- The key travels with the row (migration 0293); an archive written before carries none.
   r.key
 FROM jsonb_populate_record(
   NULL::automation_rule,
@@ -4827,7 +4827,7 @@ SELECT
   coalesce(r.kind, 'USER'),
   r.system_code,
   r.system_params,
-  -- An archive written before migration 0241 carries no flag: a public comment.
+  -- An archive written before migration 0248 carries no flag: a public comment.
   coalesce(r.internal, false)
 FROM jsonb_populate_record(
   NULL::comment,
@@ -5123,7 +5123,7 @@ SELECT
   -- carries neither, and the store then gives the handle and the count starts at none.
   r.handle,
   coalesce(r.item_counter, 0),
-  -- An archive written before 0356 carries none, and the store derives one from the name.
+  -- An archive written before 0363 carries none, and the store derives one from the name.
   r.key_prefix
 FROM jsonb_populate_record(
   NULL::container,
@@ -5425,8 +5425,8 @@ type ImportEntryLinkParams struct {
 }
 
 // A link is drawn and removed, never changed: an overwrite replaces only its timing - the one
-// part the application may update (migration 0244's grant); naming any other column in the SET
-// makes every write of a link a permission refusal. An archive written before migration 0244
+// part the application may update (migration 0251's grant); naming any other column in the SET
+// makes every write of a link a permission refusal. An archive written before migration 0251
 // holds no timing: the columns' defaults stand.
 func (q *Queries) ImportEntryLink(ctx context.Context, arg ImportEntryLinkParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importEntryLink, arg.Payload, arg.Overwrite)
@@ -5536,7 +5536,7 @@ WHERE NOT EXISTS (
 )
 `
 
-// The entry's status history (migration 0374). `seq` is drawn anew rather than carried: the
+// The entry's status history (migration 0381). `seq` is drawn anew rather than carried: the
 // identity is installation-wide, and a carried number could meet the one this installation draws
 // for the entry's next change. The rows of a file come in the order of their old numbers, so the
 // new ones keep it. The first archived row of an entry removes the stand-in the restore's write of
@@ -5556,8 +5556,8 @@ INSERT INTO entry_type (
   description, translations, hub_id, copied_from
 )
 SELECT
-  -- An archive from before 0214 carries no form, one from before 0311 no texts, one from before
-  -- 0317 no hub: the type then has the empty ones and is the whole workspace's.
+  -- An archive from before 0221 carries no form, one from before 0318 no texts, one from before
+  -- 0324 no hub: the type then has the empty ones and is the whole workspace's.
   r.id, r.tenant_id, r.key, r.level, r.system, r.name, r.icon, r.color_token, r.completable,
   r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, COALESCE(r.form, '{}'::jsonb),
   r.position, r.archived_at,
@@ -6870,7 +6870,7 @@ type ImportRealtimeDocumentParams struct {
 	Overwrite bool
 }
 
-// A live document's head, log and snapshots (migration 0230): written once each, so an overwrite
+// A live document's head, log and snapshots (migration 0237): written once each, so an overwrite
 // has only the head's places to bring back.
 func (q *Queries) ImportRealtimeDocument(ctx context.Context, arg ImportRealtimeDocumentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importRealtimeDocument, arg.Payload, arg.Overwrite)
@@ -7351,7 +7351,7 @@ SELECT
   r.sharing,
   r.created_at,
   r.version,
-  -- The key travels with the row (migration 0286); an archive written before carries none,
+  -- The key travels with the row (migration 0293); an archive written before carries none,
   -- and the store then draws one from the name.
   r.key
 FROM jsonb_populate_record(
@@ -7490,7 +7490,7 @@ type ImportSlaPolicyParams struct {
 	Overwrite bool
 }
 
-// An archive from before 0324 carries no hub: the policy is then the whole workspace's.
+// An archive from before 0331 carries no hub: the policy is then the whole workspace's.
 func (q *Queries) ImportSlaPolicy(ctx context.Context, arg ImportSlaPolicyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importSlaPolicy, arg.Payload, arg.Overwrite)
 	if err != nil {
@@ -8318,9 +8318,9 @@ SELECT
   -- An entry's number travels with it (migration 0204); an archive written before carries none,
   -- and the store then draws the next of its collection.
   r.number,
-  -- An archive written before migration 0209 carries none: the level's system type.
+  -- An archive written before migration 0216 carries none: the level's system type.
   r.entry_type,
-  -- An archive written before migration 0216 carries none: no workflow ran.
+  -- An archive written before migration 0223 carries none: no workflow ran.
   r.status
 FROM jsonb_populate_record(
   NULL::work_item,
@@ -8402,7 +8402,7 @@ INSERT INTO workflow (
   created_at, updated_at, version, hub_id, copied_from
 )
 SELECT
-  -- An archive from before 0323 carries no hub: the workflow is then the whole workspace's.
+  -- An archive from before 0330 carries no hub: the workflow is then the whole workspace's.
   r.id, r.tenant_id, r.key, r.system, r.name, r.published, r.draft, r.published_at, r.published_by,
   r.created_at, r.updated_at, r.version, r.hub_id, r.copied_from
 FROM jsonb_populate_record(

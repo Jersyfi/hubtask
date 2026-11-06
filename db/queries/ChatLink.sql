@@ -1,4 +1,4 @@
--- A person's chat account linked to a hub's chat bot (migration 0321; UC-SVC-09 check 6).
+-- A person's chat account linked to a hub's chat bot (migration 0328; UC-SVC-09 check 6).
 
 -- name: StartChatLink :exec
 INSERT INTO chat_link (id, tenant_id, bot_id, account_id, code_hash, code_expires_at, created_at)

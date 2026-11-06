@@ -17,7 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Time records, a timer, a week and the time policy stay in their workspace (migration 0246,
+// Time records, a timer, a week and the time policy stay in their workspace (migration 0253,
 // UC-TIM-01 check 6, UC-TIM-02 check 6); one timer runs per person, a record summed reaches its
 // entry's collection.
 func TestTimeStaysInItsWorkspace(t *testing.T) {

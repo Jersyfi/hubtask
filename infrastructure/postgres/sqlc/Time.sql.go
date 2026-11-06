@@ -444,7 +444,7 @@ type ListTimeWorkTypesRow struct {
 	Version  int32
 }
 
-// Time records, timers, weeks, kinds of work and the time policy (migration 0246, M7).
+// Time records, timers, weeks, kinds of work and the time policy (migration 0253, M7).
 func (q *Queries) ListTimeWorkTypes(ctx context.Context) ([]ListTimeWorkTypesRow, error) {
 	rows, err := q.db.Query(ctx, listTimeWorkTypes)
 	if err != nil {

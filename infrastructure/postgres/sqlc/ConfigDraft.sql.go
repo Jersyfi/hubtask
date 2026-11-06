@@ -126,7 +126,7 @@ type SaveConfigDraftRow struct {
 	Version int32
 }
 
-// Drafts of the configuration's shared blocks (migration 0308, ui.md A4).
+// Drafts of the configuration's shared blocks (migration 0315, ui.md A4).
 // The first save writes version 1; a later one moves the version only when expected is the stored
 // one, or 0. No row answered is a save over a draft that moved.
 func (q *Queries) SaveConfigDraft(ctx context.Context, arg SaveConfigDraftParams) (SaveConfigDraftRow, error) {

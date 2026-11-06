@@ -23,7 +23,7 @@ import (
 
 const ldapServiceID = shared.ID("01936f2a-7c1e-7000-8000-0000000000c1")
 
-// ldapStore is migration 0285's row, in memory, with whom it holds read off the directory links.
+// ldapStore is migration 0292's row, in memory, with whom it holds read off the directory links.
 type ldapStore struct {
 	links     *directoryLinks
 	groups    *groupStore

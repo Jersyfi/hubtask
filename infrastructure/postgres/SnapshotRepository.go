@@ -430,7 +430,7 @@ func (SnapshotRepository) CIRelations(ctx context.Context, after shared.ID, batc
 	})
 }
 
-// CIAffected pages the CIs entries name as affected, each with its CI's hub (migration 0267).
+// CIAffected pages the CIs entries name as affected, each with its CI's hub (migration 0274).
 func (SnapshotRepository) CIAffected(ctx context.Context, after shared.ID, batch int) ([]repository.AffectedRow, error) {
 	queries, key, err := snapshotPage(ctx, after)
 	if err != nil {

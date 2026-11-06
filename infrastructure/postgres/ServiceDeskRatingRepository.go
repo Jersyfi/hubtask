@@ -14,7 +14,7 @@ import (
 
 var _ repository.Ratings = ServiceDeskRatings{}
 
-// ServiceDeskRatings stores requesters' satisfaction, one per request (migration 0243).
+// ServiceDeskRatings stores requesters' satisfaction, one per request (migration 0250).
 type ServiceDeskRatings struct{}
 
 func (ServiceDeskRepository) Ratings() ServiceDeskRatings { return ServiceDeskRatings{} }

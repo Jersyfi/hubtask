@@ -88,7 +88,7 @@ type PublicForms struct {
 	History RequesterHistory
 }
 
-// ChallengeLedger is the record of the challenges submissions spent (migration 0319), shared by
+// ChallengeLedger is the record of the challenges submissions spent (migration 0326), shared by
 // every server of the installation: a per-process set would let each replica take one solved
 // challenge once more.
 type ChallengeLedger interface {

@@ -140,6 +140,7 @@ var handWritten = map[string]string{
 	"backup target":                    "add takes the config and credentials as k=v pairs, test fails the command for a failed probe",
 	"admin tenant create":              "says the owner's redemption token is shown once",
 	"admin tenant set-reference":       "clears the reference with --clear, a null no flag sends",
+	"admin tenant change-address":      "asks the proof only when not a --dry-run, and says the change's cost",
 	"admin tenant export":              "follows the job with --follow",
 	"admin tenant replace-holds":       "reads the holds from a recovered cluster, an archive or a file",
 	"admin tenant reapply-erasures":    "reads the erasures from a recovered cluster or a file",

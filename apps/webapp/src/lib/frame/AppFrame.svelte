@@ -26,6 +26,8 @@
   import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
+  import AppWorkspaces from './AppWorkspaces.svelte';
+  import SwitchWorkspace from './SwitchWorkspace.svelte';
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { PLACE_ROUTES } from '../routes.ts';
@@ -45,6 +47,8 @@
   import ToastStack from './ToastStack.svelte';
   import ViewAsBanner from './ViewAsBanner.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
+  import AppUpdateBanner from './AppUpdateBanner.svelte';
+  import { appUpdate } from './appupdate.svelte.ts';
   import TourGuide from './TourGuide.svelte';
   import ProductTourGuide from './ProductTourGuide.svelte';
   import { productTour } from '../product/producttour.svelte.ts';
@@ -58,6 +62,8 @@
   import { live, type LiveState } from '../data/live.svelte.ts';
   import { liveAnnouncement } from './liveannouncement.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { appWorkspaces } from '../data/appworkspaces.svelte.ts';
+  import { deviceList } from '../data/devicelist.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { figures } from '../data/figures.svelte.ts';
@@ -67,9 +73,11 @@
   import { recoveryNote } from '../data/recoverynote.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { platform } from '../platform/index.ts';
+  import { webAppAddress, webAppHost } from '../webApp.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, MORE_CODE, PRODUCTS, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection } from '../navigation.ts';
+  import { DESTINATIONS, MORE_CODE, PRODUCTS, SETTINGS, account, administrationFor, bar, currentDestination, instanceSection, leftToWebApp, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { webhooks } from '../data/webhooks.svelte.ts';
   import { webhookColumnFigure } from '../data/webhooks.ts';
@@ -81,6 +89,7 @@
   import type { CalendarPushList } from '@hubtask/sync-engine';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
+  import { addressNotices } from '../data/addressnotices.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -140,6 +149,21 @@
     if (!session.isSignedIn) return;
     return untrack(() => aiObjection.open());
   });
+  // A change of the workspace's address, told here to a member who has no email address
+  // (multi-tenancy.md §3.1) until they acknowledge it.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => addressNotices.open());
+  });
+  let isAcknowledgingAddress = $state(false);
+  async function acknowledgeAddressNotice() {
+    isAcknowledgingAddress = true;
+    try {
+      await addressNotices.acknowledge();
+    } finally {
+      isAcknowledgingAddress = false;
+    }
+  }
   let isAcknowledging = $state(false);
   async function acknowledgeAiNotice() {
     isAcknowledging = true;
@@ -267,6 +291,8 @@
     const row = PRODUCTS.find((each) => each.routes.includes(route.name ?? ''));
     if (row) untrack(() => newMarks.seen(row.module));
   });
+  // The installed apps look for a newer release once a start; the browser has nothing to look for.
+  $effect(() => untrack(() => void appUpdate.start()));
 
   /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
   const destination = $derived(currentDestination(route));
@@ -328,6 +354,11 @@
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,
       isSingleWorkspace: manifest.isSingleTenant,
+      // The device's list of workspaces: where the installation names its own address, which is
+      // multi mode only (UC-ID-25 check 8).
+      hasWorkspaceList: deviceList.installation !== undefined,
+      // An installed app's own list, of one installation or several (UC-ID-25 check 7).
+      holdsWorkspaces: appWorkspaces.isHeld,
     }),
   );
   /**
@@ -414,11 +445,25 @@
     onnavigate(path);
   }
 
+  /**
+   * The areas this build leaves to the web app (UC-SYN-07 check 7): their rows stay where they
+   * are, name the address the area lives at, and open it in the system's browser.
+   */
+  const webAppOrigins = $derived({ workspace: platform.webOrigin, installation: manifest.value?.installation_url });
+  const leftOut = (id: string) => leftToWebApp(id, platform.webApp?.areas);
+  function elsewhere(id: string): string | undefined {
+    const area = leftOut(id);
+    return area === undefined ? undefined : t('app.web_app.at', { host: webAppHost(area, webAppOrigins) });
+  }
+
   /** What choosing a row of the account group does: the frame's verbs, and nothing of its own. */
   function chooseAccount(id: string) {
     const chosen = DESTINATIONS.find((each) => each.id === id);
     if (!chosen) return;
-    if (chosen.target.kind === 'route') go(chosen.target.path);
+    const area = leftOut(id);
+    if (area !== undefined && chosen.target.kind === 'route') {
+      void platform.webApp?.open(webAppAddress(area, chosen.target.path, webAppOrigins).href).catch(() => {});
+    } else if (chosen.target.kind === 'route') go(chosen.target.path);
     else if (chosen.target.kind === 'action') accountVerb(chosen.target.action);
   }
 
@@ -443,11 +488,17 @@
     }),
   );
 
-  /** The account's two verbs, wherever they are chosen - the menu, the palette or a key. */
+  /** *Switch workspace*, open: from the account group (UC-ID-25 check 2). */
+  let isSwitchOpen = $state(false);
+  /** *Add a workspace*, open: an installed app's (UC-SYN-07 check 4). */
+  let isAddOpen = $state(false);
   let unsentCount = $state(0);
 
-  function accountVerb(action: 'help' | 'sign-out') {
+  /** The account's verbs, wherever they are chosen - the menu, the palette or a key. */
+  function accountVerb(action: AccountAction) {
     if (action === 'help') isHelpOpen = true;
+    else if (action === 'switch-workspace') isSwitchOpen = true;
+    else if (action === 'add-workspace') isAddOpen = true;
     // Changes not sent yet are never discarded on one press (offline-sync.md §9.6).
     else if (session.unsent > 0) unsentCount = session.unsent;
     else void session.signOut();
@@ -601,7 +652,7 @@
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -657,10 +708,14 @@
     <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
       <div class="content">
         <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
-             recovery codes, an emergency access, the AI notice, a step-up that held - stands in
-             one place above the page head, in this order, rather than wherever each was added.
+             app's update, the recovery codes, an emergency access, the AI notice, a step-up that
+             held - stands in one place above the page head, in this order, rather than wherever
+             each was added.
              Empty, it takes no room: each banner carries its own space below. -->
         <div class="banners" data-banners>
+          <!-- A newer release of the installed app, or its refusal (UC-SYN-07 checks 5 and 6):
+               first, because it is about the app the rest of the zone is shown in. -->
+          <AppUpdateBanner isToday={route.name === 'home'} />
           {#if recoveryNote.note}
             <!-- After a sign-in with a recovery code (UC-ID-02 check 6). The danger tone at zero,
                  because that is the number to act on; the link is the action that makes it true
@@ -694,6 +749,23 @@
           <ViewAsBanner />
           <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
           <EmergencyNotices onnavigate={go} />
+          {#if addressNotices.notice}
+            <div class="confirmed" data-address-notice>
+              <Banner tone="info">
+                {t('app.address_notice', { from: addressNotices.notice.from, to: addressNotices.notice.to })}
+                {#snippet action()}
+                  <Button
+                    size="sm"
+                    isBusy={isAcknowledgingAddress}
+                    busyLabel={t('app.workspace.saving')}
+                    onclick={() => void acknowledgeAddressNotice()}
+                  >
+                    {t('app.address_notice_understood')}
+                  </Button>
+                {/snippet}
+              </Banner>
+            </div>
+          {/if}
           {#if aiObjection.noticePending && aiObjection.position}
             <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
             <div class="confirmed" data-ai-notice>
@@ -762,6 +834,13 @@
     <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()}
       product={homeModuleOf(route.name, PRODUCTS)} onproducttour={(module) => void productTour.start(module)} />
     <UnsentChangesDialog count={unsentCount} onClose={() => (unsentCount = 0)} />
+  {/if}
+  {#if appWorkspaces.isHeld}
+    <!-- The installed apps' own list, with adding and forgetting (UC-ID-25 check 7). -->
+    <AppWorkspaces bind:isSwitchOpen bind:isAddOpen isSheet={viewport.isCompact} isSignedIn={session.isSignedIn} />
+  {:else if isSwitchOpen}
+    <!-- A sheet where the account group is one, a dialog above it. -->
+    <SwitchWorkspace bind:isOpen={isSwitchOpen} isSheet={viewport.isCompact} />
   {/if}
   {#if isAskOpen && asking !== undefined && actor.account}
     {#key asking}

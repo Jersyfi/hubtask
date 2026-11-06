@@ -15,7 +15,7 @@ import (
 )
 
 // CmdbConnectorRepository stores the connectors, their sealed credentials and their alerts
-// (migration 0238) through the unit of work's transaction (rule 3).
+// (migration 0245) through the unit of work's transaction (rule 3).
 type CmdbConnectorRepository struct{}
 
 // NewCmdbConnectorRepository answers the store.

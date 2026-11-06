@@ -1,4 +1,4 @@
--- Requesters without an account (migration 0283, accepted.md B). Row level security bounds every
+-- Requesters without an account (migration 0290, accepted.md B). Row level security bounds every
 -- statement to the transaction's tenant (ADR-0010).
 
 -- name: RecordRequesterContact :exec
@@ -153,7 +153,7 @@ OFFSET sqlc.arg('skip')
 LIMIT sqlc.arg('batch');
 
 -- name: PutSatisfactionLink :exec
--- One link per requester and entry (migration 0304): a resolution mailed again replaces the token,
+-- One link per requester and entry (migration 0311): a resolution mailed again replaces the token,
 -- and the old one stops answering.
 INSERT INTO satisfaction_link (tenant_id, requester_id, item_id, token_hash, created_at, expires_at, used_at)
 VALUES (current_tenant_id(), sqlc.arg('requester_id'), sqlc.arg('item_id'), sqlc.arg('token_hash'),

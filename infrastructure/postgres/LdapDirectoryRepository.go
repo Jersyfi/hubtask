@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// LdapDirectoryRepository is a workspace's LDAP directory (UC-ID-31, migration 0285).
+// LdapDirectoryRepository is a workspace's LDAP directory (UC-ID-31, migration 0292).
 type LdapDirectoryRepository struct{}
 
 // NewLdapDirectoryRepository builds the repository.

@@ -42,7 +42,7 @@ func seedBoard(ctx context.Context, t *testing.T) (hub, board, entry shared.ID) 
 }
 
 // A board is read as it was written, its cards are where it points, and the trash takes them
-// away (migration 0233).
+// away (migration 0240).
 func TestABoardIsReadAsItWasWritten(t *testing.T) {
 	ctx := context.Background()
 	hub, board, entry := seedBoard(ctx, t)
@@ -117,7 +117,7 @@ func TestABoardIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 }
 
 // A board's history keeps its versions, folds a session's into one, names one, and another
-// workspace reads, folds, names and adds none (migration 0234, UC-CNV-06 check 4).
+// workspace reads, folds, names and adds none (migration 0241, UC-CNV-06 check 4).
 func TestABoardsHistoryStaysInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, board, _ := seedBoard(ctx, t)
@@ -175,7 +175,7 @@ func TestABoardsHistoryStaysInItsWorkspace(t *testing.T) {
 }
 
 // A picture placed on a board is held by it and read through it, and the workspace next door
-// neither places nor finds it (migration 0235, UC-CNV-08 check 4).
+// neither places nor finds it (migration 0242, UC-CNV-08 check 4).
 func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	hub, board, _ := seedBoard(ctx, t)
@@ -230,7 +230,7 @@ func TestABoardsPicturesStayInItsWorkspace(t *testing.T) {
 }
 
 // A board's comments are read as they were written, pinned where they were put, and the workspace
-// next door neither finds nor writes them (migration 0266, UC-CNV-09 check 4).
+// next door neither finds nor writes them (migration 0273, UC-CNV-09 check 4).
 func TestABoardsCommentsStayInItsWorkspace(t *testing.T) {
 	ctx := context.Background()
 	_, board, _ := seedBoard(ctx, t)

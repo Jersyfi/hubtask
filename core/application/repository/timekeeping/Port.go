@@ -84,7 +84,7 @@ type Store interface {
 }
 
 // Resources reads and writes a person's capacity and absences, the cost rates and the budgets of
-// hubs and collections (migration 0247), inside the caller's transaction.
+// hubs and collections (migration 0254), inside the caller's transaction.
 type Resources interface {
 	// Capacities answers the capacities of the people named, or of everybody for none, at most max.
 	Capacities(ctx context.Context, accounts []shared.ID, limit int) ([]domain.Capacity, error)
