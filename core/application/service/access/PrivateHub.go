@@ -73,6 +73,46 @@ func (s Service) holdsAny(ctx context.Context, actor appshared.ActorContext) (bo
 	return holds, err
 }
 
+// authorizeMember is Authorize for a request that asks AnyMember, its token scope already judged.
+func (s Service) authorizeMember(ctx context.Context, actor appshared.ActorContext, request Request) error {
+	reason, err := s.anyMember(ctx, actor)
+	if err != nil || reason == "" {
+		return err
+	}
+	request.Permission = service.PermissionRead
+	s.recordRefusal(ctx, actor, request, reason)
+	return notPermitted(request)
+}
+
+// anyMember answers why the actor is no member of the workspace, empty when it is one: its account
+// holds a built-in role anywhere or one of the workspace's own that carries READ (HoldsAny) - which
+// a requester's REQUEST is not -, and so does the person an agent acts for or an administrator
+// views as (alsoAsked). The system itself, acting for no account, reads as a member.
+func (s Service) anyMember(ctx context.Context, actor appshared.ActorContext) (string, error) {
+	if actor.AccountID.IsZero() {
+		if actor.Kind == appshared.ActorSystem {
+			return "", nil
+		}
+		return "permission", nil
+	}
+	holds, err := s.holdsAny(ctx, actor)
+	if err != nil || !holds {
+		return "permission", err
+	}
+	person, reason := alsoAsked(actor)
+	if reason == "" {
+		return "", nil
+	}
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		holds, err = s.Memberships.HoldsAny(ctx, person)
+		return err
+	})
+	if err != nil || !holds {
+		return reason, err
+	}
+	return "", nil
+}
+
 // Hidden answers whether the path runs through a private hub the actor holds nothing in - a hub
 // that, for them, is not there (ADR-0073 §1). Nothing is recorded: it is asked about somebody on
 // whose behalf something would run - a rule's run_as, a subscription's creator - before anything

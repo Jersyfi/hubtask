@@ -57,16 +57,17 @@ type memberships struct {
 	// hubs is what storage says each container or entry sits under; asked records the questions.
 	hubs  map[shared.ID]identityrepository.Hub
 	asked [][]shared.ID
-	// holdsNothing makes HoldsAny answer no.
-	holdsNothing bool
+	// holdsNothing makes HoldsAny answer no; holdsNothingFor answers no for the accounts named.
+	holdsNothing    bool
+	holdsNothingFor []shared.ID
 	// opened is the hubs the account holds a running emergency access to.
 	opened []shared.ID
 	// byAccount, where set, answers each account its own memberships rather than held.
 	byAccount map[shared.ID][]identity.Membership
 }
 
-func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) {
-	return !m.holdsNothing, m.err
+func (m *memberships) HoldsAny(_ context.Context, account shared.ID) (bool, error) {
+	return !m.holdsNothing && !slices.Contains(m.holdsNothingFor, account), m.err
 }
 
 // HubsOpenedFor answers the hubs named in opened: the running emergency accesses of the test.

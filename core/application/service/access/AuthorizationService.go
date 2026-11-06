@@ -70,6 +70,11 @@ type Request struct {
 	// HandsOut are the permissions of a custom role the request defines or grants, empty where it
 	// touches none: the actor must hold every one along the path (service.MayHandOut, UC-ID-26).
 	HandsOut []string
+	// AnyMember asks for a member of the workspace instead of a permission along a path: a read of
+	// the workspace's own that a role on one hub is enough for - its groups, the names behind its
+	// identifiers, its vocabulary. A requester (service.IsRequester) and an account holding nothing
+	// are refused it as READ (anyMember); Permission and Path are not asked.
+	AnyMember bool
 }
 
 // ItemSubject is what the per-entry half of the role matrix needs in order to be applied: the
@@ -137,6 +142,9 @@ func (s Service) Authorize(ctx context.Context, actor appshared.ActorContext, re
 			s.recordRefusal(ctx, actor, request, "scope")
 			return err
 		}
+	}
+	if request.AnyMember {
+		return s.authorizeMember(ctx, actor, request)
 	}
 
 	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath(),
@@ -289,6 +297,10 @@ func (s Service) Permits(
 ) (bool, error) {
 	if !actor.IsAuthenticated() {
 		return false, nil
+	}
+	if request.AnyMember {
+		reason, err := s.anyMember(ctx, actor)
+		return reason == "", err
 	}
 
 	memberships, path, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, request.scopePath(),
