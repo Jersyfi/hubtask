@@ -289,6 +289,12 @@ func RepositoryRoot() (string, error) {
 // the server never uses.
 func openPool(ctx context.Context, t *testing.T, dsn, role string) *pgxpool.Pool {
 	t.Helper()
+	key := poolKey{test: t, dsn: dsn}
+	pools.mu.Lock()
+	defer pools.mu.Unlock()
+	if pool, ok := pools.byTest[key]; ok {
+		return pool
+	}
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		t.Fatalf("%s pool configuration: %v", role, err)
@@ -299,8 +305,27 @@ func openPool(ctx context.Context, t *testing.T, dsn, role string) *pgxpool.Pool
 	if err != nil {
 		t.Fatalf("%s pool: %v", role, err)
 	}
-	t.Cleanup(pool.Close)
+	pools.byTest[key] = pool
+	t.Cleanup(func() {
+		pools.mu.Lock()
+		delete(pools.byTest, key)
+		pools.mu.Unlock()
+		pool.Close()
+	})
 	return pool
+}
+
+// One pool per test and role, closed when the test ends. A pool per call opened a backend per
+// call, each reading the catalogue afresh; one for the whole binary would keep an earlier test's
+// goroutines writing into the next test.
+var pools = struct {
+	mu     sync.Mutex
+	byTest map[poolKey]*pgxpool.Pool
+}{byTest: map[poolKey]*pgxpool.Pool{}}
+
+type poolKey struct {
+	test *testing.T
+	dsn  string
 }
 
 // AppPool connects as the application role, the way the server does.
