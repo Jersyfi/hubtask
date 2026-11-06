@@ -237,10 +237,10 @@ func (h GetGroup) membersChangeable(
 // Descriptor registers the use case in all three channels.
 func (h GetGroup) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name:       GetGroupName,
-		Permission: service.PermissionManageMembers,
+		Name: GetGroupName,
 		Summary: "Reads one group with the identifiers of its members, so that a role granted to " +
-			"the group can be shown as the people it reaches. Resolve a member through getAccount.",
+			"the group can be shown as the people it reaches. Any member may read it, as listGroups; " +
+			"a requester is no member and is refused. Resolve a member through getAccount.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  membersRead,
 		ReadOnly:    true,

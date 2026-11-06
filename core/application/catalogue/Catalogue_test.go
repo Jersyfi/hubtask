@@ -418,12 +418,12 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // dead letters, listed and requeued, are its operator's (UC-INS-12), as the list of workspaces near a
 // quota is. Locating a connector's
 // provider return is anonymous, as locating a sign-in's is. Resolving many names at once is
-// GetAccount's batch and, like it, open to every member. Clearing one's own undeliverable mark is
+// GetAccount's batch and, like it, open to every member; so are listing the groups and reading one. Clearing one's own undeliverable mark is
 // one's own, as renaming oneself is. The running sprints a person is in are judged per sprint on one
 // of their own entries in it (UC-WRK-34). The twelve of a workspace's address are decided inside: a
 // change, an own domain and its main address by the owner's role or the operator's register, the
 // notices and the device's list are a person's own (UC-INS-15, UC-INS-19, UC-ID-25).
-const undeclaredPermissionsAtMost = 217
+const undeclaredPermissionsAtMost = 218
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

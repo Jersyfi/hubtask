@@ -104,10 +104,15 @@ func TestAGroupThatIsNotThereIsNotFoundByIdentifier(t *testing.T) {
 	}
 }
 
+// Both reads are any member's, so neither declares a permission of the catalogue: a declared
+// MANAGE_MEMBERS would tell *who may do what* that only a manager reads a group (F-7).
 func TestTheGroupReadsAreDeclaredAsReads(t *testing.T) {
 	for _, descriptor := range []usecase.Descriptor{ListGroups{}.Descriptor(), GetGroup{}.Descriptor()} {
 		if !descriptor.ReadOnly || descriptor.TokenScope != membersRead {
 			t.Errorf("%s is declared %+v", descriptor.Name, descriptor)
+		}
+		if descriptor.Permission != "" {
+			t.Errorf("%s declares %s, but any member reads it", descriptor.Name, descriptor.Permission)
 		}
 	}
 	if err := (ListGroups{}).Descriptor().ValidateInput(usecase.Input{"cursor": "abc", "size": 10}); err != nil {
