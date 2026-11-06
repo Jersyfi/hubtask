@@ -236,7 +236,7 @@ this list with its row.
 | Sixth answers | UC-SVC-10 names the delegate rule | closed by `380a6c603` (UC-SVC-10 *Where it ends*) |
 | Sixth answers | The milestone's open-since count | closed by `e9224026a` (additive `open_since`, UC-WRK-29 check 4, user-experience.md §7.5) |
 | Sixth answers, corrections | Who trashed a page or a whiteboard; the Assets screen's register and software for readers | closed by `a2c3bf55b` (migration 0371, `/trash` names the person) and `6daba8e22` (UC-AST-12 check 5) |
-| Seventh answers | Templates for Pages and Assets (Team wiki, Configuration items) | open: build it (accepted.md, seventh answers, item 1) |
+| Seventh answers | Templates for Pages and Assets (Team wiki, Configuration items) | closed by `e14559754` (additive `CiRequiredRelation.class`, `CiClass.own_staleness_days`), `f146017e0` (the document's `ci_classes` section), `2c7a337ae` (both templates, configuration.md §6 and §9) and `cee604215` (the starter's families and *Try it*, user-experience.md §3.2/§3.3) |
 | Seventh answers | The desk's team reads its portal's catalogue, named in the use case | closed by `6f2aed29b` (UC-SVC-05 check 1) |
 | Seventh answers | Presets and templates: "Templates and presets" | closed by `749a721e8` (locales, user-experience.md §5.7, design-system.md) |
 | Seventh answers | A group's queue from auto-assign policies | closed by `b51eeed77` (query field `group_queue_of`, api-guidelines.md §3) and `023f9d289` (UC-WRK-34 check 8, user-experience.md §3.3) |
