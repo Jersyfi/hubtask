@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
 state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, packages/editor/test/passages.test.ts, apps/webapp/src/lib/pages/margin.test.ts]
+checked_by: [core/domain/model/knowledge/Page_test.go, core/application/service/knowledge/Pages_test.go, core/application/service/knowledge/CommentDoors_test.go, packages/editor/test/passages.test.ts, apps/webapp/src/lib/pages/margin.test.ts]
 ---
 
 # Discuss a page beside its words
