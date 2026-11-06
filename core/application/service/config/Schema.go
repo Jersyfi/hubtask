@@ -141,7 +141,7 @@ func (d Desk) attributeSchema(s section, attribute string) map[string]any {
 			"default_preset: the Hubtask preset a new hub starts from (list, tasks, project, flow)."}
 	}
 	candidates := []string{s.create, s.change, s.separate[attribute]}
-	if s.ops != nil {
+	if s.ops != nil && s.create == "" {
 		candidates = []string{"CreateWorkflow", "SaveWorkflowDraft"}
 	}
 	for _, name := range candidates {

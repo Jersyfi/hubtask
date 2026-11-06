@@ -362,7 +362,7 @@ func (d Desk) explain(ctx context.Context, actor appshared.ActorContext, path st
 				}
 			} else {
 				out["operation"] = s.change
-				if s.ops != nil {
+				if s.ops != nil && s.change == "" {
 					out["operation"] = "SaveWorkflowDraft"
 				}
 			}

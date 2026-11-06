@@ -144,6 +144,7 @@ func sections() []section {
 			changeable: []string{"name", "inverse_name", "position", "archived"},
 			hides:      removing,
 		},
+		ciClassesSection(),
 		{
 			name: sectionTypes, module: module.Workflows, list: "ListEntryTypes", rows: "data", key: "key", system: "system",
 			attributes: []string{
