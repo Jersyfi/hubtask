@@ -18,7 +18,10 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-test('webkit: 390 px - the pages throw no resize observation left undelivered', async (t) => {
+// CI runs Chromium only (ADR-0089); ENGINES=webkit runs this by hand.
+const skip = Boolean(process.env.ENGINES) && !process.env.ENGINES.split(',').includes('webkit');
+
+test('webkit: 390 px - the pages throw no resize observation left undelivered', { skip }, async (t) => {
   const browser = await webkit.launch();
   t.after(() => browser.close());
   const walk = await productWalk(browser, { modules: ['PLANNING', 'SERVICE_DESK', 'WORKFLOWS'], answer: () => undefined, width: 390, height: 844 });
