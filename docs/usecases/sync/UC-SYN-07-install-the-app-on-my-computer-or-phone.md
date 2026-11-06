@@ -65,7 +65,7 @@ settings are not in the app, and the menu says they are in the web app, with a l
 
 ## Today
 
-* Check 1: not met until a release runs — `release.yml` builds, signs and publishes every app with one checksum file, and stops before publishing while the project's two keys are not created and recorded (versioning-release.md §9); the first release with the apps is the acceptance's run.
+* Check 1: not met until a release runs — `release.yml` builds, signs and publishes every app with one checksum file, under the project's two keys, which the owner created and recorded on 2026-10-31 (versioning-release.md §9), and stops before publishing while a row there says `pending`; the first release with the apps is the acceptance's run.
 * Check 2: not met — the download page says there are no installed apps yet; it offers them with `0.9.5` (#1353).
 * Check 3: met on the desktop, short of the walk through a password, a provider and a virtual passkey in the built app; a step-up that wants a passkey goes through the system browser too. On Android the session and the copy's key are sealed under the Android Keystore and the code comes back to `eu.hubtask.app:/oauth`, built and not yet walked on a device; a step-up at a provider still leaves the app's window rather than going through the system browser.
 * Check 4: met on the desktop - *Add a workspace* by address, a session per workspace in the keystore and a copy each; the Android app has the same list, as a sheet from the bottom, not yet walked on a device.

@@ -204,8 +204,8 @@ to nobody.
 `release.yml` reads the first two rows (`apps/webapp/build/release-apps.js`): it publishes no APK
 whose certificate is not the recorded one, and no app or `latest.json` whose signature does not
 hold under the recorded update key, and none whose shell (`tauri.conf.json`) names another key
-than the recorded one. While a row says `pending`, a release stops before it publishes anything;
-until then the shell names a placeholder no release accepts. The download page shows the same values (milestone `0.9.5`).
+than the recorded one. While a row says `pending`, a release stops before it publishes anything.
+The download page shows the same values (milestone `0.9.5`).
 
 **Creating them, once.**
 
