@@ -8,9 +8,12 @@ import (
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -27,12 +30,14 @@ const PresetsReadAction audit.Action = "presets.read"
 // Hubtask's four, the installation's, the workspace's and the person's own (UC-WRK-30 check 2),
 // each with its origin.
 //
-// Open to anybody signed in to the workspace, like GetAccount: Hubtask's four are held to the
-// installation's capability profiles, which /meta/capabilities answers to anybody at all, and the
-// workspace's are offered to everyone in it. A person's own are answered to them alone. What a
-// credential still bounds is the token scope.
+// Open to any member of the workspace, like GetAccount: the workspace's are offered to everyone in
+// it, and a person's own are answered to them alone. A requester is no member and is refused
+// (access.Request.AnyMember) - the workspace's saved presets are the team's. What a credential
+// still bounds is the token scope.
 type ListPresets struct {
-	Profiles metarepo.CapabilityProfiles
+	// Authorizer asks whether the reader is a member of the workspace; nil refuses everybody.
+	Authorizer Authorizer
+	Profiles   metarepo.CapabilityProfiles
 	// Presets reads the saved ones; a build without it answers Hubtask's four alone.
 	Presets repository.Presets
 	// Installation reads the installation's; a build without it answers none.
@@ -44,6 +49,15 @@ type ListPresets struct {
 // the person's own, each by name.
 func (h ListPresets) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.Preset, error) {
 	if err := actor.RequireScope(containersRead); err != nil {
+		return nil, err
+	}
+	if h.Authorizer == nil {
+		return nil, shared.ErrForbidden.WithDetail("access.not_permitted").
+			WithParams(map[string]string{"permission": string(service.PermissionRead)})
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+		AnyMember: true, Action: PresetsReadAction, TokenScope: containersRead, TargetType: presetTarget,
+	}); err != nil {
 		return nil, err
 	}
 	var bound domain.StructureBound
@@ -103,7 +117,8 @@ func (h ListPresets) Descriptor() usecase.Descriptor {
 			"and Flow, the installation's, the workspace's and the caller's own, each with its origin and " +
 			"the values of its nine settings (levels and their names, fields, views, " +
 			"what counts, completion, capture, celebration, automation, entry types) as this installation " +
-			"offers them. Choosing one copies its values; nothing follows a preset afterwards.",
+			"offers them. Any member may read them; a requester is no member and is refused. " +
+			"Choosing one copies its values; nothing follows a preset afterwards.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  containersRead,
 		ReadOnly:    true,

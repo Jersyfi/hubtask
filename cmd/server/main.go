@@ -3410,7 +3410,8 @@ func run() error {
 			Milestones: milestones,
 		}.Descriptor(),
 		work.ListPresets{
-			Profiles: profiles, Presets: presets, Installation: installationPresets, UnitOfWork: unitOfWork,
+			Profiles: profiles, Presets: presets, Installation: installationPresets, Authorizer: authorizer,
+			UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.ListJumbleDestinations{
 			Collections: containers, Authorizer: authorizer, Reader: authorizer,

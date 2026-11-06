@@ -83,7 +83,7 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 		}.Descriptor(),
 		work.ListPresets{
 			Profiles: resolver.Profiles, Presets: resolver.Presets, Installation: resolver.Installation,
-			UnitOfWork: unitOfWork,
+			Authorizer: authoriser, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.SavePreset{Desk: desk}.Descriptor(),
 		work.ChangePreset{Desk: desk}.Descriptor(),
