@@ -335,6 +335,13 @@ async function codeAt(details) {
     const at = Number(column) - 1;
     out.push(`${url}:${line}:${column}\n${row.slice(Math.max(0, at - 400), at)} <<HERE>> ${row.slice(at, at + 200)}`);
   }
+  // Whether the first frame's module evaluates at all: a screen running before its module's body
+  // has (a template still undefined) and a module whose body throws read the same from the frames.
+  if (frames[0]) {
+    out.push(`importing ${frames[0][1]}: ${await session.script(`return import(${JSON.stringify(frames[0][1])}).then(
+      (m) => 'evaluated, its default a ' + typeof m.default,
+      (e) => 'refused: ' + (e && e.name) + ': ' + (e && e.message));`)}`);
+  }
   return out.join('\n\n');
 }
 
