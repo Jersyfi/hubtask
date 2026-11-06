@@ -53,10 +53,17 @@ func enqueue(ctx context.Context, t *testing.T, request queue.Request) {
 // claim takes a batch under a lease that ends at now+lease.
 func claim(ctx context.Context, t *testing.T, now time.Time, lease time.Duration, batch int) []queue.Job {
 	t.Helper()
+	return claimOf(ctx, t, now, lease, batch)
+}
+
+// claimOf is claim narrowed to the given kinds: a test counting attempts claims only a kind of its
+// own, since the jobs the package's other tests leave behind are due at the fixed clock too.
+func claimOf(ctx context.Context, t *testing.T, now time.Time, lease time.Duration, batch int, only ...queue.Kind) []queue.Job {
+	t.Helper()
 	var claimed []queue.Job
 	if err := systemWrite(ctx, t, func(ctx context.Context) error {
 		var err error
-		claimed, err = jobQueue(t).Claim(ctx, queue.Lease{Now: now, Until: now.Add(lease), Batch: batch})
+		claimed, err = jobQueue(t).Claim(ctx, queue.Lease{Now: now, Until: now.Add(lease), Batch: batch, Only: only})
 		return err
 	}); err != nil {
 		t.Fatalf("claiming: %v", err)
@@ -131,9 +138,10 @@ func TestTwoWorkersClaimingAtOnceGetDisjointBatches(t *testing.T) {
 func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 	ctx := context.Background()
 	now := queueClock.Now()
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+	kind := queue.Kind("test.lease.ran_out")
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: freshID(t).String(), RunAt: now})
 
-	first := claim(ctx, t, now, time.Second, 1)
+	first := claimOf(ctx, t, now, time.Second, 1, kind)
 	if len(first) != 1 {
 		t.Fatalf("%d jobs claimed, want one", len(first))
 	}
@@ -145,13 +153,13 @@ func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 	}
 
 	// Still leased: another worker passing by leaves it alone.
-	if again := claim(ctx, t, now, time.Minute, 10); containsJob(again, first[0].ID) {
+	if again := claimOf(ctx, t, now, time.Minute, 10, kind); containsJob(again, first[0].ID) {
 		t.Error("a job was claimed twice while its lease was still running")
 	}
 
 	// The lease ends, and with it the claim.
 	after := now.Add(2 * time.Second)
-	recovered := claim(ctx, t, after, time.Minute, 10)
+	recovered := claimOf(ctx, t, after, time.Minute, 10, kind)
 	if !containsJob(recovered, first[0].ID) {
 		t.Fatal("a job whose lease ran out was not picked up again")
 	}
@@ -172,11 +180,12 @@ func TestAJobWhoseLeaseRanOutIsClaimedAgain(t *testing.T) {
 func TestAWorkerWhoseLeaseExpiredCannotFinishTheJob(t *testing.T) {
 	ctx := context.Background()
 	now := queueClock.Now()
-	enqueue(ctx, t, queue.Request{Kind: testKind, DedupeKey: freshID(t).String(), RunAt: now})
+	kind := queue.Kind("test.lease.fenced")
+	enqueue(ctx, t, queue.Request{Kind: kind, DedupeKey: freshID(t).String(), RunAt: now})
 
-	slow := claim(ctx, t, now, time.Second, 1)[0]
+	slow := claimOf(ctx, t, now, time.Second, 1, kind)[0]
 	// Somebody else takes it over after the lease ends.
-	taken := claim(ctx, t, now.Add(2*time.Second), time.Minute, 10)
+	taken := claimOf(ctx, t, now.Add(2*time.Second), time.Minute, 10, kind)
 	if !containsJob(taken, slow.ID) {
 		t.Fatal("the successor did not get the job")
 	}
