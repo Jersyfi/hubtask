@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -690,32 +691,122 @@ func (d *demo) acknowledgement(ctx context.Context, hub string) string {
 	return ""
 }
 
+// demoCI is one of the desk's configuration items as a kept inventory holds it: its class's
+// attributes, who answers for it (a person of seed-demo.sh, else one of its groups) and the day of
+// its next review, in days from today.
+type demoCI struct {
+	class, name   string
+	attributes    map[string]any
+	person, group string
+	review        int
+}
+
+// demoCIs are kept well, so the health view shows two believable findings rather than all of
+// them: the Exchange connector without the host it runs on (ORPHAN) and a laptop whose review is
+// overdue.
+var demoCIs = []demoCI{
+	{"business_service", "Kundenportal", nil, "", "Plattform-Team", 120},
+	{"business_service", "E-Mail & Kalender", nil, "", "Service Desk – 1st Level", 120},
+	{"application_service", "Portal-Frontend (Nginx)", map[string]any{"url": "https://portal.nordlicht.example.org"}, "", "Plattform-Team", 90},
+	{"application_service", "Portal-API", map[string]any{"url": "https://api.nordlicht.example.org/v3"}, "", "Plattform-Team", 90},
+	{"application_service", "Exchange Online Connector", nil, "", "Service Desk – 1st Level", 90},
+	{"server", "lb-01.hh.intern", demoServer("lb-01", "CZJ3120A41", "10.20.1.10"), "", "Plattform-Team", 150},
+	{"server", "app-01.hh.intern", demoServer("app-01", "CZJ3120A57", "10.20.1.21"), "", "Plattform-Team", 150},
+	{"server", "app-02.hh.intern", demoServer("app-02", "CZJ3120A58", "10.20.1.22"), "", "Plattform-Team", 150},
+	{"server", "db-01.hh.intern", demoServer("db-01", "CZJ3120B02", "10.20.1.30"), "", "Plattform-Team", 150},
+	{"laptop", "NB-0417 (Mehmet Yılmaz)", demoLaptop("nb-0417", "PF4KX2Q7"), "Mehmet Yılmaz", "", 200},
+	{"laptop", "NB-0422 (Sofia Rossi)", demoLaptop("nb-0422", "PF4KX3B1"), "Sofia Rossi", "", -12},
+	{"network_device", "VPN-Gateway Frankfurt (FortiGate 200F)", map[string]any{"manufacturer": "Fortinet", "model": "FortiGate 200F",
+		"serial_number": "FG200FTK22904417", "hostname": "vpn-fra-01", "ip_address": "10.30.0.1", "operating_system": "FortiOS 7.4.4"},
+		"Mehmet Yılmaz", "", 60},
+}
+
+func demoServer(host, serial, ip string) map[string]any {
+	return map[string]any{"manufacturer": "Dell", "model": "PowerEdge R650", "serial_number": serial, "hostname": host,
+		"domain": "hh.intern", "ip_address": ip, "operating_system": "Ubuntu 22.04 LTS"}
+}
+
+func demoLaptop(host, serial string) map[string]any {
+	return map[string]any{"manufacturer": "Lenovo", "model": "ThinkPad T14 Gen 4", "serial_number": serial, "hostname": host,
+		"operating_system": "Windows 11 Enterprise"}
+}
+
+// keep gives a CI who answers for it and its next review, as the inventory's keeper would; the
+// signed-in person where the workspace has neither the person nor the group.
+func (d *demo) keep(ctx context.Context, id string, c demoCI) {
+	body := map[string]any{"review_due": d.date(c.review)}
+	switch {
+	case d.who(c.person) != nil:
+		body["owner_account_id"] = d.who(c.person)
+	case d.groups[c.group] != "":
+		body["owner_group_id"] = d.groups[c.group]
+	case d.self != "":
+		body["owner_account_id"] = d.self
+	}
+	d.write(ctx, "ci compliance "+c.name, "PUT", "/cis/"+id+"/compliance", body)
+}
+
+// keepWritten fills the CIs an earlier showcase wrote bare - without attributes, owner or review -
+// and leaves every CI someone has kept since as it is.
+func (d *demo) keepWritten(ctx context.Context, hub string) {
+	var listed struct {
+		Data []any `json:"data"`
+	}
+	if err := d.call(ctx, func(ctx context.Context) error {
+		return d.c.Get(ctx, "/hubs/"+hub+"/cis", url.Values{"limit": {"500"}}, &listed)
+	}); err != nil {
+		d.fail("cis", err)
+		return
+	}
+	bare := map[string]string{}
+	for _, raw := range listed.Data {
+		ci, _ := raw.(map[string]any)
+		attributes, _ := ci["attributes"].(map[string]any)
+		if len(attributes) == 0 && ci["owner_account_id"] == nil && ci["owner_group_id"] == nil && ci["review_due"] == nil {
+			bare[str(ci["name"])] = str(ci["id"])
+		}
+	}
+	for _, c := range demoCIs {
+		id := bare[c.name]
+		if id == "" {
+			continue
+		}
+		if len(c.attributes) > 0 {
+			d.write(ctx, "ci attributes "+c.name, "PATCH", "/cis/"+id, map[string]any{"attributes": c.attributes})
+		}
+		d.keep(ctx, id, c)
+		d.counts["configuration items kept"]++
+	}
+}
+
 // cmdb writes the desk's configuration items. They live in the desk's hub and leave with it, so
-// they carry no mark of their own and are written once, with the hub.
+// they carry no mark of their own and are written once, with the hub; a later run only keeps the
+// ones an earlier showcase left bare.
 func (d *demo) cmdb(ctx context.Context, desk demoHub, fresh bool) {
-	if desk.hub == "" || !fresh {
+	if desk.hub == "" {
+		return
+	}
+	if !fresh {
+		d.keepWritten(ctx, desk.hub)
 		return
 	}
 	cis := map[string]string{}
-	ci := func(class, name string) {
-		if made := d.write(ctx, "ci "+name, "POST", "/hubs/"+desk.hub+"/cis", map[string]any{"class": class, "name": name, "attributes": map[string]any{}}); made != nil {
-			cis[name] = str(made["id"])
-			d.counts["configuration items"]++
-		}
-	}
 	relate := func(source, target, kind string) {
 		if cis[source] != "" && cis[target] != "" &&
 			d.write(ctx, "relation "+kind, "POST", "/ci-relations", map[string]any{"source_ci_id": cis[source], "target_ci_id": cis[target], "type": kind}) != nil {
 			d.counts["CI relations"]++
 		}
 	}
-	for _, c := range [][2]string{
-		{"business_service", "Kundenportal"}, {"business_service", "E-Mail & Kalender"},
-		{"application_service", "Portal-Frontend (Nginx)"}, {"application_service", "Portal-API"}, {"application_service", "Exchange Online Connector"},
-		{"server", "lb-01.hh.intern"}, {"server", "app-01.hh.intern"}, {"server", "app-02.hh.intern"}, {"server", "db-01.hh.intern"},
-		{"laptop", "NB-0417 (Mehmet Yılmaz)"}, {"laptop", "NB-0422 (Sofia Rossi)"}, {"network_device", "VPN-Gateway Frankfurt (FortiGate 200F)"},
-	} {
-		ci(c[0], c[1])
+	for _, c := range demoCIs {
+		attributes := c.attributes
+		if attributes == nil {
+			attributes = map[string]any{}
+		}
+		if made := d.write(ctx, "ci "+c.name, "POST", "/hubs/"+desk.hub+"/cis", map[string]any{"class": c.class, "name": c.name, "attributes": attributes}); made != nil {
+			cis[c.name] = str(made["id"])
+			d.counts["configuration items"]++
+			d.keep(ctx, cis[c.name], c)
+		}
 	}
 	for _, r := range [][3]string{
 		{"Kundenportal", "Portal-Frontend (Nginx)", "depends_on"}, {"Kundenportal", "Portal-API", "depends_on"},

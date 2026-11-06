@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // showcaseInstallation answers the showcase's calls as an installation would in shape: every
@@ -25,6 +26,9 @@ type showcaseInstallation struct {
 	removed int
 	periods []any
 	bodies  []showcaseWrite
+	// cis is what the hub's inventory lists; changes are the PUTs and PATCHes the showcase sent.
+	cis     []any
+	changes []showcaseWrite
 }
 
 // showcaseWrite is one create the showcase sent, with its body.
@@ -79,6 +83,8 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 				map[string]any{"id": showcaseMacro, "enabled": true, "trigger": map[string]any{"kind": "MANUAL"},
 					"actions": []any{map[string]any{"kind": "ADD_COMMENT"}}},
 			}})
+		case r.Method == http.MethodGet && strings.HasSuffix(path, "/cis"):
+			answer(map[string]any{"data": s.cis})
 		case r.Method == http.MethodGet && path == "/goal-periods":
 			answer(map[string]any{"data": s.periods})
 		case r.Method == http.MethodPost && path == "/goal-periods":
@@ -103,6 +109,11 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 				var body map[string]any
 				_ = json.Unmarshal(raw, &body)
 				s.bodies = append(s.bodies, showcaseWrite{path: path, body: body, id: fmt.Sprintf("0190a000-0000-7000-8000-%012d", s.next+1)})
+			}
+			if r.Method == http.MethodPut || r.Method == http.MethodPatch {
+				var body map[string]any
+				_ = json.Unmarshal(raw, &body)
+				s.changes = append(s.changes, showcaseWrite{path: r.Method + " " + path, body: body})
 			}
 			s.next++
 			answer(map[string]any{"id": fmt.Sprintf("0190a000-0000-7000-8000-%012d", s.next), "version": 1,
@@ -324,5 +335,83 @@ func TestTheShowcasesDeskOpensWithArticlesARunAndAWaitingChange(t *testing.T) {
 	// The CAB decides one; the other approval stays waiting.
 	if articles < 2 || !pressed || asked < 2 {
 		t.Errorf("%d articles on the portal, macro pressed on the request %v, %d changes asking the CAB", articles, pressed, asked)
+	}
+}
+
+// The desk's inventory is kept (user-experience.md §3.6): every CI has who answers for it and a
+// next review, the hardware its class's attributes, and health finds only two believable things
+// wanting - so the Assets head does not flag every CI.
+func TestTheShowcasesInventoryIsKept(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	made := map[string]showcaseWrite{}
+	for _, w := range s.bodies {
+		if strings.HasPrefix(w.path, "/hubs/") && strings.HasSuffix(w.path, "/cis") {
+			made[w.id] = w
+		}
+	}
+	if len(made) != len(demoCIs) {
+		t.Fatalf("%d CIs made, want %d", len(made), len(demoCIs))
+	}
+	kept, overdue := map[string]bool{}, 0
+	for _, w := range s.changes {
+		id, ok := strings.CutSuffix(strings.TrimPrefix(w.path, "PUT /cis/"), "/compliance")
+		if !ok || made[id].path == "" {
+			continue
+		}
+		if w.body["owner_account_id"] == nil && w.body["owner_group_id"] == nil {
+			t.Errorf("%v has nobody answering for it", made[id].body["name"])
+		}
+		due, _ := w.body["review_due"].(string)
+		if due == "" {
+			t.Errorf("%v has no next review", made[id].body["name"])
+		} else if due < time.Now().UTC().Format(time.DateOnly) {
+			overdue++
+		}
+		kept[id] = true
+	}
+	if len(kept) != len(made) || overdue != 1 {
+		t.Errorf("%d of %d CIs kept, %d reviews overdue, want all and one", len(kept), len(made), overdue)
+	}
+	for _, w := range made {
+		if attributes, _ := w.body["attributes"].(map[string]any); (w.body["class"] == "server" || w.body["class"] == "laptop") &&
+			(attributes["hostname"] == nil || attributes["serial_number"] == nil || attributes["operating_system"] == nil) {
+			t.Errorf("%v lacks its class's attributes: %v", w.body["name"], attributes)
+		}
+	}
+}
+
+// A workspace an earlier showcase filled with bare CIs has them kept on the next run; a CI
+// someone has kept since is left as it is.
+func TestTheShowcaseKeepsTheBareCIsOfAnEarlierRun(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("first run exit %d: %s %s", code, out, errOut)
+	}
+	const bare, owned = "0190a000-0000-7000-8000-0000000c0001", "0190a000-0000-7000-8000-0000000c0002"
+	s.cis = []any{
+		map[string]any{"id": bare, "name": "db-01.hh.intern", "attributes": map[string]any{}},
+		map[string]any{"id": owned, "name": "app-01.hh.intern", "attributes": map[string]any{}, "owner_group_id": "0190a000-0000-7000-8000-0000000c0003"},
+	}
+	s.changes = nil
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("second run exit %d: %s %s", code, out, errOut)
+	}
+	patched, compliance := false, false
+	for _, w := range s.changes {
+		switch w.path {
+		case "PATCH /cis/" + bare:
+			attributes, _ := w.body["attributes"].(map[string]any)
+			patched = attributes["hostname"] == "db-01"
+		case "PUT /cis/" + bare + "/compliance":
+			compliance = w.body["review_due"] != nil
+		case "PATCH /cis/" + owned, "PUT /cis/" + owned + "/compliance":
+			t.Errorf("the kept CI was changed: %s", w.path)
+		}
+	}
+	if !patched || !compliance {
+		t.Errorf("the bare CI: attributes %v, compliance %v", patched, compliance)
 	}
 }
