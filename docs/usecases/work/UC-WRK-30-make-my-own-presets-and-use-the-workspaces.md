@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-06, P-07, P-10]
 state: verified
 tasks: [UX-27, UX-28]
-checked_by: [core/domain/model/work/SavedPreset_test.go, test/integration/structure_preset_test.go, test/integration/installation_presets_offered_test.go, test/integration/presets_test.go, test/integration/starter_test.go, test/integration/starter_set_test.go, core/application/service/config/Starter_test.go, apps/webapp/src/lib/onboarding/order.test.ts, apps/webapp/src/lib/data/presetChoice.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/workspace/starterSet.test.ts, apps/webapp/e2e/presets.test.mjs, apps/webapp/e2e/starter.test.mjs]
+checked_by: [core/domain/model/work/SavedPreset_test.go, test/integration/structure_preset_test.go, test/integration/installation_presets_offered_test.go, test/integration/presets_test.go, test/integration/starter_test.go, test/integration/starter_set_test.go, core/application/service/config/Starter_test.go, apps/webapp/src/lib/onboarding/order.test.ts, apps/webapp/src/lib/data/presetChoice.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/workspace/starterSet.test.ts, apps/webapp/e2e/presets.test.mjs, apps/webapp/e2e/starter.test.mjs, core/application/service/work/SavedPresetDesk_test.go, core/application/service/work/CloseStarter_test.go]
 ---
 
 # Make my own presets and use the workspace's
