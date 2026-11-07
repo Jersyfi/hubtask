@@ -199,6 +199,36 @@ export function moveStatus(shape: WorkflowShape, key: string, by: -1 | 1): Workf
   return { ...shape, statuses };
 }
 
+/** Moves a status to a place in the order, as a block dragged or moved by the keys asks. */
+export function moveStatusTo(shape: WorkflowShape, key: string, to: number): WorkflowShape {
+  const at = shape.statuses.findIndex((status) => status.key === key);
+  if (at < 0) return shape;
+  const statuses = shape.statuses.filter((status) => status.key !== key);
+  statuses.splice(Math.max(0, Math.min(to, statuses.length)), 0, shape.statuses[at] as WorkflowStatus);
+  return { ...shape, statuses };
+}
+
+/**
+ * How many statuses and steps a draft adds, removes or changes against what is in force, and
+ * whether it starts new entries elsewhere: the draft bar's *n changes* (page-system §7.4). A
+ * status moved in the order counts once.
+ */
+export function changesBetween(draft: WorkflowShape, published: WorkflowShape): number {
+  const count = <T extends { readonly key: string }>(mine: readonly T[], theirs: readonly T[]) => {
+    const before = new Map(theirs.map((each) => [each.key, JSON.stringify(each)]));
+    const after = new Set(mine.map((each) => each.key));
+    const changed = mine.filter((each) => before.get(each.key) !== JSON.stringify(each)).length;
+    return changed + theirs.filter((each) => !after.has(each.key)).length;
+  };
+  const order = (statuses: readonly WorkflowStatus[]) => statuses.map((status) => status.key);
+  const shared = (list: readonly string[], other: readonly string[]) => list.filter((key) => other.includes(key));
+  const ours = shared(order(draft.statuses), order(published.statuses));
+  const theirs = shared(order(published.statuses), order(draft.statuses));
+  const moved = ours.filter((key, index) => theirs[index] !== key).length > 0 ? 1 : 0;
+  const initial = (draft.initial ?? null) !== (published.initial ?? null) ? 1 : 0;
+  return count(draft.statuses, published.statuses) + count(draft.steps, published.steps) + moved + initial;
+}
+
 /** Adds a step from some statuses - none for any - to one. */
 export function addStep(shape: WorkflowShape, from: readonly string[], to: string, name = ''): WorkflowShape {
   const key = keyOf(name || `to_${to}`, shape.steps.map((step) => step.key));

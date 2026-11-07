@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import type { WorkflowList, WorkflowShape } from '@hubtask/sync-engine';
 
 import {
-  addApprovalLevel, addStatus, addStep, changeApproval, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
+  addApprovalLevel, addStatus, addStep, changeApproval, changeStatus, changesBetween, moveStatusTo, changeApprovalLevel, checkMessage, completes, layout, moveStatus, removeApprovalLevel,
   removeStatus, shippedCopy, standing, startingDraft, stepsFrom, toggleApproval, workflowChoices, workflowCopyKey, workflowFor, workflowsAtHub, boardShapeIn, workflowsIn,
 } from './workflows.ts';
 
@@ -179,4 +179,20 @@ test('a collection names every workflow its types run there, each once, the coll
   assert.deepEqual(workflowsIn(list, 'col', 'hub').map((each) => each.key), ['own', 'story']);
   assert.deepEqual(workflowsIn(list, 'other', undefined), []);
   assert.deepEqual(workflowsIn(undefined, 'col', 'hub'), []);
+});
+
+test('the draft bar counts each status and step added, removed or changed, a new order and a new start once', () => {
+  assert.equal(changesBetween(shape, shape), 0);
+  assert.equal(changesBetween(addStatus(shape, 'Review', 'IN_PROGRESS'), shape), 1);
+  assert.equal(changesBetween(removeStatus(shape, 'in_progress'), shape), 1 + shape.steps.filter((step) => step.to === 'in_progress' || step.from?.includes('in_progress')).length);
+  assert.equal(changesBetween(changeStatus(shape, 'done', { name: 'Finished' }), shape), 1);
+  assert.equal(changesBetween(moveStatus(shape, 'done', -1), shape), 1);
+  assert.equal(changesBetween({ ...shape, initial: 'in_progress' }, shape), 1);
+  assert.equal(changesBetween(addStep(shape, [], 'done', 'Close'), shape), 1);
+});
+
+test('a status moves to the place a block is dropped at, and stays inside the list', () => {
+  assert.deepEqual(moveStatusTo(shape, 'done', 0).statuses.map((status) => status.key), ['done', 'todo', 'in_progress']);
+  assert.deepEqual(moveStatusTo(shape, 'todo', 9).statuses.map((status) => status.key), ['in_progress', 'done', 'todo']);
+  assert.equal(moveStatusTo(shape, 'missing', 0), shape);
 });
