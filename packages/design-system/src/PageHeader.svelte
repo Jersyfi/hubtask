@@ -35,7 +35,11 @@
   export interface PageAction {
     readonly label: string;
     readonly icon?: IconName;
-    readonly onclick: () => void;
+    /**
+     * What a press does. Absent on a primary whose only answer is its `menu` - *New ▾* -, which
+     * is then one button that opens the list.
+     */
+    readonly onclick?: () => void;
     readonly disabledReason?: string;
     /** For the tour and for tests: the attribute the caller finds the control by. */
     readonly tour?: string;
@@ -58,7 +62,7 @@
     title: string;
     subtitle?: string;
     /** The trail above the title, with its own two names (see `Breadcrumb`). */
-    breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void };
+    breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void; mark?: Snippet<[Crumb]> };
     /** The one thing one does here most. */
     primary?: PageAction;
     /** At most two; the third belongs in the menu, and the type says so. */
@@ -95,6 +99,8 @@
      * title, which has room for the words alone.
      */
     mark?: Snippet;
+    /** What stands right after the title on its line: the place's star (the navigation concept's head). */
+    titleEnd?: Snippet;
     /** Lines under the title: an archived notice, a refusal. The caller's `role="alert"` travels with them. */
     notices?: Snippet;
     /** The second row: a `ViewSwitcher`, `Tabs`, or nothing. */
@@ -119,6 +125,7 @@
     onmenu,
     figure,
     mark,
+    titleEnd,
     notices,
     views,
     aside,
@@ -152,7 +159,7 @@
     const fromPrimary = /^primary-(.+)$/.exec(id);
     if (fromPrimary) return primary?.menu?.onselect(fromPrimary[1] ?? '');
     const match = /^secondary-(\d+)$/.exec(id);
-    if (match) secondary[Number(match[1])]?.onclick();
+    if (match) secondary[Number(match[1])]?.onclick?.();
     else menu?.onselect(id);
   }
 
@@ -199,28 +206,13 @@
 </script>
 
 {#snippet actionBar()}
+    <!-- The place's own controls, the other verbs, the menu, and the one primary last, at the
+         head's end (the navigation concept's mockup). -->
     <div class="actions">
       {#if aside}<span class="aside">{@render aside()}</span>{/if}
-      {#if primary}
-        <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
-          <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
-            {primary.label}
-          </Button>
-          {#if primary.menu && primary.menu.items.length > 0}
-            {@const submenu = primary.menu}
-            <span class="primary-more">
-              <Menu label={submenu.label} items={submenu.items} placement={{ side: 'block-end', align: 'end' }} onselect={submenu.onselect}>
-                {#snippet trigger(props)}
-                  <IconButton icon="chevron-down" label={submenu.label} tone="primary" {...props} />
-                {/snippet}
-              </Menu>
-            </span>
-          {/if}
-        </span>
-      {/if}
       {#each secondary as action, index (index)}
         <span class="secondary">
-          <Button tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
+          <Button size="sm" tone="secondary" icon={action.icon} onclick={action.onclick} disabledReason={action.disabledReason} data-tour={action.tour} data-opener={action.opener}>
             {action.label}
           </Button>
         </span>
@@ -229,7 +221,7 @@
         <span class="menu menu-full">
           <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu.label} size="sm" data-opener={isFolded ? undefined : menu.opener} {...props} />
+              <IconButton icon="ellipsis" label={menu.label} size="sm" tone="secondary" data-opener={isFolded ? undefined : menu.opener} {...props} />
             {/snippet}
           </Menu>
         </span>
@@ -238,9 +230,38 @@
         <span class="menu menu-folded">
           <Menu label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} size="sm" data-opener={isFolded ? menu?.opener : undefined} {...props} />
+              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} size="sm" tone="secondary" data-opener={isFolded ? menu?.opener : undefined} {...props} />
             {/snippet}
           </Menu>
+        </span>
+      {/if}
+      {#if primary && !primary.onclick && primary.menu}
+        {@const only = primary.menu}
+        <!-- A primary that is a list: one button that opens it, its chevron saying so. -->
+        <span class="primary">
+          <Menu label={only.label} items={only.items} placement={{ side: 'block-end', align: 'end' }} onselect={only.onselect}>
+            {#snippet trigger(props)}
+              <Button size="sm" tone="primary" icon={primary.icon} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener} {...props}>
+                {primary.label}<Icon name="chevron-down" size="sm" />
+              </Button>
+            {/snippet}
+          </Menu>
+        </span>
+      {:else if primary}
+        <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
+          <Button size="sm" tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
+            {primary.label}
+          </Button>
+          {#if primary.menu && primary.menu.items.length > 0}
+            {@const submenu = primary.menu}
+            <span class="primary-more">
+              <Menu label={submenu.label} items={submenu.items} placement={{ side: 'block-end', align: 'end' }} onselect={submenu.onselect}>
+                {#snippet trigger(props)}
+                  <IconButton icon="chevron-down" label={submenu.label} size="sm" tone="primary" {...props} />
+                {/snippet}
+              </Menu>
+            </span>
+          {/if}
         </span>
       {/if}
     </div>
@@ -250,7 +271,7 @@
   {#if breadcrumb}
     <div class="top">
       <div class="trail">
-        <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} />
+        <Breadcrumb label={breadcrumb.label} trail={breadcrumb.trail} expandLabel={breadcrumb.expandLabel} onnavigate={breadcrumb.onnavigate} mark={breadcrumb.mark} />
       </div>
       {#if parent}
         <!-- The way up, on a phone: one link, the parent, with the chevron pointing along the
@@ -273,10 +294,11 @@
     <div class="titles">
       {#if isTitleInBar}
         <VisuallyHidden as="h1">{title}</VisuallyHidden>
-      {:else if mark}
+      {:else if mark || titleEnd}
         <div class="title-line">
-          <span class="title-mark" aria-hidden="true">{@render mark()}</span>
+          {#if mark}<span class="title-mark" aria-hidden="true">{@render mark()}</span>{/if}
           <h1 class="title">{title}</h1>
+          {#if titleEnd}<span class="title-end">{@render titleEnd()}</span>{/if}
         </div>
       {:else}
         <h1 class="title">{title}</h1>
@@ -306,7 +328,7 @@
 
   .row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--sp-200);
     flex-wrap: wrap;
   }
@@ -335,8 +357,8 @@
   .title {
     margin: 0;
     font-family: var(--font-display);
-    font-size: var(--fs-500);
-    font-weight: var(--fw-semibold);
+    font-size: var(--fs-450);
+    font-weight: var(--fw-bold);
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
     text-wrap: balance;
@@ -349,7 +371,8 @@
     min-width: 0;
   }
 
-  .title-mark { display: inline-flex; flex: none; }
+  .title-mark,
+  .title-end { display: inline-flex; flex: none; }
 
   .subtitle {
     margin: 0;

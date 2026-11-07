@@ -46,17 +46,18 @@
   ];
 </script>
 
+{#snippet hubTile()}<span class="tile small"><Icon name="house" size="sm" /></span>{/snippet}
+
 <Stack gap="300">
   {#if mode === 'hub'}
     <PageHeader
       title="Private"
       subtitle="Everything at home, and the people who help with it."
-      breadcrumb={{ trail: trail.slice(0, 2), label: 'Where you are', expandLabel: 'Show every level' }}
-      primary={{ label: 'Create a collection', icon: 'plus', onclick: () => (chosen = 'create') }}
-      secondary={[{ label: 'Import', icon: 'cloud-upload', onclick: () => (chosen = 'import') }]}
+      breadcrumb={{ trail: trail.slice(1, 2), label: 'Where you are', expandLabel: 'Show every level', mark: hubTile }}
+      primary={{ label: 'New', icon: 'plus', menu: { label: 'New', items: [{ id: 'collection', label: 'Collection', icon: 'collection' }, { id: 'page', label: 'Page', icon: 'file-text' }, { id: 'board', label: 'Whiteboard', icon: 'layout-template' }], onselect: (id) => (chosen = id) } }}
       menu={{ label: 'More for this hub', items: menu.filter((item) => !['labels', 'fields', 'views', 'templates', 'policies'].includes(item.id)), onselect: (id) => (chosen = id) }}
     >
-      {#snippet mark()}<span class="tile"><Icon name="house" size="md" /></span>{/snippet}
+      {#snippet titleEnd()}<IconButton icon="star" label="Unstar Private" size="sm" onclick={() => (chosen = 'star')} />{/snippet}
     </PageHeader>
   {:else}
     <PageHeader
@@ -114,5 +115,6 @@
     background: var(--label-magenta-bg);
     color: var(--label-magenta-fg);
   }
+  .tile.small { padding: var(--sp-025); border-radius: var(--r-xs); }
   .state { margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
 </style>
