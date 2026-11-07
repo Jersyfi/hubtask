@@ -43,6 +43,6 @@ export const filtered: Story = {
 
 export const log: Story = {
   name: 'Grouped by day',
-  about: 'A log’s rows: a sunken group row where the day changes, words instead of keys, a row that opens its record in a dialog, and `LoadMore` at the foot.',
+  about: 'A log’s rows: a sunken group row where the day changes, words instead of keys, a row that opens its record in a dialog, and `LoadMore` at the foot, saying once what arrived.',
   args: { mode: 'log' },
 };

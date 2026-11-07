@@ -89,7 +89,7 @@
     /** *Showing 50 of 1 240*. */
     shownLabel?: string;
     /** What continues the list: `LoadMore`'s props. */
-    more?: { label: string; busyLabel?: string; hasMore?: boolean; isBusy?: boolean; endLabel?: string; failedLabel?: string; onLoadMore?: () => void };
+    more?: { label: string; busyLabel?: string; hasMore?: boolean; isBusy?: boolean; arrivedLabel?: string; endLabel?: string; failedLabel?: string; onLoadMore?: () => void };
     /** Rows per page, 25 · 50 · 100; the device keeps the choice. */
     perPage?: { label: string; value: number; onchange: (value: number) => void };
   }

@@ -24,7 +24,7 @@
     onopen={() => {}}
     group={(record: AuditRecord) => record.day}
     shownLabel="Showing 50 · more to read"
-    more={{ label: 'Show 50 more', hasMore: true }}
+    more={{ label: 'Show 50 more', hasMore: true, arrivedLabel: '' }}
     perPage={{ label: 'Rows per page', value: 50, onchange: () => {} }}
   >
     {#snippet cell(record: AuditRecord, column)}
