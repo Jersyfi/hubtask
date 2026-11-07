@@ -32,13 +32,11 @@
     Input,
     ListPage,
     OneTimeSecret,
-    PageHeader,
     Radio,
     RoleBadge,
     Select,
     Spinner,
     Stack,
-    Tabs,
     type DataColumn,
     type DataRowMenu,
     type Filter,
@@ -78,9 +76,10 @@
   /** What *Invite* or *Grant* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
   let missing = $state<Missing>({});
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
   import GroupsView from './GroupsView.svelte';
+  import PeopleStrip from '../lib/people/PeopleStrip.svelte';
+  import { PEOPLE_TABS } from '../lib/people/peoplepage.ts';
   import PermissionsView from './PermissionsView.svelte';
   import RolesView from './RolesView.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -98,16 +97,7 @@
 
   let { tab, person, onnavigate, onopen }: Props = $props();
 
-  // The groups and what each role means are tabs here (ux-inventory §E8): both answer "who may do
-  // what in this workspace", and a reader comparing a group's reach with a role's meaning should
-  // not leave the screen to do it.
-  const TABS = [
-    { id: 'people', code: 'app.people.tab_people' },
-    { id: 'groups', code: 'app.groups.title' },
-    { id: 'roles', code: 'app.people.tab_roles' },
-    { id: 'permissions', code: 'app.people.tab_permissions' },
-  ] as const;
-  const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'people');
+  const current = $derived(PEOPLE_TABS.some((each) => each.id === tab) ? (tab as string) : 'people');
 
   /** Whether the reader may ask what somebody else holds: what `GET /access/explain` asks. */
   const mayViewAs = $derived(holdsHere('MANAGE_MEMBERS') === true || holdsHere('READ_CONFIGURATION') === true);
@@ -125,10 +115,6 @@
       failure = renderProblem(error as never, messages).message;
       viewingScreens = undefined;
     }
-  }
-
-  function select(next: string): void {
-    onnavigate?.(next === 'people' ? '/administration/people' : `/administration/people?tab=${next}`);
   }
 
   // The three ways in - an invitation, an account without an address, a role for somebody already
@@ -705,9 +691,7 @@
 {/snippet}
 
 {#snippet strip()}
-  <!-- The page's one strip of sibling lists (page-system §4.3): a tab replaces the address, so a
-       reload or a link keeps it. -->
-  <Tabs label={t('app.people.title')} selected={current} onselect={select} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))} />
+  <PeopleStrip {current} {onnavigate} />
 {/snippet}
 
 {#if current === 'people'}
@@ -980,32 +964,12 @@
     onConfirm={() => void revoke()}
     onCancel={() => (revoking = undefined)}
   />
+{:else if current === 'groups'}
+  <GroupsView {onnavigate} {onopen} />
+{:else if current === 'roles'}
+  <RolesView {onnavigate} />
 {:else}
-  <!-- The groups, the roles and who may do what keep their own layout until they move to their
-       list pages (page-system §13 step 4). -->
-  <Stack gap="300">
-    <PageHeader
-      title={t('app.people.title')}
-      isTitleInBar={viewport.isCompact}
-      breadcrumb={{
-        trail: [
-          { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-          { id: 'people', label: t('app.people.title') },
-        ],
-        label: t('app.admin.trail'),
-        expandLabel: t('app.admin.expand_trail'),
-      }}
-    />
-    <Tabs label={t('app.people.title')} selected={current} onselect={select} tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}>
-      {#if current === 'groups'}
-        <GroupsView />
-      {:else if current === 'roles'}
-        <RolesView />
-      {:else}
-        <PermissionsView {person} />
-      {/if}
-    </Tabs>
-  </Stack>
+  <PermissionsView {person} {onnavigate} />
 {/if}
 
 <style>
