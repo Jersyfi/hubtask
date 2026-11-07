@@ -68,8 +68,8 @@ test('chromium: 1280 px — the navigation draws each place in its own colour, a
   assert.equal(await tileOf(page, LOOK_PRIVATE_HUB.id), 'magenta');
   assert.equal(await page.locator(`aside.sidenav [data-id="${LOOK_PRIVATE_HUB.id}"] .badge`).getAttribute('title'), 'Private');
 
-  // The page head: the same mark, before the title, decorative beside it.
-  const head = page.locator('header .title-mark');
+  // The page head: the same mark on its trail, decorative beside the name (the navigation concept's head).
+  const head = page.locator('header .breadcrumb li:last-child > .mark');
   assert.equal(await head.getAttribute('aria-hidden'), 'true');
   assert.equal(await head.locator('[data-token]').getAttribute('data-token'), 'amber');
   assert.deepEqual(failures, []);
@@ -113,7 +113,7 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
 
   // Read back: the new hub's row and its page head carry the choice.
   await page.getByRole('heading', { name: 'Garden', level: 1 }).waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('header .title-mark [data-token]').getAttribute('data-token'), 'teal');
+  assert.equal(await page.locator('header .breadcrumb li:last-child > .mark [data-token]').getAttribute('data-token'), 'teal');
   // The new hub opens on its level, its head on the chosen tile.
   await page.locator('aside.sidenav').getByRole('heading', { name: 'Garden' }).waitFor({ timeout: 5_000 });
   assert.equal(await headTileOf(page), 'teal');

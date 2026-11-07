@@ -139,8 +139,9 @@ test('chromium: inside a hub, ＋ on Collections makes a collection in that hub,
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal(await dialog.getByRole('heading', { name: 'Create collection' }).count(), 1, 'the dialog does not make a collection');
-  await dialog.getByRole('radio').first().waitFor({ timeout: 10_000 });
-  assert.ok((await dialog.getByRole('radio').count()) > 0, 'the dialog offers no preset');
+  // The kinds as cards (the navigation concept's *New collection*).
+  await dialog.locator('[data-collection-kind]').first().waitFor({ timeout: 10_000 });
+  assert.ok((await dialog.locator('[data-collection-kind]').count()) > 0, 'the dialog offers no preset');
   await dialog.getByRole('textbox').first().fill('Groceries');
   await dialog.getByRole('button', { name: 'Create collection' }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
