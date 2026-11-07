@@ -114,7 +114,7 @@ test('chromium: the column counts a webhook switched off after failures', async 
     : stub(route)));
 
   await page.goto(`${served.origin}/administration/people`);
-  const column = page.getByRole('navigation', { name: 'Administration' });
+  const column = page.getByRole('navigation', { name: 'Administration', exact: true });
   await column.getByText('1 switched off').waitFor({ timeout: 10_000 });
   assert.equal(await column.getByRole('treeitem', { name: /Webhooks.*1 switched off/ }).count(), 1, 'the figure is not heard with the row');
   assert.deepEqual(failures, []);
