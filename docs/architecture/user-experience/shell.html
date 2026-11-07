@@ -2,7 +2,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!--
   Mockup of docs/architecture/user-experience.md §2, §5.1, §7.4 and §7.9: the column's five bands,
-  a product home (the service desk's queue), a hub with its tab strip, and the phone's bars.
+  a product home (the service desk's queue), a hub's overview without tabs (the navigation concept,
+  ADR-0100), and the phone's bars.
   Draws the generated token sheet only (rule 15); run `make tokens` before opening it.
   A picture to build from: none of the names or figures are real.
 -->
@@ -54,11 +55,15 @@
   .head { display: flex; align-items: center; gap: var(--sp-200); flex-wrap: wrap; margin: var(--sp-100) 0 var(--sp-200); }
   .head h1 { font-family: var(--font-display); font-size: var(--fs-600); margin: 0; }
   .head .figure { color: var(--text-secondary); }
-  .head .sp, .toolbar .sp { flex: 1; }
+  .head .sp, .toolbar .sp, .line .sp { flex: 1; }
   .btn { border: var(--bw-hairline) solid var(--border-default); background: var(--bg-surface); border-radius: var(--r-md); padding: var(--sp-050) var(--sp-200); }
   .split { display: inline-flex; }
   .split .btn { border-radius: var(--r-md) 0 0 var(--r-md); background: var(--accent-primary); color: var(--text-inverse); border-color: var(--accent-primary); box-shadow: var(--shadow-glow); }
   .split .btn + .btn { border-radius: 0 var(--r-md) var(--r-md) 0; border-inline-start: var(--bw-hairline) solid var(--accent-primary-hover); box-shadow: none; }
+  .lines { display: grid; gap: var(--sp-100); margin-bottom: var(--sp-200); }
+  .line { display: flex; gap: var(--sp-150); align-items: center; padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
+  .line span:not(.sp) { color: var(--text-secondary); }
+  .line a { color: var(--text-brand); }
   .tabs { display: flex; gap: var(--sp-050); border-bottom: var(--bw-hairline) solid var(--border-subtle); margin-bottom: var(--sp-200); overflow-x: auto; }
   .tabs a { padding: var(--sp-100) var(--sp-200); color: var(--text-secondary); text-decoration: none; border-bottom: var(--bw-thick) solid transparent; white-space: nowrap; }
   .tabs a[aria-current="page"] { color: var(--text-brand); border-bottom-color: var(--accent-primary); font-weight: var(--fw-medium); }
@@ -86,7 +91,6 @@
   .card h3 { margin: 0; font-size: var(--fs-300); }
   .card .figs { display: flex; gap: var(--sp-150); flex-wrap: wrap; color: var(--text-secondary); font-size: var(--fs-100); }
   .card .figs b { color: var(--text-primary); }
-  .card.dashed { box-shadow: none; border: var(--bw-thick) dashed var(--border-default); color: var(--text-subtle); place-items: center; }
   .activity { margin-top: var(--sp-300); display: grid; gap: var(--sp-100); color: var(--text-secondary); }
 
   .phone { width: var(--layout-pane-width); max-width: 100%; margin: var(--sp-300) auto; border: var(--bw-thick) solid var(--border-strong); border-radius: var(--r-2xl); overflow: hidden; background: var(--bg-canvas); display: grid; grid-template-rows: auto 1fr auto; min-height: 60%; }
@@ -106,7 +110,7 @@
 <body>
 <div class="scenes" role="toolbar" aria-label="Scenes">
   <button data-scene="desk" aria-pressed="true">Product home: Service desk</button>
-  <button data-scene="hub" aria-pressed="false">A hub with its tab strip</button>
+  <button data-scene="hub" aria-pressed="false">A hub's overview</button>
   <button data-scene="phone" aria-pressed="false">Phone</button>
   <button id="theme" aria-pressed="false">Dark</button>
   <span class="note">user-experience.md §2, §5.1, §7.4, §7.9</span>
@@ -176,26 +180,29 @@
     </section>
 
     <section class="scene" id="hub">
-      <div class="trail">Hubs › Product development and delivery</div>
+      <div class="trail">Product development and delivery</div>
       <div class="head">
-        <h1>Product development and delivery</h1><span class="figure">62 % · next milestone: go-live 14 Nov</span><span class="sp"></span>
+        <h1>Product development and delivery</h1><button class="btn" aria-label="Star" aria-pressed="true">★</button><span class="sp"></span>
         <span class="av">TB</span><span class="av">CN</span><span class="av">+5</span>
         <button class="btn" aria-label="Manage this hub">⋯</button>
-        <span class="split"><button class="btn">＋ Create collection</button><button class="btn" aria-label="From a template…">▾</button></span>
+        <button class="btn">New ▾</button>
       </div>
-      <nav class="tabs" aria-label="Product development and delivery"><a aria-current="page">Overview</a><a>Plan</a><a>Pages</a><a>Whiteboards</a><a>Time</a><a>Goals</a></nav>
+      <div class="lines">
+        <div class="line"><b>Plan</b><span>Sprint 42 · 6 days left · Release 3.2 on Nov 21</span><span class="sp"></span><a>Plan ›</a></div>
+        <div class="line"><b>Contents</b><span>14 pages · 3 whiteboards</span><span class="sp"></span><a>All contents ›</a></div>
+        <div class="line"><b>Goals</b><span>5 goals · 1 at risk</span><span class="sp"></span><a>Goals ›</a></div>
+      </div>
       <div class="cards">
-        <div class="card"><h3>Team Atlas</h3><div class="figs"><span><b>Sprint 42</b> · 6 days left</span><span><b>21/34</b> points</span></div></div>
-        <div class="card"><h3>Project plan</h3><div class="figs"><span><b>5</b> open</span><span><b>1</b> overdue</span><span>ends <b>10 Jun 2027</b></span></div></div>
+        <div class="card"><h3>Team Atlas</h3><div class="figs"><span><b>18</b> open · Sprint 42</span><span><b>21/34</b> points</span></div></div>
+        <div class="card"><h3>Project plan</h3><div class="figs"><span><b>5</b> open</span><span><b>1</b> overdue</span></div></div>
         <div class="card"><h3>Content board Q4</h3><div class="figs"><span><b>7</b> open</span><span><b>2</b> in progress</span></div></div>
-        <div class="card dashed">＋ Create collection</div>
       </div>
       <div class="activity">
         <b>This week</b>
         <span>3 pages changed in the handbook · Sprint 42 started Monday · 14:20 h recorded</span>
         <span>Anna moved “Design review” to Done · Tom added 2 entries to Project plan</span>
       </div>
-      <p class="explain">The hub's tab strip (§2.4) is fixed: Overview · Plan · Pages · Whiteboards · Desk · Assets · Time · Goals, each only where its module is on, never a header button chosen by position and never in the ⋯ menu, which holds only verbs on the hub. The overview's cards carry their figures (§7.9).</p>
+      <p class="explain">A hub has no tab strip (ADR-0100): its tools — Plan, Queues, Inventory, Time, Goals, each only where its module is on — and its contents are the sidebar's hub level, each a page of its own with one view bar. The overview says one line per tool with the tool at its end, then the collections as cards with their figures (§7.9). ☆ stands after the title; <i>New ▾</i> makes a collection, a page or a whiteboard, what the reader may; ⋯ holds only verbs on the hub.</p>
     </section>
 
     <section class="scene" id="phone">
