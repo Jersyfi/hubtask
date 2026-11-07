@@ -165,6 +165,17 @@ export function actsAsDesk(types: readonly EntryType[], offered: readonly string
     .some((type) => offered.includes(type.key) && (type.form?.channels ?? []).some((rule) => rule.channel === 'PORTAL' && rule.closed !== true));
 }
 
+/**
+ * The request types a new desk offers (the *Desk* kind of a new collection, the navigation
+ * concept §5.1): the hub's task types whose form leaves the requester portal open. Offering them
+ * by name is what makes the collection act as a desk; none means the hub has no portal type yet.
+ */
+export function portalTypesOf(types: readonly EntryType[], hub: string): string[] {
+  return offeredTypes(types, 'TASK', undefined, hub)
+    .filter((type) => (type.form?.channels ?? []).some((rule) => rule.channel === 'PORTAL' && rule.closed !== true))
+    .map((type) => type.key);
+}
+
 /** A portal the signed-in account uses as a requester (`portals` on `GET /accounts/me`). */
 export interface PortalPlace { readonly collection_id: string; readonly name: string }
 

@@ -48,6 +48,8 @@
 
   import { containers } from '../data/containers.svelte.ts';
   import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
+  import { entryTypes } from '../data/entrytypes.svelte.ts';
+  import { portalTypesOf } from '../portal/portal.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
@@ -192,6 +194,16 @@
         ],
   );
 
+  // *Desk* (the navigation concept §5.1): a collection that offers the hub's portal types by name,
+  // which is what makes it a desk; it starts from *Tasks*. Without a portal type in the hub the card
+  // says so instead of offering a desk nobody could ask through.
+  const DESK = 'desk';
+  $effect(() => {
+    if (!isOpen || isHub) return;
+    return untrack(() => entryTypes.open());
+  });
+  const deskTypes = $derived(isHub || !parentId ? [] : portalTypesOf(entryTypes.all, parentId));
+
   // Without presets answered, the *Simple* family is the workspace's default alone, so a template
   // chosen can always be unchosen.
   const simple = $derived(presetOptions.length > 0 ? presetOptions
@@ -252,10 +264,13 @@
           description: description.trim() === '' ? null : description.trim(),
           ...lookBody(symbol, colour),
           ...(isPrivateHubOnly || (isPrivacyOffered && isPrivate) ? { private: true } : {}),
-          ...presetChoice(preset),
+          ...(preset === DESK ? { preset: 'TASKS' as const } : presetChoice(preset)),
         },
         crypto.randomUUID(),
       );
+      if (preset === DESK && deskTypes.length > 0) {
+        await containers.setStructure(created.id, { settings: { entry_types: { TASK: deskTypes } } }, created.version);
+      }
       // It appears because the write invalidated the level and the engine re-read it. Nothing is
       // inserted into the sidebar or the list by hand.
       isOpen = false;
@@ -356,6 +371,15 @@
               {/snippet}
             </TemplateCard>
           {/each}
+          {@const isDesk = preset === DESK}
+          <TemplateCard name={t('app.workspace.kind_desk')} summary={deskTypes.length > 0 ? t('app.workspace.kind_desk_about') : t('app.workspace.kind_desk_needs')} isChosen={isDesk} isCompact data-collection-kind={DESK}>
+            {#snippet action()}
+              <Button size="sm" tone={isDesk ? 'primary' : 'secondary'} icon={isDesk ? 'check' : undefined} aria-pressed={isDesk}
+                disabledReason={deskTypes.length > 0 ? undefined : t('app.workspace.kind_desk_needs')} onclick={() => (preset = DESK)}>
+                {t(isDesk ? 'app.workspace.hub_template_chosen' : 'app.workspace.hub_template_choose')}<VisuallyHidden>{` ${t('app.workspace.kind_desk')}`}</VisuallyHidden>
+              </Button>
+            {/snippet}
+          </TemplateCard>
         </TemplateGallery>
       </div>
     {/if}

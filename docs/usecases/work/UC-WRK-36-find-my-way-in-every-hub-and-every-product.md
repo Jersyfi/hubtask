@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-10, P-12, P-13, P-17]
 state: partial
 tasks: []
-checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts]
+checked_by: [apps/webapp/src/lib/navigation.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, apps/webapp/src/lib/routes.test.ts, apps/webapp/src/lib/product/home.test.ts, apps/webapp/src/lib/portal/portal.test.ts]
 ---
 
 # Find my way in every hub and every product
@@ -72,6 +72,10 @@ three lists, nothing else.
     least 44 pixels, and every sheet has a heading and *Close*.
 16. Between 600 and 904 pixels the sidebar is a drawer with both levels and no bottom bar.
 17. A workspace in which no module is on shows no hub tool and no *Contents* in any hub (D1).
+18. Creating a collection in a hub (*New ▾ → Collection*), a member sees the kinds and *Desk*.
+    *Desk* makes a collection that starts from *Tasks* and offers the hub's request types open to
+    the portal, so it acts as a desk; in a hub without such a type, *Desk* says *Needs a portal
+    type in the hub* and cannot be chosen.
 
 ## Where it ends
 
@@ -91,12 +95,13 @@ three lists, nothing else.
 * Check 6: met — `kompass.test.mjs` (the desk mark, the sprint mark, the figures); *n more* from 15 and the filter from 20 are `NavGroup`'s bounds, set from `sidebar.ts`.
 * Check 7: met — `kompass.test.mjs` (Plan to Plan; a hub without the tool opens its overview; the search); `navigation.test.ts` (`switchPath`).
 * Check 8: met — `kompass.test.mjs` (the kept width, a double-click to 264, the drag bounded at 400, `Ctrl+[`, the peek opening and closing).
-* Check 9: met in part — `kompassscreens.test.mjs` (Plan's, Goals' and Inventory's one bar, *Manage* a menu; a collection's bar, its former *Plan* its *Timeline*), `placeViews.test.ts`; the product homes' bars keep their present tabs (check 11).
-* Check 10: met in part — `kompassscreens.test.mjs` (no tab, the tools' lines, the collection cards); the cards draw no progress bar (no read answers it) and *Recently changed* is `HubActivity`'s, not walked.
-* Check 11: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 9: met — `kompassscreens.test.mjs` (Plan's, Goals' and Inventory's one bar, *Manage* a menu among the parts; a collection's bar, its former *Plan* its *Timeline*), `placeViews.test.ts`; the product homes' bars `home.test.ts`.
+* Check 10: met in part — `kompassscreens.test.mjs` (no tab, the tools' lines, the collection cards with their figures); *Recently changed* is `HubActivity`'s, not walked.
+* Check 11: met in part — `home.test.ts` (`homeTabs`: the eight homes' tabs, *For you* first, *Settings* last, *Roadmaps* on Plans); whether *Settings* is left out for a reader who may not read them is not walked.
 * Check 12: met — `routes.test.ts` (every former address and where it goes) and `kompassscreens.test.mjs` (each address walked, the desk's to the first queue, the pages' to the home page).
 * Check 13: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 14: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 15: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 16: not met — built in step 6 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 17: met — `kompass.test.mjs` (no tool, no *Contents*) and `navigation.test.ts` (`hubTools` with nothing on).
+* Check 18: met — `kompassscreens.test.mjs` (*Desk* chosen sends *Tasks* and the hub's portal type as the collection's request types; without a portal type the card says so and its *Choose* is disabled); `portal.test.ts` (`portalTypesOf`).
