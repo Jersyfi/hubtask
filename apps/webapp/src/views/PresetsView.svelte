@@ -2,27 +2,22 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // The workspace's *Templates* (configuration/ui.md §4): the gallery of every template by origin,
-  // above the presets it holds as their structure part (UC-WRK-30 checks 3, 4): its saved presets - renamed and withdrawn
-  // here, changed from a collection's *Save as preset* -, the preset a new hub starts from, and the
-  // settings locked for every hub and collection.
+  // above the presets it holds as their structure part (UC-WRK-30 check 3): its saved presets -
+  // renamed and withdrawn here, changed from a collection's *Save as preset*. The preset a new hub
+  // starts from and the locks are the workspace screen's *New hubs* (page-system §9.1).
   //
   // **What was made from a preset keeps its settings.** A preset is copied, never followed, so
   // renaming or withdrawing one changes no hub or collection; the screen says so once.
   //
   // **The default is not withdrawn from under the workspace.** Its *Withdraw* stays, unavailable,
   // with the reason (design-system.md §4, case 2) - the server refuses it too.
-  //
-  // **A lock is a whole set.** `PATCH /tenant/structure` takes every workspace lock at once, so the
-  // capability locks - one field of one level, set on the *Structure* panel's locks - travel back
-  // as they are and are shown, not offered: this screen locks whole settings. The installation's
-  // and the plan's locks are not the workspace's to lift; they are shown with where they come from.
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Button, CheckboxGroup, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { EmptyState, Button, Input, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
   import type { Preset, TransportError } from '@hubtask/sync-engine';
 
-  import { presetChoice, presetName, presets, presetValue } from '../lib/data/presets.svelte.ts';
+  import { presets } from '../lib/data/presets.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -30,7 +25,6 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import TemplatesGallery from '../lib/settings/TemplatesGallery.svelte';
-  import { SETTINGS } from '../lib/workspace/structureDraft.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
@@ -47,17 +41,6 @@
   const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let busy = $state<string | undefined>(undefined);
-
-  /**
-   * The default as it is chosen: Hubtask's key or a workspace preset's id, or empty for none. Not
-   * the installation's: it can be withdrawn without the workspace knowing, and a default naming
-   * nothing would break every new hub - the server refuses it, so it is not offered.
-   */
-  const defaultValue = $derived(structure?.default_preset ?? structure?.default_preset_id ?? '');
-  const defaultOptions = $derived([
-    { value: '', label: t('app.presets.default_none') },
-    ...presets.all.filter((preset) => preset.origin === 'HUBTASK' || preset.origin === 'WORKSPACE').map((preset) => ({ value: presetValue(preset), label: presetName(preset) })),
-  ]);
 
   /** Names typed for a rename, by preset id. */
   let names = $state<Record<string, string>>({});
@@ -85,38 +68,6 @@
   function withdraw(preset: Preset) {
     if (!preset.id) return;
     void act(`withdraw-${preset.id}`, () => presets.withdraw(preset.id ?? '', preset.version ?? 0), 'app.presets.withdrawn');
-  }
-
-  function chooseDefault(value: string) {
-    if (value === defaultValue) return;
-    const choice = presetChoice(value);
-    const body = choice.preset_id ? { default_preset_id: choice.preset_id } : { default_preset: choice.preset ?? null };
-    void act('default', () => workspace.changeStructure(body), 'app.presets.default_saved');
-  }
-
-  /** The workspace's own locks: on a whole setting, and on one field of one level. */
-  const workspaceLocks = $derived(
-    Object.entries(structure?.locks ?? {}).filter(([, lock]) => lock.origin === 'WORKSPACE').map(([key]) => key),
-  );
-  const lockedSettings = $derived(workspaceLocks.filter((key) => !key.includes('.')));
-  const fieldLocks = $derived(workspaceLocks.filter((key) => key.includes('.')));
-  /** Locks the workspace cannot lift: the installation's and the plan's. */
-  const lockedAbove = $derived(
-    Object.entries(structure?.locks ?? {}).filter(([, lock]) => lock.origin !== 'WORKSPACE').map(([key, lock]) => ({ key, origin: lock.origin })),
-  );
-  const lockOptions = $derived(
-    SETTINGS.map((setting) => {
-      const above = lockedAbove.find((lock) => lock.key === setting);
-      return {
-        value: setting,
-        label: t(`app.structure.setting.${setting}`),
-        ...(above ? { disabledReason: t('app.presets.locked_above', { origin: t('app.structure.locked_origin', { origin: above.origin }) }) } : {}),
-      };
-    }),
-  );
-
-  function chooseLocks(selected: readonly string[]) {
-    void act('locks', () => workspace.changeStructure({ locks: [...selected, ...fieldLocks] }), 'app.presets.locks_saved');
   }
 </script>
 
@@ -196,29 +147,6 @@
           {/if}
         </section>
 
-        <section class="block" aria-labelledby="presets-default" data-presets-default>
-          <h2 id="presets-default">{t('app.presets.default_title')}</h2>
-          <Select
-            label={t('app.presets.default_label')}
-            hint={t('app.presets.default_hint')}
-            options={defaultOptions}
-            bind:value={() => defaultValue, (value) => chooseDefault(value)}
-          />
-        </section>
-
-        <section class="block" aria-labelledby="presets-locks" data-presets-locks>
-          <h2 id="presets-locks">{t('app.presets.locks_title')}</h2>
-          <CheckboxGroup
-            label={t('app.presets.locks_label')}
-            hint={t('app.presets.locks_hint')}
-            options={lockOptions}
-            selected={lockedSettings}
-            onChange={chooseLocks}
-          />
-          {#if fieldLocks.length > 0}
-            <p class="quiet" data-field-locks>{t('app.presets.field_locks', { count: String(fieldLocks.length) })}</p>
-          {/if}
-        </section>
       </Stack>
     </WorkspaceGate>
   {/if}

@@ -195,7 +195,7 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
   assert.deepEqual(failures, []);
 });
 
-test("chromium: the workspace's Presets - rename, withdraw, the default kept, the default chosen, a lock set (checks 3, 4)", async (t) => {
+test("chromium: the workspace's Presets - rename, withdraw, the default kept; New hubs - the default chosen, a lock set (checks 3, 4)", async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures, written } = await as(browser, 'OWNER');
@@ -227,12 +227,18 @@ test("chromium: the workspace's Presets - rename, withdraw, the default kept, th
   assert.ok(reason.includes('New hubs start from this preset'), `the reason reads ${JSON.stringify(reason)}`);
   assert.ok(!written.some((write) => write.path === `/presets/${DEFAULTED.id}`), "the default's withdrawal was sent");
 
-  // Check 4: the default chosen - a workspace preset by id, Hubtask's by key.
+  // Check 4 on the workspace screen's *New hubs* (page-system §9.1), saved by its bar: the default
+  // chosen - a workspace preset by id, Hubtask's by key.
+  await page.goto(`${served.origin}/administration/workspace/new-hubs`);
   const defaultSelect = page.getByLabel('A new hub starts from');
+  await defaultSelect.waitFor({ timeout: 15_000 });
   assert.equal(await defaultSelect.locator(`option[value="${CRAFT.id}"]`).count(), 0, "the installation's preset is offered as the workspace's default");
+  const save = page.getByRole('button', { name: 'Save', exact: true });
   await defaultSelect.selectOption(SHOP.id);
+  await save.click();
   await page.waitForTimeout(300);
   await defaultSelect.selectOption('FLOW');
+  await save.click();
   await page.waitForTimeout(300);
   const defaults = written.filter((write) => write.path === '/tenant/structure').map((write) => write.body);
   assert.deepEqual(defaults, [{ default_preset_id: SHOP.id }, { default_preset: 'FLOW' }]);
@@ -241,6 +247,7 @@ test("chromium: the workspace's Presets - rename, withdraw, the default kept, th
   const locks = page.locator('[data-presets-locks]');
   assert.equal(await locks.getByRole('checkbox', { name: 'Success' }).getAttribute('aria-disabled') === 'true' || await locks.getByRole('checkbox', { name: 'Success' }).isDisabled(), true, "the installation's lock can be lifted");
   await locks.getByRole('checkbox', { name: 'Views' }).check();
+  await save.click();
   await page.waitForTimeout(300);
   const locked = written.filter((write) => write.path === '/tenant/structure').at(-1);
   assert.deepEqual(locked?.body, { locks: ['views', 'fields.TASK.DUE_DATE'] });

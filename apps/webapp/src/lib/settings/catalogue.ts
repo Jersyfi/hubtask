@@ -68,7 +68,8 @@ const WORKSPACE: Readonly<Record<string, Screen>> = {
   legal: { path: '/administration/legal', code: 'app.signin_settings.legal' },
   localisation: { path: '/administration/workspace', code: 'app.admin.workspace' },
   ai: { path: '/administration/ai', code: 'app.admin.ai' },
-  structure: { path: '/administration/presets', code: 'app.presets.title' },
+  // The default preset and the locks are the workspace screen's *New hubs* (page-system §9.1).
+  structure: { path: '/administration/workspace', code: 'app.admin.workspace' },
   module: { path: '/administration/modules', code: 'app.modules.title' },
   knowledge: { path: '/administration/workspace', code: 'app.admin.workspace' },
   // A collection's public form is switched beside a page's public link (PublicFormsSwitch).
