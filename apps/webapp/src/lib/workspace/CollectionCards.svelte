@@ -58,7 +58,7 @@
     {@const share = collection.figure?.kind === 'PROGRESS' ? undefined : sprintShare(collection.id)}
     <li class="card" data-card={collection.id}>
       <a class="name" href={`/collections/${collection.id}`}>
-        <ContainerMark look={collection} />
+        <ContainerMark look={collection} hasDefaultTile />
         <span>{collection.name}</span>
       </a>
       {#if collection.description}<p class="description">{collection.description}</p>{/if}

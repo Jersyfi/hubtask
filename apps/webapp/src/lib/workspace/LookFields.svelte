@@ -48,7 +48,7 @@
         checked={colourChoice === token}
         onchange={() => (colour = token === '' ? undefined : (token as LabelToken))}
       />
-      <ContainerMark look={{ type, icon: symbol ?? null, color_token: token === '' ? null : token }} size="md" hasDefaultTile={false} />
+      <ContainerMark look={{ type, icon: symbol ?? null, color_token: token === '' ? null : token }} size="md" />
     </label>
   {/each}
 </fieldset>
@@ -65,7 +65,7 @@
         checked={symbolChoice === name}
         onchange={() => (symbol = name === '' ? undefined : (name as PlaceSymbol))}
       />
-      <ContainerMark look={{ type, icon: name === '' ? null : name, color_token: colour ?? null }} size="md" hasDefaultTile={false} />
+      <ContainerMark look={{ type, icon: name === '' ? null : name, color_token: colour ?? null }} size="md" />
     </label>
   {/each}
 </fieldset>

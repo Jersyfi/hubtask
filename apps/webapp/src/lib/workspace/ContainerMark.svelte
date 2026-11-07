@@ -16,11 +16,11 @@
     look: Look;
     /** `md` for a page head, `sm` beside a line of text, `xs` on a trail's small type. */
     size?: 'xs' | 'sm' | 'md';
-    /** Whether a place without a colour stands on the default tile, as the navigation draws it; not where "no colour" is offered as a choice. */
+    /** Whether a place without a colour stands on the default tile, as the navigation draws it on a trail and a card; elsewhere no colour stays none (UC-WRK-33). */
     hasDefaultTile?: boolean;
   }
 
-  const { look, size = 'sm', hasDefaultTile = true }: Props = $props();
+  const { look, size = 'sm', hasDefaultTile = false }: Props = $props();
 
   const colour = $derived(chosenColour(look) ?? (hasDefaultTile ? DEFAULT_TILE : undefined));
 </script>

@@ -11,5 +11,5 @@
 
 {#snippet placeMark(crumb: { readonly id: string })}
   {@const place = containers.find(crumb.id)}
-  {#if place}<ContainerMark look={place} size="xs" />{/if}
+  {#if place}<ContainerMark look={place} size="xs" hasDefaultTile />{/if}
 {/snippet}
