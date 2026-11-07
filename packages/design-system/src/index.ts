@@ -202,3 +202,5 @@ export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte
 export { default as Sheet } from './Sheet.svelte';
 export { default as SectionNav, type SectionLink } from './SectionNav.svelte';
 export { default as FilterBar, type Filter } from './FilterBar.svelte';
+export { default as DataTable, type DataColumn, type RowMenu as DataRowMenu } from './DataTable.svelte';
+export { default as BulkBar, type BulkAction } from './BulkBar.svelte';
