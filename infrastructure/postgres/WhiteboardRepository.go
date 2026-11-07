@@ -7,8 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"math"
+	"sort"
 
 	"github.com/jackc/pgx/v5/pgtype"
 

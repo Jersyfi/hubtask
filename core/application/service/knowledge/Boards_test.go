@@ -23,7 +23,9 @@ type boardSide struct {
 	}
 }
 
-func (b *boardSide) IsBoard(_ context.Context, id shared.ID) (bool, error) { return id == b.board.ID, nil }
+func (b *boardSide) IsBoard(_ context.Context, id shared.ID) (bool, error) {
+	return id == b.board.ID, nil
+}
 
 func (b *boardSide) Siblings(_ context.Context, _, parent shared.ID) ([]BoardPlace, error) {
 	if parent == b.parent {

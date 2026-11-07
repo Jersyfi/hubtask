@@ -8,8 +8,8 @@ import (
 
 	boardrepo "github.com/Jersyfi/hubtask/core/application/repository/whiteboard"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // BoardPlace is a whiteboard standing among a parent's pages in the content tree (UC-CNV-10).

@@ -5,10 +5,10 @@ package whiteboard
 
 import (
 	"context"
-	"sort"
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"testing"
 	"time"
 

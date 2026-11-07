@@ -34,11 +34,11 @@ const DocumentKind = "whiteboard"
 
 // Board is one whiteboard of a hub.
 type Board struct {
-	ID        shared.ID
-	TenantID  shared.ID
-	HubID     shared.ID
-	Title     string
-	Scene     Scene
+	ID       shared.ID
+	TenantID shared.ID
+	HubID    shared.ID
+	Title    string
+	Scene    Scene
 	// ParentPageID is the page the board stands under in its hub's content tree, zero for the top
 	// of the space; OrderKey its place among its siblings, pages and boards in one key space
 	// (UC-CNV-10). A board has no children of its own.
