@@ -22,7 +22,13 @@ test('a collection draws one view bar: list, board, timeline, time and its saved
 });
 
 test('a collection that runs sprints opens with the board and the sprint; a desk keeps to its lists', () => {
-  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true })), ['board', 'sprint', 'list', 'timeline', 'time']);
+  assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true })), ['board', 'sprint', 'backlog', 'list', 'timeline', 'time']);
+  // The sprint view names the running sprint (the mockup's *Sprint 42*), the backlog a view of its own.
+  const named = collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true, sprintName: 'Sprint 42' });
+  assert.equal(named.find((view) => view.id === 'sprint')?.name, 'Sprint 42');
+  assert.equal(named.find((view) => view.id === 'sprint')?.code, undefined);
+  assert.equal(named.find((view) => view.id === 'backlog')?.href, '/collections/c/backlog');
+  assert.equal(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true }).find((view) => view.id === 'sprint')?.code, 'app.nav.view_sprint');
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL.filter((each) => each !== 'PLANNING'), runsSprints: true })), ['list', 'board', 'timeline', 'time']);
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, isDesk: true, saved: [{ id: 'v', name: 'Mine' }] })), ['list', 'board', 'view:v']);
   assert.equal(viewOfLayout('LIST_EXPANDED'), 'list');

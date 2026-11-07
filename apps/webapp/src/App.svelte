@@ -558,9 +558,9 @@
     {#key route.path}
       <LazyView load={views.ReleaseView} props={{ hubId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'collection-sprint'}
+  {:else if route.name === 'collection-sprint' || route.name === 'collection-backlog'}
     {#key route.path}
-      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isBacklog: route.name === 'collection-backlog', isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'hub-inventory' || route.name === 'hub-inventory-section' || route.name === 'ci'}
     {#key route.name === 'ci' ? route.path : route.params.id}

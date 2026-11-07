@@ -134,6 +134,11 @@ export function stubFor({ modulesOn, hubModules = {}, stars = [], prefs = {}, ad
       const at = /collections\/([^/]+)\/sprints/.exec(path)[1];
       return route.fulfill({ json: { data: SPRINTS[at] ?? [], runs_sprints: at in SPRINTS } });
     }
+    // The sprint and the backlog views: one entry waiting in the backlog, the sprint without a burndown yet.
+    if (/\/api\/v1\/collections\/[^/]+\/sprint-backlog$/.test(path)) return route.fulfill({ json: { data: [{ item_id: id(650), title: 'Offline mode', estimate: null }] } });
+    if (/\/api\/v1\/collections\/[^/]+\/velocity$/.test(path)) return route.fulfill({ json: { unit: 'POINTS', average: 0, sprints: [] } });
+    const running = Object.values(SPRINTS).flat().find((each) => path.endsWith(`/api/v1/sprints/${each.id}`));
+    if (running) return route.fulfill({ json: { sprint: running, entries: [], burndown: [] } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: HUBS } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: COLLECTIONS.filter((each) => each.parent_id === url.searchParams.get('parent_id')) } });
     // A plan's schedule, empty: the tool's and a collection's timeline open on it.

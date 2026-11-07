@@ -117,14 +117,15 @@ test('UC-SVC-03 check 10: a queue in the sidebar opens its table over the hub\'s
   assert.deepEqual(failures, []);
 });
 
-test('UC-WRK-36 check 9: a collection draws one view bar - board, sprint, list, timeline, time - and its old plan is the timeline', async (t) => {
+test('UC-WRK-36 check 9: a collection draws one view bar - board, the running sprint, backlog, list, timeline, time - and its old plan is the timeline', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await walk(browser, `/collections/${WEB.id}`);
   t.after(close);
   const bar = main(page).getByRole('navigation', { name: WEB.name });
-  await bar.getByRole('link', { name: 'Sprint' }).waitFor({ timeout: 10_000 });
-  assert.deepEqual(await texts(bar.getByRole('link')), ['Board', 'Sprint', 'List', 'Timeline', 'Time']);
+  // The sprint view names the running sprint (the mockup's *Sprint 42*), the backlog a view of its own.
+  await bar.getByRole('link', { name: 'Sprint 42' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await texts(bar.getByRole('link')), ['Board', 'Sprint 42', 'Backlog', 'List', 'Timeline', 'Time']);
   assert.equal(await main(page).getByRole('toolbar', { name: /entries/i }).count(), 0, 'a second strip under the bar');
   await bar.getByRole('link', { name: 'Board' }).click();
   await at(page, `/collections/${WEB.id}?layout=board`);
@@ -137,6 +138,11 @@ test('UC-WRK-36 check 9: a collection draws one view bar - board, sprint, list, 
   assert.equal(await main(page).getByRole('navigation', { name: WEB.name }).getByRole('link', { name: 'Timeline', exact: true }).getAttribute('aria-current'), 'page');
   await page.goto(`${served.origin}/collections/${WEB.id}/sprints`);
   await at(page, `/collections/${WEB.id}/sprint`);
+  await main(page).getByRole('navigation', { name: WEB.name }).getByRole('link', { name: 'Backlog', exact: true }).click();
+  await at(page, `/collections/${WEB.id}/backlog`);
+  await main(page).locator('[data-sprint-board][data-backlog]').waitFor({ timeout: 10_000 });
+  assert.equal(await main(page).locator('[data-sprint-board] [data-drop="sprint"]').count(), 0, 'the backlog draws the sprint\'s lanes');
+  assert.equal(await main(page).getByRole('navigation', { name: WEB.name }).getByRole('link', { name: 'Backlog', exact: true }).getAttribute('aria-current'), 'page');
   assert.deepEqual(failures, []);
 });
 

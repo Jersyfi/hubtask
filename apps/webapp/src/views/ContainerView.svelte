@@ -966,11 +966,12 @@
   );
   const sprintsAt = $derived(container?.type === 'COLLECTION' && modulesOn.includes('PLANNING') ? container.id : undefined);
   let sprintsRun = $state(false);
+  let sprintName = $state<string | undefined>(undefined);
   $effect(() => {
     const at = sprintsAt;
     sprintsRun = false;
     if (!at) return;
-    return untrack(() => runsSprints(at, (runs) => { sprintsRun = runs; }));
+    return untrack(() => runsSprints(at, (runs, running) => { sprintsRun = runs; sprintName = running; }));
   });
   /**
    * The place's views (user-experience.md §2.4): the strip under the head, offered to the palette
@@ -982,7 +983,7 @@
       ? []
       : container.type === 'HUB'
         ? []
-        : collectionViews({ id: container.id, modulesOn, isDesk, runsSprints: sprintsRun })
+        : collectionViews({ id: container.id, modulesOn, isDesk, runsSprints: sprintsRun, sprintName })
           .filter(isOwnPage)
           .map((tab) => ({
             id: `page:tab-${tab.id}`,

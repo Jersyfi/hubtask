@@ -52,9 +52,11 @@
     onnavigate: (path: string) => void;
     /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
     isCreateAsked?: boolean;
+    /** The bar's *Backlog*: the backlog alone, each card offering its way into the running sprint. */
+    isBacklog?: boolean;
   }
 
-  const { collectionId, onnavigate, isCreateAsked = false }: Props = $props();
+  const { collectionId, onnavigate, isCreateAsked = false, isBacklog = false }: Props = $props();
 
   const zone = $derived(actor.zone);
   const place = $derived(containers.find(collectionId));
@@ -350,7 +352,7 @@
     secondary={headActs}
     menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
   />
-  <PlaceViews placeId={collectionId} current="sprint" {onnavigate} />
+  <PlaceViews placeId={collectionId} current={isBacklog ? 'backlog' : 'sprint'} {onnavigate} />
 
   {#if refusal}
     <FailureNote problem={refusal} />
@@ -370,7 +372,7 @@
         {#if chosen.goal}<p class="goal">{t('app.sprints.goal_is', { goal: chosen.goal })}</p>{/if}
       </div>
 
-      <div class="board" data-sprint-board data-closed={chosen.state === 'CLOSED' ? '' : undefined}>
+      <div class="board" data-sprint-board data-backlog={isBacklog ? '' : undefined} data-closed={chosen.state === 'CLOSED' ? '' : undefined}>
         {#if chosen.state !== 'CLOSED'}
           <div class="lane" data-drop="backlog" data-over={over === 'backlog' ? '' : undefined}>
             <BucketColumn name={t('app.sprints.backlog_column')} count={backlog.length}>
@@ -384,6 +386,7 @@
             </BucketColumn>
           </div>
         {/if}
+        {#if !isBacklog}
         <div class="lane" data-drop="sprint" data-over={over === 'sprint' ? '' : undefined}>
           <BucketColumn name={t('app.sprints.todo_column')} count={detail ? toDo.length : null}>
             {#if !detail}
@@ -423,9 +426,10 @@
             {/if}
           </BucketColumn>
         </div>
+        {/if}
       </div>
 
-      {#if detail && detail.burndown.length > 0}
+      {#if detail && detail.burndown.length > 0 && !isBacklog}
         <Disclosure label={t('app.sprints.burndown')} description={t('app.sprints.burndown_hint')} tone="quiet">
           <Table label={t('app.sprints.burndown')} isLabelHidden columns={burndownColumns}>
             {#each detail.burndown as point (point.day)}
@@ -436,7 +440,7 @@
       {/if}
     {/if}
 
-    {#if velocity && velocity.sprints.length > 0}
+    {#if velocity && velocity.sprints.length > 0 && !isBacklog}
       <section class="block" aria-labelledby="sprint-velocity">
         <h2 id="sprint-velocity" class="heading">{t('app.sprints.velocity', { value: String(velocity.average), unit: t(`app.sprints.unit_${velocity.unit}`) })}</h2>
         <Table label={t('app.sprints.velocity_table')} isLabelHidden columns={velocityColumns}>
@@ -484,6 +488,8 @@
 <style>
   .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
   .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-board-column)), var(--layout-board-column))); gap: var(--sp-200); align-items: start; }
+  /* The backlog alone is a list across the page, not one lane of a board. */
+  .board[data-backlog] { grid-template-columns: minmax(0, 1fr); }
   .lane { min-width: 0; border-radius: var(--r-md); }
   .lane[data-over] { outline: var(--bw-ring) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .cards { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }

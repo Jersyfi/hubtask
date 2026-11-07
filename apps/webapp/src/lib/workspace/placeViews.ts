@@ -64,6 +64,8 @@ export interface CollectionInput {
   readonly isDesk?: boolean;
   /** Whether it runs sprints (its sprints' read says so): the board and the sprint lead. */
   readonly runsSprints?: boolean;
+  /** The running sprint's name, which its view carries; *Sprint* while none runs. */
+  readonly sprintName?: string;
   /** The collection's saved views, in their order. */
   readonly saved?: readonly { readonly id: string; readonly name: string }[];
 }
@@ -76,7 +78,8 @@ export interface CollectionView extends Omit<PlaceView, 'code'> {
 
 /**
  * A collection's one view bar (§2.4 part 3, §3): the list and the board, the timeline - the former
- * *Plan* where the plan is on, else the timeline layout -, the sprint where it runs sprints, the
+ * *Plan* where the plan is on, else the timeline layout -, the running sprint by its name and the
+ * backlog where it runs sprints, the
  * time where time is on, then its saved views. A collection that runs sprints opens with the board
  * and the sprint; a desk keeps to the list, the board and its saved views.
  */
@@ -92,7 +95,12 @@ export function collectionViews(input: CollectionInput): readonly CollectionView
     : has('TIMELINE')
       ? [{ id: 'timeline', code: 'app.view.TIMELINE', icon: 'calendar', href: `${base}?layout=timeline` }]
       : [];
-  const sprint: CollectionView[] = on('PLANNING') && input.runsSprints ? [{ id: 'sprint', code: 'app.nav.view_sprint', icon: 'repeat', href: `${base}/sprint` }] : [];
+  const sprint: CollectionView[] = on('PLANNING') && input.runsSprints
+    ? [
+        { id: 'sprint', ...(input.sprintName ? { name: input.sprintName } : { code: 'app.nav.view_sprint' }), icon: 'repeat', href: `${base}/sprint` },
+        { id: 'backlog', code: 'app.sprints.backlog_column', icon: 'square-check', href: `${base}/backlog` },
+      ]
+    : [];
   const time: CollectionView[] = on('TIME') ? [{ id: 'time', code: 'app.nav.view_time', icon: 'clock', href: `${base}/time` }] : [];
   const saved: CollectionView[] = (input.saved ?? []).map((view) => ({ id: `view:${view.id}`, name: view.name, icon: 'star', href: `${base}?view=${view.id}` }));
   if (input.isDesk && on('SERVICE_DESK')) return [list, ...board, ...saved];

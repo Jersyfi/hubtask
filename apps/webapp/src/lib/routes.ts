@@ -213,6 +213,8 @@ export const ROUTES: readonly Route[] = [
   // A collection's sprints (M2): the sprints, the backlog, the burndown and the velocity.
   { name: 'collection-sprints', pattern: '/collections/:id/sprints' },
   { name: 'collection-sprint', pattern: '/collections/:id/sprint' },
+  // The backlog of a collection that runs sprints, a view of its bar beside the sprint (§3).
+  { name: 'collection-backlog', pattern: '/collections/:id/backlog' },
   // A hub's releases (M2): the releases, their entries and their notes.
   { name: 'hub-releases', pattern: '/hubs/:id/releases' },
   // A hub's or a collection's estimates against the time recorded (M7, UC-TIM-04 check 6).

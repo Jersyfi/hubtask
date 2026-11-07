@@ -60,11 +60,12 @@
   );
   const sprintsAt = $derived(isCollection && modulesOn.includes('PLANNING') ? placeId : undefined);
   let sprintsRun = $state(false);
+  let sprintName = $state<string | undefined>(undefined);
   $effect(() => {
     const at = sprintsAt;
     sprintsRun = false;
     if (!at) return;
-    return untrack(() => runsSprints(at, (runs) => { sprintsRun = runs; }));
+    return untrack(() => runsSprints(at, (runs, running) => { sprintsRun = runs; sprintName = running; }));
   });
   // A collection's saved views are views of its bar (§3).
   $effect(() => {
@@ -81,7 +82,7 @@
       : isCollection
         ? collectionViews({
             id: placeId, modulesOn, isDesk, layouts: layouts.length > 0 ? layouts : undefined,
-            runsSprints: sprintsRun || current === 'sprint',
+            runsSprints: sprintsRun || current === 'sprint' || current === 'backlog', sprintName,
             saved: savedViews.of(placeId).map((view) => ({ id: view.id, name: view.name })),
           })
         : toolViews(placeId, tool ?? '', { mayCost }),

@@ -29,7 +29,7 @@ const HUB_ROUTES = new Set([
   'hub-time', 'hub-time-workload', 'hub-time-budget', 'hub-goals', 'hub-goals-dashboards', 'hub-settings', 'hub-settings-section',
 ]);
 /** Routes whose `:id` is a collection. */
-const COLLECTION_ROUTES = new Set(['collection', 'collection-timeline', 'collection-sprint', 'collection-time', 'collection-workload', 'collection-settings', 'collection-settings-section']);
+const COLLECTION_ROUTES = new Set(['collection', 'collection-timeline', 'collection-sprint', 'collection-backlog', 'collection-time', 'collection-workload', 'collection-settings', 'collection-settings-section']);
 /** Routes whose place the screen names once it has read it (`page.locate`): an entry, a page, a board, a CI. */
 const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci']);
 
