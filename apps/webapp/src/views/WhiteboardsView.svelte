@@ -21,6 +21,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
+  import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   interface Props {
     boardId: string;
@@ -103,6 +104,7 @@
         <div class="trail">
           {#if hub}<a class="hub" href={boardsOf(hub.id)}>{hub.name}</a><span class="sep" aria-hidden="true">/</span>{/if}
           <h1 class="board-title" title={current.title}>{current.title}</h1>
+          <StarToggle kind="WHITEBOARD" id={current.id} name={current.title} />
         </div>
       {/snippet}
     </BoardCanvas>
