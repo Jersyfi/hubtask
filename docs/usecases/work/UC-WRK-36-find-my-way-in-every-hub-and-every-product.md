@@ -86,7 +86,7 @@ three lists, nothing else.
 * Check 1: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 2: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 3: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
-* Check 4: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 4: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`); the queues' counts it shows are read by `GET /hubs/{hubId}/queues`, built in step 2.
 * Check 5: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 6: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).
 * Check 7: not met — built in step 4 of the navigation concept (`docs/backlog/navigation/README.md`).

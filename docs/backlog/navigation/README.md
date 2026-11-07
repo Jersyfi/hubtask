@@ -379,6 +379,21 @@ tree as it would stand.
   is `null`.
 * The client reads it once per hub level shown and again when the change stream reports an entry
   of the hub's desks, debounced; never one read per row.
+* As built: `SavedView` gains `queue` and `queue_position` (1-1000, lowest first; written by
+  `createSavedView` and `updateSavedView`, a queue named without a place goes after the hub's last,
+  a HUB scope only, `views.queue_hub_only`), migrations 0391-0392 (`saved_view.queue_position`, its
+  bound validated and the partial index `saved_view_queue_idx`). `listHubQueues` answers
+  `{ data: [{ view_id, key, name, count, at_risk }] }`: the caller's own and the hub's shared queue
+  views by place, else, where a collection of the hub offers a type the portal takes, the four
+  standard queues over those desks with `view_id` and `name` null. Each queue is counted by
+  `QueryItems.CountWithin` - its own query asked as opening it asks it (READ at its anchor, the
+  hidden-field lens) - in one statement, `count(*)` and `count(*) FILTER (sla_standing IN
+  (AT_RISK, BREACHED))`, under the two-second count budget; a count past it, or a view the reader
+  cannot ask, is `null`. Measured on 6,000 open entries of one desk: 8 ms per queue (about 1.4 µs
+  an entry: the scan of `work_item` and one `entry_sla_goal_uq` probe per open entry for the
+  standing). The plan seen scanned `work_item` sequentially, the hub being the test tenant's only
+  content; `wi_completion_idx` (tenant, collection, is_completed) is there for a tenant of many
+  hubs, not measured. `itil_service_desk@16` marks its four views as queues in the desk's order.
 
 ### 7.5 Sidebar preferences
 
@@ -602,7 +617,7 @@ main..HEAD` against this table.
 | Step | Status | Commit |
 |---|---|---|
 | 1 Docs and use cases | done | see `git log --grep "Task: navigation-concept"` — concept, rules, use cases |
-| 2 Contracts and backend | partial | `a169de885` preferences (§7.5, migrations 0387-0388) · `cac459453` stars (§7.1, 0389) · `b5785753d`, `54cbeb0a0` whiteboards in the tree (§7.2, 0390) · `133493da8` move pre-check (§7.3) · `7fec332e7` codes worded · `2173136d9` docs. **Left for step 2:** queues (§7.4) - `SavedView.queue` (migration, contract, `SaveView` input), `GET /hubs/{hubId}/queues` (`listHubQueues`) with `count` and `at_risk` and the four standard queues, the ITIL template's views marked as queues with its version raised, UC-SVC-03 check 10's read; a repository test with real releases and clocks for `MovePreviewRepository`; `make api-client` (no pnpm in the worker's checkout; the client is generated into `dist/` and nothing is committed) |
+| 2 Contracts and backend | done | `a169de885` preferences (§7.5, migrations 0387-0388) · `cac459453` stars (§7.1, 0389) · `b5785753d`, `54cbeb0a0` whiteboards in the tree (§7.2, 0390) · `133493da8` move pre-check (§7.3) · `7fec332e7` codes worded · `2173136d9` docs · `c7aa85154` queues (§7.4, 0391-0392) · `397035841` the ITIL desk's queues (`itil_service_desk@16`). **Left from step 2:** a repository test with real releases and clocks for `MovePreviewRepository`; `make api-client` writes `dist/` only, nothing is committed from it |
 | 3 Design-system pieces | open | |
 | 4 Navigation model and frame | open | |
 | 5 Hub, collection and product screens | open | |

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: partial
 tasks: []
-checked_by: [infrastructure/postgres/query/Sla_test.go, core/domain/model/view/Filter_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, apps/webapp/e2e/servicedeskwalk.test.mjs, apps/webapp/src/lib/servicedesk/queues.test.ts, apps/webapp/e2e/productsband.test.mjs]
+checked_by: [infrastructure/postgres/query/Sla_test.go, core/domain/model/view/Filter_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, apps/webapp/e2e/servicedeskwalk.test.mjs, apps/webapp/src/lib/servicedesk/queues.test.ts, apps/webapp/e2e/productsband.test.mjs, core/application/service/servicedesk/Queues_test.go, test/integration/hub_queue_test.go, core/domain/model/view/SavedView_test.go]
 ---
 
 # Work the queue by what breaks first
@@ -45,4 +45,4 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
 
 ## Today
 
-* Check 10: not met — built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
+* Check 10: not met — the read behind it is built: `GET /hubs/{hubId}/queues` answers a hub's views marked as queues (`SavedView.queue`), else the four standard queues of its desks, each with its count and `at_risk` (`Queues_test.go`, `hub_queue_test.go`); the sidebar's *Queues* and the queue page are built in step 5 of the navigation concept (`docs/backlog/navigation/README.md`).
