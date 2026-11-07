@@ -63,7 +63,7 @@ const SCREENS = [
   { path: '/administration/sign-in', buttons: ['Require a new password from everyone'], gates: ['STRUCTURE'] },
   { path: '/administration/identity-provider', buttons: ['Add a provider'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/machines?tab=apps', buttons: ['Register an app'], gates: ['MANAGE_MEMBERS'] },
-  { path: '/administration/people?tab=groups', buttons: ['Create the group'], gates: ['MANAGE_MEMBERS'] },
+  { path: '/administration/people?tab=groups', buttons: ['New group'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/machines', buttons: ['Add a service account'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/privacy', buttons: ['Record it'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/rules', buttons: ['Write a rule'], gates: ['AUTOMATION'] },
