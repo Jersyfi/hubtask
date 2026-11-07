@@ -225,7 +225,7 @@
   }
 
   .hub-act:hover { background: var(--bg-surface-hover); }
-  .hub-act[data-on] { color: var(--label-amber-fg); }
+  .hub-act[data-on] { color: var(--accent-star); }
   .hub-act[data-on] :global(.icon) { fill: currentColor; }
 
   .back:focus-visible,
