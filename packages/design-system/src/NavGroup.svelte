@@ -98,6 +98,8 @@
     refusalLabel?: (refusal: Refusal) => string;
     /** A row that just landed, marked for the highlight (the caller clears it). */
     landed?: string;
+    /** A row outlined as *inside* for a drag the caller carries - an entry over a collection. */
+    dropInto?: string;
 
     /** Past this many top-level rows, *n more*. */
     limit?: number;
@@ -142,6 +144,7 @@
     oncancel,
     refusalLabel,
     landed,
+    dropInto,
     limit,
     moreLabel,
     filterFrom,
@@ -458,7 +461,9 @@
               ? 'lifted'
               : drag?.isCarried && drag.target.kind === 'inside' && drag.target.index === index
                 ? 'inside'
-                : landed === node.id
+                : dropInto === node.id
+                  ? 'inside'
+                  : landed === node.id
                   ? 'landed'
                   : undefined}
             onnavigate={() => {

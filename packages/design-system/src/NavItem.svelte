@@ -310,6 +310,7 @@
     data-movable={isMovable ? '' : undefined}
     data-rail={isRail ? '' : undefined}
     data-current={isCurrent ? '' : undefined}
+    data-id={id}
     {onpointerdown}
   >
     <!-- An anchor or a button: both are interactive, the linter only cannot tell from the tag. -->
