@@ -24,16 +24,17 @@ test('UC-WRK-36 check 1: the workspace level from the top, the foot pinned', asy
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { modulesOn: ALL, hubModules: { [HOME.id]: [] }, stars: [{ kind: 'HUB', id: IT.id }] });
   t.after(close);
-  await side(page).getByRole('treeitem', { name: /IT operations/ }).waitFor({ timeout: 10_000 });
+  await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
   assert.deepEqual(await texts(side(page).getByRole('list', { name: 'For you' }).getByRole('link')), ['Today', 'Inbox', 'Waiting for your yes']);
   assert.deepEqual(await texts(side(page).getByRole('list', { name: 'What is kept' }).getByRole('link')), ['Administration', 'Archive', 'Trash']);
-  await side(page).getByRole('link', { name: 'IT operations' }).first().waitFor({ timeout: 10_000 });
+  // Stars, products and hubs are trees whose rows are dragged into order (UC-WRK-38 check 7).
+  await side(page).locator('section').first().getByRole('treeitem', { name: 'IT operations', exact: true }).waitFor({ timeout: 10_000 });
   const order = await heads(page);
   assert.deepEqual(order.map((each) => each.toLowerCase()), ['starred', 'products', 'hubs'], JSON.stringify(order));
-  const productRows = await texts(side(page).locator('section').nth(1).getByRole('link'));
+  const productRows = await texts(side(page).locator('section').nth(1).getByRole('treeitem'));
   assert.deepEqual(productRows, ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Goals', 'Agents']);
   // 14 hubs: 12 shown, then *n more*.
-  assert.equal(await side(page).getByRole('treeitem').count(), 12);
+  assert.equal(await side(page).locator('section').nth(2).getByRole('treeitem').count(), 12);
   await side(page).getByText('2 more hubs').waitFor();
   assert.equal(await side(page).getByRole('link', { name: 'Today' }).getAttribute('aria-current'), 'page');
   assert.deepEqual(failures, []);
@@ -44,7 +45,7 @@ test('UC-WRK-36 check 1: no star, no Starred; no administration without the righ
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { modulesOn: [], administration: false });
   t.after(close);
-  await side(page).getByRole('treeitem', { name: /IT operations/ }).waitFor({ timeout: 10_000 });
+  await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
   assert.deepEqual((await heads(page)).map((each) => each.toLowerCase()), ['hubs']);
   assert.deepEqual(await texts(side(page).getByRole('list', { name: 'What is kept' }).getByRole('link')), ['Archive', 'Trash']);
   assert.deepEqual(failures, []);
@@ -162,7 +163,7 @@ test('UC-WRK-37 check 5: ☆ in the hub\'s head stars it, and it stands under St
   await side(page).getByRole('button', { name: 'Remove the star from Product development' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(written.stars.at(-1), { stars: [{ kind: 'HUB', id: PD.id }] });
   await side(page).getByRole('button', { name: 'All hubs' }).click();
-  await side(page).locator('section', { hasText: 'Starred' }).getByRole('link', { name: 'Product development' }).waitFor({ timeout: 5_000 });
+  await side(page).locator('section', { hasText: 'Starred' }).getByRole('treeitem', { name: 'Product development', exact: true }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
@@ -187,7 +188,7 @@ test('UC-WRK-36 check 8: the width is dragged and kept, Ctrl+[ folds to the rail
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { modulesOn: ['PLANNING'], storage: { 'hubtask.nav.width': '320' } });
   t.after(close);
-  await side(page).getByRole('treeitem', { name: /IT operations/ }).waitFor({ timeout: 10_000 });
+  await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
   assert.equal(Math.round((await side(page).boundingBox()).width), 320, 'the kept width is not used');
   const handle = side(page).getByRole('separator', { name: 'Width of the navigation' });
   await handle.dblclick();
@@ -265,7 +266,7 @@ test('UC-WRK-36 checks 1-6: the rows carry their figures, the hub head its ⋯, 
 
   // The workspace level: Recent opens the last twenty places (§2.3).
   await page.goto(`${served.origin}/`);
-  await side(page).getByRole('treeitem', { name: /IT operations/ }).waitFor({ timeout: 10_000 });
+  await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
   if (SHOTS) await side(page).screenshot({ path: `${SHOTS}/live-today.png` });
   await side(page).getByRole('button', { name: 'Recent' }).click();
   assert.equal(await page.getByRole('dialog', { name: 'Recent' }).getByRole('link').count(), 20);
