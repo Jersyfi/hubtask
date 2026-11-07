@@ -328,7 +328,7 @@
 
   .row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--sp-200);
     flex-wrap: wrap;
   }
