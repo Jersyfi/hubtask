@@ -6251,6 +6251,7 @@
   "app.shortcuts.palette": "Suchen oder einen Befehl ausführen",
   "app.shortcuts.help": "Hilfe und Tastenkürzel",
   "app.shortcuts.capture": "Etwas erfassen, von jeder Seite aus",
+  "app.shortcuts.star": "Den Ort, an dem du bist, mit einem Stern versehen oder ihn entfernen",
   "app.shortcuts.sidebar": "Seitenleiste ein- oder ausklappen",
   "app.shortcuts.palette_move": "Zur nächsten oder vorigen Zeile",
   "app.shortcuts.palette_enter": "Die gewählte Zeile öffnen, sonst alle Ergebnisse",

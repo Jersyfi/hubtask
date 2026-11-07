@@ -167,6 +167,23 @@ test('UC-WRK-37 check 5: ☆ in the hub\'s head stars it, and it stands under St
   assert.deepEqual(failures, []);
 });
 
+test('UC-WRK-37 check 5: S stars the place on screen and unstars it again; in a field it types', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, written, close } = await open(browser, { path: `/collections/${WEB.id}`, modulesOn: ALL });
+  t.after(close);
+  const head = page.locator('main').getByRole('button', { name: 'Star Web app' });
+  await head.waitFor({ timeout: 10_000 });
+  await page.locator('main h1').click();
+  await page.keyboard.press('s');
+  await page.locator('main').getByRole('button', { name: 'Remove the star from Web app' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(written.stars.at(-1), { stars: [{ kind: 'COLLECTION', id: WEB.id }] });
+  await page.keyboard.press('s');
+  await head.waitFor({ timeout: 5_000 });
+  assert.deepEqual(written.stars.at(-1), { stars: [] });
+  assert.deepEqual(failures, []);
+});
+
 test('UC-WRK-36 check 5: the contents mode is the person\'s, written to their preferences', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

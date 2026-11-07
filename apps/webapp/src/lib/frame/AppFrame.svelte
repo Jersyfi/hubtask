@@ -36,6 +36,7 @@
   import { capture } from '../capture/capture.svelte.ts';
   import { jumbleWritable, liveCollections, mayCaptureHere, openLevels, openRoles } from '../capture/places.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
+  import { stars } from '../data/stars.svelte.ts';
   import HelpDialog from './HelpDialog.svelte';
   import UnsentChangesDialog from './UnsentChangesDialog.svelte';
   import AskDialog from '../ask/AskDialog.svelte';
@@ -254,6 +255,11 @@
       // `Q`, where the reader may capture at all; elsewhere it is no shortcut (P-05).
       capture: () => {
         if (mayCaptureHere()) capture.summon();
+      },
+      // `S` stars or unstars the place on screen, as its head's ☆ does (UC-WRK-37 check 5).
+      star: () => {
+        const place = starOf(route);
+        if (place) void stars.toggle(place.kind, place.id);
       },
     });
   });

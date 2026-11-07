@@ -6251,6 +6251,7 @@
   "app.shortcuts.palette": "Search or run a command",
   "app.shortcuts.help": "Help and shortcuts",
   "app.shortcuts.capture": "Capture something, from any page",
+  "app.shortcuts.star": "Star or unstar the place you are on",
   "app.shortcuts.sidebar": "Fold or unfold the sidebar",
   "app.shortcuts.palette_move": "Move to the next or the previous row",
   "app.shortcuts.palette_enter": "Open the chosen row, or all results",
