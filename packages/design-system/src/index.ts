@@ -199,3 +199,4 @@ export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts'
 // Wave 6 - the page system (docs/backlog/page-system/): the layer above the components, and the
 // page kinds a screen is assembled from.
 export { default as Grid, type GridColumns, type GridCount } from './Grid.svelte';
+export { default as Sheet } from './Sheet.svelte';
