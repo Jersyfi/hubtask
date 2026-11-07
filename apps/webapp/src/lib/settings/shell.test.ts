@@ -32,7 +32,9 @@ for (const name of ON_THE_SHELL) {
     const view = viewOf(name);
     assert.ok(view, `AdministrationArea.svelte draws a view for ${name}`);
     const source = readFileSync(new URL(`../../views/${view}.svelte`, import.meta.url), 'utf8');
-    assert.match(source, /<SettingsPage\b/, `${view} draws SettingsPage`);
+    // The page-system concept moves each screen from the old shell to the design system's
+    // `SettingsLayout` (page-system §7.3), area by area; either is the one shell until it lands.
+    assert.match(source, /<(SettingsPage|SettingsLayout)\b/, `${view} draws SettingsPage or SettingsLayout`);
   });
 }
 

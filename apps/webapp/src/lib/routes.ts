@@ -264,7 +264,7 @@ export const ADMINISTRATION_PREFIX = '/administration';
  * does not return to the address that sent the reader on.
  */
 const MOVED: Readonly<Record<string, string>> = {
-  'identity-provider': '/administration/sign-in?tab=ways',
+  'identity-provider': '/administration/sign-in/ways',
   groups: '/administration/people?tab=groups',
   permissions: '/administration/people?tab=permissions',
   'service-accounts': '/administration/machines',

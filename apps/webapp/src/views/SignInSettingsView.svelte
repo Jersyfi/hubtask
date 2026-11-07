@@ -51,86 +51,114 @@
   // password older than it meets the change step at the next sign-in. It is red, it is behind a
   // confirmation, and its sentence says what it does to sessions.
   //
-  // **Tabs, one save each** (ux-inventory §E8). *Passwords* (with the second factor and accounts
-  // without mail), *Sessions*, and *Ways and providers* - the list of ways with the providers'
-  // configuration under it, which was a screen of its own. The legal links are not about signing in
-  // at all and are the same rule's own page (`part: 'legal'`), so the filling, the source chips and
-  // the save are not written twice. Each tab's save bar counts and sends its own rows only; a row
-  // moved on another tab waits there for that tab's save.
+  // **One section per address, one save each** (page-system §7.3, PS-9, PS-10). *Passwords*,
+  // *Second factor*, *Sessions*, *Ways and providers* - the list of ways, switched at once, with the
+  // providers' table under it -, *Directory* and *Accounts without mail*, each at
+  // `/administration/sign-in/<section>`; the list says each one's state. The legal links are not
+  // about signing in at all and are the same rule's own page (`part: 'legal'`), so the filling, the
+  // source chips and the save are not written twice. A section's save bar counts and sends its own
+  // rows only; a row moved in another section waits there for that section's save, which is why a
+  // move between sections replaces the address instead of passing the leave guard.
 
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, SaveBar, Select, SettingRow, SettingsLayout, SettingsSection, Spinner, Switch } from '@hubtask/design-system/components';
+  import type { SectionLink } from '@hubtask/design-system/components';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import FailureState from '../lib/frame/FailureState.svelte';
-  import SettingsPage from '../lib/settings/SettingsPage.svelte';
   import { TransportError } from '@hubtask/sync-engine';
 
-  import IdentityProviderView from './IdentityProviderView.svelte';
   import LdapDirectoryPanel from '../lib/signin/LdapDirectoryPanel.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
+  import ProvidersTable from '../lib/signin/ProvidersTable.svelte';
   import { withdrawalPhase } from '../lib/instance/withdrawal.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
+  import { ldapDirectory } from '../lib/data/ldapdirectory.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type PolicySource, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { enterSubmits } from '../lib/forms/enter.ts';
+  import { leaveGuard } from '../lib/frame/leave.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
-  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import { holdsHere, includedHere, mayHere } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import ValueSource from '../lib/workspace/ValueSource.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import ViewSectionsAsFile from '../lib/settings/ViewSectionsAsFile.svelte';
   import { pagePart } from '../lib/settings/asFile.ts';
 
   interface Props {
-    /** The sign-in rules in tabs, or the legal links on their own page. */
+    /** The sign-in rules by section, or the legal links on their own page. */
     part?: 'sign-in' | 'legal';
-    /** The tab the address names (`?tab=`); the first where it names none or an unknown one. */
+    /** The section the address names (`/administration/sign-in/:section`); none is the list. */
+    section?: string;
+    /** The tab an older address names (`?tab=`), replaced by its section's address. */
     tab?: string;
-    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
+    /** Opens another address, entering it into the history: a provider's record page. */
     onnavigate?: (path: string) => void;
+    /** Replaces the address: a move between sections, so the unsaved rows of another stay. */
+    onreplace?: (path: string) => void;
   }
-  let { part = 'sign-in', tab, onnavigate }: Props = $props();
+  let { part = 'sign-in', section, tab, onnavigate, onreplace }: Props = $props();
 
-  /** Which rows each tab saves: the keys of `draft` its save bar counts and sends. */
+  const BASE = '/administration/sign-in';
+
+  /** Which rows each section saves: the keys of `draft` its save bar counts and sends. */
   const PASSWORD_KEYS = [
     'min_length', 'min_lowercase', 'min_uppercase', 'min_digits', 'min_symbols', 'min_classes',
     'max_repeat', 'common_passwords', 'context_words', 'breach_check', 'max_age_days',
-    'history_count', 'min_age_hours', 'mfa_required_for', 'managed_accounts',
+    'history_count', 'min_age_hours',
   ];
   const SCOPES: Readonly<Record<string, readonly string[]>> = {
     passwords: PASSWORD_KEYS,
+    'second-factor': ['mfa_required_for'],
     sessions: ['session_max_days', 'session_idle_minutes'],
     ways: [],
     directory: [],
+    'accounts-without-mail': ['managed_accounts'],
     legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url', 'support_url', 'docs_url'],
   };
-  const TABS = [
+  /** The sections, in the list's order; *Accounts without mail* only where the server has it. */
+  const SECTIONS = [
     { id: 'passwords', code: 'app.signin_settings.passwords' },
+    { id: 'second-factor', code: 'app.signin_settings.second_factor' },
     { id: 'sessions', code: 'app.signin_settings.sessions' },
     { id: 'ways', code: 'app.signin_settings.ways_and_providers' },
     { id: 'directory', code: 'app.signin_settings.directory' },
+    { id: 'accounts-without-mail', code: 'app.signin_settings.managed_section' },
   ] as const;
-  const current = $derived(
-    part === 'legal' ? 'legal' : TABS.some((each) => each.id === tab) ? (tab as string) : 'passwords',
-  );
+  /** The tabs of the older addresses, by the section each became. */
+  const TAB_SECTIONS: Readonly<Record<string, string>> = { passwords: 'passwords', sessions: 'sessions', ways: 'ways', directory: 'directory' };
 
   $effect(() => untrack(() => signInPolicy.open()));
   $effect(() => untrack(() => identityProvider.open()));
+  $effect(() => untrack(() => ldapDirectory.open()));
 
   const policy = $derived(signInPolicy.policy);
   const reading = $derived(signInPolicy.state);
   const unreadable = $derived(
     signInPolicy.failure ? renderProblem(signInPolicy.failure, messages) : undefined,
   );
+
+  const sections = $derived(SECTIONS.filter((each) => each.id !== 'accounts-without-mail' || policy?.managed_accounts !== undefined));
+  const isKnown = (id: string | undefined): boolean => id !== undefined && SECTIONS.some((each) => each.id === id);
+  const current = $derived(part === 'legal' ? 'legal' : isKnown(section) ? (section as string) : 'passwords');
+  /** At the screen's own address the list - with the first section beside it where there is room. */
+  const view = $derived<'list' | 'detail'>(part === 'legal' || isKnown(section) ? 'detail' : 'list');
+
+  // An older address (`?tab=sessions`) lands on its section's own, replacing itself so the back
+  // button does not return to it.
+  $effect(() => {
+    if (part !== 'sign-in' || section !== undefined || !tab) return;
+    const target = TAB_SECTIONS[tab];
+    if (target) untrack(() => onreplace?.(`${BASE}/${target}`));
+  });
 
   /** What is being edited, filled from the read once so a save's re-read does not fight typing. */
   let draft = $state<Record<string, unknown>>({});
@@ -147,6 +175,7 @@
   let baseline = $state<Record<string, unknown>>({});
   let filled = false;
   let confirming = $state(false);
+  let isFileOpen = $state(false);
   let form = $state<HTMLFormElement | undefined>(undefined);
 
   $effect(() => {
@@ -205,6 +234,58 @@
     return setting.source === 'WORKSPACE' ? setting.value : '';
   }
 
+  /** The rule behind a key of `draft`, for its section's state. */
+  function settingOf(key: string): Setting<unknown> | undefined {
+    if (!policy) return undefined;
+    if (key === 'mfa_required_for') return policy.mfa_required_for;
+    if (key === 'session_max_days') return policy.session.max_days;
+    if (key === 'session_idle_minutes') return policy.session.idle_minutes;
+    if (key === 'managed_accounts') return policy.managed_accounts;
+    if (key in policy.password) return (policy.password as unknown as Record<string, Setting<unknown>>)[key];
+    return (policy.legal as unknown as Record<string, Setting<unknown> | undefined>)[key];
+  }
+
+  /** How many of a scope's rules this workspace set, and how many a level above locked. */
+  function tally(scope: string): { set: number; locked: number } {
+    let set = 0;
+    let locked = 0;
+    for (const key of SCOPES[scope] ?? []) {
+      const setting = settingOf(key);
+      if (!setting) continue;
+      if (setting.lock !== null) locked += 1;
+      else if (setting.source === 'WORKSPACE') set += 1;
+    }
+    return { set, locked };
+  }
+
+  /** A section's state in the list, from what is read: never a guess before the read answers. */
+  function statusOf(id: string): Pick<SectionLink, 'status' | 'statusTone'> {
+    if (!policy) return {};
+    if (id === 'ways') return { status: t('app.signin_settings.status_ways_on', { count: waysOn + (passkeyOn ? 1 : 0) }) };
+    if (id === 'directory') {
+      if (ldapDirectory.state.status !== 'ready' && !ldapDirectory.none) return {};
+      return { status: ldapDirectory.directory?.enabled ? t('app.signin_settings.status_on') : t('app.signin_settings.status_off') };
+    }
+    if (id === 'accounts-without-mail') {
+      return { status: policy.managed_accounts?.value ? t('app.signin_settings.status_on') : t('app.signin_settings.status_off') };
+    }
+    const { set, locked } = tally(id);
+    if (set > 0) return { status: t('app.signin_settings.status_set', { count: set }), statusTone: 'set' };
+    if (locked > 0) return { status: t('app.signin_settings.status_locked'), statusTone: 'locked' };
+    return { status: t('app.signin_settings.status_default') };
+  }
+
+  const links = $derived<SectionLink[]>(
+    part === 'legal'
+      ? [{ id: 'legal', label: t('app.signin_settings.legal'), href: '/administration/legal', ...statusOf('legal') }]
+      : sections.map((each) => ({ id: each.id, label: t(each.code), href: `${BASE}/${each.id}`, ...statusOf(each.id) })),
+  );
+
+  /** The head's one line on Sign-in: what is set here and what is locked above, over its rules. */
+  const figureCounts = $derived.by(() => {
+    return ['passwords', 'second-factor', 'sessions', 'accounts-without-mail'].map(tally).reduce((sum, each) => ({ set: sum.set + each.set, locked: sum.locked + each.locked }), { set: 0, locked: 0 });
+  });
+
   /** The level above's value in a sentence, naming the plan where the plan decided it. */
   function aboveValue(source: PolicySource, value: string): string {
     return source === 'PLAN'
@@ -231,8 +312,8 @@
   }
 
   /**
-   * The rows of a tab that moved, in the shape the contract takes - this tab's where none is
-   * named. Empty means there is nothing to save.
+   * The rows of a section that moved, in the shape the contract takes - the open one's where none
+   * is named. Empty means there is nothing to save.
    */
   function moved(scope: string = current): Record<string, unknown> {
     const keys = SCOPES[scope] ?? [];
@@ -243,12 +324,14 @@
     return changes;
   }
 
-  /** What moved on the other tabs, kept through this tab's save and its re-filling. */
+  /** What moved in the other sections, kept through this section's save and its re-filling. */
   function movedElsewhere(): Record<string, unknown> {
     const changes: Record<string, unknown> = {};
     for (const scope of Object.keys(SCOPES)) if (scope !== current) Object.assign(changes, moved(scope));
     return changes;
   }
+
+  const isChanged = (key: string): boolean => key in draft && draft[key] !== baseline[key];
 
   /** Why a switch cannot be touched here, or nothing where it can. */
   function lockedBecause(lock: LockOrigin): string | undefined {
@@ -329,8 +412,9 @@
 
   /** How many rules moved: the save bar's count, and whether it is there at all. */
   const changedCount = $derived(Object.keys(moved()).length);
-  /** Every tab's unsaved rules: what the leave guard holds, as a tab change keeps them. */
+  /** Every section's unsaved rules: what the leave guard holds, as a move between sections keeps them. */
   const unsaved = $derived(Object.keys(SCOPES).reduce((count, scope) => count + Object.keys(moved(scope)).length, 0));
+  $effect(() => leaveGuard.hold(() => unsaved));
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -341,14 +425,14 @@
     const waiting = movedElsewhere();
     if (await signInPolicy.save(changes)) {
       // From the answer rather than from the draft: what is in force is the server's word, and a
-      // value it bounded is a value this form has to show. What another tab holds unsaved stays.
+      // value it bounded is a value this form has to show. What another section holds unsaved stays.
       fill();
       draft = { ...draft, ...waiting };
       toast.show({ text: t('app.signin_settings.saved'), tone: 'success' });
     }
   }
 
-  /** This tab's rules back as they were read; another tab's stay as they are. */
+  /** This section's rules back as they were read; another section's stay as they are. */
   function discard(): void {
     const reverted = { ...draft };
     for (const key of SCOPES[current] ?? []) if (key in baseline) reverted[key] = baseline[key];
@@ -356,7 +440,7 @@
   }
 
   function select(next: string): void {
-    onnavigate?.(next === 'passwords' ? '/administration/sign-in' : `/administration/sign-in?tab=${next}`);
+    onreplace?.(`${BASE}/${next}`);
   }
 
   // The ways in, and how many of them are on. The last one on cannot be switched off.
@@ -384,6 +468,8 @@
   /** Whether the reader may switch the password and passkeys (the rule's) and the providers (`:offer`'s). */
   const mayRule = $derived(mayHere('STRUCTURE').status === 'permitted');
   const mayOffer = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
+  /** Whether the reader may read the page's part of the configuration document. */
+  const mayReadFile = $derived(holdsHere('STRUCTURE') === true || holdsHere('READ_CONFIGURATION') === true);
   /** The last refusal of a provider's switch, with the row it belongs to. */
   let wayFailure = $state<{ id: string; problem: ReturnType<typeof renderProblem> } | undefined>(undefined);
 
@@ -469,50 +555,67 @@
   const title = $derived(part === 'legal' ? t('app.signin_settings.legal') : t('app.signin_settings.title'));
   $effect(() => page.entitle(title));
 
+  /**
+   * The head's ⋯ (page-system §7.3): the destructive act in a group of its own - asking everybody
+   * for a new password is a moment set for every member, behind a Dialog S, only for whoever may
+   * shape the rules.
+   */
+  const menuItems = $derived(part === 'sign-in' && mayRule && policy ? [{ id: 'rotate', label: t('app.signin_settings.rotate_more'), isDestructive: true }] : []);
 </script>
 
 {#snippet origin(setting: { readonly source: string; readonly lock: string | null }, shown: string, above: string)}
-  <!-- Where the value comes from, at the control it is about: the one chip every administration
-       screen draws (UC-WRK-32 check 5), and beside it the level above's value where this workspace
-       set its own. -->
-  <p class="origin" data-origin>
+  <!-- Where the value comes from, beside the rule's name: the one chip every administration
+       screen draws (UC-WRK-32 check 5), and the level above's value where this workspace set its
+       own. -->
+  <span class="origin" data-origin>
     <ValueSource source={setting.source} lock={setting.lock} value={shown} />
-    {#if above}<span>{above}</span>{/if}
-  </p>
+    {#if above}<span class="above">{above}</span>{/if}
+  </span>
 {/snippet}
 
-{#snippet countRow(key: string, setting: Setting<number>, label: string, hint?: string, bounds: { min?: number; max?: number } = { min: setting.installation }, emptyIsOff = false)}
-  <div data-rule>
-    <Input
-      {label}
-      {hint}
-      type="number"
-      min={bounds.min}
-      max={bounds.max}
-      isRequired={emptyIsOff && !mayBeOff(setting)}
-      value={emptyIsOff && !draft[key] ? '' : String(draft[key] ?? '')}
-      oninput={(event) => {
-        const raw = (event.currentTarget as HTMLInputElement).value;
-        draft[key] = raw === '' ? 0 : Number(raw);
-      }}
-      disabledReason={lockedBecause(setting.lock)}
-      error={refusalOf(key)}
-    />
-    {@render origin(setting, amount(setting.value), originOf(setting, amount))}
+{#snippet countRow(key: string, setting: Setting<number>, label: string, hint?: string, given?: { min?: number; max?: number }, emptyIsOff?: boolean, groupLabel?: string)}
+  {@const bounds = given ?? { min: setting.installation }}
+  <div class="rule" data-rule>
+    <SettingRow {label} help={hint} {groupLabel} fieldWidth="xs" isChanged={isChanged(key)} isRequired={emptyIsOff && !mayBeOff(setting)}>
+      {#snippet source()}{@render origin(setting, amount(setting.value), originOf(setting, amount))}{/snippet}
+      {#snippet control(nameId)}
+        <Input
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          type="number"
+          min={bounds.min}
+          max={bounds.max}
+          isRequired={emptyIsOff && !mayBeOff(setting)}
+          value={emptyIsOff && !draft[key] ? '' : String(draft[key] ?? '')}
+          oninput={(event) => {
+            const raw = (event.currentTarget as HTMLInputElement).value;
+            draft[key] = raw === '' ? 0 : Number(raw);
+          }}
+          disabledReason={lockedBecause(setting.lock)}
+          error={refusalOf(key)}
+        />
+      {/snippet}
+    </SettingRow>
   </div>
 {/snippet}
 
-{#snippet flagRow(key: string, setting: Setting<boolean>, label: string, hint: string)}
-  <div data-rule>
-    <Switch
-      {label}
-      {hint}
-      checked={Boolean(draft[key])}
-      onchange={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).checked)}
-      disabledReason={requiredAbove(setting)}
-    />
-    {#if refusalOf(key)}<p class="refusal" role="alert">{refusalOf(key)}</p>{/if}
-    {@render origin(setting, yesNo(setting.value), originOf(setting, yesNo))}
+{#snippet flagRow(key: string, setting: Setting<boolean>, label: string, hint: string, groupLabel?: string)}
+  <div class="rule" data-rule>
+    <SettingRow {label} help={hint} {groupLabel} fieldWidth="sm" isChanged={isChanged(key)}>
+      {#snippet source()}{@render origin(setting, yesNo(setting.value), originOf(setting, yesNo))}{/snippet}
+      {#snippet control(nameId)}
+        <Switch
+          {label}
+          isLabelHidden
+          aria-labelledby={nameId}
+          checked={Boolean(draft[key])}
+          onchange={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).checked)}
+          disabledReason={requiredAbove(setting)}
+        />
+        {#if refusalOf(key)}<p class="refusal" role="alert">{refusalOf(key)}</p>{/if}
+      {/snippet}
+    </SettingRow>
   </div>
 {/snippet}
 
@@ -520,44 +623,81 @@
   {@const setting = policy?.legal[key]}
   {#if setting}
     {@const locked = setting.lock !== null}
-    <div data-rule>
-      <Input
-        {label}
-        {hint}
-        type="url"
-        value={locked ? setting.value : String(draft[key] ?? '')}
-        oninput={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).value)}
-        disabledReason={lockedBecause(setting.lock)}
-        error={refusalOf(key)}
-      />
-      {@render origin(setting, setting.value || t('app.source.nothing'), linkOrigin(setting, String(draft[key] ?? '')))}
+    <div class="rule" data-rule>
+      <SettingRow {label} help={hint} fieldWidth="lg" isChanged={isChanged(key)}>
+        {#snippet source()}{@render origin(setting, setting.value || t('app.source.nothing'), linkOrigin(setting, String(draft[key] ?? '')))}{/snippet}
+        {#snippet control(nameId)}
+          <Input
+            {label}
+            isLabelHidden
+            aria-labelledby={nameId}
+            type="url"
+            value={locked ? setting.value : String(draft[key] ?? '')}
+            oninput={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).value)}
+            disabledReason={lockedBecause(setting.lock)}
+            error={refusalOf(key)}
+          />
+        {/snippet}
+      </SettingRow>
     </div>
   {/if}
 {/snippet}
 
-<Stack gap="300">
-  <PageHeader
-    {title}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
+{#snippet wayRow(id: string, label: string, help: string | undefined, isInert: boolean, control: Snippet<[string]>, source?: Snippet, reach?: string)}
+  <li class="rule way" data-rule inert={isInert}>
+    <SettingRow {label} {help} fieldWidth="sm" {control} {source} />
+    {#if reach}<p class="reach" data-reach>{reach}</p>{/if}
+    {#if wayFailure && wayFailure.id === id}<p class="refusal way-refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+  </li>
+{/snippet}
+
+{#snippet saveBar()}
+  <WriteOnly>
+    <SaveBar
+      label={t('app.save_bar.label')}
+      changesLabel={changedCount > 0 ? t('app.save_bar.changes', { count: String(changedCount) }) : undefined}
+      discardLabel={t('app.save_bar.discard')}
+      saveLabel={t('app.workspace.save')}
+      isSaving={signInPolicy.isWorking}
+      savingLabel={t('app.workspace.saving')}
+      onDiscard={discard}
+      onSave={() => form?.requestSubmit()}
+    />
+  </WriteOnly>
+{/snippet}
+
+{#snippet figure()}
+  <span class="figure">
+    {#if part === 'sign-in'}{t('app.signin_settings.figure', figureCounts)}{/if}
+    {#if policy?.plan}
+      <!-- The plan a workspace is on, so "Set by your plan" refers to something a person can
+           name to their provider. A note, not an offer: no price, no other plan. -->
+      <span data-testid="sign-in-plan"><Badge tone="info" size="sm">{t('app.signin_settings.plan', { name: policy.plan })}</Badge></span>
+    {/if}
+  </span>
+{/snippet}
+
+<SettingsLayout
+  head={{
+    title,
+    breadcrumb: {
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
         { id: part, label: title },
       ],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
-    }}
-  >
-    {#snippet notices()}
-      {#if policy?.plan}
-        <!-- The plan a workspace is on, so "Set by your plan" refers to something a person can
-             name to their provider. A note, not an offer: no price, no other plan. -->
-        <p class="plan" data-testid="sign-in-plan"><Badge tone="info">{t('app.signin_settings.plan', { name: policy.plan })}</Badge></p>
-      {/if}
-    {/snippet}
-  </PageHeader>
-  <div class="file"><ViewSectionsAsFile {...pagePart(part === 'legal' ? '/administration/legal' : '/administration/sign-in')} /></div>
-
+    },
+    secondary: mayReadFile ? [{ label: t('app.settings.view_as_file'), onclick: () => (isFileOpen = true) }] : [],
+    menu: menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: () => (confirming = true) } : undefined,
+    figure: policy && (part === 'sign-in' || policy.plan) ? figure : undefined,
+  }}
+  nav={{ label: t('app.settings_page.sections', { name: title }), sections: links, current, onselect: part === 'legal' ? undefined : select }}
+  {view}
+  back={part === 'legal'
+    ? { label: t('app.admin.title'), onback: () => onnavigate?.('/administration') }
+    : { label: t('app.signin_settings.title'), onback: () => onreplace?.(BASE) }}
+>
   {#if unreadable && !policy}
     <!-- Never a spinner for a read that failed (check 8, P-11): the server's sentence, and a way to
          ask again. -->
@@ -572,421 +712,347 @@
       <span>{t('app.workspace.reading')}</span>
     </p>
   {:else}
-    <Stack gap="300">
-      <p class="lead">{part === 'legal' ? t('app.signin_settings.legal_hint') : t('app.signin_settings.lead')}</p>
-
-      {#if general}
-        <FailureNote problem={general}>
-          {#if general.reference}{general.reference}{/if}
-        </FailureNote>
-      {/if}
-
-      <!-- One tab at a time on the shell (user-experience.md §5.4); the save bar stays in the
-           form, where Enter submits, and the shell's guard counts every tab's unsaved rules. -->
-      {#if part === 'sign-in'}
-        <SettingsPage
-          label={t('app.settings_page.sections', { name: t('app.signin_settings.title') })}
-          sections={TABS.map((each) => ({ id: each.id, label: t(each.code), href: each.id === 'passwords' ? '/administration/sign-in' : `/administration/sign-in?tab=${each.id}` }))}
-          selected={current}
-          onselect={select}
-          changes={unsaved}
-        >
-          {@render panel()}
-        </SettingsPage>
-      {:else}
-        <SettingsPage label={t('app.settings_page.sections', { name: t('app.signin_settings.legal') })} sections={[{ id: 'legal', label: t('app.signin_settings.legal') }]} changes={unsaved}>
-          {@render panel()}
-        </SettingsPage>
-      {/if}
-    </Stack>
+    {#if general}
+      <FailureNote problem={general}>
+        {#if general.reference}{general.reference}{/if}
+      </FailureNote>
+    {/if}
+    {@render panel()}
   {/if}
-</Stack>
+</SettingsLayout>
 
 {#snippet panel()}
   {#if policy}
-    <Stack gap="300">
-      {#if current !== 'ways' && current !== 'directory'}
+    {#if current === 'ways'}
+      {@render ways()}
+    {:else if current === 'directory'}
+      <!-- The LDAP directory the people are synchronised from (UC-ID-31): its own saves. -->
+      <LdapDirectoryPanel />
+    {:else}
       <WorkspaceGate permission="STRUCTURE">
         <form bind:this={form} onsubmit={save} use:enterSubmits>
-          <Stack gap="300">
-            {#if current === 'passwords'}
-            <section class="panel">
-              <Stack gap="200">
-                <h2>{t('app.signin_settings.passwords')}</h2>
-
-                {@render countRow('min_length', policy.password.min_length, t('app.signin_settings.min_length'))}
-
-                <fieldset class="classes">
-                  <legend>{t('app.signin_settings.classes')}</legend>
-                  <p class="quiet small">{t('app.signin_settings.classes_hint')}</p>
-                  <div class="grid">
-                    {#each [['min_lowercase', policy.password.min_lowercase], ['min_uppercase', policy.password.min_uppercase], ['min_digits', policy.password.min_digits], ['min_symbols', policy.password.min_symbols]] as const as [key, setting] (key)}
-                      {@render countRow(key, setting, t(`app.signin_settings.${key}`))}
-                    {/each}
-                  </div>
-                </fieldset>
-
-                {@render countRow('min_classes', policy.password.min_classes, t('app.signin_settings.min_classes'))}
-                {@render countRow('max_repeat', policy.password.max_repeat, t('app.signin_settings.max_repeat'), mayBeOff(policy.password.max_repeat) ? t('app.signin_settings.max_repeat_hint') : undefined, capped(policy.password.max_repeat), true)}
-                {@render flagRow('common_passwords', policy.password.common_passwords, t('app.signin_settings.common_passwords'), t('app.signin_settings.adds_a_line'))}
-                {@render flagRow('context_words', policy.password.context_words, t('app.signin_settings.context_words'), t('app.signin_settings.adds_a_line'))}
-                {@render flagRow('breach_check', policy.password.breach_check, t('app.signin_settings.breach_check'), t('app.signin_settings.breach_hint'))}
-                {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), mayBeOff(policy.password.max_age_days) ? t('app.signin_settings.max_age_hint') : undefined, capped(policy.password.max_age_days), true)}
-                {@render countRow('history_count', policy.password.history_count, t('app.signin_settings.history_count'), t('app.signin_settings.history_hint'))}
-                <!-- The eighteenth rule (check 7). -->
-                {@render countRow('min_age_hours', policy.password.min_age_hours, t('app.signin_settings.min_age_hours'), t('app.signin_settings.min_age_hint'))}
-              </Stack>
-            </section>
-
-            <section class="panel">
-              <Stack gap="200">
-                <h2>{t('app.signin_settings.second_factor')}</h2>
-                <div data-rule>
-                  <Select
-                    label={t('app.signin_settings.mfa_required_for')}
-                    hint={t('app.signin_settings.mfa_hint')}
-                    value={String(draft['mfa_required_for'] ?? 'NONE')}
-                    onchange={(event) => (draft['mfa_required_for'] = (event.currentTarget as HTMLSelectElement).value)}
-                    options={mfaOptions}
-                    disabledReason={lockedBecause(policy.mfa_required_for.lock)}
-                    error={refusalOf('mfa_required_for')}
-                  />
-                  {@render origin(policy.mfa_required_for, mfaLabel(policy.mfa_required_for.value), originOf(policy.mfa_required_for, mfaLabel))}
-                </div>
-              </Stack>
-            </section>
-
-            {/if}
-            {#if current === 'passwords' && policy.managed_accounts}
-              {@const managed = policy.managed_accounts}
-              <section class="panel">
-                <Stack gap="200">
-                  <h2>{t('app.signin_settings.managed_title')}</h2>
-                  <div data-rule>
+          {#if current === 'passwords'}
+            <SettingsSection
+              title={t('app.signin_settings.passwords')}
+              description={t('app.signin_settings.passwords_lead')}
+              status={statusOf('passwords').status}
+              advanced={{ label: t('app.signin_settings.advanced'), description: t('app.signin_settings.advanced_hint'), rows: passwordRare }}
+              save={saveBar}
+            >
+              {@render countRow('min_length', policy.password.min_length, t('app.signin_settings.min_length'), undefined, undefined, false, t('app.signin_settings.group_strength'))}
+              {@render flagRow('common_passwords', policy.password.common_passwords, t('app.signin_settings.common_passwords'), t('app.signin_settings.adds_a_line'))}
+              {@render flagRow('context_words', policy.password.context_words, t('app.signin_settings.context_words'), t('app.signin_settings.adds_a_line'))}
+              {@render flagRow('breach_check', policy.password.breach_check, t('app.signin_settings.breach_check'), t('app.signin_settings.breach_hint'))}
+              {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), mayBeOff(policy.password.max_age_days) ? t('app.signin_settings.max_age_hint') : undefined, capped(policy.password.max_age_days), true, t('app.signin_settings.group_change'))}
+              {@render countRow('history_count', policy.password.history_count, t('app.signin_settings.history_count'), t('app.signin_settings.history_hint'))}
+            </SettingsSection>
+          {:else if current === 'second-factor'}
+            <SettingsSection title={t('app.signin_settings.second_factor')} description={t('app.signin_settings.mfa_hint')} status={statusOf('second-factor').status} save={saveBar}>
+              <div class="rule" data-rule>
+                <SettingRow label={t('app.signin_settings.mfa_required_for')} fieldWidth="md" isChanged={isChanged('mfa_required_for')}>
+                  {#snippet source()}{@render origin(policy.mfa_required_for, mfaLabel(policy.mfa_required_for.value), originOf(policy.mfa_required_for, mfaLabel))}{/snippet}
+                  {#snippet control(nameId)}
+                    <Select
+                      label={t('app.signin_settings.mfa_required_for')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
+                      value={String(draft['mfa_required_for'] ?? 'NONE')}
+                      onchange={(event) => (draft['mfa_required_for'] = (event.currentTarget as HTMLSelectElement).value)}
+                      options={mfaOptions}
+                      disabledReason={lockedBecause(policy.mfa_required_for.lock)}
+                      error={refusalOf('mfa_required_for')}
+                    />
+                  {/snippet}
+                </SettingRow>
+              </div>
+            </SettingsSection>
+          {:else if current === 'sessions'}
+            <SettingsSection title={t('app.signin_settings.sessions')} status={statusOf('sessions').status} save={saveBar}>
+              {@render countRow('session_max_days', policy.session.max_days, t('app.signin_settings.session_max_days'), undefined, { min: 1, max: policy.session.max_days.installation || undefined })}
+              {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), mayBeOff(policy.session.idle_minutes) ? t('app.signin_settings.session_idle_hint') : undefined, capped(policy.session.idle_minutes), true)}
+            </SettingsSection>
+          {:else if current === 'accounts-without-mail' && policy.managed_accounts}
+            {@const managed = policy.managed_accounts}
+            <SettingsSection title={t('app.signin_settings.managed_title')} status={statusOf('accounts-without-mail').status} save={saveBar}>
+              <div class="rule" data-rule>
+                <SettingRow label={t('app.signin_settings.managed_accounts')} help={t('app.signin_settings.managed_accounts_hint')} fieldWidth="sm" isChanged={isChanged('managed_accounts')}>
+                  {#snippet source()}{@render origin(managed, yesNo(managed.value), originOf(managed, yesNo))}{/snippet}
+                  {#snippet control(nameId)}
                     <!-- Off is the stricter value here, the other way round from the password's
                          switches: what the level above switched off cannot be switched on. -->
                     <Switch
                       label={t('app.signin_settings.managed_accounts')}
-                      hint={t('app.signin_settings.managed_accounts_hint')}
+                      isLabelHidden
+                      aria-labelledby={nameId}
                       checked={Boolean(draft.managed_accounts)}
                       onchange={(event) => (draft.managed_accounts = (event.currentTarget as HTMLInputElement).checked)}
                       disabledReason={lockedBecause(managed.lock) ??
                         (managed.installation ? undefined : t('app.signin_settings.managed_off_above'))}
                     />
                     {#if refusalOf('managed_accounts')}<p class="refusal" role="alert">{refusalOf('managed_accounts')}</p>{/if}
-                    {@render origin(managed, yesNo(managed.value), originOf(managed, yesNo))}
-                  </div>
-                </Stack>
-              </section>
-            {/if}
-
-            {#if current === 'sessions'}
-            <section class="panel">
-              <Stack gap="200">
-                <h2>{t('app.signin_settings.sessions')}</h2>
-                {@render countRow('session_max_days', policy.session.max_days, t('app.signin_settings.session_max_days'), undefined, { min: 1, max: policy.session.max_days.installation || undefined })}
-                {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), mayBeOff(policy.session.idle_minutes) ? t('app.signin_settings.session_idle_hint') : undefined, capped(policy.session.idle_minutes), true)}
-              </Stack>
-            </section>
-
-            {/if}
-            {#if current === 'legal'}
-            <section class="panel">
-              <Stack gap="200">
-                {@render linkRow('imprint_url', t('app.legal.imprint'))}
-                {@render linkRow('privacy_url', t('app.legal.privacy'))}
-                {@render linkRow('terms_url', t('app.legal.terms'))}
-                {#if policy.legal.terms_version}
-                  <!-- The terms' version, beside its link (UC-ID-19): a change of either asks every
-                       person to agree again at their next sign-in, which the hint says before it is
-                       saved. Under the link's lock, from the link's level. -->
-                  <div data-rule>
-                    <Input
-                      label={t('app.signin_settings.terms_version')}
-                      hint={t('app.signin_settings.terms_version_hint')}
-                      value={policy.legal.terms_version.lock !== null
-                        ? policy.legal.terms_version.value
-                        : String(draft['terms_version'] ?? '')}
-                      oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
-                      disabledReason={lockedBecause(policy.legal.terms_version.lock)}
-                      error={refusalOf('terms_version')}
-                      maxlength={64}
-                    />
-                    {@render origin(policy.legal.terms_version, policy.legal.terms_version.value || t('app.source.nothing'), linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
-                  </div>
-                {/if}
-                <!-- The fourth link, which the sign-in footer shows: without this row a workspace
-                     could only have the installation's, whatever its own statement said. -->
-                {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
-              </Stack>
-            </section>
-            {#if policy.legal.support_url || policy.legal.docs_url}
-              <!-- Not in the footer: Help shows them (user-experience.md §5.8). -->
-              <section class="panel" data-help-links>
-                <Stack gap="200">
-                  <h2>{t('app.signin_settings.help_links')}</h2>
-                  <p class="lead">{t('app.signin_settings.help_links_hint')}</p>
-                  {@render linkRow('support_url', t('app.help.support_contact'), t('app.signin_settings.support_url_hint'))}
-                  {@render linkRow('docs_url', t('app.help.documentation'))}
-                </Stack>
-              </section>
-            {/if}
-            {/if}
-
-          </Stack>
-          <WriteOnly>
-            <SaveBar
-              label={t('app.save_bar.label')}
-              changesLabel={changedCount > 0 ? t('app.save_bar.changes', { count: String(changedCount) }) : undefined}
-              discardLabel={t('app.save_bar.discard')}
-              saveLabel={t('app.workspace.save')}
-              isSaving={signInPolicy.isWorking}
-              savingLabel={t('app.workspace.saving')}
-              onDiscard={discard}
-              onSave={() => form?.requestSubmit()}
-            />
-          </WriteOnly>
+                  {/snippet}
+                </SettingRow>
+              </div>
+            </SettingsSection>
+          {:else if current === 'legal'}
+            {@render legal()}
+          {/if}
         </form>
       </WorkspaceGate>
-      {/if}
-
-      {#if current === 'directory'}
-        <!-- The LDAP directory the people are synchronised from (UC-ID-31): its own saves. -->
-        <LdapDirectoryPanel />
-      {/if}
-
-      {#if current === 'ways'}
-      <!-- The ways in save the moment a switch moves, so they stand outside the rules' form and
-           its save: a form holds what waits for its save, and nothing else. -->
-      <section class="panel">
-        <Stack gap="200">
-          <h2 id="ways">{t('app.signin_settings.ways')}</h2>
-          <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
-          {#if opening}
-            <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
-              <!-- Who asked and why come only to a reader of the configuration; without them the
-                   sentence says the rest rather than printing an empty attribution. -->
-              {opening.requester && opening.reason
-                ? t('app.signin_settings.opening_body', {
-                    until: formatDateTime(opening.until, messages.locale),
-                    requester: opening.requester,
-                    reason: opening.reason,
-                  })
-                : t('app.signin_settings.opening_body_unattributed', {
-                    until: formatDateTime(opening.until, messages.locale),
-                  })}
-            </Banner>
-          {:else if fallback}
-            <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
-              {t('app.signin_settings.fallback_no_way_in')}
-            </Banner>
-          {/if}
-          <!-- One list, one switch each (UC-ID-12 check 6), each row under its own permission: the
-               password and passkeys are the rule's (STRUCTURE, whose notice the rules above
-               already gave), a provider goes through `:offer`, which asks MANAGE_MEMBERS. A row
-               the reader may not switch stays, inert, to be read; the notice above says why. -->
-          <WorkspaceRefusal permission="MANAGE_MEMBERS" />
-          <ul class="ways" aria-labelledby="ways">
-            <li class="way" data-rule inert={!mayRule}>
-              <Switch
-                label={t('app.signin_settings.way_password')}
-                hint={t('app.signin_settings.way_password_hint')}
-                checked={passwordOn}
-                onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
-                isBusy={switching === 'password'}
-                busyLabel={t('app.signin_settings.switching')}
-                disabledReason={passwordFixed()}
-              />
-              {#if passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0}
-                <!-- Only where it can go off: as the last way in, or under the installation's
-                     lock, the switch is held and the count would describe a choice nobody has. -->
-                <p class="quiet small" data-reach>
-                  {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
-                </p>
-              {/if}
-              {#if wayFailure && wayFailure.id === 'password'}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-              {@render origin(policy.methods, passwordWord(policy.methods.value), originOf(policy.methods, passwordWord))}
-            </li>
-            <li class="way" data-rule inert={!mayRule}>
-              <Switch
-                label={t('app.signin_settings.way_passkey')}
-                hint={t('app.signin_settings.way_passkey_hint')}
-                checked={passkeyOn}
-                onchange={(event) => void setPasskey((event.currentTarget as HTMLInputElement).checked)}
-                isBusy={switching === 'passkey'}
-                busyLabel={t('app.signin_settings.switching')}
-                disabledReason={passkeyFixed()}
-              />
-              {#if wayFailure && wayFailure.id === 'passkey'}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-              {@render origin(policy.methods, passkeyWord(policy.methods.value), originOf(policy.methods, passkeyWord))}
-            </li>
-            {#each providers as one (one.id)}
-              <li class="way" data-rule inert={!mayOffer}>
-                <ProviderMark kind={one.kind} name={one.display_name} />
-                {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
-                  <!-- Switched off where it is offered, or withdrawn from its date: not a choice
-                       this workspace has, so no switch - a sentence saying so. -->
-                  <span class="name">{one.display_name}</span>
-                  <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
-                {:else if one.scope === 'workspace' && ownResting && one.enabled}
-                  <!-- The plan leaves the workspace's own providers out: this one signs nobody
-                       in and is not switched on here (multi-tenancy.md §4.2). Switching it off
-                       stays, so that it stays off when the plan includes it again; nothing
-                       else is offered. -->
-                  <Switch
-                    label={one.display_name}
-                    hint={t('app.plan.provider_resting_hint')}
-                    checked
-                    onchange={(event) => { if (!(event.currentTarget as HTMLInputElement).checked) void setProvider(one.id, false); }}
-                    isBusy={switching === one.id}
-                    busyLabel={t('app.signin_settings.switching')}
-                  />
-                  {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-                {:else if one.scope === 'workspace' && ownResting}
-                  <!-- Resting and off: a sentence, no switch - switching it on is refused. -->
-                  <span class="name">{one.display_name}</span>
-                  <Badge tone="neutral">{t('app.plan.not_included')}</Badge>
-                {:else}
-                  {@const mandated = one.installation_lock === 'TURNS_ON'}
-                  {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}
-                  <Switch
-                    label={one.display_name}
-                    hint={mandated
-                      ? t(mandatedByPlan ? 'app.signin_settings.way_mandated_plan' : 'app.signin_settings.way_mandated')
-                      : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
-                    checked={one.offered_here === true}
-                    onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
-                    isBusy={switching === one.id}
-                    busyLabel={t('app.signin_settings.switching')}
-                    disabledReason={mandated ? (lockedBecause(policy.methods.lock) ?? t('app.signin_settings.locked_installation')) : lastWay(one.offered_here === true)}
-                  />
-                  {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
-                    <!-- Said under the switch it is about, while there is still time to act. -->
-                    <p class="withdrawing">
-                      {t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', {
-                        date: formatDateTime(one.withdraw_at ?? '', messages.locale),
-                      })}
-                    </p>
-                  {/if}
-                  <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
-                  {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-                {/if}
-              </li>
-            {/each}
-          </ul>
-        </Stack>
-      </section>
-
-      <!-- The providers' configuration, under the switches that turn them on here. -->
-      <section class="panel" aria-labelledby="providers">
-        <Stack gap="200">
-          <h2 id="providers">{t('app.identity_provider.title')}</h2>
-          <IdentityProviderView />
-        </Stack>
-      </section>
-      {/if}
-
-      {#if current === 'passwords'}
-      <WorkspaceGate permission="STRUCTURE">
-        {#snippet actions()}
-      <section class="panel">
-        <Stack gap="150">
-          <h2>{t('app.signin_settings.rotate_title')}</h2>
-          <p class="quiet">{t('app.signin_settings.rotate_body')}</p>
-          <div>
-            <Button tone="danger" onclick={() => (confirming = true)}>
-              {t('app.signin_settings.rotate')}
-            </Button>
-          </div>
-        </Stack>
-      </section>
-        {/snippet}
-      </WorkspaceGate>
-      {/if}
-    </Stack>
+    {/if}
   {/if}
 {/snippet}
 
+{#snippet passwordRare()}
+  {#if policy}
+    {#each [['min_lowercase', policy.password.min_lowercase], ['min_uppercase', policy.password.min_uppercase], ['min_digits', policy.password.min_digits], ['min_symbols', policy.password.min_symbols]] as const as [key, setting], index (key)}
+      {@render countRow(key, setting, t(`app.signin_settings.${key}`), index === 0 ? t('app.signin_settings.classes_hint') : undefined, undefined, false, index === 0 ? t('app.signin_settings.classes') : undefined)}
+    {/each}
+    {@render countRow('min_classes', policy.password.min_classes, t('app.signin_settings.min_classes'))}
+    {@render countRow('max_repeat', policy.password.max_repeat, t('app.signin_settings.max_repeat'), mayBeOff(policy.password.max_repeat) ? t('app.signin_settings.max_repeat_hint') : undefined, capped(policy.password.max_repeat), true)}
+    <!-- The eighteenth rule (check 7). -->
+    {@render countRow('min_age_hours', policy.password.min_age_hours, t('app.signin_settings.min_age_hours'), t('app.signin_settings.min_age_hint'))}
+  {/if}
+{/snippet}
+
+{#snippet legal()}
+  {#if policy}
+    {@const hasHelp = policy.legal.support_url !== undefined || policy.legal.docs_url !== undefined}
+    <SettingsSection title={t('app.signin_settings.legal')} description={t('app.signin_settings.legal_hint')} status={statusOf('legal').status} save={hasHelp ? undefined : saveBar}>
+      {@render linkRow('imprint_url', t('app.legal.imprint'))}
+      {@render linkRow('privacy_url', t('app.legal.privacy'))}
+      {@render linkRow('terms_url', t('app.legal.terms'))}
+      {#if policy.legal.terms_version}
+        {@const version = policy.legal.terms_version}
+        <!-- The terms' version, beside its link (UC-ID-19): a change of either asks every person to
+             agree again at their next sign-in, which the help says before it is saved. Under the
+             link's lock, from the link's level. -->
+        <div class="rule" data-rule>
+          <SettingRow
+            label={t('app.signin_settings.terms_version')}
+            help={t('app.signin_settings.terms_version_hint')}
+            fieldWidth="sm"
+            isChanged={isChanged('terms_version')}
+          >
+            {#snippet source()}{@render origin(version, version.value || t('app.source.nothing'), linkOrigin(version, String(draft['terms_version'] ?? '')))}{/snippet}
+            {#snippet control(nameId)}
+              <Input
+                label={t('app.signin_settings.terms_version')}
+                isLabelHidden
+                aria-labelledby={nameId}
+                value={version.lock !== null ? version.value : String(draft['terms_version'] ?? '')}
+                oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
+                disabledReason={lockedBecause(version.lock)}
+                error={refusalOf('terms_version')}
+                maxlength={64}
+              />
+            {/snippet}
+          </SettingRow>
+        </div>
+      {/if}
+      <!-- The fourth link, which the sign-in footer shows: without this row a workspace could only
+           have the installation's, whatever its own statement said. -->
+      {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
+    </SettingsSection>
+    {#if hasHelp}
+      <!-- Not in the footer: Help shows them (user-experience.md §5.8). Saved with the links above,
+           by one bar - the page has one save model. -->
+      <div class="help-links" data-help-links>
+        <SettingsSection title={t('app.signin_settings.help_links')} description={t('app.signin_settings.help_links_hint')} save={saveBar}>
+          {@render linkRow('support_url', t('app.help.support_contact'), t('app.signin_settings.support_url_hint'))}
+          {@render linkRow('docs_url', t('app.help.documentation'))}
+        </SettingsSection>
+      </div>
+    {/if}
+  {/if}
+{/snippet}
+
+{#snippet ways()}
+  {#if policy}
+    <!-- The ways in save the moment a switch moves, so they stand outside the rules' form and its
+         save: a form holds what waits for its save, and nothing else. -->
+    {#if opening}
+      <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
+        <!-- Who asked and why come only to a reader of the configuration; without them the
+             sentence says the rest rather than printing an empty attribution. -->
+        {opening.requester && opening.reason
+          ? t('app.signin_settings.opening_body', {
+              until: formatDateTime(opening.until, messages.locale),
+              requester: opening.requester,
+              reason: opening.reason,
+            })
+          : t('app.signin_settings.opening_body_unattributed', {
+              until: formatDateTime(opening.until, messages.locale),
+            })}
+      </Banner>
+    {:else if fallback}
+      <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
+        {t('app.signin_settings.fallback_no_way_in')}
+      </Banner>
+    {/if}
+    <!-- One list, one switch each (UC-ID-12 check 6), each row under its own permission: the
+         password and passkeys are the rule's (STRUCTURE), a provider goes through `:offer`, which
+         asks MANAGE_MEMBERS. A row the reader may not switch stays, inert, to be read; the notice
+         says why. -->
+    <WorkspaceRefusal permission="MANAGE_MEMBERS" />
+    <SettingsSection title={t('app.signin_settings.ways')} description={t('app.signin_settings.ways_hint')} status={statusOf('ways').status}>
+      <ul class="ways" aria-label={t('app.signin_settings.ways')}>
+        {#snippet passwordSwitch(nameId: string)}
+          <Switch
+            label={t('app.signin_settings.way_password')}
+            isLabelHidden
+            aria-labelledby={nameId}
+            checked={passwordOn}
+            onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
+            isBusy={switching === 'password'}
+            busyLabel={t('app.signin_settings.switching')}
+            disabledReason={passwordFixed()}
+          />
+        {/snippet}
+        {#snippet passwordSource()}
+          {@render origin(policy.methods, passwordWord(policy.methods.value), originOf(policy.methods, passwordWord))}
+        {/snippet}
+        {@render wayRow(
+          'password',
+          t('app.signin_settings.way_password'),
+          t('app.signin_settings.way_password_hint'),
+          !mayRule,
+          passwordSwitch,
+          passwordSource,
+          // Only where it can go off: as the last way in, or under the installation's lock, the
+          // switch is held and the count would describe a choice nobody has.
+          passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0
+            ? t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })
+            : undefined,
+        )}
+        {#snippet passkeySwitch(nameId: string)}
+          <Switch
+            label={t('app.signin_settings.way_passkey')}
+            isLabelHidden
+            aria-labelledby={nameId}
+            checked={passkeyOn}
+            onchange={(event) => void setPasskey((event.currentTarget as HTMLInputElement).checked)}
+            isBusy={switching === 'passkey'}
+            busyLabel={t('app.signin_settings.switching')}
+            disabledReason={passkeyFixed()}
+          />
+        {/snippet}
+        {#snippet passkeySource()}
+          {@render origin(policy.methods, passkeyWord(policy.methods.value), originOf(policy.methods, passkeyWord))}
+        {/snippet}
+        {@render wayRow('passkey', t('app.signin_settings.way_passkey'), t('app.signin_settings.way_passkey_hint'), !mayRule, passkeySwitch, passkeySource)}
+        {#each providers as one (one.id)}
+          {@const mandated = one.installation_lock === 'TURNS_ON'}
+          {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}
+          {@const withdrawn = one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
+          {@const resting = one.scope === 'workspace' && ownResting}
+          {#snippet providerControl(nameId: string)}
+            {#if withdrawn}
+              <!-- Switched off where it is offered, or withdrawn from its date: not a choice this
+                   workspace has, so no switch - a word saying so. -->
+              <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
+            {:else if resting && one.enabled}
+              <!-- The plan leaves the workspace's own providers out: this one signs nobody in and
+                   is not switched on here (multi-tenancy.md §4.2). Switching it off stays, so that
+                   it stays off when the plan includes it again; nothing else is offered. -->
+              <Switch
+                label={one.display_name}
+                isLabelHidden
+                aria-labelledby={nameId}
+                checked
+                onchange={(event) => { if (!(event.currentTarget as HTMLInputElement).checked) void setProvider(one.id, false); }}
+                isBusy={switching === one.id}
+                busyLabel={t('app.signin_settings.switching')}
+              />
+            {:else if resting}
+              <!-- Resting and off: a word, no switch - switching it on is refused. -->
+              <Badge tone="neutral">{t('app.plan.not_included')}</Badge>
+            {:else}
+              <Switch
+                label={one.display_name}
+                isLabelHidden
+                aria-labelledby={nameId}
+                checked={one.offered_here === true}
+                onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
+                isBusy={switching === one.id}
+                busyLabel={t('app.signin_settings.switching')}
+                disabledReason={mandated ? (lockedBecause(policy.methods.lock) ?? t('app.signin_settings.locked_installation')) : lastWay(one.offered_here === true)}
+              />
+            {/if}
+          {/snippet}
+          {#snippet providerSource()}<ProviderMark kind={one.kind} name={one.display_name} />{/snippet}
+          {@render wayRow(
+            one.id,
+            one.display_name,
+            withdrawn
+              ? undefined
+              : resting
+                ? (one.enabled ? t('app.plan.provider_resting_hint') : undefined)
+                : [
+                    mandated
+                      ? t(mandatedByPlan ? 'app.signin_settings.way_mandated_plan' : 'app.signin_settings.way_mandated')
+                      : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own'),
+                    // Said under the switch it is about, while there is still time to act.
+                    one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'
+                      ? t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', { date: formatDateTime(one.withdraw_at ?? '', messages.locale) })
+                      : undefined,
+                  ].filter(Boolean).join(' '),
+            !mayOffer,
+            providerControl,
+            providerSource,
+          )}
+        {/each}
+      </ul>
+    </SettingsSection>
+
+    <!-- The providers' configuration, under the switches that turn them on here: a table whose row
+         opens the provider's own page. -->
+    <ProvidersTable onopen={(path) => onnavigate?.(path)} />
+  {/if}
+{/snippet}
+
+<ViewSectionsAsFile {...pagePart(part === 'legal' ? '/administration/legal' : BASE)} bind:isOpen={isFileOpen} isTriggerHidden />
+
 <Dialog
+  size="s"
   bind:isOpen={confirming}
   title={t('app.signin_settings.rotate_title')}
   dismissLabel={t('app.dismiss')}
   onClose={() => (confirming = false)}
+  primary={{ label: t('app.signin_settings.rotate'), tone: 'danger', onclick: () => void rotate() }}
 >
+  <p class="body">{t('app.signin_settings.rotate_body')}</p>
+  <p class="body">{t('app.signin_settings.rotate_confirm')}</p>
   {#snippet actions()}
-    <Button tone="subtle" onclick={() => (confirming = false)}>{t('app.dismiss')}</Button>
-    <Button tone="danger" onclick={() => void rotate()}>{t('app.signin_settings.rotate')}</Button>
+    <Button tone="secondary" onclick={() => (confirming = false)}>{t('app.dismiss')}</Button>
   {/snippet}
-  <p>{t('app.signin_settings.rotate_confirm')}</p>
 </Dialog>
 
 <style>
-  .panel {
-    padding: var(--sp-250);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  form { margin: 0; display: flex; flex-direction: column; gap: var(--sp-300); }
 
-  form { margin: 0; }
-
-  h2 {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
-  .lead { margin: 0; color: var(--text-secondary); }
-  .plan { margin: 0; }
+  .body { margin: 0; }
+  .figure { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 
-  .small { font-size: var(--fs-075); }
+  /* Each rule is wrapped so a test and a reader find its control, its chip and its reason
+     together; the hairline the design system draws between two rows is drawn here between two
+     wrapped ones, since its own rule sees siblings. */
+  .rule + .rule > :global(.setting-row > .setting-line:first-child) { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 
-  /* Under the control, in the hint's voice: it answers "who set this", which is a fact about the
-     rule rather than an instruction. */
-  .origin {
-    margin: var(--sp-050) 0 0;
-    color: var(--text-subtle);
-    font-size: var(--fs-075);
-  }
+  .origin { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .above { color: var(--text-subtle); font-size: var(--fs-075); font-weight: var(--fw-regular); }
 
   .refusal {
     margin: var(--sp-050) 0 0;
     color: var(--text-danger);
     font-size: var(--fs-075);
   }
+  .way-refusal,
+  .reach { margin: 0; padding: 0 var(--sp-250) var(--sp-150); font-size: var(--fs-075); }
+  .reach { color: var(--text-secondary); }
 
-  .withdrawing {
-    margin: var(--sp-050) 0 0;
-    color: var(--text-warning);
-    font-size: var(--fs-075);
-  }
-
-  .ways { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-150); }
-
-  .way { display: flex; align-items: flex-start; gap: var(--sp-150); }
-
-  .way .name { color: var(--text-primary); }
-
-  .classes { margin: 0; padding: 0; border: 0; }
-
-  .classes legend {
-    padding: 0;
-    color: var(--text-primary);
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10ch, 1fr));
-    gap: var(--sp-150);
-    margin-block-start: var(--sp-100);
-  }
-
-  .file { display: flex; justify-content: flex-end; }
+  .ways { margin: 0; padding: 0; list-style: none; }
+  .help-links { display: contents; }
 </style>

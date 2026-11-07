@@ -213,7 +213,7 @@ test('the addresses this application publishes resolve to their screens', () => 
 
 test('an address whose screen became a tab replaces itself with that tab, and no other moves', () => {
   // A bookmark or a link in a mail keeps working (ux-inventory §E9); every other address stays.
-  assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in?tab=ways');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in/ways');
   assert.equal(movedTo(resolve(ROUTES, '/administration/groups').name), '/administration/people?tab=groups');
   assert.equal(movedTo(resolve(ROUTES, '/administration/permissions').name), '/administration/people?tab=permissions');
   assert.equal(movedTo(resolve(ROUTES, '/administration/service-accounts').name), '/administration/machines');

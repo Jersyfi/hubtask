@@ -298,6 +298,8 @@ async function views() {
     ['ci', await load('AssetsView'), { ciId: ITEM, onnavigate: noop }],
     ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
+    ['sign-in-section', await load('SignInSettingsView'), { section: 'sessions' }],
+    ['sign-in-provider', await load('IdentityProviderView'), { id: 'own', onnavigate: noop }],
     ['legal', await load('SignInSettingsView'), { part: 'legal' }],
     // The level above the workspaces. Each draws its door until the session is raised,
     // which is the state every one of them is in here - and the one this test needs, because a
@@ -353,7 +355,7 @@ test('the route table and this test name the same screens', async () => {
     .filter((name) => movedTo(name) === undefined)
     // The record pages and sections the page-system concept gives an address before their screens
     // land (page-system §13 step 4); each leaves this list with its view.
-    .filter((name) => !['service-account', 'app', 'sign-in-section', 'sign-in-provider'].includes(name))
+    .filter((name) => !['service-account', 'app'].includes(name))
     .sort();
   assert.deepEqual(named, routed);
 });

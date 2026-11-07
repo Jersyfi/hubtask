@@ -10,6 +10,7 @@
   import BackupView from './BackupView.svelte';
   import ChangesView from './ChangesView.svelte';
   import EntryTypesView from './EntryTypesView.svelte';
+  import IdentityProviderView from './IdentityProviderView.svelte';
   import LinkTypesView from './LinkTypesView.svelte';
   import MachinesView from './MachinesView.svelte';
   import MailView from './MailView.svelte';
@@ -108,14 +109,20 @@
   <AuditView />
 {:else if route.name === 'privacy'}
   <PrivacyView />
-{:else if route.name === 'sign-in-settings'}
-  <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
+{:else if route.name === 'sign-in-settings' || route.name === 'sign-in-section'}
+  <SignInSettingsView section={route.params.section} tab={route.query['tab']} onnavigate={(path) => onnavigate(path)} onreplace={(path) => onreplace(path)} />
+  <!-- One branch for the list and its sections: a move between sections keeps the screen and
+       what another section holds unsaved. -->
+{:else if route.name === 'sign-in-provider'}
+  {#key route.params.id}
+    <IdentityProviderView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
 {:else if route.name === 'voice'}
   <VoiceView />
 {:else if route.name === 'mail' || route.name === 'mail-oauth'}
   <MailView providerAnswer={route.name === 'mail-oauth' ? route.query : undefined} onanswered={() => onreplace('/administration/mail')} />
 {:else if route.name === 'legal'}
-  <SignInSettingsView part="legal" />
+  <SignInSettingsView part="legal" onnavigate={(path) => onnavigate(path)} />
 {:else if route.name === 'ai'}
   <AiSettingsView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />
 {/if}
