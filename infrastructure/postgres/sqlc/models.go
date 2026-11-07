@@ -362,6 +362,10 @@ type Account struct {
 	AvatarMediaID         pgtype.UUID
 	ExternalID            *string
 	ProductsSeen          []string
+	NavProducts           []string
+	NavProductsHidden     []string
+	NavHubsOrder          *string
+	NavContentsMode       *string
 }
 
 type AccountGroup struct {

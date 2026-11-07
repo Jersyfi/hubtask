@@ -191,6 +191,12 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 		{"a date without a time is not an instant", Preferences{OnboardingCompletedAt: "2026-09-17"}, "accounts.onboarding_completed_at_invalid"},
 		{"products seen", Preferences{ProductsSeen: []string{"SERVICE_DESK", "TIME"}}, ""},
 		{"a product that does not exist is not kept", Preferences{ProductsSeen: []string{"SERVICE_DESK", "CHESS"}}, "accounts.products_seen_invalid"},
+		{"the sidebar's order and hidden products", Preferences{Nav: NavPreferences{Products: []string{"TIME", "KNOWLEDGE"}, ProductsHidden: []string{"AGENTS"}}}, ""},
+		{"the sidebar's orders, any case", Preferences{Nav: NavPreferences{HubsOrder: "recent", ContentsMode: "NAME"}}, ""},
+		{"an unknown product in the sidebar's order", Preferences{Nav: NavPreferences{Products: []string{"CHESS"}}}, "accounts.nav_products_invalid"},
+		{"an unknown hidden product", Preferences{Nav: NavPreferences{ProductsHidden: []string{"CHESS"}}}, "accounts.nav_products_hidden_invalid"},
+		{"a hub order that does not exist", Preferences{Nav: NavPreferences{HubsOrder: "SIZE"}}, "accounts.nav_hubs_order_invalid"},
+		{"a contents mode that does not exist", Preferences{Nav: NavPreferences{ContentsMode: "FOLDERS"}}, "accounts.nav_contents_mode_invalid"},
 	}
 
 	for _, c := range cases {
@@ -209,6 +215,9 @@ func TestPreferencesAreCheckedAndEmptyMeansInherit(t *testing.T) {
 				}
 				if c.given.OnboardingCompletedAt != "" && (updated.OnboardingCompletedAt == nil || updated.OnboardingCompletedAt.Location() != time.UTC || updated.OnboardingCompletedAt.Hour() != 8) {
 					t.Errorf("onboarding completed at %v, want the instant kept in UTC", updated.OnboardingCompletedAt)
+				}
+				if c.given.Nav.HubsOrder != "" && updated.Nav.HubsOrder != strings.ToUpper(c.given.Nav.HubsOrder) {
+					t.Errorf("hubs order %q, want it upper case", updated.Nav.HubsOrder)
 				}
 				if c.given.Celebrations == "" && updated.Celebrations != nil {
 					t.Errorf("celebrations %v, want the default (nil) when nothing was given", *updated.Celebrations)

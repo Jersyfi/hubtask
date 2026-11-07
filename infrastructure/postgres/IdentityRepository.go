@@ -66,6 +66,10 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 	// Read by Find alone, as the picture is: it is what every projection of an account and the
 	// preferences' write read through, and the other lookups serve sign-in.
 	account.ProductsSeen = row.ProductsSeen
+	account.Nav = identity.NavPreferences{
+		Products: row.NavProducts, ProductsHidden: row.NavProductsHidden,
+		HubsOrder: stringFrom(row.NavHubsOrder), ContentsMode: stringFrom(row.NavContentsMode),
+	}
 	if !row.AvatarMediaID.Valid {
 		return account, nil
 	}
@@ -404,6 +408,10 @@ func (r AccountRepository) UpdatePreferences(
 		Celebrations:          account.Celebrations,
 		OnboardingCompletedAt: optionalTimestamp(account.OnboardingCompletedAt),
 		ProductsSeen:          productsSeenOf(account.ProductsSeen),
+		NavProducts:           productsSeenOf(account.Nav.Products),
+		NavProductsHidden:     productsSeenOf(account.Nav.ProductsHidden),
+		NavHubsOrder:          optionalText(account.Nav.HubsOrder),
+		NavContentsMode:       optionalText(account.Nav.ContentsMode),
 		UpdatedAt:             timestampOf(at),
 		ID:                    id,
 	})

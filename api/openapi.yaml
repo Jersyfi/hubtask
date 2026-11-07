@@ -10584,7 +10584,7 @@ paths:
       operationId: updateAccountPreferences
       x-hubtask-rest: generated
       x-hubtask-rest-null: empty
-      x-hubtask-rest-null-as: { products_seen: [] }
+      x-hubtask-rest-null-as: { products_seen: [], nav_products: [], nav_products_hidden: [] }
       x-hubtask-rest-words: [celebrations]
       x-hubtask-rest-utc: [onboarding_completed_at]
       x-hubtask-rest-answer: accountResponse
@@ -25115,6 +25115,29 @@ components:
             The products whose home the person has opened and been shown around once - the mark
             pointing at where to create there is not shown again. Absent or empty: none yet.
           items: { $ref: "#/components/schemas/Module" }
+        nav_products:
+          type: array
+          description: >
+            The person's order of the products in the sidebar, as module keys. Absent or empty: the
+            product's own order.
+          items: { $ref: "#/components/schemas/Module" }
+        nav_products_hidden:
+          type: array
+          description: >
+            The products the person moved behind *More* in the sidebar. Absent or empty: none.
+          items: { $ref: "#/components/schemas/Module" }
+        nav_hubs_order:
+          type: [string, "null"]
+          enum: [MANUAL, RECENT, NAME, null]
+          description: >
+            How the sidebar orders the hubs for this person: the shared order, recently visited
+            first, or by name. Absent or null: the shared order.
+        nav_contents_mode:
+          type: [string, "null"]
+          enum: [TREE, RECENT, NAME, null]
+          description: >
+            How the sidebar shows a hub's contents for this person: the tree, recently changed
+            first, or by name. Absent or null: the tree.
         avatar_media_id:
           type: [string, "null"]
           format: uuid
@@ -25405,6 +25428,30 @@ components:
             The products whose first-visit mark the person has seen, written by the client as the
             whole list. `null` or an empty list clears it, which shows each product's mark again.
           items: { $ref: "#/components/schemas/Module" }
+        nav_products:
+          type: [array, "null"]
+          maxItems: 9
+          uniqueItems: true
+          description: >
+            The order of the products in the sidebar, written by the client as the whole list.
+            `null` or an empty list clears it, which gives back the product's own order.
+          items: { $ref: "#/components/schemas/Module" }
+        nav_products_hidden:
+          type: [array, "null"]
+          maxItems: 9
+          uniqueItems: true
+          description: >
+            The products shown behind *More* in the sidebar, the whole list. `null` or an empty
+            list clears it, which shows every product again.
+          items: { $ref: "#/components/schemas/Module" }
+        nav_hubs_order:
+          type: [string, "null"]
+          enum: [MANUAL, RECENT, NAME, null]
+          description: How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+        nav_contents_mode:
+          type: [string, "null"]
+          enum: [TREE, RECENT, NAME, null]
+          description: How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
 
     NotificationPreference:
       type: object

@@ -8088,6 +8088,16 @@ ALTER TABLE agent_request ADD COLUMN performing boolean NOT NULL DEFAULT false;
 ALTER TABLE account ADD COLUMN products_seen text[] NOT NULL DEFAULT '{}',
   ADD CONSTRAINT account_products_seen_bound CHECK (cardinality(products_seen) <= 9);
 
+-- Migrations 0387, 0388: the sidebar's personal preferences.
+ALTER TABLE account ADD COLUMN nav_products text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN nav_products_hidden text[] NOT NULL DEFAULT '{}',
+  ADD COLUMN nav_hubs_order text,
+  ADD COLUMN nav_contents_mode text,
+  ADD CONSTRAINT account_nav_bound CHECK (
+    cardinality(nav_products) <= 9 AND cardinality(nav_products_hidden) <= 9
+    AND (nav_hubs_order IS NULL OR nav_hubs_order IN ('MANUAL', 'RECENT', 'NAME'))
+    AND (nav_contents_mode IS NULL OR nav_contents_mode IN ('TREE', 'RECENT', 'NAME')));
+
 -- Migration 0384: the workspace's sample content (user-experience.md §3.6), one act removes it.
 CREATE TABLE sample_object (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,

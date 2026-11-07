@@ -178,6 +178,54 @@ func (e AccountKind) Valid() bool {
 	}
 }
 
+// Defines values for AccountNavContentsMode.
+const (
+	AccountNavContentsModeLessThannil AccountNavContentsMode = "<nil>"
+	AccountNavContentsModeNAME        AccountNavContentsMode = "NAME"
+	AccountNavContentsModeRECENT      AccountNavContentsMode = "RECENT"
+	AccountNavContentsModeTREE        AccountNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the AccountNavContentsMode enum.
+func (e AccountNavContentsMode) Valid() bool {
+	switch e {
+	case AccountNavContentsModeLessThannil:
+		return true
+	case AccountNavContentsModeNAME:
+		return true
+	case AccountNavContentsModeRECENT:
+		return true
+	case AccountNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountNavHubsOrder.
+const (
+	AccountNavHubsOrderLessThannil AccountNavHubsOrder = "<nil>"
+	AccountNavHubsOrderMANUAL      AccountNavHubsOrder = "MANUAL"
+	AccountNavHubsOrderNAME        AccountNavHubsOrder = "NAME"
+	AccountNavHubsOrderRECENT      AccountNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the AccountNavHubsOrder enum.
+func (e AccountNavHubsOrder) Valid() bool {
+	switch e {
+	case AccountNavHubsOrderLessThannil:
+		return true
+	case AccountNavHubsOrderMANUAL:
+		return true
+	case AccountNavHubsOrderNAME:
+		return true
+	case AccountNavHubsOrderRECENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountStatus.
 const (
 	AccountStatusACTIVE     AccountStatus = "ACTIVE"
@@ -223,6 +271,54 @@ func (e AccountWeekStart) Valid() bool {
 	case AccountWeekStartSATURDAY:
 		return true
 	case AccountWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesNavContentsMode.
+const (
+	AccountPreferencesNavContentsModeLessThannil AccountPreferencesNavContentsMode = "<nil>"
+	AccountPreferencesNavContentsModeNAME        AccountPreferencesNavContentsMode = "NAME"
+	AccountPreferencesNavContentsModeRECENT      AccountPreferencesNavContentsMode = "RECENT"
+	AccountPreferencesNavContentsModeTREE        AccountPreferencesNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesNavContentsMode enum.
+func (e AccountPreferencesNavContentsMode) Valid() bool {
+	switch e {
+	case AccountPreferencesNavContentsModeLessThannil:
+		return true
+	case AccountPreferencesNavContentsModeNAME:
+		return true
+	case AccountPreferencesNavContentsModeRECENT:
+		return true
+	case AccountPreferencesNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AccountPreferencesNavHubsOrder.
+const (
+	AccountPreferencesNavHubsOrderLessThannil AccountPreferencesNavHubsOrder = "<nil>"
+	AccountPreferencesNavHubsOrderMANUAL      AccountPreferencesNavHubsOrder = "MANUAL"
+	AccountPreferencesNavHubsOrderNAME        AccountPreferencesNavHubsOrder = "NAME"
+	AccountPreferencesNavHubsOrderRECENT      AccountPreferencesNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the AccountPreferencesNavHubsOrder enum.
+func (e AccountPreferencesNavHubsOrder) Valid() bool {
+	switch e {
+	case AccountPreferencesNavHubsOrderLessThannil:
+		return true
+	case AccountPreferencesNavHubsOrderMANUAL:
+		return true
+	case AccountPreferencesNavHubsOrderNAME:
+		return true
+	case AccountPreferencesNavHubsOrderRECENT:
 		return true
 	default:
 		return false
@@ -5839,6 +5935,54 @@ func (e InvitedAccountKind) Valid() bool {
 	case InvitedAccountKindSERVICEACCOUNT:
 		return true
 	case InvitedAccountKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountNavContentsMode.
+const (
+	InvitedAccountNavContentsModeLessThannil InvitedAccountNavContentsMode = "<nil>"
+	InvitedAccountNavContentsModeNAME        InvitedAccountNavContentsMode = "NAME"
+	InvitedAccountNavContentsModeRECENT      InvitedAccountNavContentsMode = "RECENT"
+	InvitedAccountNavContentsModeTREE        InvitedAccountNavContentsMode = "TREE"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountNavContentsMode enum.
+func (e InvitedAccountNavContentsMode) Valid() bool {
+	switch e {
+	case InvitedAccountNavContentsModeLessThannil:
+		return true
+	case InvitedAccountNavContentsModeNAME:
+		return true
+	case InvitedAccountNavContentsModeRECENT:
+		return true
+	case InvitedAccountNavContentsModeTREE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountNavHubsOrder.
+const (
+	InvitedAccountNavHubsOrderLessThannil InvitedAccountNavHubsOrder = "<nil>"
+	InvitedAccountNavHubsOrderMANUAL      InvitedAccountNavHubsOrder = "MANUAL"
+	InvitedAccountNavHubsOrderNAME        InvitedAccountNavHubsOrder = "NAME"
+	InvitedAccountNavHubsOrderRECENT      InvitedAccountNavHubsOrder = "RECENT"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountNavHubsOrder enum.
+func (e InvitedAccountNavHubsOrder) Valid() bool {
+	switch e {
+	case InvitedAccountNavHubsOrderLessThannil:
+		return true
+	case InvitedAccountNavHubsOrderMANUAL:
+		return true
+	case InvitedAccountNavHubsOrderNAME:
+		return true
+	case InvitedAccountNavHubsOrderRECENT:
 		return true
 	default:
 		return false
@@ -12028,6 +12172,18 @@ type Account struct {
 	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
 	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+	NavContentsMode *AccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+	NavHubsOrder *AccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products the person moved behind *More* in the sidebar. Absent or empty: none.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -12063,6 +12219,12 @@ type Account struct {
 // AccountKind defines model for Account.Kind.
 type AccountKind string
 
+// AccountNavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+type AccountNavContentsMode string
+
+// AccountNavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+type AccountNavHubsOrder string
+
 // AccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.
 // `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -12088,6 +12250,18 @@ type AccountPreferences struct {
 	Celebrations *bool   `json:"celebrations,omitempty"`
 	Locale       *string `json:"locale,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
+	NavContentsMode *AccountPreferencesNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+	NavHubsOrder *AccountPreferencesNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The order of the products in the sidebar, written by the client as the whole list. `null` or an empty list clears it, which gives back the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products shown behind *More* in the sidebar, the whole list. `null` or an empty list clears it, which shows every product again.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the tour ended or was skipped, written by the client. `null` clears it, which is how the tour is asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -12096,6 +12270,12 @@ type AccountPreferences struct {
 	TimeZone     *string                      `json:"time_zone,omitempty"`
 	WeekStart    *AccountPreferencesWeekStart `json:"week_start,omitempty"`
 }
+
+// AccountPreferencesNavContentsMode How the sidebar shows a hub's contents. `null` clears it; the default is TREE.
+type AccountPreferencesNavContentsMode string
+
+// AccountPreferencesNavHubsOrder How the sidebar orders the hubs. `null` clears it; the default is MANUAL.
+type AccountPreferencesNavHubsOrder string
 
 // AccountPreferencesWeekStart defines model for AccountPreferences.WeekStart.
 type AccountPreferencesWeekStart string
@@ -18473,6 +18653,18 @@ type InvitedAccount struct {
 	// MailUndeliverableSince Since when the mail server refuses the account's address for good, answered on `GET /accounts/me` and on nothing else. Messages to it are not sent until the person clears it (`POST /accounts/me:clear-undeliverable`). Absent or null: the address takes mail.
 	MailUndeliverableSince *time.Time `json:"mail_undeliverable_since,omitempty"`
 
+	// NavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+	NavContentsMode *InvitedAccountNavContentsMode `json:"nav_contents_mode,omitempty"`
+
+	// NavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+	NavHubsOrder *InvitedAccountNavHubsOrder `json:"nav_hubs_order,omitempty"`
+
+	// NavProducts The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.
+	NavProducts *[]Module `json:"nav_products,omitempty"`
+
+	// NavProductsHidden The products the person moved behind *More* in the sidebar. Absent or empty: none.
+	NavProductsHidden *[]Module `json:"nav_products_hidden,omitempty"`
+
 	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
 	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
 
@@ -18507,6 +18699,12 @@ type InvitedAccount struct {
 
 // InvitedAccountKind defines model for InvitedAccount.Kind.
 type InvitedAccountKind string
+
+// InvitedAccountNavContentsMode How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.
+type InvitedAccountNavContentsMode string
+
+// InvitedAccountNavHubsOrder How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.
+type InvitedAccountNavHubsOrder string
 
 // InvitedAccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 // stays, and what stops is this system deciding anything about the person by machine.

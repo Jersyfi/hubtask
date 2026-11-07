@@ -16882,7 +16882,9 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-null": "empty",
         "x-hubtask-rest-null-as": {
-          "products_seen": []
+          "products_seen": [],
+          "nav_products": [],
+          "nav_products_hidden": []
         },
         "x-hubtask-rest-words": [
           "celebrations"
@@ -36555,6 +36557,46 @@
               "$ref": "#/components/schemas/Module"
             }
           },
+          "nav_products": {
+            "type": "array",
+            "description": "The person's order of the products in the sidebar, as module keys. Absent or empty: the product's own order.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_products_hidden": {
+            "type": "array",
+            "description": "The products the person moved behind *More* in the sidebar. Absent or empty: none.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_hubs_order": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "MANUAL",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar orders the hubs for this person: the shared order, recently visited first, or by name. Absent or null: the shared order.\n"
+          },
+          "nav_contents_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "TREE",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar shows a hub's contents for this person: the tree, recently changed first, or by name. Absent or null: the tree.\n"
+          },
           "avatar_media_id": {
             "type": [
               "string",
@@ -36960,6 +37002,56 @@
             "items": {
               "$ref": "#/components/schemas/Module"
             }
+          },
+          "nav_products": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 9,
+            "uniqueItems": true,
+            "description": "The order of the products in the sidebar, written by the client as the whole list. `null` or an empty list clears it, which gives back the product's own order.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_products_hidden": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 9,
+            "uniqueItems": true,
+            "description": "The products shown behind *More* in the sidebar, the whole list. `null` or an empty list clears it, which shows every product again.\n",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            }
+          },
+          "nav_hubs_order": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "MANUAL",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar orders the hubs. `null` clears it; the default is MANUAL."
+          },
+          "nav_contents_mode": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "TREE",
+              "RECENT",
+              "NAME",
+              null
+            ],
+            "description": "How the sidebar shows a hub's contents. `null` clears it; the default is TREE."
           }
         }
       },

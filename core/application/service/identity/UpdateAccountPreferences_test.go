@@ -211,6 +211,45 @@ func TestTheProductsSeenAreWrittenLeftAndCleared(t *testing.T) {
 	}
 }
 
+// The sidebar's preferences follow the person (navigation concept §7.5): written whole, left by a
+// write that does not name them, cleared by an empty value.
+func TestTheSidebarPreferencesAreWrittenLeftAndCleared(t *testing.T) {
+	accounts := newAccounts(settled(t))
+	handler := preferencesHandler(accounts, &authorizer{}, &auditSink{})
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatalf("the catalogue refused the entry: %v", err)
+	}
+	invoke := func(in usecase.Input) (usecase.Output, error) {
+		in["account_id"] = adminID.String()
+		return registry.Invoke(t.Context(), UpdateAccountPreferencesName, admin(), in)
+	}
+	out, err := invoke(usecase.Input{
+		"nav_products": []any{"TIME", "KNOWLEDGE"}, "nav_products_hidden": []any{"AGENTS"},
+		"nav_hubs_order": "RECENT", "nav_contents_mode": "NAME",
+	})
+	if err != nil {
+		t.Fatalf("writing the sidebar's preferences: %v", err)
+	}
+	if order, _ := out["nav_products"].([]string); strings.Join(order, ",") != "TIME,KNOWLEDGE" {
+		t.Errorf("nav_products = %v", out["nav_products"])
+	}
+	if hidden, _ := out["nav_products_hidden"].([]string); strings.Join(hidden, ",") != "AGENTS" {
+		t.Errorf("nav_products_hidden = %v", out["nav_products_hidden"])
+	}
+	out, err = invoke(usecase.Input{"locale": "nl"})
+	if err != nil || out["nav_hubs_order"] != "RECENT" || out["nav_contents_mode"] != "NAME" {
+		t.Errorf("a write that did not name them changed them: %v, %v, %v", out["nav_hubs_order"], out["nav_contents_mode"], err)
+	}
+	out, err = invoke(usecase.Input{"nav_products": []any{}, "nav_hubs_order": ""})
+	if _, present := out["nav_products"]; err != nil || present || out["nav_hubs_order"] != nil {
+		t.Errorf("an empty value did not clear them: %v, %v, %v", out["nav_products"], out["nav_hubs_order"], err)
+	}
+	if _, err := invoke(usecase.Input{"nav_products": []any{"CHESS"}}); shared.AsError(err).DetailCode != "accounts.nav_products_invalid" {
+		t.Errorf("an unknown product: %v, want accounts.nav_products_invalid", err)
+	}
+}
+
 // Changing one's own preferences is not administering anybody. Requiring the member permission for
 // it would mean a viewer could not pick their own time zone.
 func TestChangingOnesOwnPreferencesNeedsNoPermission(t *testing.T) {

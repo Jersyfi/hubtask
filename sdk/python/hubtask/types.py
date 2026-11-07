@@ -69,6 +69,10 @@ class Account(TypedDict, total=False):
     celebrations: bool | None
     onboarding_completed_at: str | None
     products_seen: list["Module"]
+    nav_products: list["Module"]
+    nav_products_hidden: list["Module"]
+    nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
+    nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
@@ -133,6 +137,10 @@ class InvitedAccount(TypedDict, total=False):
     celebrations: bool | None
     onboarding_completed_at: str | None
     products_seen: list["Module"]
+    nav_products: list["Module"]
+    nav_products_hidden: list["Module"]
+    nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
+    nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
     avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
@@ -171,6 +179,10 @@ class AccountPreferences(TypedDict, total=False):
     celebrations: bool | None
     onboarding_completed_at: str | None
     products_seen: list["Module"] | None
+    nav_products: list["Module"] | None
+    nav_products_hidden: list["Module"] | None
+    nav_hubs_order: Literal["MANUAL", "RECENT", "NAME"] | None
+    nav_contents_mode: Literal["TREE", "RECENT", "NAME"] | None
 
 class NotificationPreference(TypedDict, total=False):
     category: Required[str]
