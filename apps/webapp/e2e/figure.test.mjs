@@ -77,9 +77,9 @@ test('chromium: 1280 px — each row says its figure as part of its name, light 
     const { page, context } = await open(browser, 1280, FIGURES.none);
     await page.emulateMedia({ colorScheme });
     for (const [collection, , row] of EXPECTED) {
-      const node = page.locator(`[data-node="${collection.id}"]`);
+      const node = page.locator(`[data-id="${collection.id}"]`);
       await node.waitFor({ timeout: 5_000 });
-      const meta = node.locator('.meta');
+      const meta = node.locator('.figure');
       if (row === undefined) assert.equal(await meta.count(), 0, `${collection.name} row draws a figure`);
       else assert.equal((await meta.textContent())?.trim(), row, collection.name);
     }
@@ -113,9 +113,10 @@ test('chromium: 390 and 1280 px — the hub draws its collections as cards, each
   }
 });
 
-// user-experience.md §2.5: a hub's row and its head say the figure the server summed from its
-// collections, the same words a collection of open entries uses.
-test("chromium: 390 and 1280 px — the hub's row and head say its open entries", async (t) => {
+// The hub's head says the figure the server summed from its collections, the same words a
+// collection of open entries uses. Its row in the sidebar carries › to its level instead (the
+// navigation concept, §2.3).
+test("chromium: 390 and 1280 px — the hub's head says its open entries", async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   for (const width of [390, 1280]) {
@@ -124,10 +125,6 @@ test("chromium: 390 and 1280 px — the hub's row and head say its open entries"
     await page.getByRole('heading', { name: FIGURE_HUB.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
     const head = page.locator('header [data-figure="OPEN"] .text').first();
     assert.equal((await head.textContent({ timeout: 5_000 }))?.trim(), `${HUB_FIGURE_OPEN} open`, `${width}: the hub's head`);
-    if (width === 1280) {
-      const row = page.locator(`[data-node="${FIGURE_HUB.id}"] .meta`).first();
-      assert.equal((await row.textContent({ timeout: 5_000 }))?.trim(), `${HUB_FIGURE_OPEN} open`, "the hub's row");
-    }
     assert.deepEqual(failures, []);
     await context.close();
   }
@@ -146,10 +143,10 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
     const title = await box(page.getByRole('heading', { name: collection.name, level: 1 }));
     // The head's own control at its end, the place's menu: what a figure beside the title would push.
     const primary = await box(page.getByRole('button', { name: `Actions for ${collection.name}` }).first());
-    const plain = await box(page.locator(`[data-node="${FIGURES.none.id}"]`));
-    const figured = await box(page.locator(`[data-node="${FIGURES.sum.id}"]`));
-    const label = await box(page.locator(`[data-node="${FIGURES.sum.id}"] .label`));
-    const plainLabel = await box(page.locator(`[data-node="${FIGURES.none.id}"] .label`));
+    const plain = await box(page.locator(`[data-id="${FIGURES.none.id}"]`));
+    const figured = await box(page.locator(`[data-id="${FIGURES.sum.id}"]`));
+    const label = await box(page.locator(`[data-id="${FIGURES.sum.id}"] .name`));
+    const plainLabel = await box(page.locator(`[data-id="${FIGURES.none.id}"] .name`));
     await context.close();
     return { title, primary, plain, figured, label, plainLabel };
   };

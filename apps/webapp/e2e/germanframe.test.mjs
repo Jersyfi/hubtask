@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// The frame and its navigation in a German session: every word the frame draws is German, the
-// tree marks the place the reader is in - an entry's page its collection, not *Today* - and the
-// column's create control has one name on every page. And the installation's door asks for its
-// proof once, reading nothing before it is given.
+// The frame and its navigation in a German session: every word the frame draws is German, and the
+// sidebar marks the place the reader is in - an entry's page its collection, not *Today*. And the
+// installation's door asks for its proof once, reading nothing before it is given.
 //
 // Against a stubbed API. Chromium only.
 
@@ -50,7 +49,7 @@ async function german(browser, width = 1280, answer = () => undefined) {
 
 const isGerman = (page) => page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
 
-test('chromium: 1280 px — the frame of a collection speaks German: the twist, the sync, the pane, *Neu*', async (t) => {
+test('chromium: 1280 px — the frame of a collection speaks German: the hub level, the sync, the pane', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await german(browser);
@@ -61,21 +60,20 @@ test('chromium: 1280 px — the frame of a collection speaks German: the twist, 
   const pane = page.getByRole('complementary', { name: ENTRY.title });
   await pane.waitFor({ timeout: 15_000 });
 
-  // The tree's twist names the hub in German.
-  const nav = page.getByRole('navigation', { name: 'Arbeitsbereich' });
-  await nav.getByRole('button', { name: `Verbergen, was in ${HUB.name} liegt` }).or(nav.getByRole('button', { name: `Zeigen, was in ${HUB.name} liegt` })).first().waitFor({ timeout: 5_000 });
-  const twists = await nav.getByRole('button').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim() ?? ''));
-  assert.equal(twists.some((name) => /what is in/.test(name)), false, `an English twist: ${twists.join(' | ')}`);
+  // The collection shows its hub's level (the navigation concept, §2.4), every control in German.
+  const level = page.locator('aside.sidenav').getByRole('region', { name: HUB.name });
+  await level.getByRole('button', { name: 'Alle Hubs' }).waitFor({ timeout: 10_000 });
+  await level.getByRole('button', { name: 'Hub wechseln' }).waitFor();
+  await level.getByRole('button', { name: 'Sammlungen einklappen' }).waitFor();
+  const controls = await page.locator('aside.sidenav').getByRole('button').evaluateAll((buttons) => buttons.map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim() ?? ''));
+  for (const english of [/All hubs/, /Switch hub/, /^Fold /, /^Star /, /^Manage /, /New collection/]) {
+    assert.equal(controls.some((name) => english.test(name)), false, `an English control: ${controls.join(' | ')}`);
+  }
 
   // The pane's head names the entry's level as the collection does - not the contract's "Task".
   const head = await pane.evaluate((node) => node.textContent ?? '');
   assert.equal(/\bTask\b/.test(head), false, `the pane's head is English: ${head.slice(0, 120)}`);
   assert.match(head, /Aufgabe/);
-
-  // One name for the column's create control: *Neu*, never a "Hub anlegen" of its own.
-  const column = page.locator('aside.sidenav');
-  assert.equal(await column.getByRole('button', { name: 'Neu', exact: true }).count(), 1, 'the column has no *Neu*');
-  assert.equal(await column.getByRole('button', { name: 'Hub anlegen', exact: true }).count(), 0, 'the column names its create control twice');
 
   // Nothing the frame says is English: the bar's sync mark and the live region included.
   await page.waitForTimeout(800);
@@ -90,7 +88,7 @@ test('chromium: 1280 px — the frame of a collection speaks German: the twist, 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — on an entry\'s page the tree marks its collection, and *Neu* stays *Neu*', async (t) => {
+test('chromium: 1280 px — on an entry\'s page the sidebar marks its collection, not *Heute*', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await german(browser);
@@ -99,15 +97,14 @@ test('chromium: 1280 px — on an entry\'s page the tree marks its collection, a
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await isGerman(page);
   await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15_000 });
-  const nav = page.getByRole('navigation', { name: 'Arbeitsbereich' });
+  const nav = page.locator('aside.sidenav');
   const collection = nav.getByRole('treeitem', { name: COLLECTION.name });
   await collection.waitFor({ timeout: 10_000 });
   await page.waitForFunction((name) => [...document.querySelectorAll('[role="treeitem"]')]
     .some((row) => row.getAttribute('aria-current') !== null && (row.textContent ?? '').includes(name)), COLLECTION.name, { timeout: 10_000 })
     .catch(() => assert.fail('the entry\'s collection is not the current place'));
-  const today = nav.getByRole('treeitem', { name: 'Heute', exact: true });
+  const today = nav.getByRole('list', { name: 'Für dich' }).getByRole('link', { name: 'Heute', exact: true });
   assert.equal(await today.getAttribute('aria-current'), null, '*Heute* is marked as the place of an entry');
-  assert.equal(await page.locator('aside.sidenav').getByRole('button', { name: 'Neu', exact: true }).count(), 1);
   assert.deepEqual(failures, []);
 });
 

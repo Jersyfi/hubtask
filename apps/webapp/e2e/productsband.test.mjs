@@ -159,29 +159,34 @@ async function noSidewaysScroll(page, label) {
 
 // The colour scheme changes no row or box here: one scheme per width.
 for (const scheme of ['light']) {
-  test(`chromium 1280 px, ${scheme}: the products band, in one order, and a product's home with its hubs`, async (t) => {
+  test(`chromium 1280 px, ${scheme}: the products section, in one order, and a product's home with its hubs`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width: 1280, scheme, modulesOn: ['TIME', 'SERVICE_DESK', 'KNOWLEDGE'] });
     t.after(close);
-    const tree = page.getByRole('navigation', { name: 'Workspace', exact: true });
-    await tree.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
-    const rows = (await tree.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-    // The places (the approvals where the desk is on), then the products in Module.Keys() order
-    // whatever order the manifest answers, then the hubs.
-    // Today's row counts what waits for the reader's yes beside its name.
-    assert.deepEqual(rows, ['Today  1 waiting', 'Search', 'Inbox', 'Waiting for your yes', 'Pages', 'Service desk', 'Time', HUB.name], JSON.stringify(rows));
-    assert.equal(await page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 1, 'the band has no caption');
+    const side = page.locator('aside.sidenav');
+    await side.getByRole('tree', { name: 'Hubs' }).getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 10_000 });
+    const first = (texts) => texts.map((row) => row.split('\n')[0].trim());
+    // For you (the approvals where the desk is on), its count beside *Waiting for your yes*; then
+    // the products in Module.Keys() order whatever order the manifest answers, then the hubs.
+    const top = side.getByRole('list', { name: 'For you' });
+    assert.deepEqual(first(await top.getByRole('link').allInnerTexts()), ['Today', 'Inbox', 'Waiting for your yes']);
+    await top.getByRole('link', { name: /Waiting for your yes/ }).filter({ hasText: '1' }).waitFor({ timeout: 5_000 });
+    const products = side.getByRole('region', { name: 'Products' });
+    assert.deepEqual(first(await products.getByRole('link').allInnerTexts()), ['Pages', 'Service desk', 'Time']);
+    assert.deepEqual(first(await side.getByRole('tree', { name: 'Hubs' }).getByRole('treeitem').allInnerTexts()), [HUB.name]);
+    assert.equal(await side.getByText('Products', { exact: true }).count(), 1, 'the section has no caption');
+    const tree = products;
     // The account menu carries none of them.
     await page.getByRole('button', { name: ACCOUNT.display_name }).click();
     const items = (await page.getByRole('menu').getByRole('menuitem').allTextContents()).map((item) => item.trim());
     for (const product of ['Pages', 'Service desk', 'Time', 'My notes', 'Waiting for your yes', 'Administration']) assert.ok(!items.includes(product), `${product} is behind the avatar`);
     await page.keyboard.press('Escape');
 
-    await tree.getByRole('treeitem', { name: 'Pages' }).click();
+    await tree.getByRole('link', { name: 'Pages' }).click();
     await page.waitForFunction(() => location.pathname === '/pages', null, { timeout: 5_000 });
     assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Pages');
-    assert.equal(await tree.getByRole('treeitem', { name: 'Pages' }).getAttribute('aria-current'), 'page', 'the row is not current on its home');
+    assert.equal(await tree.getByRole('link', { name: 'Pages' }).getAttribute('aria-current'), 'page', 'the row is not current on its home');
     const tabs = page.getByRole('main').getByRole('navigation', { name: 'Pages' });
     assert.equal(await tabs.getByRole('link', { name: 'Spaces' }).getAttribute('aria-current'), 'page');
     // The hub, one line with the whole name as its tooltip, opening the hub's pages.
@@ -192,7 +197,7 @@ for (const scheme of ['light']) {
     // *My notes* is the home's second tab, at its own address, and the row stays current.
     await tabs.getByRole('link', { name: 'My notes' }).click();
     await page.waitForFunction(() => location.pathname === '/notes', null, { timeout: 5_000 });
-    assert.equal(await tree.getByRole('treeitem', { name: 'Pages' }).getAttribute('aria-current'), 'page');
+    assert.equal(await tree.getByRole('link', { name: 'Pages' }).getAttribute('aria-current'), 'page');
     assert.deepEqual(failures, []);
   });
 }
@@ -207,8 +212,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
 
   const none = await open(browser, { width: 1280, path: '/whiteboards', modulesOn: [] });
   t.after(none.close);
-  const tree = none.page.getByRole('navigation', { name: 'Workspace', exact: true });
-  await tree.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 10_000 });
+  await none.page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' }).getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 10_000 });
   assert.equal(await none.page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 0, 'a household with nothing on sees the caption');
   // Reached by a link while off: the neutral screen with its way forward (§2.8).
   await none.page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
@@ -229,12 +233,12 @@ for (const scheme of ['dark']) {
     await bar.getByRole('button', { name: 'More' }).click();
     const drawer = page.locator('dialog[open]');
     await drawer.waitFor({ timeout: 5_000 });
-    await drawer.getByRole('treeitem', { name: HUB.name }).waitFor({ timeout: 5_000 });
-    const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+    await drawer.getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 5_000 });
+    const rows = (await drawer.locator('a, [role="treeitem"]').allInnerTexts()).map((row) => row.split('\n')[0].trim());
     // What the bar does not carry: the approvals, then the products, the hub, the administration
-    // and the keeping band.
+    // and the keeping.
     assert.deepEqual(rows, ['Waiting for your yes', 'Service desk', 'Assets', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
-    await drawer.getByRole('treeitem', { name: 'Assets' }).click();
+    await drawer.getByRole('link', { name: 'Assets' }).click();
     await page.waitForFunction(() => location.pathname === '/assets', null, { timeout: 5_000 });
     assert.equal(await bar.getByRole('button', { name: 'More' }).getAttribute('aria-current'), 'page', 'More is not current on a place only the drawer lists');
     await page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 5_000 });
@@ -348,7 +352,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 // §2.2, §2.4, §7.4: the desk's home and a hub's Desk tab draw the handler's queues across the
 // hub's desk collections only, with their counts, what breaks first on top (UC-SVC-03).
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
-  test(`chromium ${width} px, ${scheme}: the desk's home and the hub's Desk tab draw the queues`, async (t) => {
+  test(`chromium ${width} px, ${scheme}: the desk's home and the hub's Queues draw the queues`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     queries.length = 0;
@@ -394,10 +398,13 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     await page.getByRole('region', { name: 'About to breach', exact: true }).getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `desk home ${width} ${scheme}`);
 
+    // The hub's desk is its tool *Queues* (the navigation concept, §2.4), current in its level.
     await page.goto(`${served.origin}/hubs/${HUB.id}/desk`);
-    const strip = page.getByRole('navigation', { name: HUB.name });
-    await strip.getByRole('link', { name: 'Desk' }).waitFor({ timeout: 10_000 });
-    assert.equal(await strip.getByRole('link', { name: 'Desk' }).getAttribute('aria-current'), 'page');
+    if (width >= 1280) {
+      const queuesTool = page.locator('aside.sidenav').getByRole('region', { name: HUB.name }).getByRole('link', { name: 'Queues', exact: true });
+      await queuesTool.waitFor({ timeout: 10_000 });
+      assert.equal(await queuesTool.getAttribute('aria-current'), 'page');
+    }
     const desks = page.getByRole('region', { name: 'Desks' });
     await desks.waitFor({ timeout: 10_000 });
     assert.deepEqual(await desks.locator('.name').allTextContents(), [DESK.name]);

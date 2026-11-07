@@ -154,7 +154,7 @@ for (const width of [390, 700, 1280]) {
       const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(sideways <= 0, `${colorScheme}: the page scrolls sideways by ${sideways} px`);
       if (width >= 1280) {
-        const row = page.locator(`[data-node="${FLOW.id}"] .meta`);
+        const row = page.locator(`[data-id="${FLOW.id}"] .figure`);
         await row.waitFor({ timeout: 5_000 });
         assert.equal((await row.textContent())?.trim(), '1 full');
       }

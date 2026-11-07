@@ -1434,22 +1434,18 @@ export async function signedIn(browser, width, height = 800, { timezoneId, hasTo
 }
 
 /**
- * What the navigation's *＋ New* offers, as the rows of its menu; empty where it is not drawn. The
- * menu is left open. `name` is the control's name in the reader's language.
+ * What the sidebar offers to create a hub: the ＋ on its *Hubs* section, by its name - "Create
+ * hub" or "Create private hub" (the navigation concept, §5); empty where it is not drawn.
  */
-export async function newRows(page, { scope = page, name = 'New' } = {}) {
-  const make = scope.getByRole('button', { name, exact: true }).first();
-  if ((await make.count()) === 0) return [];
-  await make.click();
-  const menu = page.getByRole('menu');
-  await menu.waitFor({ timeout: 5_000 });
-  return (await menu.getByRole('menuitem').allTextContents()).map((row) => row.trim());
+export async function newRows(page, { scope = page } = {}) {
+  const labels = await scope.locator('aside.sidenav, dialog[open]').getByRole('button', { name: /^Create (private )?hub$/ })
+    .evaluateAll((buttons) => buttons.map((button) => (button.getAttribute('aria-label') ?? button.textContent ?? '').trim()));
+  return [...new Set(labels.filter(Boolean))];
 }
 
-/** Chooses `row` from the navigation's *＋ New*: "Create hub", "Collection in …". */
+/** Chooses `row` from what the sidebar offers to create: "Create hub", "Create private hub". */
 export async function chooseNew(page, row, { scope = page } = {}) {
-  await scope.getByRole('button', { name: 'New', exact: true }).first().click();
-  await page.getByRole('menu').getByRole('menuitem', { name: row, exact: true }).click();
+  await scope.locator('aside.sidenav, dialog[open]').getByRole('button', { name: row, exact: true }).first().click();
 }
 
 /**

@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { HUB, LOOK_COLLECTION, LOOK_HUB, LOOK_PRIVATE_HUB, PLAIN_COLLECTION, chooseNew, showLooks, signedIn } from './fixture.mjs';
+import { HUB, LOOK_COLLECTION, LOOK_HUB, LOOK_PRIVATE_HUB, PLAIN_COLLECTION, showLooks, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -24,7 +24,11 @@ showLooks();
 const LABEL_COLOURS = ['Slate', 'Blue', 'Teal', 'Green', 'Lime', 'Amber', 'Orange', 'Red', 'Magenta', 'Violet'];
 
 /** A navigation row's tile colour, or `null` where it draws its mark without one. */
-const tileOf = (page, id) => page.locator(`[data-node="${id}"] .mark .tile`).first().getAttribute('data-token', { timeout: 2_000 }).catch(() => null);
+const tileOf = (page, id) => page.locator(`aside.sidenav [data-id="${id}"] .mark .tile`).first().getAttribute('data-token', { timeout: 2_000 }).catch(() => null);
+/** The tile of the hub whose level the sidebar shows, in its head. */
+const headTileOf = (page) => page.locator('aside.sidenav .hub .tile').first().getAttribute('data-token', { timeout: 5_000 });
+/** The tile a place nobody chose a colour for stands on: every row is drawn on one (the mockup). */
+const DEFAULT_TILE = 'blue';
 
 /** Presses an option by its face, the tile a person presses; the radio under it is what is named. */
 async function choose(dialog, name) {
@@ -36,26 +40,33 @@ async function choose(dialog, name) {
 async function at(browser, width, path) {
   const tab = await signedIn(browser, width, 900);
   await tab.page.goto(`${served.origin}${path}`);
-  await tab.page.locator('nav[aria-label="Workspace"]').first().waitFor({ state: 'attached', timeout: 15_000 });
+  await tab.page.locator('aside.sidenav').first().waitFor({ state: 'attached', timeout: 15_000 });
   return tab;
 }
 
-test('chromium: 1280 px — the navigation draws each place in its own colour, and one nobody chose for plainly', async (t) => {
+test('chromium: 1280 px — the navigation draws each place in its own colour, and one nobody chose for on the default tile', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await at(browser, 1280, `/collections/${LOOK_COLLECTION.id}`);
   t.after(() => context.close());
 
-  await page.locator(`[data-node="${LOOK_COLLECTION.id}"]`).waitFor({ timeout: 10_000 });
-  assert.equal(await tileOf(page, LOOK_HUB.id), 'violet');
+  // The collection shows its hub's level: the hub's tile in the head, each collection on its own.
+  const current = page.locator(`aside.sidenav [data-id="${LOOK_COLLECTION.id}"]`);
+  await current.waitFor({ timeout: 10_000 });
+  assert.equal(await headTileOf(page), 'violet');
   assert.equal(await tileOf(page, LOOK_COLLECTION.id), 'amber');
-  assert.equal(await tileOf(page, PLAIN_COLLECTION.id), null, 'a collection nobody chose a colour for');
-  assert.equal(await tileOf(page, HUB.id), null, 'a hub nobody chose a colour for');
-  // A private hub with a symbol of its own keeps saying that it is private - in words.
-  assert.equal((await page.locator(`[data-node="${LOOK_PRIVATE_HUB.id}"] .meta`).textContent()).trim(), 'Private');
+  assert.equal(await tileOf(page, PLAIN_COLLECTION.id), DEFAULT_TILE, 'a collection nobody chose a colour for');
   // The colour never names the row: its name does.
-  assert.equal(await page.locator(`[data-node="${LOOK_COLLECTION.id}"]`).getAttribute('aria-current'), 'page');
-  assert.match(await page.locator(`[data-node="${LOOK_COLLECTION.id}"]`).textContent(), /Clients/);
+  assert.equal(await current.getAttribute('aria-current'), 'page');
+  assert.match(await current.textContent(), /Clients/);
+
+  // The workspace level: each hub in its colour, a private hub saying so in words.
+  await page.locator('aside.sidenav').getByRole('button', { name: 'All hubs' }).click();
+  await page.locator(`aside.sidenav [data-id="${HUB.id}"]`).waitFor({ timeout: 5_000 });
+  assert.equal(await tileOf(page, LOOK_HUB.id), 'violet');
+  assert.equal(await tileOf(page, HUB.id), DEFAULT_TILE, 'a hub nobody chose a colour for');
+  assert.equal(await tileOf(page, LOOK_PRIVATE_HUB.id), 'magenta');
+  assert.equal(await page.locator(`aside.sidenav [data-id="${LOOK_PRIVATE_HUB.id}"] .badge`).getAttribute('title'), 'Private');
 
   // The page head: the same mark, before the title, decorative beside it.
   const head = page.locator('header .title-mark');
@@ -75,7 +86,7 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
     if (request.method() === 'POST' && request.url().endsWith('/api/v1/containers')) sent.push(request.postDataJSON());
   });
 
-  await chooseNew(page, 'Create hub');
+  await page.locator('aside.sidenav').getByRole('button', { name: 'Create hub' }).click();
   const dialog = page.getByRole('dialog', { name: 'Create hub' });
   await dialog.waitFor({ timeout: 5_000 });
 
@@ -103,9 +114,9 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
   // Read back: the new hub's row and its page head carry the choice.
   await page.getByRole('heading', { name: 'Garden', level: 1 }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('header .title-mark [data-token]').getAttribute('data-token'), 'teal');
-  const row = page.locator('nav[aria-label="Workspace"] [role="treeitem"]', { hasText: 'Garden' });
-  await row.waitFor({ timeout: 5_000 });
-  assert.equal(await row.locator('.tile').getAttribute('data-token'), 'teal');
+  // The new hub opens on its level, its head on the chosen tile.
+  await page.locator('aside.sidenav').getByRole('heading', { name: 'Garden' }).waitFor({ timeout: 5_000 });
+  assert.equal(await headTileOf(page), 'teal');
   assert.deepEqual(failures, []);
 });
 
@@ -139,7 +150,8 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
   assert.equal(sent.length, 1);
   assert.deepEqual({ icon: sent[0].icon, color_token: sent[0].color_token }, { icon: 'house', color_token: null });
   assert.ok(sent[0].ifMatch?.includes(String(LOOK_HUB.version)), sent[0].ifMatch);
-  await page.waitForFunction((id) => !document.querySelector(`[data-node="${id}"] .tile`), LOOK_HUB.id, { timeout: 5_000 });
+  // The hub's head in the sidebar stands on the default tile once no colour is chosen.
+  await page.waitForFunction((token) => document.querySelector('aside.sidenav .hub .tile')?.getAttribute('data-token') === token, DEFAULT_TILE, { timeout: 5_000 });
   assert.equal(await page.locator('header .title-mark [data-token]').count(), 0, 'no colour in the head');
   assert.deepEqual(failures, []);
 });
