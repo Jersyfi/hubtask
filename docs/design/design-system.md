@@ -425,7 +425,8 @@ the mark the bar carries; how the product uses them is §11.
 ### Wave 6 — compositions and pages
 `Grid` · `Sheet` · `SectionNav` · `FilterBar` · `DataTable` · `BulkBar` · `ResourceGrid` ·
 `ResourceCard` · `SettingsSection` · `SettingRow` · `BlockList` · `FormLayout` · `FormSection` ·
-`RecordHead` · `DangerZone` · `SummaryCard`
+`RecordHead` · `DangerZone` · `SummaryCard` · `ListPage` · `RecordPage` · `SettingsLayout` ·
+`EditorPage` · `OverviewPage` · `LogPage` · `CreatePage`
 
 ---
 
