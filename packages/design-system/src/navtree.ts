@@ -35,6 +35,8 @@ export interface TreeNode extends NavNode {
   readonly part?: string;
   /** A collection row an entry from the content region may be dropped onto (UC-WRK-06). */
   readonly acceptsEntries?: boolean;
+  /** What the filter's kind narrows by: `page`, `whiteboard`. */
+  readonly kind?: string;
 }
 
 /** Where a row goes: under `parentId` (null is the part's top), after `afterId` (null is first). */
@@ -275,29 +277,29 @@ export function positionOf(nodes: readonly TreeNode[], id: string): { position: 
  * The tree with one node moved to a placement - what a caller shows at once, marked *waiting*,
  * before the server answers (P-11), and what it springs back from on a refusal.
  */
-export function applyPlacement(nodes: readonly TreeNode[], id: string, placement: Placement): TreeNode[] {
-  let moving: TreeNode | null = null;
-  const without = (list: readonly TreeNode[]): TreeNode[] =>
+export function applyPlacement<T extends TreeNode>(nodes: readonly T[], id: string, placement: Placement): T[] {
+  let moving: T | null = null;
+  const without = (list: readonly T[]): T[] =>
     list.flatMap((node) => {
       if (node.id === id) {
         moving = node;
         return [];
       }
-      return node.children ? [{ ...node, children: without(node.children) }] : [node];
+      return node.children ? [{ ...node, children: without(node.children as readonly T[]) }] : [node];
     });
   const pruned = without(nodes);
   if (!moving) return [...nodes];
-  const insert = (list: readonly TreeNode[]): TreeNode[] => {
+  const insert = (list: readonly T[]): T[] => {
     const at = placement.afterId === null ? 0 : list.findIndex((node) => node.id === placement.afterId) + 1;
     return [...list.slice(0, at), moving!, ...list.slice(at)];
   };
   if (placement.parentId === null) return insert(pruned);
-  const into = (list: readonly TreeNode[]): TreeNode[] =>
+  const into = (list: readonly T[]): T[] =>
     list.map((node) =>
       node.id === placement.parentId
-        ? { ...node, children: insert(node.children ?? []) }
+        ? { ...node, children: insert((node.children ?? []) as readonly T[]) }
         : node.children
-          ? { ...node, children: into(node.children) }
+          ? { ...node, children: into(node.children as readonly T[]) }
           : node,
     );
   return into(pruned);
@@ -350,4 +352,30 @@ export function createPeek(
       return isOpen;
     },
   };
+}
+
+/**
+ * The tree narrowed by the filter (§2.4): a node whose name holds the words, of the kind chosen
+ * (`all` passes every kind), shown with its ancestors; `open` names the branches to draw open so
+ * each match is visible. Without words or kind the tree is answered as it is.
+ */
+export function filterTree(
+  nodes: readonly TreeNode[],
+  words: string,
+  kind = 'all',
+): { nodes: TreeNode[]; open: string[]; count: number } {
+  const needle = words.trim().toLocaleLowerCase();
+  if (!needle && kind === 'all') return { nodes: [...nodes], open: [], count: -1 };
+  const open: string[] = [];
+  let count = 0;
+  const walk = (list: readonly TreeNode[]): TreeNode[] =>
+    list.flatMap((node) => {
+      const children = walk(node.children ?? []);
+      const matches = (!needle || node.label.toLocaleLowerCase().includes(needle)) && (kind === 'all' || node.kind === kind);
+      if (matches) count++;
+      if (!matches && children.length === 0) return [];
+      if (children.length > 0) open.push(node.id);
+      return [{ ...node, children }];
+    });
+  return { nodes: walk(nodes), open, count };
 }
