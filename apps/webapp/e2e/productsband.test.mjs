@@ -188,6 +188,11 @@ for (const scheme of ['light']) {
     assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'Pages');
     assert.equal(await tree.getByRole('link', { name: 'Pages' }).getAttribute('aria-current'), 'page', 'the row is not current on its home');
     const tabs = page.getByRole('main').getByRole('navigation', { name: 'Pages' });
+    // The shared vocabulary (the navigation concept §4): *For you* first, the spaces a tab of their own.
+    assert.deepEqual(first(await tabs.getByRole('link').allInnerTexts()), ['For you', 'Spaces', 'My notes']);
+    assert.equal(await tabs.getByRole('link', { name: 'For you' }).getAttribute('aria-current'), 'page');
+    await tabs.getByRole('link', { name: 'Spaces' }).click();
+    await page.waitForFunction(() => location.search === '?tab=spaces', null, { timeout: 5_000 });
     assert.equal(await tabs.getByRole('link', { name: 'Spaces' }).getAttribute('aria-current'), 'page');
     // The hub, one line with the whole name as its tooltip, opening the hub's pages.
     const hub = page.getByRole('main').getByRole('link', { name: HUB.name });
@@ -596,7 +601,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     t.after(opened.close);
     await opened.page.addInitScript(watch);
     await opened.page.reload();
-    await opened.page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 10_000 });
+    await opened.page.getByRole('region', { name: 'Waiting for your review' }).getByRole('link').first().waitFor({ timeout: 10_000 });
     const seen = await opened.page.evaluate(() => window.__arrivals ?? []);
     assert.deepEqual(opened.failures, []);
     return seen;
@@ -614,7 +619,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     await opened.page.addInitScript(watch);
     if (choice) await opened.page.addInitScript((value) => localStorage.setItem('hubtask.motion', value), choice);
     await opened.page.reload();
-    await opened.page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 10_000 });
+    await opened.page.getByRole('region', { name: 'Waiting for your review' }).getByRole('link').first().waitFor({ timeout: 10_000 });
     assert.deepEqual(await opened.page.evaluate(() => window.__arrivals ?? []), [], `a row moved although ${label} asked for reduced motion`);
     assert.deepEqual(opened.failures, []);
   }

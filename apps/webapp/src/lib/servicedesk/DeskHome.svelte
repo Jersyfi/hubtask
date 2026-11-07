@@ -17,6 +17,7 @@
   import { viewport } from '../frame/viewport.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { homeTabs } from '../product/home.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
   import ProductEmpty from '../product/ProductEmpty.svelte';
   import { markOf } from '../workspace/look.ts';
   import ServiceDeskView from '../../views/ServiceDeskView.svelte';
@@ -38,8 +39,9 @@
   const { hubs, isReading, tab, createHub, templates = [], onnavigate }: Props = $props();
 
   const name = $derived(t('app.nav.desk'));
-  const tabs = $derived<ViewLink[]>(homeTabs('SERVICE_DESK').map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
-  const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'queues');
+  // The report is the workspace's, read by a holder of STRUCTURE there (P-05), as its section was.
+  const tabs = $derived<ViewLink[]>(homeTabs('SERVICE_DESK').filter((each) => each.id !== 'reports' || holdsHere('STRUCTURE') === true).map((each) => ({ id: each.id, label: t(each.code), href: each.path })));
+  const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'foryou');
 
   const hubKey = $derived(hubs.map((hub) => hub.id).join(','));
   $effect(() => {
@@ -111,8 +113,8 @@
 
   <ViewBar label={name} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.nav.close')} {current} onnavigate={(id) => onnavigate(tabs.find((each) => each.id === id)?.href ?? '/desk')} />
 
-  {#if current === 'settings'}
-    <ServiceDeskView isEmbedded {onnavigate} />
+  {#if current === 'settings' || current === 'reports'}
+    <ServiceDeskView isEmbedded {onnavigate} parts={current === 'reports' ? ['report'] : ['calendars', 'policies', 'replies', 'organisations']} />
   {:else if isReading || desksAt === undefined}
     {#if hubs.length === 0 && !isReading}
       <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.product_home.none', { product: name })}

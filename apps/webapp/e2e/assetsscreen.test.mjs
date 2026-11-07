@@ -278,7 +278,7 @@ test('chromium: the assets settings keep the head\'s create act and fold the cla
     shipped('virtual', 'Virtual machine', ['virtual', 'server', 'hardware', 'ci']),
     shipped('software', 'Software', ['software', 'ci']),
   ];
-  const { page, context, failures } = await open(browser, { path: '/assets/settings', classes, modulesOn: ['ASSETS'] });
+  const { page, context, failures } = await open(browser, { path: '/assets/classes', classes, modulesOn: ['ASSETS'] });
   t.after(() => context.close());
 
   await page.locator('[data-class-row="hardware"]').waitFor({ timeout: 20_000 });

@@ -916,7 +916,7 @@ primary. The record dialog shows its refusal inside the dialog and field message
 inputs (§5.10). **A timer that ran too long** offers *Record until…* with a time picker prefilled
 with the start's day at the person's usual end of work, recording the bounded span on the start's
 day; *Discard* stays the secondary choice. The absence calendar's heading and days are localised
-(§5.10). *Weeks to decide* and *Report* are tabs.
+(§5.10). *To decide* and *Report* are tabs.
 
 As built: the head carries the trail, the week's total and state as its figure (*29:10 this week ·
 Open*), *Record time* as the primary and the one timer beside it — *Start timer* while idle (on no
@@ -925,7 +925,7 @@ once it has run past a day, *Timer running since …: more than a day* with *Rec
 place. *Record until…* asks for a time on the start's day, prefilled with the start plus that
 weekday's capacity (eight hours without one, never past the day's last minute), refuses a time
 before the start at its field, and stops the timer at that moment; the server records the span,
-bounded to a day by the stop itself. The tabs are a `ViewBar` (*My week · Weeks to decide ·
+bounded to a day by the stop itself. The tabs are a `ViewBar` (*My week · To decide ·
 Report · Absences · My capacity*). Under the week's navigation the seven days are a strip of cards,
 each with its total, today marked, a locked day marked in words; pressing a day records on it. The
 grid of entries by day is drawn from `medium` up; the records are a table that stacks on a phone,
@@ -971,7 +971,7 @@ addresses draw the same one. The head names the figure (*2 live · 1 draft · 3 
 person*) and *Add an agent* as its primary, the split offering the shipped roles (ticket triage,
 knowledge draft, duplicate review, CI suggestion), each prefilled with its name, what it does and
 the domain's default budget — a zero budget allows nothing, and a card whose budget holds a zero
-says so. The tabs are *Agents · Waiting for a person · Runs · Settings*, Settings for whoever
+says so. The tabs are *Agents · Waiting · Runs · Settings*, Settings for whoever
 administers agents (the kill switch, MCP's registered-only, the models, the metering). A card
 shows the role, the person it acts for, the model, what it may do in words, its budget and its
 lifecycle presses; its *N waiting* opens the held acts narrowed to it, which is also where Today's

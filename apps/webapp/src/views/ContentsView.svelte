@@ -26,7 +26,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { elementId } from '@hubtask/whiteboard';
-  import BoardTemplates, { startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
+  import BoardTemplates, { STARTS, startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
 
   interface Props {
@@ -37,10 +37,12 @@
     create?: string;
     /** The page a new whiteboard goes under (`?parent=`). */
     parentId?: string;
+    /** The template card a new whiteboard starts from (`?start=`), as the boards' home picked it. */
+    startAsked?: string;
     onnavigate: (path: string) => void;
     onreplace?: (path: string) => void;
   }
-  const { hubId, kind, create, parentId, onnavigate, onreplace }: Props = $props();
+  const { hubId, kind, create, parentId, startAsked, onnavigate, onreplace }: Props = $props();
 
   const hub = $derived(containers.find(hubId));
   $effect(() => frame.entitle(hub ? t('app.nav.contents_of', { hub: hub.name }) : t('app.nav.all_contents')));
@@ -166,7 +168,7 @@
     if (!asked || wasAsked || !mayWrite) return;
     wasAsked = true;
     untrack(() => {
-      startMaking();
+      startMaking(STARTS.find((each) => each === startAsked) ?? 'BLANK');
       (onreplace ?? onnavigate)(`/hubs/${hubId}/contents${kind ? `?kind=${kind}` : ''}`);
     });
   });

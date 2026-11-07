@@ -10,10 +10,13 @@
 const ROUTE_MODULES: Readonly<Record<string, string>> = {
   'service-desk': 'SERVICE_DESK',
   'desk-desks': 'SERVICE_DESK',
+  'desk-reports': 'SERVICE_DESK',
   'desk-settings': 'SERVICE_DESK',
   'entry-types': 'WORKFLOWS',
   workflows: 'WORKFLOWS',
   'time-settings': 'TIME',
+  'assets-classes': 'ASSETS',
+  'assets-sources': 'ASSETS',
   'assets-settings': 'ASSETS',
   approvals: 'SERVICE_DESK',
   notes: 'KNOWLEDGE',
