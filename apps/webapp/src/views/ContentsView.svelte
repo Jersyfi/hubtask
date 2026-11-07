@@ -8,7 +8,7 @@
   // top (UC-CNV-10 check 6), as ＋ in *Contents* asks; a page is made on the pages' own screen.
   import { untrack } from 'svelte';
   import {
-    Button, Dialog, EmptyState, Inline, Input, PageHeader, SearchField, Select, Skeleton, Stack, Switch, Table, ViewSwitcher,
+    Button, EmptyState, Inline, PageHeader, SearchField, Select, Skeleton, Stack, Switch, Table, ViewSwitcher,
   } from '@hubtask/design-system/components';
   import type { PageHitList, PageLabelCounts, PageList, WhiteboardList } from '@hubtask/sync-engine';
 
@@ -25,6 +25,9 @@
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { elementId } from '@hubtask/whiteboard';
+  import BoardTemplates, { startElements, templateOf, type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
+  import CreateDialog from '../lib/product/CreateDialog.svelte';
 
   interface Props {
     hubId: string;
@@ -132,8 +135,27 @@
   });
 
   // --- A new whiteboard, under a page or at the top (UC-CNV-10 check 6) -------------------------
+  // Made from the template gallery (§5.2: "the board with the template gallery"), as the boards'
+  // own home makes one; the name a template suggests is kept until the person types their own.
   let isMaking = $state(false);
   let titleDraft = $state('');
+  let start = $state<BoardStart>('BLANK');
+  let format = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
+  const suggested = (choice: BoardStart) => (choice === 'BLANK' ? '' : t(`app.whiteboards.start_${choice.toLowerCase()}`));
+  let lastSuggested = '';
+  $effect(() => {
+    const name = suggested(start);
+    untrack(() => {
+      if (titleDraft.trim() === '' || titleDraft === lastSuggested) titleDraft = name;
+      lastSuggested = name;
+    });
+  });
+  function startMaking(choice: BoardStart = 'BLANK') {
+    start = choice;
+    titleDraft = suggested(choice);
+    lastSuggested = titleDraft;
+    isMaking = true;
+  }
   let makeFailure = $state<string | undefined>(undefined);
   let isBusy = $state(false);
   let wasAsked = false;
@@ -144,7 +166,7 @@
     if (!asked || wasAsked || !mayWrite) return;
     wasAsked = true;
     untrack(() => {
-      isMaking = true;
+      startMaking();
       (onreplace ?? onnavigate)(`/hubs/${hubId}/contents${kind ? `?kind=${kind}` : ''}`);
     });
   });
@@ -155,7 +177,13 @@
     isBusy = true;
     makeFailure = undefined;
     try {
-      const made = await whiteboards.create(hubId, { title, ...(parentAsked ? { parent_page_id: parentAsked } : {}) });
+      const name = templateOf(start, format);
+      const elements = name ? startElements(name, (key) => t(`app.whiteboards.word_${key}`), elementId) : undefined;
+      const made = await whiteboards.create(hubId, {
+        title,
+        ...(parentAsked ? { parent_page_id: parentAsked } : {}),
+        ...(elements && elements.length > 0 ? { elements: elements as never } : {}),
+      });
       isMaking = false;
       titleDraft = '';
       onnavigate(`/whiteboards/${made.id}`);
@@ -171,7 +199,7 @@
   <PageHeader
     title={t('app.nav.all_contents')}
     isTitleInBar={viewport.isCompact}
-    primary={mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => (isMaking = true) } : undefined}
+    primary={mayWrite ? { label: t('app.whiteboards.new'), icon: 'plus', onclick: () => startMaking() } : undefined}
     breadcrumb={hub
       ? {
           trail: [{ id: 'place', label: hub.name, href: `/hubs/${hubId}` }, { id: 'contents', label: t('app.nav.all_contents') }],
@@ -224,6 +252,12 @@
       <p class="refusal">{refusal}</p>
     {:else if isReading}
       <div aria-busy="true"><Skeleton lines={5} /></div>
+    {:else if rows.length === 0 && shownKind === 'whiteboards' && mayWrite}
+      <!-- No board yet: one starts from a template in one press (user-experience.md §4, §5.5). -->
+      <div class="start" data-boards-start>
+        <EmptyState kind="unused" title={t('app.whiteboards.empty')} description={t('app.whiteboards.empty_hint')} icon="layout-template" />
+        <BoardTemplates chosen={'BLANK'} {format} onpick={(choice) => startMaking(choice)} />
+      </div>
     {:else if rows.length === 0}
       <EmptyState kind="unused" title={t('app.nav.contents_empty')} />
     {:else}
@@ -240,16 +274,22 @@
   {/if}
 </Stack>
 
-<Dialog bind:isOpen={isMaking} title={under ? t('app.nav.create_under', { name: under.title }) : t('app.whiteboards.new')} dismissLabel={t('app.links.cancel')}>
-  <Stack gap="150">
-    <Input label={t('app.whiteboards.board_title')} bind:value={titleDraft} />
-    {#if makeFailure}<p class="refusal" role="alert">{makeFailure}</p>{/if}
-    <Inline gap="100" justify="end">
-      <Button tone="secondary" onclick={() => (isMaking = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" busyLabel={isBusy ? t('app.whiteboards.making') : undefined} disabledReason={titleDraft.trim() ? undefined : t('app.whiteboards.needs_title')} onclick={() => void make()}>{t('app.whiteboards.create')}</Button>
-    </Inline>
-  </Stack>
-</Dialog>
+{#if isMaking}
+  <CreateDialog
+    bind:isOpen={isMaking}
+    title={under ? t('app.nav.create_under', { name: under.title }) : t('app.whiteboards.new')}
+    cancelLabel={t('app.links.cancel')}
+    nameLabel={t('app.whiteboards.board_title')}
+    bind:name={titleDraft}
+    maxlength={200}
+    isWide
+    failure={makeFailure}
+    primary={{ label: t('app.whiteboards.create'), busyLabel: isBusy ? t('app.whiteboards.making') : undefined, disabledReason: titleDraft.trim() ? undefined : t('app.whiteboards.needs_title'), onclick: () => void make() }}
+    onClose={() => { titleDraft = ''; makeFailure = undefined; start = 'BLANK'; }}
+  >
+    {#snippet gallery()}<BoardTemplates bind:chosen={start} bind:format />{/snippet}
+  </CreateDialog>
+{/if}
 
 <style>
   .search { flex: 1 1 24ch; min-inline-size: 0; }
