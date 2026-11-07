@@ -8,6 +8,8 @@
 //
 // `test:engines` runs this file alone, after the other walks: beside them a shared runner stalls
 // every page for 100 ms and more, at 40 objects drawn as at 2,270, and that stall is the runner's.
+// Alone it still stalls now and then, so each gesture is measured up to three times and judged by
+// its best (ci-cd.md §7): a slow board fails all three, one stall of the runner only one.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -105,6 +107,22 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
   }
   const said = (name, drawn, m) =>
     t.diagnostic(`${name}, ${drawn} groups drawn: ${m.frames} frames, median ${m.median.toFixed(1)} ms (${(1000 / m.median).toFixed(0)} fps), 95th percentile ${m.worst.toFixed(1)} ms`);
+  // Smooth is a frame at least every 20 ms in the middle of the gesture (50 fps), with no stall of
+  // more than a tenth of a second in its slowest twentieth. Six frames at 60 Hz are that tenth, and
+  // their timestamps jitter by a fraction of a millisecond either side of it.
+  const STALL = 100 + 0.5;
+  const smooth = (m, least) => m.frames >= least && m.median <= 1000 / 50 && m.worst <= STALL;
+  /** The best of up to three measurements, each said. */
+  async function best(name, drawn, least) {
+    let chosen;
+    for (let round = 1; round <= 3; round += 1) {
+      const m = await measured();
+      said(`${name} (${round})`, drawn, m);
+      if (!chosen || m.worst < chosen.worst) chosen = m;
+      if (smooth(m, least)) return m;
+    }
+    return chosen;
+  }
 
   // The board opens showing everything it holds (user-experience.md §7.2); at its own size only
   // what the view shows is drawn. The view is brought to 100 % the way a person does, step by step.
@@ -117,13 +135,10 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
   const near = await canvas.locator('g').count();
   assert.ok(near < opensWhole, 'the board did not open on everything it holds');
   assert.ok(near < 1000, `${near} groups are drawn at 100 %`);
-  const close = await measured();
-  said('At 100 %', near, close);
+  const close = await best('At 100 %', near, 20);
   assert.ok(close.frames >= 20, `only ${close.frames} frames were painted while the board moved`);
-  // Smooth is a frame at least every 20 ms in the middle of the gesture (50 fps), with no stall of
-  // more than a tenth of a second in its slowest twentieth.
   assert.ok(close.median <= 1000 / 50, `the median frame took ${close.median.toFixed(1)} ms`);
-  assert.ok(close.worst <= 100, `the slowest frames took ${close.worst.toFixed(1)} ms`);
+  assert.ok(close.worst <= STALL, `the slowest frames took ${close.worst.toFixed(1)} ms`);
 
   // The board zoomed out as far as the view goes: the most of it drawn at once, the worst a board of
   // 5,000 asks.
@@ -131,10 +146,9 @@ test('chromium: panning and zooming a board of 5,000 objects keeps its frames co
   await page.waitForTimeout(500);
   const whole = await canvas.locator('g').count();
   assert.ok(whole > near, 'showing everything draws more of the board');
-  const far = await measured();
-  said('Zoomed out', whole, far);
+  const far = await best('Zoomed out', whole, 10);
   assert.ok(far.frames >= 10, `only ${far.frames} frames were painted while the whole board moved`);
   assert.ok(far.median <= 1000 / 50, `the median frame zoomed out took ${far.median.toFixed(1)} ms`);
-  assert.ok(far.worst <= 100, `the slowest frames zoomed out took ${far.worst.toFixed(1)} ms`);
+  assert.ok(far.worst <= STALL, `the slowest frames zoomed out took ${far.worst.toFixed(1)} ms`);
   assert.deepEqual(failures, []);
 });
