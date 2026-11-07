@@ -133,6 +133,8 @@
   }
 
   .pane-body {
+    /* No app bar stands above a story: what sticks while the page scrolls sticks at the top. */
+    --page-sticky-top: 0;
     background: var(--bg-canvas);
     padding: var(--sp-300);
   }
