@@ -165,6 +165,17 @@
             }}
           />
         {/each}
+        {#if onadd && addLabel}
+          <NavItem
+            label={addLabel}
+            icon="plus"
+            size="touch"
+            onnavigate={() => {
+              isSheetOpen = false;
+              onadd();
+            }}
+          />
+        {/if}
       </ul>
     </nav>
   </Sheet>
@@ -336,14 +347,8 @@
   .chip:focus-visible { outline: none; }
   .chip:focus-visible .pill { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
-  /* The sheet's views: one card of rows, top to bottom, in the bar's order. */
-  .sheet-list {
-    display: block;
-    overflow: hidden;
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
-  }
+  /* The sheet's views: plain rows, top to bottom, in the bar's order (the sheet is the surface). */
+  .sheet-list { display: block; }
 
   @media (prefers-reduced-motion: reduce) {
     a, .add { transition: none; }

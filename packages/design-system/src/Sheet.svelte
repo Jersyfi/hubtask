@@ -7,7 +7,9 @@
   // scrim; `Escape` and a press on the scrim close it, and the focus goes back where it was.
   import type { Snippet } from 'svelte';
 
+  import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
 
@@ -15,12 +17,14 @@
     /** The heading and the dialog's name: "Views", "Create under Team". */
     title: string;
     closeLabel: string;
+    /** The mark of the thing the sheet is about, before its heading: a long press's row. */
+    icon?: IconName;
     isOpen?: boolean;
     onClose?: () => void;
     children: Snippet;
   }
 
-  let { title, closeLabel, isOpen = $bindable(false), onClose, children }: Props = $props();
+  let { title, closeLabel, icon, isOpen = $bindable(false), onClose, children }: Props = $props();
 
   const instanceId = $props.id();
   const titleId = `sheet-${instanceId}`;
@@ -68,7 +72,7 @@
   <div class="panel">
     <span class="grabber" aria-hidden="true"></span>
     <header class="head">
-      <h2 class="title" id={titleId}>{title}</h2>
+      <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
       <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
       <IconButton icon="x" label={closeLabel} tone="subtle" onclick={() => close()} />
     </header>
@@ -125,6 +129,9 @@
   }
 
   .title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
     margin: 0;
     font-family: var(--font-ui);
     font-size: var(--fs-200);
@@ -135,6 +142,19 @@
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  /* The sheet is the surface: its rows stand plain, without a card or a hairline between them,
+     and a second list is set off by one hairline (the navigation concept's phone screens). */
+  .body :global(.row[data-size='touch']) {
+    border-block-end: 0;
+    border-radius: var(--layout-nav-radius);
+  }
+
+  .body :global(ul:has(> .row) + ul:has(> .row)) {
+    margin-block-start: var(--sp-050);
+    padding-block-start: var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
 
   @media (prefers-reduced-motion: reduce) {

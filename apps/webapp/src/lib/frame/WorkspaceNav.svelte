@@ -1374,14 +1374,14 @@
     {#if mayWrite && createItems.length > 0}
       <span class="fab"><Button tone="primary" icon="plus" onclick={() => (isNewOpen = true)}>{t('app.nav.new')}</Button></span>
       <Sheet title={under ? t('app.nav.create_under', { name: under.node.title }) : t('app.nav.new_in_place', { name: hub.name })} closeLabel={t('app.sheet_close')} bind:isOpen={isNewOpen}>
-        <ul class="card-list">
+        <ul>
           {#each createItems as item (item.id)}
             <NavItem label={item.id === 'template' ? t('app.nav.create_page_from_template') : item.label} icon={item.icon} size="touch"
               onnavigate={() => { isNewOpen = false; onnavigate(createPath(hub.id, item.id, under?.node.id)); }} />
           {/each}
         </ul>
         {#if mayStructure && !under}
-          <ul class="card-list">
+          <ul>
             <NavItem label={t('app.nav.create_collection_kind')} icon="collection" size="touch" onnavigate={() => { isNewOpen = false; collectionHubId = hub.id; isCreatingCollection = true; }} />
           </ul>
         {/if}
@@ -1390,8 +1390,8 @@
   {/if}
   {#if contextRow}
     {@const row = contextRow}
-    <Sheet title={row.name} closeLabel={t('app.sheet_close')} bind:isOpen={() => contextRow !== undefined, (open) => { if (!open) contextRow = undefined; }}>
-      <ul class="card-list">
+    <Sheet title={row.name} icon={row.kind === 'collection' ? 'collection' : row.kind === 'whiteboard' ? 'layout-template' : 'file-text'} closeLabel={t('app.sheet_close')} bind:isOpen={() => contextRow !== undefined, (open) => { if (!open) contextRow = undefined; }}>
+      <ul>
         {#each contextItems as item (item.id)}
           <NavItem label={item.label} icon={item.icon} size="touch" onnavigate={() => chooseContext(item.id)} />
         {/each}
