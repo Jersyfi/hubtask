@@ -9,6 +9,8 @@
     /** Resolved text: "Manage Web app", "Create under Team". */
     readonly label: string;
     readonly items?: readonly MenuItem[];
+    /** Resolved text above the items: "Create under “Team”". The menu then opens beside the row. */
+    readonly heading?: string;
     readonly onselect: (itemId?: string) => void;
   }
 
@@ -191,10 +193,12 @@
     <Menu
       label={act.label}
       items={act.items}
-      placement={{ side: 'block-end', align: 'end' }}
+      placement={act.heading ? { side: 'inline-end', align: 'start' } : { side: 'block-end', align: 'end' }}
       bind:isOpen={() => (kind === 'menu' ? isMenuOpen : isAddOpen), (open) => (kind === 'menu' ? (isMenuOpen = open) : (isAddOpen = open))}
       onselect={(itemId) => act.onselect(itemId)}
+      head={act.heading ? menuHeading : undefined}
     >
+      {#snippet menuHeading()}<span class="menu-heading" data-menu-label>{act.heading}</span>{/snippet}
       {#snippet trigger(props)}
         <button type="button" class="act" tabindex="-1" aria-label={act.label} title={act.label} {...props}>
           <Icon name={kind === 'menu' ? 'ellipsis' : 'plus'} size="sm" />
@@ -380,6 +384,18 @@
   .row[data-level='6'] { --indent: 6; }
 
   .row:hover { background: var(--bg-surface-hover); }
+
+  /* A menu's heading, as the sidebar's section heads are set (the mockup's *Create under “…”*). */
+  .menu-heading {
+    color: var(--text-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--fs-065);
+    font-weight: var(--fw-medium);
+    /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
 
   .row[aria-current='page'],
   .row[data-current] {

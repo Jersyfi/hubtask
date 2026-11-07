@@ -640,7 +640,7 @@
   const contentRowAdd = (id: string): RowAction | undefined => {
     if (!hubId || !mayWrite || boardRows.some((each) => each.id === id)) return undefined;
     const title = pageRows.find((each) => each.id === id)?.title ?? '';
-    return { label: t('app.nav.create_under', { name: title }), items: createItems, onselect: (kind) => hubId && onnavigate(createPath(hubId, kind ?? 'page', id)) };
+    return { label: t('app.nav.create_under', { name: title }), heading: t('app.nav.create_under', { name: title }), items: createItems, onselect: (kind) => hubId && onnavigate(createPath(hubId, kind ?? 'page', id)) };
   };
   const contentsMenu = $derived<RowAction>({
     label: t('app.nav.contents_menu'),
@@ -994,7 +994,7 @@
   oncreated={(id, landing) => onnavigate(landing ?? `/hubs/${id}`)}
 />
 {#if collectionHubId}
-  <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHubId} oncreated={(id) => onnavigate(`/collections/${id}`)} />
+  <CreateContainerDialog bind:isOpen={isCreatingCollection} type="COLLECTION" parentId={collectionHubId} oncreated={(id, landing) => onnavigate(landing ?? `/collections/${id}`)} />
 {/if}
 
 <style>

@@ -214,6 +214,8 @@
     padding: var(--sp-050);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
+    /* Drawn where its trigger is, so it would inherit a current row's weight: items are regular. */
+    font-weight: var(--fw-regular);
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
@@ -226,6 +228,13 @@
     padding: var(--sp-100) var(--sp-150);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
     margin-block-end: var(--sp-050);
+  }
+
+  /* A label rather than a person: the words alone, as a section head is set, with no line. */
+  .head:has(> :global([data-menu-label])) {
+    padding: calc(var(--sp-050) + var(--sp-025)) var(--sp-100) var(--sp-025);
+    border-block-end: 0;
+    margin-block-end: 0;
   }
 
   .menu:focus-visible {
