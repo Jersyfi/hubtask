@@ -4,7 +4,8 @@
 // The navigation concept's screens (step 5): the hub's overview without tabs, each hub tool's page
 // with its one view bar, the queue page, a collection's one view bar, a page without a tree of its
 // own, *All contents*, ＋ under a page, and the former hub tabs' addresses (UC-WRK-36 checks 9, 10
-// and 12, UC-SVC-03 check 10, UC-DOC-01 check 6, UC-CNV-10 check 6). Walked at desk width;
+// and 12, UC-SVC-03 checks 10 and 11, UC-DOC-01 check 6, UC-CNV-10 check 6), the queue's *Filter* and
+// *Save as queue*, and the *Desk* kind of a new collection. Walked at desk width;
 // `SHOTS=<dir>` also writes the screenshots the mockup is compared with.
 
 import { test } from 'node:test';
@@ -12,7 +13,8 @@ import assert from 'node:assert/strict';
 
 import { chromium } from 'playwright';
 
-import { ALL, DESK, IT, PD, PD_PAGES, WEB, id, open, served, side, texts } from './kompassstub.mjs';
+import { ALL, DESK, IT, PD, PD_PAGES, QUEUES, WEB, id, open, served, side, texts } from './kompassstub.mjs';
+import { MANIFEST, PERMISSIONS, PRESETS, ROLES, kindChoice, newInHead } from './fixture.mjs';
 
 const SHOTS = process.env.SHOTS;
 test.after(() => served.close());
@@ -188,5 +190,116 @@ test('UC-DOC-01 check 6, UC-CNV-10 check 6: a page has its trail and no tree of 
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-create.png` });
   await page.getByRole('menuitem', { name: 'Whiteboard' }).click();
   await page.getByRole('dialog', { name: 'Create under “How we plan”' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keeps the narrowing as a queue of the hub', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const asked = [];
+  const saved = [];
+  const SAVED = { id: id(520), key: 'printers', name: 'Printers', scope_type: 'HUB', scope_id: IT.id, owner_id: id(1), layout: 'LIST_COLLAPSED', grouping: {}, visible_fields: [], sharing: 'SCOPE', queue: true, queue_position: 4, version: 1 };
+  const filtering = async (route, request, url) => {
+    const path = url.pathname;
+    // The fields a condition can name, as the installation answers them.
+    if (path.endsWith('/api/v1/meta/capabilities')) {
+      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], view_layouts: ['LIST_COLLAPSED'], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: ALL, roles: ROLES, query_fields: MANIFEST.query_fields } }).then(() => true);
+    }
+    if (path.endsWith('/api/v1/items:query')) asked.push(request.postDataJSON());
+    if (path.endsWith('/api/v1/views') && request.method() === 'POST') {
+      saved.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: { ...SAVED, query: request.postDataJSON().query } }).then(() => true);
+    }
+    if (path.endsWith(`/api/v1/hubs/${IT.id}/queues`) && saved.length > 0) {
+      return route.fulfill({ json: { data: [...QUEUES, { view_id: SAVED.id, key: SAVED.key, name: SAVED.name, count: 1, at_risk: 0 }] } }).then(() => true);
+    }
+    return extra(route, request, url);
+  };
+  const { page, failures, close } = await walk(browser, `/hubs/${IT.id}/desk?queue=${id(500)}`, { extra: filtering });
+  t.after(close);
+  await main(page).getByRole('heading', { name: 'About to breach' }).waitFor({ timeout: 10_000 });
+  const head = main(page).locator('header.head');
+  assert.equal(await head.locator('[data-tour="queue-save"]').count(), 0, 'Save as queue before the filter differs from the queue');
+  await head.locator('[data-tour="queue-filter"]').click();
+  const line = main(page).locator('[data-queue-filter]').getByRole('textbox', { name: 'As a line' });
+  await line.fill('title = "Printer"');
+  await line.press('Enter');
+  // The queue is asked again with the condition joined to its own.
+  await head.locator('[data-tour="queue-save"]').waitFor({ timeout: 10_000 });
+  const narrowed = asked.filter((body) => JSON.stringify(body.filter ?? {}).includes('"title"'));
+  assert.ok(narrowed.length > 0, 'the queue was not asked with the filter');
+  assert.ok(JSON.stringify(narrowed.at(-1).filter).includes('sla_standing'), 'the filter replaced the queue\'s own conditions');
+  await head.locator('[data-tour="queue-save"]').click();
+  const dialog = page.getByRole('dialog', { name: 'Save as queue' });
+  await dialog.getByRole('textbox', { name: 'Name of the queue' }).fill('Printers');
+  await dialog.locator('[data-save-queue]').click();
+  await at(page, `/hubs/${IT.id}/desk?queue=${SAVED.id}`);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].scope_type, 'HUB');
+  assert.equal(saved[0].scope_id, IT.id);
+  assert.equal(saved[0].queue, true);
+  assert.equal(saved[0].name, 'Printers');
+  assert.equal(saved[0].query.scope_container_id, IT.id);
+  assert.ok(JSON.stringify(saved[0].query.filter).includes('"title"'), 'the saved queue lost the filter');
+  // The new queue stands in the sidebar under *Queues*.
+  await side(page).getByRole('region', { name: IT.name }).getByRole('link', { name: /^Printers/ }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub has a portal type, and the desk offers it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const MADE = { id: id(230), type: 'COLLECTION', parent_id: PD.id, name: 'Help', order_key: 'a9', version: 1 };
+  const making = async (route, request, url) => {
+    const path = url.pathname;
+    if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS }).then(() => true);
+    if (path.endsWith('/api/v1/containers') && request.method() === 'POST') {
+      written.push({ path: '/containers', body: request.postDataJSON() });
+      return route.fulfill({ status: 201, json: MADE }).then(() => true);
+    }
+    if (path.endsWith(`/api/v1/containers/${MADE.id}/structure`) && request.method() === 'PATCH') {
+      written.push({ path: '/structure', body: request.postDataJSON(), ifMatch: request.headers()['if-match'] });
+      return route.fulfill({ json: { ...MADE, version: 2 } }).then(() => true);
+    }
+    return extra(route, request, url);
+  };
+  const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { extra: making });
+  t.after(close);
+  await newInHead(page).first().click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  const dialog = page.locator('dialog[open]');
+  await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
+  const card = dialog.locator('[data-collection-kind="desk"]');
+  assert.ok((await card.textContent()).includes('Requests through the portal'), 'the desk card says what it is for');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-newcoll.png` });
+  await dialog.getByRole('textbox', { name: 'Collection name' }).fill('Help');
+  await kindChoice(dialog, 'Desk').click();
+  await dialog.locator('[data-create-container]').click();
+  await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 10_000 });
+  const created = written.find((each) => each.path === '/containers');
+  assert.equal(created?.body.preset, 'TASKS', 'a desk starts from Tasks');
+  const shaped = written.find((each) => each.path === '/structure');
+  assert.deepEqual(shaped?.body, { settings: { entry_types: { TASK: ['incident'] } } }, 'the desk offers the hub\'s portal type by name');
+  assert.deepEqual(failures, []);
+});
+
+test('UC-WRK-36 check 18: without a portal type in the hub the Desk kind says what it needs and cannot be chosen', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const noPortal = async (route, request, url) => {
+    const path = url.pathname;
+    if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS }).then(() => true);
+    if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: [{ key: 'story', name: 'Story', level: 'TASK', hub_id: null }], page: { next_cursor: null, has_more: false } } }).then(() => true);
+    return extra(route, request, url);
+  };
+  const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { extra: noPortal });
+  t.after(close);
+  await newInHead(page).first().click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  const dialog = page.locator('dialog[open]');
+  await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
+  assert.ok((await dialog.locator('[data-collection-kind="desk"]').textContent()).includes('Needs a portal type in the hub'));
+  assert.equal(await kindChoice(dialog, 'Desk').getAttribute('aria-disabled'), 'true', 'a desk without a portal type can be chosen');
   assert.deepEqual(failures, []);
 });
