@@ -82,12 +82,21 @@ async function originOf(page, label) {
 }
 
 /** A control by its label; a pattern for a required field, whose name carries its marker. */
-/** Opens a section of the sign-in screen as a reader does: by its name in the shell's list. */
+/** The page's list of sections, one address each (page-system PS-9). */
+const sectionList = (page) => page.locator('nav[aria-label^="Sections of "], nav[aria-label^="Abschnitte von "]');
+
+/** Opens a section of the sign-in screen as a reader does: by its name in the list, its state after it. */
 async function toTab(page, name) {
-  const sections = page.locator('[data-settings-sections]');
-  await sections.getByRole('link', { name, exact: true }).click();
+  const sections = sectionList(page);
+  await sections.getByRole('link', { name: new RegExp(`^${name}`) }).click();
   await sections.locator('a[aria-current="page"]', { hasText: name }).waitFor();
 }
+
+/** The names of the sections in the list, without the state each says. */
+const sectionNames = (page) => sectionList(page).locator('a').evaluateAll((links) => links.map((link) => link.firstElementChild?.textContent?.trim() ?? ''));
+
+/** Unfolds a section's rare rules. */
+const unfold = (page, label = 'Advanced') => page.getByRole('button', { name: new RegExp(`^${label}`) }).click();
 
 const control = (page, label) => (label instanceof RegExp ? page.getByLabel(label) : page.getByLabel(label, { exact: true }));
 
@@ -129,32 +138,38 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   assert.match(plain, /Hubtask.s default/, plain);
   assert.doesNotMatch(plain, /Installation/, plain);
 
-  // The installation requires a factor of administrators: "Nobody" is not a choice here.
+  // The installation requires a factor of administrators: "Nobody" is not a choice here. The
+  // second factor is its own section.
+  await toTab(page, 'Second factor');
   const options = await page.getByLabel('Required of', { exact: true }).locator('option').allTextContents();
   assert.ok(!options.includes('Nobody'), `a looser choice is offered: ${options.join(', ')}`);
   // UC-ID-12 check 1: the strictest choice says it covers sign-ins with a password - a provider is
   // trusted as a whole.
   assert.ok(options.includes('Everyone signing in with a password'), options.join(', '));
+  await toTab(page, 'Passwords');
 
   // A number below the installation's is not offered either.
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).getAttribute('min'), '12');
 
-  // The eighteenth rule has its control.
+  // The eighteenth rule has its control, among the rare ones folded under *Advanced*.
+  await unfold(page);
   assert.ok(await page.getByLabel('Earliest change after, in hours', { exact: true }).isVisible());
 
   // UC-ID-12 check 7: every rule ADR-0068 lets a workspace set has a control of its own, found by its
-  // label - the password's thirteen and the second factor on *Passwords* with the rotation as its
-  // action, both session bounds on *Sessions*, the ways to sign in as one list on *Ways and
-  // providers*. (`blocklist_file` is the installation's alone.)
+  // label - the password's thirteen on *Passwords*, the second factor on its own section (above),
+  // the rotation in the head's menu, both session bounds on *Sessions*, the ways to sign in as one
+  // list on *Ways and providers*. (`blocklist_file` is the installation's alone.)
   for (const label of [
     'Minimum length', 'Lowercase', 'Uppercase', 'Digits', 'Other', 'At least this many of the four kinds',
     'Most of the same character in a row', 'Refuse commonly used passwords',
     'Refuse the address, the name and the workspace name inside a password', 'Check against known breaches',
-    'Expires after, in days', 'Remember previous passwords', 'Earliest change after, in hours', 'Required of',
+    'Expires after, in days', 'Remember previous passwords', 'Earliest change after, in hours',
   ]) {
     assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `no control for "${label}"`);
   }
-  assert.equal(await page.getByRole('button', { name: 'Require a new password from everyone' }).count(), 1, 'no rotation action');
+  await page.getByRole('button', { name: 'More for Sign-in' }).click();
+  assert.equal(await page.getByRole('menuitem', { name: 'Require a new password from everyone…' }).count(), 1, 'no rotation action');
+  await page.keyboard.press('Escape');
 
   // A switch kept on by Hubtask's own default says so, not that the installation required it: the
   // origin line beside it says "Hubtask's default", and the reason must not contradict it (check 4).
@@ -320,15 +335,12 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
 
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
-  assert.deepEqual(
-    (await page.locator('[data-settings-sections] a').allTextContents()).map((each) => each.trim()),
-    ['Passwords', 'Sessions', 'Ways and providers', 'Directory'],
-  );
+  assert.deepEqual(await sectionNames(page), ['Passwords', 'Second factor', 'Sessions', 'Ways and providers', 'Directory']);
   // No legal link on the sign-in screen: they are their own page, with their own breadcrumb.
   assert.equal(await page.getByLabel('Imprint', { exact: true }).count(), 0);
 
   await toTab(page, 'Sessions');
-  assert.match(page.url(), /\/administration\/sign-in\?tab=sessions$/, 'the tab is not in the address');
+  assert.match(page.url(), /\/administration\/sign-in\/sessions$/, 'the section is not in the address');
   await page.getByLabel('End a session after, in days', { exact: true }).fill('20');
   const bar = page.getByRole('region', { name: 'Unsaved changes' });
   await bar.getByText('1 change').waitFor();
@@ -348,7 +360,7 @@ test('chromium: each tab saves its own rows, and the legal links are their own p
 
   await page.goto(`${served.origin}/administration/legal`);
   await page.getByLabel('Imprint', { exact: true }).waitFor();
-  assert.equal(await page.locator('[data-settings-sections]').count(), 0);
+  assert.deepEqual(await sectionNames(page), ['Legal links'], 'the legal page lists a sign-in section');
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).count(), 0);
   const trail = await page.getByRole('navigation', { name: 'Where you are in the administration' }).innerText();
   assert.match(trail, /Legal links/, trail);
@@ -729,19 +741,24 @@ test('chromium: the providers\' configuration has no switch of its own, and its 
   t.after(close);
 
   await page.goto(`${served.origin}/administration/identity-provider`);
-  await page.waitForURL(/\/administration\/sign-in\?tab=ways$/);
-  // The tabs are drawn once the rules are read, a moment after the address lands.
-  const openSection = page.locator('[data-settings-sections] a[aria-current="page"]');
+  await page.waitForURL(/\/administration\/sign-in\/ways$/);
+  // The sections are drawn once the rules are read, a moment after the address lands.
+  const openSection = sectionList(page).locator('a[aria-current="page"]');
   await openSection.filter({ hasText: 'Ways and providers' }).waitFor();
   assert.equal(await openSection.count(), 1);
+  // The providers are a table under the ways; a row's menu changes one in its dialog.
   const providers = page.locator('section[aria-labelledby="providers"]');
   await providers.getByText('Contoso Entra ID').first().waitFor();
-  await providers.getByRole('button', { name: 'Change' }).first().click();
-  assert.equal(await providers.locator('input[type="checkbox"], [role="switch"]').count(), 0,
+  await providers.getByRole('button', { name: 'More for Contoso Entra ID' }).first().click();
+  await page.getByRole('menuitem', { name: 'Change…' }).click();
+  const form = page.getByRole('dialog', { name: 'Change the provider' });
+  await form.waitFor();
+  assert.equal(await form.locator('input[type="checkbox"], [role="switch"]').count(), 0,
     'a provider is still switched in its configuration');
 
-  await page.getByRole('button', { name: 'Save the provider' }).click();
-  await page.getByText('Saved. The provider answered its metadata.').waitFor();
+  await form.getByRole('button', { name: 'Save the provider' }).click();
+  // Said as a toast now that the form is a dialog that closes.
+  await page.getByText('Saved. The provider answered its metadata.').first().waitFor();
   assert.equal(saved.length, 1, 'the form was not saved');
   assert.equal('enabled' in saved[0], false, `the form still sends the switch: ${JSON.stringify(saved[0])}`);
 });
@@ -760,14 +777,17 @@ test('chromium: the sign-in rules read in German', async (t) => {
 
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Mindestlänge', { exact: true }).waitFor({ timeout: 15_000 });
+  await unfold(page, 'Erweitert');
+  await page.getByLabel('Frühestens änderbar nach, in Stunden', { exact: true }).waitFor();
   const text = await page.locator('main').innerText();
-  for (const german of ['Wege und Anbieter', 'Hier festgelegt', 'Voreinstellung von Hubtask', 'Frühestens änderbar nach, in Stunden', 'Verlangt von']) {
+  for (const german of ['Wege und Anbieter', 'Hier festgelegt', 'Voreinstellung von Hubtask', 'Frühestens änderbar nach, in Stunden', 'Zweiter Faktor']) {
     assert.ok(text.includes(german), `"${german}" is missing`);
   }
   for (const english of ['Minimum length', 'Ways to sign in', 'Set here', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
     assert.ok(!text.includes(english), `"${english}" fell back to English`);
   }
-  // UC-ID-12 check 1: the rule covers sign-ins with a password, in German too.
+  // UC-ID-12 check 1: the rule covers sign-ins with a password, in German too - in its own section.
+  await sectionList(page).getByRole('link', { name: /^Zweiter Faktor/ }).click();
   const options = await page.getByLabel('Verlangt von', { exact: true }).locator('option').allTextContents();
   assert.ok(options.includes('Allen, die sich mit einem Passwort anmelden'), options.join(', '));
 });

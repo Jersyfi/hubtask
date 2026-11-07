@@ -228,8 +228,13 @@ test('chromium: the workspace\'s own providers a plan leaves out sign nobody in,
   const configuring = page.locator('section[aria-labelledby="providers"]');
   assert.ok(await configuring.getByText('Not included in your plan', { exact: true }).isVisible());
   assert.equal(await page.getByRole('button', { name: 'Add a provider' }).count(), 0, 'a new provider is offered');
-  assert.equal(await page.getByRole('button', { name: 'Change' }).count(), 0, 'changing a resting provider is offered');
-  assert.equal(await page.getByRole('button', { name: 'Remove' }).count(), 2);
+  // Each provider's acts are in its row's menu: removing stays, changing is not offered.
+  for (const name of ['Company login', 'Lab login']) {
+    await configuring.getByRole('button', { name: `More for ${name}` }).click();
+    assert.equal(await page.getByRole('menuitem', { name: 'Change…' }).count(), 0, `changing the resting ${name} is offered`);
+    assert.equal(await page.getByRole('menuitem', { name: 'Remove…' }).count(), 1, `removing ${name} is not offered`);
+    await page.keyboard.press('Escape');
+  }
 
   // The ways in: a resting provider that is on keeps only the way to switch it off; one that is
   // off says so in place of its switch.

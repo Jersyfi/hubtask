@@ -60,7 +60,9 @@ const TENANT = {
  */
 const SCREENS = [
   { path: '/administration/workspace', buttons: [{ role: 'textbox', name: /^Name/ }], gates: ['STRUCTURE'] },
-  { path: '/administration/sign-in', buttons: ['Require a new password from everyone'], gates: ['STRUCTURE'] },
+  // *Require a new password from everyone* is the head's ⋯ on Sign-in (page-system §7.3), the
+  // menu's one item: the menu is offered exactly where the rotation is.
+  { path: '/administration/sign-in', buttons: ['More for Sign-in'], gates: ['STRUCTURE'] },
   { path: '/administration/identity-provider', buttons: ['Add a provider'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/machines?tab=apps', buttons: ['Register an app'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/people?tab=groups', buttons: ['New group'], gates: ['MANAGE_MEMBERS'] },

@@ -124,7 +124,8 @@ test('Sign-in settings draws the switch, and says why it cannot be switched on u
   const browser = await chromium.launch();
   const { page, close } = await open(browser, rule(false, false, { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' }), {});
   try {
-    await page.goto(`${served.origin}/administration/sign-in`);
+    // The switch is its own section, *Accounts without mail*, at its own address.
+    await page.goto(`${served.origin}/administration/sign-in/accounts-without-mail`);
     const control = page.getByRole('switch', { name: 'Accounts without a mail address allowed' });
     await control.waitFor();
     assert.equal(await control.isDisabled(), true, 'a switch the installation locked can be changed here');
