@@ -203,6 +203,7 @@
 
 <ListPage head={peopleHead()}>
   {#snippet strip()}<PeopleStrip current="permissions" {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t('app.access.intro')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.access.search')}
@@ -233,7 +234,6 @@
     </FilterBar>
   {/snippet}
 
-  <p class="quiet">{t('app.access.intro')}</p>
 
   {#if failure}<FailureNote problem={failure} />{/if}
 

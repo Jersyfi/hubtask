@@ -175,6 +175,7 @@
 
 <ListPage head={machinesHead(primary, figure)}>
   {#snippet strip()}<MachinesStrip current="apps" {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t('app.apps.intro')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.apps.search')}
@@ -205,7 +206,6 @@
     </FilterBar>
   {/snippet}
 
-  <p class="quiet">{t('app.apps.intro')}</p>
   <!-- A reader without MANAGE_MEMBERS is told once why nothing here can be registered (P-05). -->
   <WorkspaceGate permission="MANAGE_MEMBERS" />
 

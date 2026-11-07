@@ -163,6 +163,7 @@
 
 <ListPage head={peopleHead(primary)}>
   {#snippet strip()}<PeopleStrip current="groups" {onnavigate} />{/snippet}
+  {#snippet intro()}<p class="quiet">{t('app.groups.intro')}</p>{/snippet}
   {#snippet filters()}
     <FilterBar
       searchLabel={t('app.groups.search')}
@@ -172,7 +173,6 @@
     />
   {/snippet}
 
-  <p class="quiet">{t('app.groups.intro')}</p>
   <!-- Says once, to a reader who may not manage members, why nothing here changes. -->
   <WorkspaceGate permission="MANAGE_MEMBERS" />
 
