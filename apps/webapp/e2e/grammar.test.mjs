@@ -24,7 +24,7 @@ const ROUTES = [
   '/', '/search', '/jumble', '/archive', '/trash', `/hubs/${HUB.id}`, `/collections/${COLLECTION.id}`,
   `/hubs/${HUB.id}/settings/general`, `/collections/${COLLECTION.id}/settings/types`, `/collections/${COLLECTION.id}/settings/views`, `/collections/${COLLECTION.id}/settings/labels`,
   '/profile', '/profile/appearance', '/profile/notifications', '/profile/security', '/profile/sessions', '/profile/devices', '/profile/apps', '/profile/tokens',
-  '/administration', '/administration/workspace', '/administration/presets', '/administration/quotas', '/administration/people', '/administration/machines',
+  '/administration', '/administration/workspace', '/administration/templates', '/administration/quotas', '/administration/people', '/administration/machines',
   '/administration/sign-in', '/administration/legal', '/administration/rules', '/administration/runs', '/administration/webhooks',
   '/administration/private-hubs', '/administration/backup', '/administration/retention', '/administration/restore', '/administration/audit',
   '/administration/privacy', '/administration/ai', '/installation',

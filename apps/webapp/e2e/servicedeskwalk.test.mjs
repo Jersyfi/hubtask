@@ -252,7 +252,7 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
   const { page } = walk;
   await page.goto(`${served.origin}/desk/settings`);
   await page.locator('[data-itil-defaults]').click();
-  await page.waitForURL(/\/administration\/presets\?template=itil_service_desk$/, { timeout: 10_000 });
+  await page.waitForURL(/\/administration\/templates\?template=itil_service_desk$/, { timeout: 10_000 });
   await page.getByRole('dialog').waitFor({ timeout: 10_000 });
   assert.deepEqual(plans, [''], 'the ITIL plan was not asked for the workspace once');
   assert.deepEqual(walk.errors(), []);

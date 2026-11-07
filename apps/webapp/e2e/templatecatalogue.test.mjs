@@ -27,6 +27,11 @@ const template = (key, modules) => ({
 const ITIL = template('itil_service_desk', ['workflows', 'service_desk', 'knowledge']);
 ITIL.document.types = { incident: { name: 'Incident' }, service_request: { name: 'Service request' } };
 ITIL.hub_document = { template_pages: { how_we_work: { title: 'How we work with this desk' } } };
+/** What taking any of them would do: nothing, as far as this walk looks. */
+const PLAN = {
+  template: 'itil_service_desk', upgrade: [], document: {}, mode: 'MERGE', base_hash: 'b0', plan_hash: 'p0', changes: [], operations: [],
+  flags: { hides_data: false, changes_permissions: false }, counts: { added: 0, changed: 0, removed: 0 }, refusals: [],
+};
 const CATALOGUE = [
   ITIL,
   template('internal_it', ['workflows', 'service_desk']),
@@ -57,6 +62,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
       if (path === '/presets' && route.request().method() === 'GET') return route.fulfill({ json: PRESETS });
       if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS.OWNER } });
       if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: CATALOGUE } });
+      if (path.endsWith(':plan')) return route.fulfill({ json: PLAN });
       return stub(route);
     });
     await context.addInitScript(() => {
@@ -66,28 +72,38 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     const page = await context.newPage();
     const failures = [];
     page.on('pageerror', (error) => failures.push(String(error)));
-    await page.goto(`${served.origin}/administration/presets`);
-    const itil = page.locator('[data-template="itil_service_desk"]');
+    await page.goto(`${served.origin}/administration/templates`);
+    // Each template a card on the canvas (page-system §9.1), named by its button.
+    const card = (name) => page.getByRole('listitem').filter({ has: page.getByRole('button', { name, exact: true }) });
+    const itil = card('ITIL service desk');
     await itil.waitFor({ timeout: 15_000 });
     const said = await itil.innerText();
     assert.match(said, /ITIL 4/u, said);
     assert.match(said, /Service desk/u, `no product chip: ${said}`);
-    assert.notEqual(await page.locator('[data-template="internal_it"] .summary').innerText(), await itil.locator('.summary').innerText());
-    // *Preview*: what taking it creates, in words, folded until asked for.
-    assert.equal(await itil.locator('[data-template-preview]').count(), 0);
-    await itil.getByRole('button', { name: /Preview/u }).click();
-    const preview = await itil.locator('[data-template-preview]').innerText();
+    assert.notEqual(await card('Internal IT').locator('.description').innerText(), await itil.locator('.description').innerText());
+    // What taking it creates is said in its dialog, beside the questions.
+    assert.equal(await page.locator('[data-template-preview]').count(), 0);
+    await itil.getByRole('button', { name: 'ITIL service desk', exact: true }).click();
+    const dialog = page.locator('dialog[open]');
+    await dialog.locator('[data-template-preview]').waitFor({ timeout: 5_000 });
+    assert.equal(await dialog.getAttribute('data-size'), 'l');
+    const preview = await dialog.locator('[data-template-preview]').innerText();
     assert.match(preview, /Entry types\s+Incident, Service request/u, preview);
     assert.match(preview, /Pages\s+How we work with this desk/u, preview);
-    // The family filter stays inside the page's width, at 375 px too.
-    const filter = await page.getByRole('radiogroup', { name: 'Families' }).evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth }));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 });
+
+    // The family filter is a chip - on a phone inside *Filters* - and the page stays inside its width.
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     assert.equal(sideways, 0, `the page scrolls sideways by ${sideways} px`);
+    if (width < 600) await page.getByRole('button', { name: /^Filters/u }).click();
+    else await page.getByRole('button', { name: 'Family: All' }).click();
+    const families = page.getByRole('group', { name: 'Families' }).last();
+    const filter = await families.evaluate((element) => ({ scroll: element.scrollWidth, client: element.clientWidth }));
     assert.ok(filter.scroll <= filter.client, `the family filter scrolls sideways at ${width} px: ${filter.scroll} > ${filter.client}`);
-
-    await page.getByRole('radiogroup', { name: 'Families' }).getByRole('radio', { name: 'Service', exact: true }).click();
-    await page.locator('[data-template="household"]').waitFor({ state: 'detached', timeout: 5_000 });
-    assert.equal(await page.locator('[data-template]').count(), 2);
+    await families.getByRole('radio', { name: 'Service', exact: true }).check();
+    await card('Household').waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await page.getByRole('list', { name: 'Catalogue' }).getByRole('listitem').count(), 2);
     assert.deepEqual(failures, []);
   });
 }
