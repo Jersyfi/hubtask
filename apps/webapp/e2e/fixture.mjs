@@ -1487,5 +1487,5 @@ export async function openNewCollection(page) {
   await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
 }
 
-/** A kind's card in the new-collection dialog (the navigation concept's *New collection*): its *Choose* button. */
-export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name: new RegExp(`^(Choose|Chosen) ${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}$`, 'u') });
+/** A kind's toggle card in the new-collection dialog (the navigation concept's *New collection*), by its name. */
+export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name, exact: true });

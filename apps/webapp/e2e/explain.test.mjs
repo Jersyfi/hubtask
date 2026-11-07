@@ -366,7 +366,7 @@ for (const width of WIDTHS) {
     await openNewCollection(page);
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
-    await dialog.getByRole('button', { name: 'Create collection' }).click();
+    await dialog.getByRole('button', { name: 'Create', exact: true }).click();
     await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
     assert.equal(sent.filter((each) => each.startsWith('POST /api/v1/containers')).length, 0, `a container was created: ${sent}`);
     assert.deepEqual(failures, []);

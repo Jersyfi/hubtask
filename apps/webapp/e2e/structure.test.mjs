@@ -307,13 +307,16 @@ test('chromium: the owner - creating a collection offers the presets, and the on
   const dialog = page.locator('dialog[open]');
   // The kinds as cards, one chosen (the navigation concept's *New collection*).
   await kindChoice(dialog, 'List').waitFor({ timeout: 5_000 });
-  for (const name of ['Like its hub', 'List', 'Tasks', 'Project', 'Flow']) {
+  for (const name of ['List', 'Tasks', 'Project', 'Flow', 'Scrum']) {
     assert.equal(await kindChoice(dialog, name).count(), 1, `${name} is not offered`);
   }
-  assert.equal(await kindChoice(dialog, 'Like its hub').getAttribute('aria-pressed'), 'true', 'following the hub is the default');
-  await dialog.getByRole('textbox', { name: 'Collection name' }).fill('Pantry');
+  // None pressed is the hub's own structure, and the dialog says so.
+  assert.equal(await dialog.locator('[data-collection-kinds] [aria-pressed="true"]').count(), 0, 'a kind is chosen before the reader chose one');
+  await dialog.locator('[data-follows-hub]').waitFor();
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Pantry');
   await kindChoice(dialog, 'List').click();
-  await dialog.getByRole('button', { name: 'Create collection' }).click();
+  assert.equal(await kindChoice(dialog, 'List').getAttribute('aria-pressed'), 'true');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
   assert.equal(written[0]?.preset, 'LIST');
   assert.equal(written[0]?.name, 'Pantry');

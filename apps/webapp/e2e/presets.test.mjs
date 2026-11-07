@@ -182,12 +182,12 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
   for (const [name, origin] of [['List', "Hubtask's"], ['Craft order', "The installation's"], ['Weekly shop', "The workspace's"], ['Client project', 'Yours']]) {
     const choice = kindChoice(dialog, name);
     assert.equal(await choice.count(), 1, `${name} is not offered`);
-    const described = await choice.evaluate((button) => button.closest('[data-collection-kind]')?.textContent ?? '');
+    const described = await choice.evaluate((button) => button.textContent ?? '');
     assert.ok(described.includes(origin), `${name} is marked ${JSON.stringify(described)}, not ${origin}`);
   }
-  await dialog.getByRole('textbox', { name: 'Collection name' }).fill('Acme');
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Acme');
   await kindChoice(dialog, 'Client project').click();
-  await dialog.getByRole('button', { name: 'Create collection' }).click();
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
   const created = written.find((write) => write.path === '/containers');
   assert.equal(created?.body.preset_id, CLIENT.id);

@@ -750,7 +750,7 @@
     type={creating.type}
     parentId={creating.parentId}
     isPrivateOnly={creating.isPrivateOnly}
-    oncreated={(id) => onnavigate(creating?.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`)}
+    oncreated={(id, landing) => onnavigate(creating?.type === 'HUB' ? `/hubs/${id}` : (landing ?? `/collections/${id}`))}
   />
 {/if}
 

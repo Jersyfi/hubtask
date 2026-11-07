@@ -273,7 +273,7 @@ test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub ha
   const card = dialog.locator('[data-collection-kind="desk"]');
   assert.ok((await card.textContent()).includes('Requests through the portal'), 'the desk card says what it is for');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-newcoll.png` });
-  await dialog.getByRole('textbox', { name: 'Collection name' }).fill('Help');
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Help');
   await kindChoice(dialog, 'Desk').click();
   await dialog.locator('[data-create-container]').click();
   await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 10_000 });
@@ -301,5 +301,34 @@ test('UC-WRK-36 check 18: without a portal type in the hub the Desk kind says wh
   await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
   assert.ok((await dialog.locator('[data-collection-kind="desk"]').textContent()).includes('Needs a portal type in the hub'));
   assert.equal(await kindChoice(dialog, 'Desk').getAttribute('aria-disabled'), 'true', 'a desk without a portal type can be chosen');
+  assert.deepEqual(failures, []);
+});
+
+test('a new collection of the kind Scrum starts from Project and opens on its sprint view', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const MADE = { id: id(231), type: 'COLLECTION', parent_id: PD.id, name: 'Platform', order_key: 'a9', version: 1 };
+  const making = async (route, request, url) => {
+    const path = url.pathname;
+    if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS }).then(() => true);
+    if (path.endsWith('/api/v1/containers') && request.method() === 'POST') {
+      written.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: MADE }).then(() => true);
+    }
+    return extra(route, request, url);
+  };
+  const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { extra: making });
+  t.after(close);
+  await newInHead(page).first().click({ timeout: 15_000 });
+  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.getByRole('heading', { name: `New collection in ${PD.name}` }).waitFor({ timeout: 10_000 });
+  await kindChoice(dialog, 'Scrum').waitFor({ timeout: 10_000 });
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Platform');
+  await kindChoice(dialog, 'Scrum').click();
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+  await at(page, `/collections/${MADE.id}/sprint`);
+  assert.equal(written[0]?.preset, 'PROJECT', 'Scrum starts from Project');
   assert.deepEqual(failures, []);
 });

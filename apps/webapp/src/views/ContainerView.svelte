@@ -1698,7 +1698,7 @@
     bind:isOpen={isCreatingCollection}
     type="COLLECTION"
     parentId={container.id}
-    oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
+    oncreated={(collectionId, landing) => onnavigate(landing ?? `/collections/${collectionId}`)}
   />
 {/if}
 

@@ -138,12 +138,12 @@ test('chromium: inside a hub, ＋ on Collections makes a collection in that hub,
   await make.click();
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
-  assert.equal(await dialog.getByRole('heading', { name: 'Create collection' }).count(), 1, 'the dialog does not make a collection');
+  assert.equal(await dialog.getByRole('heading', { name: `New collection in ${HUB.name}` }).count(), 1, 'the dialog does not make a collection');
   // The kinds as cards (the navigation concept's *New collection*).
   await dialog.locator('[data-collection-kind]').first().waitFor({ timeout: 10_000 });
   assert.ok((await dialog.locator('[data-collection-kind]').count()) > 0, 'the dialog offers no preset');
   await dialog.getByRole('textbox').first().fill('Groceries');
-  await dialog.getByRole('button', { name: 'Create collection' }).click();
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].type, 'COLLECTION', `the body was ${JSON.stringify(sent[0])}`);
