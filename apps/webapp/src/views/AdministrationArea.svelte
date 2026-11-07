@@ -14,6 +14,7 @@
   import MachinesView from './MachinesView.svelte';
   import MailView from './MailView.svelte';
   import ModulesView from './ModulesView.svelte';
+  import GroupView from './GroupView.svelte';
   import PeopleView from './PeopleView.svelte';
   import PersonView from './PersonView.svelte';
   import PresetsView from './PresetsView.svelte';
@@ -21,6 +22,7 @@
   import PrivateHubsView from './PrivateHubsView.svelte';
   import QuotasView from './QuotasView.svelte';
   import RestoreView from './RestoreView.svelte';
+  import RoleView from './RoleView.svelte';
   import RetentionView from './RetentionView.svelte';
   import RunsView from './RunsView.svelte';
   import SignInSettingsView from './SignInSettingsView.svelte';
@@ -59,6 +61,14 @@
 {:else if route.name === 'person'}
   {#key route.params.id}
     <PersonView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'group'}
+  {#key route.params.id}
+    <GroupView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
+  {/key}
+{:else if route.name === 'role'}
+  {#key route.params.id}
+    <RoleView id={route.params.id ?? ''} onnavigate={(path) => onnavigate(path)} />
   {/key}
 {:else if route.name === 'machines'}
   <MachinesView tab={route.query['tab']} onnavigate={(path) => onreplace(path)} />

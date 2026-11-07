@@ -230,6 +230,8 @@ async function views() {
     ['presets', await load('PresetsView'), {}],
     ['people', await load('PeopleView'), {}],
     ['person', await load('PersonView'), { id: '01a0e2e0-0000-7000-8000-0000000000a1', onnavigate: noop }],
+    ['group', await load('GroupView'), { id: '01a0e2e0-0000-7000-8000-0000000000b1', onnavigate: noop }],
+    ['role', await load('RoleView'), { id: 'ADMIN', onnavigate: noop }],
     ['machines', await load('MachinesView'), {}],
     ['rules', await load('RulesView'), {}],
     ['rule-new', await load('RuleEditorView'), { id: 'new', onnavigate: noop }],
@@ -351,7 +353,7 @@ test('the route table and this test name the same screens', async () => {
     .filter((name) => movedTo(name) === undefined)
     // The record pages and sections the page-system concept gives an address before their screens
     // land (page-system §13 step 4); each leaves this list with its view.
-    .filter((name) => !['group', 'role', 'service-account', 'app', 'sign-in-section', 'sign-in-provider'].includes(name))
+    .filter((name) => !['service-account', 'app', 'sign-in-section', 'sign-in-provider'].includes(name))
     .sort();
   assert.deepEqual(named, routed);
 });
