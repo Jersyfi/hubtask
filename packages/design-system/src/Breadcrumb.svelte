@@ -139,7 +139,8 @@
 
   .link:hover { color: var(--text-primary); text-decoration: underline; }
 
-  .current { color: var(--text-primary); font-weight: var(--fw-medium); }
+  /* The place itself reads as quietly as the levels above it; the title under the trail names it. */
+  .current { color: var(--text-secondary); }
 
   .ellipsis {
     display: inline-flex;

@@ -88,9 +88,10 @@
      */
     onmenu?: (menu: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string } | undefined) => void;
     /**
-     * What counts in this place, drawn under the title beside the description: a line of text, a
-     * bar, a row of marks. The caller's drawing; the head gives it its place, so that a figure
-     * arriving later moves neither the title nor the actions.
+     * What counts in this place, drawn on the title's line after the title and its end (under the
+     * title only where the bar carries it): a line of text, a bar, a row of marks. The caller's
+     * drawing; the head gives it its place, so that a figure arriving later moves neither the
+     * title nor the actions.
      */
     figure?: Snippet;
     /**
@@ -294,17 +295,20 @@
     <div class="titles">
       {#if isTitleInBar}
         <VisuallyHidden as="h1">{title}</VisuallyHidden>
-      {:else if mark || titleEnd}
+      {:else if mark || titleEnd || figure}
+        <!-- The figure stands on the title's line, after the star, and wraps under it when the
+             line is full. -->
         <div class="title-line">
           {#if mark}<span class="title-mark" aria-hidden="true">{@render mark()}</span>{/if}
           <h1 class="title">{title}</h1>
           {#if titleEnd}<span class="title-end">{@render titleEnd()}</span>{/if}
+          {#if figure}<div class="head-figure">{@render figure()}</div>{/if}
         </div>
       {:else}
         <h1 class="title">{title}</h1>
       {/if}
       {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
-      {#if figure}<div class="head-figure">{@render figure()}</div>{/if}
+      {#if figure && isTitleInBar}<div class="head-figure">{@render figure()}</div>{/if}
     </div>
     {#if !actionsOnTrail}{@render actionBar()}{/if}
   </div>
@@ -339,6 +343,8 @@
     align-items: center;
     gap: var(--sp-200);
     min-width: 0;
+    /* The trail sits close above the title, closer than the head's own rows. */
+    margin-block-end: calc(var(--sp-050) + var(--sp-025) - var(--sp-150));
   }
 
   .top .trail { flex: 1; min-width: 0; }
@@ -366,8 +372,9 @@
 
   .title-line {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--sp-100);
+    gap: var(--sp-050) var(--sp-100);
     min-width: 0;
   }
 
@@ -442,6 +449,8 @@
   .aside { display: inline-flex; align-items: center; gap: var(--sp-100); }
 
   .notices { display: flex; flex-direction: column; gap: var(--sp-100); }
+  /* A notices snippet that says nothing today takes no row, nor the gap before one. */
+  .notices:not(:has(*)) { display: none; }
 
   .views { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
 
