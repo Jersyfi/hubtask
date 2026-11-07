@@ -475,7 +475,7 @@
     cursor: text;
   }
   .name:focus-within { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
-  .name[data-invalid] { border-color: var(--text-danger); }
+  .name[data-invalid] { border-color: var(--status-danger-border); background: var(--status-danger-surface); }
   .name-label { flex: none; color: var(--text-secondary); }
   .name input {
     flex: 1;
