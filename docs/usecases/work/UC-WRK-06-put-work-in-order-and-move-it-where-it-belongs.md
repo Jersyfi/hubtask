@@ -56,4 +56,6 @@ by kind.
 
 ## Today
 
-* Check 8: met in part — an entry dragged from a list onto a collection of the sidebar in the same hub moves there at once with *Undo*, the collection outlined before the drop (`apps/webapp/e2e/kompassentry.test.mjs`); the way to another hub's collection through the dialog of check 5 and a collection that takes no drop are built (`apps/webapp/src/lib/frame/WorkspaceNav.svelte`) but walked by no test.
+* Check 1: not proven — the rank by drag, by the row's menu and by key is built, but no test in `checked_by` asserts it for an entry; the navigation concept's open points (`docs/backlog/navigation/README.md`).
+* Check 2: not proven — no test in `checked_by` asserts that the order survives a reload and reaches another device; the same open point.
+* Check 3: not proven — *Move inside* and *Move out* with their refusals are built, but no test in `checked_by` asserts them; the same open point.
