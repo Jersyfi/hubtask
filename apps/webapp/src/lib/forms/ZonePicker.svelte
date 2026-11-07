@@ -23,6 +23,9 @@
     /** An empty choice in front - "use the workspace's" - for a setting that may inherit. */
     inheritLabel?: string;
     onchange?: (zone: string) => void;
+    /** The name drawn beside it rather than above it: a setting row's. */
+    isLabelHidden?: boolean;
+    'aria-labelledby'?: string;
     [attribute: `data-${string}`]: string | undefined;
   }
 

@@ -80,6 +80,7 @@ test('the administration area is exactly these screens, by name', () => {
     'webhooks',
     'workflows',
     'workspace-address',
+    'workspace-section',
     'workspace-settings',
   ]);
 });
@@ -200,6 +201,7 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/auth/callback?code=a&state=b').name, 'oidc-callback');
   assert.equal(resolve(ROUTES, '/administration').name, 'administration');
   assert.equal(resolve(ROUTES, '/administration/workspace').name, 'workspace-settings');
+  assert.equal(resolve(ROUTES, '/administration/workspace/new-hubs').name, 'workspace-section');
   assert.equal(resolve(ROUTES, '/administration/quotas').name, 'quotas');
   assert.equal(resolve(ROUTES, '/administration/backup').name, 'backup');
   assert.equal(resolve(ROUTES, '/administration/audit').name, 'audit');

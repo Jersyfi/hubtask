@@ -931,7 +931,7 @@ test('chromium: 1280 px — the workspace screen names the installation\'s defau
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  await page.goto(`${served.origin}/administration/workspace`);
+  await page.goto(`${served.origin}/administration/workspace/language`);
   const weekStart = page.getByLabel('A week starts on', { exact: true });
   await weekStart.waitFor({ timeout: 15_000 });
 

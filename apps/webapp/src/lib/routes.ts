@@ -83,6 +83,8 @@ export const ROUTES: readonly Route[] = [
   // fails rather than quietly shipping in the mobile shell.
   { name: 'administration', pattern: '/administration', area: 'administration' },
   { name: 'workspace-settings', pattern: '/administration/workspace', area: 'administration' },
+  // One section per address (page-system PS-9), as the sign-in screen's.
+  { name: 'workspace-section', pattern: '/administration/workspace/:section', area: 'administration' },
   { name: 'workspace-address', pattern: '/administration/address', area: 'administration' },
   { name: 'presets', pattern: '/administration/presets', area: 'administration' },
   { name: 'people', pattern: '/administration/people', area: 'administration' },

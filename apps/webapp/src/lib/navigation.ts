@@ -283,7 +283,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'how',
     code: 'app.admin.group_how_we_work',
     rows: [
-      { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings', 'workspace-section'] },
       // The main address, and who may change it (UC-INS-19 check 3).
       { id: 'address', icon: 'globe', code: 'app.address.title', path: '/administration/address', routes: ['workspace-address'] },
       { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },

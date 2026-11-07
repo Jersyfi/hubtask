@@ -226,6 +226,7 @@ async function views() {
     ['own-rule', await load('RuleEditorView'), { id: ITEM, isOwn: true, onnavigate: noop }],
     ['own-agents', await load('AgentsView'), { base: '/profile/agents', onnavigate: noop }],
     ['workspace-settings', await load('WorkspaceSettingsView'), {}],
+    ['workspace-section', await load('WorkspaceSettingsView'), { section: 'new-hubs' }],
     ['workspace-address', await load('WorkspaceAddressView'), {}],
     ['presets', await load('PresetsView'), {}],
     ['people', await load('PeopleView'), {}],

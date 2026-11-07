@@ -53,8 +53,10 @@
 
 {#if route.name === 'administration'}
   <AdministrationOverviewView onnavigate={(path) => onnavigate(path)} />
-{:else if route.name === 'workspace-settings'}
-  <WorkspaceSettingsView />
+{:else if route.name === 'workspace-settings' || route.name === 'workspace-section'}
+  <WorkspaceSettingsView section={route.params.section} onreplace={(path) => onreplace(path)} />
+  <!-- One branch for the list and its sections: a move between sections keeps the screen and
+       what another section holds unsaved. -->
 {:else if route.name === 'workspace-address'}
   <WorkspaceAddressView />
 {:else if route.name === 'presets'}

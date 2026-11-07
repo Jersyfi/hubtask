@@ -5,7 +5,7 @@
   // somebody who manages its members. Locked by the installation or the plan, it is shown and not
   // switched.
 
-  import { Switch } from '@hubtask/design-system/components';
+  import { SettingRow, Switch } from '@hubtask/design-system/components';
   import type { PublicLinksPolicy } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -33,11 +33,16 @@
 
 {#if administers && held}
   <div data-public-forms>
-    <Switch
-      label={t('app.admin.public_forms')}
-      hint={t('app.admin.public_forms_hint')}
-      disabledReason={held.locked_by ? t('app.admin.public_forms_locked') : undefined}
-      bind:checked={() => held.allowed === true, (on) => void set(on)}
-    />
+    <SettingRow label={t('app.admin.public_forms')} help={t('app.admin.public_forms_hint')} fieldWidth="sm">
+      {#snippet control(nameId)}
+        <Switch
+          label={t('app.admin.public_forms')}
+          isLabelHidden
+          aria-labelledby={nameId}
+          disabledReason={held.locked_by ? t('app.admin.public_forms_locked') : undefined}
+          bind:checked={() => held.allowed === true, (on) => void set(on)}
+        />
+      {/snippet}
+    </SettingRow>
   </div>
 {/if}
